@@ -17,6 +17,7 @@ import {
 	sendInviteForExistingUser,
 	sendInviteForNewUser,
 } from "~/utils/emailUtil";
+import { CountryRepository } from "~/db/queries/countriesRepository";
 
 export class AccessManagementServiceError extends Error {
 	status: number;
@@ -109,7 +110,14 @@ export const AccessManagementService = {
 		const countryAccount = await CountryAccountsRepository.getById(
 			data.countryAccountsId,
 		);
-		const countryAccountType = countryAccount?.type || "[null]";
+		if (!countryAccount) {
+			throw new AccessManagementServiceError(
+				`Country account not found with id: ${data.countryAccountsId}`,
+				{ status: 404 },
+			);
+		}
+		const country = await CountryRepository.getById(countryAccount.countryId);
+		const countryAccountType = countryAccount.type;
 		const expirationTime = addHours(new Date(), 14 * 24);
 
 		await dr.transaction(async (tx) => {
@@ -143,7 +151,7 @@ export const AccessManagementService = {
 					user,
 					data.countrySettings.websiteName,
 					role,
-					data.countrySettings.countryName,
+					country.name,
 					countryAccountType,
 					inviteCode,
 				);
@@ -185,7 +193,7 @@ export const AccessManagementService = {
 						user,
 						data.countrySettings.websiteName,
 						role,
-						data.countrySettings.countryName,
+						country.name,
 						countryAccountType,
 						existingInviteCode,
 					);
@@ -195,7 +203,7 @@ export const AccessManagementService = {
 						user,
 						data.countrySettings.websiteName,
 						role,
-						data.countrySettings.countryName,
+						country.name,
 						countryAccountType,
 					);
 				}
@@ -224,7 +232,7 @@ export const AccessManagementService = {
 				user,
 				data.countrySettings.websiteName,
 				role,
-				data.countrySettings.countryName,
+				country.name,
 				countryAccountType,
 				existingInviteCode,
 			);
