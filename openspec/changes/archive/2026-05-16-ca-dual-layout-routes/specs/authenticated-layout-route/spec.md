@@ -45,19 +45,37 @@ additional wrapper elements, headings, or navigation chrome. Global chrome is re
 - **THEN** the rendered output MUST include an `<Outlet />` and MUST NOT include any
   `<header>`, `<nav>`, or `<footer>` elements added by this component
 
-### Requirement: Migrated authenticated routes no longer duplicate auth logic
+### Requirement: Migrated authenticated routes remove the authLoaderWithPerm wrapper
 
-Routes migrated under `_authenticated.tsx` (settings/system, and others in future migrations)
-MUST remove their own `authLoaderWithPerm` wrapper. Authentication MUST be guaranteed by the
-parent layout. Each migrated route's loader SHALL be a plain `async` function that accepts
-`LoaderFunctionArgs` (extended with `userSession`).
+Routes migrated under `_authenticated.tsx` (e.g. `hazardous-event/new`, and others in future
+migrations) MUST remove their own `authLoaderWithPerm` wrapper. Each migrated route's loader
+SHALL be a plain `async` function that accepts standard `LoaderFunctionArgs`.
 
-#### Scenario: Migrated settings/system route loader runs without own auth wrapper
+React Router v7 runs all matched route loaders concurrently (`Promise.all`). The parent layout
+loader does NOT complete before the child loader starts, and does NOT inject `userSession` into
+child `LoaderFunctionArgs`. Therefore:
 
-- **WHEN** an authenticated request reaches `settings+/system` after migration
-- **THEN** the `system.tsx` loader MUST execute without calling `authLoaderWithPerm` itself
-- **AND** the `userSession` MUST be available to the loader via the `LoaderFunctionArgs`
-  passed down from the parent layout
+- Routes with **no permission check** may rely on the layout's redirect for unauthenticated
+  requests; their loaders need not call `requireUser` themselves.
+- Routes with **a permission check** MUST call `await requireUser(...)` at the top of their own
+  loader before the permission check. Without it, an unauthenticated request bypasses the layout
+  redirect, reaches the permission check, and receives a 403 instead of the expected login
+  redirect.
+
+`userSession` is available to the **component tree** of migrated routes via
+`useRouteLoaderData("routes/$lang+/_authenticated")` — not via loader args.
+
+#### Scenario: Migrated route with permission check calls requireUser explicitly
+
+- **WHEN** an unauthenticated request reaches a migrated route that performs a permission check
+- **THEN** the route's own loader MUST call `requireUser` before the permission check
+- **AND** the request MUST be redirected to `/:lang/user/login` (not return a 403)
+
+#### Scenario: Migrated route loader runs without authLoaderWithPerm wrapper
+
+- **WHEN** an authenticated request reaches a migrated route
+- **THEN** the loader MUST execute without wrapping itself in `authLoaderWithPerm`
+- **AND** the loader MUST perform its own permission and instance checks explicitly
 
 ### Requirement: Non-migrated routes are unaffected
 
