@@ -32,6 +32,14 @@ doing so. Create as many test files under `tests/` as the change needs.
 - Before deviating: state (1) what `design.md` specifies, (2) what you propose instead,
   (3) why. Do not proceed until the user approves the deviation in writing.
 
+**Artifact drift — update all affected artifacts immediately when a deviation is confirmed:**
+`proposal.md` and `specs/` are living documents. When a decision in `design.md` overrides
+something stated in either (different files, different helper, scope changed, route excluded,
+scenario no longer accurate), update those artifacts at that point — not deferred to archive
+time. The test: if a reviewer read only `proposal.md` or a spec scenario, would it contradict
+`design.md`? If yes, fix it now. Both artifacts must stay internally consistent throughout the
+change — not just at archival.
+
 **When in doubt — stop and ask.** Pausing costs seconds; an unrecoverable action costs far more.
 
 ---
@@ -59,6 +67,24 @@ confirmed to fail for the right reason.
 - Do not add behaviour not covered by the tests
 - Do not optimise prematurely — correctness first
 - After each implementation step: `yarn vitest run tests/path/to/file.test.ts`
+
+## Test tier check (after Green, before Refactor loop)
+
+Before entering the Refactor loop, assess whether the change requires Playwright E2E tests
+in addition to Vitest tests. Use this decision table:
+
+| The change touches…                                             | Playwright required? |
+|-----------------------------------------------------------------|----------------------|
+| Pure functions, utilities, domain logic                         | No                   |
+| Database queries, model or handler functions                    | No                   |
+| Route loaders / actions tested in isolation                     | No                   |
+| Routing, auth, session, middleware, or multi-loader interaction | **Yes**              |
+| Any behaviour only verifiable via a real HTTP request/response  | **Yes**              |
+
+If Playwright is required: invoke the `test-writer` agent to write E2E specs under
+`tests/e2e/` before entering the Refactor loop. Vitest + vi.mock tests cannot detect
+parallel loader execution issues, injected-args patterns, redirect chain behaviour, or
+any failure that only manifests when the full server handles a real request.
 
 ## Refactor loop
 
@@ -92,10 +118,14 @@ summary here — the skill is the authoritative source.
 
 **Project conventions:** See `.github/copilot-instructions.md`. Critical: `countryAccountsId`
 on every tenant query, `authLoaderWithPerm` on every loader, `yarn dbsync` for migrations,
-new tests under `tests/` using Vitest.
+new tests under `tests/` — Vitest for unit/integration, Playwright for routing/auth/
+request-lifecycle changes (see test tier check above).
 
 ## Done criteria
 
 All seven gates pass, `yarn test:run2` (full PGlite suite) shows no regressions, and
 `opsx:archive` has been run to move the change artifacts to `openspec/changes/archive/`.
 Archive on the same branch as a final commit before raising the PR — no separate branch needed.
+
+If the test tier check required Playwright: `yarn playwright test tests/e2e/<affected-spec>`
+passes with no regressions before archiving.
