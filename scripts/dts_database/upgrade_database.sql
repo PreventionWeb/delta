@@ -1,4 +1,3 @@
-BEGIN;
 \encoding UTF8
 SHOW client_encoding;
 
@@ -42,5 +41,11 @@ SELECT (version_no='0.2.1') AS is_version_0_2_1 FROM dts_system_info LIMIT 1 \gs
     \ir upgrade_from_0.2.1_to_0.2.2.sql
 \endif
 
-
-COMMIT;
+-- ================================
+-- Upgrade 0.2.2 -> 0.2.3
+-- ================================
+SELECT (version_no='0.2.2') AS is_version_0_2_2 FROM dts_system_info LIMIT 1 \gset
+\if :is_version_0_2_2
+    \echo Upgrading from 0.2.2 to 0.2.3...
+    \ir upgrade_from_0.2.2_to_0.2.3.sql
+\endif

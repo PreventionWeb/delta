@@ -216,8 +216,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for branch naming, commit style, and PR c
 
 DELTA Resilience is built with and supported by the following open-source and OSS-sponsored tools:
 
-| Tool | Area | Notes |
-|------|------|-------|
-| [CodeRabbit](https://coderabbit.ai) | Code review | AI-assisted PR reviews, free for open-source projects |
-| [GitHub](https://github.com/open-source) | Source control & CI/CD | Source control, Actions, and GHCR free for public repositories |
-| [BrowserStack](https://www.browserstack.com/open-source) | Cross-browser testing | Cross-browser testing via open-source sponsorship |
+| Tool                                                     | Area                                     | Notes                                                          |
+| -------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------- |
+| [CodeRabbit](https://coderabbit.ai)                      | Code review                              | AI-assisted PR reviews, free for open-source projects          |
+| [GitHub](https://github.com/open-source)                 | Source control & CI/CD                   | Source control, Actions, and GHCR free for public repositories |
+| [BrowserStack](https://www.browserstack.com/open-source) | This project is tested with BrowserStack | Cross-browser testing via open-source sponsorship              |

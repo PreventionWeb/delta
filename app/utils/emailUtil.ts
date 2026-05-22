@@ -132,7 +132,7 @@ export async function sendInviteForNewUser(
 			code: "user_invite.new_email_html",
 			msg: [
 				"<p>You have been invited to join the DELTA Resilience {siteName} system as ",
-				"a/an {role} user for the country {countryName} {countryAccountType} instance.",
+				"{role} user for the country {countryName} {countryAccountType} instance.",
 				"</p>",
 				"<p> Click on the link below to create your account.</p>",
 				"<p>",
@@ -157,7 +157,7 @@ export async function sendInviteForNewUser(
 			code: "user_invite.new_email_text",
 			msg: [
 				"You have been invited to join the DELTA Resilience {siteName} system as ",
-				"a/an {role} user for the country {countryName} {countryAccountType} instance.",
+				"{role} user for the country {countryName} {countryAccountType} instance.",
 				"Copy and paste the following link into your browser url to create your account:",
 				"{inviteURL}",
 			],
@@ -195,12 +195,12 @@ export async function sendInviteForExistingUser(
 			code: "user_invite.existing_email_html",
 			msg: [
 				"<p>You have been invited to join the DELTA Resilience {siteName} system as ",
-				"a/an {role} user for the country {countryName} {countryAccountType} instance.",
+				"{role} user for the country {countryName} {countryAccountType} instance.",
 				"</p>",
 				"<p> Click on the link below to login to your account.</p>",
 				"<p>",
 				'<a href="{rootUrl}" style="display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;">',
-				"Login in",
+				"Login",
 				"</a>",
 				"</p>",
 				'<p> <a href="{rootUrl}"> {rootUrl} </a></p>',
@@ -220,7 +220,7 @@ export async function sendInviteForExistingUser(
 			code: "user_invite.existing_email_text",
 			msg: [
 				"You have been invited to join the DELTA Resilience {siteName} system as ",
-				"a/an {role} user for the country {countryName} {countryAccountType} instance.",
+				"{role} user for the country {countryName} {countryAccountType} instance.",
 				"Copy and paste the following link into your browser url to login to your account:",
 				"{rootUrl}",
 			],

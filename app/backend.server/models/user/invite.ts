@@ -1,4 +1,4 @@
-import { dr, Tx } from "~/db.server";
+import { dr } from "~/db.server";
 import { eq } from "drizzle-orm";
 
 import { userTable, SelectUser } from "~/drizzle/schema";
@@ -6,9 +6,6 @@ import { userTable, SelectUser } from "~/drizzle/schema";
 import { Errors, hasErrors } from "~/frontend/form";
 
 import { sendEmail } from "~/utils/email";
-import { addHours } from "~/utils/time";
-
-import { randomBytes } from "crypto";
 
 import { validateName, validatePassword } from "./user_utils";
 import { passwordHash } from "../../../utils/passwordUtil";
@@ -23,153 +20,6 @@ export interface AdminInviteUserFields {
 	role: string;
 }
 
-export async function sendInviteForNewUser(
-	ctx: BackendContext,
-	user: SelectUser,
-	siteName: string,
-	role: string,
-	countryName: string,
-	countryAccountType: string,
-	tx?: Tx,
-) {
-	// console.debug("current invite code = ", user.inviteCode);
-	// we want to keep same invite code if it already is there
-	const EXPIRATION_DAYS = 14;
-	const inviteCode = user.inviteCode?.trim()
-		? user.inviteCode
-		: randomBytes(32).toString("hex");
-	const expirationTime = addHours(new Date(), EXPIRATION_DAYS * 24);
-
-	const db = tx || dr;
-	await db
-		.update(userTable)
-		.set({
-			inviteSentAt: new Date(),
-			inviteCode: inviteCode,
-			inviteExpiresAt: expirationTime,
-		})
-		.where(eq(userTable.id, user.id));
-
-	const inviteURL = ctx.fullUrl(
-		"/user/accept-invite-welcome?inviteCode=" + inviteCode,
-	);
-	const subject = ctx.t(
-		{
-			code: "user_invite.new_email_subject",
-			msg: "Invitation to join DELTA Resilience {siteName}",
-		},
-		{ siteName: siteName },
-	);
-
-	const html = ctx.t(
-		{
-			code: "user_invite.new_email_html",
-			msg: [
-				"<p>You have been invited to join the DELTA Resilience {siteName} system as ",
-				"a/an {role} user for the country {countryName} {countryAccountType} instance.",
-				"</p>",
-				"<p> Click on the link below to create your account.</p>",
-				"<p>",
-				'<a href="{inviteURL}" style="display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;">',
-				"Set up account",
-				"</a>",
-				"</p>",
-				'<p> <a href="{inviteURL}"> {inviteURL} </a></p>',
-			],
-		},
-		{
-			siteName: siteName,
-			role: role,
-			countryName: countryName,
-			countryAccountType: countryAccountType,
-			inviteURL: inviteURL,
-		},
-	);
-
-	const text = ctx.t(
-		{
-			code: "user_invite.new_email_text",
-			msg: [
-				"You have been invited to join the DELTA Resilience {siteName} system as ",
-				"a/an {role} user for the country {countryName} {countryAccountType} instance.",
-				"Copy and paste the following link into your browser url to create your account:",
-				"{inviteURL}",
-			],
-		},
-		{
-			siteName: siteName,
-			role: role,
-			countryName: countryName,
-			countryAccountType: countryAccountType,
-			inviteURL: inviteURL,
-		},
-	);
-
-	await sendEmail(user.email, subject, text, html);
-}
-
-export async function sendInviteForExistingUser(
-	ctx: BackendContext,
-	user: SelectUser,
-	siteName: string,
-	role: string,
-	countryName: string,
-	countryAccountType: string,
-) {
-	const subject = ctx.t(
-		{
-			code: "user_invite.new_email_subject",
-			msg: "Invitation to join DELTA Resilience {siteName}",
-		},
-		{ siteName: siteName },
-	);
-	const rootUrl = ctx.rootUrl();
-	const html = ctx.t(
-		{
-			code: "user_invite.existing_email_html",
-			msg: [
-				"<p>You have been invited to join the DELTA Resilience {siteName} system as ",
-				"a/an {role} user for the country {countryName} {countryAccountType} instance.",
-				"</p>",
-				"<p> Click on the link below to login to your account.</p>",
-				"<p>",
-				'<a href="{rootUrl}" style="display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;">',
-				"Login in",
-				"</a>",
-				"</p>",
-				'<p> <a href="{rootUrl}"> {rootUrl} </a></p>',
-			],
-		},
-		{
-			siteName: siteName,
-			role: role,
-			countryName: countryName,
-			countryAccountType: countryAccountType,
-			rootUrl: rootUrl,
-		},
-	);
-
-	const text = ctx.t(
-		{
-			code: "user_invite.existing_email_text",
-			msg: [
-				"You have been invited to join the DELTA Resilience {siteName} system as ",
-				"a/an {role} user for the country {countryName} {countryAccountType} instance.",
-				"Copy and paste the following link into your browser url to login to your account:",
-				"{rootUrl}",
-			],
-		},
-		{
-			siteName: siteName,
-			role: role,
-			countryName: countryName,
-			countryAccountType: countryAccountType,
-			rootUrl: rootUrl,
-		},
-	);
-
-	await sendEmail(user.email, subject, text, html);
-}
 export async function sendInviteForNewCountryAccountAdminUser(
 	ctx: BackendContext,
 	user: SelectUser,
@@ -179,11 +29,6 @@ export async function sendInviteForNewCountryAccountAdminUser(
 	countryAccountType: string,
 	inviteCode: string,
 ) {
-	console.log(
-		"in  sendInviteForNewCountryAccountAdminUser",
-		role,
-		countryAccountType,
-	);
 	const inviteURL = ctx.fullUrl(
 		"/user/accept-invite-welcome?inviteCode=" + inviteCode,
 	);
@@ -200,7 +45,7 @@ export async function sendInviteForNewCountryAccountAdminUser(
 			code: "user_invite.admin_email_html",
 			msg: [
 				"<p>You have been invited to join the DELTA Resilience {siteName} system as ",
-				"a/an {role} user for the country {countryName} {countryAccountType} instance.",
+				"{role} user for the country {countryName} {countryAccountType} instance.",
 				"</p>",
 				"<p> Click on the link below to create your account.</p>",
 				"<p>",
@@ -225,7 +70,7 @@ export async function sendInviteForNewCountryAccountAdminUser(
 			code: "user_invite.admin_email_text",
 			msg: [
 				"You have been invited to join the DELTA Resilience {siteName} system as ",
-				"a/an {role} user for the country {countryName} {countryAccountType} instance.",
+				"{role} user for the country {countryName} {countryAccountType} instance.",
 				"Copy and paste the following link into your browser url to create your account:",
 				"{inviteURL}",
 			],
@@ -265,12 +110,12 @@ export async function sendInviteForExistingCountryAccountAdminUser(
 			code: "user_invite.existing_email_html",
 			msg: [
 				"<p>You have been invited to join the DELTA Resilience {siteName} system as ",
-				"a/an {role} user for the country {countryName} {countryAccountType} instance.",
+				"{role} user for the country {countryName} {countryAccountType} instance.",
 				"</p>",
 				"<p> Click on the link below to login to your account.</p>",
 				"<p>",
 				'<a href="{rootUrl}" style="display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;">',
-				"Login in",
+				"Login",
 				"</a>",
 				"</p>",
 				'<p> <a href="{rootUrl}"> {rootUrl} </a></p>',
@@ -290,7 +135,7 @@ export async function sendInviteForExistingCountryAccountAdminUser(
 			code: "user_invite.existing_email_text",
 			msg: [
 				"You have been invited to join the DELTA Resilience {siteName} system as ",
-				"a/an {role} user for the country {countryName} {countryAccountType} instance.",
+				"{role} user for the country {countryName} {countryAccountType} instance.",
 				"Copy and paste the following link into your browser url to login to your account:",
 				"{rootUrl}",
 			],

@@ -5990,27 +5990,27 @@
 	},
 	{
 		"id": "user_invite.admin_email_html",
-		"translation": "\u003cp\u003eYou have been invited to join the DELTA Resilience {siteName} system as \na/an {role} user for the country {countryName} {countryAccountType} instance.\n\u003c/p\u003e\n\u003cp\u003e Click on the link below to create your account.\u003c/p\u003e\n\u003cp\u003e\n\u003ca href=\"{inviteURL}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\"\u003e\nSet up account\n\u003c/a\u003e\n\u003c/p\u003e\n\u003cp\u003e \u003ca href=\"{inviteURL}\"\u003e {inviteURL} \u003c/a\u003e\u003c/p\u003e",
+		"translation": "\u003cp\u003eYou have been invited to join the DELTA Resilience {siteName} system as \n {role} user for the country {countryName} {countryAccountType} instance.\n\u003c/p\u003e\n\u003cp\u003e Click on the link below to create your account.\u003c/p\u003e\n\u003cp\u003e\n\u003ca href=\"{inviteURL}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\"\u003e\nSet up account\n\u003c/a\u003e\n\u003c/p\u003e\n\u003cp\u003e \u003ca href=\"{inviteURL}\"\u003e {inviteURL} \u003c/a\u003e\u003c/p\u003e",
 		"description": "File: app/backend.server/models/user/invite.ts:198"
 	},
 	{
 		"id": "user_invite.admin_email_text",
-		"translation": "You have been invited to join the DELTA Resilience {siteName} system as \na/an {role} user for the country {countryName} {countryAccountType} instance.\nCopy and paste the following link into your browser url to create your account:\n{inviteURL}",
+		"translation": "You have been invited to join the DELTA Resilience {siteName} system as \n {role} user for the country {countryName} {countryAccountType} instance.\nCopy and paste the following link into your browser url to create your account:\n{inviteURL}",
 		"description": "File: app/backend.server/models/user/invite.ts:223"
 	},
 	{
 		"id": "user_invite.existing_email_html",
-		"translation": "\u003cp\u003eYou have been invited to join the DELTA Resilience {siteName} system as \na/an {role} user for the country {countryName} {countryAccountType} instance.\n\u003c/p\u003e\n\u003cp\u003e Click on the link below to login to your account.\u003c/p\u003e\n\u003cp\u003e\n\u003ca href=\"{rootUrl}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\"\u003e\nLogin in\n\u003c/a\u003e\n\u003c/p\u003e\n\u003cp\u003e \u003ca href=\"{rootUrl}\"\u003e {rootUrl} \u003c/a\u003e\u003c/p\u003e",
+		"translation": "\u003cp\u003eYou have been invited to join the DELTA Resilience {siteName} system as \n {role} user for the country {countryName} {countryAccountType} instance.\n\u003c/p\u003e\n\u003cp\u003e Click on the link below to login to your account.\u003c/p\u003e\n\u003cp\u003e\n\u003ca href=\"{rootUrl}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\"\u003e\nLogin in\n\u003c/a\u003e\n\u003c/p\u003e\n\u003cp\u003e \u003ca href=\"{rootUrl}\"\u003e {rootUrl} \u003c/a\u003e\u003c/p\u003e",
 		"description": "File: app/utils/emailUtil.ts:193"
 	},
 	{
 		"id": "user_invite.existing_email_text",
-		"translation": "You have been invited to join the DELTA Resilience {siteName} system as \na/an {role} user for the country {countryName} {countryAccountType} instance.\nCopy and paste the following link into your browser url to login to your account:\n{rootUrl}",
+		"translation": "You have been invited to join the DELTA Resilience {siteName} system as \n {role} user for the country {countryName} {countryAccountType} instance.\nCopy and paste the following link into your browser url to login to your account:\n{rootUrl}",
 		"description": "File: app/utils/emailUtil.ts:218"
 	},
 	{
 		"id": "user_invite.new_email_html",
-		"translation": "\u003cp\u003eYou have been invited to join the DELTA Resilience {siteName} system as \na/an {role} user for the country {countryName} {countryAccountType} instance.\n\u003c/p\u003e\n\u003cp\u003e Click on the link below to create your account.\u003c/p\u003e\n\u003cp\u003e\n\u003ca href=\"{inviteURL}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\"\u003e\nSet up account\n\u003c/a\u003e\n\u003c/p\u003e\n\u003cp\u003e \u003ca href=\"{inviteURL}\"\u003e {inviteURL} \u003c/a\u003e\u003c/p\u003e",
+		"translation": "\u003cp\u003eYou have been invited to join the DELTA Resilience {siteName} system as \n {role} user for the country {countryName} {countryAccountType} instance.\n\u003c/p\u003e\n\u003cp\u003e Click on the link below to create your account.\u003c/p\u003e\n\u003cp\u003e\n\u003ca href=\"{inviteURL}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\"\u003e\nSet up account\n\u003c/a\u003e\n\u003c/p\u003e\n\u003cp\u003e \u003ca href=\"{inviteURL}\"\u003e {inviteURL} \u003c/a\u003e\u003c/p\u003e",
 		"description": "File: app/utils/emailUtil.ts:130"
 	},
 	{
@@ -6020,7 +6020,7 @@
 	},
 	{
 		"id": "user_invite.new_email_text",
-		"translation": "You have been invited to join the DELTA Resilience {siteName} system as \na/an {role} user for the country {countryName} {countryAccountType} instance.\nCopy and paste the following link into your browser url to create your account:\n{inviteURL}",
+		"translation": "You have been invited to join the DELTA Resilience {siteName} system as \n {role} user for the country {countryName} {countryAccountType} instance.\nCopy and paste the following link into your browser url to create your account:\n{inviteURL}",
 		"description": "File: app/utils/emailUtil.ts:155"
 	},
 	{
