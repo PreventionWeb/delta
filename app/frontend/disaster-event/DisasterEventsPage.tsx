@@ -1,4 +1,5 @@
 import { Button } from "primereact/button";
+import { Checkbox } from "primereact/checkbox";
 import { Column } from "primereact/column";
 import { DataTable } from "primereact/datatable";
 import { InputText } from "primereact/inputtext";
@@ -19,6 +20,8 @@ type DisasterEventsPageProps = {
     filters?: {
         disasterEventName?: string;
         recordingOrganization?: string;
+        viewMyRecords?: boolean;
+        pendingMyAction?: boolean;
     };
 };
 
@@ -37,11 +40,24 @@ export default function DisasterEventsPage({
     const [recordingOrganizationFilter, setRecordingOrganizationFilter] = useState(
         filters?.recordingOrganization ?? "",
     );
+    const [viewMyRecordsChecked, setViewMyRecordsChecked] = useState(
+        filters?.viewMyRecords ?? false,
+    );
+    const [pendingMyActionChecked, setPendingMyActionChecked] = useState(
+        filters?.pendingMyAction ?? false,
+    );
 
     useEffect(() => {
         setDisasterEventNameFilter(filters?.disasterEventName ?? "");
         setRecordingOrganizationFilter(filters?.recordingOrganization ?? "");
-    }, [filters?.disasterEventName, filters?.recordingOrganization]);
+        setViewMyRecordsChecked(filters?.viewMyRecords ?? false);
+        setPendingMyActionChecked(filters?.pendingMyAction ?? false);
+    }, [
+        filters?.disasterEventName,
+        filters?.recordingOrganization,
+        filters?.viewMyRecords,
+        filters?.pendingMyAction,
+    ]);
 
     const updateFilterParam = (paramName: string, value: string) => {
         const nextSearchParams = new URLSearchParams(searchParams);
@@ -229,6 +245,52 @@ export default function DisasterEventsPage({
                         </div>
 
                     </div>
+
+                    <div className="mt-6 border-t border-slate-200" aria-hidden="true" />
+
+                    <div className="mt-4 flex flex-wrap items-center gap-6">
+                        <div className="flex items-center gap-2">
+                            <Checkbox
+                                inputId="view-my-records-filter"
+                                checked={viewMyRecordsChecked}
+                                onChange={(e) => {
+                                    const isChecked = Boolean(e.checked);
+                                    setViewMyRecordsChecked(isChecked);
+                                    updateFilterParam(
+                                        "viewMyRecords",
+                                        isChecked ? "true" : "",
+                                    );
+                                }}
+                            />
+                            <label
+                                htmlFor="view-my-records-filter"
+                                className="text-sm font-medium text-slate-900"
+                            >
+                                View my records
+                            </label>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <Checkbox
+                                inputId="pending-my-action-filter"
+                                checked={pendingMyActionChecked}
+                                onChange={(e) => {
+                                    const isChecked = Boolean(e.checked);
+                                    setPendingMyActionChecked(isChecked);
+                                    updateFilterParam(
+                                        "pendingMyAction",
+                                        isChecked ? "true" : "",
+                                    );
+                                }}
+                            />
+                            <label
+                                htmlFor="pending-my-action-filter"
+                                className="text-sm font-medium text-slate-900"
+                            >
+                                Pending my action
+                            </label>
+                        </div>
+                    </div>
                 </div>
 
                 <div
@@ -278,6 +340,10 @@ export default function DisasterEventsPage({
                             sortable
                             headerClassName="min-w-[9rem] bg-gray-100 px-2 py-3 text-left font-medium border-b border-gray-200"
                             bodyClassName="min-w-[9rem] px-2 py-3 border-b border-gray-200"
+                            bodyStyle={{ textAlign: 'center' }}
+                            pt={{
+                                headerContent: { style: { justifyContent: 'center' } },
+                            }}
                         />
                         <Column
                             field="nameNational"

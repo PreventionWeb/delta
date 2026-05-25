@@ -2,7 +2,7 @@ import { useLoaderData } from "react-router";
 import { DisasterEventRepository } from "~/db/queries/disasterEventRepository";
 import DisasterEventsPage from "~/frontend/disaster-event/DisasterEventsPage";
 import { authLoaderWithPerm } from "~/utils/auth";
-import { getCountryAccountsIdFromSession } from "~/utils/session";
+import { getCountryAccountsIdFromSession, getUserIdFromSession } from "~/utils/session";
 import { paginationQueryFromURL } from "~/frontend/pagination/api.server";
 import { CountryRepository } from "~/db/queries/countriesRepository";
 import { CountryAccountsRepository } from "~/db/queries/countryAccountsRepository";
@@ -15,6 +15,8 @@ export const loader = authLoaderWithPerm(
 			url.searchParams.get("disasterEventName")?.trim() || "";
 		const recordingOrganization =
 			url.searchParams.get("recordingOrganization")?.trim() || "";
+		const viewMyRecords = url.searchParams.get("viewMyRecords") === "true";
+		const pendingMyAction = url.searchParams.get("pendingMyAction") === "true";
 
 		const countryAccountsId = await getCountryAccountsIdFromSession(request);
 		if (!countryAccountsId) {
@@ -30,18 +32,27 @@ export const loader = authLoaderWithPerm(
 		}
 
 		const { viewData } = paginationQueryFromURL(request, []);
+		const userId = await getUserIdFromSession(request);
 
 		const result = await DisasterEventRepository.getByCountryAccountsIdPaginated(
 			countryAccountsId,
 			viewData.page,
 			viewData.pageSize,
-			{ disasterEventName, recordingOrganization },
+			{
+				disasterEventName,
+				recordingOrganization,
+				createdByUserId: viewMyRecords ? userId : undefined,
+				pendingMyAction:
+					pendingMyAction && userId
+						? { userId }
+						: undefined,
+			},
 		);
 
 		return {
 			...result,
 			countryName: country.name,
-			filters: { disasterEventName, recordingOrganization },
+			filters: { disasterEventName, recordingOrganization, viewMyRecords, pendingMyAction },
 		};
 	},
 );

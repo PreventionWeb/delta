@@ -1,4 +1,4 @@
-import { and, eq, ilike, or } from "drizzle-orm";
+import { and, eq, ilike, or, sql } from "drizzle-orm";
 import { dr, Tx } from "~/db.server";
 import { disasterEventTable, InsertDisasterEvent } from "~/drizzle/schema";
 import { DisasterRecordsRepository } from "~/db/queries/disasterRecordsRepository";
@@ -28,6 +28,8 @@ export const DisasterEventRepository = {
 		filters?: {
 			disasterEventName?: string;
 			recordingOrganization?: string;
+			createdByUserId?: string;
+			pendingMyAction?: { userId: string };
 		},
 		tx?: Tx,
 	) => {
@@ -35,6 +37,8 @@ export const DisasterEventRepository = {
 		const db = tx ?? dr;
 		const disasterEventName = filters?.disasterEventName?.trim();
 		const recordingOrganization = filters?.recordingOrganization?.trim();
+		const createdByUserId = filters?.createdByUserId?.trim();
+		const pendingMyAction = filters?.pendingMyAction;
 
 		const whereClause = and(
 			eq(disasterEventTable.countryAccountsId, countryAccountsId),
@@ -52,6 +56,17 @@ export const DisasterEventRepository = {
 						disasterEventTable.recordingInstitution,
 						`%${recordingOrganization}%`,
 					)
+				: undefined,
+			createdByUserId
+				? eq(disasterEventTable.createdByUserId, createdByUserId)
+				: undefined,
+			pendingMyAction
+				? sql`EXISTS (
+						SELECT 1 FROM entity_validation_assignment
+						WHERE entity_validation_assignment.entity_id = ${disasterEventTable.id}
+						  AND entity_validation_assignment.entity_type = 'disaster_event'
+						  AND entity_validation_assignment.assigned_to_user_id = ${pendingMyAction.userId}
+					)`
 				: undefined,
 		);
 
