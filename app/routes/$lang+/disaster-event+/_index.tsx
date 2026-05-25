@@ -10,6 +10,12 @@ import { CountryAccountsRepository } from "~/db/queries/countryAccountsRepositor
 export const loader = authLoaderWithPerm(
 	"ViewDisasterEvents",
 	async ({ request }) => {
+		const url = new URL(request.url);
+		const disasterEventName =
+			url.searchParams.get("disasterEventName")?.trim() || "";
+		const recordingOrganization =
+			url.searchParams.get("recordingOrganization")?.trim() || "";
+
 		const countryAccountsId = await getCountryAccountsIdFromSession(request);
 		if (!countryAccountsId) {
 			throw new Response("Unauthorized", { status: 401 });
@@ -29,13 +35,25 @@ export const loader = authLoaderWithPerm(
 			countryAccountsId,
 			viewData.page,
 			viewData.pageSize,
+			{ disasterEventName, recordingOrganization },
 		);
 
-		return { ...result, countryName: country.name };
+		return {
+			...result,
+			countryName: country.name,
+			filters: { disasterEventName, recordingOrganization },
+		};
 	},
 );
 
 export default function DisasterEventIndexRoute() {
-	const { items, pagination, countryName } = useLoaderData<typeof loader>();
-	return <DisasterEventsPage data={items} pagination={pagination} countryName={countryName} />;
+	const { items, pagination, countryName, filters } = useLoaderData<typeof loader>();
+	return (
+		<DisasterEventsPage
+			data={items}
+			pagination={pagination}
+			countryName={countryName}
+			filters={filters}
+		/>
+	);
 }

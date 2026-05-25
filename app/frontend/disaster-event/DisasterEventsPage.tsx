@@ -1,7 +1,9 @@
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { DataTable } from "primereact/datatable";
-import { Link } from "react-router";
+import { InputText } from "primereact/inputtext";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router";
 import { ViewContext } from "../context";
 
 
@@ -14,11 +16,44 @@ type DisasterEventsPageProps = {
         pageSize: number;
     };
     countryName?: string;
+    filters?: {
+        disasterEventName?: string;
+        recordingOrganization?: string;
+    };
 };
 
 
-export default function DisasterEventsPage({ data, pagination, countryName }: DisasterEventsPageProps) {
+export default function DisasterEventsPage({
+    data,
+    pagination,
+    countryName,
+    filters,
+}: DisasterEventsPageProps) {
     const ctx = new ViewContext();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [disasterEventNameFilter, setDisasterEventNameFilter] = useState(
+        filters?.disasterEventName ?? "",
+    );
+    const [recordingOrganizationFilter, setRecordingOrganizationFilter] = useState(
+        filters?.recordingOrganization ?? "",
+    );
+
+    useEffect(() => {
+        setDisasterEventNameFilter(filters?.disasterEventName ?? "");
+        setRecordingOrganizationFilter(filters?.recordingOrganization ?? "");
+    }, [filters?.disasterEventName, filters?.recordingOrganization]);
+
+    const updateFilterParam = (paramName: string, value: string) => {
+        const nextSearchParams = new URLSearchParams(searchParams);
+        if (value.trim()) {
+            nextSearchParams.set(paramName, value);
+        } else {
+            nextSearchParams.delete(paramName);
+        }
+        nextSearchParams.delete("page");
+        setSearchParams(nextSearchParams, { replace: true });
+    };
+
     const getStatusCircleClassName = (status: unknown) => {
         const normalizedStatus =
             typeof status === "string"
@@ -118,7 +153,7 @@ export default function DisasterEventsPage({ data, pagination, countryName }: Di
     return (
         <div id="disaster-events-page" className="py-8 px-[272px]">
             <div>
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <p className="mt-1 text-base font-semibold text-slate-900">
                             {pagination?.totalItems} Disaster events in {countryName}
@@ -132,6 +167,68 @@ export default function DisasterEventsPage({ data, pagination, countryName }: Di
                             raised
                         />
                     </Link>
+                </div>
+
+                <div
+                    id="filtersCard"
+                    className="mb-6 min-h-[4rem] rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+                >
+                    <div className="flex flex-wrap items-end gap-4">
+                        <div className="w-full min-w-[16rem] flex-1">
+                            <label
+                                htmlFor="disaster-event-name-filter"
+                                className="mb-2 block text-sm font-medium text-slate-900"
+                            >
+                                Disaster event name
+                            </label>
+                            <div className="relative">
+                                <InputText
+                                    id="disaster-event-name-filter"
+                                    type="text"
+                                    placeholder="Search disaster event name..."
+                                    className="w-full pr-10"
+                                    value={disasterEventNameFilter}
+                                    onChange={(e) => {
+                                        const nextValue = e.target.value;
+                                        setDisasterEventNameFilter(nextValue);
+                                        updateFilterParam("disasterEventName", nextValue);
+                                    }}
+                                />
+                                <i
+                                    className="pi pi-search pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
+                                    aria-hidden="true"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="w-full min-w-[16rem] flex-1">
+                            <label
+                                htmlFor="recording-organization-filter"
+                                className="mb-2 block text-sm font-medium text-slate-900"
+                            >
+                                Recording organization
+                            </label>
+                            <div className="relative">
+                                <InputText
+                                    id="recording-organization-filter"
+                                    type="text"
+                                    placeholder="Search organization"
+                                    className="w-full pr-10"
+                                    value={recordingOrganizationFilter}
+                                    onChange={(e) => {
+                                        const nextValue = e.target.value;
+                                        setRecordingOrganizationFilter(nextValue);
+                                        updateFilterParam("recordingOrganization", nextValue);
+                                    }}
+                                />
+                                <i
+                                    className="pi pi-search pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
+                                    aria-hidden="true"
+                                />
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
 
                 <div

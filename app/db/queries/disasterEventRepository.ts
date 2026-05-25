@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, ilike, or } from "drizzle-orm";
 import { dr, Tx } from "~/db.server";
 import { disasterEventTable, InsertDisasterEvent } from "~/drizzle/schema";
 import { DisasterRecordsRepository } from "~/db/queries/disasterRecordsRepository";
@@ -25,20 +25,42 @@ export const DisasterEventRepository = {
 		countryAccountsId: string,
 		page?: number,
 		pageSize?: number,
+		filters?: {
+			disasterEventName?: string;
+			recordingOrganization?: string;
+		},
 		tx?: Tx,
 	) => {
 		const offset = page ? (page - 1) * (pageSize || 25) : undefined;
 		const db = tx ?? dr;
+		const disasterEventName = filters?.disasterEventName?.trim();
+		const recordingOrganization = filters?.recordingOrganization?.trim();
+
+		const whereClause = and(
+			eq(disasterEventTable.countryAccountsId, countryAccountsId),
+			disasterEventName
+				? or(
+						ilike(disasterEventTable.nameNational, `%${disasterEventName}%`),
+						ilike(
+							disasterEventTable.nameGlobalOrRegional,
+							`%${disasterEventName}%`,
+						),
+					)
+				: undefined,
+			recordingOrganization
+				? ilike(
+						disasterEventTable.recordingInstitution,
+						`%${recordingOrganization}%`,
+					)
+				: undefined,
+		);
 
 		const [items, countResult] = await Promise.all([
 			db.query.disasterEventTable.findMany({
-				where: eq(disasterEventTable.countryAccountsId, countryAccountsId),
+				where: whereClause,
 				...(offset !== undefined && { limit: pageSize, offset }),
 			}),
-			db.$count(
-				disasterEventTable,
-				eq(disasterEventTable.countryAccountsId, countryAccountsId),
-			),
+			db.$count(disasterEventTable, whereClause),
 		]);
 
 		const linkedRecordsCounts = await Promise.all(
