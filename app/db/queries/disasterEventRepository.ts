@@ -28,6 +28,10 @@ export const DisasterEventRepository = {
 		filters?: {
 			disasterEventName?: string;
 			recordingOrganization?: string;
+			recordStatus?: string;
+			hazardType?: string;
+			hazardCluster?: string;
+			specificHazard?: string;
 			createdByUserId?: string;
 			pendingMyAction?: { userId: string };
 		},
@@ -37,6 +41,10 @@ export const DisasterEventRepository = {
 		const db = tx ?? dr;
 		const disasterEventName = filters?.disasterEventName?.trim();
 		const recordingOrganization = filters?.recordingOrganization?.trim();
+		const recordStatus = filters?.recordStatus?.trim();
+		const hazardType = filters?.hazardType?.trim();
+		const hazardCluster = filters?.hazardCluster?.trim();
+		const specificHazard = filters?.specificHazard?.trim();
 		const createdByUserId = filters?.createdByUserId?.trim();
 		const pendingMyAction = filters?.pendingMyAction;
 
@@ -56,6 +64,16 @@ export const DisasterEventRepository = {
 						disasterEventTable.recordingInstitution,
 						`%${recordingOrganization}%`,
 					)
+				: undefined,
+			recordStatus
+				? eq(disasterEventTable.approvalStatus, recordStatus as any)
+				: undefined,
+			hazardType ? eq(disasterEventTable.hipTypeId, hazardType) : undefined,
+			hazardCluster
+				? eq(disasterEventTable.hipClusterId, hazardCluster)
+				: undefined,
+			specificHazard
+				? eq(disasterEventTable.hipHazardId, specificHazard)
 				: undefined,
 			createdByUserId
 				? eq(disasterEventTable.createdByUserId, createdByUserId)

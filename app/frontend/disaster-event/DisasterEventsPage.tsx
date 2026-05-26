@@ -1,16 +1,33 @@
 import { Button } from "primereact/button";
+import { Calendar } from "primereact/calendar";
 import { Checkbox } from "primereact/checkbox";
 import { Column } from "primereact/column";
 import { DataTable } from "primereact/datatable";
+import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
 import { Toast } from "primereact/toast";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { ViewContext } from "../context";
 
 
 type DisasterEventsPageProps = {
     data: any[];
+    hipTypes?: Array<{
+        id: string;
+        name: string;
+    }>;
+    hipClusters?: Array<{
+        id: string;
+        typeId: string;
+        name: string;
+    }>;
+    hipHazards?: Array<{
+        id: string;
+        clusterId: string;
+        code: string;
+        name: string;
+    }>;
     pagination?: {
         totalItems: number;
         itemsOnThisPage: number;
@@ -21,6 +38,10 @@ type DisasterEventsPageProps = {
     filters?: {
         disasterEventName?: string;
         recordingOrganization?: string;
+        recordStatus?: string;
+        hazardType?: string;
+        hazardCluster?: string;
+        specificHazard?: string;
         viewMyRecords?: boolean;
         pendingMyAction?: boolean;
     };
@@ -29,6 +50,9 @@ type DisasterEventsPageProps = {
 
 export default function DisasterEventsPage({
     data,
+    hipTypes,
+    hipClusters,
+    hipHazards,
     pagination,
     countryName,
     filters,
@@ -48,15 +72,85 @@ export default function DisasterEventsPage({
     const [pendingMyActionChecked, setPendingMyActionChecked] = useState(
         filters?.pendingMyAction ?? false,
     );
+    const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
+    const [statusFilter, setStatusFilter] = useState<string | null>(
+        filters?.recordStatus ?? null,
+    );
+    const [hazardTypeFilter, setHazardTypeFilter] = useState<string | null>(
+        filters?.hazardType ?? null,
+    );
+    const [hazardClusterFilter, setHazardClusterFilter] = useState<string | null>(
+        filters?.hazardCluster ?? null,
+    );
+    const [specificHazardFilter, setSpecificHazardFilter] = useState<string | null>(
+        filters?.specificHazard ?? null,
+    );
+    const [eventStartFrom, setEventStartFrom] = useState<Date | null>(null);
+    const [eventStartTo, setEventStartTo] = useState<Date | null>(null);
+
+    const hazardTypeOptions = useMemo(
+        () =>
+            (hipTypes || []).map((hipType) => ({
+                label: hipType.name,
+                value: hipType.id,
+            })),
+        [hipTypes],
+    );
+
+    const hazardClusterOptions = useMemo(
+        () =>
+            (hipClusters || [])
+                .filter((hipCluster) =>
+                    hazardTypeFilter ? hipCluster.typeId === hazardTypeFilter : true,
+                )
+                .map((hipCluster) => ({
+                    label: hipCluster.name,
+                    value: hipCluster.id,
+                })),
+        [hipClusters, hazardTypeFilter],
+    );
+
+    const specificHazardOptions = useMemo(
+        () =>
+            (hipHazards || [])
+                .filter((hipHazard) =>
+                    hazardClusterFilter
+                        ? hipHazard.clusterId === hazardClusterFilter
+                        : true,
+                )
+                .map((hipHazard) => ({
+                    label: hipHazard.code
+                        ? `${hipHazard.name} (${hipHazard.code})`
+                        : hipHazard.name,
+                    value: hipHazard.id,
+                })),
+        [hipHazards, hazardClusterFilter],
+    );
+
+    const statusOptions = [
+        { label: "Draft", value: "draft" },
+        { label: "Waiting for validation", value: "waiting-for-validation" },
+        { label: "Needs revision", value: "needs-revision" },
+        { label: "Validated", value: "validated" },
+        { label: "Published", value: "published" },
+    ];
 
     useEffect(() => {
         setDisasterEventNameFilter(filters?.disasterEventName ?? "");
         setRecordingOrganizationFilter(filters?.recordingOrganization ?? "");
+        setStatusFilter(filters?.recordStatus ?? null);
+        setHazardTypeFilter(filters?.hazardType ?? null);
+        setHazardClusterFilter(filters?.hazardCluster ?? null);
+        setSpecificHazardFilter(filters?.specificHazard ?? null);
         setViewMyRecordsChecked(filters?.viewMyRecords ?? false);
         setPendingMyActionChecked(filters?.pendingMyAction ?? false);
     }, [
         filters?.disasterEventName,
         filters?.recordingOrganization,
+        filters?.recordStatus,
+        filters?.hazardType,
+        filters?.hazardCluster,
+        filters?.specificHazard,
         filters?.viewMyRecords,
         filters?.pendingMyAction,
     ]);
@@ -186,7 +280,7 @@ export default function DisasterEventsPage({
                         <p className="mt-1 text-base font-semibold text-slate-900">
                             {pagination?.totalItems} Disaster events in {countryName}
                         </p>
-                        <p className="text-sm text-[#334155]">Disaster event data management</p>
+                        <p className="text-[#334155]">Disaster event data management</p>
                     </div>
                     <Link to={`/${ctx.lang}/disaster-event/edit/new`}>
                         <Button
@@ -202,10 +296,10 @@ export default function DisasterEventsPage({
                     className="mb-6 min-h-[4rem] rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
                 >
                     <div className="flex flex-wrap items-end gap-4">
-                        <div className="w-full min-w-[16rem] flex-1">
+                        <div className="w-full sm:min-w-[22rem] sm:flex-[1.6]">
                             <label
                                 htmlFor="disaster-event-name-filter"
-                                className="mb-2 block text-sm font-medium text-slate-900"
+                                className="mb-2 block font-medium text-slate-900"
                             >
                                 Disaster event name
                             </label>
@@ -229,10 +323,10 @@ export default function DisasterEventsPage({
                             </div>
                         </div>
 
-                        <div className="w-full min-w-[16rem] flex-1">
+                        <div className="w-full sm:min-w-[12rem] sm:flex-[0.9]">
                             <label
                                 htmlFor="recording-organization-filter"
-                                className="mb-2 block text-sm font-medium text-slate-900"
+                                className="mb-2 block font-medium text-slate-900"
                             >
                                 Recording organization
                             </label>
@@ -256,9 +350,279 @@ export default function DisasterEventsPage({
                             </div>
                         </div>
 
+                        {/* <div className="w-full sm:w-auto sm:min-w-[10rem]"> */}
+                        {/* <span
+                                className="mb-2 block font-medium text-transparent bg-green-500"
+                                aria-hidden="true"
+                            >
+                                Filters
+                            </span> */}
+                        <Button
+                            type="button"
+                            outlined
+                            severity="secondary"
+                            onClick={() => setIsFiltersExpanded((prev) => !prev)}
+                            aria-expanded={isFiltersExpanded}
+                            aria-controls="disaster-event-advanced-filters"
+                        >
+                            <span className="flex items-center gap-2">
+                                <i className="pi pi-filter" aria-hidden="true" />
+                                <span>Filters</span>
+                                <i
+                                    className={`pi ${isFiltersExpanded ? "pi-chevron-up" : "pi-chevron-down"}`}
+                                    aria-hidden="true"
+                                />
+                            </span>
+                        </Button>
+                        {/* </div> */}
+
                     </div>
 
                     <div className="mt-6 border-t border-slate-200" aria-hidden="true" />
+
+                    {isFiltersExpanded && (
+                        <>
+                            <div className="mt-4 flex flex-wrap items-end gap-4 rounded">
+                                <div className="w-full sm:min-w-[14rem] sm:flex-1">
+                                    <label
+                                        htmlFor="hazard-type-filter"
+                                        className="mb-2 block font-medium text-slate-900"
+                                    >
+                                        Hazard type
+                                    </label>
+                                    <Dropdown
+                                        id="hazard-type-filter"
+                                        value={hazardTypeFilter}
+                                        options={hazardTypeOptions}
+                                        onChange={(e) => {
+                                            const nextValue =
+                                                typeof e.value === "string"
+                                                    ? e.value
+                                                    : "";
+                                            setHazardTypeFilter(nextValue || null);
+                                            setHazardClusterFilter(null);
+                                            setSpecificHazardFilter(null);
+
+                                            const nextSearchParams =
+                                                new URLSearchParams(searchParams);
+                                            if (nextValue.trim()) {
+                                                nextSearchParams.set("hazardType", nextValue);
+                                            } else {
+                                                nextSearchParams.delete("hazardType");
+                                            }
+                                            nextSearchParams.delete("hazardCluster");
+                                            nextSearchParams.delete("specificHazard");
+                                            nextSearchParams.delete("page");
+                                            setSearchParams(nextSearchParams, {
+                                                replace: true,
+                                            });
+                                        }}
+                                        placeholder="Select hazard type"
+                                        className="w-full"
+                                        filter
+                                        filterBy="label"
+                                        showClear
+                                    />
+                                </div>
+
+                                <div className="w-full sm:min-w-[14rem] sm:flex-1">
+                                    <label
+                                        htmlFor="hazard-cluster-filter"
+                                        className="mb-2 block font-medium text-slate-900"
+                                    >
+                                        Hazard cluster
+                                    </label>
+                                    <Dropdown
+                                        id="hazard-cluster-filter"
+                                        value={hazardClusterFilter}
+                                        options={hazardClusterOptions}
+                                        onChange={(e) => {
+                                            const nextValue =
+                                                typeof e.value === "string"
+                                                    ? e.value
+                                                    : "";
+                                            const selectedCluster = (hipClusters || []).find(
+                                                (hipCluster) => hipCluster.id === nextValue,
+                                            );
+                                            const associatedHazardType =
+                                                selectedCluster?.typeId || null;
+
+                                            if (associatedHazardType) {
+                                                setHazardTypeFilter(associatedHazardType);
+                                            }
+                                            setHazardClusterFilter(nextValue || null);
+                                            setSpecificHazardFilter(null);
+
+                                            const nextSearchParams =
+                                                new URLSearchParams(searchParams);
+                                            if (associatedHazardType) {
+                                                nextSearchParams.set(
+                                                    "hazardType",
+                                                    associatedHazardType,
+                                                );
+                                            }
+                                            if (nextValue.trim()) {
+                                                nextSearchParams.set(
+                                                    "hazardCluster",
+                                                    nextValue,
+                                                );
+                                            } else {
+                                                nextSearchParams.delete("hazardCluster");
+                                            }
+                                            nextSearchParams.delete("specificHazard");
+                                            nextSearchParams.delete("page");
+                                            setSearchParams(nextSearchParams, {
+                                                replace: true,
+                                            });
+                                        }}
+                                        placeholder="Select hazard cluster"
+                                        className="w-full"
+                                        filter
+                                        filterBy="label"
+                                        showClear
+                                    />
+                                </div>
+
+                                <div className="w-full sm:min-w-[14rem] sm:flex-1">
+                                    <label
+                                        htmlFor="specific-hazard-filter"
+                                        className="mb-2 block font-medium text-slate-900"
+                                    >
+                                        Specific hazard
+                                    </label>
+                                    <Dropdown
+                                        id="specific-hazard-filter"
+                                        value={specificHazardFilter}
+                                        options={specificHazardOptions}
+                                        onChange={(e) => {
+                                            const nextValue =
+                                                typeof e.value === "string"
+                                                    ? e.value
+                                                    : "";
+                                            setSpecificHazardFilter(nextValue || null);
+
+                                            const selectedHazard = (hipHazards || []).find(
+                                                (hipHazard) => hipHazard.id === nextValue,
+                                            );
+                                            const associatedHazardCluster =
+                                                selectedHazard?.clusterId || null;
+                                            const associatedHazardType = associatedHazardCluster
+                                                ? (hipClusters || []).find(
+                                                    (hipCluster) =>
+                                                        hipCluster.id === associatedHazardCluster,
+                                                )?.typeId || null
+                                                : null;
+
+                                            if (associatedHazardCluster) {
+                                                setHazardClusterFilter(associatedHazardCluster);
+                                            }
+                                            if (associatedHazardType) {
+                                                setHazardTypeFilter(associatedHazardType);
+                                            }
+
+                                            const nextSearchParams =
+                                                new URLSearchParams(searchParams);
+                                            if (associatedHazardType) {
+                                                nextSearchParams.set(
+                                                    "hazardType",
+                                                    associatedHazardType,
+                                                );
+                                            }
+                                            if (associatedHazardCluster) {
+                                                nextSearchParams.set(
+                                                    "hazardCluster",
+                                                    associatedHazardCluster,
+                                                );
+                                            }
+                                            if (nextValue.trim()) {
+                                                nextSearchParams.set(
+                                                    "specificHazard",
+                                                    nextValue,
+                                                );
+                                            } else {
+                                                nextSearchParams.delete("specificHazard");
+                                            }
+                                            nextSearchParams.delete("page");
+                                            setSearchParams(nextSearchParams, {
+                                                replace: true,
+                                            });
+                                        }}
+                                        placeholder="Enter hazard name or HIPS code"
+                                        className="w-full"
+                                        filter
+                                        filterBy="label"
+                                        virtualScrollerOptions={{ itemSize: 38 }}
+                                        showClear
+                                    />
+                                </div>
+                            </div>
+
+                            <div
+                                id="disaster-event-advanced-filters"
+                                className="mt-4 flex flex-wrap items-end gap-4"
+                            >
+                                <div className="w-full sm:min-w-[14rem] sm:flex-1">
+                                    <label
+                                        htmlFor="record-status-filter"
+                                        className="mb-2 block font-medium text-slate-900"
+                                    >
+                                        Record Status
+                                    </label>
+                                    <Dropdown
+                                        id="record-status-filter"
+                                        value={statusFilter}
+                                        options={statusOptions}
+                                        onChange={(e) => {
+                                            const nextValue =
+                                                typeof e.value === "string"
+                                                    ? e.value
+                                                    : "";
+                                            setStatusFilter(nextValue || null);
+                                            updateFilterParam("recordStatus", nextValue);
+                                        }}
+                                        placeholder="All statuses"
+                                        className="w-full"
+                                        showClear
+                                    />
+                                </div>
+
+                                <div className="w-full sm:min-w-[14rem] sm:flex-1">
+                                    <label
+                                        htmlFor="event-start-from-filter"
+                                        className="mb-2 block font-medium text-slate-900"
+                                    >
+                                        Event start from
+                                    </label>
+                                    <Calendar
+                                        id="event-start-from-filter"
+                                        value={eventStartFrom}
+                                        onChange={(e) => setEventStartFrom(e.value as Date | null)}
+                                        dateFormat="yy-mm-dd"
+                                        className="w-full"
+                                        showIcon
+                                    />
+                                </div>
+
+                                <div className="w-full sm:min-w-[14rem] sm:flex-1">
+                                    <label
+                                        htmlFor="event-start-to-filter"
+                                        className="mb-2 block font-medium text-slate-900"
+                                    >
+                                        Event start to
+                                    </label>
+                                    <Calendar
+                                        id="event-start-to-filter"
+                                        value={eventStartTo}
+                                        onChange={(e) => setEventStartTo(e.value as Date | null)}
+                                        dateFormat="yy-mm-dd"
+                                        className="w-full"
+                                        showIcon
+                                    />
+                                </div>
+                            </div>
+                            <div className="mt-4 mb-6 border-t border-slate-200" aria-hidden="true" />
+                        </>
+                    )}
 
                     <div className="mt-4 flex flex-wrap items-center gap-6">
                         <div className="flex items-center gap-2">
@@ -276,7 +640,7 @@ export default function DisasterEventsPage({
                             />
                             <label
                                 htmlFor="view-my-records-filter"
-                                className="text-sm font-medium text-slate-900"
+                                className="font-medium text-slate-900"
                             >
                                 View my records
                             </label>
@@ -297,7 +661,7 @@ export default function DisasterEventsPage({
                             />
                             <label
                                 htmlFor="pending-my-action-filter"
-                                className="text-sm font-medium text-slate-900"
+                                className="font-medium text-slate-900"
                             >
                                 Pending my action
                             </label>
@@ -307,7 +671,7 @@ export default function DisasterEventsPage({
 
                 <div
                     id="statusLegend"
-                    className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-700"
+                    className="flex flex-wrap items-center gap-x-4 gap-y-2 text-slate-700"
                 >
                     <span className="font-semibold text-slate-900">Status Legend</span>
                     <span className="inline-flex items-center gap-2">
