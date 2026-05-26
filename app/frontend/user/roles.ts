@@ -81,6 +81,7 @@ export type PermissionId =
 	| "EditAPIKeys"
 	| "ViewData"
 	| "ViewDisasterEvents"
+	| "DeleteDisasterEvent"
 	| "EditData"
 	| "ViewApiDocs"
 	| "EditHumanEffectsCustomDsg"
@@ -155,6 +156,14 @@ export function permissions(ctx: DContext): PermissionOption[] {
 			label: ctx.t({
 				code: "user.permission.disaster_event_list.label",
 				msg: "Disaster event list",
+			}),
+		},
+		{
+			id: "DeleteDisasterEvent",
+			role: "data-collector",
+			label: ctx.t({
+				code: "user.permission.delete_disaster_event.label",
+				msg: "Delete disaster event",
 			}),
 		},
 		{
@@ -323,12 +332,14 @@ export const roles: {
 		"ViewData",
 		"ViewApiDocs",
 		"ViewDisasterEvents",
+		"DeleteDisasterEvent",
 		"EditData",
 	],
 	"data-validator": [
 		"ViewData",
 		"ViewApiDocs",
 		"ViewDisasterEvents",
+		"DeleteDisasterEvent",
 		"EditData",
 		"ValidateData",
 		"DeleteValidatedData",
@@ -337,6 +348,7 @@ export const roles: {
 		"ViewData",
 		"ViewApiDocs",
 		"ViewDisasterEvents",
+		"DeleteDisasterEvent",
 		"EditData",
 		"ValidateData",
 		"DeleteValidatedData",

@@ -1,44 +1,101 @@
-import { getTableName } from "drizzle-orm";
-import { createDeleteActionWithCountryAccounts } from "~/backend.server/handlers/form/form";
-import { requireUser } from "~/utils/auth";
-
 import {
-	disasterEventById,
-	disasterEventDelete,
-} from "~/backend.server/models/event";
-import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
-import { ContentRepeaterUploadFile } from "~/components/ContentRepeater/UploadFile";
-
-import { route } from "~/frontend/events/disastereventform";
-import { getCountryAccountsIdFromSession } from "~/utils/session";
-import { ActionFunction } from "react-router";
+	useLoaderData,
+	useNavigate,
+	useNavigation,
+	useParams,
+} from "react-router";
+import { disasterEventById } from "~/backend.server/models/event";
 import { BackendContext } from "~/backend.server/context";
+import DeleteDisasterEventDialog from "~/frontend/disaster-event/DeleteDisasterEventDialog";
+import { authActionWithPerm, authLoaderWithPerm } from "~/utils/auth";
+import {
+	getCountryAccountsIdFromSession,
+	redirectWithMessage,
+} from "~/utils/session";
+import { DisasterEventRepository } from "~/db/queries/disasterEventRepository";
 
-export const action: ActionFunction = async (args) => {
-	const ctx = new BackendContext(args);
-	const { request } = args;
-	const userSession = await requireUser(args);
-	if (!userSession) {
-		throw new Response("Unauthorized", { status: 401 });
-	}
+export const loader = authLoaderWithPerm(
+	"DeleteDisasterEvent",
+	async (loaderArgs) => {
+		const { request, params } = loaderArgs;
+		const id = params.id;
+		if (!id) {
+			throw new Response("Missing item ID", { status: 400 });
+		}
 
-	const countryAccountsId = await getCountryAccountsIdFromSession(request);
-	if (!countryAccountsId) {
-		throw new Response("Unauthorized, no instance selected.", { status: 401 });
-	}
+		const countryAccountsId = await getCountryAccountsIdFromSession(request);
+		if (!countryAccountsId) {
+			throw new Response("Unauthorized", { status: 401 });
+		}
 
-	return createDeleteActionWithCountryAccounts({
-		baseRoute: route,
-		delete: async (id: string) => {
-			return disasterEventDelete(ctx, id, countryAccountsId);
-		},
-		tableName: getTableName(disasterEventTable),
-		getById: disasterEventById,
-		postProcess: async (_id: string, data: any) => {
-			if (data.attachments) {
-				ContentRepeaterUploadFile.delete(data.attachments);
-			}
-		},
-		countryAccountsId,
-	})(args);
-};
+		const ctx = new BackendContext(loaderArgs);
+		const item = await disasterEventById(ctx, id);
+		if (!item) {
+			throw new Response("Not Found", { status: 404 });
+		}
+		if (item.countryAccountsId !== countryAccountsId) {
+			throw new Response("Unauthorized", { status: 401 });
+		}
+
+		return {
+			item: {
+				id: item.id,
+				name:
+					item.nameNational ||
+					item.nameGlobalOrRegional ||
+					item.id,
+			},
+		};
+	},
+);
+
+export const action = authActionWithPerm(
+	"DeleteDisasterEvent",
+	async (actionArgs) => {
+		const { request, params } = actionArgs;
+		const id = params.id;
+		if (!id) {
+			throw new Response("Missing item ID", { status: 400 });
+		}
+
+		const countryAccountsId = await getCountryAccountsIdFromSession(request);
+		if (!countryAccountsId) {
+			throw new Response("Unauthorized", { status: 401 });
+		}
+
+		const ctx = new BackendContext(actionArgs);
+		const item = await disasterEventById(ctx, id);
+		if (!item) {
+			throw new Response("Not Found", { status: 404 });
+		}
+		if (item.countryAccountsId !== countryAccountsId) {
+			throw new Response("Unauthorized", { status: 401 });
+		}
+
+		await DisasterEventRepository.delete(id);
+
+		return redirectWithMessage(actionArgs, "/disaster-event", {
+			type: "info",
+			text: ctx.t({
+				code: "common.record_deleted",
+				msg: "Record deleted",
+			}),
+		});
+	},
+);
+
+export default function DeleteDisasterEventRoute() {
+	const { item } = useLoaderData<typeof loader>();
+	const navigation = useNavigation();
+	const navigate = useNavigate();
+	const { lang } = useParams();
+	const isSubmitting = navigation.state === "submitting";
+
+	return (
+		<DeleteDisasterEventDialog
+			itemName={item.name}
+			isSubmitting={isSubmitting}
+			onCancel={() => navigate(`/${lang}/disaster-event`)}
+		/>
+	);
+}

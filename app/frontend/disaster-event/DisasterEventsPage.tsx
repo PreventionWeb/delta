@@ -113,7 +113,7 @@ export default function DisasterEventsPage({
                     <i className="pi pi-pencil" aria-hidden="true" />
                 </Button>
             </Link>
-            <Link to={``}>
+            <Link to={`/${ctx.lang}/disaster-event/delete/${row.id}`}>
                 <Button
                     type="button"
                     text
