@@ -8,6 +8,7 @@ import {
 	Outlet,
 	Scripts,
 	useLocation,
+	useMatches,
 } from "react-router";
 
 import {
@@ -159,8 +160,15 @@ export const loader = async (
 export default function Screen() {
 	const loaderData = useLoaderData();
 	const location = useLocation();
+	const matches = useMatches();
 	let ctx = new ViewContext();
 	const onAdminRoute = location.pathname.startsWith(ctx.url("/admin/"));
+	const hideMainNavigation = matches.some((match) => {
+		const routeHandle = match.handle as
+			| { hideMainNavigation?: boolean }
+			| undefined;
+		return routeHandle?.hideMainNavigation === true;
+	});
 
 	const {
 		isLoggedIn,
@@ -219,28 +227,30 @@ export default function Screen() {
 					<div className="min-h-screen flex flex-col bg-white">
 
 						{/* Header */}
-						<header className="w-full bg-white border-b border-gray-200">
-							<div className="mx-auto max-w-8xl px-4 md:px-6 lg:px-8 py-4">
-								{onAdminRoute ? (
-									<SuperAdminMenuBar
-										isLoggedIn={isLoggedIn}
-										siteName={confSiteName}
-										firstName={firstName}
-										lastName={lastName}
-									/>
-								) : (
-									<RegularMenuBar
-										isLoggedIn={isLoggedIn}
-										userRole={userRole}
-										isCountryAccountSelected={isCountryAccountSelected}
-										activeInstanceCount={activeInstanceCount}
-										siteName={confSiteName}
-										firstName={firstName}
-										lastName={lastName}
-									/>
-								)}
-							</div>
-						</header>
+						{!hideMainNavigation ? (
+							<header className="w-full bg-white border-b border-gray-200">
+								<div className="mx-auto max-w-8xl px-4 md:px-6 lg:px-8 py-4">
+									{onAdminRoute ? (
+										<SuperAdminMenuBar
+											isLoggedIn={isLoggedIn}
+											siteName={confSiteName}
+											firstName={firstName}
+											lastName={lastName}
+										/>
+									) : (
+										<RegularMenuBar
+											isLoggedIn={isLoggedIn}
+											userRole={userRole}
+											isCountryAccountSelected={isCountryAccountSelected}
+											activeInstanceCount={activeInstanceCount}
+											siteName={confSiteName}
+											firstName={firstName}
+											lastName={lastName}
+										/>
+									)}
+								</div>
+							</header>
+						) : null}
 
 						{/* Main Content */}
 						<main className="flex-1 w-full">
@@ -250,14 +260,16 @@ export default function Screen() {
 						</main>
 
 						{/* Footer */}
-						<footer>
-							<Footer
-								ctx={ctx}
-								siteName={confSiteName}
-								urlPrivacyPolicy={confFooterURLPrivPolicy}
-								urlTermsConditions={confFooterURLTermsConds}
-							/>
-						</footer>
+						{!hideMainNavigation ? (
+							<footer>
+								<Footer
+									ctx={ctx}
+									siteName={confSiteName}
+									urlPrivacyPolicy={confFooterURLPrivPolicy}
+									urlTermsConditions={confFooterURLTermsConds}
+								/>
+							</footer>
+						) : null}
 					</div>
 
 

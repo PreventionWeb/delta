@@ -45,14 +45,32 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Set up Node.js (GitHub)
+        if: ${{ !env.ACT }}
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: yarn
 
+      - name: Set up Node.js (act)
+        if: ${{ env.ACT }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable Yarn via Corepack (act)
+        if: ${{ env.ACT }}
+        run: |
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+
+      - name: Force CI database URL (act)
+        if: ${{ env.ACT }}
+        run: |
+          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/delta_ci?schema=public" >> "$GITHUB_ENV"
+
       - name: Install dependencies
-        run: HUSKY=0 yarn install --frozen-lockfile --production
+        run: HUSKY=0 yarn install --frozen-lockfile 
 
       - name: Install Playwright browser and system deps
         run: npx playwright install --with-deps chromium
