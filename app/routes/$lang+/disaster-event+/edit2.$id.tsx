@@ -8,7 +8,6 @@ import {
 import {
 	fieldsDef,
 } from "~/frontend/events/disastereventform";
-import { Inputs, type FormInputDef } from "~/frontend/form";
 
 import { formSave } from "~/backend.server/handlers/form/form";
 
@@ -265,10 +264,10 @@ import { Tooltip } from "primereact/tooltip";
 import { Card } from "primereact/card";
 import { PickList } from "primereact/picklist";
 import { Dialog } from "primereact/dialog";
+import { Dropdown } from "primereact/dropdown";
 
 type Errors = {
-	firstName?: string;
-	email?: string;
+	nameNational?: string;
 };
 
 type LinkedEventOption = {
@@ -287,17 +286,26 @@ type AdditionalDetailItem = {
 	description: string;
 };
 
+type HazardPickerItem = {
+	id: string;
+	name: string;
+};
+
+type HipClusterItem = HazardPickerItem & {
+	typeId: string;
+};
+
+type HipHazardItem = HazardPickerItem & {
+	clusterId: string;
+};
+
+type StepperHipData = {
+	types: HazardPickerItem[];
+	clusters: HipClusterItem[];
+	hazards: HipHazardItem[];
+};
+
 type StepperFormState = {
-	firstName: string;
-	lastName: string;
-	address: string;
-	email: string;
-	phone: string;
-	state: string;
-	organization: string;
-	city: string;
-	country: string;
-	notes: string;
 	id: string;
 	nameNational:  string;
 	nameGlobalOrRegional: string;
@@ -315,24 +323,41 @@ type EventBasicsCompareFields = {
 	recordingInstitution: string;
 };
 
-const requiredFieldOrder: Array<keyof Errors> = ["firstName", "email"];
+type DatePrecision = "yyyy-mm-dd" | "yyyy-mm" | "yyyy";
 
-const isValidEmail = (value: string) => /^\S+@\S+\.\S+$/.test(value);
+type DateWithPrecisionState = {
+	precision: DatePrecision;
+	year: string;
+	month: string;
+	day: string;
+};
+
+const requiredFieldOrder: Array<keyof Errors> = ["nameNational"];
+
+// const isValidEmail = (value: string) => /^\S+@\S+\.\S+$/.test(value);
 
 type StepperValidationProps = {
 	ctx: ViewContext;
 	hazardousEvent: {
 		id?: string | null;
 	} | null;
-	hip: unknown;
+	hip: StepperHipData;
 	disasterEvent: {
 		nameNational?: string | null;
 		nameGlobalOrRegional?: string | null;
 		nationalDisasterId?: string | null;
 		glide?: string | null;
+		startDate?: string | null;
+		endDate?: string | null;
+		startDateLocal?: string | null;
+		endDateLocal?: string | null;
+		hipTypeId?: string | null;
+		hipClusterId?: string | null;
+		hipHazardId?: string | null;
 		disasterEventId?: string | null;
 		recordingInstitution?: string | null;
 		id?: string | null;
+		spatialFootprint?: unknown;
 	} | null;
 	treeData: unknown;
 	ctryIso3: string;
@@ -343,7 +368,15 @@ type StepperValidationProps = {
 function StepperValidation({
 	ctx,
 	disasterEvent,
+	hip,
+	treeData,
+	ctryIso3,
+	divisionGeoJSON,
 }: StepperValidationProps) {
+	treeData;
+	ctryIso3;
+	divisionGeoJSON;
+
 	const eventBasicsInitialValues: EventBasicsCompareFields = {
 		id: disasterEvent?.id ?? "",
 		nameNational: disasterEvent?.nameNational ?? "",
@@ -355,16 +388,6 @@ function StepperValidation({
 	const [activeStep, setActiveStep] = useState(0);
 	const firstNameTooltipRef = useRef<Tooltip>(null);
 	const [form, setForm] = useState<StepperFormState>({
-		firstName: "",
-		lastName: "",
-		address: "",
-		email: "",
-		phone: "",
-		state: "",
-		organization: "",
-		city: "",
-		country: "",
-		notes: "",
 		id: eventBasicsInitialValues.id,
 		nameNational: disasterEvent?.nameNational ?? "",
 		nameGlobalOrRegional: disasterEvent?.nameGlobalOrRegional ?? "",
@@ -373,34 +396,266 @@ function StepperValidation({
 		recordingInstitution: disasterEvent?.recordingInstitution ?? "",
 	});
 
-	console.log("Initial form state:", { disasterEvent });
+	console.log("Initial form state - disasterEvent:", { disasterEvent });
+	console.log("Initial form state - hip:", { hip });
 
-	const eventBasicsCompareDefs: FormInputDef<EventBasicsCompareFields>[] = [
-		{ key: "nameNational", label: "National name", type: "text", uiRow: {} },
-		{
-			key: "nameGlobalOrRegional",
-			label: "Global/regional name",
-			type: "text",
-		},
-		{
-			key: "nationalDisasterId",
-			label: "National disaster ID",
-			type: "text",
-			uiRow: {},
-		},
-		{ key: "glide", label: "GLIDE number", type: "text" },
-		{
-			key: "id",
-			label: "Disaster event UUID",
-			type: "text",
-			uiRow: {},
-		},
-		{
-			key: "recordingInstitution",
-			label: "Recording institution",
-			type: "text",
-		},
+	const parseDateWithPrecision = (value: string | null | undefined): DateWithPrecisionState => {
+		if (!value) {
+			return {
+				precision: "yyyy-mm-dd",
+				year: "",
+				month: "",
+				day: "",
+			};
+		}
+
+		if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+			return {
+				precision: "yyyy-mm-dd",
+				year: value.slice(0, 4),
+				month: value.slice(5, 7),
+				day: value.slice(8, 10),
+			};
+		}
+
+		if (/^\d{4}-\d{2}$/.test(value)) {
+			return {
+				precision: "yyyy-mm",
+				year: value.slice(0, 4),
+				month: value.slice(5, 7),
+				day: "",
+			};
+		}
+
+		if (/^\d{4}$/.test(value)) {
+			return {
+				precision: "yyyy",
+				year: value,
+				month: "",
+				day: "",
+			};
+		}
+
+		return {
+			precision: "yyyy-mm-dd",
+			year: "",
+			month: "",
+			day: "",
+		};
+	};
+
+	const toDateWithPrecisionValue = (state: DateWithPrecisionState): string => {
+		if (state.precision === "yyyy") {
+			if (state.year.length !== 4) {
+				return "";
+			}
+			return state.year;
+		}
+
+		if (state.precision === "yyyy-mm") {
+			if (state.year.length !== 4 || state.month.length !== 2) {
+				return "";
+			}
+			return `${state.year}-${state.month}`;
+		}
+
+		if (
+			state.year.length !== 4 ||
+			state.month.length !== 2 ||
+			state.day.length !== 2
+		) {
+			return "";
+		}
+
+		return `${state.year}-${state.month}-${state.day}`;
+	};
+
+	const [startDateState, setStartDateState] = useState<DateWithPrecisionState>(
+		parseDateWithPrecision(disasterEvent?.startDate),
+	);
+	const [endDateState, setEndDateState] = useState<DateWithPrecisionState>(
+		parseDateWithPrecision(disasterEvent?.endDate),
+	);
+	const [startDateLocal, setStartDateLocal] = useState(
+		disasterEvent?.startDateLocal ?? "",
+	);
+	const [endDateLocal, setEndDateLocal] = useState(
+		disasterEvent?.endDateLocal ?? "",
+	);
+	const [spatialFootprintDialogVisible, setSpatialFootprintDialogVisible] =
+		useState(false);
+	const [spatialDialogHint, setSpatialDialogHint] = useState<
+		"map" | "geographic"
+	>("map");
+	// const [spatialFootprintValue, setSpatialFootprintValue] = useState<any[]>(() => {
+	// 	try {
+	// 		if (Array.isArray(disasterEvent?.spatialFootprint)) {
+	// 			return disasterEvent.spatialFootprint as any[];
+	// 		}
+	// 		if (typeof disasterEvent?.spatialFootprint === "string") {
+	// 			return JSON.parse(disasterEvent.spatialFootprint) || [];
+	// 		}
+	// 	} catch {
+	// 		// Ignore parse failures and fallback to empty list
+	// 	}
+	// 	return [];
+	// });
+
+	const monthOptions = [
+		{ value: "01", label: "January" },
+		{ value: "02", label: "February" },
+		{ value: "03", label: "March" },
+		{ value: "04", label: "April" },
+		{ value: "05", label: "May" },
+		{ value: "06", label: "June" },
+		{ value: "07", label: "July" },
+		{ value: "08", label: "August" },
+		{ value: "09", label: "September" },
+		{ value: "10", label: "October" },
+		{ value: "11", label: "November" },
+		{ value: "12", label: "December" },
 	];
+
+	const renderDateWithPrecision = (
+		prefix: "startDate" | "endDate",
+		label: string,
+		state: DateWithPrecisionState,
+		setState: React.Dispatch<React.SetStateAction<DateWithPrecisionState>>,
+	) => {
+		const isFullDate = state.precision === "yyyy-mm-dd";
+		const isYearMonth = state.precision === "yyyy-mm";
+		const isYearOnly = state.precision === "yyyy";
+
+		return (
+			<>
+				<div className="col-span-12 md:col-span-6">
+					<label htmlFor={`${prefix}Format`} className="mb-1 inline-flex items-center gap-2">
+						{label} format
+					</label>
+					<select
+						id={`${prefix}Format`}
+						value={state.precision}
+						onChange={(event) => {
+							const precision = event.target.value as DatePrecision;
+							setState((current) => ({
+								...current,
+								precision,
+								month: precision === "yyyy" ? "" : current.month,
+								day: precision === "yyyy-mm-dd" ? current.day : "",
+							}));
+						}}
+						className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+					>
+						<option value="yyyy-mm-dd">Full date</option>
+						<option value="yyyy-mm">Year and month</option>
+						<option value="yyyy">Year only</option>
+					</select>
+				</div>
+
+				<div className="col-span-12 md:col-span-6">
+					{isFullDate ? (
+						<>
+							<label htmlFor={`${prefix}Date`} className="mb-1 inline-flex items-center gap-2">
+								{label} date
+							</label>
+							<input
+								id={`${prefix}Date`}
+								type="date"
+								value={
+									state.year.length === 4 &&
+									state.month.length === 2 &&
+									state.day.length === 2
+										? `${state.year}-${state.month}-${state.day}`
+										: ""
+								}
+								onChange={(event) => {
+									const value = event.target.value;
+									if (!value) {
+										setState((current) => ({
+											...current,
+											year: "",
+											month: "",
+											day: "",
+										}));
+										return;
+									}
+
+									const [year, month, day] = value.split("-");
+									setState((current) => ({
+										...current,
+										year,
+										month,
+										day,
+									}));
+								}}
+								className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+							/>
+						</>
+					) : null}
+
+					{isYearMonth ? (
+						<div className="grid grid-cols-2 gap-2">
+							<div>
+								<label htmlFor={`${prefix}Year`} className="mb-1 inline-flex items-center gap-2">
+									{label} year
+								</label>
+								<input
+									id={`${prefix}Year`}
+									type="text"
+									inputMode="numeric"
+									value={state.year}
+									onChange={(event) => {
+										const year = event.target.value.replace(/\D/g, "").slice(0, 4);
+										setState((current) => ({ ...current, year }));
+									}}
+									className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+								/>
+							</div>
+							<div>
+								<label htmlFor={`${prefix}Month`} className="mb-1 inline-flex items-center gap-2">
+									{label} month
+								</label>
+								<select
+									id={`${prefix}Month`}
+									value={state.month}
+									onChange={(event) => {
+										setState((current) => ({ ...current, month: event.target.value }));
+									}}
+									className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+								>
+									<option value="">Select month</option>
+									{monthOptions.map((month) => (
+										<option key={month.value} value={month.value}>
+											{month.label}
+										</option>
+									))}
+								</select>
+							</div>
+						</div>
+					) : null}
+
+					{isYearOnly ? (
+						<>
+							<label htmlFor={`${prefix}Year`} className="mb-1 inline-flex items-center gap-2">
+								{label} year
+							</label>
+							<input
+								id={`${prefix}Year`}
+								type="text"
+								inputMode="numeric"
+								value={state.year}
+								onChange={(event) => {
+									const year = event.target.value.replace(/\D/g, "").slice(0, 4);
+									setState((current) => ({ ...current, year }));
+								}}
+								className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+							/>
+						</>
+					) : null}
+				</div>
+			</>
+		);
+	};
 	const [linkedEventSearch, setLinkedEventSearch] = useState("");
 	const [linkedEventLoading, setLinkedEventLoading] = useState(false);
 	const [linkedEventSource, setLinkedEventSource] = useState<LinkedEventOption[]>([]);
@@ -430,6 +685,106 @@ function StepperValidation({
 		description: "",
 	});
 	const [errors, setErrors] = useState<Errors>({});
+	const [selectedHipTypeId, setSelectedHipTypeId] = useState(
+		disasterEvent?.hipTypeId ?? "",
+	);
+	const [selectedHipClusterId, setSelectedHipClusterId] = useState(
+		disasterEvent?.hipClusterId ?? "",
+	);
+	const [selectedHipHazardId, setSelectedHipHazardId] = useState(
+		disasterEvent?.hipHazardId ?? "",
+	);
+
+	const sortedHipTypes = [...(hip?.types ?? [])].sort((a, b) =>
+		a.name.localeCompare(b.name),
+	);
+	const sortedHipClusters = [...(hip?.clusters ?? [])].sort((a, b) =>
+		a.name.localeCompare(b.name),
+	);
+	const sortedHipHazards = [...(hip?.hazards ?? [])].sort((a, b) =>
+		a.name.localeCompare(b.name),
+	);
+
+	const filteredHipClusters = sortedHipClusters.filter((cluster) =>
+		selectedHipTypeId ? cluster.typeId === selectedHipTypeId : true,
+	);
+
+	const filteredHipHazards = sortedHipHazards.filter((hazard) => {
+		const matchesCluster =
+			!selectedHipClusterId || hazard.clusterId === selectedHipClusterId;
+		const matchesType =
+			!selectedHipTypeId ||
+			sortedHipClusters.some(
+				(cluster) =>
+					cluster.id === hazard.clusterId &&
+					cluster.typeId === selectedHipTypeId,
+			);
+
+		return matchesCluster && matchesType;
+	});
+
+	const hazardTypeOptions = sortedHipTypes.map((item) => ({
+		label: item.name,
+		value: item.id,
+	}));
+
+	const hazardClusterOptions = filteredHipClusters.map((item) => ({
+		label: item.name,
+		value: item.id,
+	}));
+
+	const specificHazardOptions = filteredHipHazards.map((item) => ({
+		label: item.name,
+		value: item.id,
+	}));
+
+	const handleTypeChange = (typeId: string) => {
+		setSelectedHipTypeId(typeId);
+		setSelectedHipHazardId("");
+
+		if (!typeId) {
+			setSelectedHipClusterId("");
+			return;
+		}
+
+		if (
+			selectedHipClusterId &&
+			!sortedHipClusters.some(
+				(cluster) =>
+					cluster.id === selectedHipClusterId && cluster.typeId === typeId,
+			)
+		) {
+			setSelectedHipClusterId("");
+		}
+	};
+
+	const handleClusterChange = (clusterId: string) => {
+		setSelectedHipClusterId(clusterId);
+		setSelectedHipHazardId("");
+
+		if (!clusterId) {
+			return;
+		}
+
+		const matchedCluster = sortedHipClusters.find(
+			(cluster) => cluster.id === clusterId,
+		);
+		if (matchedCluster) {
+			setSelectedHipTypeId(matchedCluster.typeId);
+		}
+	};
+
+	const selectSpecificHazard = (hazard: HipHazardItem) => {
+		setSelectedHipHazardId(hazard.id);
+
+		const matchedCluster = sortedHipClusters.find(
+			(cluster) => cluster.id === hazard.clusterId,
+		);
+		if (matchedCluster) {
+			setSelectedHipClusterId(matchedCluster.id);
+			setSelectedHipTypeId(matchedCluster.typeId);
+		}
+	};
 
 	const mockBackendLinkedEvents: LinkedEventOption[] = [
 		{ id: "1", name: "Coastal Storm Delta", code: "DE-2024-001" },
@@ -485,7 +840,7 @@ function StepperValidation({
 	];
 
 	const isStep1Complete =
-		form.firstName.trim().length > 0 && isValidEmail(form.email);
+		form.nameNational.trim().length > 0;
 
 	const readFieldValue = (fieldId: keyof StepperFormState) => {
 		const element = document.getElementById(fieldId) as
@@ -501,16 +856,6 @@ function StepperValidation({
 
 	const saveCurrentFormState = (): StepperFormState => {
 		const snapshot: StepperFormState = {
-			firstName: readFieldValue("firstName"),
-			lastName: readFieldValue("lastName"),
-			address: readFieldValue("address"),
-			email: readFieldValue("email"),
-			phone: readFieldValue("phone"),
-			state: readFieldValue("state"),
-			organization: readFieldValue("organization"),
-			city: readFieldValue("city"),
-			country: readFieldValue("country"),
-			notes: readFieldValue("notes"),
 			id: readFieldValue("id"),
 			nameNational: readFieldValue("nameNational"),
 			nameGlobalOrRegional: readFieldValue("nameGlobalOrRegional"),
@@ -531,14 +876,8 @@ function StepperValidation({
 	const validateStep1 = (formData: StepperFormState = form) => {
 		const nextErrors: Errors = {};
 
-		if (!formData.firstName.trim()) {
-			nextErrors.firstName = "First name is required";
-		}
-
-		if (!formData.email.trim()) {
-			nextErrors.email = "Email is required";
-		} else if (!isValidEmail(formData.email)) {
-			nextErrors.email = "Enter a valid email";
+		if (!formData.nameNational.trim()) {
+			nextErrors.nameNational = "Name (National) is required";
 		}
 
 		setErrors(nextErrors);
@@ -809,6 +1148,11 @@ function StepperValidation({
 		</div>
 	);
 
+	const openSpatialDialog = (hint: "map" | "geographic") => {
+		setSpatialDialogHint(hint);
+		setSpatialFootprintDialogVisible(true);
+	};
+
 	useEffect(() => {
 		firstNameTooltipRef.current?.updateTargetEvents();
 	}, [activeStep]);
@@ -870,7 +1214,10 @@ function StepperValidation({
 				<div className="mb-4">
 					<div className="flex items-center justify-between px-4 py-2">
 						<h2 className="text-[16px] font-semibold text-slate-800">
-							Add disaster event
+							{ctx.t({
+								code: "disaster_event.edit",
+								msg: "Edit disaster event",
+							})}
 						</h2>
 						<Button
 							icon="pi pi-times"
@@ -914,130 +1261,10 @@ function StepperValidation({
 						<div className="grid grid-cols-12 gap-4">
 							<div className="col-span-12 mb-4">
 								<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
-									Basic Information
-								</h2>
-								<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
-									Enter the basic information about the event.
-								</p>
-							</div>
-							<div className="col-span-12 md:col-span-4">
-								
-								<label
-									htmlFor="firstName"
-									className="inline-flex items-center gap-2"
-								>
-									<span>First Name *</span>
-									<i
-										className="pi pi-info-circle first-name-tooltip text-sm text-gray-500 cursor-pointer"
-										aria-label="First name help"
-									/>
-								</label>
-								<InputText
-									id="firstName"
-									defaultValue={form.firstName}
-									className={`w-full${errors.firstName ? " p-invalid" : ""}`}
-									required={true}
-									placeholder="Enter first name"
-								/>
-								{errors.firstName ? (
-									<small className="p-error">{errors.firstName}</small>
-								) : null}
-							</div>
-							<div className="col-span-12 md:col-span-4">
-								<label htmlFor="lastName">Last Name</label>
-								<InputText
-									id="lastName"
-									defaultValue={form.lastName}
-									className="w-full"
-								/>
-							</div>
-
-							<div className="col-span-12 md:col-span-4">
-								<label htmlFor="email">Email *</label>
-								<InputText
-									id="email"
-									defaultValue={form.email}
-									className={`w-full${errors.email ? " p-invalid" : ""}`}
-									required={true}
-								/>
-								{errors.email ? (
-									<small className="p-error">{errors.email}</small>
-								) : null}
-							</div>
-
-							<div className="col-span-12">
-								<label htmlFor="address">Address</label>
-								<InputTextarea
-									id="address"
-									rows={4}
-									defaultValue={form.address}
-									className="w-full"
-								></InputTextarea>
-							</div>
-
-							<div className="col-span-12 md:col-span-4">
-								<label htmlFor="phone">Phone</label>
-								<InputText
-									id="phone"
-									defaultValue={form.phone}
-									className="w-full"
-								/>
-							</div>
-							<div className="col-span-12 md:col-span-4">
-								<label htmlFor="state">State</label>
-								<select
-									id="state"
-									defaultValue={form.state}
-									className="w-full p-3 border-1"
-								>
-									<option value="">Select a state</option>
-									<option value="Arizona">Arizona</option>
-									<option value="California">California</option>
-									<option value="Florida">Florida</option>
-									<option value="Ohio">Ohio</option>
-									<option value="Washington">Washington</option>
-								</select>
-							</div>
-							<div className="col-span-12 md:col-span-4">
-								<label htmlFor="organization">Organization</label>
-								<InputText
-									id="organization"
-									defaultValue={form.organization}
-									className="w-full"
-								/>
-							</div>
-
-							<div className="col-span-12 md:col-span-8">
-								<label htmlFor="city">City</label>
-								<InputText
-									id="city"
-									defaultValue={form.city}
-									className="w-full"
-								/>
-							</div>
-							<div className="col-span-12 md:col-span-4">
-								<label htmlFor="country">Country</label>
-								<InputText
-									id="country"
-									defaultValue={form.country}
- 									className="w-full"
-								/>
-							</div>
-
-							<div className="col-span-12 my-6 border-t border-slate-200" />
-
-							<div className="col-span-12 mb-4">
-								<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
 									Event basics
 								</h2>
 								<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
 									General information about the disaster event.
-								</p>
-							</div>
-
-							<div className="col-span-12">
-								<p className="mb-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-									Option 1: Direct mapped fields
 								</p>
 							</div>
 
@@ -1051,7 +1278,11 @@ function StepperValidation({
 										defaultValue={form.nameNational}
 										placeholder="For example, Hurricane Mitch"
 										className="w-full"
+										required={true}
 									/>
+									{errors.nameNational ? (
+										<p className="mt-1 text-xs text-red-600">{errors.nameNational}</p>
+									) : null}
 								</div>
 
 								<div className="col-span-12 md:col-span-4">
@@ -1128,19 +1359,6 @@ function StepperValidation({
 								</div>
 							</div>
 
-							<div className="col-span-12 mt-2">
-								<p className="mb-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-									Option 2: Inputs renderer (from disastereventform pattern)
-								</p>
-								<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-									<Inputs<EventBasicsCompareFields>
-										ctx={ctx}
-										def={eventBasicsCompareDefs}
-										fields={eventBasicsInitialValues}
-									/>
-								</div>
-							</div>
-
 							<div className="col-span-12 my-6 border-t border-slate-200" />
 
 							<div className="col-span-12 mb-4">
@@ -1157,101 +1375,130 @@ function StepperValidation({
 									<label htmlFor="hazardTypeObserved" className="mb-1 inline-flex items-center gap-2">
 										Hazard type (observed) <i className="pi pi-info-circle ml-1 text-xs text-slate-400" aria-hidden="true" />
 									</label>
-									<select id="hazardTypeObserved" className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
-										<option value="">Search type</option>
-										<option value="flood">Flood</option>
-										<option value="landslide">Landslide</option>
-										<option value="storm">Storm</option>
-									</select>
+									<Dropdown
+										id="hazardTypeObserved"
+										value={selectedHipTypeId || null}
+										options={hazardTypeOptions}
+										onChange={(event) =>
+											handleTypeChange(
+												typeof event.value === "string" ? event.value : "",
+											)
+										}
+										placeholder="Select hazard type"
+										className="w-full"
+										filter
+										filterBy="label"
+										showClear
+									/>
+									<input type="hidden" name="hipTypeId" value={selectedHipTypeId} />
 								</div>
 
 								<div className="col-span-12 md:col-span-4">
 									<label htmlFor="hazardClusterObserved" className="mb-1 inline-flex items-center gap-2">
 										Hazard cluster (observed) <i className="pi pi-info-circle ml-1 text-xs text-slate-400" aria-hidden="true" />
 									</label>
-									<select id="hazardClusterObserved" className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
-										<option value="">Search cluster</option>
-										<option value="cluster-1">Cluster 1</option>
-										<option value="cluster-2">Cluster 2</option>
-										<option value="cluster-3">Cluster 3</option>
-									</select>
+									<Dropdown
+										id="hazardClusterObserved"
+										value={selectedHipClusterId || null}
+										options={hazardClusterOptions}
+										onChange={(event) =>
+											handleClusterChange(
+												typeof event.value === "string" ? event.value : "",
+											)
+										}
+										placeholder="Select hazard cluster"
+										className="w-full"
+										filter
+										filterBy="label"
+										showClear
+									/>
+									<input type="hidden" name="hipClusterId" value={selectedHipClusterId} />
 								</div>
 
 								<div className="col-span-12 md:col-span-4">
 									<label htmlFor="specificHazardObserved" className="mb-1 inline-flex items-center gap-2">
 										Specific hazard (observed) <i className="pi pi-info-circle ml-1 text-xs text-slate-400" aria-hidden="true" />
 									</label>
-									<div className="relative">
-										<InputText
-											id="specificHazardObserved"
-											placeholder="Search hazard"
-											className="w-full pr-10"
+									<Dropdown
+										id="specificHazardObserved"
+										value={selectedHipHazardId || null}
+										options={specificHazardOptions}
+										onChange={(event) => {
+											const hazardId =
+												typeof event.value === "string" ? event.value : "";
+											if (!hazardId) {
+												setSelectedHipHazardId("");
+												return;
+											}
+
+											const selectedHazard = sortedHipHazards.find(
+												(item) => item.id === hazardId,
+											);
+											if (selectedHazard) {
+												selectSpecificHazard(selectedHazard);
+											}
+										}}
+										placeholder="Enter hazard name or HIPS code"
+										className="w-full"
+										filter
+										filterBy="label"
+										virtualScrollerOptions={{ itemSize: 38 }}
+										showClear
+									/>
+									<input type="hidden" name="hipHazardId" value={selectedHipHazardId} />
+								</div>
+
+								<div className="col-span-12">
+									<div className="grid grid-cols-12 gap-4">
+										{renderDateWithPrecision(
+											"startDate",
+											"Start date",
+											startDateState,
+											setStartDateState,
+										)}
+										{renderDateWithPrecision(
+											"endDate",
+											"End date",
+											endDateState,
+											setEndDateState,
+										)}
+
+										<div className="col-span-12 md:col-span-6">
+											<label htmlFor="startDateLocal" className="mb-1 inline-flex items-center gap-2">
+												Start date in local format
+											</label>
+											<InputText
+												id="startDateLocal"
+												name="startDateLocal"
+												value={startDateLocal}
+												onChange={(event) => setStartDateLocal(event.target.value)}
+												className="w-full"
+											/>
+										</div>
+
+										<div className="col-span-12 md:col-span-6">
+											<label htmlFor="endDateLocal" className="mb-1 inline-flex items-center gap-2">
+												End date in local format
+											</label>
+											<InputText
+												id="endDateLocal"
+												name="endDateLocal"
+												value={endDateLocal}
+												onChange={(event) => setEndDateLocal(event.target.value)}
+												className="w-full"
+											/>
+										</div>
+
+										<input
+											type="hidden"
+											name="startDate"
+											value={toDateWithPrecisionValue(startDateState)}
 										/>
-										<i className="pi pi-search pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-									</div>
-								</div>
-
-								<div className="col-span-12 md:col-span-6">
-									<label htmlFor="startDate" className="mb-1 inline-flex items-center gap-2">
-										Start date
-									</label>
-									<div className="space-y-2">
-										<select id="startDate" className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
-											<option value="">Full date (DD/MM/YYYY)</option>
-									</select>
-										<div className="grid grid-cols-3 gap-2">
-											<select className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
-												<option value="">Day</option>
-											</select>
-											<select className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
-												<option value="">Month</option>
-											</select>
-											<select className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
-												<option value="">Year</option>
-											</select>
-										</div>
-									</div>
-								</div>
-
-								<div className="col-span-12 md:col-span-6">
-									<label htmlFor="startTime" className="mb-1 inline-flex items-center gap-2">
-										Start time
-									</label>
-									<div className="relative">
-										<InputText id="startTime" className="w-full pr-10" />
-										<i className="pi pi-clock pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-									</div>
-								</div>
-
-								<div className="col-span-12 md:col-span-6">
-									<label htmlFor="endDate" className="mb-1 inline-flex items-center gap-2">
-										End date
-									</label>
-									<div className="space-y-2">
-										<select id="endDate" className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
-											<option value="">Full date (DD/MM/YYYY)</option>
-										</select>
-										<div className="grid grid-cols-3 gap-2">
-											<select className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
-												<option value="">Day</option>
-											</select>
-											<select className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
-												<option value="">Month</option>
-											</select>
-											<select className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
-												<option value="">Year</option>
-											</select>
-										</div>
-									</div>
-								</div>
-
-								<div className="col-span-12 md:col-span-6">
-									<label htmlFor="endTime" className="mb-1 inline-flex items-center gap-2">
-										End time
-									</label>
-									<div className="relative">
-										<InputText id="endTime" className="w-full pr-10" />
-										<i className="pi pi-clock pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+										<input
+											type="hidden"
+											name="endDate"
+											value={toDateWithPrecisionValue(endDateState)}
+										/>
 									</div>
 								</div>
 							</div>
@@ -1278,7 +1525,13 @@ function StepperValidation({
 											<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
 												Select the administrative areas where the disaster event was experienced.
 											</p>
-											<Button className="mt-4" label="Add affected areas" outlined icon="pi pi-plus" />
+											<Button
+												className="mt-4"
+												label="Add affected areas"
+												outlined
+												icon="pi pi-plus"
+												onClick={() => openSpatialDialog("geographic")}
+											/>
 										</div>
 										<i className="pi pi-chevron-right pt-2 text-slate-400" />
 									</div>
@@ -1294,12 +1547,38 @@ function StepperValidation({
 											<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
 												Define the specific geographic area affected using interactive map coordinates or manual input.
 											</p>
-											<Button className="mt-4" label="Define spatial footprint" outlined icon="pi pi-map" />
+											<Button
+												className="mt-4"
+												label="Define spatial footprint"
+												outlined
+												icon="pi pi-map"
+												onClick={() => openSpatialDialog("map")}
+											/>
 										</div>
 										<i className="pi pi-chevron-right pt-2 text-slate-400" />
 									</div>
 								</div>
 							</div>
+
+							<Dialog
+								header={
+									spatialDialogHint === "geographic"
+										? "Add affected areas"
+										: "Define spatial footprint"
+								}
+								visible={spatialFootprintDialogVisible}
+								style={{ width: "72rem", maxWidth: "95vw" }}
+								onHide={() => setSpatialFootprintDialogVisible(false)}
+								draggable={false}
+								resizable={false}
+								appendTo="self"
+							>
+								<p className="mb-4 text-[13px] text-slate-500">
+									{spatialDialogHint === "geographic"
+										? "Use Add and choose Geographic level to select administrative areas."
+										: "Use Add and choose Map coordinates to define the affected footprint."}
+								</p>
+							</Dialog>
 						</div>
 
 
@@ -1737,12 +2016,12 @@ function StepperValidation({
 										<h4 className="text-[16px] leading-[16px] font-semibold">Basic information</h4>
 									</div>
 									<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-										{renderReviewItem("First Name", form.firstName)}
-										{renderReviewItem("Last Name", form.lastName)}
-										{renderReviewItem("Email", form.email)}
-										{renderReviewItem("Phone", form.phone)}
-										{renderReviewItem("State", form.state)}
-										{renderReviewItem("Organization", form.organization)}
+										{renderReviewItem("Disaster name - national", form.nameNational)}
+										{renderReviewItem("Disaster name - global/regional", form.nameGlobalOrRegional)}
+										{renderReviewItem("National event ID", form.nationalDisasterId)}
+										{renderReviewItem("GLIDE number", form.glide)}
+										{renderReviewItem("Disaster event UUID", form.id)}
+										{renderReviewItem("Recording organisation", form.recordingInstitution)}
 									</div>
 								</div>
 							</Card>
@@ -1751,13 +2030,22 @@ function StepperValidation({
 								<div className="space-y-6">
 									<div className="flex items-center gap-2 text-slate-800">
 										<i className="pi pi-map-marker text-blue-600" />
-										<h4 className="text-[16px] leading-[16px] font-semibold">Additional details</h4>
+										<h4 className="text-[16px] leading-[16px] font-semibold">Hazard classification</h4>
 									</div>
 									<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-										{renderReviewItem("City", form.city)}
-										{renderReviewItem("Country", form.country)}
-										{renderReviewItem("Address", form.address)}
-										{renderReviewItem("Notes", form.notes)}
+										{renderReviewItem(
+											"Hazard type",
+											sortedHipTypes.find((item) => item.id === selectedHipTypeId)?.name || "",
+										)}
+										{renderReviewItem(
+											"Hazard cluster",
+											sortedHipClusters.find((item) => item.id === selectedHipClusterId)?.name || "",
+										)}
+										{renderReviewItem(
+											"Specific hazard",
+											sortedHipHazards.find((item) => item.id === selectedHipHazardId)?.name || "",
+										)}
+										{renderReviewItem("HIPS code", selectedHipHazardId)}
 									</div>
 								</div>
 							</Card>
