@@ -311,7 +311,7 @@ export default function DisasterEventsPage({
                                     id="disaster-event-name-filter"
                                     type="text"
                                     placeholder="Search disaster event name..."
-                                    className="w-full pr-10"
+                                    className="w-full ltr:pr-10 rtl:pl-10"
                                     value={disasterEventNameFilter}
                                     onChange={(e) => {
                                         const nextValue = e.target.value;
@@ -320,7 +320,7 @@ export default function DisasterEventsPage({
                                     }}
                                 />
                                 <i
-                                    className="pi pi-search pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
+                                    className="pi pi-search pointer-events-none absolute top-1/2 -translate-y-1/2 text-slate-500 ltr:right-3 rtl:left-3 rtl:right-auto"
                                     aria-hidden="true"
                                 />
                             </div>
@@ -338,7 +338,7 @@ export default function DisasterEventsPage({
                                     id="recording-organization-filter"
                                     type="text"
                                     placeholder="Search organization"
-                                    className="w-full pr-10"
+                                    className="w-full ltr:pr-10 rtl:pl-10"
                                     value={recordingOrganizationFilter}
                                     onChange={(e) => {
                                         const nextValue = e.target.value;
@@ -347,7 +347,7 @@ export default function DisasterEventsPage({
                                     }}
                                 />
                                 <i
-                                    className="pi pi-search pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
+                                    className="pi pi-search pointer-events-none absolute top-1/2 -translate-y-1/2 text-slate-500 ltr:right-3 rtl:left-3 rtl:right-auto"
                                     aria-hidden="true"
                                 />
                             </div>

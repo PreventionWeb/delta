@@ -66,6 +66,34 @@ html[lang="ar"] {
 	margin-left: 0;
 }
 
+/* Keep clear icon and label spacing correct for clearable PrimeReact dropdowns in RTL */
+[dir="rtl"] .p-dropdown.p-dropdown-clearable .p-dropdown-label {
+	padding-right: 0.75rem;
+	padding-left: 1.75rem;
+}
+
+[dir="rtl"] .p-dropdown .p-dropdown-clear-icon {
+	right: auto;
+	left: 3rem;
+}
+
+/* Flip showIcon Calendar input/button edges in RTL */
+[dir="rtl"] .p-calendar.p-calendar-w-btn .p-inputtext {
+	border-top-right-radius: 6px;
+	border-bottom-right-radius: 6px;
+	border-top-left-radius: 0;
+	border-bottom-left-radius: 0;
+}
+
+[dir="rtl"] .p-calendar.p-calendar-w-btn .p-datepicker-trigger {
+	border-top-left-radius: 6px;
+	border-bottom-left-radius: 6px;
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
+	border-right: 0;
+	border-left: 1px solid var(--surface-border);
+}
+
 .login-inputgroup > .p-password {
 	flex: 1;
 }
@@ -464,7 +492,8 @@ nav ul {
 	gap: 0.57rem;
 }
 
-.return-modal-notify-multiselect .p-multiselect-label, .save-modal-notify-multiselect .p-multiselect-label {
+.return-modal-notify-multiselect .p-multiselect-label,
+.save-modal-notify-multiselect .p-multiselect-label {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 0.29rem;
@@ -472,11 +501,13 @@ nav ul {
 	max-width: 100%;
 }
 
-.return-modal-notify-multiselect .p-multiselect-token, .save-modal-notify-multiselect .p-multiselect-token {
+.return-modal-notify-multiselect .p-multiselect-token,
+.save-modal-notify-multiselect .p-multiselect-token {
 	max-width: 100%;
 }
 
-.return-modal-notify-multiselect .p-multiselect-token-label, .save-modal-notify-multiselect .p-multiselect-token-label {
+.return-modal-notify-multiselect .p-multiselect-token-label,
+.save-modal-notify-multiselect .p-multiselect-token-label {
 	display: block;
 	max-width: 100%;
 	overflow: hidden;
