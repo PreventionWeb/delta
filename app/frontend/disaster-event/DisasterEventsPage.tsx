@@ -272,7 +272,10 @@ export default function DisasterEventsPage({
         row.nameNational?.trim() || row.nameGlobalOrRegional?.trim() || "";
 
     return (
-        <div id="disaster-events-page" className="py-8 px-[272px]">
+        <div
+            id="disaster-events-page"
+            className="mx-auto w-full max-w-8xl px-4 py-8 md:px-6 lg:px-16"
+        >
             <Toast ref={toast} />
             <div>
                 <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
