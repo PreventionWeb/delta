@@ -239,15 +239,18 @@ export default function DisasterEventsPage({
             await navigator.clipboard.writeText(value);
             toast.current?.show({
                 severity: "success",
-                summary: "Copied",
-                detail: `UUID ${shortUuid(value)}… copied to clipboard`,
+                summary: ctx.t({ code: "copied", msg: "Copied" }),
+                detail: ctx.t({
+                    code: "uuid_copied_to_clipboard",
+                    msg: "UUID {shortUuid}… copied to clipboard",
+                }, { shortUuid: shortUuid(value) }),
                 life: 2000,
             });
         } catch {
             toast.current?.show({
                 severity: "error",
-                summary: "Failed",
-                detail: "Could not copy to clipboard",
+                summary: ctx.t({ code: "failed", msg: "Failed" }),
+                detail: ctx.t({ code: "could_not_copy_to_clipboard", msg: "Could not copy to clipboard" }),
                 life: 3000,
             });
         }
@@ -276,7 +279,8 @@ export default function DisasterEventsPage({
             id="disaster-events-page"
             className="mx-auto w-full max-w-8xl px-4 py-8 md:px-6 lg:px-16"
         >
-            <Toast ref={toast} />
+            <Toast ref={toast}
+                position={ctx.lang === "ar" ? "top-left" : "top-right"} />
             <div>
                 <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                     <div>

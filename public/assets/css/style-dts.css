@@ -94,6 +94,27 @@ html[lang="ar"] {
 	border-left: 1px solid var(--surface-border);
 }
 
+/* Make PrimeReact Toast layout and spacing RTL-friendly */
+[dir="rtl"] .p-toast .p-toast-message .p-toast-message-content {
+	direction: rtl;
+	text-align: right;
+}
+
+[dir="rtl"]
+	.p-toast
+	.p-toast-message
+	.p-toast-message-content
+	.p-toast-message-text {
+	margin: 0 1rem 0 0;
+}
+
+[dir="rtl"] .p-toast .p-toast-message.p-toast-message-info,
+[dir="rtl"] .p-toast .p-toast-message.p-toast-message-success,
+[dir="rtl"] .p-toast .p-toast-message.p-toast-message-warn,
+[dir="rtl"] .p-toast .p-toast-message.p-toast-message-error {
+	border-width: 0 6px 0 0;
+}
+
 .login-inputgroup > .p-password {
 	flex: 1;
 }
