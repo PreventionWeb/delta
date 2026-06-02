@@ -5,6 +5,7 @@ import {
 	SessionData,
 } from "react-router";
 import { dr } from "~/db.server";
+import { getRequestContext } from "~/utils/requestContext.server";
 
 import { InferSelectModel, eq, and } from "drizzle-orm";
 import { sessionActivityTimeoutMinutes } from "~/utils/session-activity-config";
@@ -159,17 +160,18 @@ export interface SuperAdminSession {
 	superAdminId: string;
 }
 
-export async function getUserFromSession(
-	request: Request,
-): Promise<UserSession | undefined> {
+// Performs the full cookie + DB lookup and returns UserSession or null.
+// null represents "no valid session" so the caller can distinguish
+// "not yet fetched" (undefined in the cache) from "fetched, unauthenticated" (null).
+async function resolveSession(request: Request): Promise<UserSession | null> {
 	const session = await sessionCookie().getSession(
 		request.headers.get("Cookie"),
 	);
 	const sessionId = session.get("sessionId");
 
-	if (!sessionId) return;
-
-	if (typeof sessionId != "string") return;
+	if (!sessionId || typeof sessionId !== "string") {
+		return null;
+	}
 
 	// TODO: currently sessions are not deleted when users are deleted, fix this
 
@@ -181,15 +183,15 @@ export async function getUserFromSession(
 	});
 
 	if (!sessionData) {
-		return;
+		return null;
 	}
 
 	const now = new Date();
 	const minutesSinceLastActivity =
-		(now.getTime() - sessionData?.lastActiveAt.getTime()) / (1000 * 60);
+		(now.getTime() - sessionData.lastActiveAt.getTime()) / (1000 * 60);
 
 	if (minutesSinceLastActivity > sessionActivityTimeoutMinutes) {
-		return;
+		return null;
 	}
 
 	await dr
@@ -202,6 +204,52 @@ export async function getUserFromSession(
 		sessionId: sessionId,
 		session: sessionData,
 	};
+}
+
+export async function getUserFromSession(
+	request: Request,
+): Promise<UserSession | undefined> {
+	// Check the per-request cache before hitting the DB. Within a single
+	// withRequestContext() scope this avoids redundant session queries — e.g.
+	// authLoaderWithPerm calls getUserFromSession twice per request (once via
+	// requireUser and again via getUserRoleFromSession). See ADR-004 for the
+	// broader request-context strategy.
+	const ctx = getRequestContext();
+
+	// Fast path: resolved cache (sequential second+ call within the same scope).
+	if (ctx !== undefined && ctx.sessionCache !== undefined) {
+		// ctx.sessionCache is UserSession | null here; convert null → undefined
+		// because this function's return type is Promise<UserSession | undefined>.
+		return ctx.sessionCache ?? undefined;
+	}
+
+	// Concurrent path: a parallel loader already started the DB lookup.
+	// Await the same promise instead of issuing a second query.
+	if (ctx !== undefined && ctx.sessionCachePromise !== undefined) {
+		return (await ctx.sessionCachePromise) ?? undefined;
+	}
+
+	// No resolved cache and no in-flight lookup. Store the promise before
+	// awaiting it so any concurrent caller that arrives now waits on this
+	// promise rather than starting another DB round-trip.
+	const lookupPromise = resolveSession(request);
+	if (ctx !== undefined) {
+		ctx.sessionCachePromise = lookupPromise;
+	}
+
+	try {
+		const result = await lookupPromise;
+		if (ctx !== undefined) {
+			ctx.sessionCache = result;
+		}
+		return result ?? undefined;
+	} finally {
+		// Always clear the in-flight marker so a rejection doesn't leave a
+		// permanently-stale rejected Promise in the store.
+		if (ctx !== undefined) {
+			ctx.sessionCachePromise = undefined;
+		}
+	}
 }
 
 export function flashMessage(session: Session, message: FlashMessage) {
