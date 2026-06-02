@@ -1387,19 +1387,21 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 			}
 
 			if (editingItem) {
-				setItems((prevItems: Record<string, any>) => ({
-					...prevItems,
-					[editingItem.id]: { ...prevItems[editingItem.id], ...formData },
-				}));
+				const updatedItems = {
+					...items,
+					[editingItem.id]: { ...items[editingItem.id], ...formData },
+				};
+				setItems(updatedItems);
+				onChange(Object.values(updatedItems));
 			} else {
 				const newId = Date.now().toString();
-				setItems((prevItems: Record<string, any>) => ({
-					...prevItems,
+				const updatedItems = {
+					...items,
 					[newId]: { id: newId, ...formData },
-				}));
+				};
+				setItems(updatedItems);
+				onChange(Object.values(updatedItems));
 			}
-
-			onChange(Object.values(items));
 			closeDialog();
 		};
 
@@ -1435,12 +1437,10 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 		};
 
 		const handleDelete = (itemId: string) => {
-			setItems((prevItems: Record<string, any>) => {
-				const updatedItems = { ...prevItems };
-				delete updatedItems[itemId];
-				return updatedItems;
-			});
-			onChange(Object.values(items));
+			const updatedItems = { ...items };
+			delete updatedItems[itemId];
+			setItems(updatedItems);
+			onChange(Object.values(updatedItems));
 		};
 
 		const handleFieldChange = useCallback(
@@ -1502,6 +1502,8 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 			onChange(itemsArray);
 			dragIndex.current = null;
 		};
+
+		const isPreviewMapDisabled = Object.values(items).length === 0;
 
 		return (
 			<div id={id} className="content-repeater">
@@ -1575,31 +1577,50 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 													width: column.width ? column.width : "auto",
 												}}
 											>
-												<a
-													type="button"
-													onClick={(e) => {
-														e.preventDefault();
-														handleDelete(item.id);
+												<div
+													style={{
+														display: "inline-flex",
+														gap: "10px",
+														alignItems: "center",
 													}}
 												>
-													{ctx.t({
-														code: "common.delete",
-														msg: "Delete",
-													})}
-												</a>{" "}
-												|{" "}
-												<a
-													type="button"
-													onClick={(e) => {
-														e.preventDefault();
-														openDialog(item, dialogRef);
-													}}
-												>
-													{ctx.t({
-														code: "common.edit",
-														msg: "Edit",
-													})}
-												</a>
+													<a
+														type="button"
+														href="#"
+														aria-label={ctx.t({
+															code: "common.delete",
+															msg: "Delete",
+														})}
+														title={ctx.t({
+															code: "common.delete",
+															msg: "Delete",
+														})}
+														onClick={(e) => {
+															e.preventDefault();
+															handleDelete(item.id);
+														}}
+													>
+														<i className="pi pi-trash" aria-hidden="true" />
+													</a>
+													<a
+														type="button"
+														href="#"
+														aria-label={ctx.t({
+															code: "common.edit",
+															msg: "Edit",
+														})}
+														title={ctx.t({
+															code: "common.edit",
+															msg: "Edit",
+														})}
+														onClick={(e) => {
+															e.preventDefault();
+															openDialog(item, dialogRef);
+														}}
+													>
+														<i className="pi pi-pencil" aria-hidden="true" />
+													</a>
+												</div>
 											</td>
 										);
 									}
@@ -1642,9 +1663,15 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 							<a
 								type="button"
 								className="mg-button mg-button-system"
-								style={{ width: "fit-content" }}
+								style={{
+									width: "fit-content",
+									opacity: isPreviewMapDisabled ? 0.5 : 1,
+									cursor: isPreviewMapDisabled ? "not-allowed" : "pointer",
+								}}
+								aria-disabled={isPreviewMapDisabled}
 								onClick={(e) => {
 									e.preventDefault();
+									if (isPreviewMapDisabled) return;
 									handlePreviewMap();
 								}}
 							>

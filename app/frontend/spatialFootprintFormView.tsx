@@ -12,6 +12,7 @@ export function SpatialFootprintFormView({
 	treeData = [],
 	initialData = [],
 	geographicLevel = true,
+	onChange,
 }: {
 	ctx: ViewContext;
 	divisions: any;
@@ -258,7 +259,7 @@ export function SpatialFootprintFormView({
 				data={parsedData}
 				onChange={(items: any) => {
 					try {
-						Array.isArray(items) ? items : items;
+						onChange?.(Array.isArray(items) ? items : []);
 					} catch {
 						console.error("Failed to process items.");
 					}

@@ -32,6 +32,7 @@ import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { dr } from "~/db.server";
 import { divisionTable } from "~/drizzle/schema/divisionTable";
 import { buildTree } from "~/components/TreeView";
+import { SpatialFootprintFormView2 } from "~/frontend/spatialFootprintFormView2";
 
 import { ViewContext } from "~/frontend/context";
 
@@ -264,6 +265,7 @@ import { Tooltip } from "primereact/tooltip";
 import { Card } from "primereact/card";
 import { PickList } from "primereact/picklist";
 import { Dialog } from "primereact/dialog";
+import { Calendar } from "primereact/calendar";
 import { Dropdown } from "primereact/dropdown";
 import { Tree } from "primereact/tree";
 import type { TreeProps } from "primereact/tree";
@@ -271,6 +273,7 @@ import type { TreeNode } from "primereact/treenode";
 
 type Errors = {
 	nameNational?: string;
+	endDate?: string;
 };
 
 type LinkedEventOption = {
@@ -279,15 +282,31 @@ type LinkedEventOption = {
 	code: string;
 };
 
-type AdditionalDetailCategory = "response" | "assessment";
+type AdditionalDetailCategory = "response" | "assessment" | "declaration";
+
+type DeclarationStatus = "unknown" | "yes" | "no";
+
+type AdditionalDetailMeta = {
+	declarationStatus?: DeclarationStatus;
+	hadOfficialWarningOrWeatherAdvisory?: boolean;
+	officialWarningAffectedAreas?: string;
+};
 
 type AdditionalDetailItem = {
 	id: string;
 	type: string;
 	date: string;
-	location: string;
 	description: string;
+	meta?: AdditionalDetailMeta;
 };
+
+type AdditionalDetailTypeOption = {
+	value: string;
+	label: string;
+};
+
+type EarlyActionFieldIndex = 1 | 2 | 3 | 4 | 5;
+type AssessmentFieldIndex = 1 | 2 | 3 | 4 | 5;
 
 type HazardPickerItem = {
 	id: string;
@@ -443,6 +462,59 @@ function collectNodeKeys(nodes: TreeNode[]): string[] {
 
 const requiredFieldOrder: Array<keyof Errors> = ["nameNational"];
 
+const responseTypeOptions: AdditionalDetailTypeOption[] = [
+	{ value: "early_action", label: "Early action" },
+	{ value: "response_operation", label: "Response operation" },
+];
+
+const assessmentTypeOptions: AdditionalDetailTypeOption[] = [
+	{
+		value: "rapid_preliminary_assessment",
+		label: "Rapid/Preliminary assessment",
+	},
+	{
+		value: "post_disaster_assessment",
+		label: "Post-disaster assessment",
+	},
+	{ value: "other_assessment", label: "Other assessment" },
+];
+
+const declarationTypeOptions: AdditionalDetailTypeOption[] = [
+	{ value: "disaster_declaration", label: "Disaster declaration" },
+	{
+		value: "disaster_declaration_effects",
+		label: "Disaster declaration effects",
+	},
+	{ value: "official_warning", label: "Official Warning" },
+];
+
+const declarationStatusOptions: AdditionalDetailTypeOption[] = [
+	{ value: "unknown", label: "Unknown" },
+	{ value: "yes", label: "Yes" },
+	{ value: "no", label: "No" },
+];
+
+const legacyDetailTypeToKey: Record<string, string> = {
+	"Early action": "early_action",
+	"Response operation": "response_operation",
+	Coordination: "coordination",
+	Evacuation: "evacuation",
+	Assessment: "assessment",
+	"Rapid assessment": "rapid_assessment",
+	"Needs assessment": "needs_assessment",
+	"Sector assessment": "sector_assessment",
+	"Rapid/Preliminary assessment": "rapid_preliminary_assessment",
+	"Post-disaster assessment": "post_disaster_assessment",
+	"Other assessment": "other_assessment",
+	"Disaster declaration": "disaster_declaration",
+	"Disaster declaration effects": "disaster_declaration_effects",
+	"Official Warning": "official_warning",
+};
+
+function normalizeDetailTypeValue(value: string): string {
+	return legacyDetailTypeToKey[value] ?? value;
+}
+
 // const isValidEmail = (value: string) => /^\S+@\S+\.\S+$/.test(value);
 
 type StepperValidationProps = {
@@ -467,6 +539,60 @@ type StepperValidationProps = {
 		recordingInstitution?: string | null;
 		id?: string | null;
 		spatialFootprint?: unknown;
+		earlyActionDescription1?: string | null;
+		earlyActionDate1?: string | Date | null;
+		earlyActionDescription2?: string | null;
+		earlyActionDate2?: string | Date | null;
+		earlyActionDescription3?: string | null;
+		earlyActionDate3?: string | Date | null;
+		earlyActionDescription4?: string | null;
+		earlyActionDate4?: string | Date | null;
+		earlyActionDescription5?: string | null;
+		earlyActionDate5?: string | Date | null;
+		responseOperations?: string | null;
+		rapidOrPreliminaryAssessmentDescription1?: string | null;
+		rapidOrPreliminaryAssessmentDate1?: string | Date | null;
+		rapidOrPreliminaryAssessmentDescription2?: string | null;
+		rapidOrPreliminaryAssessmentDate2?: string | Date | null;
+		rapidOrPreliminaryAssessmentDescription3?: string | null;
+		rapidOrPreliminaryAssessmentDate3?: string | Date | null;
+		rapidOrPreliminaryAssessmentDescription4?: string | null;
+		rapidOrPreliminaryAssessmentDate4?: string | Date | null;
+		rapidOrPreliminaryAssessmentDescription5?: string | null;
+		rapidOrPreliminaryAssessmentDate5?: string | Date | null;
+		postDisasterAssessmentDescription1?: string | null;
+		postDisasterAssessmentDate1?: string | Date | null;
+		postDisasterAssessmentDescription2?: string | null;
+		postDisasterAssessmentDate2?: string | Date | null;
+		postDisasterAssessmentDescription3?: string | null;
+		postDisasterAssessmentDate3?: string | Date | null;
+		postDisasterAssessmentDescription4?: string | null;
+		postDisasterAssessmentDate4?: string | Date | null;
+		postDisasterAssessmentDescription5?: string | null;
+		postDisasterAssessmentDate5?: string | Date | null;
+		otherAssessmentDescription1?: string | null;
+		otherAssessmentDate1?: string | Date | null;
+		otherAssessmentDescription2?: string | null;
+		otherAssessmentDate2?: string | Date | null;
+		otherAssessmentDescription3?: string | null;
+		otherAssessmentDate3?: string | Date | null;
+		otherAssessmentDescription4?: string | null;
+		otherAssessmentDate4?: string | Date | null;
+		otherAssessmentDescription5?: string | null;
+		otherAssessmentDate5?: string | Date | null;
+		disasterDeclaration?: DeclarationStatus | null;
+		disasterDeclarationTypeAndEffect1?: string | null;
+		disasterDeclarationDate1?: string | Date | null;
+		disasterDeclarationTypeAndEffect2?: string | null;
+		disasterDeclarationDate2?: string | Date | null;
+		disasterDeclarationTypeAndEffect3?: string | null;
+		disasterDeclarationDate3?: string | Date | null;
+		disasterDeclarationTypeAndEffect4?: string | null;
+		disasterDeclarationDate4?: string | Date | null;
+		disasterDeclarationTypeAndEffect5?: string | null;
+		disasterDeclarationDate5?: string | Date | null;
+		hadOfficialWarningOrWeatherAdvisory?: boolean | null;
+		officialWarningAffectedAreas?: string | null;
 	} | null;
 	treeData: unknown;
 	ctryIso3: string;
@@ -562,10 +688,6 @@ function StepperValidation({
 		});
 	};
 
-	const saveDivisionSelection = () => {
-		setSpatialFootprintDialogVisible(false);
-	};
-
 	const eventBasicsInitialValues: EventBasicsCompareFields = {
 		id: disasterEvent?.id ?? "",
 		nameNational: disasterEvent?.nameNational ?? "",
@@ -659,6 +781,33 @@ function StepperValidation({
 		return `${state.year}-${state.month}-${state.day}`;
 	};
 
+	const toComparableBoundaryDate = (
+		state: DateWithPrecisionState,
+		boundary: "start" | "end",
+	): string => {
+		if (state.precision === "yyyy") {
+			return boundary === "start"
+				? `${state.year}-01-01`
+				: `${state.year}-12-31`;
+		}
+
+		if (state.precision === "yyyy-mm") {
+			if (boundary === "start") {
+				return `${state.year}-${state.month}-01`;
+			}
+
+			const lastDayOfMonth = new Date(
+				Date.UTC(Number(state.year), Number(state.month), 0),
+			)
+				.getUTCDate()
+				.toString()
+				.padStart(2, "0");
+			return `${state.year}-${state.month}-${lastDayOfMonth}`;
+		}
+
+		return `${state.year}-${state.month}-${state.day}`;
+	};
+
 	const [startDateState, setStartDateState] = useState<DateWithPrecisionState>(
 		parseDateWithPrecision(disasterEvent?.startDate),
 	);
@@ -673,22 +822,21 @@ function StepperValidation({
 	);
 	const [spatialFootprintDialogVisible, setSpatialFootprintDialogVisible] =
 		useState(false);
-	const [spatialDialogHint, setSpatialDialogHint] = useState<
-		"map" | "geographic"
-	>("map");
-	// const [spatialFootprintValue, setSpatialFootprintValue] = useState<any[]>(() => {
-	// 	try {
-	// 		if (Array.isArray(disasterEvent?.spatialFootprint)) {
-	// 			return disasterEvent.spatialFootprint as any[];
-	// 		}
-	// 		if (typeof disasterEvent?.spatialFootprint === "string") {
-	// 			return JSON.parse(disasterEvent.spatialFootprint) || [];
-	// 		}
-	// 	} catch {
-	// 		// Ignore parse failures and fallback to empty list
-	// 	}
-	// 	return [];
-	// });
+	const [spatialFootprintValue, setSpatialFootprintValue] = useState<any[]>(
+		() => {
+			try {
+				if (Array.isArray(disasterEvent?.spatialFootprint)) {
+					return disasterEvent.spatialFootprint as any[];
+				}
+				if (typeof disasterEvent?.spatialFootprint === "string") {
+					return JSON.parse(disasterEvent.spatialFootprint) || [];
+				}
+			} catch {
+				// Ignore parse failures and fallback to empty list
+			}
+			return [];
+		},
+	);
 
 	const monthOptions = [
 		{ value: "01", label: "January" },
@@ -710,6 +858,7 @@ function StepperValidation({
 		label: string,
 		state: DateWithPrecisionState,
 		setState: React.Dispatch<React.SetStateAction<DateWithPrecisionState>>,
+		errorMessage?: string,
 	) => {
 		const isFullDate = state.precision === "yyyy-mm-dd";
 		const isYearMonth = state.precision === "yyyy-mm";
@@ -841,6 +990,10 @@ function StepperValidation({
 							/>
 						</>
 					) : null}
+
+					{errorMessage ? (
+						<p className="mt-1 text-xs text-red-600">{errorMessage}</p>
+					) : null}
 				</div>
 			</>
 		);
@@ -857,22 +1010,287 @@ function StepperValidation({
 	const [linkedDisasterRecordLoading, setLinkedDisasterRecordLoading] = useState(false);
 	const [linkedDisasterRecordSource, setLinkedDisasterRecordSource] = useState<LinkedEventOption[]>([]);
 	const [linkedDisasterRecordTarget, setLinkedDisasterRecordTarget] = useState<LinkedEventOption[]>([]);
-	const [responses, setResponses] = useState<AdditionalDetailItem[]>([]);
-	const [assessments, setAssessments] = useState<AdditionalDetailItem[]>([]);
-	const [declarations, setDeclarations] = useState<AdditionalDetailItem[]>([]);
+
+	const formatBackendDate = (value: string | Date | null | undefined): string => {
+		if (!value) {
+			return "";
+		}
+
+		const dateValue = value instanceof Date ? value : new Date(value);
+		if (Number.isNaN(dateValue.getTime())) {
+			return "";
+		}
+
+		const day = String(dateValue.getUTCDate()).padStart(2, "0");
+		const month = String(dateValue.getUTCMonth() + 1).padStart(2, "0");
+		const year = String(dateValue.getUTCFullYear());
+		return `${day}/${month}/${year}`;
+	};
+
+	const mapEarlyActionToResponses = (): AdditionalDetailItem[] => {
+		const indexes: EarlyActionFieldIndex[] = [1, 2, 3, 4, 5];
+		const responseOperationDescription = String(
+			disasterEvent?.responseOperations ?? "",
+		).trim();
+
+		const earlyActionItems = indexes.reduce<AdditionalDetailItem[]>((accumulator, index) => {
+			const descriptionRaw =
+				disasterEvent?.[
+					`earlyActionDescription${index}` as const
+				] ?? "";
+			const dateRaw =
+				disasterEvent?.[
+					`earlyActionDate${index}` as const
+				] ?? null;
+
+			const descriptionText = String(descriptionRaw).trim();
+			const formattedDate = formatBackendDate(dateRaw);
+
+			if (!descriptionText && !formattedDate) {
+				return accumulator;
+			}
+
+			accumulator.push({
+				id: `response-early-action-${index}`,
+				type: "early_action",
+				date: formattedDate,
+				description: descriptionText,
+			});
+
+			return accumulator;
+		}, []);
+
+		if (!responseOperationDescription) {
+			return earlyActionItems;
+		}
+
+		return [
+			...earlyActionItems,
+			{
+				id: "response-operation-backend",
+				type: "response_operation",
+				date: "",
+				description: responseOperationDescription,
+			},
+		];
+	};
+
+	const mapAssessmentsToItems = (): AdditionalDetailItem[] => {
+		const indexes: AssessmentFieldIndex[] = [1, 2, 3, 4, 5];
+		const configs = [
+			{
+				type: "rapid_preliminary_assessment",
+				descriptionPrefix: "rapidOrPreliminaryAssessmentDescription",
+				datePrefix: "rapidOrPreliminaryAssessmentDate",
+			},
+			{
+				type: "post_disaster_assessment",
+				descriptionPrefix: "postDisasterAssessmentDescription",
+				datePrefix: "postDisasterAssessmentDate",
+			},
+			{
+				type: "other_assessment",
+				descriptionPrefix: "otherAssessmentDescription",
+				datePrefix: "otherAssessmentDate",
+			},
+		] as const;
+
+		return configs.reduce<AdditionalDetailItem[]>((allItems, config) => {
+			const itemsForType = indexes.reduce<AdditionalDetailItem[]>((items, index) => {
+				const descriptionRaw =
+					disasterEvent?.[
+						`${config.descriptionPrefix}${index}` as const
+					] ?? "";
+				const dateRaw =
+					disasterEvent?.[
+						`${config.datePrefix}${index}` as const
+					] ?? null;
+
+				const descriptionText = String(descriptionRaw).trim();
+				const formattedDate = formatBackendDate(dateRaw);
+
+				if (!descriptionText && !formattedDate) {
+					return items;
+				}
+
+				items.push({
+					id: `assessment-${config.type}-${index}`,
+					type: config.type,
+					date: formattedDate,
+					description: descriptionText,
+				});
+
+				return items;
+			}, []);
+
+			return [...allItems, ...itemsForType];
+		}, []);
+	};
+
+	const mapDeclarationsToItems = (): AdditionalDetailItem[] => {
+		const declarationItems: AdditionalDetailItem[] = [];
+		const declarationStatus = disasterEvent?.disasterDeclaration;
+
+		if (declarationStatus && ["unknown", "yes", "no"].includes(declarationStatus)) {
+			declarationItems.push({
+				id: "declaration-status",
+				type: "disaster_declaration",
+				date: "",
+				description: "",
+				meta: {
+					declarationStatus,
+				},
+			});
+		}
+
+		const effectIndexes: AssessmentFieldIndex[] = [1, 2, 3, 4, 5];
+		for (const index of effectIndexes) {
+			const descriptionText = String(
+				disasterEvent?.[
+					`disasterDeclarationTypeAndEffect${index}` as const
+				] ?? "",
+			).trim();
+			const formattedDate = formatBackendDate(
+				disasterEvent?.[
+					`disasterDeclarationDate${index}` as const
+				] ?? null,
+			);
+
+			if (!descriptionText && !formattedDate) {
+				continue;
+			}
+
+			declarationItems.push({
+				id: `declaration-effects-${index}`,
+				type: "disaster_declaration_effects",
+				date: formattedDate,
+				description: descriptionText,
+			});
+		}
+
+		const warningFlag = Boolean(disasterEvent?.hadOfficialWarningOrWeatherAdvisory);
+		const warningAreas = String(disasterEvent?.officialWarningAffectedAreas ?? "").trim();
+		if (warningFlag || warningAreas) {
+			declarationItems.push({
+				id: "declaration-official-warning",
+				type: "official_warning",
+				date: "",
+				description: warningAreas,
+				meta: {
+					hadOfficialWarningOrWeatherAdvisory: warningFlag,
+					officialWarningAffectedAreas: warningAreas,
+				},
+			});
+		}
+
+		return declarationItems;
+	};
+
+	const [responses, setResponses] = useState<AdditionalDetailItem[]>(() =>
+		mapEarlyActionToResponses(),
+	);
+	const [assessments, setAssessments] = useState<AdditionalDetailItem[]>(() =>
+		mapAssessmentsToItems(),
+	);
+	const [declarations, setDeclarations] = useState<AdditionalDetailItem[]>(() =>
+		mapDeclarationsToItems(),
+	);
+	const responseCountByType = useMemo(() => {
+		return responses.reduce<Record<string, number>>((counts, item) => {
+			const key = normalizeDetailTypeValue(item.type);
+			counts[key] = (counts[key] ?? 0) + 1;
+			return counts;
+		}, {});
+	}, [responses]);
+	const assessmentCountByType = useMemo(() => {
+		return assessments.reduce<Record<string, number>>((counts, item) => {
+			const key = normalizeDetailTypeValue(item.type);
+			counts[key] = (counts[key] ?? 0) + 1;
+			return counts;
+		}, {});
+	}, [assessments]);
+	const declarationCountByType = useMemo(() => {
+		return declarations.reduce<Record<string, number>>((counts, item) => {
+			const key = normalizeDetailTypeValue(item.type);
+			counts[key] = (counts[key] ?? 0) + 1;
+			return counts;
+		}, {});
+	}, [declarations]);
+
+	const parseDetailDate = (value: string): Date | null => {
+		const match = /^([0-3]\d)\/([0-1]\d)\/(\d{4})$/.exec(value.trim());
+		if (!match) {
+			return null;
+		}
+
+		const day = Number(match[1]);
+		const month = Number(match[2]);
+		const year = Number(match[3]);
+		const parsed = new Date(year, month - 1, day);
+
+		if (
+			parsed.getFullYear() !== year ||
+			parsed.getMonth() !== month - 1 ||
+			parsed.getDate() !== day
+		) {
+			return null;
+		}
+
+		return parsed;
+	};
+
+	const formatDetailDate = (value: Date | null): string => {
+		if (!value) {
+			return "";
+		}
+
+		const day = String(value.getDate()).padStart(2, "0");
+		const month = String(value.getMonth() + 1).padStart(2, "0");
+		const year = String(value.getFullYear());
+		return `${day}/${month}/${year}`;
+	};
+
 	const [detailDialogVisible, setDetailDialogVisible] = useState(false);
 	const [detailDialogCategory, setDetailDialogCategory] =
 		useState<AdditionalDetailCategory>("response");
 	const [editingDetailId, setEditingDetailId] = useState<string | null>(null);
 	const [detailForm, setDetailForm] = useState({
 		type: "",
-		dateText: "",
-		day: "",
-		month: "",
-		year: "",
-		location: "",
+		dateValue: null as Date | null,
 		description: "",
+		declarationStatus: "" as DeclarationStatus | "",
+		hadOfficialWarningOrWeatherAdvisory: false,
+		officialWarningAffectedAreas: "",
 	});
+	const isResponseOperationType =
+		detailDialogCategory === "response" &&
+		detailForm.type === "response_operation";
+	const isDeclarationStatusType =
+		detailDialogCategory === "declaration" &&
+		detailForm.type === "disaster_declaration";
+	const isOfficialWarningType =
+		detailDialogCategory === "declaration" &&
+		detailForm.type === "official_warning";
+	const showDateField =
+		!isResponseOperationType &&
+		!isDeclarationStatusType &&
+		!isOfficialWarningType;
+	const hasOfficialWarningAreas =
+		detailForm.officialWarningAffectedAreas.trim().length > 0;
+	const passesOfficialWarningRule =
+		!isOfficialWarningType ||
+		!detailForm.hadOfficialWarningOrWeatherAdvisory ||
+		hasOfficialWarningAreas;
+	const hasDetailType = detailForm.type.trim().length > 0;
+	const hasDetailContent = isDeclarationStatusType
+		? detailForm.declarationStatus !== ""
+		: isOfficialWarningType
+			? detailForm.hadOfficialWarningOrWeatherAdvisory ||
+				hasOfficialWarningAreas
+			: detailForm.description.trim().length > 0 ||
+				detailForm.dateValue !== null;
+	const canSaveDetail =
+		hasDetailType && hasDetailContent && passesOfficialWarningRule;
 	const [errors, setErrors] = useState<Errors>({});
 	const [selectedHipTypeId, setSelectedHipTypeId] = useState(
 		disasterEvent?.hipTypeId ?? "",
@@ -1064,24 +1482,44 @@ function StepperValidation({
 
 	const validateStep1 = (formData: StepperFormState = form) => {
 		const nextErrors: Errors = {};
+		const startDateValue = toDateWithPrecisionValue(startDateState);
+		const endDateValue = toDateWithPrecisionValue(endDateState);
 
 		if (!formData.nameNational.trim()) {
 			nextErrors.nameNational = "Name (National) is required";
 		}
 
+		if (startDateValue && endDateValue) {
+			const startBoundary = toComparableBoundaryDate(startDateState, "start");
+			const endBoundary = toComparableBoundaryDate(endDateState, "end");
+
+			if (endBoundary < startBoundary) {
+				nextErrors.endDate = "End date cannot be before start date";
+			}
+		}
+
 		setErrors(nextErrors);
 		if (Object.keys(nextErrors).length > 0) {
-			const firstInvalidField = requiredFieldOrder.find(
-				(fieldName) => !!nextErrors[fieldName],
-			);
-			if (firstInvalidField) {
-				requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				const firstInvalidField = requiredFieldOrder.find(
+					(fieldName) => !!nextErrors[fieldName],
+				);
+				if (firstInvalidField) {
 					const element = document.getElementById(
 						firstInvalidField,
 					) as HTMLInputElement | null;
 					element?.focus();
-				});
-			}
+					return;
+				}
+
+				if (nextErrors.endDate) {
+					const endDateElement =
+						(document.getElementById("endDateDate") as HTMLInputElement | null) ||
+						(document.getElementById("endDateYear") as HTMLInputElement | null) ||
+						(document.getElementById("endDateMonth") as HTMLSelectElement | null);
+					endDateElement?.focus();
+				}
+			});
 			return false;
 		}
 
@@ -1133,25 +1571,189 @@ function StepperValidation({
 	);
 
 	const maxDetailItems = 5;
-	const responseTypeOptions = ["Early action", "Response operation", "Coordination", "Evacuation"];
-	const assessmentTypeOptions = ["Assessment", "Rapid assessment", "Needs assessment", "Sector assessment"];
+	const maxEarlyActionItems = 5;
+	const maxResponseOperationItems = 1;
+	const maxDisasterDeclarationItems = 1;
+	const maxDisasterDeclarationEffectsItems = 5;
+	const maxOfficialWarningItems = 1;
+	const detailTypeLabelByValue = useMemo(() => {
+		return new Map(
+			[
+				...responseTypeOptions,
+				...assessmentTypeOptions,
+				...declarationTypeOptions,
+			].map((option) => [
+				option.value,
+				option.label,
+			]),
+		);
+	}, []);
+	const availableAssessmentTypeOptions = useMemo(
+		() =>
+			assessmentTypeOptions.filter(
+				(option) => (assessmentCountByType[option.value] ?? 0) < maxDetailItems,
+			),
+		[assessmentCountByType],
+	);
+	const detailTypeOptions = useMemo(() => {
+		if (detailDialogCategory === "response") {
+			return responseTypeOptions.filter((option) => {
+				if (option.value === detailForm.type) {
+					return true;
+				}
+				if (option.value === "early_action") {
+					return (responseCountByType.early_action ?? 0) < maxEarlyActionItems;
+				}
+				if (option.value === "response_operation") {
+					return (
+						(responseCountByType.response_operation ?? 0) <
+						maxResponseOperationItems
+					);
+				}
+				return true;
+			});
+		}
+
+		if (detailDialogCategory === "assessment") {
+			return assessmentTypeOptions.filter(
+				(option) =>
+					availableAssessmentTypeOptions.some(
+						(availableOption) => availableOption.value === option.value,
+					) || option.value === detailForm.type,
+			);
+		}
+
+		return declarationTypeOptions.filter((option) => {
+			if (option.value === detailForm.type) {
+				return true;
+			}
+
+			if (option.value === "disaster_declaration") {
+				return (
+					(declarationCountByType.disaster_declaration ?? 0) <
+					maxDisasterDeclarationItems
+				);
+			}
+
+			if (option.value === "disaster_declaration_effects") {
+				return (
+					(declarationCountByType.disaster_declaration_effects ?? 0) <
+					maxDisasterDeclarationEffectsItems
+				);
+			}
+
+			if (option.value === "official_warning") {
+				return (
+					(declarationCountByType.official_warning ?? 0) <
+					maxOfficialWarningItems
+				);
+			}
+
+			return true;
+		});
+	}, [
+		availableAssessmentTypeOptions,
+		detailDialogCategory,
+		detailForm.type,
+		declarationCountByType,
+		maxDisasterDeclarationEffectsItems,
+		maxDisasterDeclarationItems,
+		maxEarlyActionItems,
+		maxOfficialWarningItems,
+		maxResponseOperationItems,
+		responseCountByType,
+	]);
+	const canAddAnyResponse =
+		(responseCountByType.early_action ?? 0) < maxEarlyActionItems ||
+		(responseCountByType.response_operation ?? 0) < maxResponseOperationItems;
+	const canAddAnyAssessment = assessmentTypeOptions.some(
+		(option) => (assessmentCountByType[option.value] ?? 0) < maxDetailItems,
+	);
+	const canAddAnyDeclaration =
+		(declarationCountByType.disaster_declaration ?? 0) <
+			maxDisasterDeclarationItems ||
+		(declarationCountByType.disaster_declaration_effects ?? 0) <
+			maxDisasterDeclarationEffectsItems ||
+		(declarationCountByType.official_warning ?? 0) < maxOfficialWarningItems;
+	const reviewSpatialFootprintItems = useMemo(
+		() =>
+			spatialFootprintValue
+				.filter((item) => Boolean(item))
+				.map((item, index) => {
+					const title =
+						typeof item?.title === "string" ? item.title.trim() : "";
+					return title || `Spatial footprint ${index + 1}`;
+				}),
+		[spatialFootprintValue],
+	);
 
 	const openAddDetail = (category: AdditionalDetailCategory) => {
-		const list = category === "response" ? responses : assessments;
-		if (list.length >= maxDetailItems) {
+		if (category === "response" && !canAddAnyResponse) {
 			return;
+		}
+
+		if (category === "assessment" && !canAddAnyAssessment) {
+			return;
+		}
+
+		if (category === "declaration" && !canAddAnyDeclaration) {
+			return;
+		}
+
+		let defaultType = "";
+		if (category === "response") {
+			defaultType =
+				responseTypeOptions.find((option) => {
+					if (option.value === "early_action") {
+						return (responseCountByType.early_action ?? 0) < maxEarlyActionItems;
+					}
+					if (option.value === "response_operation") {
+						return (
+							(responseCountByType.response_operation ?? 0) <
+							maxResponseOperationItems
+						);
+					}
+					return false;
+				})?.value ?? "";
+		} else if (category === "assessment") {
+			defaultType = availableAssessmentTypeOptions[0]?.value ?? "";
+		} else if (category === "declaration") {
+			defaultType =
+				declarationTypeOptions.find((option) => {
+					if (option.value === "disaster_declaration") {
+						return (
+							(declarationCountByType.disaster_declaration ?? 0) <
+							maxDisasterDeclarationItems
+						);
+					}
+
+					if (option.value === "disaster_declaration_effects") {
+						return (
+							(declarationCountByType.disaster_declaration_effects ?? 0) <
+							maxDisasterDeclarationEffectsItems
+						);
+					}
+
+					if (option.value === "official_warning") {
+						return (
+							(declarationCountByType.official_warning ?? 0) <
+							maxOfficialWarningItems
+						);
+					}
+
+					return false;
+				})?.value ?? "";
 		}
 
 		setDetailDialogCategory(category);
 		setEditingDetailId(null);
 		setDetailForm({
-			type: "",
-			dateText: "",
-			day: "",
-			month: "",
-			year: "",
-			location: "",
+			type: defaultType,
+			dateValue: null,
 			description: "",
+			declarationStatus: "",
+			hadOfficialWarningOrWeatherAdvisory: false,
+			officialWarningAffectedAreas: "",
 		});
 		setDetailDialogVisible(true);
 	};
@@ -1159,28 +1761,77 @@ function StepperValidation({
 	const openEditDetail = (category: AdditionalDetailCategory, item: AdditionalDetailItem) => {
 		setDetailDialogCategory(category);
 		setEditingDetailId(item.id);
+		const normalizedType = normalizeDetailTypeValue(item.type);
 		setDetailForm({
-			type: item.type,
-			dateText: item.date,
-			day: "",
-			month: "",
-			year: "",
-			location: item.location,
+			type: normalizedType,
+			dateValue:
+				category === "response" && normalizedType === "response_operation"
+					? null
+					: category === "declaration" && normalizedType !== "disaster_declaration_effects"
+					? null
+					: parseDetailDate(item.date),
 			description: item.description,
+			declarationStatus:
+				category === "declaration" && normalizedType === "disaster_declaration"
+					? item.meta?.declarationStatus ?? ""
+					: "",
+			hadOfficialWarningOrWeatherAdvisory:
+				category === "declaration" && normalizedType === "official_warning"
+					? Boolean(item.meta?.hadOfficialWarningOrWeatherAdvisory)
+					: false,
+			officialWarningAffectedAreas:
+				category === "declaration" && normalizedType === "official_warning"
+					? item.meta?.officialWarningAffectedAreas ?? item.description
+					: "",
 		});
 		setDetailDialogVisible(true);
 	};
 
 	const saveDetail = () => {
+		if (!canSaveDetail) {
+			return;
+		}
+
+		const trimmedType = detailForm.type.trim();
+		const trimmedDescription = detailForm.description.trim();
+
 		const targetCategory = detailDialogCategory;
-		const setTarget = targetCategory === "response" ? setResponses : setAssessments;
-		const fallbackDate = [detailForm.day, detailForm.month, detailForm.year].filter(Boolean).join("/");
+		const setTarget =
+			targetCategory === "response"
+				? setResponses
+				: targetCategory === "assessment"
+					? setAssessments
+					: setDeclarations;
+		const declarationMeta: AdditionalDetailMeta | undefined =
+			targetCategory === "declaration"
+				? {
+					declarationStatus: isDeclarationStatusType
+						? (detailForm.declarationStatus as DeclarationStatus)
+						: undefined,
+					hadOfficialWarningOrWeatherAdvisory: isOfficialWarningType
+						? detailForm.hadOfficialWarningOrWeatherAdvisory
+						: undefined,
+					officialWarningAffectedAreas: isOfficialWarningType
+						? detailForm.officialWarningAffectedAreas.trim()
+						: undefined,
+				}
+				: undefined;
 		const nextItem: AdditionalDetailItem = {
 			id: editingDetailId ?? `${targetCategory}-${Date.now()}`,
-			type: detailForm.type || (targetCategory === "response" ? "Response operation" : "Assessment"),
-			date: detailForm.dateText || fallbackDate || "",
-			location: detailForm.location || "Location not specified",
-			description: detailForm.description || "",
+			type: trimmedType,
+			date:
+				targetCategory === "response" && trimmedType === "response_operation"
+					? ""
+					: targetCategory === "declaration" && trimmedType !== "disaster_declaration_effects"
+					? ""
+					: formatDetailDate(detailForm.dateValue),
+			description:
+				targetCategory === "declaration" && trimmedType === "disaster_declaration"
+					? ""
+					: targetCategory === "declaration" && trimmedType === "official_warning"
+						? detailForm.officialWarningAffectedAreas.trim()
+						: trimmedDescription,
+			meta: declarationMeta,
 		};
 
 		setTarget((prev) => {
@@ -1188,8 +1839,63 @@ function StepperValidation({
 				return prev.map((item) => (item.id === editingDetailId ? nextItem : item));
 			}
 
-			if (prev.length >= maxDetailItems) {
-				return prev;
+			if (targetCategory === "response") {
+				if (nextItem.type === "early_action") {
+					const earlyActionCount = prev.filter(
+						(item) => normalizeDetailTypeValue(item.type) === "early_action",
+					).length;
+					if (earlyActionCount >= maxEarlyActionItems) {
+						return prev;
+					}
+				}
+
+				if (nextItem.type === "response_operation") {
+					const responseOperationCount = prev.filter(
+						(item) =>
+							normalizeDetailTypeValue(item.type) ===
+							"response_operation",
+					).length;
+					if (responseOperationCount >= maxResponseOperationItems) {
+						return prev;
+					}
+				}
+			} else if (targetCategory === "assessment") {
+				const nextTypeCount = prev.filter(
+					(item) => normalizeDetailTypeValue(item.type) === nextItem.type,
+				).length;
+				if (nextTypeCount >= maxDetailItems) {
+					return prev;
+				}
+			} else {
+				if (nextItem.type === "disaster_declaration") {
+					const nextTypeCount = prev.filter(
+						(item) =>
+							normalizeDetailTypeValue(item.type) === "disaster_declaration",
+					).length;
+					if (nextTypeCount >= maxDisasterDeclarationItems) {
+						return prev;
+					}
+				}
+
+				if (nextItem.type === "disaster_declaration_effects") {
+					const nextTypeCount = prev.filter(
+						(item) =>
+							normalizeDetailTypeValue(item.type) ===
+							"disaster_declaration_effects",
+					).length;
+					if (nextTypeCount >= maxDisasterDeclarationEffectsItems) {
+						return prev;
+					}
+				}
+
+				if (nextItem.type === "official_warning") {
+					const nextTypeCount = prev.filter(
+						(item) => normalizeDetailTypeValue(item.type) === "official_warning",
+					).length;
+					if (nextTypeCount >= maxOfficialWarningItems) {
+						return prev;
+					}
+				}
 			}
 
 			return [...prev, nextItem];
@@ -1203,7 +1909,12 @@ function StepperValidation({
 			return;
 		}
 
-		const setTarget = detailDialogCategory === "response" ? setResponses : setAssessments;
+		const setTarget =
+			detailDialogCategory === "response"
+				? setResponses
+				: detailDialogCategory === "assessment"
+					? setAssessments
+					: setDeclarations;
 		setTarget((prev) => prev.filter((item) => item.id !== editingDetailId));
 		setDetailDialogVisible(false);
 	};
@@ -1212,7 +1923,13 @@ function StepperValidation({
 		const badgeClass =
 			category === "response"
 				? "bg-blue-100 text-blue-700"
-				: "bg-violet-100 text-violet-700";
+				: category === "assessment"
+					? "bg-violet-100 text-violet-700"
+					: "bg-amber-100 text-amber-700";
+		const typeLabel =
+			detailTypeLabelByValue.get(normalizeDetailTypeValue(item.type)) ??
+			item.type;
+		const descriptionValue = getDetailDescriptionValue(item);
 
 		return (
 			<Card
@@ -1224,12 +1941,25 @@ function StepperValidation({
 					<div className="w-full">
 						<div className="flex items-center gap-3">
 							<span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${badgeClass}`}>
-								{item.type}
+								{typeLabel}
 							</span>
-							<span className="text-[12px] text-slate-500">{item.date}</span>
+							{item.date ? (
+								<span className="text-[12px] text-slate-500">{item.date}</span>
+							) : null}
 						</div>
-						<p className="mt-2 text-[16px] font-semibold text-slate-800">{item.location}</p>
-						<p className="mt-1 text-[14px] text-slate-500">{item.description || "-"}</p>
+						<p className="mt-1 text-[14px] text-slate-500">
+							{descriptionValue
+								? (() => {
+									const lines = descriptionValue.split("\n");
+									return lines.map((line, index) => (
+										<span key={`${item.id}-line-${index}`}>
+											{line}
+											{index < lines.length - 1 ? <br /> : null}
+										</span>
+									));
+								})()
+								: "-"}
+						</p>
 					</div>
 					<Button
 						icon="pi pi-pencil"
@@ -1242,6 +1972,87 @@ function StepperValidation({
 			</Card>
 		);
 	};
+
+	function getDetailDescriptionValue(item: AdditionalDetailItem): string {
+		if (item.type === "disaster_declaration") {
+			return `Disaster declaration: ${
+				declarationStatusOptions.find(
+					(option) => option.value === item.meta?.declarationStatus,
+				)?.label ?? "-"
+			}`;
+		}
+
+		if (item.type === "official_warning") {
+			return [
+				`Was there an officially issued warning and/or weather advisory?: ${
+					item.meta?.hadOfficialWarningOrWeatherAdvisory ? "Yes" : "No"
+				}`,
+				`Which affected areas were covered by the warning?: ${
+					item.meta?.officialWarningAffectedAreas || "-"
+				}`,
+			].join("\n");
+		}
+
+		return item.description;
+	}
+
+	const renderStep4DetailRow = (category: AdditionalDetailCategory, item: AdditionalDetailItem) => {
+		const badgeClass =
+			category === "response"
+				? "bg-blue-100 text-blue-700"
+				: category === "assessment"
+					? "bg-violet-100 text-violet-700"
+					: "bg-amber-100 text-amber-700";
+		const typeLabel =
+			detailTypeLabelByValue.get(normalizeDetailTypeValue(item.type)) ??
+			item.type;
+		const descriptionValue = getDetailDescriptionValue(item);
+
+		return (
+			<div key={item.id} className="space-y-2">
+				<div className="flex items-center gap-3">
+					<span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${badgeClass}`}>
+						{typeLabel}
+					</span>
+					{item.date ? (
+						<span className="text-[12px] text-slate-500">{item.date}</span>
+					) : null}
+				</div>
+				{descriptionValue ? (
+					<p className="text-[14px] text-slate-500">
+						{descriptionValue.split(/\r?\n/).map((line, index, lines) => (
+							<span key={`${item.id}-review-line-${index}`}>
+								{line}
+								{index < lines.length - 1 ? <br /> : null}
+							</span>
+						))}
+					</p>
+				) : null}
+			</div>
+		);
+	};
+
+	const renderStep4SectionCard = (
+		title: string,
+		iconClass: string,
+		emptyLabel: string,
+		content: React.ReactNode,
+		hasItems: boolean,
+	) => (
+		<Card className="rounded-2xl border border-slate-200 shadow-none" pt={{ body: { style: { padding: "18px 20px" } } }}>
+			<div className="space-y-4">
+				<div className="flex items-center gap-2 text-slate-800">
+					<i className={iconClass} />
+					<h4 className="text-[18px] leading-[24px] font-semibold">{title}</h4>
+				</div>
+				{hasItems ? (
+					<div className="space-y-5">{content}</div>
+				) : (
+					<p className="text-[14px] italic text-slate-400">{emptyLabel}</p>
+				)}
+			</div>
+		</Card>
+	);
 
 	const renderEmptyDetails = (label: string) => (
 		<div className="mt-4 rounded-xl border border-dashed border-slate-300 px-4 py-7 text-center text-[13px] text-slate-400">
@@ -1337,8 +2148,7 @@ function StepperValidation({
 		</div>
 	);
 
-	const openSpatialDialog = (hint: "map" | "geographic") => {
-		setSpatialDialogHint(hint);
+	const openSpatialDialog = () => {
 		setSpatialFootprintDialogVisible(true);
 	};
 
@@ -1650,6 +2460,7 @@ function StepperValidation({
 											"End date",
 											endDateState,
 											setEndDateState,
+											errors.endDate,
 										)}
 
 										<div className="col-span-12 md:col-span-6">
@@ -1719,7 +2530,7 @@ function StepperValidation({
 												label="Add affected areas"
 												outlined
 												icon="pi pi-plus"
-												onClick={() => openSpatialDialog("geographic")}
+												onClick={openSpatialDialog}
 											/>
 											<div className="mt-6 flex flex-wrap gap-2 text-sm">
 												{selectedDivisionItems.length > 0 &&
@@ -1745,100 +2556,70 @@ function StepperValidation({
 									</div>
 								</div>
 
-								<div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-									<div className="flex items-start justify-between gap-4">
-										<div>
-											<div className="flex items-center gap-2">
-												<i className="pi pi-map text-blue-500" />
-												<h3 className="text-[18px] font-semibold text-slate-800">Spatial footprint</h3>
-											</div>
-											<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
-												Define the specific geographic area affected using interactive map coordinates or manual input.
-											</p>
-											<Button
-												className="mt-4"
-												label="Define spatial footprint"
-												outlined
-												icon="pi pi-map"
-												onClick={() => openSpatialDialog("map")}
-											/>
-										</div>
-										<i className="pi pi-chevron-right pt-2 text-slate-400" />
-									</div>
-								</div>
+								<SpatialFootprintFormView2
+									ctx={ctx}
+									divisions={
+										Array.isArray(divisionGeoJSON) ? divisionGeoJSON : []
+									}
+									ctryIso3={ctryIso3 || ""}
+									initialData={spatialFootprintValue}
+									onChange={(items) => {
+										setSpatialFootprintValue(Array.isArray(items) ? items : []);
+									}}
+								/>
+									
+
+								
 							</div>
 
 							<Dialog
-								header={
-									spatialDialogHint === "geographic"
-										? "Select geographic levels"
-										: "Define spatial footprint"
-								}
+								header="Select geographic levels"
 								visible={spatialFootprintDialogVisible}
 								style={{ width: "72rem", maxWidth: "95vw" }}
 								onHide={() => setSpatialFootprintDialogVisible(false)}
 								draggable={false}
 								resizable={false}
 								appendTo="self"
-								footer={
-									spatialDialogHint === "geographic" ? (
-										<div className="flex items-center justify-between gap-3">
-											<Button
-												label="Cancel"
-												outlined
-												onClick={() => setSpatialFootprintDialogVisible(false)}
-											/>
-											<Button label="Save" onClick={saveDivisionSelection} />
-										</div>
-									) : null
-								}
 							>
-								{spatialDialogHint === "geographic" ? (
-									<div>
-										<p className="mb-4 text-[13px] text-slate-500">
-											Select one or more geographic levels from the hierarchical tree below.
-										</p>
-										<div className="mb-3 flex items-center gap-3">
-											<div className="relative w-full">
-												<i className="pi pi-search pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-												<InputText
-													value={divisionSearchTerm}
-													onChange={(event) => setDivisionSearchTerm(event.target.value)}
-													placeholder="Search locations..."
-													className="w-full pr-10"
-												/>
-											</div>
-										</div>
-										<div className="mb-3 flex items-center justify-between rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-slate-700">
-											<div>
-												{selectedDivisionCount} location
-												{selectedDivisionCount === 1 ? " selected" : "s selected"}
-											</div>
-											<Button
-												label="Clear all"
-												text
-												size="small"
-												onClick={clearDivisionSelection}
-											/>
-										</div>
-										<div className="max-h-[26rem] overflow-auto rounded-md border border-slate-200 bg-white p-3 shadow-sm">
-											<Tree
-												value={filteredDivisionNodes}
-												selectionMode="checkbox"
-												selectionKeys={selectedDivisionKeys}
-												onSelectionChange={(e) =>
-													setSelectedDivisionKeys(e.value)
-												}
-												className="w-full"
+								<div>
+									<p className="mb-4 text-[13px] text-slate-500">
+										Select one or more geographic levels from the hierarchical tree below.
+									</p>
+									<div className="mb-3 flex items-center gap-3">
+										<div className="relative w-full">
+											<i className="pi pi-search pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+											<InputText
+												value={divisionSearchTerm}
+												onChange={(event) => setDivisionSearchTerm(event.target.value)}
+												placeholder="Search locations..."
+												className="w-full pr-10"
 											/>
 										</div>
 									</div>
-								) : (
-									<p className="mb-4 text-[13px] text-slate-500">
-										Use Add and choose Map coordinates to define the affected
-										footprint.
-									</p>
-								)}
+									<div className="mb-3 flex items-center justify-between rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-slate-700">
+										<div>
+											{selectedDivisionCount} location
+											{selectedDivisionCount === 1 ? " selected" : "s selected"}
+										</div>
+										<Button
+											label="Clear all"
+											text
+											size="small"
+											onClick={clearDivisionSelection}
+										/>
+									</div>
+									<div className="max-h-[26rem] overflow-auto rounded-md border border-slate-200 bg-white p-3 shadow-sm">
+										<Tree
+											value={filteredDivisionNodes}
+											selectionMode="checkbox"
+											selectionKeys={selectedDivisionKeys}
+											onSelectionChange={(e) =>
+												setSelectedDivisionKeys(e.value)
+											}
+											className="w-full"
+										/>
+									</div>
+								</div>
 							</Dialog>
 						</div>
 
@@ -2057,7 +2838,7 @@ function StepperValidation({
 									label="Add response"
 									icon="pi pi-plus"
 									outlined
-									disabled={responses.length >= maxDetailItems}
+									disabled={!canAddAnyResponse}
 									onClick={() => openAddDetail("response")}
 								/>
 							</div>
@@ -2086,7 +2867,7 @@ function StepperValidation({
 									label="Add assessment"
 									icon="pi pi-plus"
 									outlined
-									disabled={assessments.length >= maxDetailItems}
+									disabled={!canAddAnyAssessment}
 									onClick={() => openAddDetail("assessment")}
 								/>
 							</div>
@@ -2115,15 +2896,14 @@ function StepperValidation({
 									label="Add declaration"
 									icon="pi pi-plus"
 									outlined
-									onClick={() => {
-										setDeclarations((prev) => [...prev]);
-									}}
+									disabled={!canAddAnyDeclaration}
+									onClick={() => openAddDetail("declaration")}
 								/>
 							</div>
 
 							{declarations.length > 0 ? (
 								<div className="mt-4 space-y-3">
-									{declarations.map((item) => renderDetailCard("response", item))}
+									{declarations.map((item) => renderDetailCard("declaration", item))}
 								</div>
 							) : (
 								renderEmptyDetails("No declarations recorded yet")
@@ -2143,62 +2923,133 @@ function StepperValidation({
 									<label className="mb-1 block">Type</label>
 									<select
 										value={detailForm.type}
-										onChange={(event) =>
-											setDetailForm((state) => ({ ...state, type: event.target.value }))
-										}
+										onChange={(event) => {
+											const selectedType = event.target.value;
+											setDetailForm((state) => ({
+												...state,
+												type: selectedType,
+												dateValue:
+													detailDialogCategory === "response" &&
+													selectedType === "response_operation"
+														? null
+														: detailDialogCategory === "declaration" &&
+														selectedType !== "disaster_declaration_effects"
+														? null
+														: state.dateValue,
+												declarationStatus:
+													selectedType === "disaster_declaration"
+														? state.declarationStatus
+														: "",
+												hadOfficialWarningOrWeatherAdvisory:
+													selectedType === "official_warning"
+														? state.hadOfficialWarningOrWeatherAdvisory
+														: false,
+												officialWarningAffectedAreas:
+													selectedType === "official_warning"
+														? state.officialWarningAffectedAreas
+														: "",
+											}));
+										}}
+										disabled={Boolean(editingDetailId)}
 										className="w-full rounded-md border border-slate-300 px-3 py-2"
 									>
 										<option value="">Select type</option>
-										{(detailDialogCategory === "response" ? responseTypeOptions : assessmentTypeOptions).map((option) => (
-											<option key={option} value={option}>
-												{option}
+										{detailTypeOptions.map((option) => (
+											<option key={option.value} value={option.value}>
+												{option.label}
 											</option>
 										))}
 									</select>
 								</div>
 
-								<div>
-									<label className="mb-1 block">Date</label>
-									<InputText
-										value={detailForm.dateText}
-										onChange={(event) =>
-											setDetailForm((state) => ({ ...state, dateText: event.target.value }))
-										}
-										placeholder="Full date (DD/MM/YYYY)"
-										className="w-full"
-									/>
-									<div className="mt-3 grid grid-cols-3 gap-2">
-										<InputText
-											value={detailForm.day}
-											onChange={(event) => setDetailForm((state) => ({ ...state, day: event.target.value }))}
-											placeholder="Day"
-										/>
-										<InputText
-											value={detailForm.month}
-											onChange={(event) => setDetailForm((state) => ({ ...state, month: event.target.value }))}
-											placeholder="Month"
-										/>
-										<InputText
-											value={detailForm.year}
-											onChange={(event) => setDetailForm((state) => ({ ...state, year: event.target.value }))}
-											placeholder="Year"
+								{showDateField ? (
+									<div>
+										<label className="mb-1 block">Date</label>
+										<Calendar
+											value={detailForm.dateValue}
+											onChange={(event) =>
+												setDetailForm((state) => ({
+													...state,
+													dateValue: event.value instanceof Date ? event.value : null,
+												}))
+											}
+											dateFormat="dd/mm/yy"
+											placeholder="Select date"
+											showIcon
+											className="w-full"
 										/>
 									</div>
-								</div>
+								) : null}
 
-								<div>
-									<label className="mb-1 block">Location</label>
-									<InputText
-										value={detailForm.location}
-										onChange={(event) =>
-											setDetailForm((state) => ({ ...state, location: event.target.value }))
-										}
-										placeholder="Search for a location..."
-										className="w-full"
-									/>
-								</div>
+								{isDeclarationStatusType ? (
+									<div>
+										<label className="mb-1 block">Disaster declaration status</label>
+										<select
+											value={detailForm.declarationStatus}
+											onChange={(event) =>
+												setDetailForm((state) => ({
+													...state,
+													declarationStatus: event.target.value as DeclarationStatus | "",
+												}))
+											}
+											className="w-full rounded-md border border-slate-300 px-3 py-2"
+										>
+											<option value="">Select declaration status</option>
+											{declarationStatusOptions.map((option) => (
+												<option key={option.value} value={option.value}>
+													{option.label}
+												</option>
+											))}
+										</select>
+									</div>
+								) : null}
 
-								<div>
+								{isOfficialWarningType ? (
+									<div className="space-y-3">
+										<label className="flex items-center gap-2 text-sm text-slate-700">
+											<input
+												type="checkbox"
+												checked={detailForm.hadOfficialWarningOrWeatherAdvisory}
+												onChange={(event) =>
+													setDetailForm((state) => ({
+														...state,
+														hadOfficialWarningOrWeatherAdvisory: event.target.checked,
+													}))
+												}
+											/>
+											<span>
+												Was there an officially issued warning and/or weather advisory?
+											</span>
+										</label>
+
+										<div>
+											<label className="mb-1 block">
+												Which affected areas were covered by the warning?
+											</label>
+											<InputTextarea
+												value={detailForm.officialWarningAffectedAreas}
+												onChange={(event) =>
+													setDetailForm((state) => ({
+														...state,
+														officialWarningAffectedAreas: event.target.value,
+													}))
+												}
+												rows={3}
+												placeholder="Enter affected areas"
+												className="w-full"
+											/>
+											{detailForm.hadOfficialWarningOrWeatherAdvisory &&
+											!hasOfficialWarningAreas ? (
+												<p className="mt-1 text-xs text-red-600">
+													Affected areas are required when warning/advisory is checked.
+												</p>
+											) : null}
+										</div>
+									</div>
+								) : null}
+
+								{!isDeclarationStatusType && !isOfficialWarningType ? (
+									<div>
 									<label className="mb-1 block">Description</label>
 									<InputTextarea
 										value={detailForm.description}
@@ -2209,7 +3060,8 @@ function StepperValidation({
 										placeholder="Enter description"
 										className="w-full"
 									/>
-								</div>
+									</div>
+								) : null}
 
 								<div className="flex items-center justify-between gap-2 pt-2">
 									<div>
@@ -2221,6 +3073,7 @@ function StepperValidation({
 										<Button label="Cancel" outlined onClick={() => setDetailDialogVisible(false)} />
 										<Button
 											label={editingDetailId ? `Save ${detailDialogCategory}` : `Add ${detailDialogCategory}`}
+											disabled={!canSaveDetail}
 											onClick={saveDetail}
 										/>
 									</div>
@@ -2310,6 +3163,90 @@ function StepperValidation({
 									</div>
 								</div>
 							</Card>
+
+						{renderStep4SectionCard(
+							"Location",
+							"pi pi-map-marker text-blue-600",
+							"No location details available",
+							<>
+								<div className="space-y-2">
+									<p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+										Geographic levels
+									</p>
+									{selectedDivisionItems.length > 0 ? (
+										<div className="flex flex-wrap gap-2">
+											{selectedDivisionItems.map((item) => (
+												<span
+													key={`review-division-${item.key}`}
+													className="rounded-md bg-blue-50 px-2 py-1 text-[12px] text-blue-700"
+												>
+													{item.label}
+												</span>
+											))}
+										</div>
+									) : (
+										<p className="text-[14px] italic text-slate-400">
+											No geographic levels selected
+										</p>
+									)}
+								</div>
+
+								<div className="space-y-2">
+									<p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+										Spatial footprint
+									</p>
+									{reviewSpatialFootprintItems.length > 0 ? (
+										<ul className="list-disc pl-5 text-[14px] text-slate-500">
+											{reviewSpatialFootprintItems.map((title, index) => (
+												<li key={`review-footprint-${index}`}>{title}</li>
+											))}
+										</ul>
+									) : (
+										<p className="text-[14px] italic text-slate-400">
+											No spatial data defined
+										</p>
+									)}
+								</div>
+							</>,
+							selectedDivisionItems.length > 0 || reviewSpatialFootprintItems.length > 0,
+						)}
+
+						{renderStep4SectionCard(
+							"Linked disaster records",
+							"pi pi-file text-blue-600",
+							"No disaster records linked yet",
+							linkedDisasterRecordTarget.map((record) => (
+								<div key={record.id} className="space-y-1">
+									<p className="text-[14px] font-semibold text-slate-700">{record.name}</p>
+									<p className="text-[13px] text-slate-500">{record.code}</p>
+								</div>
+							)),
+							linkedDisasterRecordTarget.length > 0,
+						)}
+
+						{renderStep4SectionCard(
+							"Responses",
+							"pi pi-file-edit text-blue-600",
+							"No responses recorded yet",
+							responses.map((item) => renderStep4DetailRow("response", item)),
+							responses.length > 0,
+						)}
+
+						{renderStep4SectionCard(
+							"Assessments",
+							"pi pi-clipboard text-violet-600",
+							"No assessments recorded yet",
+							assessments.map((item) => renderStep4DetailRow("assessment", item)),
+							assessments.length > 0,
+						)}
+
+						{renderStep4SectionCard(
+							"Official declarations",
+							"pi pi-send text-amber-600",
+							"No declarations recorded yet",
+							declarations.map((item) => renderStep4DetailRow("declaration", item)),
+							declarations.length > 0,
+						)}
 						</div>
 
 						<div className="flex items-center justify-between w-full mt-6">
