@@ -1,7 +1,7 @@
 import { Outlet, useLoaderData } from "react-router";
 import { DisasterEventRepository } from "~/db/queries/disasterEventRepository";
 import DisasterEventsPage from "~/frontend/disaster-event/DisasterEventsPage";
-import { authLoaderWithPerm } from "~/utils/auth";
+import { authLoaderWithPerm, hasPermission } from "~/utils/auth";
 import {
     getCountryAccountsIdFromSession,
     getUserIdFromSession,
@@ -59,6 +59,7 @@ export const loader = authLoaderWithPerm(
                     page: 1,
                     pageSize: 25,
                 },
+                canDeleteDisasterEvent: false,
                 countryName: "",
                 filters: {
                     disasterEventName: "",
@@ -104,6 +105,10 @@ export const loader = authLoaderWithPerm(
 
         const { viewData } = paginationQueryFromURL(request, []);
         const userId = await getUserIdFromSession(request);
+        const canDeleteDisasterEvent = await hasPermission(
+            request,
+            "DeleteDisasterEvent",
+        );
 
         const result =
             await DisasterEventRepository.getByCountryAccountsIdPaginated(
@@ -175,6 +180,7 @@ export const loader = authLoaderWithPerm(
             hipHazards,
             ...result,
             hipTypes,
+            canDeleteDisasterEvent,
             countryName: country.name,
             filters: {
                 disasterEventName,
@@ -198,6 +204,7 @@ export default function DisasterEventLayoutRoute() {
         hipClusters,
         hipHazards,
         pagination,
+        canDeleteDisasterEvent,
         countryName,
         filters,
     } =
@@ -215,6 +222,7 @@ export default function DisasterEventLayoutRoute() {
                 hipClusters={hipClusters}
                 hipHazards={hipHazards}
                 pagination={pagination}
+                canDelete={canDeleteDisasterEvent}
                 countryName={countryName}
                 filters={filters}
             />

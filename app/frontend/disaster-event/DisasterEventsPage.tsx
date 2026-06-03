@@ -34,6 +34,7 @@ type DisasterEventsPageProps = {
         page: number;
         pageSize: number;
     };
+    canDelete?: boolean;
     countryName?: string;
     filters?: {
         disasterEventName?: string;
@@ -54,6 +55,7 @@ export default function DisasterEventsPage({
     hipClusters,
     hipHazards,
     pagination,
+    canDelete = false,
     countryName,
     filters,
 }: DisasterEventsPageProps) {
@@ -207,16 +209,18 @@ export default function DisasterEventsPage({
                     <i className="pi pi-pencil" aria-hidden="true" />
                 </Button>
             </Link>
-            <Link to={`/${ctx.lang}/disaster-event/delete/${row.id}`}>
-                <Button
-                    type="button"
-                    text
-                    severity="danger"
-                    aria-label="Delete"
-                >
-                    <i className="pi pi-trash" aria-hidden="true" />
-                </Button>
-            </Link>
+            {canDelete ? (
+                <Link to={`/${ctx.lang}/disaster-event/delete/${row.id}`}>
+                    <Button
+                        type="button"
+                        text
+                        severity="danger"
+                        aria-label="Delete"
+                    >
+                        <i className="pi pi-trash" aria-hidden="true" />
+                    </Button>
+                </Link>
+            ) : null}
         </div>
     );
     const statusBodyTemplate = (row: (typeof data)[number]) => {
