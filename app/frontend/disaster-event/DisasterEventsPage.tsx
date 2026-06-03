@@ -137,7 +137,11 @@ export default function DisasterEventsPage({
         { label: ctx.t({ code: "approval_status.needs_revision", msg: "Needs revision" }), value: "needs-revision" },
         { label: ctx.t({ code: "approval_status.validated", msg: "Validated" }), value: "validated" },
         { label: ctx.t({ code: "approval_status.published", msg: "Published" }), value: "published" },
-    ];
+    ].filter((status) =>
+        canEdit
+            ? true
+            : status.value === "validated" || status.value === "published",
+    );
 
     useEffect(() => {
         setDisasterEventNameFilter(filters?.disasterEventName ?? "");
