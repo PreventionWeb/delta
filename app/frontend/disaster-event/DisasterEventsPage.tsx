@@ -35,6 +35,7 @@ type DisasterEventsPageProps = {
         pageSize: number;
     };
     canDelete?: boolean;
+    canEdit?: boolean;
     countryName?: string;
     filters?: {
         disasterEventName?: string;
@@ -56,6 +57,7 @@ export default function DisasterEventsPage({
     hipHazards,
     pagination,
     canDelete = false,
+    canEdit = false,
     countryName,
     filters,
 }: DisasterEventsPageProps) {
@@ -200,15 +202,17 @@ export default function DisasterEventsPage({
                     <i className="pi pi-eye" aria-hidden="true" />
                 </Button>
             </Link>
-            <Link to={`/${ctx.lang}/disaster-event/edit/${row.id}`}>
-                <Button
-                    type="button"
-                    text
-                    aria-label="Edit"
-                >
-                    <i className="pi pi-pencil" aria-hidden="true" />
-                </Button>
-            </Link>
+            {canEdit ? (
+                <Link to={`/${ctx.lang}/disaster-event/edit/${row.id}`}>
+                    <Button
+                        type="button"
+                        text
+                        aria-label="Edit"
+                    >
+                        <i className="pi pi-pencil" aria-hidden="true" />
+                    </Button>
+                </Link>
+            ) : null}
             {canDelete ? (
                 <Link to={`/${ctx.lang}/disaster-event/delete/${row.id}`}>
                     <Button

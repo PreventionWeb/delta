@@ -60,6 +60,7 @@ export const loader = authLoaderWithPerm(
                     pageSize: 25,
                 },
                 canDeleteDisasterEvent: false,
+                canEditDisasterEvent: false,
                 countryName: "",
                 filters: {
                     disasterEventName: "",
@@ -108,6 +109,10 @@ export const loader = authLoaderWithPerm(
         const canDeleteDisasterEvent = await hasPermission(
             request,
             "DeleteDisasterEvent",
+        );
+        const canEditDisasterEvent = await hasPermission(
+            request,
+            "EditDisasterEvent",
         );
 
         const result =
@@ -181,6 +186,7 @@ export const loader = authLoaderWithPerm(
             ...result,
             hipTypes,
             canDeleteDisasterEvent,
+            canEditDisasterEvent,
             countryName: country.name,
             filters: {
                 disasterEventName,
@@ -205,6 +211,7 @@ export default function DisasterEventLayoutRoute() {
         hipHazards,
         pagination,
         canDeleteDisasterEvent,
+        canEditDisasterEvent,
         countryName,
         filters,
     } =
@@ -223,6 +230,7 @@ export default function DisasterEventLayoutRoute() {
                 hipHazards={hipHazards}
                 pagination={pagination}
                 canDelete={canDeleteDisasterEvent}
+                canEdit={canEditDisasterEvent}
                 countryName={countryName}
                 filters={filters}
             />
