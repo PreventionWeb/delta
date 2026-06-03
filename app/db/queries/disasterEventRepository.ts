@@ -29,6 +29,7 @@ export const DisasterEventRepository = {
 			disasterEventName?: string;
 			recordingOrganization?: string;
 			recordStatus?: string;
+			recordStatuses?: string[];
 			hazardType?: string;
 			hazardCluster?: string;
 			specificHazard?: string;
@@ -42,6 +43,9 @@ export const DisasterEventRepository = {
 		const disasterEventName = filters?.disasterEventName?.trim();
 		const recordingOrganization = filters?.recordingOrganization?.trim();
 		const recordStatus = filters?.recordStatus?.trim();
+		const recordStatuses = filters?.recordStatuses
+			?.map((status) => status.trim())
+			.filter(Boolean);
 		const hazardType = filters?.hazardType?.trim();
 		const hazardCluster = filters?.hazardCluster?.trim();
 		const specificHazard = filters?.specificHazard?.trim();
@@ -67,7 +71,13 @@ export const DisasterEventRepository = {
 				: undefined,
 			recordStatus
 				? eq(disasterEventTable.approvalStatus, recordStatus as any)
-				: undefined,
+				: recordStatuses && recordStatuses.length > 0
+					? or(
+							...recordStatuses.map((status) =>
+								eq(disasterEventTable.approvalStatus, status as any),
+							),
+						)
+					: undefined,
 			hazardType ? eq(disasterEventTable.hipTypeId, hazardType) : undefined,
 			hazardCluster
 				? eq(disasterEventTable.hipClusterId, hazardCluster)

@@ -114,6 +114,12 @@ export const loader = authLoaderWithPerm(
             request,
             "EditDisasterEvent",
         );
+        const viewerOnlyStatuses = ["published", "validated"];
+        const effectiveRecordStatus = canEditDisasterEvent
+            ? recordStatus
+            : viewerOnlyStatuses.includes(recordStatus)
+                ? recordStatus
+                : "";
 
         const result =
             await DisasterEventRepository.getByCountryAccountsIdPaginated(
@@ -123,7 +129,11 @@ export const loader = authLoaderWithPerm(
                 {
                     disasterEventName,
                     recordingOrganization,
-                    recordStatus,
+                    recordStatus: effectiveRecordStatus,
+                    recordStatuses:
+                        !canEditDisasterEvent && !effectiveRecordStatus
+                            ? viewerOnlyStatuses
+                            : undefined,
                     hazardType,
                     hazardCluster,
                     specificHazard,
@@ -191,7 +201,7 @@ export const loader = authLoaderWithPerm(
             filters: {
                 disasterEventName,
                 recordingOrganization,
-                recordStatus,
+                recordStatus: effectiveRecordStatus,
                 hazardType,
                 hazardCluster,
                 specificHazard,
