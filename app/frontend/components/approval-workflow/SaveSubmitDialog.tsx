@@ -83,6 +83,7 @@ export function SaveSubmitDialog(props: SaveSubmitDialogProps) {
 
 	const footerContent = (
 		<Button
+			type="button"
 			data-testid={
 				selectedAction === "submit-draft" ? "save-draft" : undefined
 			}
