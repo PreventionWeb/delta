@@ -27,7 +27,7 @@ export const action = authActionWithPerm("ManageOrganizations", async (args) => 
 	if (result.ok) {
 		return redirectWithMessage(args, "/settings/organizations", {
 			type: "success",
-			text: backendCtx.t({ code: "common.new_record_created", msg: "New record created" }),
+			text: backendCtx.t({ code: "organization_added", msg: "Organization added" }),
 		});
 	}
 

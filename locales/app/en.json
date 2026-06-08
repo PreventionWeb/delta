@@ -6710,5 +6710,9 @@
 	{
 		"id": "search_by_event_name",
 		"translation": "Search by event name..."
+	},
+	{
+		"id": "organization_added",
+		"translation": "Organization added"
 	}
 ]
