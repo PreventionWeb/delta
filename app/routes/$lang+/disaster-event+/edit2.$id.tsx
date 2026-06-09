@@ -4,16 +4,11 @@ import {
 	disasterEventCreate,
 	disasterEventUpdate,
 } from "~/backend.server/models/event";
-import {
-	disasterRecordsUpdate,
-} from "~/backend.server/models/disaster_record";
+import { disasterRecordsUpdate } from "~/backend.server/models/disaster_record";
 
-import {
-	fieldsDef,
-} from "~/frontend/events/disastereventform";
+import { fieldsDef } from "~/frontend/events/disastereventform";
 
 import { formSave } from "~/backend.server/handlers/form/form";
-
 
 import { route } from "~/frontend/events/disastereventform";
 
@@ -50,7 +45,7 @@ import {
 } from "~/db/queries/userCountryAccountsRepository";
 import { handleApprovalWorkflowService } from "~/backend.server/services/approvalWorkflowService";
 import { canEditDataCollectionRecord } from "~/frontend/user/roles";
-import { InputTextarea } from 'primereact/inputtextarea';
+import { InputTextarea } from "primereact/inputtextarea";
 
 export const handle = {
 	hideMainNavigation: true,
@@ -124,27 +119,49 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 				countryAccountsId,
 				updatedByUserId: userSession.user.id,
 			};
-				const syncLinkedDisasterEvents = async (eventId: string) => {
-					const selectedIds = new Set(linkedDisasterEventIds);
-					const currentLinkedEvents = await tx
-						.select({ id: disasterEventTable.id })
-						.from(disasterEventTable)
-						.where(
-							and(
-								eq(disasterEventTable.countryAccountsId, countryAccountsId),
-								eq(disasterEventTable.disasterEventId, eventId),
-							),
-						);
-
-					const currentLinkedIds = new Set(
-						currentLinkedEvents.map((event) => event.id),
+			const syncLinkedDisasterEvents = async (eventId: string) => {
+				const selectedIds = new Set(linkedDisasterEventIds);
+				const currentLinkedEvents = await tx
+					.select({ id: disasterEventTable.id })
+					.from(disasterEventTable)
+					.where(
+						and(
+							eq(disasterEventTable.countryAccountsId, countryAccountsId),
+							eq(disasterEventTable.disasterEventId, eventId),
+						),
 					);
 
-					for (const linkedEventId of linkedDisasterEventIds) {
+				const currentLinkedIds = new Set(
+					currentLinkedEvents.map((event) => event.id),
+				);
+
+				for (const linkedEventId of linkedDisasterEventIds) {
+					const updateResult = await tx
+						.update(disasterEventTable)
+						.set({
+							disasterEventId: eventId,
+							updatedAt: new Date(),
+						})
+						.where(
+							and(
+								eq(disasterEventTable.id, linkedEventId),
+								eq(disasterEventTable.countryAccountsId, countryAccountsId),
+							),
+						)
+						.returning({ id: disasterEventTable.id });
+					if (updateResult.length === 0) {
+						throw new Error(
+							`Failed to link disaster event ${linkedEventId} to disaster event ${eventId}`,
+						);
+					}
+				}
+
+				for (const linkedEventId of currentLinkedIds) {
+					if (!selectedIds.has(linkedEventId)) {
 						const updateResult = await tx
 							.update(disasterEventTable)
 							.set({
-								disasterEventId: eventId,
+								disasterEventId: null,
 								updatedAt: new Date(),
 							})
 							.where(
@@ -156,80 +173,71 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 							.returning({ id: disasterEventTable.id });
 						if (updateResult.length === 0) {
 							throw new Error(
-								`Failed to link disaster event ${linkedEventId} to disaster event ${eventId}`,
+								`Failed to unlink disaster event ${linkedEventId} from disaster event ${eventId}`,
 							);
 						}
 					}
-
-					for (const linkedEventId of currentLinkedIds) {
-						if (!selectedIds.has(linkedEventId)) {
-							const updateResult = await tx
-								.update(disasterEventTable)
-								.set({
-									disasterEventId: null,
-									updatedAt: new Date(),
-								})
-								.where(
-									and(
-										eq(disasterEventTable.id, linkedEventId),
-										eq(disasterEventTable.countryAccountsId, countryAccountsId),
-									),
-								)
-								.returning({ id: disasterEventTable.id });
-							if (updateResult.length === 0) {
-								throw new Error(
-									`Failed to unlink disaster event ${linkedEventId} from disaster event ${eventId}`,
-								);
-							}
-						}
-					}
-				};
-				const syncLinkedDisasterRecords = async (eventId: string) => {
-					const selectedIds = new Set(linkedDisasterRecordIds);
-					const recordsLinkedToCurrentEvent = await tx
-						.select({ id: disasterRecordsTable.id })
-						.from(disasterRecordsTable)
-						.where(
-							and(
-								eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
-								eq(disasterRecordsTable.disasterEventId, eventId),
-							),
-						);
-
-					const currentLinkedIds = new Set(
-						recordsLinkedToCurrentEvent.map((record) => record.id),
+				}
+			};
+			const syncLinkedDisasterRecords = async (eventId: string) => {
+				const selectedIds = new Set(linkedDisasterRecordIds);
+				const recordsLinkedToCurrentEvent = await tx
+					.select({ id: disasterRecordsTable.id })
+					.from(disasterRecordsTable)
+					.where(
+						and(
+							eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
+							eq(disasterRecordsTable.disasterEventId, eventId),
+						),
 					);
 
-					for (const linkedRecordId of linkedDisasterRecordIds) {
-						const updateResult = await disasterRecordsUpdate(ctx, tx, linkedRecordId, {
+				const currentLinkedIds = new Set(
+					recordsLinkedToCurrentEvent.map((record) => record.id),
+				);
+
+				for (const linkedRecordId of linkedDisasterRecordIds) {
+					const updateResult = await disasterRecordsUpdate(
+						ctx,
+						tx,
+						linkedRecordId,
+						{
 							disasterEventId: eventId,
-						}, countryAccountsId);
+						},
+						countryAccountsId,
+					);
+					if (updateResult.ok !== true) {
+						throw new Error(
+							`Failed to link disaster record ${linkedRecordId} to disaster event ${eventId}`,
+						);
+					}
+				}
+
+				for (const linkedRecordId of currentLinkedIds) {
+					if (!selectedIds.has(linkedRecordId)) {
+						const updateResult = await disasterRecordsUpdate(
+							ctx,
+							tx,
+							linkedRecordId,
+							{
+								disasterEventId: null,
+							},
+							countryAccountsId,
+						);
 						if (updateResult.ok !== true) {
 							throw new Error(
-								`Failed to link disaster record ${linkedRecordId} to disaster event ${eventId}`,
+								`Failed to unlink disaster record ${linkedRecordId} from disaster event ${eventId}`,
 							);
 						}
 					}
+				}
+			};
 
-					for (const linkedRecordId of currentLinkedIds) {
-						if (!selectedIds.has(linkedRecordId)) {
-							const updateResult = await disasterRecordsUpdate(ctx, tx, linkedRecordId, {
-								disasterEventId: null,
-							}, countryAccountsId);
-							if (updateResult.ok !== true) {
-								throw new Error(
-									`Failed to unlink disaster record ${linkedRecordId} from disaster event ${eventId}`,
-								);
-							}
-						}
-					}
-				};
 			if (id) {
 				const returnValue = await disasterEventUpdate(ctx, tx, id, updatedData);
 
 				if (returnValue.ok === true) {
-						await syncLinkedDisasterEvents(id);
-						await syncLinkedDisasterRecords(id);
+					await syncLinkedDisasterEvents(id);
+					await syncLinkedDisasterRecords(id);
 					await handleApprovalWorkflowService(ctx, tx, id, "disaster_event", {
 						...updatedData,
 						tempValidatorUserIds: formData.get("tempValidatorUserIds"),
@@ -245,8 +253,8 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 				});
 
 				if (returnValue.ok === true) {
-						await syncLinkedDisasterEvents(returnValue.id);
-						await syncLinkedDisasterRecords(returnValue.id);
+					await syncLinkedDisasterEvents(returnValue.id);
+					await syncLinkedDisasterRecords(returnValue.id);
 					await handleApprovalWorkflowService(
 						ctx,
 						tx,
@@ -331,8 +339,8 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 			divisionGeoJSON: divisionGeoJSON || [],
 			disasterRecordOptions: [],
 			linkedDisasterRecords: [],
-				disasterEventOptions: [],
-				linkedDisasterEvents: [],
+			disasterEventOptions: [],
+			linkedDisasterEvents: [],
 			user: await authLoaderGetUserForFrontend(loaderArgs),
 			usersWithValidatorRole: filteredUsersWithValidatorRole,
 		};
@@ -358,7 +366,7 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		throw error;
 	}
 
-	const userRole = await getUserRoleFromSession(request) as string;
+	const userRole = (await getUserRoleFromSession(request)) as string;
 
 	if (canEditDataCollectionRecord(userRole, item.approvalStatus) === false) {
 		throw new Response("Access forbidden", { status: 403 });
@@ -410,7 +418,8 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		nameGlobalOrRegional: string | null;
 	}) => {
 		const displayName =
-			event.nameNational?.trim() || event.nameGlobalOrRegional?.trim() ||
+			event.nameNational?.trim() ||
+			event.nameGlobalOrRegional?.trim() ||
 			`Disaster event ${event.id.slice(0, 8)}`;
 
 		return {
@@ -459,8 +468,8 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		divisionGeoJSON: divisionGeoJSON || [],
 		disasterRecordOptions,
 		linkedDisasterRecords,
-			disasterEventOptions,
-			linkedDisasterEvents,
+		disasterEventOptions,
+		linkedDisasterEvents,
 		user: await authLoaderGetUserForFrontend(loaderArgs),
 		usersWithValidatorRole: filteredUsersWithValidatorRole,
 	};
@@ -604,7 +613,7 @@ type StepperHipData = {
 
 type StepperFormState = {
 	id: string;
-	nameNational:  string;
+	nameNational: string;
 	nameGlobalOrRegional: string;
 	nationalDisasterId: string;
 	glide: string;
@@ -668,7 +677,10 @@ function filterTreeNodes(nodes: TreeNode[], query: string): TreeNode[] {
 	}, []);
 }
 
-function getTopLevelSelectedKeys(nodes: TreeNode[], selectionKeys: TreeProps["selectionKeys"]): string[] {
+function getTopLevelSelectedKeys(
+	nodes: TreeNode[],
+	selectionKeys: TreeProps["selectionKeys"],
+): string[] {
 	if (!selectionKeys || typeof selectionKeys !== "object") {
 		return [];
 	}
@@ -708,11 +720,16 @@ function getTopLevelSelectedKeys(nodes: TreeNode[], selectionKeys: TreeProps["se
 	return result;
 }
 
-function getNodeAndDescendantKeys(nodes: TreeNode[], targetKey: string): string[] {
+function getNodeAndDescendantKeys(
+	nodes: TreeNode[],
+	targetKey: string,
+): string[] {
 	for (const node of nodes) {
 		const nodeKey = node.key == null ? null : String(node.key);
 		if (nodeKey === targetKey) {
-			const descendantKeys = node.children ? collectNodeKeys(node.children) : [];
+			const descendantKeys = node.children
+				? collectNodeKeys(node.children)
+				: [];
 			return [targetKey, ...descendantKeys];
 		}
 
@@ -961,10 +978,12 @@ function StepperValidation({
 	const selectedDivisionCount = selectedDivisionNames.length;
 	const selectedDivisionItems = useMemo(
 		() =>
-			getTopLevelSelectedKeys(divisionNodes, selectedDivisionKeys).map((key) => ({
-				key,
-				label: divisionLabelByKey.get(key) ?? key,
-			})),
+			getTopLevelSelectedKeys(divisionNodes, selectedDivisionKeys).map(
+				(key) => ({
+					key,
+					label: divisionLabelByKey.get(key) ?? key,
+				}),
+			),
 		[divisionLabelByKey, divisionNodes, selectedDivisionKeys],
 	);
 
@@ -978,9 +997,13 @@ function StepperValidation({
 				return currentSelection;
 			}
 
-			const keysToRemove = new Set(getNodeAndDescendantKeys(divisionNodes, keyToRemove));
+			const keysToRemove = new Set(
+				getNodeAndDescendantKeys(divisionNodes, keyToRemove),
+			);
 			const nextSelection = Object.fromEntries(
-				Object.entries(currentSelection).filter(([key]) => !keysToRemove.has(key)),
+				Object.entries(currentSelection).filter(
+					([key]) => !keysToRemove.has(key),
+				),
 			);
 
 			return Object.keys(nextSelection).length > 0 ? nextSelection : null;
@@ -1009,7 +1032,9 @@ function StepperValidation({
 	console.log("Initial form state - disasterEvent:", { disasterEvent });
 	console.log("Initial form state - hip:", { hip });
 
-	const parseDateWithPrecision = (value: string | null | undefined): DateWithPrecisionState => {
+	const parseDateWithPrecision = (
+		value: string | null | undefined,
+	): DateWithPrecisionState => {
 		if (!value) {
 			return {
 				precision: "yyyy-mm-dd",
@@ -1166,7 +1191,10 @@ function StepperValidation({
 		return (
 			<>
 				<div className="col-span-12 md:col-span-6">
-					<label htmlFor={`${prefix}Format`} className="mb-1 inline-flex items-center gap-2">
+					<label
+						htmlFor={`${prefix}Format`}
+						className="mb-1 inline-flex items-center gap-2"
+					>
 						{label} format
 					</label>
 					<Dropdown
@@ -1195,7 +1223,10 @@ function StepperValidation({
 				<div className="col-span-12 md:col-span-6">
 					{isFullDate ? (
 						<>
-							<label htmlFor={`${prefix}Date`} className="mb-1 inline-flex items-center gap-2">
+							<label
+								htmlFor={`${prefix}Date`}
+								className="mb-1 inline-flex items-center gap-2"
+							>
 								{label} date
 							</label>
 							<Calendar
@@ -1209,12 +1240,15 @@ function StepperValidation({
 												Number(state.year),
 												Number(state.month) - 1,
 												Number(state.day),
-										  )
+											)
 										: null
 								}
 								onChange={(event) => {
 									const selected = event.value;
-									if (!(selected instanceof Date) || Number.isNaN(selected.getTime())) {
+									if (
+										!(selected instanceof Date) ||
+										Number.isNaN(selected.getTime())
+									) {
 										setState((current) => ({
 											...current,
 											year: "",
@@ -1225,7 +1259,10 @@ function StepperValidation({
 									}
 
 									const year = String(selected.getFullYear());
-									const month = String(selected.getMonth() + 1).padStart(2, "0");
+									const month = String(selected.getMonth() + 1).padStart(
+										2,
+										"0",
+									);
 									const day = String(selected.getDate()).padStart(2, "0");
 									setState((current) => ({
 										...current,
@@ -1245,14 +1282,19 @@ function StepperValidation({
 					{isYearMonth ? (
 						<div className="grid grid-cols-2 gap-2">
 							<div>
-								<label htmlFor={`${prefix}Year`} className="mb-1 inline-flex items-center gap-2">
+								<label
+									htmlFor={`${prefix}Year`}
+									className="mb-1 inline-flex items-center gap-2"
+								>
 									{label} year
 								</label>
 								<InputText
 									id={`${prefix}Year`}
 									value={state.year}
 									onChange={(event) => {
-										const year = event.target.value.replace(/\D/g, "").slice(0, 4);
+										const year = event.target.value
+											.replace(/\D/g, "")
+											.slice(0, 4);
 										setState((current) => ({ ...current, year }));
 									}}
 									keyfilter="int"
@@ -1261,7 +1303,10 @@ function StepperValidation({
 								/>
 							</div>
 							<div>
-								<label htmlFor={`${prefix}Month`} className="mb-1 inline-flex items-center gap-2">
+								<label
+									htmlFor={`${prefix}Month`}
+									className="mb-1 inline-flex items-center gap-2"
+								>
 									{label} month
 								</label>
 								<Dropdown
@@ -1278,22 +1323,26 @@ function StepperValidation({
 									}}
 									placeholder="Select month"
 									className="w-full"
-								>
-								</Dropdown>
+								></Dropdown>
 							</div>
 						</div>
 					) : null}
 
 					{isYearOnly ? (
 						<>
-							<label htmlFor={`${prefix}Year`} className="mb-1 inline-flex items-center gap-2">
+							<label
+								htmlFor={`${prefix}Year`}
+								className="mb-1 inline-flex items-center gap-2"
+							>
 								{label} year
 							</label>
 							<InputText
 								id={`${prefix}Year`}
 								value={state.year}
 								onChange={(event) => {
-									const year = event.target.value.replace(/\D/g, "").slice(0, 4);
+									const year = event.target.value
+										.replace(/\D/g, "")
+										.slice(0, 4);
 									setState((current) => ({ ...current, year }));
 								}}
 								keyfilter="int"
@@ -1312,32 +1361,46 @@ function StepperValidation({
 	};
 	const [linkedEventSearch, setLinkedEventSearch] = useState("");
 	const [linkedEventLoading, setLinkedEventLoading] = useState(false);
-	const [linkedEventSource, setLinkedEventSource] = useState<LinkedEventOption[]>([]);
-	const [linkedEventTarget, setLinkedEventTarget] = useState<LinkedEventOption[]>([]);
-	const [linkedDisasterEventSearch, setLinkedDisasterEventSearch] = useState("");
-	const [linkedDisasterEventLoading, setLinkedDisasterEventLoading] = useState(false);
-	const [linkedDisasterEventSource, setLinkedDisasterEventSource] =
-		useState<LinkedEventOption[]>(() => {
-			const linkedIds = new Set(linkedDisasterEvents.map((event) => event.id));
-			return disasterEventOptions
-				.filter((event) => !linkedIds.has(event.id))
-				.slice(0, 10);
-		});
-	const [linkedDisasterEventTarget, setLinkedDisasterEventTarget] =
-		useState<LinkedEventOption[]>(() => linkedDisasterEvents);
-	const [linkedDisasterRecordSearch, setLinkedDisasterRecordSearch] = useState("");
-	const [linkedDisasterRecordLoading, setLinkedDisasterRecordLoading] = useState(false);
-	const [linkedDisasterRecordSource, setLinkedDisasterRecordSource] =
-		useState<LinkedEventOption[]>(() => {
-			const linkedIds = new Set(linkedDisasterRecords.map((record) => record.id));
-			return disasterRecordOptions
-				.filter((record) => !linkedIds.has(record.id))
-				.slice(0, 10);
-		});
-	const [linkedDisasterRecordTarget, setLinkedDisasterRecordTarget] =
-		useState<LinkedEventOption[]>(() => linkedDisasterRecords);
+	const [linkedEventSource, setLinkedEventSource] = useState<
+		LinkedEventOption[]
+	>([]);
+	const [linkedEventTarget, setLinkedEventTarget] = useState<
+		LinkedEventOption[]
+	>([]);
+	const [linkedDisasterEventSearch, setLinkedDisasterEventSearch] =
+		useState("");
+	const [linkedDisasterEventLoading, setLinkedDisasterEventLoading] =
+		useState(false);
+	const [linkedDisasterEventSource, setLinkedDisasterEventSource] = useState<
+		LinkedEventOption[]
+	>(() => {
+		const linkedIds = new Set(linkedDisasterEvents.map((event) => event.id));
+		return disasterEventOptions
+			.filter((event) => !linkedIds.has(event.id))
+			.slice(0, 10);
+	});
+	const [linkedDisasterEventTarget, setLinkedDisasterEventTarget] = useState<
+		LinkedEventOption[]
+	>(() => linkedDisasterEvents);
+	const [linkedDisasterRecordSearch, setLinkedDisasterRecordSearch] =
+		useState("");
+	const [linkedDisasterRecordLoading, setLinkedDisasterRecordLoading] =
+		useState(false);
+	const [linkedDisasterRecordSource, setLinkedDisasterRecordSource] = useState<
+		LinkedEventOption[]
+	>(() => {
+		const linkedIds = new Set(linkedDisasterRecords.map((record) => record.id));
+		return disasterRecordOptions
+			.filter((record) => !linkedIds.has(record.id))
+			.slice(0, 10);
+	});
+	const [linkedDisasterRecordTarget, setLinkedDisasterRecordTarget] = useState<
+		LinkedEventOption[]
+	>(() => linkedDisasterRecords);
 
-	const formatBackendDate = (value: string | Date | null | undefined): string => {
+	const formatBackendDate = (
+		value: string | Date | null | undefined,
+	): string => {
 		if (!value) {
 			return "";
 		}
@@ -1359,32 +1422,31 @@ function StepperValidation({
 			disasterEvent?.responseOperations ?? "",
 		).trim();
 
-		const earlyActionItems = indexes.reduce<AdditionalDetailItem[]>((accumulator, index) => {
-			const descriptionRaw =
-				disasterEvent?.[
-					`earlyActionDescription${index}` as const
-				] ?? "";
-			const dateRaw =
-				disasterEvent?.[
-					`earlyActionDate${index}` as const
-				] ?? null;
+		const earlyActionItems = indexes.reduce<AdditionalDetailItem[]>(
+			(accumulator, index) => {
+				const descriptionRaw =
+					disasterEvent?.[`earlyActionDescription${index}` as const] ?? "";
+				const dateRaw =
+					disasterEvent?.[`earlyActionDate${index}` as const] ?? null;
 
-			const descriptionText = String(descriptionRaw).trim();
-			const formattedDate = formatBackendDate(dateRaw);
+				const descriptionText = String(descriptionRaw).trim();
+				const formattedDate = formatBackendDate(dateRaw);
 
-			if (!descriptionText && !formattedDate) {
+				if (!descriptionText && !formattedDate) {
+					return accumulator;
+				}
+
+				accumulator.push({
+					id: `response-early-action-${index}`,
+					type: "early_action",
+					date: formattedDate,
+					description: descriptionText,
+				});
+
 				return accumulator;
-			}
-
-			accumulator.push({
-				id: `response-early-action-${index}`,
-				type: "early_action",
-				date: formattedDate,
-				description: descriptionText,
-			});
-
-			return accumulator;
-		}, []);
+			},
+			[],
+		);
 
 		if (!responseOperationDescription) {
 			return earlyActionItems;
@@ -1422,32 +1484,32 @@ function StepperValidation({
 		] as const;
 
 		return configs.reduce<AdditionalDetailItem[]>((allItems, config) => {
-			const itemsForType = indexes.reduce<AdditionalDetailItem[]>((items, index) => {
-				const descriptionRaw =
-					disasterEvent?.[
-						`${config.descriptionPrefix}${index}` as const
-					] ?? "";
-				const dateRaw =
-					disasterEvent?.[
-						`${config.datePrefix}${index}` as const
-					] ?? null;
+			const itemsForType = indexes.reduce<AdditionalDetailItem[]>(
+				(items, index) => {
+					const descriptionRaw =
+						disasterEvent?.[`${config.descriptionPrefix}${index}` as const] ??
+						"";
+					const dateRaw =
+						disasterEvent?.[`${config.datePrefix}${index}` as const] ?? null;
 
-				const descriptionText = String(descriptionRaw).trim();
-				const formattedDate = formatBackendDate(dateRaw);
+					const descriptionText = String(descriptionRaw).trim();
+					const formattedDate = formatBackendDate(dateRaw);
 
-				if (!descriptionText && !formattedDate) {
+					if (!descriptionText && !formattedDate) {
+						return items;
+					}
+
+					items.push({
+						id: `assessment-${config.type}-${index}`,
+						type: config.type,
+						date: formattedDate,
+						description: descriptionText,
+					});
+
 					return items;
-				}
-
-				items.push({
-					id: `assessment-${config.type}-${index}`,
-					type: config.type,
-					date: formattedDate,
-					description: descriptionText,
-				});
-
-				return items;
-			}, []);
+				},
+				[],
+			);
 
 			return [...allItems, ...itemsForType];
 		}, []);
@@ -1457,7 +1519,10 @@ function StepperValidation({
 		const declarationItems: AdditionalDetailItem[] = [];
 		const declarationStatus = disasterEvent?.disasterDeclaration;
 
-		if (declarationStatus && ["unknown", "yes", "no"].includes(declarationStatus)) {
+		if (
+			declarationStatus &&
+			["unknown", "yes", "no"].includes(declarationStatus)
+		) {
 			declarationItems.push({
 				id: "declaration-status",
 				type: "disaster_declaration",
@@ -1472,14 +1537,11 @@ function StepperValidation({
 		const effectIndexes: AssessmentFieldIndex[] = [1, 2, 3, 4, 5];
 		for (const index of effectIndexes) {
 			const descriptionText = String(
-				disasterEvent?.[
-					`disasterDeclarationTypeAndEffect${index}` as const
-				] ?? "",
+				disasterEvent?.[`disasterDeclarationTypeAndEffect${index}` as const] ??
+					"",
 			).trim();
 			const formattedDate = formatBackendDate(
-				disasterEvent?.[
-					`disasterDeclarationDate${index}` as const
-				] ?? null,
+				disasterEvent?.[`disasterDeclarationDate${index}` as const] ?? null,
 			);
 
 			if (!descriptionText && !formattedDate) {
@@ -1494,8 +1556,12 @@ function StepperValidation({
 			});
 		}
 
-		const warningFlag = Boolean(disasterEvent?.hadOfficialWarningOrWeatherAdvisory);
-		const warningAreas = String(disasterEvent?.officialWarningAffectedAreas ?? "").trim();
+		const warningFlag = Boolean(
+			disasterEvent?.hadOfficialWarningOrWeatherAdvisory,
+		);
+		const warningAreas = String(
+			disasterEvent?.officialWarningAffectedAreas ?? "",
+		).trim();
 		if (warningFlag || warningAreas) {
 			declarationItems.push({
 				id: "declaration-official-warning",
@@ -1618,8 +1684,7 @@ function StepperValidation({
 	const canSaveDetail =
 		hasDetailType && hasDetailContent && passesOfficialWarningRule;
 	const [errors, setErrors] = useState<Errors>({});
-	const [visibleModalSubmit, setVisibleModalSubmit] =
-		useState<boolean>(false);
+	const [visibleModalSubmit, setVisibleModalSubmit] = useState<boolean>(false);
 	const [selectedHipTypeId, setSelectedHipTypeId] = useState(
 		disasterEvent?.hipTypeId ?? "",
 	);
@@ -1744,8 +1809,7 @@ function StepperValidation({
 		{ id: "20", name: "River Contamination", code: "HE-2024-052" },
 	];
 
-	const isStep1Complete =
-		form.nameNational.trim().length > 0;
+	const isStep1Complete = form.nameNational.trim().length > 0;
 
 	const readFieldValue = (fieldId: keyof StepperFormState) => {
 		const element = document.getElementById(fieldId) as
@@ -1770,9 +1834,7 @@ function StepperValidation({
 		};
 
 		setForm((current) =>
-			JSON.stringify(current) === JSON.stringify(snapshot)
-				? current
-				: snapshot,
+			JSON.stringify(current) === JSON.stringify(snapshot) ? current : snapshot,
 		);
 
 		return snapshot;
@@ -1812,9 +1874,15 @@ function StepperValidation({
 
 				if (nextErrors.endDate) {
 					const endDateElement =
-						(document.getElementById("endDateDate") as HTMLInputElement | null) ||
-						(document.getElementById("endDateYear") as HTMLInputElement | null) ||
-						(document.getElementById("endDateMonth") as HTMLSelectElement | null);
+						(document.getElementById(
+							"endDateDate",
+						) as HTMLInputElement | null) ||
+						(document.getElementById(
+							"endDateYear",
+						) as HTMLInputElement | null) ||
+						(document.getElementById(
+							"endDateMonth",
+						) as HTMLSelectElement | null);
 					endDateElement?.focus();
 				}
 			});
@@ -1899,11 +1967,13 @@ function StepperValidation({
 		}
 	};
 
-	const usersWithValidatorRoleOptions = usersWithValidatorRole.map((userAccount) => ({
-		name: `${userAccount.firstName} ${userAccount.lastName}`,
-		id: userAccount.id,
-		email: userAccount.email,
-	}));
+	const usersWithValidatorRoleOptions = usersWithValidatorRole.map(
+		(userAccount) => ({
+			name: `${userAccount.firstName} ${userAccount.lastName}`,
+			id: userAccount.id,
+			email: userAccount.email,
+		}),
+	);
 
 	const hiddenFormValues = useMemo(() => {
 		const values: Array<{ name: string; value: string }> = [];
@@ -1975,7 +2045,10 @@ function StepperValidation({
 			);
 			for (let index = 0; index < 5; index++) {
 				const item = items[index];
-				pushValue(`${config.descriptionPrefix}${index + 1}`, item?.description ?? "");
+				pushValue(
+					`${config.descriptionPrefix}${index + 1}`,
+					item?.description ?? "",
+				);
 				pushValue(
 					`${config.datePrefix}${index + 1}`,
 					item?.date ? formatDateForSubmit(parseDetailDate(item.date)) : "",
@@ -1988,7 +2061,7 @@ function StepperValidation({
 		);
 		pushValue(
 			"disasterDeclaration",
-			declarationStatusItem?.meta?.declarationStatus ?? "",
+			declarationStatusItem?.meta?.declarationStatus ?? "unknown",
 		);
 
 		const declarationEffects = declarations.filter(
@@ -2012,7 +2085,9 @@ function StepperValidation({
 		);
 		pushValue(
 			"hadOfficialWarningOrWeatherAdvisory",
-			officialWarning?.meta?.hadOfficialWarningOrWeatherAdvisory ? "true" : "off",
+			officialWarning?.meta?.hadOfficialWarningOrWeatherAdvisory
+				? "true"
+				: "off",
 		);
 		pushValue(
 			"officialWarningAffectedAreas",
@@ -2040,7 +2115,9 @@ function StepperValidation({
 			<p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
 				{label}
 			</p>
-			<p className="text-[14px] leading-[14px] font-semibold text-slate-800">{value || "-"}</p>
+			<p className="text-[14px] leading-[14px] font-semibold text-slate-800">
+				{value || "-"}
+			</p>
 		</div>
 	);
 
@@ -2056,10 +2133,7 @@ function StepperValidation({
 				...responseTypeOptions,
 				...assessmentTypeOptions,
 				...declarationTypeOptions,
-			].map((option) => [
-				option.value,
-				option.label,
-			]),
+			].map((option) => [option.value, option.label]),
 		);
 	}, []);
 	const availableAssessmentTypeOptions = useMemo(
@@ -2179,7 +2253,9 @@ function StepperValidation({
 			defaultType =
 				responseTypeOptions.find((option) => {
 					if (option.value === "early_action") {
-						return (responseCountByType.early_action ?? 0) < maxEarlyActionItems;
+						return (
+							(responseCountByType.early_action ?? 0) < maxEarlyActionItems
+						);
 					}
 					if (option.value === "response_operation") {
 						return (
@@ -2232,7 +2308,10 @@ function StepperValidation({
 		setDetailDialogVisible(true);
 	};
 
-	const openEditDetail = (category: AdditionalDetailCategory, item: AdditionalDetailItem) => {
+	const openEditDetail = (
+		category: AdditionalDetailCategory,
+		item: AdditionalDetailItem,
+	) => {
 		setDetailDialogCategory(category);
 		setEditingDetailId(item.id);
 		const normalizedType = normalizeDetailTypeValue(item.type);
@@ -2241,13 +2320,14 @@ function StepperValidation({
 			dateValue:
 				category === "response" && normalizedType === "response_operation"
 					? null
-					: category === "declaration" && normalizedType !== "disaster_declaration_effects"
-					? null
-					: parseDetailDate(item.date),
+					: category === "declaration" &&
+						  normalizedType !== "disaster_declaration_effects"
+						? null
+						: parseDetailDate(item.date),
 			description: item.description,
 			declarationStatus:
 				category === "declaration" && normalizedType === "disaster_declaration"
-					? item.meta?.declarationStatus ?? ""
+					? (item.meta?.declarationStatus ?? "")
 					: "",
 			hadOfficialWarningOrWeatherAdvisory:
 				category === "declaration" && normalizedType === "official_warning"
@@ -2255,7 +2335,7 @@ function StepperValidation({
 					: false,
 			officialWarningAffectedAreas:
 				category === "declaration" && normalizedType === "official_warning"
-					? item.meta?.officialWarningAffectedAreas ?? item.description
+					? (item.meta?.officialWarningAffectedAreas ?? item.description)
 					: "",
 		});
 		setDetailDialogVisible(true);
@@ -2279,16 +2359,16 @@ function StepperValidation({
 		const declarationMeta: AdditionalDetailMeta | undefined =
 			targetCategory === "declaration"
 				? {
-					declarationStatus: isDeclarationStatusType
-						? (detailForm.declarationStatus as DeclarationStatus)
-						: undefined,
-					hadOfficialWarningOrWeatherAdvisory: isOfficialWarningType
-						? detailForm.hadOfficialWarningOrWeatherAdvisory
-						: undefined,
-					officialWarningAffectedAreas: isOfficialWarningType
-						? detailForm.officialWarningAffectedAreas.trim()
-						: undefined,
-				}
+						declarationStatus: isDeclarationStatusType
+							? (detailForm.declarationStatus as DeclarationStatus)
+							: undefined,
+						hadOfficialWarningOrWeatherAdvisory: isOfficialWarningType
+							? detailForm.hadOfficialWarningOrWeatherAdvisory
+							: undefined,
+						officialWarningAffectedAreas: isOfficialWarningType
+							? detailForm.officialWarningAffectedAreas.trim()
+							: undefined,
+					}
 				: undefined;
 		const nextItem: AdditionalDetailItem = {
 			id: editingDetailId ?? `${targetCategory}-${Date.now()}`,
@@ -2296,13 +2376,16 @@ function StepperValidation({
 			date:
 				targetCategory === "response" && trimmedType === "response_operation"
 					? ""
-					: targetCategory === "declaration" && trimmedType !== "disaster_declaration_effects"
-					? ""
-					: formatDetailDate(detailForm.dateValue),
+					: targetCategory === "declaration" &&
+						  trimmedType !== "disaster_declaration_effects"
+						? ""
+						: formatDetailDate(detailForm.dateValue),
 			description:
-				targetCategory === "declaration" && trimmedType === "disaster_declaration"
+				targetCategory === "declaration" &&
+				trimmedType === "disaster_declaration"
 					? ""
-					: targetCategory === "declaration" && trimmedType === "official_warning"
+					: targetCategory === "declaration" &&
+						  trimmedType === "official_warning"
 						? detailForm.officialWarningAffectedAreas.trim()
 						: trimmedDescription,
 			meta: declarationMeta,
@@ -2310,7 +2393,9 @@ function StepperValidation({
 
 		setTarget((prev) => {
 			if (editingDetailId) {
-				return prev.map((item) => (item.id === editingDetailId ? nextItem : item));
+				return prev.map((item) =>
+					item.id === editingDetailId ? nextItem : item,
+				);
 			}
 
 			if (targetCategory === "response") {
@@ -2326,8 +2411,7 @@ function StepperValidation({
 				if (nextItem.type === "response_operation") {
 					const responseOperationCount = prev.filter(
 						(item) =>
-							normalizeDetailTypeValue(item.type) ===
-							"response_operation",
+							normalizeDetailTypeValue(item.type) === "response_operation",
 					).length;
 					if (responseOperationCount >= maxResponseOperationItems) {
 						return prev;
@@ -2364,7 +2448,8 @@ function StepperValidation({
 
 				if (nextItem.type === "official_warning") {
 					const nextTypeCount = prev.filter(
-						(item) => normalizeDetailTypeValue(item.type) === "official_warning",
+						(item) =>
+							normalizeDetailTypeValue(item.type) === "official_warning",
 					).length;
 					if (nextTypeCount >= maxOfficialWarningItems) {
 						return prev;
@@ -2393,7 +2478,10 @@ function StepperValidation({
 		setDetailDialogVisible(false);
 	};
 
-	const renderDetailCard = (category: AdditionalDetailCategory, item: AdditionalDetailItem) => {
+	const renderDetailCard = (
+		category: AdditionalDetailCategory,
+		item: AdditionalDetailItem,
+	) => {
 		const badgeClass =
 			category === "response"
 				? "bg-blue-100 text-blue-700"
@@ -2414,7 +2502,9 @@ function StepperValidation({
 				<div className="flex items-start justify-between gap-3">
 					<div className="w-full">
 						<div className="flex items-center gap-3">
-							<span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${badgeClass}`}>
+							<span
+								className={`rounded-full px-2 py-1 text-[11px] font-semibold ${badgeClass}`}
+							>
 								{typeLabel}
 							</span>
 							{item.date ? (
@@ -2424,14 +2514,14 @@ function StepperValidation({
 						<p className="mt-1 text-[14px] text-slate-500">
 							{descriptionValue
 								? (() => {
-									const lines = descriptionValue.split("\n");
-									return lines.map((line, index) => (
-										<span key={`${item.id}-line-${index}`}>
-											{line}
-											{index < lines.length - 1 ? <br /> : null}
-										</span>
-									));
-								})()
+										const lines = descriptionValue.split("\n");
+										return lines.map((line, index) => (
+											<span key={`${item.id}-line-${index}`}>
+												{line}
+												{index < lines.length - 1 ? <br /> : null}
+											</span>
+										));
+									})()
 								: "-"}
 						</p>
 					</div>
@@ -2471,7 +2561,10 @@ function StepperValidation({
 		return item.description;
 	}
 
-	const renderStep4DetailRow = (category: AdditionalDetailCategory, item: AdditionalDetailItem) => {
+	const renderStep4DetailRow = (
+		category: AdditionalDetailCategory,
+		item: AdditionalDetailItem,
+	) => {
 		const badgeClass =
 			category === "response"
 				? "bg-blue-100 text-blue-700"
@@ -2486,7 +2579,9 @@ function StepperValidation({
 		return (
 			<div key={item.id} className="space-y-2">
 				<div className="flex items-center gap-3">
-					<span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${badgeClass}`}>
+					<span
+						className={`rounded-full px-2 py-1 text-[11px] font-semibold ${badgeClass}`}
+					>
 						{typeLabel}
 					</span>
 					{item.date ? (
@@ -2507,20 +2602,21 @@ function StepperValidation({
 		);
 	};
 
-	const reviewLinkedDisasterEventRows = linkedDisasterEventTarget.map((event) => (
-		<div
-			key={event.id}
-			className="space-y-1"
-		>
-			<div className="space-y-1">
-				<p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-					Subsequent Disaster Event
-				</p>
-				<p className="text-[14px] font-semibold text-slate-800">{event.name || "-"}</p>
-				<p className="text-[13px] text-slate-500">{event.code || "-"}</p>
+	const reviewLinkedDisasterEventRows = linkedDisasterEventTarget.map(
+		(event) => (
+			<div key={event.id} className="space-y-1">
+				<div className="space-y-1">
+					<p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+						Subsequent Disaster Event
+					</p>
+					<p className="text-[14px] font-semibold text-slate-800">
+						{event.name || "-"}
+					</p>
+					<p className="text-[13px] text-slate-500">{event.code || "-"}</p>
+				</div>
 			</div>
-		</div>
-	));
+		),
+	);
 
 	const renderStep4SectionCard = (
 		title: string,
@@ -2529,7 +2625,10 @@ function StepperValidation({
 		content: React.ReactNode,
 		hasItems: boolean,
 	) => (
-		<Card className="rounded-2xl border border-slate-200 shadow-none" pt={{ body: { style: { padding: "18px 20px" } } }}>
+		<Card
+			className="rounded-2xl border border-slate-200 shadow-none"
+			pt={{ body: { style: { padding: "18px 20px" } } }}
+		>
 			<div className="space-y-4">
 				<div className="flex items-center gap-2 text-slate-800">
 					<i className={iconClass} />
@@ -2568,7 +2667,8 @@ function StepperValidation({
 		setLinkedEventSource(
 			matched
 				.filter(
-					(item) => !linkedEventTarget.some((selected) => selected.id === item.id),
+					(item) =>
+						!linkedEventTarget.some((selected) => selected.id === item.id),
 				)
 				.slice(0, 10),
 		);
@@ -2593,7 +2693,10 @@ function StepperValidation({
 		setLinkedDisasterEventSource(
 			matched
 				.filter(
-					(item) => !linkedDisasterEventTarget.some((selected) => selected.id === item.id),
+					(item) =>
+						!linkedDisasterEventTarget.some(
+							(selected) => selected.id === item.id,
+						),
 				)
 				.slice(0, 10),
 		);
@@ -2618,7 +2721,10 @@ function StepperValidation({
 		setLinkedDisasterRecordSource(
 			matched
 				.filter(
-					(item) => !linkedDisasterRecordTarget.some((selected) => selected.id === item.id),
+					(item) =>
+						!linkedDisasterRecordTarget.some(
+							(selected) => selected.id === item.id,
+						),
 				)
 				.slice(0, 10),
 		);
@@ -2644,7 +2750,9 @@ function StepperValidation({
 		const linkedIds = new Set(linkedDisasterEvents.map((event) => event.id));
 		setLinkedDisasterEventTarget(linkedDisasterEvents);
 		setLinkedDisasterEventSource(
-			disasterEventOptions.filter((event) => !linkedIds.has(event.id)).slice(0, 10),
+			disasterEventOptions
+				.filter((event) => !linkedIds.has(event.id))
+				.slice(0, 10),
 		);
 	}, [disasterEventOptions, linkedDisasterEvents]);
 
@@ -2654,18 +2762,19 @@ function StepperValidation({
 		searchLinkedDisasterRecords("");
 	}, []);
 
-	return (<>
-		<div className="card flex justify-content-center">
-			<SaveSubmitDialog
-				ctx={ctx}
-				visible={visibleModalSubmit}
-				onHide={() => setVisibleModalSubmit(false)}
-				onSubmit={handleSubmitAction}
-				usersWithValidatorRole={usersWithValidatorRoleOptions}
-				userRole={user?.role ?? undefined}
-			/>
-		</div>
-		<style>{`
+	return (
+		<>
+			<div className="card flex justify-content-center">
+				<SaveSubmitDialog
+					ctx={ctx}
+					visible={visibleModalSubmit}
+					onHide={() => setVisibleModalSubmit(false)}
+					onSubmit={handleSubmitAction}
+					usersWithValidatorRole={usersWithValidatorRoleOptions}
+					userRole={user?.role ?? undefined}
+				/>
+			</div>
+			<style>{`
 			.status-stepper .p-stepper-title::after {
 				content: attr(data-status);
 				display: block;
@@ -2710,1181 +2819,1368 @@ function StepperValidation({
 				bottom: 0;
 			}
 		`}</style>
-		<div className="mg-container">
-			<section className="dts-page-section">
-				<RouterForm id="disaster-event-stepper-form" method="post">
-					<input
-						type="hidden"
-						id="tempValidatorUserIds"
-						name="tempValidatorUserIds"
-					/>
-					<input type="hidden" id="tempAction" name="tempAction" />
-					{hiddenFormValues.map((field) => (
+			<div className="mg-container">
+				<section className="dts-page-section">
+					<RouterForm id="disaster-event-stepper-form" method="post">
 						<input
-							key={field.name}
 							type="hidden"
-							name={field.name}
-							value={field.value}
+							id="tempValidatorUserIds"
+							name="tempValidatorUserIds"
 						/>
-					))}
-				<div className="mb-4">
-					<div className="flex items-center justify-between px-4 py-2">
-						<h2 className="text-[16px] font-semibold text-slate-800">
-							{ctx.t({
-								code: "disaster_event.edit",
-								msg: "Edit disaster event",
-							})}
-						</h2>
-						<Button
-							type="button"
-							icon="pi pi-times"
-							text
-							aria-label="Close"
-							onClick={() => document.location.href = ctx.url("/disaster-event")}
-						/>
-					</div>
-				</div>
-
-
-				
-				<Tooltip
-					ref={firstNameTooltipRef}
-					target=".first-name-tooltip"
-					content="Enter the person's given name as shown on official records."
-				/>
-				<Stepper
-					className="status-stepper"
-					activeStep={activeStep}
-					onChangeStep={onStepSelect}
-					headerPosition="bottom"
-					pt={{
-						stepperpanel: {
-							action: ({ context }: { context: { index: number } }) => ({
-								disabled: context.index > 0 && !isStep1Complete,
-								"aria-disabled": context.index > 0 && !isStep1Complete,
-							}),
-						},
-					}}
-				>
-					<StepperPanel
-						header="Basic Information"
-						pt={{
-							title: {
-								style: { textAlign: "center" },
-								"data-status": "required",
-							},
-						}}
-					>
-						<div className="grid grid-cols-12 gap-4">
-							<div className="col-span-12 mb-4">
-								<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
-									Event basics
+						<input type="hidden" id="tempAction" name="tempAction" />
+						{hiddenFormValues.map((field) => (
+							<input
+								key={field.name}
+								type="hidden"
+								name={field.name}
+								value={field.value}
+							/>
+						))}
+						<div className="mb-4">
+							<div className="flex items-center justify-between px-4 py-2">
+								<h2 className="text-[16px] font-semibold text-slate-800">
+									{ctx.t({
+										code: "disaster_event.edit",
+										msg: "Edit disaster event",
+									})}
 								</h2>
-								<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
-									General information about the disaster event.
-								</p>
-							</div>
-
-							<div className="col-span-12 grid grid-cols-12 gap-4">
-								<div className="col-span-12 md:col-span-4">
-									<label htmlFor="nameNational" className="mb-1 inline-flex items-center gap-2">
-										<span className="text-red-500">*</span> Disaster name - national
-									</label>
-									<InputText
-										id="nameNational"
-										name="nameNational"
-										defaultValue={form.nameNational}
-										placeholder="For example, Hurricane Mitch"
-										className="w-full"
-										required={true}
-									/>
-									{errors.nameNational ? (
-										<p className="mt-1 text-xs text-red-600">{errors.nameNational}</p>
-									) : null}
-								</div>
-
-								<div className="col-span-12 md:col-span-4">
-									<label htmlFor="nameGlobalOrRegional" className="mb-1 inline-flex items-center gap-2">
-										Disaster name - Other (Global or Regional)
-									</label>
-									<InputText
-										id="nameGlobalOrRegional"
-										name="nameGlobalOrRegional"
-										defaultValue={form.nameGlobalOrRegional}
-										placeholder="Add event name"
-										className="w-full"
-									/>
-								</div>
-
-								<div className="col-span-12 md:col-span-4">
-									<label htmlFor="nationalDisasterId" className="mb-1 inline-flex items-center gap-2">
-										National event ID
-									</label>
-									<InputText
-										id="nationalDisasterId"
-										name="nationalDisasterId"
-										defaultValue={form.nationalDisasterId}
-										placeholder="Add event ID"
-										className="w-full"
-									/>
-								</div>
-
-								<div className="col-span-12 md:col-span-4">
-									<label htmlFor="glide" className="mb-1 inline-flex items-center gap-2">
-										<span className="inline-flex items-center gap-1">
-											GLIDE number
-											<i className="pi pi-info-circle text-xs text-slate-400" aria-hidden="true" />
-										</span>
-									</label>
-									<InputText
-										id="glide"
-										name="glide"
-										defaultValue={form.glide}
-										placeholder="Add GLIDE number"
-										className="w-full"
-									/>
-								</div>
-
-								<div className="col-span-12 md:col-span-4">
-									<label htmlFor="disasterEventId" className="mb-1 inline-flex items-center gap-2">
-										Disaster event UUID
-									</label>
-									<div className="flex items-center gap-2">
-										<InputText
-											id="id"
-											name="id"
-											defaultValue={form.id}
-											readOnly
-											className="w-full"
-										/>
-	
-
-										<Button
-											type="button"
-											icon="pi pi-copy"
-											text
-											rounded
-											aria-label="Copy disaster event UUID"
-											onClick={() => navigator.clipboard.writeText(form.id.toString())}
-										/>
-									</div>
-								</div>
-
-								<div className="col-span-12 md:col-span-4">
-									<label htmlFor="recordingInstitution" className="mb-1 inline-flex items-center gap-2">
-										Recording organisation
-									</label>
-									<InputText
-										id="recordingInstitution"
-										name="recordingInstitution"
-										defaultValue={form.recordingInstitution}
-										className="w-full"
-									/>
-								</div>
-							</div>
-
-							<div className="col-span-12 my-6 border-t border-slate-200" />
-
-							<div className="col-span-12 mb-4">
-								<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
-									Hazard and timing
-								</h2>
-								<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
-									Detailed information regarding the observed hazards and timing.
-								</p>
-							</div>
-
-							<div className="col-span-12 grid grid-cols-12 gap-4">
-								<div className="col-span-12 md:col-span-4">
-									<label htmlFor="hazardTypeObserved" className="mb-1 inline-flex items-center gap-2">
-										Hazard type (observed) <i className="pi pi-info-circle ml-1 text-xs text-slate-400" aria-hidden="true" />
-									</label>
-									<Dropdown
-										id="hazardTypeObserved"
-										value={selectedHipTypeId || null}
-										options={hazardTypeOptions}
-										onChange={(event) =>
-											handleTypeChange(
-												typeof event.value === "string" ? event.value : "",
-											)
-										}
-										placeholder="Select hazard type"
-										className="w-full"
-										filter
-										filterBy="label"
-										showClear
-									/>
-									<input type="hidden" name="hipTypeId" value={selectedHipTypeId} />
-								</div>
-
-								<div className="col-span-12 md:col-span-4">
-									<label htmlFor="hazardClusterObserved" className="mb-1 inline-flex items-center gap-2">
-										Hazard cluster (observed) <i className="pi pi-info-circle ml-1 text-xs text-slate-400" aria-hidden="true" />
-									</label>
-									<Dropdown
-										id="hazardClusterObserved"
-										value={selectedHipClusterId || null}
-										options={hazardClusterOptions}
-										onChange={(event) =>
-											handleClusterChange(
-												typeof event.value === "string" ? event.value : "",
-											)
-										}
-										placeholder="Select hazard cluster"
-										className="w-full"
-										filter
-										filterBy="label"
-										showClear
-									/>
-									<input type="hidden" name="hipClusterId" value={selectedHipClusterId} />
-								</div>
-
-								<div className="col-span-12 md:col-span-4">
-									<label htmlFor="specificHazardObserved" className="mb-1 inline-flex items-center gap-2">
-										Specific hazard (observed) <i className="pi pi-info-circle ml-1 text-xs text-slate-400" aria-hidden="true" />
-									</label>
-									<Dropdown
-										id="specificHazardObserved"
-										value={selectedHipHazardId || null}
-										options={specificHazardOptions}
-										onChange={(event) => {
-											const hazardId =
-												typeof event.value === "string" ? event.value : "";
-											if (!hazardId) {
-												setSelectedHipHazardId("");
-												return;
-											}
-
-											const selectedHazard = sortedHipHazards.find(
-												(item) => item.id === hazardId,
-											);
-											if (selectedHazard) {
-												selectSpecificHazard(selectedHazard);
-											}
-										}}
-										placeholder="Enter hazard name or HIPS code"
-										className="w-full"
-										filter
-										filterBy="label"
-										virtualScrollerOptions={{ itemSize: 38 }}
-										showClear
-									/>
-									<input type="hidden" name="hipHazardId" value={selectedHipHazardId} />
-								</div>
-
-								<div className="col-span-12">
-									<div className="grid grid-cols-12 gap-4">
-										{renderDateWithPrecision(
-											"startDate",
-											"Start date",
-											startDateState,
-											setStartDateState,
-										)}
-										{renderDateWithPrecision(
-											"endDate",
-											"End date",
-											endDateState,
-											setEndDateState,
-											errors.endDate,
-										)}
-
-										<div className="col-span-12 md:col-span-6">
-											<label htmlFor="startDateLocal" className="mb-1 inline-flex items-center gap-2">
-												Start date in local format
-											</label>
-											<InputText
-												id="startDateLocal"
-												name="startDateLocal"
-												value={startDateLocal}
-												onChange={(event) => setStartDateLocal(event.target.value)}
-												className="w-full"
-											/>
-										</div>
-
-										<div className="col-span-12 md:col-span-6">
-											<label htmlFor="endDateLocal" className="mb-1 inline-flex items-center gap-2">
-												End date in local format
-											</label>
-											<InputText
-												id="endDateLocal"
-												name="endDateLocal"
-												value={endDateLocal}
-												onChange={(event) => setEndDateLocal(event.target.value)}
-												className="w-full"
-											/>
-										</div>
-
-										<input
-											type="hidden"
-											name="startDate"
-											value={toDateWithPrecisionValue(startDateState)}
-										/>
-										<input
-											type="hidden"
-											name="endDate"
-											value={toDateWithPrecisionValue(endDateState)}
-										/>
-									</div>
-								</div>
-							</div>
-
-							<div className="col-span-12 my-6 border-t border-slate-200" />
-
-							<div className="col-span-12 mb-2">
-								<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
-									Disaster event spatial information
-								</h2>
-								<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
-									Indicate the geographic areas where the disaster event was experienced.
-								</p>
-							</div>
-
-							<div className="col-span-12 space-y-4">
-								<div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-									<div className="flex items-start justify-between gap-4">
-										<div>
-											<div className="flex items-center gap-2">
-												<i className="pi pi-map-marker text-blue-500" />
-												<h3 className="text-[18px] font-semibold text-slate-800">Geographical level</h3>
-											</div>
-											<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
-												Select the administrative areas where the disaster event was experienced.
-											</p>
-											<Button
-												type="button"
-												className="mt-4"
-												label="Add affected areas"
-												outlined
-												icon="pi pi-plus"
-												onClick={openSpatialDialog}
-											/>
-											<div className="mt-6 flex flex-wrap gap-2 text-sm">
-												{selectedDivisionItems.length > 0 &&
-													selectedDivisionItems.map((item) => (
-														<div
-															key={item.key}
-															className="inline-flex items-center gap-2 rounded-md bg-sky-100 px-3 py-2 text-sky-700"
-														>
-															<span>{item.label}</span>
-															<button
-																type="button"
-																aria-label={`Remove ${item.label}`}
-																onClick={() => removeDivisionSelection(item.key)}
-																className="cursor-pointer text-sky-700 transition hover:text-sky-900"
-															>
-																×
-															</button>
-														</div>
-													))}
-											</div>
-										</div>
-										<i className="pi pi-chevron-right pt-2 text-slate-400" />
-									</div>
-								</div>
-
-								<SpatialFootprintFormView2
-									ctx={ctx}
-									divisions={
-										Array.isArray(divisionGeoJSON) ? divisionGeoJSON : []
+								<Button
+									type="button"
+									icon="pi pi-times"
+									text
+									aria-label="Close"
+									onClick={() =>
+										(document.location.href = ctx.url("/disaster-event"))
 									}
-									ctryIso3={ctryIso3 || ""}
-									initialData={spatialFootprintValue}
-									onChange={(items) => {
-										setSpatialFootprintValue(Array.isArray(items) ? items : []);
-									}}
-								/>
-									
-
-								
-							</div>
-
-							<Dialog
-								header="Select geographic levels"
-								visible={spatialFootprintDialogVisible}
-								style={{ width: "72rem", maxWidth: "95vw" }}
-								onHide={() => setSpatialFootprintDialogVisible(false)}
-								draggable={false}
-								resizable={false}
-								appendTo="self"
-							>
-								<div>
-									<p className="mb-4 text-[13px] text-slate-500">
-										Select one or more geographic levels from the hierarchical tree below.
-									</p>
-									<div className="mb-3 flex items-center gap-3">
-										<div className="relative w-full">
-											<i className="pi pi-search pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-											<InputText
-												value={divisionSearchTerm}
-												onChange={(event) => setDivisionSearchTerm(event.target.value)}
-												placeholder="Search locations..."
-												className="w-full pr-10"
-											/>
-										</div>
-									</div>
-									<div className="mb-3 flex items-center justify-between rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-slate-700">
-										<div>
-											{selectedDivisionCount} location
-											{selectedDivisionCount === 1 ? " selected" : "s selected"}
-										</div>
-										<Button
-											type="button"
-											label="Clear all"
-											text
-											size="small"
-											onClick={clearDivisionSelection}
-										/>
-									</div>
-									<div className="max-h-[26rem] overflow-auto rounded-md border border-slate-200 bg-white p-3 shadow-sm">
-										<Tree
-											value={filteredDivisionNodes}
-											selectionMode="checkbox"
-											selectionKeys={selectedDivisionKeys}
-											onSelectionChange={(e) =>
-												setSelectedDivisionKeys(e.value)
-											}
-											className="w-full"
-										/>
-									</div>
-								</div>
-							</Dialog>
-						</div>
-
-
-						
-
-						<div className="flex items-center justify-between w-full mt-20">
-							<Button
-								type="button"
-								label="Cancel"
-								outlined
-								onClick={() => document.location.href = ctx.url("/disaster-event")}
-							/>
-							<div className="flex gap-2">
-								<Button
-									type="button"
-									label="Save as draft"
-									outlined
-									onClick={saveAsDraft}
-								/>
-								<Button
-									type="button"
-									label="Next"
-									icon="pi pi-chevron-right"
-									iconPos="right"
-									onClick={goNext}
 								/>
 							</div>
 						</div>
-					</StepperPanel>
 
-					<StepperPanel
-						header="Linked events"
-						pt={{
-							title: {
-								style: { textAlign: "center" },
-								"data-status": "optional",
-							},
-						}}
-					>
-						<div className="col-span-12 mb-4">
-							<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
-								Linked hazardous events
-							</h2>
-							<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
-								Link this disaster event to triggered hazardous events.
-							</p>
-						</div>
-						<div className="space-y-4">
-							<div>
-								<div className="mt-2 flex gap-3">
-									<div className="relative w-full">
-										<i className="pi pi-search pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-										<InputText
-											id="linkedEventSearch"
-											value={linkedEventSearch}
-											onChange={(event) => setLinkedEventSearch(event.target.value)}
-											placeholder="Type to search hazardous events..."
-											className="w-full pr-10"
-										/>
-									</div>
-									<Button
-										type="button"
-										label={linkedEventLoading ? "Searching..." : "Search"}
-										onClick={() => searchLinkedEvents(linkedEventSearch)}
-										disabled={linkedEventLoading}
-									/>
-								</div>
-							</div>
-
-							<PickList
-								dataKey="id"
-								source={linkedEventSource}
-								target={linkedEventTarget}
-								onChange={(event) => {
-									setLinkedEventSource(event.source);
-									setLinkedEventTarget(event.target);
-								}}
-								itemTemplate={linkedEventItemTemplate}
-								sourceHeader="Latest 10 hazardous events / Search results "
-								targetHeader="Selected triggered (subsequent hazardous events)"
-								sourceStyle={{ height: "18rem" }}
-								targetStyle={{ height: "18rem" }}
-								showSourceFilter={false}
-								showTargetFilter={false}
-							/>
-						</div>
-						
-						<div className="col-span-12 mb-4 mt-8">
-							<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
-								Linked disaster events
-							</h2>
-							<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
-								Link this disaster event to triggered disaster events.
-							</p>
-						</div>
-						<div className="space-y-4">
-
-							<div className="pt-4">
-								<div className="mt-2 flex gap-3">
-									<div className="relative w-full">
-										<i className="pi pi-search pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-										<InputText
-											id="linkedDisasterEventSearch"
-											value={linkedDisasterEventSearch}
-											onChange={(event) => setLinkedDisasterEventSearch(event.target.value)}
-											placeholder="Type to search disaster events..."
-											className="w-full pr-10"
-										/>
-									</div>
-									<Button
-										type="button"
-										label={linkedDisasterEventLoading ? "Searching..." : "Search"}
-										onClick={() => searchLinkedDisasterEvents(linkedDisasterEventSearch)}
-										disabled={linkedDisasterEventLoading}
-									/>
-								</div>
-							</div>
-
-							<PickList
-								dataKey="id"
-								source={linkedDisasterEventSource}
-								target={linkedDisasterEventTarget}
-								onChange={(event) => {
-									setLinkedDisasterEventSource(event.source);
-									setLinkedDisasterEventTarget(event.target);
-								}}
-								itemTemplate={linkedEventItemTemplate}
-								sourceHeader="Latest 10 disaster events / Search results"
-								targetHeader="Selected  triggered (subsequent disaster events)"
-								sourceStyle={{ height: "18rem" }}
-								targetStyle={{ height: "18rem" }}
-								showSourceFilter={false}
-								showTargetFilter={false}
-							/>
-						</div>
-
-						<div className="col-span-12 mb-4 mt-8">
-							<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
-								Linked disaster records
-							</h2>
-							<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
-								Link this disaster event to related disaster records.
-							</p>
-						</div>
-						<div className="space-y-4">
-							<div className="pt-4">
-								<div className="mt-2 flex gap-3">
-									<div className="relative w-full">
-										<i className="pi pi-search pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-										<InputText
-											id="linkedDisasterRecordSearch"
-											value={linkedDisasterRecordSearch}
-											onChange={(event) => setLinkedDisasterRecordSearch(event.target.value)}
-											placeholder="Type to search disaster records..."
-											className="w-full pr-10"
-										/>
-									</div>
-									<Button
-										type="button"
-										label={linkedDisasterRecordLoading ? "Searching..." : "Search"}
-										onClick={() => searchLinkedDisasterRecords(linkedDisasterRecordSearch)}
-										disabled={linkedDisasterRecordLoading}
-									/>
-								</div>
-							</div>
-
-							<PickList
-								dataKey="id"
-								source={linkedDisasterRecordSource}
-								target={linkedDisasterRecordTarget}
-								onChange={(event) => {
-									setLinkedDisasterRecordSource(event.source);
-									setLinkedDisasterRecordTarget(event.target);
-								}}
-								itemTemplate={linkedEventItemTemplate}
-								sourceHeader="Latest 10 disaster records / Search results"
-								targetHeader="Selected linked disaster records"
-								sourceStyle={{ height: "18rem" }}
-								targetStyle={{ height: "18rem" }}
-								showSourceFilter={false}
-								showTargetFilter={false}
-							/>
-						</div>
-
-						<div className="flex items-center justify-between w-full mt-20">
-							<Button
-								type="button"
-								label="Cancel"
-								outlined
-								onClick={() => (document.location.href = ctx.url("/disaster-event"))}
-							/>
-							<div className="flex gap-2">
-								<Button
-									type="button"
-									label="Save as draft"
-									outlined
-									onClick={saveAsDraft}
-								/>
-								<Button
-									type="button"
-									label="Back"
-									outlined
-									icon="pi pi-chevron-left"
-									iconPos="left"
-									onClick={() => {
-										saveCurrentFormState();
-										setActiveStep(0);
-									}}
-								/>
-								<Button
-									type="button"
-									label="Next"
-									icon="pi pi-chevron-right"
-									iconPos="right"
-									onClick={goToAdditionalDetails}
-								/>
-							</div>
-						</div>
-					</StepperPanel>
-
-					<StepperPanel
-						header="Additional details"
-						pt={{
-							title: {
-								style: { textAlign: "center" },
-								"data-status": "optional",
-							},
-						}}
-					>
-						<div>
-							<h3 className="text-[18px] leading-[24px] font-semibold text-slate-800">Additional details</h3>
-							<p className="mt-2 text-[14px] text-slate-500">
-								Document responses, assessments, and official declarations related to this disaster event.
-							</p>
-
-							<div className="mt-8 flex items-start justify-between gap-4">
-								<div className="flex items-start gap-3">
-									<div className="rounded-xl bg-blue-100 p-2">
-										<i className="pi pi-file-edit text-blue-600" />
-									</div>
-									<div>
-										<h4 className="text-[18px] leading-[24px] font-semibold text-slate-800">Responses</h4>
-										<p className="text-[14px] text-slate-500">Track early actions and response operations</p>
-									</div>
-								</div>
-								<Button
-									type="button"
-									label="Add response"
-									icon="pi pi-plus"
-									outlined
-									disabled={!canAddAnyResponse}
-									onClick={() => openAddDetail("response")}
-								/>
-							</div>
-
-							{responses.length > 0 ? (
-								<div className="mt-4 space-y-3">
-									{responses.map((item) => renderDetailCard("response", item))}
-								</div>
-							) : (
-								renderEmptyDetails("No responses recorded yet")
-							)}
-
-							<div className="my-8 border-t border-slate-200" />
-
-							<div className="flex items-start justify-between gap-4">
-								<div className="flex items-start gap-3">
-									<div className="rounded-xl bg-violet-100 p-2">
-										<i className="pi pi-clipboard text-violet-600" />
-									</div>
-									<div>
-										<h4 className="text-[18px] leading-[24px] font-semibold text-slate-800">Assessments</h4>
-										<p className="text-[14px] text-slate-500">Document needs assessments and evaluations</p>
-									</div>
-								</div>
-								<Button
-									type="button"
-									label="Add assessment"
-									icon="pi pi-plus"
-									outlined
-									disabled={!canAddAnyAssessment}
-									onClick={() => openAddDetail("assessment")}
-								/>
-							</div>
-
-							{assessments.length > 0 ? (
-								<div className="mt-4 space-y-3">
-									{assessments.map((item) => renderDetailCard("assessment", item))}
-								</div>
-							) : (
-								renderEmptyDetails("No assessments recorded yet")
-							)}
-
-							<div className="my-8 border-t border-slate-200" />
-
-							<div className="flex items-start justify-between gap-4">
-								<div className="flex items-start gap-3">
-									<div className="rounded-xl bg-amber-100 p-2">
-										<i className="pi pi-send text-amber-600" />
-									</div>
-									<div>
-										<h4 className="text-[18px] leading-[24px] font-semibold text-slate-800">Official declarations</h4>
-										<p className="text-[14px] text-slate-500">Record official emergency declarations</p>
-									</div>
-								</div>
-								<Button
-									type="button"
-									label="Add declaration"
-									icon="pi pi-plus"
-									outlined
-									disabled={!canAddAnyDeclaration}
-									onClick={() => openAddDetail("declaration")}
-								/>
-							</div>
-
-							{declarations.length > 0 ? (
-								<div className="mt-4 space-y-3">
-									{declarations.map((item) => renderDetailCard("declaration", item))}
-								</div>
-							) : (
-								renderEmptyDetails("No declarations recorded yet")
-							)}
-						</div>
-
-						<Dialog
-							header={editingDetailId ? `Edit ${detailDialogCategory}` : `Add ${detailDialogCategory}`}
-							visible={detailDialogVisible}
-							style={{ width: "34rem" }}
-							onHide={() => setDetailDialogVisible(false)}
-							draggable={false}
-							resizable={false}
+						<Tooltip
+							ref={firstNameTooltipRef}
+							target=".first-name-tooltip"
+							content="Enter the person's given name as shown on official records."
+						/>
+						<Stepper
+							className="status-stepper"
+							activeStep={activeStep}
+							onChangeStep={onStepSelect}
+							headerPosition="bottom"
+							pt={{
+								stepperpanel: {
+									action: ({ context }: { context: { index: number } }) => ({
+										disabled: context.index > 0 && !isStep1Complete,
+										"aria-disabled": context.index > 0 && !isStep1Complete,
+									}),
+								},
+							}}
 						>
-							<div className="space-y-4">
-								<div>
-									<label className="mb-1 block">Type</label>
-									<select
-										value={detailForm.type}
-										onChange={(event) => {
-											const selectedType = event.target.value;
-											setDetailForm((state) => ({
-												...state,
-												type: selectedType,
-												dateValue:
-													detailDialogCategory === "response" &&
-													selectedType === "response_operation"
-														? null
-														: detailDialogCategory === "declaration" &&
-														selectedType !== "disaster_declaration_effects"
-														? null
-														: state.dateValue,
-												declarationStatus:
-													selectedType === "disaster_declaration"
-														? state.declarationStatus
-														: "",
-												hadOfficialWarningOrWeatherAdvisory:
-													selectedType === "official_warning"
-														? state.hadOfficialWarningOrWeatherAdvisory
-														: false,
-												officialWarningAffectedAreas:
-													selectedType === "official_warning"
-														? state.officialWarningAffectedAreas
-														: "",
-											}));
-										}}
-										disabled={Boolean(editingDetailId)}
-										className="w-full rounded-md border border-slate-300 px-3 py-2"
-									>
-										<option value="">Select type</option>
-										{detailTypeOptions.map((option) => (
-											<option key={option.value} value={option.value}>
-												{option.label}
-											</option>
-										))}
-									</select>
-								</div>
-
-								{showDateField ? (
-									<div>
-										<label className="mb-1 block">Date</label>
-										<Calendar
-											value={detailForm.dateValue}
-											onChange={(event) =>
-												setDetailForm((state) => ({
-													...state,
-													dateValue: event.value instanceof Date ? event.value : null,
-												}))
-											}
-											dateFormat="dd/mm/yy"
-											placeholder="Select date"
-											showIcon
-											className="w-full"
-										/>
+							<StepperPanel
+								header="Basic Information"
+								pt={{
+									title: {
+										style: { textAlign: "center" },
+										"data-status": "required",
+									},
+								}}
+							>
+								<div className="grid grid-cols-12 gap-4">
+									<div className="col-span-12 mb-4">
+										<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
+											Event basics
+										</h2>
+										<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
+											General information about the disaster event.
+										</p>
 									</div>
-								) : null}
 
-								{isDeclarationStatusType ? (
-									<div>
-										<label className="mb-1 block">Disaster declaration status</label>
-										<select
-											value={detailForm.declarationStatus}
-											onChange={(event) =>
-												setDetailForm((state) => ({
-													...state,
-													declarationStatus: event.target.value as DeclarationStatus | "",
-												}))
-											}
-											className="w-full rounded-md border border-slate-300 px-3 py-2"
-										>
-											<option value="">Select declaration status</option>
-											{declarationStatusOptions.map((option) => (
-												<option key={option.value} value={option.value}>
-													{option.label}
-												</option>
-											))}
-										</select>
-									</div>
-								) : null}
-
-								{isOfficialWarningType ? (
-									<div className="space-y-3">
-										<label className="flex items-center gap-2 text-sm text-slate-700">
-											<input
-												type="checkbox"
-												checked={detailForm.hadOfficialWarningOrWeatherAdvisory}
-												onChange={(event) =>
-													setDetailForm((state) => ({
-														...state,
-														hadOfficialWarningOrWeatherAdvisory: event.target.checked,
-													}))
-												}
-											/>
-											<span>
-												Was there an officially issued warning and/or weather advisory?
-											</span>
-										</label>
-
-										<div>
-											<label className="mb-1 block">
-												Which affected areas were covered by the warning?
+									<div className="col-span-12 grid grid-cols-12 gap-4">
+										<div className="col-span-12 md:col-span-4">
+											<label
+												htmlFor="nameNational"
+												className="mb-1 inline-flex items-center gap-2"
+											>
+												<span className="text-red-500">*</span> Disaster name -
+												national
 											</label>
-											<InputTextarea
-												value={detailForm.officialWarningAffectedAreas}
-												onChange={(event) =>
-													setDetailForm((state) => ({
-														...state,
-														officialWarningAffectedAreas: event.target.value,
-													}))
-												}
-												rows={3}
-												placeholder="Enter affected areas"
+											<InputText
+												id="nameNational"
+												name="nameNational"
+												defaultValue={form.nameNational}
+												placeholder="For example, Hurricane Mitch"
 												className="w-full"
+												required={true}
 											/>
-											{detailForm.hadOfficialWarningOrWeatherAdvisory &&
-											!hasOfficialWarningAreas ? (
+											{errors.nameNational ? (
 												<p className="mt-1 text-xs text-red-600">
-													Affected areas are required when warning/advisory is checked.
+													{errors.nameNational}
 												</p>
 											) : null}
 										</div>
-									</div>
-								) : null}
 
-								{!isDeclarationStatusType && !isOfficialWarningType ? (
-									<div>
-									<label className="mb-1 block">Description</label>
-									<InputTextarea
-										value={detailForm.description}
-										onChange={(event) =>
-											setDetailForm((state) => ({ ...state, description: event.target.value }))
-										}
-										rows={4}
-										placeholder="Enter description"
-										className="w-full"
-									/>
-									</div>
-								) : null}
-
-								<div className="flex items-center justify-between gap-2 pt-2">
-									<div>
-										{editingDetailId ? (
-											<Button
-												type="button"
-												label="Delete"
-												severity="danger"
-												outlined
-												onClick={deleteDetail}
+										<div className="col-span-12 md:col-span-4">
+											<label
+												htmlFor="nameGlobalOrRegional"
+												className="mb-1 inline-flex items-center gap-2"
+											>
+												Disaster name - Other (Global or Regional)
+											</label>
+											<InputText
+												id="nameGlobalOrRegional"
+												name="nameGlobalOrRegional"
+												defaultValue={form.nameGlobalOrRegional}
+												placeholder="Add event name"
+												className="w-full"
 											/>
-										) : null}
+										</div>
+
+										<div className="col-span-12 md:col-span-4">
+											<label
+												htmlFor="nationalDisasterId"
+												className="mb-1 inline-flex items-center gap-2"
+											>
+												National event ID
+											</label>
+											<InputText
+												id="nationalDisasterId"
+												name="nationalDisasterId"
+												defaultValue={form.nationalDisasterId}
+												placeholder="Add event ID"
+												className="w-full"
+											/>
+										</div>
+
+										<div className="col-span-12 md:col-span-4">
+											<label
+												htmlFor="glide"
+												className="mb-1 inline-flex items-center gap-2"
+											>
+												<span className="inline-flex items-center gap-1">
+													GLIDE number
+													<i
+														className="pi pi-info-circle text-xs text-slate-400"
+														aria-hidden="true"
+													/>
+												</span>
+											</label>
+											<InputText
+												id="glide"
+												name="glide"
+												defaultValue={form.glide}
+												placeholder="Add GLIDE number"
+												className="w-full"
+											/>
+										</div>
+
+										<div className="col-span-12 md:col-span-4">
+											<label
+												htmlFor="disasterEventId"
+												className="mb-1 inline-flex items-center gap-2"
+											>
+												Disaster event UUID
+											</label>
+											<div className="flex items-center gap-2">
+												<InputText
+													id="id"
+													name="id"
+													defaultValue={form.id}
+													readOnly
+													className="w-full !border-slate-100 !bg-slate-50 shadow-none cursor-not-allowed"
+												/>
+
+												<Button
+													type="button"
+													icon="pi pi-copy"
+													text
+													rounded
+													aria-label="Copy disaster event UUID"
+													onClick={() =>
+														navigator.clipboard.writeText(form.id.toString())
+													}
+												/>
+											</div>
+										</div>
+
+										<div className="col-span-12 md:col-span-4">
+											<label
+												htmlFor="recordingInstitution"
+												className="mb-1 inline-flex items-center gap-2"
+											>
+												Recording organisation
+											</label>
+											<InputText
+												id="recordingInstitution"
+												name="recordingInstitution"
+												defaultValue={form.recordingInstitution}
+												className="w-full"
+											/>
+										</div>
 									</div>
+
+									<div className="col-span-12 my-6 border-t border-slate-200" />
+
+									<div className="col-span-12 mb-4">
+										<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
+											Hazard and timing
+										</h2>
+										<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
+											Detailed information regarding the observed hazards and
+											timing.
+										</p>
+									</div>
+
+									<div className="col-span-12 grid grid-cols-12 gap-4">
+										<div className="col-span-12 md:col-span-4">
+											<label
+												htmlFor="hazardTypeObserved"
+												className="mb-1 inline-flex items-center gap-2"
+											>
+												Hazard type (observed){" "}
+												<i
+													className="pi pi-info-circle ml-1 text-xs text-slate-400"
+													aria-hidden="true"
+												/>
+											</label>
+											<Dropdown
+												id="hazardTypeObserved"
+												value={selectedHipTypeId || null}
+												options={hazardTypeOptions}
+												onChange={(event) =>
+													handleTypeChange(
+														typeof event.value === "string" ? event.value : "",
+													)
+												}
+												placeholder="Select hazard type"
+												className="w-full"
+												filter
+												filterBy="label"
+												showClear
+											/>
+											<input
+												type="hidden"
+												name="hipTypeId"
+												value={selectedHipTypeId}
+											/>
+										</div>
+
+										<div className="col-span-12 md:col-span-4">
+											<label
+												htmlFor="hazardClusterObserved"
+												className="mb-1 inline-flex items-center gap-2"
+											>
+												Hazard cluster (observed){" "}
+												<i
+													className="pi pi-info-circle ml-1 text-xs text-slate-400"
+													aria-hidden="true"
+												/>
+											</label>
+											<Dropdown
+												id="hazardClusterObserved"
+												value={selectedHipClusterId || null}
+												options={hazardClusterOptions}
+												onChange={(event) =>
+													handleClusterChange(
+														typeof event.value === "string" ? event.value : "",
+													)
+												}
+												placeholder="Select hazard cluster"
+												className="w-full"
+												filter
+												filterBy="label"
+												showClear
+											/>
+											<input
+												type="hidden"
+												name="hipClusterId"
+												value={selectedHipClusterId}
+											/>
+										</div>
+
+										<div className="col-span-12 md:col-span-4">
+											<label
+												htmlFor="specificHazardObserved"
+												className="mb-1 inline-flex items-center gap-2"
+											>
+												Specific hazard (observed){" "}
+												<i
+													className="pi pi-info-circle ml-1 text-xs text-slate-400"
+													aria-hidden="true"
+												/>
+											</label>
+											<Dropdown
+												id="specificHazardObserved"
+												value={selectedHipHazardId || null}
+												options={specificHazardOptions}
+												onChange={(event) => {
+													const hazardId =
+														typeof event.value === "string" ? event.value : "";
+													if (!hazardId) {
+														setSelectedHipHazardId("");
+														return;
+													}
+
+													const selectedHazard = sortedHipHazards.find(
+														(item) => item.id === hazardId,
+													);
+													if (selectedHazard) {
+														selectSpecificHazard(selectedHazard);
+													}
+												}}
+												placeholder="Enter hazard name or HIPS code"
+												className="w-full"
+												filter
+												filterBy="label"
+												virtualScrollerOptions={{ itemSize: 38 }}
+												showClear
+											/>
+											<input
+												type="hidden"
+												name="hipHazardId"
+												value={selectedHipHazardId}
+											/>
+										</div>
+
+										<div className="col-span-12">
+											<div className="grid grid-cols-12 gap-4">
+												{renderDateWithPrecision(
+													"startDate",
+													"Start date",
+													startDateState,
+													setStartDateState,
+												)}
+												{renderDateWithPrecision(
+													"endDate",
+													"End date",
+													endDateState,
+													setEndDateState,
+													errors.endDate,
+												)}
+
+												<div className="col-span-12 md:col-span-6">
+													<label
+														htmlFor="startDateLocal"
+														className="mb-1 inline-flex items-center gap-2"
+													>
+														Start date in local format
+													</label>
+													<InputText
+														id="startDateLocal"
+														name="startDateLocal"
+														value={startDateLocal}
+														onChange={(event) =>
+															setStartDateLocal(event.target.value)
+														}
+														className="w-full"
+													/>
+												</div>
+
+												<div className="col-span-12 md:col-span-6">
+													<label
+														htmlFor="endDateLocal"
+														className="mb-1 inline-flex items-center gap-2"
+													>
+														End date in local format
+													</label>
+													<InputText
+														id="endDateLocal"
+														name="endDateLocal"
+														value={endDateLocal}
+														onChange={(event) =>
+															setEndDateLocal(event.target.value)
+														}
+														className="w-full"
+													/>
+												</div>
+
+												<input
+													type="hidden"
+													name="startDate"
+													value={toDateWithPrecisionValue(startDateState)}
+												/>
+												<input
+													type="hidden"
+													name="endDate"
+													value={toDateWithPrecisionValue(endDateState)}
+												/>
+											</div>
+										</div>
+									</div>
+
+									<div className="col-span-12 my-6 border-t border-slate-200" />
+
+									<div className="col-span-12 mb-2">
+										<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
+											Disaster event spatial information
+										</h2>
+										<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
+											Indicate the geographic areas where the disaster event was
+											experienced.
+										</p>
+									</div>
+
+									<div className="col-span-12 space-y-4">
+										<div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+											<div className="flex items-start justify-between gap-4">
+												<div>
+													<div className="flex items-center gap-2">
+														<i className="pi pi-map-marker text-blue-500" />
+														<h3 className="text-[18px] font-semibold text-slate-800">
+															Geographical level
+														</h3>
+													</div>
+													<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
+														Select the administrative areas where the disaster
+														event was experienced.
+													</p>
+													<Button
+														type="button"
+														className="mt-4"
+														label="Add affected areas"
+														outlined
+														icon="pi pi-plus"
+														onClick={openSpatialDialog}
+													/>
+													<div className="mt-6 flex flex-wrap gap-2 text-sm">
+														{selectedDivisionItems.length > 0 &&
+															selectedDivisionItems.map((item) => (
+																<div
+																	key={item.key}
+																	className="inline-flex items-center gap-2 rounded-md bg-sky-100 px-3 py-2 text-sky-700"
+																>
+																	<span>{item.label}</span>
+																	<button
+																		type="button"
+																		aria-label={`Remove ${item.label}`}
+																		onClick={() =>
+																			removeDivisionSelection(item.key)
+																		}
+																		className="cursor-pointer text-sky-700 transition hover:text-sky-900"
+																	>
+																		×
+																	</button>
+																</div>
+															))}
+													</div>
+												</div>
+												<i className="pi pi-chevron-right pt-2 text-slate-400" />
+											</div>
+										</div>
+
+										<SpatialFootprintFormView2
+											ctx={ctx}
+											divisions={
+												Array.isArray(divisionGeoJSON) ? divisionGeoJSON : []
+											}
+											ctryIso3={ctryIso3 || ""}
+											initialData={spatialFootprintValue}
+											onChange={(items) => {
+												setSpatialFootprintValue(
+													Array.isArray(items) ? items : [],
+												);
+											}}
+										/>
+									</div>
+
+									<Dialog
+										header="Select geographic levels"
+										visible={spatialFootprintDialogVisible}
+										style={{ width: "72rem", maxWidth: "95vw" }}
+										onHide={() => setSpatialFootprintDialogVisible(false)}
+										draggable={false}
+										resizable={false}
+										appendTo="self"
+									>
+										<div>
+											<p className="mb-4 text-[13px] text-slate-500">
+												Select one or more geographic levels from the
+												hierarchical tree below.
+											</p>
+											<div className="mb-3 flex items-center gap-3">
+												<div className="relative w-full">
+													<i className="pi pi-search pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+													<InputText
+														value={divisionSearchTerm}
+														onChange={(event) =>
+															setDivisionSearchTerm(event.target.value)
+														}
+														placeholder="Search locations..."
+														className="w-full pr-10"
+													/>
+												</div>
+											</div>
+											<div className="mb-3 flex items-center justify-between rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-slate-700">
+												<div>
+													{selectedDivisionCount} location
+													{selectedDivisionCount === 1
+														? " selected"
+														: "s selected"}
+												</div>
+												<Button
+													type="button"
+													label="Clear all"
+													text
+													size="small"
+													onClick={clearDivisionSelection}
+												/>
+											</div>
+											<div className="max-h-[26rem] overflow-auto rounded-md border border-slate-200 bg-white p-3 shadow-sm">
+												<Tree
+													value={filteredDivisionNodes}
+													selectionMode="checkbox"
+													selectionKeys={selectedDivisionKeys}
+													onSelectionChange={(e) =>
+														setSelectedDivisionKeys(e.value)
+													}
+													className="w-full"
+												/>
+											</div>
+										</div>
+									</Dialog>
+								</div>
+
+								<div className="flex items-center justify-between w-full mt-20">
+									<Button
+										type="button"
+										label="Cancel"
+										outlined
+										onClick={() =>
+											(document.location.href = ctx.url("/disaster-event"))
+										}
+									/>
 									<div className="flex gap-2">
 										<Button
 											type="button"
-											label="Cancel"
+											label="Save as draft"
 											outlined
-											onClick={() => setDetailDialogVisible(false)}
+											onClick={saveAsDraft}
 										/>
 										<Button
 											type="button"
-											label={editingDetailId ? `Save ${detailDialogCategory}` : `Add ${detailDialogCategory}`}
-											disabled={!canSaveDetail}
-											onClick={saveDetail}
+											label="Next"
+											icon="pi pi-chevron-right"
+											iconPos="right"
+											onClick={goNext}
 										/>
 									</div>
 								</div>
-							</div>
-						</Dialog>
+							</StepperPanel>
 
-						<div className="flex items-center justify-between w-full mt-20">
-							<Button
-								type="button"
-								label="Cancel"
-								outlined
-								onClick={() => (document.location.href = ctx.url("/disaster-event"))}
-							/>
-							<div className="flex gap-2">
-								<Button
-									type="button"
-									label="Save as draft"
-									outlined
-									onClick={saveAsDraft}
-								/>
-								<Button
-									type="button"
-									label="Back"
-									outlined
-									icon="pi pi-chevron-left"
-									iconPos="left"
-									onClick={() => {
-										saveCurrentFormState();
-										setActiveStep(1);
-									}}
-								/>
-								<Button
-									type="button"
-									label="Next"
-									icon="pi pi-chevron-right"
-									iconPos="right"
-									onClick={goToReview}
-								/>
-							</div>
-						</div>
-					</StepperPanel>
-
-					<StepperPanel
-						header="Review and save"
-						pt={{
-							title: {
-								style: { textAlign: "center" },
-								"data-status": "required",
-							},
-						}}
-					>
-						<div className="space-y-5">
-							<div>
-								<h3 className="text-[18px] leading-[24px] font-semibold text-slate-800">
-									Review and save
-								</h3>
-								<p className="mt-1 text-[14px] leading-[22px] text-slate-500">
-									Verify the information before saving.
-								</p>
-							</div>
-
-						<Card className="rounded-2xl border border-slate-200 shadow-none" pt={{ body: { style: { padding: '5px 20px 5px 20px' } } }}>
-								<div className="space-y-6">
-									<div className="flex items-center gap-2 text-slate-800">
-										<i className="pi pi-info-circle text-blue-600" />
-										<h4 className="text-[16px] leading-[16px] font-semibold">Basic information</h4>
-									</div>
-									<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-										{renderReviewItem("Disaster name - national", form.nameNational)}
-										{renderReviewItem("Disaster name - global/regional", form.nameGlobalOrRegional)}
-										{renderReviewItem("National event ID", form.nationalDisasterId)}
-										{renderReviewItem("GLIDE number", form.glide)}
-										{renderReviewItem("Disaster event UUID", form.id)}
-										{renderReviewItem("Recording organisation", form.recordingInstitution)}
-									</div>
-								</div>
-							</Card>
-
-						<Card className="rounded-2xl border border-slate-200 shadow-none" pt={{ body: { style: { padding: '5px 20px 5px 20px' } } }}>
-								<div className="space-y-6">
-									<div className="flex items-center gap-2 text-slate-800">
-										<i className="pi pi-map-marker text-blue-600" />
-										<h4 className="text-[16px] leading-[16px] font-semibold">Hazard classification</h4>
-									</div>
-									<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-										{renderReviewItem(
-											"Hazard type",
-											sortedHipTypes.find((item) => item.id === selectedHipTypeId)?.name || "",
-										)}
-										{renderReviewItem(
-											"Hazard cluster",
-											sortedHipClusters.find((item) => item.id === selectedHipClusterId)?.name || "",
-										)}
-										{renderReviewItem(
-											"Specific hazard",
-											sortedHipHazards.find((item) => item.id === selectedHipHazardId)?.name || "",
-										)}
-										{renderReviewItem("HIPS code", selectedHipHazardId)}
-									</div>
-								</div>
-							</Card>
-
-						{renderStep4SectionCard(
-							"Location",
-							"pi pi-map-marker text-blue-600",
-							"No location details available",
-							<>
-								<div className="space-y-2">
-									<p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-										Geographic levels
+							<StepperPanel
+								header="Linked events"
+								pt={{
+									title: {
+										style: { textAlign: "center" },
+										"data-status": "optional",
+									},
+								}}
+							>
+								<div className="col-span-12 mb-4">
+									<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
+										Linked hazardous events
+									</h2>
+									<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
+										Link this disaster event to triggered hazardous events.
 									</p>
-									{selectedDivisionItems.length > 0 ? (
-										<div className="flex flex-wrap gap-2">
-											{selectedDivisionItems.map((item) => (
-												<span
-													key={`review-division-${item.key}`}
-													className="rounded-md bg-blue-50 px-2 py-1 text-[12px] text-blue-700"
-												>
-													{item.label}
-												</span>
-											))}
+								</div>
+								<div className="space-y-4">
+									<div>
+										<div className="mt-2 flex gap-3">
+											<div className="relative w-full">
+												<i className="pi pi-search pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+												<InputText
+													id="linkedEventSearch"
+													value={linkedEventSearch}
+													onChange={(event) =>
+														setLinkedEventSearch(event.target.value)
+													}
+													placeholder="Type to search hazardous events..."
+													className="w-full pr-10"
+												/>
+											</div>
+											<Button
+												type="button"
+												label={linkedEventLoading ? "Searching..." : "Search"}
+												onClick={() => searchLinkedEvents(linkedEventSearch)}
+												disabled={linkedEventLoading}
+											/>
+										</div>
+									</div>
+
+									<PickList
+										dataKey="id"
+										source={linkedEventSource}
+										target={linkedEventTarget}
+										onChange={(event) => {
+											setLinkedEventSource(event.source);
+											setLinkedEventTarget(event.target);
+										}}
+										itemTemplate={linkedEventItemTemplate}
+										sourceHeader="Latest 10 hazardous events / Search results "
+										targetHeader="Selected triggered (subsequent hazardous events)"
+										sourceStyle={{ height: "18rem" }}
+										targetStyle={{ height: "18rem" }}
+										showSourceFilter={false}
+										showTargetFilter={false}
+									/>
+								</div>
+
+								<div className="col-span-12 mb-4 mt-8">
+									<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
+										Linked disaster events
+									</h2>
+									<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
+										Link this disaster event to triggered disaster events.
+									</p>
+								</div>
+								<div className="space-y-4">
+									<div className="pt-4">
+										<div className="mt-2 flex gap-3">
+											<div className="relative w-full">
+												<i className="pi pi-search pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+												<InputText
+													id="linkedDisasterEventSearch"
+													value={linkedDisasterEventSearch}
+													onChange={(event) =>
+														setLinkedDisasterEventSearch(event.target.value)
+													}
+													placeholder="Type to search disaster events..."
+													className="w-full pr-10"
+												/>
+											</div>
+											<Button
+												type="button"
+												label={
+													linkedDisasterEventLoading ? "Searching..." : "Search"
+												}
+												onClick={() =>
+													searchLinkedDisasterEvents(linkedDisasterEventSearch)
+												}
+												disabled={linkedDisasterEventLoading}
+											/>
+										</div>
+									</div>
+
+									<PickList
+										dataKey="id"
+										source={linkedDisasterEventSource}
+										target={linkedDisasterEventTarget}
+										onChange={(event) => {
+											setLinkedDisasterEventSource(event.source);
+											setLinkedDisasterEventTarget(event.target);
+										}}
+										itemTemplate={linkedEventItemTemplate}
+										sourceHeader="Latest 10 disaster events / Search results"
+										targetHeader="Selected  triggered (subsequent disaster events)"
+										sourceStyle={{ height: "18rem" }}
+										targetStyle={{ height: "18rem" }}
+										showSourceFilter={false}
+										showTargetFilter={false}
+									/>
+								</div>
+
+								<div className="col-span-12 mb-4 mt-8">
+									<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
+										Linked disaster records
+									</h2>
+									<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
+										Link this disaster event to related disaster records.
+									</p>
+								</div>
+								<div className="space-y-4">
+									<div className="pt-4">
+										<div className="mt-2 flex gap-3">
+											<div className="relative w-full">
+												<i className="pi pi-search pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+												<InputText
+													id="linkedDisasterRecordSearch"
+													value={linkedDisasterRecordSearch}
+													onChange={(event) =>
+														setLinkedDisasterRecordSearch(event.target.value)
+													}
+													placeholder="Type to search disaster records..."
+													className="w-full pr-10"
+												/>
+											</div>
+											<Button
+												type="button"
+												label={
+													linkedDisasterRecordLoading
+														? "Searching..."
+														: "Search"
+												}
+												onClick={() =>
+													searchLinkedDisasterRecords(
+														linkedDisasterRecordSearch,
+													)
+												}
+												disabled={linkedDisasterRecordLoading}
+											/>
+										</div>
+									</div>
+
+									<PickList
+										dataKey="id"
+										source={linkedDisasterRecordSource}
+										target={linkedDisasterRecordTarget}
+										onChange={(event) => {
+											setLinkedDisasterRecordSource(event.source);
+											setLinkedDisasterRecordTarget(event.target);
+										}}
+										itemTemplate={linkedEventItemTemplate}
+										sourceHeader="Latest 10 disaster records / Search results"
+										targetHeader="Selected linked disaster records"
+										sourceStyle={{ height: "18rem" }}
+										targetStyle={{ height: "18rem" }}
+										showSourceFilter={false}
+										showTargetFilter={false}
+									/>
+								</div>
+
+								<div className="flex items-center justify-between w-full mt-20">
+									<Button
+										type="button"
+										label="Cancel"
+										outlined
+										onClick={() =>
+											(document.location.href = ctx.url("/disaster-event"))
+										}
+									/>
+									<div className="flex gap-2">
+										<Button
+											type="button"
+											label="Save as draft"
+											outlined
+											onClick={saveAsDraft}
+										/>
+										<Button
+											type="button"
+											label="Back"
+											outlined
+											icon="pi pi-chevron-left"
+											iconPos="left"
+											onClick={() => {
+												saveCurrentFormState();
+												setActiveStep(0);
+											}}
+										/>
+										<Button
+											type="button"
+											label="Next"
+											icon="pi pi-chevron-right"
+											iconPos="right"
+											onClick={goToAdditionalDetails}
+										/>
+									</div>
+								</div>
+							</StepperPanel>
+
+							<StepperPanel
+								header="Additional details"
+								pt={{
+									title: {
+										style: { textAlign: "center" },
+										"data-status": "optional",
+									},
+								}}
+							>
+								<div>
+									<h3 className="text-[18px] leading-[24px] font-semibold text-slate-800">
+										Additional details
+									</h3>
+									<p className="mt-2 text-[14px] text-slate-500">
+										Document responses, assessments, and official declarations
+										related to this disaster event.
+									</p>
+
+									<div className="mt-8 flex items-start justify-between gap-4">
+										<div className="flex items-start gap-3">
+											<div className="rounded-xl bg-blue-100 p-2">
+												<i className="pi pi-file-edit text-blue-600" />
+											</div>
+											<div>
+												<h4 className="text-[18px] leading-[24px] font-semibold text-slate-800">
+													Responses
+												</h4>
+												<p className="text-[14px] text-slate-500">
+													Track early actions and response operations
+												</p>
+											</div>
+										</div>
+										<Button
+											type="button"
+											label="Add response"
+											icon="pi pi-plus"
+											outlined
+											disabled={!canAddAnyResponse}
+											onClick={() => openAddDetail("response")}
+										/>
+									</div>
+
+									{responses.length > 0 ? (
+										<div className="mt-4 space-y-3">
+											{responses.map((item) =>
+												renderDetailCard("response", item),
+											)}
 										</div>
 									) : (
-										<p className="text-[14px] italic text-slate-400">
-											No geographic levels selected
-										</p>
+										renderEmptyDetails("No responses recorded yet")
 									)}
-								</div>
 
-								<div className="space-y-2">
-									<p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-										Spatial footprint
-									</p>
-									{reviewSpatialFootprintItems.length > 0 ? (
-										<ul className="list-disc pl-5 text-[14px] text-slate-500">
-											{reviewSpatialFootprintItems.map((title, index) => (
-												<li key={`review-footprint-${index}`}>{title}</li>
-											))}
-										</ul>
+									<div className="my-8 border-t border-slate-200" />
+
+									<div className="flex items-start justify-between gap-4">
+										<div className="flex items-start gap-3">
+											<div className="rounded-xl bg-violet-100 p-2">
+												<i className="pi pi-clipboard text-violet-600" />
+											</div>
+											<div>
+												<h4 className="text-[18px] leading-[24px] font-semibold text-slate-800">
+													Assessments
+												</h4>
+												<p className="text-[14px] text-slate-500">
+													Document needs assessments and evaluations
+												</p>
+											</div>
+										</div>
+										<Button
+											type="button"
+											label="Add assessment"
+											icon="pi pi-plus"
+											outlined
+											disabled={!canAddAnyAssessment}
+											onClick={() => openAddDetail("assessment")}
+										/>
+									</div>
+
+									{assessments.length > 0 ? (
+										<div className="mt-4 space-y-3">
+											{assessments.map((item) =>
+												renderDetailCard("assessment", item),
+											)}
+										</div>
 									) : (
-										<p className="text-[14px] italic text-slate-400">
-											No spatial data defined
-										</p>
+										renderEmptyDetails("No assessments recorded yet")
+									)}
+
+									<div className="my-8 border-t border-slate-200" />
+
+									<div className="flex items-start justify-between gap-4">
+										<div className="flex items-start gap-3">
+											<div className="rounded-xl bg-amber-100 p-2">
+												<i className="pi pi-send text-amber-600" />
+											</div>
+											<div>
+												<h4 className="text-[18px] leading-[24px] font-semibold text-slate-800">
+													Official declarations
+												</h4>
+												<p className="text-[14px] text-slate-500">
+													Record official emergency declarations
+												</p>
+											</div>
+										</div>
+										<Button
+											type="button"
+											label="Add declaration"
+											icon="pi pi-plus"
+											outlined
+											disabled={!canAddAnyDeclaration}
+											onClick={() => openAddDetail("declaration")}
+										/>
+									</div>
+
+									{declarations.length > 0 ? (
+										<div className="mt-4 space-y-3">
+											{declarations.map((item) =>
+												renderDetailCard("declaration", item),
+											)}
+										</div>
+									) : (
+										renderEmptyDetails("No declarations recorded yet")
 									)}
 								</div>
-							</>,
-							selectedDivisionItems.length > 0 || reviewSpatialFootprintItems.length > 0,
-						)}
 
-						{renderStep4SectionCard(
-							"Linked events",
-							"pi pi-link text-blue-600",
-							"No linked disaster events selected yet",
-							reviewLinkedDisasterEventRows,
-							reviewLinkedDisasterEventRows.length > 0,
-						)}
+								<Dialog
+									header={
+										editingDetailId
+											? `Edit ${detailDialogCategory}`
+											: `Add ${detailDialogCategory}`
+									}
+									visible={detailDialogVisible}
+									style={{ width: "34rem" }}
+									onHide={() => setDetailDialogVisible(false)}
+									draggable={false}
+									resizable={false}
+								>
+									<div className="space-y-4">
+										<div>
+											<label className="mb-1 block">Type</label>
+											<select
+												value={detailForm.type}
+												onChange={(event) => {
+													const selectedType = event.target.value;
+													setDetailForm((state) => ({
+														...state,
+														type: selectedType,
+														dateValue:
+															detailDialogCategory === "response" &&
+															selectedType === "response_operation"
+																? null
+																: detailDialogCategory === "declaration" &&
+																	  selectedType !==
+																			"disaster_declaration_effects"
+																	? null
+																	: state.dateValue,
+														declarationStatus:
+															selectedType === "disaster_declaration"
+																? state.declarationStatus
+																: "",
+														hadOfficialWarningOrWeatherAdvisory:
+															selectedType === "official_warning"
+																? state.hadOfficialWarningOrWeatherAdvisory
+																: false,
+														officialWarningAffectedAreas:
+															selectedType === "official_warning"
+																? state.officialWarningAffectedAreas
+																: "",
+													}));
+												}}
+												disabled={Boolean(editingDetailId)}
+												className="w-full rounded-md border border-slate-300 px-3 py-2"
+											>
+												<option value="">Select type</option>
+												{detailTypeOptions.map((option) => (
+													<option key={option.value} value={option.value}>
+														{option.label}
+													</option>
+												))}
+											</select>
+										</div>
 
-						{renderStep4SectionCard(
-							"Linked disaster records",
-							"pi pi-file text-blue-600",
-							"No disaster records linked yet",
-							linkedDisasterRecordTarget.map((record) => (
-								<div key={record.id} className="space-y-1">
-									<p className="text-[14px] font-semibold text-slate-700">{record.name}</p>
-									<p className="text-[13px] text-slate-500">{record.code}</p>
-								</div>
-							)),
-							linkedDisasterRecordTarget.length > 0,
-						)}
+										{showDateField ? (
+											<div>
+												<label className="mb-1 block">Date</label>
+												<Calendar
+													value={detailForm.dateValue}
+													onChange={(event) =>
+														setDetailForm((state) => ({
+															...state,
+															dateValue:
+																event.value instanceof Date
+																	? event.value
+																	: null,
+														}))
+													}
+													dateFormat="dd/mm/yy"
+													placeholder="Select date"
+													showIcon
+													className="w-full"
+												/>
+											</div>
+										) : null}
 
-						{renderStep4SectionCard(
-							"Responses",
-							"pi pi-file-edit text-blue-600",
-							"No responses recorded yet",
-							responses.map((item) => renderStep4DetailRow("response", item)),
-							responses.length > 0,
-						)}
+										{isDeclarationStatusType ? (
+											<div>
+												<label className="mb-1 block">
+													Disaster declaration status
+												</label>
+												<select
+													value={detailForm.declarationStatus}
+													onChange={(event) =>
+														setDetailForm((state) => ({
+															...state,
+															declarationStatus: event.target.value as
+																| DeclarationStatus
+																| "",
+														}))
+													}
+													className="w-full rounded-md border border-slate-300 px-3 py-2"
+												>
+													<option value="">Select declaration status</option>
+													{declarationStatusOptions.map((option) => (
+														<option key={option.value} value={option.value}>
+															{option.label}
+														</option>
+													))}
+												</select>
+											</div>
+										) : null}
 
-						{renderStep4SectionCard(
-							"Assessments",
-							"pi pi-clipboard text-violet-600",
-							"No assessments recorded yet",
-							assessments.map((item) => renderStep4DetailRow("assessment", item)),
-							assessments.length > 0,
-						)}
+										{isOfficialWarningType ? (
+											<div className="space-y-3">
+												<label className="flex items-center gap-2 text-sm text-slate-700">
+													<input
+														type="checkbox"
+														checked={
+															detailForm.hadOfficialWarningOrWeatherAdvisory
+														}
+														onChange={(event) =>
+															setDetailForm((state) => ({
+																...state,
+																hadOfficialWarningOrWeatherAdvisory:
+																	event.target.checked,
+															}))
+														}
+													/>
+													<span>
+														Was there an officially issued warning and/or
+														weather advisory?
+													</span>
+												</label>
 
-						{renderStep4SectionCard(
-							"Official declarations",
-							"pi pi-send text-amber-600",
-							"No declarations recorded yet",
-							declarations.map((item) => renderStep4DetailRow("declaration", item)),
-							declarations.length > 0,
-						)}
-						</div>
+												<div>
+													<label className="mb-1 block">
+														Which affected areas were covered by the warning?
+													</label>
+													<InputTextarea
+														value={detailForm.officialWarningAffectedAreas}
+														onChange={(event) =>
+															setDetailForm((state) => ({
+																...state,
+																officialWarningAffectedAreas:
+																	event.target.value,
+															}))
+														}
+														rows={3}
+														placeholder="Enter affected areas"
+														className="w-full"
+													/>
+													{detailForm.hadOfficialWarningOrWeatherAdvisory &&
+													!hasOfficialWarningAreas ? (
+														<p className="mt-1 text-xs text-red-600">
+															Affected areas are required when warning/advisory
+															is checked.
+														</p>
+													) : null}
+												</div>
+											</div>
+										) : null}
 
-						<div className="flex items-center justify-between w-full mt-20">
-							<Button
-								type="button"
-								label="Cancel"
-								outlined
-								onClick={() => (document.location.href = ctx.url("/disaster-event"))}
-							/>
-							<div className="flex gap-2">
-								<Button
-									type="button"
-									label="Save as draft"
-									outlined
-									onClick={saveAsDraft}
-								/>
-								<Button
-									type="button"
-									label="Back"
-									outlined
-									icon="pi pi-chevron-left"
-									iconPos="left"
-									onClick={() => {
-										saveCurrentFormState();
-										setActiveStep(2);
-									}}
-								/>
-								<Button
-									type="button"
-									label="Save"
-									onClick={() => {
-										const snapshot = saveCurrentFormState();
-										if (validateStep1(snapshot)) {
-											setVisibleModalSubmit(true);
+										{!isDeclarationStatusType && !isOfficialWarningType ? (
+											<div>
+												<label className="mb-1 block">Description</label>
+												<InputTextarea
+													value={detailForm.description}
+													onChange={(event) =>
+														setDetailForm((state) => ({
+															...state,
+															description: event.target.value,
+														}))
+													}
+													rows={4}
+													placeholder="Enter description"
+													className="w-full"
+												/>
+											</div>
+										) : null}
+
+										<div className="flex items-center justify-between gap-2 pt-2">
+											<div>
+												{editingDetailId ? (
+													<Button
+														type="button"
+														label="Delete"
+														severity="danger"
+														outlined
+														onClick={deleteDetail}
+													/>
+												) : null}
+											</div>
+											<div className="flex gap-2">
+												<Button
+													type="button"
+													label="Cancel"
+													outlined
+													onClick={() => setDetailDialogVisible(false)}
+												/>
+												<Button
+													type="button"
+													label={
+														editingDetailId
+															? `Save ${detailDialogCategory}`
+															: `Add ${detailDialogCategory}`
+													}
+													disabled={!canSaveDetail}
+													onClick={saveDetail}
+												/>
+											</div>
+										</div>
+									</div>
+								</Dialog>
+
+								<div className="flex items-center justify-between w-full mt-20">
+									<Button
+										type="button"
+										label="Cancel"
+										outlined
+										onClick={() =>
+											(document.location.href = ctx.url("/disaster-event"))
 										}
-									}}
-								/>
-							</div>
-						</div>
-					</StepperPanel>
-				</Stepper>
-				</RouterForm>
-			</section>
-		</div>
-	</>);
+									/>
+									<div className="flex gap-2">
+										<Button
+											type="button"
+											label="Save as draft"
+											outlined
+											onClick={saveAsDraft}
+										/>
+										<Button
+											type="button"
+											label="Back"
+											outlined
+											icon="pi pi-chevron-left"
+											iconPos="left"
+											onClick={() => {
+												saveCurrentFormState();
+												setActiveStep(1);
+											}}
+										/>
+										<Button
+											type="button"
+											label="Next"
+											icon="pi pi-chevron-right"
+											iconPos="right"
+											onClick={goToReview}
+										/>
+									</div>
+								</div>
+							</StepperPanel>
+
+							<StepperPanel
+								header="Review and save"
+								pt={{
+									title: {
+										style: { textAlign: "center" },
+										"data-status": "required",
+									},
+								}}
+							>
+								<div className="space-y-5">
+									<div>
+										<h3 className="text-[18px] leading-[24px] font-semibold text-slate-800">
+											Review and save
+										</h3>
+										<p className="mt-1 text-[14px] leading-[22px] text-slate-500">
+											Verify the information before saving.
+										</p>
+									</div>
+
+									<Card
+										className="rounded-2xl border border-slate-200 shadow-none"
+										pt={{ body: { style: { padding: "5px 20px 5px 20px" } } }}
+									>
+										<div className="space-y-6">
+											<div className="flex items-center gap-2 text-slate-800">
+												<i className="pi pi-info-circle text-blue-600" />
+												<h4 className="text-[16px] leading-[16px] font-semibold">
+													Basic information
+												</h4>
+											</div>
+											<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+												{renderReviewItem(
+													"Disaster name - national",
+													form.nameNational,
+												)}
+												{renderReviewItem(
+													"Disaster name - global/regional",
+													form.nameGlobalOrRegional,
+												)}
+												{renderReviewItem(
+													"National event ID",
+													form.nationalDisasterId,
+												)}
+												{renderReviewItem("GLIDE number", form.glide)}
+												{renderReviewItem("Disaster event UUID", form.id)}
+												{renderReviewItem(
+													"Recording organisation",
+													form.recordingInstitution,
+												)}
+											</div>
+										</div>
+									</Card>
+
+									<Card
+										className="rounded-2xl border border-slate-200 shadow-none"
+										pt={{ body: { style: { padding: "5px 20px 5px 20px" } } }}
+									>
+										<div className="space-y-6">
+											<div className="flex items-center gap-2 text-slate-800">
+												<i className="pi pi-map-marker text-blue-600" />
+												<h4 className="text-[16px] leading-[16px] font-semibold">
+													Hazard classification
+												</h4>
+											</div>
+											<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+												{renderReviewItem(
+													"Hazard type",
+													sortedHipTypes.find(
+														(item) => item.id === selectedHipTypeId,
+													)?.name || "",
+												)}
+												{renderReviewItem(
+													"Hazard cluster",
+													sortedHipClusters.find(
+														(item) => item.id === selectedHipClusterId,
+													)?.name || "",
+												)}
+												{renderReviewItem(
+													"Specific hazard",
+													sortedHipHazards.find(
+														(item) => item.id === selectedHipHazardId,
+													)?.name || "",
+												)}
+												{renderReviewItem("HIPS code", selectedHipHazardId)}
+											</div>
+										</div>
+									</Card>
+
+									{renderStep4SectionCard(
+										"Location",
+										"pi pi-map-marker text-blue-600",
+										"No location details available",
+										<>
+											<div className="space-y-2">
+												<p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+													Geographic levels
+												</p>
+												{selectedDivisionItems.length > 0 ? (
+													<div className="flex flex-wrap gap-2">
+														{selectedDivisionItems.map((item) => (
+															<span
+																key={`review-division-${item.key}`}
+																className="rounded-md bg-blue-50 px-2 py-1 text-[12px] text-blue-700"
+															>
+																{item.label}
+															</span>
+														))}
+													</div>
+												) : (
+													<p className="text-[14px] italic text-slate-400">
+														No geographic levels selected
+													</p>
+												)}
+											</div>
+
+											<div className="space-y-2">
+												<p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+													Spatial footprint
+												</p>
+												{reviewSpatialFootprintItems.length > 0 ? (
+													<ul className="list-disc pl-5 text-[14px] text-slate-500">
+														{reviewSpatialFootprintItems.map((title, index) => (
+															<li key={`review-footprint-${index}`}>{title}</li>
+														))}
+													</ul>
+												) : (
+													<p className="text-[14px] italic text-slate-400">
+														No spatial data defined
+													</p>
+												)}
+											</div>
+										</>,
+										selectedDivisionItems.length > 0 ||
+											reviewSpatialFootprintItems.length > 0,
+									)}
+
+									{renderStep4SectionCard(
+										"Linked events",
+										"pi pi-link text-blue-600",
+										"No linked disaster events selected yet",
+										reviewLinkedDisasterEventRows,
+										reviewLinkedDisasterEventRows.length > 0,
+									)}
+
+									{renderStep4SectionCard(
+										"Linked disaster records",
+										"pi pi-file text-blue-600",
+										"No disaster records linked yet",
+										linkedDisasterRecordTarget.map((record) => (
+											<div key={record.id} className="space-y-1">
+												<p className="text-[14px] font-semibold text-slate-700">
+													{record.name}
+												</p>
+												<p className="text-[13px] text-slate-500">
+													{record.code}
+												</p>
+											</div>
+										)),
+										linkedDisasterRecordTarget.length > 0,
+									)}
+
+									{renderStep4SectionCard(
+										"Responses",
+										"pi pi-file-edit text-blue-600",
+										"No responses recorded yet",
+										responses.map((item) =>
+											renderStep4DetailRow("response", item),
+										),
+										responses.length > 0,
+									)}
+
+									{renderStep4SectionCard(
+										"Assessments",
+										"pi pi-clipboard text-violet-600",
+										"No assessments recorded yet",
+										assessments.map((item) =>
+											renderStep4DetailRow("assessment", item),
+										),
+										assessments.length > 0,
+									)}
+
+									{renderStep4SectionCard(
+										"Official declarations",
+										"pi pi-send text-amber-600",
+										"No declarations recorded yet",
+										declarations.map((item) =>
+											renderStep4DetailRow("declaration", item),
+										),
+										declarations.length > 0,
+									)}
+								</div>
+
+								<div className="flex items-center justify-between w-full mt-20">
+									<Button
+										type="button"
+										label="Cancel"
+										outlined
+										onClick={() =>
+											(document.location.href = ctx.url("/disaster-event"))
+										}
+									/>
+									<div className="flex gap-2">
+										<Button
+											type="button"
+											label="Save as draft"
+											outlined
+											onClick={saveAsDraft}
+										/>
+										<Button
+											type="button"
+											label="Back"
+											outlined
+											icon="pi pi-chevron-left"
+											iconPos="left"
+											onClick={() => {
+												saveCurrentFormState();
+												setActiveStep(2);
+											}}
+										/>
+										<Button
+											type="button"
+											label="Save"
+											onClick={() => {
+												const snapshot = saveCurrentFormState();
+												if (validateStep1(snapshot)) {
+													setVisibleModalSubmit(true);
+												}
+											}}
+										/>
+									</div>
+								</div>
+							</StepperPanel>
+						</Stepper>
+					</RouterForm>
+				</section>
+			</div>
+		</>
+	);
 }
