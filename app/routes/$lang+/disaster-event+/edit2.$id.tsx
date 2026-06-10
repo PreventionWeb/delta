@@ -595,6 +595,7 @@ type AssessmentFieldIndex = 1 | 2 | 3 | 4 | 5;
 type HazardPickerItem = {
 	id: string;
 	name: string;
+	code?: string;
 };
 
 type HipClusterItem = HazardPickerItem & {
@@ -1734,7 +1735,7 @@ function StepperValidation({
 	}));
 
 	const specificHazardOptions = filteredHipHazards.map((item) => ({
-		label: item.name,
+		label: item.code ? `${item.name} (${item.code})` : item.name,
 		value: item.id,
 	}));
 

@@ -207,7 +207,7 @@ export default function DisasterEventsPage({
                 </Button>
             </Link>
             {canEdit ? (
-                <Link to={`/${ctx.lang}/disaster-event/edit/${row.id}`}>
+                <Link to={`/${ctx.lang}/disaster-event/edit2/${row.id}`}>
                     <Button
                         type="button"
                         text
@@ -312,7 +312,7 @@ export default function DisasterEventsPage({
                             {ctx.t({ code: "disaster_event_data_management", msg: "Disaster event data management" })}
                         </p>
                     </div>
-                    <Link to={`/${ctx.lang}/disaster-event/edit/new`}>
+                    <Link to={`/${ctx.lang}/disaster-event/edit2/new`}>
                         <Button
                             label={ctx.t({
                                 code: "event.add_new",
