@@ -76,6 +76,124 @@ async function getDivisionGeoJSON(countryAccountsId: string) {
 		);
 }
 
+async function getDivisionTreeData(countryAccountsId: string) {
+	const idKey = "id";
+	const parentKey = "parentId";
+	const nameKey = "name";
+
+	const rawData = await dr
+		.select({
+			id: divisionTable.id,
+			parentId: divisionTable.parentId,
+			name: divisionTable.name,
+			importId: divisionTable.importId,
+			nationalId: divisionTable.nationalId,
+			level: divisionTable.level,
+		})
+		.from(divisionTable)
+		.where(sql`country_accounts_id = ${countryAccountsId}`);
+
+	return buildTree(rawData, idKey, parentKey, nameKey, "en", [
+		"importId",
+		"nationalId",
+		"level",
+		"name",
+	]);
+}
+
+async function getUsersEligibleForValidation(
+	countryAccountsId: string,
+	userId: string | undefined,
+) {
+	const usersWithValidatorRole =
+		await getUserCountryAccountsWithValidatorRole(countryAccountsId);
+
+	let filteredUsersWithValidatorRole = usersWithValidatorRole.filter(
+		(userAccount) => userAccount.id !== userId,
+	);
+
+	if (filteredUsersWithValidatorRole.length === 0) {
+		const usersWithAdminRole =
+			await getUserCountryAccountsWithAdminRole(countryAccountsId);
+		filteredUsersWithValidatorRole = usersWithAdminRole.filter(
+			(userAccount) => userAccount.id !== userId,
+		);
+	}
+
+	return filteredUsersWithValidatorRole;
+}
+
+function formatDisasterEventDisplayName(event: {
+	id: string;
+	nameNational: string | null;
+	nameGlobalOrRegional: string | null;
+}) {
+	const displayName =
+		event.nameNational?.trim() ||
+		event.nameGlobalOrRegional?.trim() ||
+		`Disaster event ${event.id.slice(0, 8)}`;
+
+	return {
+		id: event.id,
+		name: displayName,
+		code: `${event.id}`,
+	};
+}
+
+async function getLinkedDisasterData(
+	countryAccountsId: string,
+	itemId: string,
+) {
+	const disasterEvents = await dr
+		.select({
+			id: disasterEventTable.id,
+			disasterEventId: disasterEventTable.disasterEventId,
+			nameNational: disasterEventTable.nameNational,
+			nameGlobalOrRegional: disasterEventTable.nameGlobalOrRegional,
+		})
+		.from(disasterEventTable)
+		.where(eq(disasterEventTable.countryAccountsId, countryAccountsId))
+		.orderBy(desc(disasterEventTable.updatedAt));
+
+	const disasterEventOptions = disasterEvents
+		.filter((event) => event.id !== itemId)
+		.map(formatDisasterEventDisplayName);
+
+	const linkedDisasterEvents = disasterEvents
+		.filter((event) => event.disasterEventId === itemId)
+		.map(formatDisasterEventDisplayName);
+
+	const disasterRecords = await dr
+		.select({
+			id: disasterRecordsTable.id,
+			disasterEventId: disasterRecordsTable.disasterEventId,
+		})
+		.from(disasterRecordsTable)
+		.where(eq(disasterRecordsTable.countryAccountsId, countryAccountsId))
+		.orderBy(desc(disasterRecordsTable.updatedAt));
+
+	const disasterRecordOptions = disasterRecords.map((record) => ({
+		id: record.id,
+		name: `Record ${record.id.slice(0, 8)}`,
+		code: record.id,
+	}));
+
+	const linkedDisasterRecords = disasterRecords
+		.filter((record) => record.disasterEventId === itemId)
+		.map((record) => ({
+			id: record.id,
+			name: `Record ${record.id.slice(0, 8)}`,
+			code: record.id,
+		}));
+
+	return {
+		disasterEventOptions,
+		linkedDisasterEvents,
+		disasterRecordOptions,
+		linkedDisasterRecords,
+	};
+}
+
 export const action = authActionWithPerm("EditData", async (actionArgs) => {
 	const { request } = actionArgs;
 	const cloned = request.clone();
@@ -109,7 +227,6 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 		linkedDisasterEventIds = [];
 	}
 
-	console.log("FormData entries:", Array.from(formData.entries()));
 	return formSave({
 		actionArgs,
 		fieldsDef: fieldsDef(ctx),
@@ -281,68 +398,32 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 	const ctryIso3 = await getCountryIso3(request);
 	const countryAccountsId = await getCountryAccountsIdFromSession(request);
 	const userId = await getUserIdFromSession(request);
-
-	const usersWithValidatorRole =
-		await getUserCountryAccountsWithValidatorRole(countryAccountsId);
-
-	let filteredUsersWithValidatorRole: typeof usersWithValidatorRole = [];
-
-	if (usersWithValidatorRole.length > 0) {
-		filteredUsersWithValidatorRole = usersWithValidatorRole.filter(
-			(userAccount) => userAccount.id !== userId,
-		);
-	}
-
-	if (filteredUsersWithValidatorRole.length === 0) {
-		const usersWithAdminRole =
-			await getUserCountryAccountsWithAdminRole(countryAccountsId);
-		filteredUsersWithValidatorRole = usersWithAdminRole.filter(
-			(userAccount) => userAccount.id !== userId,
-		);
-	}
+	const usersWithValidatorRole = await getUsersEligibleForValidation(
+		countryAccountsId,
+		userId,
+	);
 
 	// Handle 'new' case without DB query
 	if (params.id === "new") {
-		// Define Keys Mapping
-		const idKey = "id";
-		const parentKey = "parentId";
-		const nameKey = "name";
-
-		// Filter divisions by tenant context for security
-		const rawData = await dr
-			.select({
-				id: divisionTable.id,
-				parentId: divisionTable.parentId,
-				name: divisionTable.name,
-				importId: divisionTable.importId,
-				nationalId: divisionTable.nationalId,
-				level: divisionTable.level,
-			})
-			.from(divisionTable)
-			.where(sql`country_accounts_id = ${countryAccountsId}`);
-
-		const treeData = buildTree(rawData, idKey, parentKey, nameKey, "en", [
-			"importId",
-			"nationalId",
-			"level",
-			"name",
+		const [treeData, divisionGeoJSON, hip, user] = await Promise.all([
+			getDivisionTreeData(countryAccountsId),
+			getDivisionGeoJSON(countryAccountsId),
+			dataForHazardPicker(ctx),
+			authLoaderGetUserForFrontend(loaderArgs),
 		]);
-
-		// Get division GeoJSON filtered by tenant context
-		const divisionGeoJSON = await getDivisionGeoJSON(countryAccountsId);
 
 		return {
 			item: null, // No existing item for new disaster event
-			hip: await dataForHazardPicker(ctx),
-			treeData: treeData,
-			ctryIso3: ctryIso3,
+			hip,
+			treeData,
+			ctryIso3,
 			divisionGeoJSON: divisionGeoJSON || [],
 			disasterRecordOptions: [],
 			linkedDisasterRecords: [],
 			disasterEventOptions: [],
 			linkedDisasterEvents: [],
-			user: await authLoaderGetUserForFrontend(loaderArgs),
-			usersWithValidatorRole: filteredUsersWithValidatorRole,
+			user,
+			usersWithValidatorRole,
 		};
 	}
 
@@ -372,93 +453,14 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		throw new Response("Access forbidden", { status: 403 });
 	}
 
-	// Fetch division data & build tree
-	const idKey = "id";
-	const parentKey = "parentId";
-	const nameKey = "name";
-	const rawData = await dr
-		.select({
-			id: divisionTable.id,
-			parentId: divisionTable.parentId,
-			name: divisionTable.name,
-			importId: divisionTable.importId,
-			nationalId: divisionTable.nationalId,
-			level: divisionTable.level,
-		})
-		.from(divisionTable)
-		.where(sql`country_accounts_id = ${countryAccountsId}`);
-
-	const treeData = buildTree(rawData, idKey, parentKey, nameKey, "en", [
-		"importId",
-		"nationalId",
-		"level",
-		"name",
-	]);
-
-	// Get hazard picker data
-	const hip = await dataForHazardPicker(ctx);
-
-	// Get division GeoJSON data
-	const divisionGeoJSON = await getDivisionGeoJSON(countryAccountsId);
-
-	const disasterEvents = await dr
-		.select({
-			id: disasterEventTable.id,
-			disasterEventId: disasterEventTable.disasterEventId,
-			nameNational: disasterEventTable.nameNational,
-			nameGlobalOrRegional: disasterEventTable.nameGlobalOrRegional,
-		})
-		.from(disasterEventTable)
-		.where(eq(disasterEventTable.countryAccountsId, countryAccountsId))
-		.orderBy(desc(disasterEventTable.updatedAt));
-
-	const formatDisasterEventDisplayName = (event: {
-		id: string;
-		nameNational: string | null;
-		nameGlobalOrRegional: string | null;
-	}) => {
-		const displayName =
-			event.nameNational?.trim() ||
-			event.nameGlobalOrRegional?.trim() ||
-			`Disaster event ${event.id.slice(0, 8)}`;
-
-		return {
-			id: event.id,
-			name: displayName,
-			code: `${event.id}`,
-		};
-	};
-
-	const disasterEventOptions = disasterEvents
-		.filter((event) => event.id !== item.id)
-		.map(formatDisasterEventDisplayName);
-
-	const linkedDisasterEvents = disasterEvents
-		.filter((event) => event.disasterEventId === item.id)
-		.map(formatDisasterEventDisplayName);
-
-	const disasterRecords = await dr
-		.select({
-			id: disasterRecordsTable.id,
-			disasterEventId: disasterRecordsTable.disasterEventId,
-		})
-		.from(disasterRecordsTable)
-		.where(eq(disasterRecordsTable.countryAccountsId, countryAccountsId))
-		.orderBy(desc(disasterRecordsTable.updatedAt));
-
-	const disasterRecordOptions = disasterRecords.map((record) => ({
-		id: record.id,
-		name: `Record ${record.id.slice(0, 8)}`,
-		code: record.id,
-	}));
-
-	const linkedDisasterRecords = disasterRecords
-		.filter((record) => record.disasterEventId === item.id)
-		.map((record) => ({
-			id: record.id,
-			name: `Record ${record.id.slice(0, 8)}`,
-			code: record.id,
-		}));
+	const [treeData, divisionGeoJSON, hip, user, linkedData] =
+		await Promise.all([
+			getDivisionTreeData(countryAccountsId),
+			getDivisionGeoJSON(countryAccountsId),
+			dataForHazardPicker(ctx),
+			authLoaderGetUserForFrontend(loaderArgs),
+			getLinkedDisasterData(countryAccountsId, item.id),
+		]);
 
 	return {
 		item,
@@ -466,12 +468,12 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		treeData,
 		ctryIso3,
 		divisionGeoJSON: divisionGeoJSON || [],
-		disasterRecordOptions,
-		linkedDisasterRecords,
-		disasterEventOptions,
-		linkedDisasterEvents,
-		user: await authLoaderGetUserForFrontend(loaderArgs),
-		usersWithValidatorRole: filteredUsersWithValidatorRole,
+		disasterRecordOptions: linkedData.disasterRecordOptions,
+		linkedDisasterRecords: linkedData.linkedDisasterRecords,
+		disasterEventOptions: linkedData.disasterEventOptions,
+		linkedDisasterEvents: linkedData.linkedDisasterEvents,
+		user,
+		usersWithValidatorRole,
 	};
 });
 
@@ -486,16 +488,6 @@ export default function Screen() {
 			}
 		: null;
 	ctx;
-
-	console.log("Loader:", {
-		hip: ld.hip,
-		hazardousEvent: fixedHazardousEvent,
-		disasterEvent: ld.item?.disasterEvent,
-		treeData: ld.treeData,
-		ctryIso3: ld.ctryIso3,
-		divisionGeoJSON: ld.divisionGeoJSON,
-		user: ld.user,
-	});
 
 	//{ JSON.stringify(ld) }
 	return (

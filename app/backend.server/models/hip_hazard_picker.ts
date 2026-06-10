@@ -56,6 +56,7 @@ export async function dataForHazardPicker(
 		.select({
 			id: hipHazardTable.id,
 			clusterId: hipHazardTable.clusterId,
+			code: hipHazardTable.code,
 			name: sql<string>`dts_jsonb_localized(${hipHazardTable.name}, ${ctx.lang})`,
 		})
 		.from(hipHazardTable)
