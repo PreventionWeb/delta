@@ -549,6 +549,7 @@ import {
 
 type Errors = {
 	nameNational?: string;
+	startDate?: string;
 	endDate?: string;
 };
 
@@ -1123,6 +1124,63 @@ function StepperValidation({
 		}
 
 		return `${state.year}-${state.month}-${state.day}`;
+	};
+
+	const validateDateWithPrecisionState = (
+		label: string,
+		state: DateWithPrecisionState,
+	): string | null => {
+		const hasAnyDateValue =
+			state.year.trim().length > 0 ||
+			state.month.trim().length > 0 ||
+			state.day.trim().length > 0;
+
+		if (!hasAnyDateValue) {
+			return null;
+		}
+
+		if (state.precision === "yyyy") {
+			if (!/^\d{4}$/.test(state.year)) {
+				return `${label} year must be 4 digits`;
+			}
+			return null;
+		}
+
+		if (state.precision === "yyyy-mm") {
+			if (!/^\d{4}$/.test(state.year) || !/^\d{2}$/.test(state.month)) {
+				return `${label} requires both year and month`;
+			}
+
+			const monthNumber = Number(state.month);
+			if (monthNumber < 1 || monthNumber > 12) {
+				return `${label} month is invalid`;
+			}
+
+			return null;
+		}
+
+		if (
+			!/^\d{4}$/.test(state.year) ||
+			!/^\d{2}$/.test(state.month) ||
+			!/^\d{2}$/.test(state.day)
+		) {
+			return `${label} requires a complete date`;
+		}
+
+		const yearNumber = Number(state.year);
+		const monthNumber = Number(state.month);
+		const dayNumber = Number(state.day);
+		const parsedDate = new Date(yearNumber, monthNumber - 1, dayNumber);
+		const isValidDate =
+			parsedDate.getFullYear() === yearNumber &&
+			parsedDate.getMonth() === monthNumber - 1 &&
+			parsedDate.getDate() === dayNumber;
+
+		if (!isValidDate) {
+			return `${label} is invalid`;
+		}
+
+		return null;
 	};
 
 	const [startDateState, setStartDateState] = useState<DateWithPrecisionState>(
@@ -1842,7 +1900,23 @@ function StepperValidation({
 			nextErrors.nameNational = "Name (National) is required";
 		}
 
-		if (startDateValue && endDateValue) {
+		const startDateError = validateDateWithPrecisionState(
+			"Start date",
+			startDateState,
+		);
+		if (startDateError) {
+			nextErrors.startDate = startDateError;
+		}
+
+		const endDateError = validateDateWithPrecisionState(
+			"End date",
+			endDateState,
+		);
+		if (endDateError) {
+			nextErrors.endDate = endDateError;
+		}
+
+		if (!nextErrors.startDate && !nextErrors.endDate && startDateValue && endDateValue) {
 			const startBoundary = toComparableBoundaryDate(startDateState, "start");
 			const endBoundary = toComparableBoundaryDate(endDateState, "end");
 
@@ -1877,6 +1951,21 @@ function StepperValidation({
 							"endDateMonth",
 						) as HTMLSelectElement | null);
 					endDateElement?.focus();
+					return;
+				}
+
+				if (nextErrors.startDate) {
+					const startDateElement =
+						(document.getElementById(
+							"startDateDate",
+						) as HTMLInputElement | null) ||
+						(document.getElementById(
+							"startDateYear",
+						) as HTMLInputElement | null) ||
+						(document.getElementById(
+							"startDateMonth",
+						) as HTMLSelectElement | null);
+					startDateElement?.focus();
 				}
 			});
 			return false;
@@ -3140,6 +3229,7 @@ function StepperValidation({
 													"Start date",
 													startDateState,
 													setStartDateState,
+													errors.startDate,
 												)}
 												{renderDateWithPrecision(
 													"endDate",
