@@ -4022,7 +4022,7 @@
     {
         "id": "access_management.all_roles",
         "description": "File: routes/$lang+/settings+/access-mgmnt+/_index.tsx:189",
-        "translation": "Todas las funciones"
+        "translation": "Todos los roles"
     },
     {
         "id": "access_management.role.admin",
