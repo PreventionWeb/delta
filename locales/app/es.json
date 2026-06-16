@@ -42,7 +42,7 @@
     {
         "id": "analysis.aria_label_loading_data",
         "description": "File: frontend/analytics/sectors/sections/EffectDetails.tsx:206",
-        "translation": "Carga de datos"
+        "translation": "Cargando datos"
     },
     {
         "id": "analysis.asset",
@@ -72,7 +72,7 @@
     {
         "id": "analysis.damages",
         "description": "File: frontend/analytics/sectors/sections/EffectDetails.tsx:241",
-        "translation": "Daños y perjuicios"
+        "translation": "Daños"
     },
     {
         "id": "analysis.damages_and_losses",
@@ -107,12 +107,12 @@
     {
         "id": "analysis.dead_icon",
         "description": "Alt text for the icon that represents a deceased person File: frontend/analytics/hazards/sections/HumanAffects.tsx:149",
-        "translation": "Icono muerto"
+        "translation": "Icono para muertos"
     },
     {
         "id": "analysis.death",
         "description": "File: routes/$lang+/analytics+/disaster-events.tsx:839",
-        "translation": "Muerte"
+        "translation": "Muertos"
     },
     {
         "id": "analysis.deaths",
@@ -5927,7 +5927,7 @@
     {
         "id": "analysis.damage_in_currency",
         "description": "File: routes/$lang+/analytics+/disaster-events.tsx:710",
-        "translation": "Daños en {currency}"
+        "translation": "Daños en {moneda}"
     },
     {
         "id": "analysis.damage_in_sector_and_currency",
@@ -5937,12 +5937,12 @@
     {
         "id": "analysis.damages_in_currency_due_to_hazard",
         "description": "Title showing total damages in a specific currency caused by a hazard type. {currency} is the currency code (e.g. USD), {hazard} is the display name of the hazard. File: frontend/analytics/sectors/sections/ImpactOnSector.tsx:530",
-        "translation": "Daños en {currency} debidos a {hazard}"
+        "translation": "Daños en {moneda} debidos a {peligros}"
     },
     {
         "id": "analysis.date_range",
         "description": "File: routes/$lang+/analytics+/disaster-events.tsx:687",
-        "translation": "Fecha: {startDate} a {endDate}"
+        "translation": "Fecha: {fecha de inicio} a {fecha de fin}"
     },
     {
         "id": "analysis.detailed_effects_in_sector",
@@ -6761,5 +6761,40 @@
         "id": "admin.delete_instance_confirm_message",
         "description": "File: app/routes/$lang+/admin+/country-accounts+/delete.$id.tsx:111",
         "translation": "¿Está seguro de que desea eliminar esta instancia? Esta acción no se puede deshacer."
+    },
+    {
+        "id": "admin.instance_type",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/edit.$id.tsx:311",
+        "translation": "Tipo de instancia"
+    },
+    {
+        "id": "admin.fictitious_country_deleted",
+        "description": "File: app/routes/$lang+/admin+/fictitious-country-mgmt+/delete.$id.tsx:50",
+        "translation": "País ficticio borrado con éxito"
+    },
+    {
+        "id": "admin.fictitious_country_management",
+        "description": "File: app/routes/$lang+/admin+/fictitious-country-mgmt+/_layout.tsx:32",
+        "translation": "administración del país ficticio"
+    },
+    {
+        "id": "admin.instance_deleted",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/delete.$id.tsx:47",
+        "translation": "La instancia ha sido borrada con éxito"
+    },
+    {
+        "id": "admin.invitation_resent",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/resend-invitation.$id.tsx:56",
+        "translation": "Correo electrónico de invitación enviado con éxito"
+    },
+    {
+        "id": "admin.resend_email",
+        "description": "File: app/pages/AccessManagementPage.tsx:145",
+        "translation": "Reenviar correo electrónico de invitación"
+    },
+    {
+        "id": "admin.resend_invitation_confirm_message",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/resend-invitation.$id.tsx:132",
+        "translation": "¿Quieres volver a enviar el correo electrónico de invitación al administrador principal?"
     }
 ]
