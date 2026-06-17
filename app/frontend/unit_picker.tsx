@@ -10,23 +10,49 @@ interface UnitPickerProps {
 	onChange?: (unitKey: string) => void;
 }
 
-export const unitsEnum = [
-	{ key: "number_count", label: "Count" },
+// Metric Units
+export const metricUnitsEnum = [
+	// Area
 	{ key: "area_m2", label: "Square Meters (m²)" },
 	{ key: "area_km2", label: "Square Kilometers (km²)" },
 	{ key: "area_ha", label: "Hectares" },
+	// Volume
+	{ key: "volume_l", label: "Liters (L)" },
+	{ key: "volume_m3", label: "Cubic Meters (m³)" },
+	// Length
+	{ key: "length_m", label: "Meters (m)" },
+	{ key: "length_km", label: "Kilometers (km)" },
+	{ key: "length_cm", label: "Centimeters (cm)" },
+	{ key: "length_mm", label: "Millimeters (mm)" },
+];
+
+// Imperial Units
+export const imperialUnitsEnum = [
+	// Area
 	{ key: "area_mi2", label: "Square Miles (mi²)" },
 	{ key: "area_ac", label: "Acres" },
 	{ key: "area_ft2", label: "Square Feet (ft²)" },
 	{ key: "area_yd2", label: "Square Yards (yd²)" },
-	{ key: "volume_l", label: "Liters (L)" },
-	{ key: "volume_m3", label: "Cubic Meters (m³)" },
+	// Volume
 	{ key: "volume_ft3", label: "Cubic Feet (ft³)" },
 	{ key: "volume_yd3", label: "Cubic Yards (yd³)" },
 	{ key: "volume_gal", label: "Gallons (gal)" },
 	{ key: "volume_bbl", label: "Barrels (bbl)" },
+	// Length
+	{ key: "length_ft", label: "Feet (ft)" },
+	{ key: "length_yd", label: "Yards (yd)" },
+	{ key: "length_mi", label: "Miles (mi)" },
+	{ key: "length_nm", label: "Nautical Miles (NM)" },
+];
+
+// Function to group both into unitsEnum
+export const unitsEnum = [
+	{ key: "number_count", label: "Count" },
+	// Duration
 	{ key: "duration_days", label: "Days" },
 	{ key: "duration_hours", label: "Hours" },
+	...metricUnitsEnum, 
+	...imperialUnitsEnum
 ];
 
 export function unitName(key: string): string {
@@ -44,6 +70,10 @@ export function UnitPicker(props: UnitPickerProps) {
 		{
 			key: "duration",
 			label: ctx.t({ code: "unit.duration", msg: "Duration" }),
+		},
+		{
+			key: "length",
+			label: ctx.t({ code: "unit.length", msg: "Length" }),
 		},
 	];
 
@@ -118,6 +148,40 @@ export function UnitPicker(props: UnitPickerProps) {
 			{
 				key: "duration_hours",
 				label: ctx.t({ code: "unit.hours", msg: "Hours" }),
+			},
+		],
+		length: [
+			{
+				key: "length_m",
+				label: ctx.t({ code: "unit.meters", msg: "Meters (m)" }),
+			},
+			{
+				key: "length_km",
+				label: ctx.t({ code: "unit.kilometers", msg: "Kilometers (km)" }),
+			},
+			{
+				key: "length_cm",
+				label: ctx.t({ code: "unit.centimeters", msg: "Centimeters (cm)" }),
+			},
+			{
+				key: "length_mm",
+				label: ctx.t({ code: "unit.millimeters", msg: "Millimeters (mm)" }),
+			},
+			{
+				key: "length_ft",
+				label: ctx.t({ code: "unit.feet", msg: "Feet (ft)" }),
+			},
+			{
+				key: "length_yd",
+				label: ctx.t({ code: "unit.yards", msg: "Yards (yd)" }),
+			},
+			{
+				key: "length_mi",
+				label: ctx.t({ code: "unit.miles", msg: "Miles (mi)" }),
+			},
+			{
+				key: "length_nm",
+				label: ctx.t({ code: "unit.nautical_miles", msg: "Nautical Miles (NM)" }),
 			},
 		],
 	};
