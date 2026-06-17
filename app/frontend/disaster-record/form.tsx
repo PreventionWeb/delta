@@ -138,7 +138,7 @@ export function fieldsDefCommon(
 				msg: "Validated by",
 			}),
 			type: "text",
-			required: true,
+			required: false,
 		},
 		{
 			key: "checkedBy",
