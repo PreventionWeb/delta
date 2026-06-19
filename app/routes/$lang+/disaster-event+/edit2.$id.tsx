@@ -46,6 +46,8 @@ import {
 import { handleApprovalWorkflowService } from "~/backend.server/services/approvalWorkflowService";
 import { canEditDataCollectionRecord } from "~/frontend/user/roles";
 import { InputTextarea } from "primereact/inputtextarea";
+import { Toast } from "primereact/toast";
+import { copyTextToClipboardWithToast } from "~/frontend/utils/clipboard";
 
 export const handle = {
 	hideMainNavigation: true,
@@ -2824,6 +2826,35 @@ function StepperValidation({
 		setSpatialFootprintDialogVisible(true);
 	};
 
+	const toast = useRef<Toast>(null);
+
+	function shortUuid(value: string) {
+        if (!value) return "-";
+        return value.slice(0, 6);
+    }
+	
+
+	async function copyUuidToClipboard(value: string) {
+		await copyTextToClipboardWithToast({
+			value,
+			toastRef: toast,
+			successSummary: ctx.t({ code: "copied", msg: "Copied" }),
+			successDetail: ctx.t(
+				{
+					code: "uuid_copied_to_clipboard",
+					msg: "UUID {shortUuid}… copied to clipboard",
+				},
+				{ shortUuid: shortUuid(value) },
+			),
+			errorSummary: ctx.t({ code: "failed", msg: "Failed" }),
+			errorDetail: ctx.t({
+				code: "could_not_copy_to_clipboard",
+				msg: "Could not copy to clipboard",
+			}),
+		});
+	}
+
+
 	useEffect(() => {
 		firstNameTooltipRef.current?.updateTargetEvents();
 	}, [activeStep]);
@@ -2846,6 +2877,10 @@ function StepperValidation({
 
 	return (
 		<>
+			<Toast
+				ref={toast}
+				position={ctx.lang === "ar" ? "top-left" : "top-right"}
+			/>
 			<div className="card flex justify-content-center">
 				<SaveSubmitDialog
 					ctx={ctx}
@@ -3065,7 +3100,7 @@ function StepperValidation({
 												<InputText
 													id="id"
 													name="id"
-													defaultValue={form.id}
+													defaultValue={ shortUuid(form.id.toString()) }
 													readOnly
 													className="w-full !border-slate-100 !bg-slate-50 shadow-none cursor-not-allowed"
 												/>
@@ -3075,10 +3110,9 @@ function StepperValidation({
 													icon="pi pi-copy"
 													text
 													rounded
+													title="Copy UUID"
 													aria-label="Copy disaster event UUID"
-													onClick={() =>
-														navigator.clipboard.writeText(form.id.toString())
-													}
+													onClick={() => copyUuidToClipboard(form.id.toString())}
 												/>
 											</div>
 										</div>
@@ -4267,3 +4301,4 @@ function StepperValidation({
 		</>
 	);
 }
+

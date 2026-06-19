@@ -10,6 +10,7 @@ import { Toast } from "primereact/toast";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { ViewContext } from "../context";
+import { copyTextToClipboardWithToast } from "../utils/clipboard";
 
 
 type DisasterEventsPageProps = {
@@ -254,26 +255,23 @@ export default function DisasterEventsPage({
         return value.slice(0, 6);
     }
     async function copyUuidToClipboard(value: string) {
-        if (!value) return;
-        try {
-            await navigator.clipboard.writeText(value);
-            toast.current?.show({
-                severity: "success",
-                summary: ctx.t({ code: "copied", msg: "Copied" }),
-                detail: ctx.t({
+        await copyTextToClipboardWithToast({
+            value,
+            toastRef: toast,
+            successSummary: ctx.t({ code: "copied", msg: "Copied" }),
+            successDetail: ctx.t(
+                {
                     code: "uuid_copied_to_clipboard",
                     msg: "UUID {shortUuid}… copied to clipboard",
-                }, { shortUuid: shortUuid(value) }),
-                life: 2000,
-            });
-        } catch {
-            toast.current?.show({
-                severity: "error",
-                summary: ctx.t({ code: "failed", msg: "Failed" }),
-                detail: ctx.t({ code: "could_not_copy_to_clipboard", msg: "Could not copy to clipboard" }),
-                life: 3000,
-            });
-        }
+                },
+                { shortUuid: shortUuid(value) },
+            ),
+            errorSummary: ctx.t({ code: "failed", msg: "Failed" }),
+            errorDetail: ctx.t({
+                code: "could_not_copy_to_clipboard",
+                msg: "Could not copy to clipboard",
+            }),
+        });
     }
 
     const dateBodyTemplate = (value: Date | string | number | null | undefined) => {
