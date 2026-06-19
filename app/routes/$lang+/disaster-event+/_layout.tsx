@@ -105,6 +105,7 @@ export const loader = authLoaderWithPerm(
         }
 
         const { viewData } = paginationQueryFromURL(request, []);
+        const effectivePageSize = url.searchParams.has("pageSize") ? viewData.pageSize : 20;
         const userId = await getUserIdFromSession(request);
         const canDeleteDisasterEvent = await hasPermission(
             request,
@@ -125,7 +126,7 @@ export const loader = authLoaderWithPerm(
             await DisasterEventRepository.getByCountryAccountsIdPaginated(
                 countryAccountsId,
                 viewData.page,
-                viewData.pageSize,
+                effectivePageSize,
                 {
                     disasterEventName,
                     recordingOrganization,

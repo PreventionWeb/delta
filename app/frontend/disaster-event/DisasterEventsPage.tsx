@@ -1,4 +1,5 @@
 import { Button } from "primereact/button";
+import { Paginator } from "primereact/paginator";
 import { Calendar } from "primereact/calendar";
 import { Checkbox } from "primereact/checkbox";
 import { Column } from "primereact/column";
@@ -171,6 +172,13 @@ export default function DisasterEventsPage({
             nextSearchParams.delete(paramName);
         }
         nextSearchParams.delete("page");
+        setSearchParams(nextSearchParams, { replace: true });
+    };
+
+    const updatePaginationParams = (nextPage: number, nextPageSize: number) => {
+        const nextSearchParams = new URLSearchParams(searchParams);
+        nextSearchParams.set("page", String(nextPage));
+        nextSearchParams.set("pageSize", String(nextPageSize));
         setSearchParams(nextSearchParams, { replace: true });
     };
 
@@ -858,6 +866,43 @@ export default function DisasterEventsPage({
                         />
                     </DataTable>
                 </div>
+
+                {pagination && pagination.totalItems > 0 && (
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                        <Paginator
+                            first={(pagination.page - 1) * pagination.pageSize}
+                            rows={pagination.pageSize}
+                            totalRecords={pagination.totalItems}
+                            rowsPerPageOptions={[20, 50, 100]}
+                            onPageChange={(event) => {
+                                updatePaginationParams(event.page + 1, event.rows);
+                            }}
+                            template={{
+                                layout: "RowsPerPageDropdown CurrentPageReport",
+                                RowsPerPageDropdown: (options: any) => (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm text-slate-700">
+                                            {ctx.t({ code: "rows_per_page", msg: "Rows per page" })}
+                                        </span>
+                                        {options.element}
+                                    </div>
+                                ),
+                            }}
+                            currentPageReportTemplate={`{first}–{last} ${ctx.t({ code: "of", msg: "of" })} {totalRecords}`}
+                            className="!bg-transparent !p-0"
+                        />
+                        <Paginator
+                            first={(pagination.page - 1) * pagination.pageSize}
+                            rows={pagination.pageSize}
+                            totalRecords={pagination.totalItems}
+                            onPageChange={(event) => {
+                                updatePaginationParams(event.page + 1, event.rows);
+                            }}
+                            template={{ layout: "PrevPageLink PageLinks NextPageLink" }}
+                            className="!bg-transparent !p-0"
+                        />
+                    </div>
+                )}
 
             </div>
         </div>
