@@ -33,6 +33,7 @@ import { dr } from "~/db.server";
 import { divisionTable } from "~/drizzle/schema/divisionTable";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import { disasterRecordsTable } from "~/drizzle/schema/disasterRecordsTable";
+import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
 import { buildTree } from "~/components/TreeView";
 import { SpatialFootprintFormView2 } from "~/frontend/spatialFootprintFormView2";
 
@@ -139,6 +140,104 @@ function formatDisasterEventDisplayName(event: {
 		id: event.id,
 		name: displayName,
 		code: `${event.id}`,
+	};
+}
+
+function localizedHipName(
+	name: Record<string, string> | null | undefined,
+	lang: string,
+) {
+	if (!name) {
+		return "";
+	}
+
+	return String(name[lang] || name.en || Object.values(name)[0] || "").trim();
+}
+
+function formatHazardousEventDisplayName(
+	event: {
+		id: string;
+		description: string | null;
+		apiImportId: string | null;
+		hipHazard: {
+			code: string | null;
+			name: Record<string, string> | null;
+		} | null;
+		hipCluster: {
+			name: Record<string, string> | null;
+		} | null;
+		hipType: {
+			name: Record<string, string> | null;
+		} | null;
+	},
+	lang: string,
+) {
+	const hazardName = localizedHipName(event.hipHazard?.name, lang);
+	const clusterName = localizedHipName(event.hipCluster?.name, lang);
+	const typeName = localizedHipName(event.hipType?.name, lang);
+
+	const displayName = hazardName
+		? event.hipHazard?.code
+			? `${hazardName} (${event.hipHazard.code})`
+			: hazardName
+		: clusterName ||
+			typeName ||
+			event.description?.trim() ||
+			`Hazardous event ${event.id.slice(0, 8)}`;
+
+	return {
+		id: event.id,
+		name: displayName,
+		code: event.apiImportId?.trim() || event.id,
+	};
+}
+
+async function getLinkedHazardousData(
+	countryAccountsId: string,
+	lang: string,
+	selectedHazardousEventId?: string | null,
+) {
+	const hazardousEvents = await dr.query.hazardousEventTable.findMany({
+		columns: {
+			id: true,
+			description: true,
+			apiImportId: true,
+		},
+		with: {
+			hipHazard: {
+				columns: {
+					code: true,
+					name: true,
+				},
+			},
+			hipCluster: {
+				columns: {
+					name: true,
+				},
+			},
+			hipType: {
+				columns: {
+					name: true,
+				},
+			},
+		},
+		where: eq(hazardousEventTable.countryAccountsId, countryAccountsId),
+		orderBy: [desc(hazardousEventTable.updatedAt)],
+	});
+
+	const hazardousEventOptions = hazardousEvents.map((event) =>
+		formatHazardousEventDisplayName(event, lang),
+	);
+
+	const linkedHazardousEvents = selectedHazardousEventId
+		? hazardousEventOptions.filter(
+				(event) => event.id === selectedHazardousEventId,
+			)
+		: [];
+
+	return {
+		hazardousEventOptions,
+		linkedHazardousEvents,
 	};
 }
 
@@ -420,6 +519,8 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 			treeData,
 			ctryIso3,
 			divisionGeoJSON: divisionGeoJSON || [],
+			hazardousEventOptions: [],
+			linkedHazardousEvents: [],
 			disasterRecordOptions: [],
 			linkedDisasterRecords: [],
 			disasterEventOptions: [],
@@ -455,13 +556,18 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		throw new Response("Access forbidden", { status: 403 });
 	}
 
-	const [treeData, divisionGeoJSON, hip, user, linkedData] =
+	const [treeData, divisionGeoJSON, hip, user, linkedData, linkedHazardousData] =
 		await Promise.all([
 			getDivisionTreeData(countryAccountsId),
 			getDivisionGeoJSON(countryAccountsId),
 			dataForHazardPicker(ctx),
 			authLoaderGetUserForFrontend(loaderArgs),
 			getLinkedDisasterData(countryAccountsId, item.id),
+			getLinkedHazardousData(
+				countryAccountsId,
+				ctx.lang,
+				item.hazardousEvent?.id,
+			),
 		]);
 
 	return {
@@ -470,6 +576,8 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		treeData,
 		ctryIso3,
 		divisionGeoJSON: divisionGeoJSON || [],
+		hazardousEventOptions: linkedHazardousData.hazardousEventOptions,
+		linkedHazardousEvents: linkedHazardousData.linkedHazardousEvents,
 		disasterRecordOptions: linkedData.disasterRecordOptions,
 		linkedDisasterRecords: linkedData.linkedDisasterRecords,
 		disasterEventOptions: linkedData.disasterEventOptions,
@@ -502,6 +610,8 @@ export default function Screen() {
 				treeData={ld.treeData}
 				ctryIso3={ld.ctryIso3}
 				divisionGeoJSON={ld.divisionGeoJSON}
+				hazardousEventOptions={ld.hazardousEventOptions ?? []}
+				linkedHazardousEvents={ld.linkedHazardousEvents ?? []}
 				disasterRecordOptions={ld.disasterRecordOptions ?? []}
 				linkedDisasterRecords={ld.linkedDisasterRecords ?? []}
 				disasterEventOptions={ld.disasterEventOptions ?? []}
@@ -824,8 +934,6 @@ type StepperValidationProps = {
 		glide?: string | null;
 		startDate?: string | null;
 		endDate?: string | null;
-		startDateLocal?: string | null;
-		endDateLocal?: string | null;
 		hipTypeId?: string | null;
 		hipClusterId?: string | null;
 		hipHazardId?: string | null;
@@ -891,6 +999,8 @@ type StepperValidationProps = {
 	treeData: unknown;
 	ctryIso3: string;
 	divisionGeoJSON: unknown;
+	hazardousEventOptions: LinkedEventOption[];
+	linkedHazardousEvents: LinkedEventOption[];
 	disasterRecordOptions: LinkedEventOption[];
 	linkedDisasterRecords: LinkedEventOption[];
 	disasterEventOptions: LinkedEventOption[];
@@ -913,6 +1023,8 @@ function StepperValidation({
 	treeData,
 	ctryIso3,
 	divisionGeoJSON,
+	hazardousEventOptions,
+	linkedHazardousEvents,
 	disasterRecordOptions,
 	linkedDisasterRecords,
 	disasterEventOptions,
@@ -1191,12 +1303,8 @@ function StepperValidation({
 	const [endDateState, setEndDateState] = useState<DateWithPrecisionState>(
 		parseDateWithPrecision(disasterEvent?.endDate),
 	);
-	const [startDateLocal, setStartDateLocal] = useState(
-		disasterEvent?.startDateLocal ?? "",
-	);
-	const [endDateLocal, setEndDateLocal] = useState(
-		disasterEvent?.endDateLocal ?? "",
-	);
+	const [startTime, setStartTime] = useState<Date | null>(null);
+	const [endTime, setEndTime] = useState<Date | null>(null);
 	const [spatialFootprintDialogVisible, setSpatialFootprintDialogVisible] =
 		useState(false);
 	const [spatialFootprintValue, setSpatialFootprintValue] = useState<any[]>(
@@ -1215,21 +1323,6 @@ function StepperValidation({
 		},
 	);
 
-	const monthOptions = [
-		{ value: "01", label: "January" },
-		{ value: "02", label: "February" },
-		{ value: "03", label: "March" },
-		{ value: "04", label: "April" },
-		{ value: "05", label: "May" },
-		{ value: "06", label: "June" },
-		{ value: "07", label: "July" },
-		{ value: "08", label: "August" },
-		{ value: "09", label: "September" },
-		{ value: "10", label: "October" },
-		{ value: "11", label: "November" },
-		{ value: "12", label: "December" },
-	];
-
 	const renderDateWithPrecision = (
 		prefix: "startDate" | "endDate",
 		label: string,
@@ -1240,10 +1333,19 @@ function StepperValidation({
 		const isFullDate = state.precision === "yyyy-mm-dd";
 		const isYearMonth = state.precision === "yyyy-mm";
 		const isYearOnly = state.precision === "yyyy";
+		const timeLabel =
+			prefix === "startDate"
+				? ctx.t({ code: "start_time", msg: "Start time" })
+				: ctx.t({ code: "end_time", msg: "End time" });
+		const timePlaceholder = ctx.t({
+				code: "time_placeholder_24h",
+				msg: "Time (24h, e.g. 14:30)",
+			});
+		const timeValue = prefix === "startDate" ? startTime : endTime;
 
 		return (
 			<>
-				<div className="col-span-12 md:col-span-6">
+				<div className="col-span-12 md:col-span-4">
 					<label
 						htmlFor={`${prefix}Format`}
 						className="mb-1 inline-flex items-center gap-2"
@@ -1273,14 +1375,14 @@ function StepperValidation({
 					/>
 				</div>
 
-				<div className="col-span-12 md:col-span-6">
+				<div className="col-span-12 md:col-span-4">
 					{isFullDate ? (
 						<>
 							<label
 								htmlFor={`${prefix}Date`}
 								className="mb-1 inline-flex items-center gap-2"
 							>
-								{label} date
+								{label} 
 							</label>
 							<Calendar
 								id={`${prefix}DateCalendar`}
@@ -1333,52 +1435,47 @@ function StepperValidation({
 					) : null}
 
 					{isYearMonth ? (
-						<div className="grid grid-cols-2 gap-2">
-							<div>
-								<label
-									htmlFor={`${prefix}Year`}
-									className="mb-1 inline-flex items-center gap-2"
-								>
-									{label} year
-								</label>
-								<InputText
-									id={`${prefix}Year`}
-									value={state.year}
-									onChange={(event) => {
-										const year = event.target.value
-											.replace(/\D/g, "")
-											.slice(0, 4);
-										setState((current) => ({ ...current, year }));
-									}}
-									keyfilter="int"
-									maxLength={4}
-									className="w-full"
-								/>
-							</div>
-							<div>
-								<label
-									htmlFor={`${prefix}Month`}
-									className="mb-1 inline-flex items-center gap-2"
-								>
-									{label} month
-								</label>
-								<Dropdown
-									id={`${prefix}Month`}
-									value={state.month || null}
-									options={monthOptions}
-									optionLabel="label"
-									optionValue="value"
-									onChange={(event) => {
+						<>
+							<label
+								htmlFor={`${prefix}Month`}
+								className="mb-1 inline-flex items-center gap-2"
+							>
+								{label}
+							</label>
+							<Calendar
+								id={`${prefix}Month`}
+								value={
+									/^\d{4}$/.test(state.year) && /^\d{2}$/.test(state.month)
+										? new Date(Number(state.year), Number(state.month) - 1, 1)
+										: null
+								}
+								onChange={(e) => {
+									const selected = e.value;
+									if (
+										!(selected instanceof Date) ||
+										Number.isNaN(selected.getTime())
+									) {
 										setState((current) => ({
 											...current,
-											month: typeof event.value === "string" ? event.value : "",
+											year: "",
+											month: "",
 										}));
-									}}
-									placeholder="Select month"
-									className="w-full"
-								></Dropdown>
-							</div>
-						</div>
+										return;
+									}
+
+									setState((current) => ({
+										...current,
+										year: String(selected.getFullYear()),
+										month: String(selected.getMonth() + 1).padStart(2, "0"),
+									}));
+								}}
+								view="month"
+								dateFormat="yy-mm"
+								placeholder="YYYY-MM"
+								showIcon
+								className="w-full"
+							/>
+						</>
 					) : null}
 
 					{isYearOnly ? (
@@ -1387,19 +1484,29 @@ function StepperValidation({
 								htmlFor={`${prefix}Year`}
 								className="mb-1 inline-flex items-center gap-2"
 							>
-								{label} year
+								{label}
 							</label>
-							<InputText
+							<Calendar
 								id={`${prefix}Year`}
-								value={state.year}
-								onChange={(event) => {
-									const year = event.target.value
-										.replace(/\D/g, "")
-										.slice(0, 4);
-									setState((current) => ({ ...current, year }));
+								value={
+									/^\d{4}$/.test(state.year)
+										? new Date(Number(state.year), 0, 1)
+										: null
+								}
+								onChange={(e) => {
+									const selected = e.value;
+									setState((current) => ({
+										...current,
+										year:
+											selected instanceof Date
+												? String(selected.getFullYear())
+												: "",
+									}));
 								}}
-								keyfilter="int"
-								maxLength={4}
+								view="year"
+								dateFormat="yy"
+								placeholder="YYYY"
+								showIcon
 								className="w-full"
 							/>
 						</>
@@ -1409,6 +1516,39 @@ function StepperValidation({
 						<p className="mt-1 text-xs text-red-600">{errorMessage}</p>
 					) : null}
 				</div>
+
+				<div className="col-span-12 md:col-span-4">
+					<label
+						htmlFor={`${prefix}Time`}
+						className="mb-1 flex items-center gap-2"
+					>
+						{timeLabel}
+					</label>
+					<Calendar
+						id={`${prefix}Time`}
+						value={timeValue}
+						onChange={(e) => {
+							const selected = e.value;
+							const parsed =
+								selected instanceof Date && !Number.isNaN(selected.getTime())
+									? selected
+									: null;
+
+							if (prefix === "startDate") {
+								setStartTime(parsed);
+								return;
+							}
+
+							setEndTime(parsed);
+						}}
+						timeOnly
+						showIcon
+						icon="pi pi-clock"
+						placeholder={timePlaceholder}
+						className="w-full"
+					/>
+
+				</div>
 			</>
 		);
 	};
@@ -1416,10 +1556,15 @@ function StepperValidation({
 	const [linkedEventLoading, setLinkedEventLoading] = useState(false);
 	const [linkedEventSource, setLinkedEventSource] = useState<
 		LinkedEventOption[]
-	>([]);
+	>(() => {
+		const linkedIds = new Set(linkedHazardousEvents.map((event) => event.id));
+		return hazardousEventOptions
+			.filter((event) => !linkedIds.has(event.id))
+			.slice(0, 10);
+	});
 	const [linkedEventTarget, setLinkedEventTarget] = useState<
 		LinkedEventOption[]
-	>([]);
+	>(() => linkedHazardousEvents);
 	const [linkedDisasterEventSearch, setLinkedDisasterEventSearch] =
 		useState("");
 	const [linkedDisasterEventLoading, setLinkedDisasterEventLoading] =
@@ -1839,29 +1984,6 @@ function StepperValidation({
 		}
 	};
 
-	const mockBackendLinkedEvents: LinkedEventOption[] = [
-		{ id: "1", name: "Coastal Storm Delta", code: "DE-2024-001" },
-		{ id: "2", name: "Industrial Leak - Benzene", code: "HE-2024-003" },
-		{ id: "3", name: "Riverbank Flood", code: "FL-2024-011" },
-		{ id: "4", name: "Power Grid Failure", code: "IN-2024-008" },
-		{ id: "5", name: "Port Fuel Fire", code: "FI-2024-006" },
-		{ id: "6", name: "Mountain Landslide", code: "GE-2024-014" },
-		{ id: "7", name: "Hospital Oxygen Shortage", code: "HE-2024-017" },
-		{ id: "8", name: "Pipeline Rupture - East", code: "IN-2024-021" },
-		{ id: "9", name: "Warehouse Chemical Fire", code: "FI-2024-023" },
-		{ id: "10", name: "Urban Flash Flood", code: "FL-2024-025" },
-		{ id: "11", name: "Bridge Structural Failure", code: "IN-2024-028" },
-		{ id: "12", name: "Cyclone Iris", code: "DE-2024-030" },
-		{ id: "13", name: "Fuel Depot Explosion", code: "FI-2024-032" },
-		{ id: "14", name: "Water Treatment Outage", code: "IN-2024-035" },
-		{ id: "15", name: "Drought Escalation", code: "CL-2024-038" },
-		{ id: "16", name: "Heatwave Alert Cluster", code: "CL-2024-041" },
-		{ id: "17", name: "Cargo Train Derailment", code: "TR-2024-044" },
-		{ id: "18", name: "Airport Fuel Spill", code: "TR-2024-046" },
-		{ id: "19", name: "Substation Fire", code: "IN-2024-049" },
-		{ id: "20", name: "River Contamination", code: "HE-2024-052" },
-	];
-
 	const isStep1Complete = form.nameNational.trim().length > 0;
 
 	const readFieldValue = (fieldId: keyof StepperFormState) => {
@@ -1897,6 +2019,8 @@ function StepperValidation({
 		const nextErrors: Errors = {};
 		const startDateValue = toDateWithPrecisionValue(startDateState);
 		const endDateValue = toDateWithPrecisionValue(endDateState);
+		const hasStartTime = startTime instanceof Date;
+		const hasEndTime = endTime instanceof Date;
 
 		if (!formData.nameNational.trim()) {
 			nextErrors.nameNational = "Name (National) is required";
@@ -1918,12 +2042,31 @@ function StepperValidation({
 			nextErrors.endDate = endDateError;
 		}
 
+		if (
+			hasStartTime &&
+			(startDateState.precision !== "yyyy-mm-dd" || !startDateValue)
+		) {
+			nextErrors.startDate =
+				"Start time requires a complete start date (YYYY-MM-DD)";
+		}
+
+		if (hasEndTime && (endDateState.precision !== "yyyy-mm-dd" || !endDateValue)) {
+			nextErrors.endDate = "End time requires a complete end date (YYYY-MM-DD)";
+		}
+
 		if (!nextErrors.startDate && !nextErrors.endDate && startDateValue && endDateValue) {
 			const startBoundary = toComparableBoundaryDate(startDateState, "start");
 			const endBoundary = toComparableBoundaryDate(endDateState, "end");
 
 			if (endBoundary < startBoundary) {
 				nextErrors.endDate = "End date cannot be before start date";
+			} else if (
+				startBoundary === endBoundary &&
+				hasStartTime &&
+				hasEndTime &&
+				endTime.getTime() < startTime.getTime()
+			) {
+				nextErrors.endDate = "End time cannot be before start time";
 			}
 		}
 
@@ -2074,10 +2217,13 @@ function StepperValidation({
 		pushValue("hipTypeId", selectedHipTypeId);
 		pushValue("hipClusterId", selectedHipClusterId);
 		pushValue("hipHazardId", selectedHipHazardId);
+		pushValue("hazardousEventId", linkedEventTarget[0]?.id ?? "");
+		pushValue(
+			"linkedHazardousEventIds",
+			JSON.stringify(linkedEventTarget.map((event) => event.id)),
+		);
 		pushValue("startDate", toDateWithPrecisionValue(startDateState));
 		pushValue("endDate", toDateWithPrecisionValue(endDateState));
-		pushValue("startDateLocal", startDateLocal);
-		pushValue("endDateLocal", endDateLocal);
 		pushValue("spatialFootprint", JSON.stringify(spatialFootprintValue ?? []));
 		pushValue(
 			"linkedDisasterRecordIds",
@@ -2182,16 +2328,13 @@ function StepperValidation({
 	}, [
 		assessments,
 		declarations,
-		endDateLocal,
-		endDateState,
 		form,
 		responses,
+		linkedEventTarget,
 		selectedHipClusterId,
 		selectedHipHazardId,
 		selectedHipTypeId,
 		spatialFootprintValue,
-		startDateLocal,
-		startDateState,
 	]);
 
 	const renderReviewItem = (label: string, value: string) => (
@@ -2201,6 +2344,45 @@ function StepperValidation({
 			</p>
 			<p className="text-[14px] leading-[14px] font-semibold text-slate-800">
 				{value || "-"}
+			</p>
+		</div>
+	);
+
+	const formatReviewDateWithPrecision = (
+		state: DateWithPrecisionState,
+	): string => {
+		const value = toDateWithPrecisionValue(state);
+
+		if (value) {
+			return value;
+		}
+
+		return "-";
+	};
+
+	const formatReviewTime = (value: Date | null): string => {
+		if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
+			return "-";
+		}
+
+		return value.toLocaleTimeString([], {
+			hour: "2-digit",
+			minute: "2-digit",
+			hour12: false,
+		});
+	};
+
+	const renderReviewTimingItem = (
+		label: string,
+		state: DateWithPrecisionState,
+		time: Date | null,
+	) => (
+		<div className="space-y-1">
+			<p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+				{label}
+			</p>
+			<p className="text-[14px] leading-[14px] font-semibold text-slate-800">
+				{`${formatReviewDateWithPrecision(state)} at ${formatReviewTime(time)}`}
 			</p>
 		</div>
 	);
@@ -2702,6 +2884,20 @@ function StepperValidation({
 		),
 	);
 
+	const reviewLinkedHazardousEventRows = linkedEventTarget.map((event) => (
+		<div key={event.id} className="space-y-1">
+			<div className="space-y-1">
+				<p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+					Subsequent Hazardous Event
+				</p>
+				<p className="text-[14px] font-semibold text-slate-800">
+					{event.name || "-"}
+				</p>
+				<p className="text-[13px] text-slate-500">{event.code || "-"}</p>
+			</div>
+		</div>
+	));
+
 	const renderStep4SectionCard = (
 		title: string,
 		iconClass: string,
@@ -2737,7 +2933,7 @@ function StepperValidation({
 		setLinkedEventLoading(true);
 
 		const lowerQuery = query.trim().toLowerCase();
-		const matched = mockBackendLinkedEvents.filter((item) => {
+		const matched = hazardousEventOptions.filter((item) => {
 			if (!lowerQuery) {
 				return true;
 			}
@@ -2858,6 +3054,16 @@ function StepperValidation({
 	useEffect(() => {
 		firstNameTooltipRef.current?.updateTargetEvents();
 	}, [activeStep]);
+
+	useEffect(() => {
+		const linkedIds = new Set(linkedHazardousEvents.map((event) => event.id));
+		setLinkedEventTarget(linkedHazardousEvents);
+		setLinkedEventSource(
+			hazardousEventOptions
+				.filter((event) => !linkedIds.has(event.id))
+				.slice(0, 10),
+		);
+	}, [hazardousEventOptions, linkedHazardousEvents]);
 
 	useEffect(() => {
 		const linkedIds = new Set(linkedDisasterEvents.map((event) => event.id));
@@ -3273,41 +3479,6 @@ function StepperValidation({
 													errors.endDate,
 												)}
 
-												<div className="col-span-12 md:col-span-6">
-													<label
-														htmlFor="startDateLocal"
-														className="mb-1 inline-flex items-center gap-2"
-													>
-														Start date in local format
-													</label>
-													<InputText
-														id="startDateLocal"
-														name="startDateLocal"
-														value={startDateLocal}
-														onChange={(event) =>
-															setStartDateLocal(event.target.value)
-														}
-														className="w-full"
-													/>
-												</div>
-
-												<div className="col-span-12 md:col-span-6">
-													<label
-														htmlFor="endDateLocal"
-														className="mb-1 inline-flex items-center gap-2"
-													>
-														End date in local format
-													</label>
-													<InputText
-														id="endDateLocal"
-														name="endDateLocal"
-														value={endDateLocal}
-														onChange={(event) =>
-															setEndDateLocal(event.target.value)
-														}
-														className="w-full"
-													/>
-												</div>
 
 												<input
 													type="hidden"
@@ -4123,7 +4294,7 @@ function StepperValidation({
 											<div className="flex items-center gap-2 text-slate-800">
 												<i className="pi pi-map-marker text-blue-600" />
 												<h4 className="text-[16px] leading-[16px] font-semibold">
-													Hazard classification
+													Hazard details
 												</h4>
 											</div>
 											<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -4145,7 +4316,18 @@ function StepperValidation({
 														(item) => item.id === selectedHipHazardId,
 													)?.name || "",
 												)}
-												{renderReviewItem("HIPS code", selectedHipHazardId)}
+											</div>
+											<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+												{renderReviewTimingItem(
+													"Start",
+													startDateState,
+													startTime,
+												)}
+												{renderReviewTimingItem(
+													"End",
+													endDateState,
+													endTime,
+												)}
 											</div>
 										</div>
 									</Card>
@@ -4201,9 +4383,13 @@ function StepperValidation({
 									{renderStep4SectionCard(
 										"Linked events",
 										"pi pi-link text-blue-600",
-										"No linked disaster events selected yet",
-										reviewLinkedDisasterEventRows,
-										reviewLinkedDisasterEventRows.length > 0,
+										"No linked hazardous or disaster events selected yet",
+										<>
+											{reviewLinkedHazardousEventRows}
+											{reviewLinkedDisasterEventRows}
+										</>,
+										reviewLinkedHazardousEventRows.length > 0 ||
+											reviewLinkedDisasterEventRows.length > 0,
 									)}
 
 									{renderStep4SectionCard(
