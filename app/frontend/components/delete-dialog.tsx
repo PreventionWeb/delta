@@ -1,8 +1,9 @@
-import { useEffect, useRef } from "react";
-import { useFetcher } from "react-router";
-import { ConfirmDialog } from "./ConfirmDialog";
-import { ViewContext } from "../context";
+import { useEffect, useRef, useState } from "react";
+import { Button } from "primereact/button";
+import { ConfirmDialog } from "primereact/confirmdialog";
 import { Toast } from "primereact/toast";
+import { useFetcher } from "react-router";
+import { ViewContext } from "../context";
 
 interface DeleteButtonProps {
 	ctx: ViewContext;
@@ -24,8 +25,8 @@ interface DeleteButtonProps {
 export function DeleteButton(props: DeleteButtonProps) {
 	const ctx = props.ctx;
 	let fetcher = useFetcher();
-	let dialogRef = useRef<HTMLDialogElement>(null);
 	const toast = useRef<Toast>(null);
+	const [dialogVisible, setDialogVisible] = useState(false);
 
 	useEffect(() => {
 		let data = fetcher.data as any;
@@ -41,16 +42,50 @@ export function DeleteButton(props: DeleteButtonProps) {
 
 	function showDialog(e: React.MouseEvent) {
 		e.preventDefault();
-		dialogRef.current?.showModal();
+		setDialogVisible(true);
 	}
 
 	function confirmDelete() {
 		console.log("Submitting to:", props.action);
-		dialogRef.current?.close();
+		setDialogVisible(false);
 		fetcher.submit(null, { method: "post", action: props.action });
 	}
 
+	function hideDialog() {
+		setDialogVisible(false);
+	}
+
 	let submitting = fetcher.state !== "idle";
+	const confirmButtonFirst = props.confirmButtonFirst ?? true;
+	const confirmLabel =
+		props.confirmLabel ?? ctx.t({ code: "common.yes", msg: "Yes" });
+	const cancelLabel =
+		props.cancelLabel ?? ctx.t({ code: "common.no", msg: "No" });
+
+	const confirmButton = (
+		<Button
+			type="button"
+			onClick={confirmDelete}
+			severity={confirmButtonFirst ? undefined : "danger"}
+			outlined={!confirmButtonFirst}
+			icon={props.confirmIcon as any}
+			label={confirmLabel}
+			disabled={submitting}
+			loading={submitting}
+		/>
+	);
+
+	const cancelButton = (
+		<Button
+			type="button"
+			onClick={hideDialog}
+			severity={confirmButtonFirst ? undefined : undefined}
+			outlined={confirmButtonFirst}
+			icon={props.cancelIcon as any}
+			label={cancelLabel}
+			disabled={submitting}
+		/>
+	);
 
 	return (
 		<>
@@ -80,26 +115,39 @@ export function DeleteButton(props: DeleteButtonProps) {
 			)}
 
 			<ConfirmDialog
-				ctx={ctx}
-				dialogRef={dialogRef}
-				confirmMessage={
+				visible={dialogVisible}
+				onHide={hideDialog}
+				message={
 					props.confirmMessage ||
 					ctx.t({
 						code: "common.confirm_deletion",
 						msg: "Please confirm deletion.",
 					})
 				}
-				title={
+				header={
 					props.title ||
 					ctx.t({ code: "common.record_deletion", msg: "Record Deletion" })
 				}
-				confirmLabel={props.confirmLabel}
-				cancelLabel={props.cancelLabel}
-				confirmButtonFirst={props.confirmButtonFirst}
-				confirmIcon={props.confirmIcon}
-				cancelIcon={props.cancelIcon}
-				onConfirm={confirmDelete}
-				onCancel={() => dialogRef.current?.close()}
+				footer={
+					<div className="flex justify-end gap-2">
+						{confirmButtonFirst ? (
+							<>
+								{confirmButton}
+								{cancelButton}
+							</>
+						) : (
+							<>
+								{cancelButton}
+								{confirmButton}
+							</>
+						)}
+					</div>
+				}
+				className="w-[32rem] max-w-full"
+				closable={!submitting}
+				closeOnEscape={!submitting}
+				draggable={false}
+				modal
 			/>
 		</>
 	);
@@ -121,12 +169,6 @@ export function HazardousEventDeleteButton({
 	action: string;
 	useIcon?: boolean;
 }) {
-	// Create a trash icon for the delete button
-	const trashIcon = (
-		<svg aria-hidden="true" focusable="false" role="img" width="16" height="16">
-			<use href="/assets/icons/trash-alt.svg#delete" />
-		</svg>
-	);
 	return (
 		<DeleteButton
 			ctx={ctx}
@@ -153,7 +195,7 @@ export function HazardousEventDeleteButton({
 				msg: "Do not delete",
 			})}
 			confirmButtonFirst={false} // Put the cancel button first (as primary)
-			confirmIcon={trashIcon}
+			confirmIcon="pi pi-trash"
 		/>
 	);
 }
