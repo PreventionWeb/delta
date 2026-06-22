@@ -601,9 +601,6 @@ export default function FormScreen() {
 			hazardousEvent={fixedHazardousEvent}
 			hip={ld.hip}
 			disasterEvent={ld.item?.disasterEvent ?? null}
-			treeData={ld.treeData}
-			ctryIso3={ld.ctryIso3}
-			divisionGeoJSON={ld.divisionGeoJSON}
 			hazardousEventOptions={ld.hazardousEventOptions ?? []}
 			linkedHazardousEvents={ld.linkedHazardousEvents ?? []}
 			disasterRecordOptions={ld.disasterRecordOptions ?? []}

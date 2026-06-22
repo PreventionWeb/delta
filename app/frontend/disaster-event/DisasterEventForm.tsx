@@ -1,5 +1,12 @@
-import { Form as RouterForm } from "react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Form as RouterForm, Outlet, useNavigate } from "react-router";
+import {
+	type Dispatch,
+	type SetStateAction,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { Stepper } from "primereact/stepper";
 import { StepperPanel } from "primereact/stepperpanel";
 import { InputText } from "primereact/inputtext";
@@ -10,12 +17,8 @@ import { PickList } from "primereact/picklist";
 import { Dialog } from "primereact/dialog";
 import { Calendar } from "primereact/calendar";
 import { Dropdown } from "primereact/dropdown";
-import { Tree } from "primereact/tree";
-import type { TreeProps } from "primereact/tree";
-import type { TreeNode } from "primereact/treenode";
 import { InputTextarea } from "primereact/inputtextarea";
 import { Toast } from "primereact/toast";
-import { SpatialFootprintFormView2 } from "~/frontend/spatialFootprintFormView2";
 import { ViewContext } from "~/frontend/context";
 import { copyTextToClipboardWithToast } from "~/frontend/utils/clipboard";
 import {
@@ -108,119 +111,17 @@ type DateWithPrecisionState = {
 	day: string;
 };
 
-type DivisionTreeNodeInput = {
-	id: string | number;
-	name: string;
-	children?: DivisionTreeNodeInput[];
+export type SelectedDivisionItem = {
+	key: string;
+	label: string;
 };
 
-function toPrimeTreeNodes(nodes: DivisionTreeNodeInput[]): TreeNode[] {
-	return nodes.map((node) => ({
-		key: String(node.id),
-		label: node.name,
-		data: { id: node.id },
-		children: toPrimeTreeNodes(node.children || []),
-	}));
-}
-
-function filterTreeNodes(nodes: TreeNode[], query: string): TreeNode[] {
-	const normalizedQuery = query.trim().toLowerCase();
-	if (!normalizedQuery) {
-		return nodes;
-	}
-
-	return nodes.reduce<TreeNode[]>((accumulator, node) => {
-		const label = String(node.label || "").toLowerCase();
-		const filteredChildren = node.children
-			? filterTreeNodes(node.children, normalizedQuery)
-			: [];
-		const matchesNode = label.includes(normalizedQuery);
-
-		if (matchesNode || filteredChildren.length > 0) {
-			accumulator.push({
-				...node,
-				children: filteredChildren,
-			});
-		}
-
-		return accumulator;
-	}, []);
-}
-
-function getTopLevelSelectedKeys(
-	nodes: TreeNode[],
-	selectionKeys: TreeProps["selectionKeys"],
-): string[] {
-	if (!selectionKeys || typeof selectionKeys !== "object") {
-		return [];
-	}
-
-	const checkedKeys = new Set(
-		Object.entries(selectionKeys)
-			.filter(([, value]) => {
-				if (value === true) {
-					return true;
-				}
-				if (typeof value === "object" && value !== null) {
-					return "checked" in value && value.checked === true;
-				}
-				return false;
-			})
-			.map(([key]) => key),
-	);
-
-	const result: string[] = [];
-
-	const visit = (treeNodes: TreeNode[], parentChecked: boolean) => {
-		for (const node of treeNodes) {
-			const key = node.key == null ? null : String(node.key);
-			const isChecked = key ? checkedKeys.has(key) : false;
-
-			if (isChecked && !parentChecked && key) {
-				result.push(key);
-			}
-
-			if (node.children?.length) {
-				visit(node.children, parentChecked || isChecked);
-			}
-		}
-	};
-
-	visit(nodes, false);
-	return result;
-}
-
-function getNodeAndDescendantKeys(
-	nodes: TreeNode[],
-	targetKey: string,
-): string[] {
-	for (const node of nodes) {
-		const nodeKey = node.key == null ? null : String(node.key);
-		if (nodeKey === targetKey) {
-			const descendantKeys = node.children
-				? collectNodeKeys(node.children)
-				: [];
-			return [targetKey, ...descendantKeys];
-		}
-
-		if (node.children?.length) {
-			const match = getNodeAndDescendantKeys(node.children, targetKey);
-			if (match.length > 0) {
-				return match;
-			}
-		}
-	}
-
-	return [];
-}
-
-function collectNodeKeys(nodes: TreeNode[]): string[] {
-	return nodes.flatMap((node) => {
-		const nodeKey = node.key == null ? [] : [String(node.key)];
-		const childKeys = node.children ? collectNodeKeys(node.children) : [];
-		return [...nodeKey, ...childKeys];
-	});
-}
+export type DisasterEventFormOutletContext = {
+	selectedDivisionItems: SelectedDivisionItem[];
+	setSelectedDivisionItems: Dispatch<SetStateAction<SelectedDivisionItem[]>>;
+	spatialFootprintValue: any[];
+	setSpatialFootprintValue: Dispatch<SetStateAction<any[]>>;
+};
 
 const requiredFieldOrder: Array<keyof Errors> = ["nameNational"];
 
@@ -360,9 +261,6 @@ type StepperValidationProps = {
 		hadOfficialWarningOrWeatherAdvisory?: boolean | null;
 		officialWarningAffectedAreas?: string | null;
 	} | null;
-	treeData: unknown;
-	ctryIso3: string;
-	divisionGeoJSON: unknown;
 	hazardousEventOptions: LinkedEventOption[];
 	linkedHazardousEvents: LinkedEventOption[];
 	disasterRecordOptions: LinkedEventOption[];
@@ -384,9 +282,6 @@ function StepperValidation({
 	ctx,
 	disasterEvent,
 	hip,
-	treeData,
-	ctryIso3,
-	divisionGeoJSON,
 	hazardousEventOptions,
 	linkedHazardousEvents,
 	disasterRecordOptions,
@@ -396,90 +291,15 @@ function StepperValidation({
 	user,
 	usersWithValidatorRole,
 }: StepperValidationProps) {
-	ctryIso3;
-	divisionGeoJSON;
-
-	const divisionNodes = useMemo(
-		() =>
-			toPrimeTreeNodes(
-				(Array.isArray(treeData)
-					? (treeData as DivisionTreeNodeInput[])
-					: []) || [],
-			),
-		[treeData],
-	);
-
-	const divisionLabelByKey = useMemo(() => {
-		const map = new Map<string, string>();
-		const walk = (nodes: TreeNode[]) => {
-			for (const node of nodes) {
-				if (node.key != null) {
-					map.set(String(node.key), String(node.label || node.key));
-				}
-				if (node.children?.length) {
-					walk(node.children);
-				}
-			}
-		};
-
-		walk(divisionNodes);
-		return map;
-	}, [divisionNodes]);
-
-	const [selectedDivisionKeys, setSelectedDivisionKeys] =
-		useState<TreeProps["selectionKeys"]>(null);
-	const [divisionSearchTerm, setDivisionSearchTerm] = useState("");
-
-	const filteredDivisionNodes = useMemo(
-		() => filterTreeNodes(divisionNodes, divisionSearchTerm),
-		[divisionNodes, divisionSearchTerm],
-	);
-
-	const selectedDivisionNames = useMemo(() => {
-		if (!selectedDivisionKeys || typeof selectedDivisionKeys !== "object") {
-			return [];
-		}
-
-		const keys = getTopLevelSelectedKeys(divisionNodes, selectedDivisionKeys);
-
-		return keys
-			.map((key) => divisionLabelByKey.get(key))
-			.filter((label): label is string => Boolean(label));
-	}, [divisionLabelByKey, divisionNodes, selectedDivisionKeys]);
-
-	const selectedDivisionCount = selectedDivisionNames.length;
-	const selectedDivisionItems = useMemo(
-		() =>
-			getTopLevelSelectedKeys(divisionNodes, selectedDivisionKeys).map(
-				(key) => ({
-					key,
-					label: divisionLabelByKey.get(key) ?? key,
-				}),
-			),
-		[divisionLabelByKey, divisionNodes, selectedDivisionKeys],
-	);
-
-	const clearDivisionSelection = () => {
-		setSelectedDivisionKeys(null);
-	};
+	const navigate = useNavigate();
+	const [selectedDivisionItems, setSelectedDivisionItems] = useState<
+		SelectedDivisionItem[]
+	>([]);
 
 	const removeDivisionSelection = (keyToRemove: string) => {
-		setSelectedDivisionKeys((currentSelection) => {
-			if (!currentSelection || typeof currentSelection !== "object") {
-				return currentSelection;
-			}
-
-			const keysToRemove = new Set(
-				getNodeAndDescendantKeys(divisionNodes, keyToRemove),
-			);
-			const nextSelection = Object.fromEntries(
-				Object.entries(currentSelection).filter(
-					([key]) => !keysToRemove.has(key),
-				),
-			);
-
-			return Object.keys(nextSelection).length > 0 ? nextSelection : null;
-		});
+		setSelectedDivisionItems((current) =>
+			current.filter((item) => item.key !== keyToRemove),
+		);
 	};
 
 	const eventBasicsInitialValues: EventBasicsCompareFields = {
@@ -669,8 +489,6 @@ function StepperValidation({
 	);
 	const [startTime, setStartTime] = useState<Date | null>(null);
 	const [endTime, setEndTime] = useState<Date | null>(null);
-	const [spatialFootprintDialogVisible, setSpatialFootprintDialogVisible] =
-		useState(false);
 	const [spatialFootprintValue, setSpatialFootprintValue] = useState<any[]>(
 		() => {
 			try {
@@ -2382,8 +2200,12 @@ function StepperValidation({
 		</div>
 	);
 
-	const openSpatialDialog = () => {
-		setSpatialFootprintDialogVisible(true);
+	const openAffectedAreasModal = () => {
+		navigate("affected-areas-modal");
+	};
+
+	const openSpatialFootprintModal = () => {
+		navigate("spatial-footprint-modal");
 	};
 
 	const toast = useRef<Toast>(null);
@@ -2890,7 +2712,7 @@ function StepperValidation({
 														label="Add affected areas"
 														outlined
 														icon="pi pi-plus"
-														onClick={openSpatialDialog}
+														onClick={openAffectedAreasModal}
 													/>
 													<div className="mt-6 flex flex-wrap gap-2 text-sm">
 														{selectedDivisionItems.length > 0 &&
@@ -2912,82 +2734,51 @@ function StepperValidation({
 																	</button>
 																</div>
 															))}
+														{selectedDivisionItems.length === 0 ? (
+															<p className="text-[13px] text-slate-400">
+																No affected areas selected yet
+															</p>
+														) : null}
 													</div>
 												</div>
 												<i className="pi pi-chevron-right pt-2 text-slate-400" />
 											</div>
 										</div>
 
-										<SpatialFootprintFormView2
-											ctx={ctx}
-											divisions={
-												Array.isArray(divisionGeoJSON) ? divisionGeoJSON : []
-											}
-											ctryIso3={ctryIso3 || ""}
-											initialData={spatialFootprintValue}
-											onChange={(items) => {
-												setSpatialFootprintValue(
-													Array.isArray(items) ? items : [],
-												);
-											}}
-										/>
-									</div>
-
-									<Dialog
-										header="Select geographic levels"
-										visible={spatialFootprintDialogVisible}
-										style={{ width: "72rem", maxWidth: "95vw" }}
-										onHide={() => setSpatialFootprintDialogVisible(false)}
-										draggable={false}
-										resizable={false}
-										appendTo="self"
-									>
-										<div>
-											<p className="mb-4 text-[13px] text-slate-500">
-												Select one or more geographic levels from the
-												hierarchical tree below.
-											</p>
-											<div className="mb-3 flex items-center gap-3">
-												<div className="relative w-full">
-													<i className="pi pi-search pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-													<InputText
-														value={divisionSearchTerm}
-														onChange={(event) =>
-															setDivisionSearchTerm(event.target.value)
+										<div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+											<div className="mb-4 flex items-start justify-between gap-4">
+												<div>
+													<div className="flex items-center gap-2">
+														<i className="pi pi-map text-blue-500" />
+														<h3 className="text-[18px] font-semibold text-slate-800">
+															Spatial footprint
+														</h3>
+													</div>
+													<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
+														Define the specific geographic area affected using interactive map coordinates or manual input.
+													</p>
+													<Button
+														type="button"
+														className="mt-4"
+														label={
+															spatialFootprintValue.length > 0
+																? "Edit spatial footprint"
+																: "Add spatial footprint"
 														}
-														placeholder="Search locations..."
-														className="w-full pr-10"
+														outlined
+														icon="pi pi-plus"
+														onClick={openSpatialFootprintModal}
 													/>
 												</div>
+												<i className="pi pi-chevron-right pt-2 text-slate-400" />
 											</div>
-											<div className="mb-3 flex items-center justify-between rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-slate-700">
-												<div>
-													{selectedDivisionCount} location
-													{selectedDivisionCount === 1
-														? " selected"
-														: "s selected"}
-												</div>
-												<Button
-													type="button"
-													label="Clear all"
-													text
-													size="small"
-													onClick={clearDivisionSelection}
-												/>
-											</div>
-											<div className="max-h-[26rem] overflow-auto rounded-md border border-slate-200 bg-white p-3 shadow-sm">
-												<Tree
-													value={filteredDivisionNodes}
-													selectionMode="checkbox"
-													selectionKeys={selectedDivisionKeys}
-													onSelectionChange={(e) =>
-														setSelectedDivisionKeys(e.value)
-													}
-													className="w-full"
-												/>
+											<div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-[13px] text-slate-600">
+												{spatialFootprintValue.length > 0
+													? `${spatialFootprintValue.length} spatial footprint item(s) added`
+													: "No spatial footprint items added yet"}
 											</div>
 										</div>
-									</Dialog>
+									</div>
 								</div>
 
 								<div className="flex items-center justify-between w-full mt-20">
@@ -3848,6 +3639,14 @@ function StepperValidation({
 					</RouterForm>
 				</section>
 			</div>
+			<Outlet
+				context={{
+					selectedDivisionItems,
+					setSelectedDivisionItems,
+					spatialFootprintValue,
+					setSpatialFootprintValue,
+				}}
+			/>
 		</>
 	);
 }
