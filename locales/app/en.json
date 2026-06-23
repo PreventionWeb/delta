@@ -6714,5 +6714,9 @@
 	{
 		"id": "organization_added",
 		"translation": "Organization added"
+	},
+	{
+		"id": "upload_supporting_documents",
+		"translation": "Upload supporting documents for this disaster event."
 	}
 ]
