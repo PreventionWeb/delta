@@ -490,11 +490,11 @@ export const renderMapperDialog = (
 												if (getDivisionsCheck !== "") {
 													const userConfirmed = confirm(
 														getDivisionsCheck +
-															"\n\n" +
-															ctx.t({
-																code: "geodata.do_you_want_to_continue",
-																msg: "Do you want to continue?",
-															}),
+														"\n\n" +
+														ctx.t({
+															code: "geodata.do_you_want_to_continue",
+															msg: "Do you want to continue?",
+														}),
 													);
 
 													if (!userConfirmed) {
@@ -549,11 +549,11 @@ export const renderMapperDialog = (
 												if (getDivisionsCheck !== "") {
 													const userConfirmed = confirm(
 														getDivisionsCheck +
-															"\n\n" +
-															ctx.t({
-																code: "common.do_you_want_to_continue",
-																msg: "Do you want to continue?",
-															}),
+														"\n\n" +
+														ctx.t({
+															code: "common.do_you_want_to_continue",
+															msg: "Do you want to continue?",
+														}),
 													);
 													if (!userConfirmed) {
 														return false; // Stop execution if the user clicks "No"
@@ -907,9 +907,8 @@ export const previewMap = (items: any) => {
         }
 
         window.onload = () => {
-            document.getElementById("map").style.height = "${
-							window.outerHeight - 100
-						}px";
+            document.getElementById("map").style.height = "${window.outerHeight - 100
+		}px";
 
             const map = L.map("map", { preferCanvas: true }); //.setView([43.833, 87.616], 2);
 
