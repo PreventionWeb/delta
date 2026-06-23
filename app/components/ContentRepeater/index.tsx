@@ -70,8 +70,8 @@ interface TableColumn {
 	type: "dialog_field" | "action" | "custom";
 	dialog_field_id?: string;
 	caption: string;
-	render?: (item: any) => React.ReactNode; // Custom render function for "custom" type
-	width?: string | number; // Add optional width property
+	render?: (item: any) => React.ReactNode;
+	width?: string | number;
 }
 
 interface DialogField {
@@ -100,22 +100,20 @@ interface DialogField {
 		formData?: any | null,
 		setFormData?: React.Dispatch<React.SetStateAction<any>> | null,
 		currentDialogFields?: DialogField[] | null,
-		setDialogFields?: React.Dispatch<
-			React.SetStateAction<DialogField[]>
-		> | null,
+		setDialogFields?: React.Dispatch<React.SetStateAction<DialogField[]>> | null,
 	) => void;
 	mapperGeoJSONField?: string;
 	render?: (
 		value: any,
 		handleFieldChange: any | null,
 		formData: any | null,
-	) => React.ReactNode; // Custom render function for "custom" type
+	) => React.ReactNode;
 }
 
 interface ContentRepeaterProps {
 	ctx: ViewContext;
 	id: string;
-	dnd_order?: boolean; // Enable/disable drag-and-drop
+	dnd_order?: boolean;
 	base_path?: string;
 	table_columns?: TableColumn[];
 	dialog_fields?: DialogField[];
@@ -137,25 +135,21 @@ const loadLeaflet = (() => {
 
 	return () => {
 		if (!isLoaded) {
-			// Load Leaflet CSS
 			const leafletCSS = document.createElement("link");
 			leafletCSS.rel = "stylesheet";
 			leafletCSS.href = glbMapperCSS;
 			document.head.appendChild(leafletCSS);
 
-			// Load Leaflet JavaScript
 			const leafletJS = document.createElement("script");
 			leafletJS.src = glbMapperJS;
 			leafletJS.async = true;
 			leafletJS.onload = () => {
-				// Load Leaflet.draw CSS
 				const leafletDrawCSS = document.createElement("link");
 				leafletDrawCSS.rel = "stylesheet";
 				leafletDrawCSS.href =
 					"https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css";
 				document.head.appendChild(leafletDrawCSS);
 
-				// Load Leaflet.draw JavaScript
 				const leafletDrawJS = document.createElement("script");
 				leafletDrawJS.src =
 					"https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js";
@@ -165,7 +159,6 @@ const loadLeaflet = (() => {
 				};
 				document.head.appendChild(leafletDrawJS);
 
-				// Add inline CSS override for Leaflet SVG
 				const style = document.createElement("style");
 				style.type = "text/css";
 				style.innerHTML = `
@@ -177,15 +170,15 @@ const loadLeaflet = (() => {
           .leaflet-marker-icon {
             width: 10px !important;
             height: 10px !important;
-            margin-left: -5px !important; /* Half of the new width */
-            margin-top: -5px !important; /* Half of the new height */
+            margin-left: -5px !important;
+            margin-top: -5px !important;
           }
 
           .custom-leaflet-marker {
             width: 20px !important;
             height: 20px !important;
-            margin-left: -5px !important; /* Half of width */
-            margin-top: -20px !important; /* Height for bottom alignment */
+            margin-left: -5px !important;
+            margin-top: -20px !important;
           }
 
           .content-repeater-mapper {
@@ -355,30 +348,39 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 				domElement: document.getElementById(`${id}_${field.id}`), // Attach DOM element
 			}));
 
-			dialog_fields.forEach((field: DialogField) => {
-				if (
-					(field.type === "tokenfield" ||
-						field.type === "select" ||
-						field.type === "option") &&
-					field.onChange
-				) {
-					const initialValue = initialFormData[field.id];
-					field.onChange(
-						{ target: { value: initialValue } },
-						dialogFieldsWithDOM, // Pass updated dialog fields with DOM references
-						null,
-						null,
-						null,
-					);
-				}
-			});
-
 			setDialogError(null);
 
 			setEditingItem(item);
 			setFormData(initialFormData);
 			setDialogFields(dialogFieldsWithDOM); // Update dialog fields with DOM references
 			setIsDialogOpen(true);
+
+			requestAnimationFrame(() => {
+				const renderedDialogFields = dialog_fields.map((field) => ({
+					...field,
+					domElement: document.getElementById(`${id}_${field.id}`),
+				}));
+
+				setDialogFields(renderedDialogFields);
+
+				dialog_fields.forEach((field: DialogField) => {
+					if (
+						(field.type === "tokenfield" ||
+							field.type === "select" ||
+							field.type === "option") &&
+						field.onChange
+					) {
+						const initialValue = initialFormData[field.id];
+						field.onChange(
+							{ target: { value: initialValue } },
+							initialFormData,
+							setFormData,
+							renderedDialogFields,
+							setDialogFields,
+						);
+					}
+				});
+			});
 		};
 
 		const closeDialog = () => {
@@ -435,7 +437,14 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 			const defaultCoords: [number, number] = [43.833, 87.616];
 
 			try {
-				if (!iso3) throw new Error("Country ISO3 code is missing");
+				if (!iso3) {
+					if (debug) {
+						console.log(
+							"Country ISO3 code is missing. Falling back to default map location.",
+						);
+					}
+					return { coords: defaultCoords };
+				}
 
 				// Step 1: Fetch Country Data (API)
 				const responseCountry = await fetch(apiUrl);
@@ -1825,174 +1834,156 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 											</>
 										)}
 										{field.type === "mapper" && (
-											<div>
-												<div className="input-group">
-													<div className="wrapper">
-														<a
-															className="btn"
-															onClick={() => {
-																// isDialogMapOpen=true;
-																if (dialogMapRef.current) {
-																	const dialogElement =
-																		dialogMapRef.current as HTMLDialogElement & {
-																			mapperField?: any;
-																		};
-																	dialogElement.showModal();
-																	dialogElement.mapperField = field;
+											<div className="space-y-3">
+												<div className="p-inputgroup">
+													<InputText
+														value={(() => {
+															if (!value) {
+																return "";
+															}
+
+															try {
+																if (value.mode) {
+																	return `Shape: ${String(value.mode).toUpperCase()}`;
 																}
-																initializeMap(value ? value : null);
-															}}
-														>
-															<img
-																src={`${base_path}/assets/icons/globe.svg`}
-																alt="Globe SVG File"
-																title="Globe SVG File"
-															/>
-															{ctx.t({
-																code: "spatial_footprint.open_map",
-																desc: "Label for open map button",
-																msg: "Open map",
-															})}
-														</a>
-														{value &&
-															(() => {
-																const getGeoJSON = () => {
-																	let retValue = null;
-																	const mapperGeoField =
-																		field.mapperGeoJSONField
-																			? formData[
-																			field.mapperGeoJSONField
-																			] || ""
-																			: "";
-																	if (mapperGeoField != "") {
-																		retValue = mapperGeoField;
-																	}
-																	return retValue;
+															} catch {
+																return String(value);
+															}
+
+															return String(value);
+														})()}
+														readOnly
+														className="w-full"
+														placeholder={ctx.t({
+															code: "spatial_footprint.open_map",
+															msg: "Open map",
+														})}
+													/>
+													<Button
+														type="button"
+														label={ctx.t({
+															code: "spatial_footprint.open_map",
+															desc: "Label for open map button",
+															msg: "Open map",
+														})}
+														icon="pi pi-globe"
+														outlined
+														onClick={() => {
+															if (dialogMapRef.current) {
+																const dialogElement = dialogMapRef.current as HTMLDialogElement & {
+																	mapperField?: any;
 																};
-
-																try {
-																	let parsedValue = value; // Parse JSON object
-																	if (parsedValue && parsedValue.mode) {
-																		const {
-																			mode,
-																			coordinates,
-																			center,
-																			radius,
-																		} = parsedValue;
-
-																		const title = `Shape: ${mode.toUpperCase()}`;
-
-																		if (
-																			mode === "circle" &&
-																			center &&
-																			radius
-																		) {
-																			// Handle circle mode
-																			return (
-																				<div
-																					className="mapper-selected-shape"
-																					title={title}
-																					onClick={() => {
-																						parsedValue =
-																							getGeoJSON() || parsedValue;
-																						previewGeoJSON(
-																							JSON.stringify(
-																								parsedValue,
-																								null,
-																								2,
-																							),
-																						);
-																					}}
-																				>
-																					<h4>{title}</h4>
-																					<ul>
-																						<li>
-																							Center: Lat {center[0]}, Lng{" "}
-																							{center[1]}
-																						</li>
-																						<li>
-																							Radius: {radius.toFixed(2)}{" "}
-																							meters
-																						</li>
-																					</ul>
-																				</div>
-																			);
-																		} else if (Array.isArray(coordinates)) {
-																			// Handle polygons, rectangles, or lines
-																			return (
-																				<div
-																					className="mapper-selected-shape"
-																					title={title}
-																					onClick={() => {
-																						const newWindow = window.open();
-																						if (newWindow) {
-																							parsedValue =
-																								getGeoJSON() || parsedValue;
-																							newWindow.document.write(
-																								`<pre>${JSON.stringify(parsedValue, null, 2)}</pre>`,
-																							);
-																							newWindow.document.close();
-																						}
-																					}}
-																				>
-																					<h4>{title}</h4>
-																					<ul>
-																						{coordinates.map(
-																							(coordinate, index) => (
-																								<li key={index}>
-																									{ctx.t({
-																										code: "spatial_footprint.latitude",
-																										desc: "Label for latitude value (short)",
-																										msg: "Lat",
-																									})}
-																									: {coordinate[0]},{" "}
-																									{ctx.t({
-																										code: "spatial_footprint.longitude",
-																										desc: "Label for longitude value (short)",
-																										msg: "Lng",
-																									})}
-																									: {coordinate[1]}
-																								</li>
-																							),
-																						)}
-																					</ul>
-																				</div>
-																			);
-																		}
-																	}
-
-																	return <pre>{value}</pre>; // Fallback for invalid structures
-																} catch (err) {
-																	console.error(
-																		"Failed to parse value:",
-																		err,
-																	);
-																	return <pre>Invalid data</pre>;
-																}
-															})()}
-													</div>
-													{field.note && (
-														<div
-															style={{
-																fontSize: "0.8em",
-																marginTop: "0.1rem",
-																color: "#777",
-															}}
-														>
-															{field.note}
-														</div>
-													)}
-													<InputTextarea
-														id={fieldId}
-														name={fieldId}
-														className="hidden-textarea"
-														style={{ display: "none" }}
-														value={value}
-														onChange={(e) =>
-															handleFieldChange(field, e.target.value)
-														}
+																dialogElement.showModal();
+																dialogElement.mapperField = field;
+															}
+															initializeMap(value ? value : null);
+														}}
 													/>
 												</div>
+												{value &&
+													(() => {
+														const getGeoJSON = () => {
+															let retValue = null;
+															const mapperGeoField = field.mapperGeoJSONField
+																? formData[field.mapperGeoJSONField] || ""
+																: "";
+															if (mapperGeoField != "") {
+																retValue = mapperGeoField;
+															}
+															return retValue;
+														};
+
+														try {
+															let parsedValue = value;
+															if (parsedValue && parsedValue.mode) {
+																const { mode, coordinates, center, radius } = parsedValue;
+																const title = `Shape: ${mode.toUpperCase()}`;
+
+																if (mode === "circle" && center && radius) {
+																	return (
+																		<div
+																			className="mapper-selected-shape"
+																			title={title}
+																			onClick={() => {
+																				parsedValue = getGeoJSON() || parsedValue;
+																				previewGeoJSON(JSON.stringify(parsedValue, null, 2));
+																			}}
+																		>
+																			<h4>{title}</h4>
+																			<ul>
+																				<li>Center: Lat {center[0]}, Lng {center[1]}</li>
+																				<li>Radius: {radius.toFixed(2)} meters</li>
+																			</ul>
+																		</div>
+																	);
+																}
+
+																if (Array.isArray(coordinates)) {
+																	return (
+																		<div
+																			className="mapper-selected-shape"
+																			title={title}
+																			onClick={() => {
+																				const newWindow = window.open();
+																				if (newWindow) {
+																					parsedValue = getGeoJSON() || parsedValue;
+																					newWindow.document.write(
+																						`<pre>${JSON.stringify(parsedValue, null, 2)}</pre>`,
+																					);
+																					newWindow.document.close();
+																				}
+																			}}
+																		>
+																			<h4>{title}</h4>
+																			<ul>
+																				{coordinates.map((coordinate, index) => (
+																					<li key={index}>
+																						{ctx.t({
+																							code: "spatial_footprint.latitude",
+																							desc: "Label for latitude value (short)",
+																							msg: "Lat",
+																						})}
+																						: {coordinate[0]}, {ctx.t({
+																							code: "spatial_footprint.longitude",
+																							desc: "Label for longitude value (short)",
+																							msg: "Lng",
+																						})}
+																						: {coordinate[1]}
+																					</li>
+																				))}
+																			</ul>
+																		</div>
+																	);
+																}
+															}
+
+															return <pre>{value}</pre>;
+														} catch (err) {
+															console.error("Failed to parse value:", err);
+															return <pre>Invalid data</pre>;
+														}
+													})()}
+												{field.note && (
+													<div
+														style={{
+															fontSize: "0.8em",
+															marginTop: "0.1rem",
+															color: "#777",
+														}}
+													>
+														{field.note}
+													</div>
+												)}
+												<InputTextarea
+													id={fieldId}
+													name={fieldId}
+													className="hidden-textarea"
+													style={{ display: "none" }}
+													value={value}
+													onChange={(e) =>
+														handleFieldChange(field, e.target.value)
+													}
+												/>
 											</div>
 										)}
 										{field.type === "select" && (
@@ -2025,24 +2016,26 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 											<div className="space-y-2">
 												<div id={fieldId} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
 													{field.options?.map((option, i) => (
-														<label
-															htmlFor={`${fieldId}_${i}`}
+														<div
 															key={i}
-															className="flex cursor-pointer items-center rounded-md border border-slate-200 bg-white px-3 py-2"
+															className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2"
 														>
-															<div className="option-field-horizontal flex items-center gap-2">
-																<RadioButton
-																	inputId={`${fieldId}_${i}`}
-																	name={fieldId}
-																	value={option.value}
-																	checked={value === option.value}
-																	onChange={() =>
-																		handleFieldChange(field, option.value)
-																	}
-																/>
-																<span className="text-sm text-slate-700">{option.label}</span>
-															</div>
-														</label>
+															<RadioButton
+																inputId={`${fieldId}_${i}`}
+																name={fieldId}
+																value={option.value}
+																checked={value === option.value}
+																onChange={(e) =>
+																	handleFieldChange(field, e.value)
+																}
+															/>
+															<label
+																htmlFor={`${fieldId}_${i}`}
+																className="cursor-pointer text-sm text-slate-700"
+															>
+																{option.label}
+															</label>
+														</div>
 													))}
 												</div>
 												{field.note && (

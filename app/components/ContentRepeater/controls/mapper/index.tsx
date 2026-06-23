@@ -435,14 +435,8 @@ export const renderMapperDialog = (
 
 										if (debug) console.log("Field passed to dialog:", field);
 
-										const targetElement = field.domElement;
-
 										const saveGeoJSON = (geoJSON: string) => {
 											if (field?.mapperGeoJSONField) {
-												const geoJSONField = document.getElementById(
-													`${id}_${field?.mapperGeoJSONField}`,
-												) as HTMLInputElement;
-												geoJSONField.value = geoJSON;
 												const setField = {
 													id: field?.mapperGeoJSONField,
 													value: geoJSON,
@@ -818,9 +812,6 @@ export const renderMapperDialog = (
 										} else {
 											if (debug) console.log("No shape created yet.");
 										}
-
-										// Update the textarea value
-										targetElement.value = updatedValue;
 
 										// Trigger the field's onChange handler
 										handleFieldChange(field, JSON.parse(updatedValue));

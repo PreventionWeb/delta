@@ -63,7 +63,7 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 	}
 
 	const settings = await getCountrySettingsFromSession(request);
-	let ctryIso3 = settings?.crtyIso3 || "";
+	let ctryIso3 = settings?.dtsInstanceCtryIso3 || "";
 	const currencies = [settings?.currencyCode || "USD"];
 
 	const divisionGeoJSON = await dr
