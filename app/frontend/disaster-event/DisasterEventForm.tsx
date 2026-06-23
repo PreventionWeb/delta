@@ -1065,6 +1065,7 @@ function StepperValidation({
 		hasDetailType && hasDetailContent && passesOfficialWarningRule;
 	const [errors, setErrors] = useState<Errors>({});
 	const [visibleModalSubmit, setVisibleModalSubmit] = useState<boolean>(false);
+	const [visibleExitModal, setVisibleExitModal] = useState<boolean>(false);
 	const [selectedHipTypeId, setSelectedHipTypeId] = useState(
 		disasterEvent?.hipTypeId ?? "",
 	);
@@ -1334,6 +1335,22 @@ function StepperValidation({
 
 	const saveAsDraft = () => {
 		saveCurrentFormState();
+	};
+
+	const openExitConfirmModal = () => {
+		saveCurrentFormState();
+		setVisibleExitModal(true);
+	};
+
+	const discardAndExit = () => {
+		setVisibleExitModal(false);
+		document.location.href = ctx.url("/disaster-event");
+	};
+
+	const saveDraftAndExit = () => {
+		saveAsDraft();
+		setVisibleExitModal(false);
+		document.location.href = ctx.url("/disaster-event");
 	};
 
 	const formatDateForSubmit = (value: Date | null): string => {
@@ -2282,6 +2299,35 @@ function StepperValidation({
 					usersWithValidatorRole={usersWithValidatorRoleOptions}
 					userRole={user?.role ?? undefined}
 				/>
+				<Dialog
+					header="Are you sure you want to exit?"
+					visible={visibleExitModal}
+					onHide={() => setVisibleExitModal(false)}
+					style={{ width: "42rem", maxWidth: "92vw" }}
+					draggable={false}
+					resizable={false}
+				>
+					<p className="mb-5 text-[16px] leading-[24px] text-slate-500">
+						If you leave this page, your work will not be saved.
+					</p>
+					<div>
+						<Button
+							type="button"
+							label="Save as draft"
+							className="w-full"
+							onClick={saveDraftAndExit}
+						/>
+					</div>
+					<div className="mt-2.5">
+							<Button
+								type="button"
+								label="Discard work and exit"
+								outlined
+								className="w-full"
+								onClick={discardAndExit}
+							/>
+					</div>
+				</Dialog>
 			</div>
 			<style>{`
 			.status-stepper .p-stepper-title::after {
@@ -2706,14 +2752,15 @@ function StepperValidation({
 														Select the administrative areas where the disaster
 														event was experienced.
 													</p>
-													<Button
-														type="button"
-														className="mt-4"
-														label="Add affected areas"
-														outlined
-														icon="pi pi-plus"
-														onClick={openAffectedAreasModal}
-													/>
+													<div className="mt-2.5">
+														<Button
+															type="button"
+															label="Add affected areas"
+															outlined
+															icon="pi pi-plus"
+															onClick={openAffectedAreasModal}
+														/>
+													</div>
 													<div className="mt-6 flex flex-wrap gap-2 text-sm">
 														{selectedDivisionItems.length > 0 &&
 															selectedDivisionItems.map((item) => (
@@ -2734,11 +2781,6 @@ function StepperValidation({
 																	</button>
 																</div>
 															))}
-														{selectedDivisionItems.length === 0 ? (
-															<p className="text-[13px] text-slate-400">
-																No affected areas selected yet
-															</p>
-														) : null}
 													</div>
 												</div>
 												<i className="pi pi-chevron-right pt-2 text-slate-400" />
@@ -2757,22 +2799,19 @@ function StepperValidation({
 													<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
 														Define the specific geographic area affected using interactive map coordinates or manual input.
 													</p>
-													<Button
-														type="button"
-														className="mt-4"
-														label={
-															spatialFootprintValue.length > 0
-																? "Edit spatial footprint"
-																: "Add spatial footprint"
-														}
-														outlined
-														icon="pi pi-plus"
-														onClick={openSpatialFootprintModal}
-													/>
+													<div className="mt-2.5">
+														<Button
+															type="button"
+															label="Define spatial footprint"
+															outlined
+															icon="pi pi-map"
+															onClick={openSpatialFootprintModal}
+														/>
+													</div>
 												</div>
 												<i className="pi pi-chevron-right pt-2 text-slate-400" />
 											</div>
-											<div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-[13px] text-slate-600">
+											<div className="px-3 py-3 text-[13px] text-slate-600">
 												{spatialFootprintValue.length > 0
 													? `${spatialFootprintValue.length} spatial footprint item(s) added`
 													: "No spatial footprint items added yet"}
@@ -2786,9 +2825,7 @@ function StepperValidation({
 										type="button"
 										label="Cancel"
 										outlined
-										onClick={() =>
-											(document.location.href = ctx.url("/disaster-event"))
-										}
+										onClick={openExitConfirmModal}
 									/>
 									<div className="flex gap-2">
 										<Button
@@ -2984,9 +3021,7 @@ function StepperValidation({
 										type="button"
 										label="Cancel"
 										outlined
-										onClick={() =>
-											(document.location.href = ctx.url("/disaster-event"))
-										}
+										onClick={openExitConfirmModal}
 									/>
 									<div className="flex gap-2">
 										<Button
@@ -3355,9 +3390,7 @@ function StepperValidation({
 										type="button"
 										label="Cancel"
 										outlined
-										onClick={() =>
-											(document.location.href = ctx.url("/disaster-event"))
-										}
+										onClick={openExitConfirmModal}
 									/>
 									<div className="flex gap-2">
 										<Button
@@ -3600,9 +3633,7 @@ function StepperValidation({
 										type="button"
 										label="Cancel"
 										outlined
-										onClick={() =>
-											(document.location.href = ctx.url("/disaster-event"))
-										}
+										onClick={openExitConfirmModal}
 									/>
 									<div className="flex gap-2">
 										<Button
