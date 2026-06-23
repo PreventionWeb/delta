@@ -6,7 +6,15 @@ import React, {
 	useImperativeHandle,
 	useCallback,
 } from "react";
-import { initTokenField, renderTokenField } from "./controls/tokenfield";
+import { FileUpload } from "primereact/fileupload";
+import { Dropdown } from "primereact/dropdown";
+import { Dialog } from "primereact/dialog";
+import { Button } from "primereact/button";
+import { MultiSelect } from "primereact/multiselect";
+import { RadioButton } from "primereact/radiobutton";
+import { InputText } from "primereact/inputtext";
+import { InputTextarea } from "primereact/inputtextarea";
+import { Message } from "primereact/message";
 import {
 	renderMapperDialog,
 	previewMap,
@@ -62,23 +70,23 @@ interface TableColumn {
 	type: "dialog_field" | "action" | "custom";
 	dialog_field_id?: string;
 	caption: string;
-	render?: (item: any) => React.ReactNode; // Custom render function for "custom" type
-	width?: string | number; // Add optional width property
+	render?: (item: any) => React.ReactNode;
+	width?: string | number;
 }
 
 interface DialogField {
 	id: string;
 	caption: string;
 	type:
-		| "input"
-		| "select"
-		| "file"
-		| "option"
-		| "textarea"
-		| "mapper"
-		| "tokenfield"
-		| "hidden"
-		| "custom";
+	| "input"
+	| "select"
+	| "file"
+	| "option"
+	| "textarea"
+	| "mapper"
+	| "tokenfield"
+	| "hidden"
+	| "custom";
 	required?: boolean;
 	options?: { value: string; label: string }[];
 	placeholder?: string;
@@ -92,22 +100,20 @@ interface DialogField {
 		formData?: any | null,
 		setFormData?: React.Dispatch<React.SetStateAction<any>> | null,
 		currentDialogFields?: DialogField[] | null,
-		setDialogFields?: React.Dispatch<
-			React.SetStateAction<DialogField[]>
-		> | null,
+		setDialogFields?: React.Dispatch<React.SetStateAction<DialogField[]>> | null,
 	) => void;
 	mapperGeoJSONField?: string;
 	render?: (
 		value: any,
 		handleFieldChange: any | null,
 		formData: any | null,
-	) => React.ReactNode; // Custom render function for "custom" type
+	) => React.ReactNode;
 }
 
 interface ContentRepeaterProps {
 	ctx: ViewContext;
 	id: string;
-	dnd_order?: boolean; // Enable/disable drag-and-drop
+	dnd_order?: boolean;
 	base_path?: string;
 	table_columns?: TableColumn[];
 	dialog_fields?: DialogField[];
@@ -129,25 +135,21 @@ const loadLeaflet = (() => {
 
 	return () => {
 		if (!isLoaded) {
-			// Load Leaflet CSS
 			const leafletCSS = document.createElement("link");
 			leafletCSS.rel = "stylesheet";
 			leafletCSS.href = glbMapperCSS;
 			document.head.appendChild(leafletCSS);
 
-			// Load Leaflet JavaScript
 			const leafletJS = document.createElement("script");
 			leafletJS.src = glbMapperJS;
 			leafletJS.async = true;
 			leafletJS.onload = () => {
-				// Load Leaflet.draw CSS
 				const leafletDrawCSS = document.createElement("link");
 				leafletDrawCSS.rel = "stylesheet";
 				leafletDrawCSS.href =
 					"https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css";
 				document.head.appendChild(leafletDrawCSS);
 
-				// Load Leaflet.draw JavaScript
 				const leafletDrawJS = document.createElement("script");
 				leafletDrawJS.src =
 					"https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js";
@@ -157,7 +159,6 @@ const loadLeaflet = (() => {
 				};
 				document.head.appendChild(leafletDrawJS);
 
-				// Add inline CSS override for Leaflet SVG
 				const style = document.createElement("style");
 				style.type = "text/css";
 				style.innerHTML = `
@@ -169,15 +170,15 @@ const loadLeaflet = (() => {
           .leaflet-marker-icon {
             width: 10px !important;
             height: 10px !important;
-            margin-left: -5px !important; /* Half of the new width */
-            margin-top: -5px !important; /* Half of the new height */
+            margin-left: -5px !important;
+            margin-top: -5px !important;
           }
 
           .custom-leaflet-marker {
             width: 20px !important;
             height: 20px !important;
-            margin-left: -5px !important; /* Half of width */
-            margin-top: -20px !important; /* Height for bottom alignment */
+            margin-left: -5px !important;
+            margin-top: -20px !important;
           }
 
           .content-repeater-mapper {
@@ -235,25 +236,19 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 		const [isDialogOpen, setIsDialogOpen] = useState(false);
 		// let isDialogMapOpen=false;
 		const [editingItem, setEditingItem] = useState<any>(null);
-		const dialogRef = useRef<HTMLDialogElement>(null);
+		const dialogRef = useRef<any>(null);
 		const [formData, setFormData] = useState<any>({});
+		const [dialogError, setDialogError] = useState<string | null>(null);
 		const [currentDialogFields, setDialogFields] =
 			useState<DialogField[]>(dialog_fields);
-		const fileInputRefs = React.useRef<
-			Record<string, React.RefObject<HTMLInputElement | null>>
-		>({});
-		const tokenfieldRefs = React.useRef<
-			Record<string, React.RefObject<HTMLInputElement | null>>
+		const [tokenfieldOptions, setTokenfieldOptions] = useState<
+			Record<string, { id: number; name: string }[]>
 		>({});
 		const dragIndex = useRef<number | null>(null);
 
 		useEffect(() => {
 			const handleKeyDown = (event: KeyboardEvent) => {
-				const activeDialog = document.querySelector(
-					"dialog[open]",
-				) as HTMLDialogElement | null;
-
-				if (activeDialog && event.key === "Enter") {
+				if (isDialogOpen && event.key === "Enter") {
 					const isTextInput = ["TEXTAREA", "INPUT"].includes(
 						(event.target as HTMLElement).tagName,
 					);
@@ -266,42 +261,55 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 
 			document.addEventListener("keydown", handleKeyDown);
 			return () => document.removeEventListener("keydown", handleKeyDown);
-		}, []);
+		}, [isDialogOpen]);
 
 		useEffect(() => {
 			setDialogFields(dialog_fields);
 		}, [dialog_fields]);
 
-		// useEffect(() => {
-		//   const refs: { [key: string]: React.RefObject<HTMLInputElement> } = {};
-		//   dialog_fields.forEach((field) => {
-		//     if (field.type === "file") {
-		//       refs[field.id] = React.createRef<HTMLInputElement>();
-		//     }
-		//   });
-		//   fileInputRefs.current = refs;
-		// }, [dialog_fields]);
-
 		useEffect(() => {
-			const fileRefs: Record<
-				string,
-				React.RefObject<HTMLInputElement | null>
-			> = {};
-			const tokenfieldRefsLocal: Record<
-				string,
-				React.RefObject<HTMLInputElement | null>
-			> = {};
+			let ignore = false;
 
-			dialog_fields.forEach((field) => {
-				if (field.type === "file") {
-					fileRefs[field.id] = React.createRef<HTMLInputElement>();
-				} else if (field.type === "tokenfield") {
-					tokenfieldRefsLocal[field.id] = React.createRef<HTMLInputElement>();
+			const loadTokenfieldOptions = async () => {
+				const nextOptions: Record<string, { id: number; name: string }[]> = {};
+
+				await Promise.all(
+					dialog_fields.map(async (field) => {
+						if (field.type !== "tokenfield") return;
+
+						if (typeof field.dataSource === "string") {
+							try {
+								const response = await fetch(field.dataSource);
+								if (response.ok) {
+									nextOptions[field.id] = await response.json();
+								} else {
+									nextOptions[field.id] = [];
+									console.error(
+										`Failed to fetch tokenfield options: ${response.statusText}`,
+									);
+								}
+							} catch (error) {
+								nextOptions[field.id] = [];
+								console.error("Error fetching tokenfield options:", error);
+							}
+						} else {
+							nextOptions[field.id] = Array.isArray(field.dataSource)
+								? field.dataSource
+								: [];
+						}
+					}),
+				);
+
+				if (!ignore) {
+					setTokenfieldOptions(nextOptions);
 				}
-			});
+			};
 
-			fileInputRefs.current = fileRefs;
-			tokenfieldRefs.current = tokenfieldRefsLocal;
+			loadTokenfieldOptions();
+
+			return () => {
+				ignore = true;
+			};
 		}, [dialog_fields]);
 
 		useEffect(() => {
@@ -319,104 +327,67 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 			}
 		}, [dialog_fields]);
 
-		const openDialog = (item: any = null, dialogRef: any = null) => {
+		const openDialog = (item: any = null) => {
 			const initialFormData = item
 				? { ...item }
 				: dialog_fields.reduce<Record<string, any>>((acc, field) => {
-						if (field.type === "select" && field.options?.length) {
-							acc[field.id] = field.options[0].value;
-						} else if (field.type === "option" && field.options?.length) {
-							acc[field.id] = field.options[0].value;
-						} else if (field.type === "input" || field.type === "textarea") {
-							acc[field.id] = "";
-						}
-						return acc;
-					}, {});
-
-			Object.values(fileInputRefs.current).forEach((ref) => {
-				if (ref.current) {
-					ref.current.value = "";
-				}
-			});
+					if (field.type === "select" && field.options?.length) {
+						acc[field.id] = field.options[0].value;
+					} else if (field.type === "option" && field.options?.length) {
+						acc[field.id] = field.options[0].value;
+					} else if (field.type === "tokenfield") {
+						acc[field.id] = [];
+					} else if (field.type === "input" || field.type === "textarea") {
+						acc[field.id] = "";
+					}
+					return acc;
+				}, {});
 
 			const dialogFieldsWithDOM = dialog_fields.map((field) => ({
 				...field,
 				domElement: document.getElementById(`${id}_${field.id}`), // Attach DOM element
 			}));
 
-			dialog_fields.forEach((field: DialogField) => {
-				const element = document.getElementById(`${id}_${field.id}`);
-				if (field.type === "tokenfield" && element) {
-					// Initialize tokenfield on the element
-					initTokenField(
-						initialFormData[field.id] || [], // Pass current value or an empty array
-						element as HTMLInputElement,
-						typeof field.dataSource === "string"
-							? field.dataSource
-							: Array.isArray(field?.dataSource)
-								? field.dataSource
-								: [],
-						field,
-						handleFieldChange,
-					);
-				}
-			});
-
-			dialog_fields.forEach((field: DialogField) => {
-				if (
-					(field.type === "tokenfield" ||
-						field.type === "select" ||
-						field.type === "option") &&
-					field.onChange
-				) {
-					const initialValue = initialFormData[field.id];
-					field.onChange(
-						{ target: { value: initialValue } },
-						dialogFieldsWithDOM, // Pass updated dialog fields with DOM references
-						null,
-						null,
-						null,
-					);
-				}
-			});
-
-			const errorDiv = dialogRef.current?.querySelector(
-				".dts-alert.dts-alert--error",
-			) as HTMLElement;
-			if (errorDiv) {
-				errorDiv.style.display = "none";
-			}
+			setDialogError(null);
 
 			setEditingItem(item);
 			setFormData(initialFormData);
 			setDialogFields(dialogFieldsWithDOM); // Update dialog fields with DOM references
 			setIsDialogOpen(true);
-			dialogRef.current?.showModal();
+
+			requestAnimationFrame(() => {
+				const renderedDialogFields = dialog_fields.map((field) => ({
+					...field,
+					domElement: document.getElementById(`${id}_${field.id}`),
+				}));
+
+				setDialogFields(renderedDialogFields);
+
+				dialog_fields.forEach((field: DialogField) => {
+					if (
+						(field.type === "tokenfield" ||
+							field.type === "select" ||
+							field.type === "option") &&
+						field.onChange
+					) {
+						const initialValue = initialFormData[field.id];
+						field.onChange(
+							{ target: { value: initialValue } },
+							initialFormData,
+							setFormData,
+							renderedDialogFields,
+							setDialogFields,
+						);
+					}
+				});
+			});
 		};
 
 		const closeDialog = () => {
 			// Reset form data, including tokenfield values
 			setFormData({}); // Clears all field values
 			setEditingItem(null); // Clear editing state
-
-			// Clear tokenfields
-			Object.values(tokenfieldRefs.current).forEach((ref) => {
-				if (ref.current) {
-					// Clear the hidden textarea value
-					ref.current.value = "";
-
-					// Clear the UI tokens (assumes tokens are wrapped in a container)
-					const tokenContainer = ref.current.parentElement?.querySelector(
-						".custom-tokenfield-tokens",
-					);
-					if (tokenContainer) {
-						tokenContainer.innerHTML = ""; // Remove all tokens
-					}
-				}
-			});
-
 			setIsDialogOpen(false);
-			dialogRef.current?.close();
 		};
 
 		const dialogMapRef = useRef<HTMLDialogElement>(null);
@@ -466,7 +437,14 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 			const defaultCoords: [number, number] = [43.833, 87.616];
 
 			try {
-				if (!iso3) throw new Error("Country ISO3 code is missing");
+				if (!iso3) {
+					if (debug) {
+						console.log(
+							"Country ISO3 code is missing. Falling back to default map location.",
+						);
+					}
+					return { coords: defaultCoords };
+				}
 
 				// Step 1: Fetch Country Data (API)
 				const responseCountry = await fetch(apiUrl);
@@ -1361,11 +1339,6 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 					return false;
 				});
 
-			// Access the error message container
-			const errorDiv = dialogRef.current?.querySelector(
-				".dts-alert.dts-alert--error",
-			) as HTMLElement;
-
 			if (missingFields.length > 0) {
 				console.log("missingFields = ", missingFields);
 				// Construct the error message
@@ -1378,13 +1351,11 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 					{ fields: missingFields.map((field) => field.caption).join(", ") },
 				);
 
-				// Display the error message in the error div
-				if (errorDiv) {
-					errorDiv.textContent = errorMessage;
-					errorDiv.style.display = "block";
-				}
+				setDialogError(errorMessage);
 				return; // Stop saving if validation fails
 			}
+
+			setDialogError(null);
 
 			if (editingItem) {
 				const updatedItems = {
@@ -1615,7 +1586,7 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 														})}
 														onClick={(e) => {
 															e.preventDefault();
-															openDialog(item, dialogRef);
+															openDialog(item);
 														}}
 													>
 														<i className="pi pi-pencil" aria-hidden="true" />
@@ -1648,7 +1619,7 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 							style={{ width: "fit-content" }}
 							onClick={(e) => {
 								e.preventDefault();
-								openDialog(null, dialogRef);
+								openDialog(null);
 							}}
 						>
 							{ctx.t({
@@ -1719,613 +1690,532 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 					debug,
 				)}
 
-				<dialog
+				<Dialog
 					ref={dialogRef}
-					className="dts-dialog"
-					{...(isDialogOpen ? { open: true } : {})}
+					visible={isDialogOpen}
+					onHide={closeDialog}
+					header={
+						editingItem
+							? ctx.t({
+								code: "common.edit_item",
+								msg: "Edit item",
+							})
+							: ctx.t({
+								code: "common.add_new_item",
+								msg: "Add new item",
+							})
+					}
+					modal
+					style={{ width: "min(92vw, 72rem)" }}
+					breakpoints={{
+						"1199px": "90vw",
+						"767px": "95vw",
+					}}
 				>
-					<div className="dts-dialog__content">
-						<div
-							className="dts-dialog__header"
-							style={{ justifyContent: "space-between" }}
-						>
-							<h2 className="dts-heading-2">
-								{editingItem
-									? ctx.t({
-											code: "common.edit_item",
-											msg: "Edit item",
-										})
-									: ctx.t({
-											code: "common.add_new_item",
-											msg: "Add new item",
-										})}
-							</h2>
-							<a
-								type="button"
-								aria-label={ctx.t({
-									code: "common.close_dialog",
-									msg: "Close dialog",
-								})}
-								onClick={closeDialog}
-								style={{ color: "#000" }}
-								className="dts-dialog-close-button"
-							>
-								<svg
-									aria-hidden="true"
-									focusable="false"
-									role="img"
-									className="dts-svg-24"
-								>
-									<use href={`${base_path}/assets/icons/close.svg#close`}></use>
-								</svg>
-							</a>
-						</div>
-						<div>
-							<div className="dts-form__body">
+					<div className="space-y-4">
+						{dialogError ? (
+							<Message severity="error" text={dialogError} className="mb-1" />
+						) : null}
+						{currentDialogFields.map((field, index) => {
+							const fieldId = `${id}_${field.id}`;
+							const value = formData[field.id] || "";
+							const selectedAttachmentType = formData.file_option;
+							const isAttachmentFileField = field.id === "file";
+							const isAttachmentLinkField = field.id === "url";
+							const isVisibleByAttachmentType =
+								isAttachmentFileField || isAttachmentLinkField
+									? selectedAttachmentType === "Link"
+										? isAttachmentLinkField
+										: isAttachmentFileField
+									: true;
+
+							if (field.type === "hidden") {
+								field.show = false;
+							}
+
+							return (
 								<div
-									className="dts-alert dts-alert--error"
-									style={{ display: "none" }}
-								></div>
-								{currentDialogFields.map((field, index) => {
-									const fieldId = `${id}_${field.id}`;
-									const value = formData[field.id] || "";
-
-									if (field.type === "hidden") {
-										field.show = false;
-									}
-
-									return (
-										<div
-											className="dts-form-component"
-											key={index}
-											style={{
-												display: field.show === false ? "none" : "block",
-											}}
-										>
-											<label
-												{...(field.type !== "option"
-													? { htmlFor: fieldId }
-													: {})}
-											>
-												<div className="dts-form-component__label">
-													<span>{field.caption}</span>
-												</div>
-												{field.type === "custom" && (
-													<>
-														{field.render &&
-															field.render(value, handleFieldChange, formData)}
-													</>
-												)}
-												{field.type === "hidden" && (
-													<>
-														<textarea
-															id={fieldId}
-															onChange={(e) =>
-																handleFieldChange(field, e.target.value)
-															}
-															value={value}
-														></textarea>
-													</>
-												)}
-												{field.type == "tokenfield" &&
-													renderTokenField(
-														field,
-														fieldId,
-														value,
-														tokenfieldRefs,
-														handleFieldChange,
-													)}
-												{field.type === "input" && (
-													<>
-														<input
-															id={fieldId}
-															type="text"
-															placeholder={field.placeholder || ""}
-															value={value}
-															onChange={(e) =>
-																handleFieldChange(field, e.target.value)
-															}
-														/>
-														{field.note && (
-															<div
-																style={{
-																	fontSize: "0.8em",
-																	marginTop: "0.1rem",
-																	color: "#777",
-																}}
-															>
-																{field.note}
-															</div>
-														)}
-													</>
-												)}
-												{field.type === "textarea" && (
-													<>
-														<textarea
-															id={fieldId}
-															placeholder={field.placeholder || ""}
-															onChange={(e) =>
-																handleFieldChange(field, e.target.value)
-															}
-															style={{ marginBottom: "2rem" }}
-															value={value}
-														></textarea>
-														{field.note && (
-															<div
-																style={{
-																	fontSize: "0.8em",
-																	marginTop: "0.1rem",
-																	color: "#777",
-																}}
-															>
-																{field.note}
-															</div>
-														)}
-													</>
-												)}
-												{field.type === "mapper" && (
-													<div>
-														<div className="input-group">
-															<div className="wrapper">
-																<a
-																	className="btn"
-																	onClick={() => {
-																		// isDialogMapOpen=true;
-																		if (dialogMapRef.current) {
-																			const dialogElement =
-																				dialogMapRef.current as HTMLDialogElement & {
-																					mapperField?: any;
-																				};
-																			dialogElement.showModal();
-																			dialogElement.mapperField = field;
-																		}
-																		initializeMap(value ? value : null);
-																	}}
-																>
-																	<img
-																		src={`${base_path}/assets/icons/globe.svg`}
-																		alt="Globe SVG File"
-																		title="Globe SVG File"
-																	/>
-																	{ctx.t({
-																		code: "spatial_footprint.open_map",
-																		desc: "Label for open map button",
-																		msg: "Open map",
-																	})}
-																</a>
-																{value &&
-																	(() => {
-																		const getGeoJSON = () => {
-																			let retValue = null;
-																			const mapperGeoField =
-																				field.mapperGeoJSONField
-																					? formData[
-																							field.mapperGeoJSONField
-																						] || ""
-																					: "";
-																			if (mapperGeoField != "") {
-																				retValue = mapperGeoField;
-																			}
-																			return retValue;
-																		};
-
-																		try {
-																			let parsedValue = value; // Parse JSON object
-																			if (parsedValue && parsedValue.mode) {
-																				const {
-																					mode,
-																					coordinates,
-																					center,
-																					radius,
-																				} = parsedValue;
-
-																				const title = `Shape: ${mode.toUpperCase()}`;
-
-																				if (
-																					mode === "circle" &&
-																					center &&
-																					radius
-																				) {
-																					// Handle circle mode
-																					return (
-																						<div
-																							className="mapper-selected-shape"
-																							title={title}
-																							onClick={() => {
-																								parsedValue =
-																									getGeoJSON() || parsedValue;
-																								previewGeoJSON(
-																									JSON.stringify(
-																										parsedValue,
-																										null,
-																										2,
-																									),
-																								);
-																							}}
-																						>
-																							<h4>{title}</h4>
-																							<ul>
-																								<li>
-																									Center: Lat {center[0]}, Lng{" "}
-																									{center[1]}
-																								</li>
-																								<li>
-																									Radius: {radius.toFixed(2)}{" "}
-																									meters
-																								</li>
-																							</ul>
-																						</div>
-																					);
-																				} else if (Array.isArray(coordinates)) {
-																					// Handle polygons, rectangles, or lines
-																					return (
-																						<div
-																							className="mapper-selected-shape"
-																							title={title}
-																							onClick={() => {
-																								const newWindow = window.open();
-																								if (newWindow) {
-																									parsedValue =
-																										getGeoJSON() || parsedValue;
-																									newWindow.document.write(
-																										`<pre>${JSON.stringify(parsedValue, null, 2)}</pre>`,
-																									);
-																									newWindow.document.close();
-																								}
-																							}}
-																						>
-																							<h4>{title}</h4>
-																							<ul>
-																								{coordinates.map(
-																									(coordinate, index) => (
-																										<li key={index}>
-																											{ctx.t({
-																												code: "spatial_footprint.latitude",
-																												desc: "Label for latitude value (short)",
-																												msg: "Lat",
-																											})}
-																											: {coordinate[0]},{" "}
-																											{ctx.t({
-																												code: "spatial_footprint.longitude",
-																												desc: "Label for longitude value (short)",
-																												msg: "Lng",
-																											})}
-																											: {coordinate[1]}
-																										</li>
-																									),
-																								)}
-																							</ul>
-																						</div>
-																					);
-																				}
-																			}
-
-																			return <pre>{value}</pre>; // Fallback for invalid structures
-																		} catch (err) {
-																			console.error(
-																				"Failed to parse value:",
-																				err,
-																			);
-																			return <pre>Invalid data</pre>;
-																		}
-																	})()}
-															</div>
-															{field.note && (
-																<div
-																	style={{
-																		fontSize: "0.8em",
-																		marginTop: "0.1rem",
-																		color: "#777",
-																	}}
-																>
-																	{field.note}
-																</div>
-															)}
-															<textarea
-																id={fieldId}
-																name={fieldId}
-																className="dts-hidden-textarea"
-																style={{ display: "none" }}
-																value={value}
-																onChange={(e) =>
-																	handleFieldChange(field, e.target.value)
-																}
-															></textarea>
-														</div>
-													</div>
-												)}
-												{field.type === "select" && (
-													<>
-														<select
-															id={fieldId}
-															value={value}
-															onChange={(e) =>
-																handleFieldChange(field, e.target.value)
-															}
-														>
-															{field.options?.map((option) => (
-																<option key={option.value} value={option.value}>
-																	{option.label}
-																</option>
-															))}
-														</select>
-														{field.note && (
-															<div
-																style={{
-																	fontSize: "0.8em",
-																	marginTop: "0.1rem",
-																	color: "#777",
-																}}
-															>
-																{field.note}
-															</div>
-														)}
-													</>
-												)}
-												{field.type === "option" && (
-													<div>
-														<div
-															id={fieldId}
-															className="mg-grid mg-grid__col-auto"
-														>
-															{field.options?.map((option, i) => (
-																<label
-																	htmlFor={`${fieldId}_${i}`}
-																	key={i}
-																	style={{
-																		display: "block",
-																		marginBottom: "0.5rem",
-																	}}
-																>
-																	<div className="dts-form-component__field--horizontal">
-																		<input
-																			type="radio"
-																			id={`${fieldId}_${i}`}
-																			name={fieldId}
-																			value={option.value}
-																			checked={value === option.value}
-																			onChange={(e) =>
-																				handleFieldChange(field, e.target.value)
-																			}
-																		/>
-																		<span>{option.label}</span>
-																	</div>
-																</label>
-															))}
-														</div>
-														{field.note && (
-															<div
-																style={{
-																	fontSize: "0.8em",
-																	marginTop: "0.1rem",
-																	color: "#777",
-																}}
-															>
-																{field.note}
-															</div>
-														)}
-													</div>
-												)}
-												{field.type === "file" && (
-													<div className="input-file">
-														<div
-															id={`file-link-loading-${field.id}`}
-															className="uploading"
-														>
-															{ctx.t({
-																code: "common.uploading_please_wait",
-																desc: "Message shown while file is uploading",
-																msg: "Uploading, please wait...",
-															})}
-														</div>
-														{formData[field.id]?.name && (
-															<>
-																<a
-																	id={`file-link-${field.id}`}
-																	className="file-link"
-																	href={`${base_path}${
-																		formData[field.id]?.view ??
-																		(file_viewer_url
-																			? ctx.url(
-																					`${file_viewer_url}${file_viewer_url.includes("?") ? "&" : "?"}name=${encodeURIComponent(
-																						formData[field.id]?.name
-																							.split("/")
-																							.slice(-2)
-																							.join("/") || "",
-																					)}${field.download ? "&download=true" : ""}`,
-																				)
-																			: formData[field.id]?.name || "")
-																	}`}
-																	target={
-																		!field.download ? "_blank" : undefined
-																	}
-																	rel="noopener noreferrer"
-																>
-																	{formData[field.id]?.name.split("/").pop()}
-																</a>
-															</>
-														)}
-														<input
-															id={fieldId}
-															type="file"
-															ref={fileInputRefs.current[field.id]} // Attach the correct ref
-															accept={
-																field.accept
-																	? field.accept
-																			.split("|")
-																			.map((ext) => `.${ext}`)
-																			.join(",")
-																	: undefined
-															}
-															onChange={async (e) => {
-																const file = e.target.files?.[0];
-																if (file) {
-																	const extension = file.name
-																		.split(".")
-																		.pop()
-																		?.toLowerCase();
-																	const allowedExtensions =
-																		field.accept?.split("|");
-
-																	// Client-side validation for file types
-																	if (
-																		allowedExtensions &&
-																		!allowedExtensions.includes(extension || "")
-																	) {
-																		//alert(`Invalid file type. Allowed types: ${allowedExtensions.join(", ")}`);
-																		const errorDiv =
-																			dialogRef.current?.querySelector(
-																				".dts-alert.dts-alert--error",
-																			) as HTMLElement;
-																		if (errorDiv) {
-																			errorDiv.style.display = "block";
-																			errorDiv.textContent = `Invalid file type`;
-																		}
-																		return;
-																	}
-
-																	try {
-																		const fileLinkLoading =
-																			document.getElementById(
-																				`file-link-loading-${field.id}`,
-																			);
-																		if (fileLinkLoading)
-																			fileLinkLoading.style.display = "block";
-
-																		const fileLinkElement =
-																			document.getElementById(
-																				`file-link-${field.id}`,
-																			) as HTMLElement;
-																		if (fileLinkElement)
-																			fileLinkElement.style.display = "none";
-
-																		const previousHrefElement =
-																			document.getElementById(
-																				`file-link-${field.id}`,
-																			);
-																		const previousHref =
-																			previousHrefElement?.getAttribute(
-																				"href",
-																			) || null;
-
-																		const fileData = await handleFileUpload(
-																			file,
-																			previousHref,
-																		);
-																		handleFieldChange(field, fileData);
-
-																		// Reset the file input after upload
-																		if (
-																			fileInputRefs.current[field.id]?.current
-																		) {
-																			fileInputRefs.current[
-																				field.id
-																			].current!.value = "";
-																			const element = document.getElementById(
-																				`file-link-loading-${field.id}`,
-																			);
-																			if (element) {
-																				element.style.display = "none";
-																			}
-																			const fileLinkElement =
-																				document.getElementById(
-																					`file-link-${field.id}`,
-																				) as HTMLElement;
-																			if (fileLinkElement)
-																				fileLinkElement.style.display = "block";
-																		}
-																	} catch (error) {
-																		// Enhanced error handling and user notification
-																		console.error("File upload failed:", error);
-
-																		// Display an error message to the user
-																		const errorMessage =
-																			error instanceof Error
-																				? error.message
-																				: "An unknown error occurred during the file upload.";
-																		//alert(`Error: ${errorMessage}`);
-
-																		const errorDiv =
-																			dialogRef.current?.querySelector(
-																				".dts-alert.dts-alert--error",
-																			) as HTMLElement;
-																		if (errorDiv) {
-																			const errorDivStyle = errorDiv.style;
-																			if (errorDivStyle)
-																				errorDiv.style.display = "block";
-																			errorDiv.textContent = `${errorMessage}`;
-																		}
-
-																		const dtsAlert = document.querySelector(
-																			".dts-alert.dts-alert--error",
-																		) as HTMLElement;
-																		if (dtsAlert)
-																			dtsAlert.style.display = "block";
-
-																		// Optionally toggle UI elements back
-																		document.getElementById(
-																			`file-link-loading-${field.id}`,
-																		)!.style.display = "none";
-																		const fileLinkElement =
-																			document.getElementById(
-																				`file-link-${field.id}`,
-																			);
-																		if (fileLinkElement)
-																			fileLinkElement.style.display = "block";
-
-																		const fileInput = document.getElementById(
-																			`${id}_file`,
-																		) as HTMLInputElement;
-																		if (fileInput) {
-																			fileInput.value = "";
-																		}
-																	}
-																}
-															}}
-														/>
-														{field.note && (
-															<div
-																style={{
-																	fontSize: "0.8em",
-																	marginTop: "1rem",
-																	color: "#777",
-																}}
-															>
-																{field.note}
-															</div>
-														)}
-													</div>
-												)}
-											</label>
+									className="cr-form-field rounded-lg border border-slate-200 bg-slate-50/60 p-3"
+									key={index}
+									style={{
+										display:
+											field.show === false || !isVisibleByAttachmentType
+												? "none"
+												: "block",
+									}}
+								>
+									<label
+										{...(field.type !== "option"
+											? { htmlFor: fieldId }
+											: {})}
+										className="block"
+									>
+										<div className="mb-2 text-sm font-medium text-slate-700">
+											<span>{field.caption}</span>
 										</div>
-									);
-								})}
-							</div>
-							<div className="dts-form__actions">
-								<a
-									type="submit"
-									className="mg-button mg-button-primary"
-									onClick={handleSave}
-								>
-									{ctx.t({
-										code: "common.apply",
-										msg: "Apply",
-									})}
-								</a>
-								<a
-									type="button"
-									className="mg-button mg-button-outline"
-									onClick={closeDialog}
-								>
-									{ctx.t({
-										code: "common.cancel",
-										msg: "Cancel",
-									})}
-								</a>
-							</div>
-						</div>
+										{field.type === "custom" && (
+											<>
+												{field.render &&
+													field.render(value, handleFieldChange, formData)}
+											</>
+										)}
+										{field.type === "hidden" && (
+											<>
+												<textarea
+													id={fieldId}
+													onChange={(e) =>
+														handleFieldChange(field, e.target.value)
+													}
+													value={value}
+												></textarea>
+											</>
+										)}
+										{field.type == "tokenfield" && (
+											<MultiSelect
+												inputId={fieldId}
+												value={Array.isArray(value) ? value : []}
+												onChange={(e) => handleFieldChange(field, e.value)}
+												options={tokenfieldOptions[field.id] || []}
+												optionLabel="name"
+												placeholder={field.placeholder || field.caption}
+												className="w-full"
+												display="chip"
+												filter
+												maxSelectedLabels={7}
+											/>
+										)}
+										{field.type === "input" && (
+											<>
+												<InputText
+													id={fieldId}
+													className="w-full"
+													placeholder={field.placeholder || ""}
+													value={value}
+													onChange={(e) =>
+														handleFieldChange(field, e.target.value)
+													}
+												/>
+												{field.note && (
+													<div
+														style={{
+															fontSize: "0.8em",
+															marginTop: "0.4rem",
+															color: "#777",
+														}}
+													>
+														{field.note}
+													</div>
+												)}
+											</>
+										)}
+										{field.type === "textarea" && (
+											<>
+												<InputTextarea
+													id={fieldId}
+													className="w-full"
+													placeholder={field.placeholder || ""}
+													onChange={(e) =>
+														handleFieldChange(field, e.target.value)
+													}
+													rows={4}
+													value={value}
+												/>
+												{field.note && (
+													<div
+														style={{
+															fontSize: "0.8em",
+															marginTop: "0.4rem",
+															color: "#777",
+														}}
+													>
+														{field.note}
+													</div>
+												)}
+											</>
+										)}
+										{field.type === "mapper" && (
+											<div className="space-y-3">
+												<div className="p-inputgroup">
+													<InputText
+														value={(() => {
+															if (!value) {
+																return "";
+															}
+
+															try {
+																if (value.mode) {
+																	return `Shape: ${String(value.mode).toUpperCase()}`;
+																}
+															} catch {
+																return String(value);
+															}
+
+															return String(value);
+														})()}
+														readOnly
+														className="w-full"
+														placeholder={ctx.t({
+															code: "spatial_footprint.open_map",
+															msg: "Open map",
+														})}
+													/>
+													<Button
+														type="button"
+														label={ctx.t({
+															code: "spatial_footprint.open_map",
+															desc: "Label for open map button",
+															msg: "Open map",
+														})}
+														icon="pi pi-globe"
+														outlined
+														onClick={() => {
+															if (dialogMapRef.current) {
+																const dialogElement = dialogMapRef.current as HTMLDialogElement & {
+																	mapperField?: any;
+																};
+																dialogElement.showModal();
+																dialogElement.mapperField = field;
+															}
+															initializeMap(value ? value : null);
+														}}
+													/>
+												</div>
+												{value &&
+													(() => {
+														const getGeoJSON = () => {
+															let retValue = null;
+															const mapperGeoField = field.mapperGeoJSONField
+																? formData[field.mapperGeoJSONField] || ""
+																: "";
+															if (mapperGeoField != "") {
+																retValue = mapperGeoField;
+															}
+															return retValue;
+														};
+
+														try {
+															let parsedValue = value;
+															if (parsedValue && parsedValue.mode) {
+																const { mode, coordinates, center, radius } = parsedValue;
+																const title = `Shape: ${mode.toUpperCase()}`;
+
+																if (mode === "circle" && center && radius) {
+																	return (
+																		<div
+																			className="mapper-selected-shape"
+																			title={title}
+																			onClick={() => {
+																				parsedValue = getGeoJSON() || parsedValue;
+																				previewGeoJSON(JSON.stringify(parsedValue, null, 2));
+																			}}
+																		>
+																			<h4>{title}</h4>
+																			<ul>
+																				<li>Center: Lat {center[0]}, Lng {center[1]}</li>
+																				<li>Radius: {radius.toFixed(2)} meters</li>
+																			</ul>
+																		</div>
+																	);
+																}
+
+																if (Array.isArray(coordinates)) {
+																	return (
+																		<div
+																			className="mapper-selected-shape"
+																			title={title}
+																			onClick={() => {
+																				const newWindow = window.open();
+																				if (newWindow) {
+																					parsedValue = getGeoJSON() || parsedValue;
+																					newWindow.document.write(
+																						`<pre>${JSON.stringify(parsedValue, null, 2)}</pre>`,
+																					);
+																					newWindow.document.close();
+																				}
+																			}}
+																		>
+																			<h4>{title}</h4>
+																			<ul>
+																				{coordinates.map((coordinate, index) => (
+																					<li key={index}>
+																						{ctx.t({
+																							code: "spatial_footprint.latitude",
+																							desc: "Label for latitude value (short)",
+																							msg: "Lat",
+																						})}
+																						: {coordinate[0]}, {ctx.t({
+																							code: "spatial_footprint.longitude",
+																							desc: "Label for longitude value (short)",
+																							msg: "Lng",
+																						})}
+																						: {coordinate[1]}
+																					</li>
+																				))}
+																			</ul>
+																		</div>
+																	);
+																}
+															}
+
+															return <pre>{value}</pre>;
+														} catch (err) {
+															console.error("Failed to parse value:", err);
+															return <pre>Invalid data</pre>;
+														}
+													})()}
+												{field.note && (
+													<div
+														style={{
+															fontSize: "0.8em",
+															marginTop: "0.1rem",
+															color: "#777",
+														}}
+													>
+														{field.note}
+													</div>
+												)}
+												<InputTextarea
+													id={fieldId}
+													name={fieldId}
+													className="hidden-textarea"
+													style={{ display: "none" }}
+													value={value}
+													onChange={(e) =>
+														handleFieldChange(field, e.target.value)
+													}
+												/>
+											</div>
+										)}
+										{field.type === "select" && (
+											<>
+												<Dropdown
+													id={fieldId}
+													className="w-full"
+													options={field.options || []}
+													optionLabel="label"
+													optionValue="value"
+													value={value}
+													onChange={(e) =>
+														handleFieldChange(field, e.value)
+													}
+												/>
+												{field.note && (
+													<div
+														style={{
+															fontSize: "0.8em",
+															marginTop: "0.1rem",
+															color: "#777",
+														}}
+													>
+														{field.note}
+													</div>
+												)}
+											</>
+										)}
+										{field.type === "option" && (
+											<div className="space-y-2">
+												<div id={fieldId} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+													{field.options?.map((option, i) => (
+														<div
+															key={i}
+															className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2"
+														>
+															<RadioButton
+																inputId={`${fieldId}_${i}`}
+																name={fieldId}
+																value={option.value}
+																checked={value === option.value}
+																onChange={(e) =>
+																	handleFieldChange(field, e.value)
+																}
+															/>
+															<label
+																htmlFor={`${fieldId}_${i}`}
+																className="cursor-pointer text-sm text-slate-700"
+															>
+																{option.label}
+															</label>
+														</div>
+													))}
+												</div>
+												{field.note && (
+													<div
+														style={{
+															fontSize: "0.8em",
+															marginTop: "0.1rem",
+															color: "#777",
+														}}
+													>
+														{field.note}
+													</div>
+												)}
+											</div>
+										)}
+										{field.type === "file" && (
+											<div className="input-file flex flex-col gap-3">
+												<div
+													id={`file-link-loading-${field.id}`}
+													className="uploading"
+													style={{ display: "none" }}
+												>
+													{ctx.t({
+														code: "common.uploading_please_wait",
+														desc: "Message shown while file is uploading",
+														msg: "Uploading, please wait...",
+													})}
+												</div>
+												{formData[field.id]?.name && (
+													<>
+														<a
+															id={`file-link-${field.id}`}
+															href={`${base_path}${formData[field.id]?.view ??
+																(file_viewer_url
+																	? ctx.url(
+																		`${file_viewer_url}${file_viewer_url.includes("?") ? "&" : "?"}name=${encodeURIComponent(
+																			formData[field.id]?.name
+																				.split("/")
+																				.slice(-2)
+																				.join("/") || "",
+																		)}${field.download ? "&download=true" : ""}`,
+																	)
+																	: formData[field.id]?.name || "")
+																}`}
+															className="file-link inline-flex text-sm font-medium text-sky-700 hover:text-sky-800 hover:underline"
+															target={
+																!field.download ? "_blank" : undefined
+															}
+															rel="noopener noreferrer"
+														>
+															{formData[field.id]?.name.split("/").pop()}
+														</a>
+													</>
+												)}
+												<FileUpload
+													id={fieldId}
+													mode="basic"
+													customUpload
+													auto
+													name={field.id}
+													accept={
+														field.accept
+															? field.accept
+																.split("|")
+																.map((ext) => `.${ext}`)
+																.join(",")
+															: undefined
+													}
+													chooseOptions={{
+														className: "p-button-outlined",
+													}}
+													chooseLabel={ctx.t({
+														code: "common.choose_file",
+														msg: "Choose file",
+													})}
+													uploadHandler={async (event) => {
+														const file = event.files?.[0];
+														if (!file) return;
+
+														const extension = file.name
+															.split(".")
+															.pop()
+															?.toLowerCase();
+														const allowedExtensions = field.accept?.split("|");
+
+														if (
+															allowedExtensions &&
+															!allowedExtensions.includes(extension || "")
+														) {
+															setDialogError("Invalid file type");
+															event.options.clear();
+															return;
+														}
+
+														try {
+															const fileLinkLoading = document.getElementById(
+																`file-link-loading-${field.id}`,
+															);
+															if (fileLinkLoading)
+																fileLinkLoading.style.display = "block";
+
+															const fileLinkElement = document.getElementById(
+																`file-link-${field.id}`,
+															) as HTMLElement;
+															if (fileLinkElement)
+																fileLinkElement.style.display = "none";
+
+															const previousHrefElement = document.getElementById(
+																`file-link-${field.id}`,
+															);
+															const previousHref =
+																previousHrefElement?.getAttribute("href") || null;
+
+															const fileData = await handleFileUpload(
+																file,
+																previousHref,
+															);
+															handleFieldChange(field, fileData);
+															setDialogError(null);
+														} catch (error) {
+															console.error("File upload failed:", error);
+															const errorMessage =
+																error instanceof Error
+																	? error.message
+																	: "An unknown error occurred during the file upload.";
+															setDialogError(`${errorMessage}`);
+														} finally {
+															event.options.clear();
+															const fileLinkLoading = document.getElementById(
+																`file-link-loading-${field.id}`,
+															);
+															if (fileLinkLoading)
+																fileLinkLoading.style.display = "none";
+															const fileLinkElement = document.getElementById(
+																`file-link-${field.id}`,
+															) as HTMLElement;
+															if (fileLinkElement)
+																fileLinkElement.style.display = "block";
+														}
+													}}
+												/>
+												{field.note && (
+													<div
+														style={{
+															fontSize: "0.8em",
+															marginTop: "1rem",
+															color: "#777",
+														}}
+													>
+														{field.note}
+													</div>
+												)}
+											</div>
+										)}
+									</label>
+								</div>
+							);
+						})}
 					</div>
-				</dialog>
+					<div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4">
+						<Button
+							label={ctx.t({
+								code: "common.apply",
+								msg: "Apply",
+							})}
+							icon="pi pi-check"
+							onClick={handleSave}
+						/>
+						<Button
+							label={ctx.t({
+								code: "common.cancel",
+								msg: "Cancel",
+							})}
+							icon="pi pi-times"
+							severity="secondary"
+							outlined
+							onClick={closeDialog}
+						/>
+					</div>
+				</Dialog>
 			</div>
 		);
 	},

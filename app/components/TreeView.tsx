@@ -5,6 +5,8 @@ import {
 	forwardRef,
 	useImperativeHandle,
 } from "react";
+import { Button } from "primereact/button";
+import { InputText } from "primereact/inputtext";
 import { ViewContext } from "~/frontend/context";
 import { LangLink } from "~/utils/link";
 
@@ -158,14 +160,7 @@ const injectStyles = (appendCss?: string) => {
                 height: 500px;
                 border-bottom: 1px dotted #979797 !important;
             }
-            .tree-footer {
-                display: flex;  /* Enables flexbox */
-                justify-content: space-between; /* Puts text on the left & button on the right */
-                align-items: center; /* Vertically align items */
-                width: 100%;
-                padding-top: 1.5rem;
-            }
-            .tree-footer div {
+			.tree-footer div {
                 font-weight: bold;
                 flex: 1; /* Allows it to take up available space */
                 white-space: normal; /* Allows text wrapping */
@@ -827,34 +822,25 @@ export const TreeView = forwardRef<HTMLDivElement, TreeViewProps>(
 		const treeViewContent = (noAction?: boolean) => {
 			return (
 				<div>
-					<div className="dts-form__actions dts-form-component mg-grid mg-grid__col-6">
-						<a
-							className="mg-button mg-button--small mg-button-system"
-							role="button"
+					<div className="flex flex-wrap justify-end gap-2">
+						<Button
+							label={ctx.t({ code: "common.expand_all", msg: "Expand All" })}
 							onClick={expandAll}
-							style={{
-								pointerEvents: isExpandDisabled ? "none" : "auto",
-								opacity: isExpandDisabled ? 0.5 : 1,
-							}}
-						>
-							{ctx.t({ code: "common.expand_all", msg: "Expand All" })}
-						</a>
-						<a
-							className="mg-button mg-button--small mg-button-system"
-							role="button"
+							severity="secondary"
+							outlined
+							disabled={isExpandDisabled}
+						/>
+						<Button
+							label={ctx.t({ code: "common.collapse_all", msg: "Collapse All" })}
 							onClick={collapseAll}
-							style={{
-								pointerEvents: isCollapseDisabled ? "none" : "auto",
-								opacity: isCollapseDisabled ? 0.5 : 1,
-							}}
-						>
-							{ctx.t({ code: "common.collapse_all", msg: "Collapse All" })}
-						</a>
+							severity="secondary"
+							outlined
+							disabled={isCollapseDisabled}
+						/>
 						{search && (
-							<input
+							<InputText
 								id="search-input"
 								name="search"
-								type="text"
 								placeholder={ctx.t({
 									code: "common.search_placeholder_dotdotdot",
 									msg: "Search...",
@@ -881,20 +867,17 @@ export const TreeView = forwardRef<HTMLDivElement, TreeViewProps>(
 					</div>
 					{noAction && (
 						<>
-							<div className="tree-footer">
-								<div></div>
-								<button
-									className="mg-button mg-button-primary"
+							<div className="flex w-full justify-end gap-2 pt-6">
+								<Button
+									label={ctx.t({ code: "common.apply", msg: "Apply" })}
 									onClick={treeViewApply}
-								>
-									Apply
-								</button>
-								<button
-									className="mg-button mg-button-outline"
+								/>
+								<Button
+									label={ctx.t({ code: "common.discard", msg: "Discard" })}
+									severity="secondary"
+									outlined
 									onClick={treeViewDiscard}
-								>
-									Discard
-								</button>
+								/>
 							</div>
 							<textarea
 								className="tree-hidden-data"
