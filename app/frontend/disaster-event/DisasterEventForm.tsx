@@ -1302,16 +1302,6 @@ function StepperValidation({
 		return true;
 	};
 
-	const onStepSelect = (event: { index: number }) => {
-		const snapshot = saveCurrentFormState();
-		if (event.index > 0 && !validateStep1(snapshot)) {
-			setActiveStep(0);
-			return;
-		}
-
-		setActiveStep(event.index);
-	};
-
 	const goNext = () => {
 		const snapshot = saveCurrentFormState();
 		if (validateStep1(snapshot)) {
@@ -2373,6 +2363,11 @@ function StepperValidation({
 			.status-stepper .p-stepper-nav::after {
 				bottom: 0;
 			}
+
+			.status-stepper .p-stepper-header .p-stepper-action {
+				pointer-events: none;
+				cursor: default;
+			}
 		`}</style>
 			<div className="mg-container">
 				<section className="dts-page-section">
@@ -2419,7 +2414,7 @@ function StepperValidation({
 						<Stepper
 							className="status-stepper"
 							activeStep={activeStep}
-							onChangeStep={onStepSelect}
+							onChangeStep={() => undefined}
 							headerPosition="bottom"
 							pt={{
 								stepperpanel: {
@@ -2536,12 +2531,11 @@ function StepperValidation({
 											</label>
 											<div className="flex items-center gap-2">
 												<InputText
-													id="id"
-													name="id"
 													defaultValue={ shortUuid(form.id.toString()) }
 													readOnly
 													className="w-full !border-slate-100 !bg-slate-50 shadow-none cursor-not-allowed"
 												/>
+												<input type="hidden" id="id" name="id" value={form.id} />
 
 												<Button
 													type="button"
