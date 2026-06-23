@@ -2220,6 +2220,10 @@ function StepperValidation({
 	};
 
 	const toast = useRef<Toast>(null);
+	const glideTooltipRef = useRef<Tooltip>(null);
+	const hazardTypeObservedTooltipRef = useRef<Tooltip>(null);
+	const hazardClusterObservedTooltipRef = useRef<Tooltip>(null);
+	const specificHazardObservedTooltipRef = useRef<Tooltip>(null);
 
 	function shortUuid(value: string) {
         if (!value) return "-";
@@ -2274,6 +2278,27 @@ function StepperValidation({
 		searchLinkedDisasterEvents("");
 		searchLinkedDisasterRecords("");
 	}, []);
+
+	useEffect(() => {
+		const animationFrameId = requestAnimationFrame(() => {
+			glideTooltipRef.current?.updateTargetEvents();
+			hazardTypeObservedTooltipRef.current?.updateTargetEvents();
+			hazardClusterObservedTooltipRef.current?.updateTargetEvents();
+			specificHazardObservedTooltipRef.current?.updateTargetEvents();
+		});
+
+		const timeoutId = window.setTimeout(() => {
+			glideTooltipRef.current?.updateTargetEvents();
+			hazardTypeObservedTooltipRef.current?.updateTargetEvents();
+			hazardClusterObservedTooltipRef.current?.updateTargetEvents();
+			specificHazardObservedTooltipRef.current?.updateTargetEvents();
+		}, 150);
+
+		return () => {
+			cancelAnimationFrame(animationFrameId);
+			window.clearTimeout(timeoutId);
+		};
+	}, [activeStep]);
 
 	return (
 		<>
@@ -2400,26 +2425,32 @@ function StepperValidation({
 									icon="pi pi-times"
 									text
 									aria-label="Close"
-									onClick={() =>
-										(document.location.href = ctx.url("/disaster-event"))
-									}
+									onClick={openExitConfirmModal}
 								/>
 							</div>
 						</div>
 
 						<Tooltip
+							key={`glide-tooltip-${activeStep}`}
+							ref={glideTooltipRef}
 							target=".glide-info-tooltip"
 							content="A globally unique identifier used to cross-reference this event across international disaster risk systems"
 						/>
 						<Tooltip
+							key={`hazard-type-observed-tooltip-${activeStep}`}
+							ref={hazardTypeObservedTooltipRef}
 							target=".hazard-type-observed-tooltip"
 							content="The observed hazard type before full confirmation"
 						/>
 						<Tooltip
+							key={`hazard-cluster-observed-tooltip-${activeStep}`}
+							ref={hazardClusterObservedTooltipRef}
 							target=".hazard-cluster-observed-tooltip"
 							content="The observed hazard cluster"
 						/>
 						<Tooltip
+							key={`specific-hazard-observed-tooltip-${activeStep}`}
+							ref={specificHazardObservedTooltipRef}
 							target=".specific-hazard-observed-tooltip"
 							content="The specific observed hazard"
 						/>
@@ -3076,7 +3107,7 @@ function StepperValidation({
 										related to this disaster event.
 									</p>
 
-									<div className="mt-8 flex items-start justify-between gap-4">
+									<div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 										<div className="flex items-start gap-3">
 											<div className="rounded-xl bg-blue-100 p-2">
 												<i className="pi pi-file-edit text-blue-600" />
@@ -3095,6 +3126,7 @@ function StepperValidation({
 											label="Add response"
 											icon="pi pi-plus"
 											outlined
+											className="w-full sm:w-auto"
 											disabled={!canAddAnyResponse}
 											onClick={() => openAddDetail("response")}
 										/>
@@ -3112,7 +3144,7 @@ function StepperValidation({
 
 									<div className="my-8 border-t border-slate-200" />
 
-									<div className="flex items-start justify-between gap-4">
+									<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 										<div className="flex items-start gap-3">
 											<div className="rounded-xl bg-violet-100 p-2">
 												<i className="pi pi-clipboard text-violet-600" />
@@ -3131,6 +3163,7 @@ function StepperValidation({
 											label="Add assessment"
 											icon="pi pi-plus"
 											outlined
+											className="w-full sm:w-auto"
 											disabled={!canAddAnyAssessment}
 											onClick={() => openAddDetail("assessment")}
 										/>
@@ -3148,7 +3181,7 @@ function StepperValidation({
 
 									<div className="my-8 border-t border-slate-200" />
 
-									<div className="flex items-start justify-between gap-4">
+									<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 										<div className="flex items-start gap-3">
 											<div className="rounded-xl bg-amber-100 p-2">
 												<i className="pi pi-send text-amber-600" />
@@ -3167,6 +3200,7 @@ function StepperValidation({
 											label="Add declaration"
 											icon="pi pi-plus"
 											outlined
+											className="w-full sm:w-auto"
 											disabled={!canAddAnyDeclaration}
 											onClick={() => openAddDetail("declaration")}
 										/>
