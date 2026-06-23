@@ -311,7 +311,6 @@ function StepperValidation({
 		recordingInstitution: disasterEvent?.recordingInstitution ?? "",
 	};
 	const [activeStep, setActiveStep] = useState(0);
-	const firstNameTooltipRef = useRef<Tooltip>(null);
 	const [form, setForm] = useState<StepperFormState>({
 		id: eventBasicsInitialValues.id,
 		nameNational: disasterEvent?.nameNational ?? "",
@@ -2244,9 +2243,6 @@ function StepperValidation({
 	}
 
 
-	useEffect(() => {
-		firstNameTooltipRef.current?.updateTargetEvents();
-	}, [activeStep]);
 
 	useEffect(() => {
 		const linkedIds = new Set(linkedHazardousEvents.map((event) => event.id));
@@ -2407,9 +2403,20 @@ function StepperValidation({
 						</div>
 
 						<Tooltip
-							ref={firstNameTooltipRef}
-							target=".first-name-tooltip"
-							content="Enter the person's given name as shown on official records."
+							target=".glide-info-tooltip"
+							content="A globally unique identifier used to cross-reference this event across international disaster risk systems"
+						/>
+						<Tooltip
+							target=".hazard-type-observed-tooltip"
+							content="The observed hazard type before full confirmation"
+						/>
+						<Tooltip
+							target=".hazard-cluster-observed-tooltip"
+							content="The observed hazard cluster"
+						/>
+						<Tooltip
+							target=".specific-hazard-observed-tooltip"
+							content="The specific observed hazard"
 						/>
 						<Stepper
 							className="status-stepper"
@@ -2508,7 +2515,7 @@ function StepperValidation({
 												<span className="inline-flex items-center gap-1">
 													GLIDE number
 													<i
-														className="pi pi-info-circle text-xs text-slate-400"
+														className="glide-info-tooltip pi pi-info-circle text-xs text-slate-400"
 														aria-hidden="true"
 													/>
 												</span>
@@ -2585,7 +2592,7 @@ function StepperValidation({
 											>
 												Hazard type (observed){" "}
 												<i
-													className="pi pi-info-circle ml-1 text-xs text-slate-400"
+													className="hazard-type-observed-tooltip pi pi-info-circle ml-1 text-xs text-slate-400"
 													aria-hidden="true"
 												/>
 											</label>
@@ -2618,7 +2625,7 @@ function StepperValidation({
 											>
 												Hazard cluster (observed){" "}
 												<i
-													className="pi pi-info-circle ml-1 text-xs text-slate-400"
+													className="hazard-cluster-observed-tooltip pi pi-info-circle ml-1 text-xs text-slate-400"
 													aria-hidden="true"
 												/>
 											</label>
@@ -2651,7 +2658,7 @@ function StepperValidation({
 											>
 												Specific hazard (observed){" "}
 												<i
-													className="pi pi-info-circle ml-1 text-xs text-slate-400"
+													className="specific-hazard-observed-tooltip pi pi-info-circle ml-1 text-xs text-slate-400"
 													aria-hidden="true"
 												/>
 											</label>
