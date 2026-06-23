@@ -1236,6 +1236,11 @@ function StepperValidation({
 			nextErrors.endDate = "End time requires a complete end date (YYYY-MM-DD)";
 		}
 
+		if (endDateValue && !startDateValue) {
+			nextErrors.startDate =
+				"Start date is required when end date has a value";
+		}
+
 		if (!nextErrors.startDate && !nextErrors.endDate && startDateValue && endDateValue) {
 			const startBoundary = toComparableBoundaryDate(startDateState, "start");
 			const endBoundary = toComparableBoundaryDate(endDateState, "end");
