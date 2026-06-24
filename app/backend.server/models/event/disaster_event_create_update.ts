@@ -13,7 +13,6 @@ import { logAudit } from "../auditLogs";
 import { getTableName } from "drizzle-orm";
 import type { InsertDisasterEvent } from "~/drizzle/schema/disasterEventTable";
 import type { BackendContext } from "../../context";
-import { processAndSaveAttachments } from "./attachments";
 
 export interface DisasterEventFields
 	extends Omit<EventInsert, "id">, Omit<InsertDisasterEvent, "id"> {
@@ -112,13 +111,7 @@ export async function disasterEventCreate(
 	}
 
 	if (res.length > 0) {
-		await processAndSaveAttachments(
-			disasterEventTable,
-			tx,
-			eventId,
-			Array.isArray(fields?.attachments) ? fields.attachments : [],
-			"disaster-event",
-		);
+		// no-op: disaster event attachments are no longer stored in disaster_event.attachments
 	}
 
 	return { ok: true, id: eventId };
@@ -203,13 +196,7 @@ export async function disasterEventUpdate(
 			});
 		}
 
-		await processAndSaveAttachments(
-			disasterEventTable,
-			tx,
-			id,
-			Array.isArray(fields?.attachments) ? fields.attachments : [],
-			"disaster-event",
-		);
+		// no-op: disaster event attachments are no longer stored in disaster_event.attachments
 	} catch (error: any) {
 		let res = checkConstraintError(error, disasterEventTableConstrains);
 		if (res) {
@@ -273,13 +260,7 @@ export async function disasterEventUpdateByIdAndCountryAccountsId(
 				),
 			);
 
-		await processAndSaveAttachments(
-			disasterEventTable,
-			tx,
-			id,
-			Array.isArray(fields?.attachments) ? fields.attachments : [],
-			"disaster-event",
-		);
+		// no-op: disaster event attachments are no longer stored in disaster_event.attachments
 	} catch (error: any) {
 		let res = checkConstraintError(error, disasterEventTableConstrains);
 		if (res) {

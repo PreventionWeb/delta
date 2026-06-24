@@ -12,7 +12,7 @@ import {
 import { createTestDisasterEventWithOptions } from "./test-helpers";
 import { randomUUID } from "crypto";
 import { getCountryAccountsIdFromSession } from "~/utils/session";
-import { loader as editLoader } from "~/routes/$lang+/disaster-event+/edit.$id";
+import { loader as editLoader } from "~/routes/$lang+/disaster-event+/edit2.$id";
 
 const testIds = createTestIds();
 testIds.userEmail = testIds.userEmail.replace("@", "-de-edit@");
@@ -20,7 +20,7 @@ testIds.userEmail = testIds.userEmail.replace("@", "-de-edit@");
 setupSessionMocks();
 
 async function callLoader(params: { id: string }) {
-	const url = new URL(`${TEST_BASE_URL}/en/disaster-event/edit/${params.id}`);
+	const url = new URL(`${TEST_BASE_URL}/en/disaster-event/edit2/${params.id}`);
 	const request = new Request(url.toString());
 	return await editLoader({
 		request,
@@ -40,7 +40,7 @@ async function callLoader(params: { id: string }) {
 	} as any);
 }
 
-describe("edit.$id.tsx loader", () => {
+describe("edit2.$id.tsx loader", () => {
 	let testData: Awaited<ReturnType<typeof createTestDisasterEventWithOptions>>;
 
 	beforeEach(async () => {
