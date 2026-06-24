@@ -312,7 +312,6 @@ function StepperValidation({
 		recordingInstitution: disasterEvent?.recordingInstitution ?? "",
 	};
 	const [activeStep, setActiveStep] = useState(0);
-	const firstNameTooltipRef = useRef<Tooltip>(null);
 	const [form, setForm] = useState<StepperFormState>({
 		id: eventBasicsInitialValues.id,
 		nameNational: disasterEvent?.nameNational ?? "",
@@ -1066,6 +1065,7 @@ function StepperValidation({
 		hasDetailType && hasDetailContent && passesOfficialWarningRule;
 	const [errors, setErrors] = useState<Errors>({});
 	const [visibleModalSubmit, setVisibleModalSubmit] = useState<boolean>(false);
+	const [visibleExitModal, setVisibleExitModal] = useState<boolean>(false);
 	const [selectedHipTypeId, setSelectedHipTypeId] = useState(
 		disasterEvent?.hipTypeId ?? "",
 	);
@@ -1237,6 +1237,11 @@ function StepperValidation({
 			nextErrors.endDate = "End time requires a complete end date (YYYY-MM-DD)";
 		}
 
+		if (endDateValue && !startDateValue) {
+			nextErrors.startDate =
+				"Start date is required when end date has a value";
+		}
+
 		if (!nextErrors.startDate && !nextErrors.endDate && startDateValue && endDateValue) {
 			const startBoundary = toComparableBoundaryDate(startDateState, "start");
 			const endBoundary = toComparableBoundaryDate(endDateState, "end");
@@ -1302,16 +1307,6 @@ function StepperValidation({
 		return true;
 	};
 
-	const onStepSelect = (event: { index: number }) => {
-		const snapshot = saveCurrentFormState();
-		if (event.index > 0 && !validateStep1(snapshot)) {
-			setActiveStep(0);
-			return;
-		}
-
-		setActiveStep(event.index);
-	};
-
 	const goNext = () => {
 		const snapshot = saveCurrentFormState();
 		if (validateStep1(snapshot)) {
@@ -1335,6 +1330,22 @@ function StepperValidation({
 
 	const saveAsDraft = () => {
 		saveCurrentFormState();
+	};
+
+	const openExitConfirmModal = () => {
+		saveCurrentFormState();
+		setVisibleExitModal(true);
+	};
+
+	const discardAndExit = () => {
+		setVisibleExitModal(false);
+		document.location.href = ctx.url("/disaster-event");
+	};
+
+	const saveDraftAndExit = () => {
+		saveAsDraft();
+		setVisibleExitModal(false);
+		document.location.href = ctx.url("/disaster-event");
 	};
 
 	const formatDateForSubmit = (value: Date | null): string => {
@@ -2207,6 +2218,10 @@ function StepperValidation({
 	};
 
 	const toast = useRef<Toast>(null);
+	const glideTooltipRef = useRef<Tooltip>(null);
+	const hazardTypeObservedTooltipRef = useRef<Tooltip>(null);
+	const hazardClusterObservedTooltipRef = useRef<Tooltip>(null);
+	const specificHazardObservedTooltipRef = useRef<Tooltip>(null);
 
 	function shortUuid(value: string) {
 		if (!value) return "-";
@@ -2235,9 +2250,6 @@ function StepperValidation({
 	}
 
 
-	useEffect(() => {
-		firstNameTooltipRef.current?.updateTargetEvents();
-	}, [activeStep]);
 
 	useEffect(() => {
 		const linkedIds = new Set(linkedHazardousEvents.map((event) => event.id));
@@ -2265,6 +2277,27 @@ function StepperValidation({
 		searchLinkedDisasterRecords("");
 	}, []);
 
+	useEffect(() => {
+		const animationFrameId = requestAnimationFrame(() => {
+			glideTooltipRef.current?.updateTargetEvents();
+			hazardTypeObservedTooltipRef.current?.updateTargetEvents();
+			hazardClusterObservedTooltipRef.current?.updateTargetEvents();
+			specificHazardObservedTooltipRef.current?.updateTargetEvents();
+		});
+
+		const timeoutId = window.setTimeout(() => {
+			glideTooltipRef.current?.updateTargetEvents();
+			hazardTypeObservedTooltipRef.current?.updateTargetEvents();
+			hazardClusterObservedTooltipRef.current?.updateTargetEvents();
+			specificHazardObservedTooltipRef.current?.updateTargetEvents();
+		}, 150);
+
+		return () => {
+			cancelAnimationFrame(animationFrameId);
+			window.clearTimeout(timeoutId);
+		};
+	}, [activeStep]);
+
 	return (
 		<>
 			<Toast
@@ -2280,6 +2313,35 @@ function StepperValidation({
 					usersWithValidatorRole={usersWithValidatorRoleOptions}
 					userRole={user?.role ?? undefined}
 				/>
+				<Dialog
+					header="Are you sure you want to exit?"
+					visible={visibleExitModal}
+					onHide={() => setVisibleExitModal(false)}
+					style={{ width: "42rem", maxWidth: "92vw" }}
+					draggable={false}
+					resizable={false}
+				>
+					<p className="mb-5 text-[16px] leading-[24px] text-slate-500">
+						If you leave this page, your work will not be saved.
+					</p>
+					<div>
+						<Button
+							type="button"
+							label="Save as draft"
+							className="w-full"
+							onClick={saveDraftAndExit}
+						/>
+					</div>
+					<div className="mt-2.5">
+						<Button
+							type="button"
+							label="Discard work and exit"
+							outlined
+							className="w-full"
+							onClick={discardAndExit}
+						/>
+					</div>
+				</Dialog>
 			</div>
 			<style>{`
 			.status-stepper .p-stepper-title::after {
@@ -2325,6 +2387,11 @@ function StepperValidation({
 			.status-stepper .p-stepper-nav::after {
 				bottom: 0;
 			}
+
+			.status-stepper .p-stepper-header .p-stepper-action {
+				pointer-events: none;
+				cursor: default;
+			}
 		`}</style>
 			<div className="mg-container">
 				<section className="dts-page-section">
@@ -2356,22 +2423,39 @@ function StepperValidation({
 									icon="pi pi-times"
 									text
 									aria-label="Close"
-									onClick={() =>
-										(document.location.href = ctx.url("/disaster-event"))
-									}
+									onClick={openExitConfirmModal}
 								/>
 							</div>
 						</div>
 
 						<Tooltip
-							ref={firstNameTooltipRef}
-							target=".first-name-tooltip"
-							content="Enter the person's given name as shown on official records."
+							key={`glide-tooltip-${activeStep}`}
+							ref={glideTooltipRef}
+							target=".glide-info-tooltip"
+							content="A globally unique identifier used to cross-reference this event across international disaster risk systems"
+						/>
+						<Tooltip
+							key={`hazard-type-observed-tooltip-${activeStep}`}
+							ref={hazardTypeObservedTooltipRef}
+							target=".hazard-type-observed-tooltip"
+							content="The observed hazard type before full confirmation"
+						/>
+						<Tooltip
+							key={`hazard-cluster-observed-tooltip-${activeStep}`}
+							ref={hazardClusterObservedTooltipRef}
+							target=".hazard-cluster-observed-tooltip"
+							content="The observed hazard cluster"
+						/>
+						<Tooltip
+							key={`specific-hazard-observed-tooltip-${activeStep}`}
+							ref={specificHazardObservedTooltipRef}
+							target=".specific-hazard-observed-tooltip"
+							content="The specific observed hazard"
 						/>
 						<Stepper
 							className="status-stepper"
 							activeStep={activeStep}
-							onChangeStep={onStepSelect}
+							onChangeStep={() => undefined}
 							headerPosition="bottom"
 							pt={{
 								stepperpanel: {
@@ -2465,7 +2549,7 @@ function StepperValidation({
 												<span className="inline-flex items-center gap-1">
 													GLIDE number
 													<i
-														className="pi pi-info-circle text-xs text-slate-400"
+														className="glide-info-tooltip pi pi-info-circle text-xs text-slate-400"
 														aria-hidden="true"
 													/>
 												</span>
@@ -2494,6 +2578,7 @@ function StepperValidation({
 													readOnly
 													className="w-full !border-slate-100 !bg-slate-50 shadow-none cursor-not-allowed"
 												/>
+												<input type="hidden" id="id" name="id" value={form.id} />
 
 												<Button
 													type="button"
@@ -2543,7 +2628,7 @@ function StepperValidation({
 											>
 												Hazard type (observed){" "}
 												<i
-													className="pi pi-info-circle ml-1 text-xs text-slate-400"
+													className="hazard-type-observed-tooltip pi pi-info-circle ml-1 text-xs text-slate-400"
 													aria-hidden="true"
 												/>
 											</label>
@@ -2576,7 +2661,7 @@ function StepperValidation({
 											>
 												Hazard cluster (observed){" "}
 												<i
-													className="pi pi-info-circle ml-1 text-xs text-slate-400"
+													className="hazard-cluster-observed-tooltip pi pi-info-circle ml-1 text-xs text-slate-400"
 													aria-hidden="true"
 												/>
 											</label>
@@ -2609,7 +2694,7 @@ function StepperValidation({
 											>
 												Specific hazard (observed){" "}
 												<i
-													className="pi pi-info-circle ml-1 text-xs text-slate-400"
+													className="specific-hazard-observed-tooltip pi pi-info-circle ml-1 text-xs text-slate-400"
 													aria-hidden="true"
 												/>
 											</label>
@@ -2704,14 +2789,15 @@ function StepperValidation({
 														Select the administrative areas where the disaster
 														event was experienced.
 													</p>
-													<Button
-														type="button"
-														className="mt-4"
-														label="Add affected areas"
-														outlined
-														icon="pi pi-plus"
-														onClick={openAffectedAreasModal}
-													/>
+													<div className="mt-2.5">
+														<Button
+															type="button"
+															label="Add affected areas"
+															outlined
+															icon="pi pi-plus"
+															onClick={openAffectedAreasModal}
+														/>
+													</div>
 													<div className="mt-6 flex flex-wrap gap-2 text-sm">
 														{selectedDivisionItems.length > 0 &&
 															selectedDivisionItems.map((item) => (
@@ -2732,11 +2818,6 @@ function StepperValidation({
 																	</button>
 																</div>
 															))}
-														{selectedDivisionItems.length === 0 ? (
-															<p className="text-[13px] text-slate-400">
-																No affected areas selected yet
-															</p>
-														) : null}
 													</div>
 												</div>
 												<i className="pi pi-chevron-right pt-2 text-slate-400" />
@@ -2755,22 +2836,19 @@ function StepperValidation({
 													<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
 														Define the specific geographic area affected using interactive map coordinates or manual input.
 													</p>
-													<Button
-														type="button"
-														className="mt-4"
-														label={
-															spatialFootprintValue.length > 0
-																? "Edit spatial footprint"
-																: "Add spatial footprint"
-														}
-														outlined
-														icon="pi pi-plus"
-														onClick={openSpatialFootprintModal}
-													/>
+													<div className="mt-2.5">
+														<Button
+															type="button"
+															label="Define spatial footprint"
+															outlined
+															icon="pi pi-map"
+															onClick={openSpatialFootprintModal}
+														/>
+													</div>
 												</div>
 												<i className="pi pi-chevron-right pt-2 text-slate-400" />
 											</div>
-											<div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-[13px] text-slate-600">
+											<div className="px-3 py-3 text-[13px] text-slate-600">
 												{spatialFootprintValue.length > 0
 													? `${spatialFootprintValue.length} spatial footprint item(s) added`
 													: "No spatial footprint items added yet"}
@@ -2789,9 +2867,7 @@ function StepperValidation({
 										type="button"
 										label="Cancel"
 										outlined
-										onClick={() =>
-											(document.location.href = ctx.url("/disaster-event"))
-										}
+										onClick={openExitConfirmModal}
 									/>
 									<div className="flex gap-2">
 										<Button
@@ -2987,9 +3063,7 @@ function StepperValidation({
 										type="button"
 										label="Cancel"
 										outlined
-										onClick={() =>
-											(document.location.href = ctx.url("/disaster-event"))
-										}
+										onClick={openExitConfirmModal}
 									/>
 									<div className="flex gap-2">
 										<Button
@@ -3038,7 +3112,7 @@ function StepperValidation({
 										related to this disaster event.
 									</p>
 
-									<div className="mt-8 flex items-start justify-between gap-4">
+									<div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 										<div className="flex items-start gap-3">
 											<div className="rounded-xl bg-blue-100 p-2">
 												<i className="pi pi-file-edit text-blue-600" />
@@ -3057,6 +3131,7 @@ function StepperValidation({
 											label="Add response"
 											icon="pi pi-plus"
 											outlined
+											className="w-full sm:w-auto"
 											disabled={!canAddAnyResponse}
 											onClick={() => openAddDetail("response")}
 										/>
@@ -3074,7 +3149,7 @@ function StepperValidation({
 
 									<div className="my-8 border-t border-slate-200" />
 
-									<div className="flex items-start justify-between gap-4">
+									<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 										<div className="flex items-start gap-3">
 											<div className="rounded-xl bg-violet-100 p-2">
 												<i className="pi pi-clipboard text-violet-600" />
@@ -3093,6 +3168,7 @@ function StepperValidation({
 											label="Add assessment"
 											icon="pi pi-plus"
 											outlined
+											className="w-full sm:w-auto"
 											disabled={!canAddAnyAssessment}
 											onClick={() => openAddDetail("assessment")}
 										/>
@@ -3110,7 +3186,7 @@ function StepperValidation({
 
 									<div className="my-8 border-t border-slate-200" />
 
-									<div className="flex items-start justify-between gap-4">
+									<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 										<div className="flex items-start gap-3">
 											<div className="rounded-xl bg-amber-100 p-2">
 												<i className="pi pi-send text-amber-600" />
@@ -3129,6 +3205,7 @@ function StepperValidation({
 											label="Add declaration"
 											icon="pi pi-plus"
 											outlined
+											className="w-full sm:w-auto"
 											disabled={!canAddAnyDeclaration}
 											onClick={() => openAddDetail("declaration")}
 										/>
@@ -3358,9 +3435,7 @@ function StepperValidation({
 										type="button"
 										label="Cancel"
 										outlined
-										onClick={() =>
-											(document.location.href = ctx.url("/disaster-event"))
-										}
+										onClick={openExitConfirmModal}
 									/>
 									<div className="flex gap-2">
 										<Button
@@ -3603,9 +3678,7 @@ function StepperValidation({
 										type="button"
 										label="Cancel"
 										outlined
-										onClick={() =>
-											(document.location.href = ctx.url("/disaster-event"))
-										}
+										onClick={openExitConfirmModal}
 									/>
 									<div className="flex gap-2">
 										<Button
