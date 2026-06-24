@@ -232,6 +232,13 @@
       "when": 1782282891587,
       "tag": "20260624063451_migrate_links_data_from+attachements_column_to_disaster_event_link_table",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1782294479744,
+      "tag": "20260624094759_add_start_end_datetime_recording_org_id",
+      "breakpoints": true
     }
   ]
 }
