@@ -761,7 +761,7 @@ export function DisasterEventForm(props: DisasterEventFormProps) {
 		else {
 			frmElement = document.getElementById("form-new") as HTMLFormElement | null;
 		}
-		
+
 		if (frmElement) {
 			if (!frmElement.checkValidity()) {
 				// Show native validation tooltips; keep the modal open so they stay visible
@@ -988,7 +988,7 @@ export function DisasterEventForm(props: DisasterEventFormProps) {
 		else {
 			frmElement = document.getElementById("form-new") as HTMLFormElement | null;
 		}
-		
+
 		if (frmElement) {
 			if (!frmElement.checkValidity()) {
 				// Show native validation tooltips; keep the modal open so they stay visible

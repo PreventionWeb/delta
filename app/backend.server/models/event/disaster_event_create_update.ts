@@ -3,7 +3,10 @@ import {
 	UpdateResult,
 } from "~/backend.server/handlers/form/form";
 import { Errors, hasErrors } from "~/frontend/form";
-import { disasterEventTable, disasterEventTableConstrains } from "~/drizzle/schema/disasterEventTable";
+import {
+	disasterEventTable,
+	disasterEventTableConstrains,
+} from "~/drizzle/schema/disasterEventTable";
 import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
 import { eventTable, EventInsert } from "~/drizzle/schema/eventTable";
 import { checkConstraintError } from "../common";
@@ -271,4 +274,3 @@ export async function disasterEventUpdateByIdAndCountryAccountsId(
 
 	return { ok: true };
 }
-
