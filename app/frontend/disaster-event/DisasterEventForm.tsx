@@ -21,7 +21,7 @@ import { InputTextarea } from "primereact/inputtextarea";
 import { Toast } from "primereact/toast";
 import { ViewContext } from "~/frontend/context";
 import { copyTextToClipboardWithToast } from "~/frontend/utils/clipboard";
-import DisasterEventAttachement from "~/frontend/disaster-event/DisasterEventAttachement";
+import DisasterEventAttachment from "~/frontend/disaster-event/DisasterEventAttachment";
 import {
 	SaveSubmitDialog,
 	type SaveAction,
@@ -2780,7 +2780,7 @@ function StepperValidation({
 
 									<div id="disaster-event-attachment-divider" className="col-span-12 my-6 border-t border-slate-200" />
 
-									<DisasterEventAttachement ctx={ctx} />
+									<DisasterEventAttachment ctx={ctx} />
 
 								</div>
 
