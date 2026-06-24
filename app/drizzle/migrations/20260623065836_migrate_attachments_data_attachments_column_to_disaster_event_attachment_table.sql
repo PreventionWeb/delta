@@ -57,5 +57,3 @@ CROSS JOIN LATERAL jsonb_array_elements(
 WHERE de.attachments IS NOT NULL
 	AND COALESCE(elem -> 'file' ->> 'name', '') <> '';
 
-ALTER TABLE public.disaster_event
-	DROP COLUMN attachments;

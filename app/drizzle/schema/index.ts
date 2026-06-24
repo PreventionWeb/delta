@@ -8,6 +8,7 @@ export * from "./countryAccountsTable";
 export * from "./damagesTable";
 export * from "./deathsTable";
 export * from "./disasterEventAttachmentTable";
+export * from "./disasterEventLink";
 export * from "./disasterEventTable";
 export * from "./disasterRecordsTable";
 export * from "./displacedTable";

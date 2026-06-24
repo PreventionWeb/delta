@@ -7,11 +7,14 @@ import {
 	AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { disasterEventTable } from "./disasterEventTable";
+import { sql } from "drizzle-orm";
 
 export const disasterEventAttachmentTable = pgTable(
 	"disaster_event_attachment",
 	{
-		id: uuid("id").defaultRandom().primaryKey(),
+		id: uuid("id")
+			.primaryKey()
+			.default(sql`gen_random_uuid()`),
 		disasterEventId: uuid("disaster_event_id").references(
 			(): AnyPgColumn => disasterEventTable.id,
 			{
