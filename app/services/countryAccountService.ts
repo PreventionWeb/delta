@@ -16,6 +16,8 @@ import { CountryRepository } from "~/db/queries/countriesRepository";
 import { CountryAccountsRepository } from "~/db/queries/countryAccountsRepository";
 import { DamagesRepository } from "~/db/queries/damagesRepository";
 import { DeathRepository } from "~/db/queries/deathRepository";
+import { DisasterEventAttachmentRepository } from "~/db/queries/disasterEventAttachmentRepository";
+import { DisasterEventLinkRepository } from "~/db/queries/disasterEventLinkRepository";
 import { DisasterEventRepository } from "~/db/queries/disasterEventRepository";
 import { DisasterRecordsRepository } from "~/db/queries/disasterRecordsRepository";
 import { DisplacedRepository } from "~/db/queries/displacedRepository";
@@ -178,6 +180,45 @@ function cloneAttachmentFileReference(
 			tenantPath: `${BASE_UPLOAD_PATH}/tenant-${targetCountryAccountId}`,
 		},
 	};
+}
+
+function cloneFileKeyForCountryAccount(
+	fileKey: string,
+	targetCountryAccountId: string,
+) {
+	if (!fileKey) {
+		return fileKey;
+	}
+
+	const resolved = resolveSourceAndDestinationRelativePaths(
+		String(fileKey),
+		targetCountryAccountId,
+	);
+
+	if (!resolved) {
+		return fileKey;
+	}
+
+	const sourceAbsolutePath = path.resolve(
+		process.cwd(),
+		resolved.sourceRelative,
+	);
+	const destinationAbsolutePath = path.resolve(
+		process.cwd(),
+		resolved.destinationRelative,
+	);
+
+	if (!fs.existsSync(sourceAbsolutePath)) {
+		console.warn(
+			`Attachment file not found during clone: ${sourceAbsolutePath}`,
+		);
+		return fileKey;
+	}
+
+	fs.mkdirSync(path.dirname(destinationAbsolutePath), { recursive: true });
+	fs.copyFileSync(sourceAbsolutePath, destinationAbsolutePath);
+
+	return `/${toPosixPath(resolved.destinationRelative)}`;
 }
 
 function cloneAttachmentsForCountryAccount(
@@ -757,10 +798,6 @@ export const CountryAccountService = {
 						...row,
 						id: getMappedId(eventIdMap, row.id, "disaster event"),
 						countryAccountsId: newCountryAccountId,
-						attachments: cloneAttachmentsForCountryAccount(
-							row.attachments,
-							newCountryAccountId,
-						),
 						hazardousEventId: row.hazardousEventId
 							? getMappedId(eventIdMap, row.hazardousEventId, "hazardous event")
 							: null,
@@ -770,6 +807,59 @@ export const CountryAccountService = {
 					})),
 					tx,
 				);
+			}
+
+			const disasterEventIds = disasterEvents.map((row) => row.id);
+			if (disasterEventIds.length > 0) {
+				const disasterEventAttachments =
+					await DisasterEventAttachmentRepository.getByDisasterEventIds(
+						disasterEventIds,
+						tx,
+					);
+
+				if (disasterEventAttachments.length > 0) {
+					await DisasterEventAttachmentRepository.createMany(
+						disasterEventAttachments.map((row) => {
+							const mappedDisasterEventId = row.disasterEventId
+								? getMappedId(eventIdMap, row.disasterEventId, "disaster event")
+								: null;
+							const clonedFileKey = cloneFileKeyForCountryAccount(
+								row.fileKey,
+								newCountryAccountId,
+							);
+
+							return {
+								...row,
+								id: randomUUID(),
+								disasterEventId: mappedDisasterEventId,
+								fileKey: clonedFileKey,
+								fileName: clonedFileKey
+									? path.posix.basename(toPosixPath(clonedFileKey))
+									: row.fileName,
+							};
+						}),
+						tx,
+					);
+				}
+
+				const disasterEventLinks =
+					await DisasterEventLinkRepository.getByDisasterEventIds(
+						disasterEventIds,
+						tx,
+					);
+
+				if (disasterEventLinks.length > 0) {
+					await DisasterEventLinkRepository.createMany(
+						disasterEventLinks.map((row) => ({
+							...row,
+							id: randomUUID(),
+							disasterEventId: row.disasterEventId
+								? getMappedId(eventIdMap, row.disasterEventId, "disaster event")
+								: null,
+						})),
+						tx,
+					);
+				}
 			}
 
 			if (oldEventIds.length > 0) {
@@ -1294,6 +1384,15 @@ export const CountryAccountService = {
 				);
 			}
 			if (disasterEventIds.length > 0) {
+				await DisasterEventLinkRepository.deleteByDisasterEventIds(
+					disasterEventIds,
+					tx,
+				);
+				await DisasterEventAttachmentRepository.deleteByDisasterEventIds(
+					disasterEventIds,
+					tx,
+				);
+
 				EntityValidationAssignmentRepository.deleteByEntityIdsAndEntityType(
 					recordIds,
 					"disaster_event",
