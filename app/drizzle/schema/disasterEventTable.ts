@@ -7,6 +7,8 @@ import {
 	timestamp,
 	jsonb,
 	unique,
+	time,
+	foreignKey,
 } from "drizzle-orm/pg-core";
 import {
 	createdUpdatedTimestamps,
@@ -26,6 +28,7 @@ import { hipHazardTable } from "./hipHazardTable";
 import { hipClusterTable } from "./hipClusterTable";
 import { hipTypeTable } from "./hipTypeTable";
 import { userTable } from "./userTable";
+import { organizationTable } from "./organizationTable";
 
 export const disasterEventTable = pgTable(
 	"disaster_event",
@@ -50,6 +53,7 @@ export const disasterEventTable = pgTable(
 		disasterEventId: uuid("disaster_event_id").references(
 			(): AnyPgColumn => disasterEventTable.id,
 		),
+		recordingOrganizationId: uuid("recording_organization_id"),
 		nationalDisasterId: zeroText("national_disaster_id"),
 		// multiple other ids
 		otherId1: zeroText("other_id1"),
@@ -60,7 +64,9 @@ export const disasterEventTable = pgTable(
 		nameGlobalOrRegional: zeroText("name_global_or_regional"),
 		// yyyy or yyyy-mm or yyyy-mm-dd
 		startDate: zeroText("start_date"),
+		startDateTime: time("start_date_time"),
 		endDate: zeroText("end_date"),
+		endDateTime: time("end_date_time"),
 		startDateLocal: text("start_date_local"),
 		endDateLocal: text("end_date_local"),
 		durationDays: ourBigint("duration_days"),
@@ -227,12 +233,18 @@ export const disasterEventTable = pgTable(
 
 		legacyData: jsonb("legacy_data"),
 	},
-	(table) => ({
+	(table) => [
 		// Composite unique constraint for tenant-scoped api_import_id
-		disasterEventApiImportIdTenantUnique: unique(
-			"disaster_event_api_import_id_tenant_unique",
-		).on(table.apiImportId, table.countryAccountsId),
-	}),
+		unique("disaster_event_api_import_id_tenant_unique").on(
+			table.apiImportId,
+			table.countryAccountsId,
+		),
+		foreignKey({
+			columns: [table.recordingOrganizationId, table.countryAccountsId],
+			foreignColumns: [organizationTable.id, organizationTable.countryAccountsId],
+			name: "fk_disaster_event_recording_org",
+		}),
+	],
 );
 
 export type SelectDisasterEvent = typeof disasterEventTable.$inferSelect;

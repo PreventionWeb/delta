@@ -34,6 +34,8 @@ import { divisionTable } from "~/drizzle/schema/divisionTable";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import { disasterRecordsTable } from "~/drizzle/schema/disasterRecordsTable";
 import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
+import { organizationTable } from "~/drizzle/schema/organizationTable";
+import { userCountryAccountsTable } from "~/drizzle/schema/userCountryAccountsTable";
 import { buildTree } from "~/components/TreeView";
 import DisasterEventForm from "~/frontend/disaster-event/DisasterEventForm";
 
@@ -121,6 +123,47 @@ async function getUsersEligibleForValidation(
 	}
 
 	return filteredUsersWithValidatorRole;
+}
+
+async function getCurrentUserOrganization(
+	userId: string | undefined,
+	countryAccountsId: string,
+) {
+	if (!userId) {
+		return null;
+	}
+
+	return dr.query.userCountryAccountsTable.findFirst({
+		where: and(
+			eq(userCountryAccountsTable.userId, userId),
+			eq(userCountryAccountsTable.countryAccountsId, countryAccountsId),
+		),
+		columns: {
+			organizationId: true,
+		},
+		with: {
+			organization: {
+				columns: {
+					id: true,
+					name: true,
+				},
+			},
+		},
+	});
+}
+
+async function getRecordingOrganization(recordingOrganizationId?: string | null) {
+	if (!recordingOrganizationId) {
+		return null;
+	}
+
+	return dr.query.organizationTable.findFirst({
+		columns: {
+			id: true,
+			name: true,
+		},
+		where: eq(organizationTable.id, recordingOrganizationId),
+	});
 }
 
 function formatDisasterEventDisplayName(event: {
@@ -503,11 +546,13 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 
 	// Handle 'new' case without DB query
 	if (params.id === "new") {
-		const [treeData, divisionGeoJSON, hip, user] = await Promise.all([
+		const [treeData, divisionGeoJSON, hip, user, currentUserOrganization] =
+			await Promise.all([
 			getDivisionTreeData(countryAccountsId),
 			getDivisionGeoJSON(countryAccountsId),
 			dataForHazardPicker(ctx),
 			authLoaderGetUserForFrontend(loaderArgs),
+			getCurrentUserOrganization(userId, countryAccountsId),
 		]);
 
 		return {
@@ -523,6 +568,7 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 			disasterEventOptions: [],
 			linkedDisasterEvents: [],
 			user,
+			currentUserOrganization: currentUserOrganization?.organization ?? null,
 			usersWithValidatorRole,
 		};
 	}
@@ -553,8 +599,15 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		throw new Response("Access forbidden", { status: 403 });
 	}
 
-	const [treeData, divisionGeoJSON, hip, user, linkedData, linkedHazardousData] =
-		await Promise.all([
+	const [
+		treeData,
+		divisionGeoJSON,
+		hip,
+		user,
+		linkedData,
+		linkedHazardousData,
+		recordingOrganization,
+	] = await Promise.all([
 			getDivisionTreeData(countryAccountsId),
 			getDivisionGeoJSON(countryAccountsId),
 			dataForHazardPicker(ctx),
@@ -565,6 +618,7 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 				ctx.lang,
 				item.hazardousEvent?.id,
 			),
+			getRecordingOrganization(item.recordingOrganizationId),
 		]);
 
 	return {
@@ -580,6 +634,8 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		disasterEventOptions: linkedData.disasterEventOptions,
 		linkedDisasterEvents: linkedData.linkedDisasterEvents,
 		user,
+		recordingOrganization,
+		currentUserOrganization: null,
 		usersWithValidatorRole,
 	};
 });
@@ -588,6 +644,13 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 export default function FormScreen() {
 	const ld = useLoaderData<typeof loader>();
 	const ctx = new ViewContext();
+	const disasterEventForForm = ld.item
+		? {
+				...ld.item.disasterEvent,
+				recordingOrganizationId: ld.item.recordingOrganizationId,
+				recordingOrganizationName: ld.recordingOrganization?.name ?? null,
+		  }
+		: null;
 
 	const fixedHazardousEvent = ld.item?.hazardousEvent
 		? {
@@ -600,13 +663,14 @@ export default function FormScreen() {
 			ctx={ctx}
 			hazardousEvent={fixedHazardousEvent}
 			hip={ld.hip}
-			disasterEvent={ld.item?.disasterEvent ?? null}
+			disasterEvent={disasterEventForForm}
 			hazardousEventOptions={ld.hazardousEventOptions ?? []}
 			linkedHazardousEvents={ld.linkedHazardousEvents ?? []}
 			disasterRecordOptions={ld.disasterRecordOptions ?? []}
 			linkedDisasterRecords={ld.linkedDisasterRecords ?? []}
 			disasterEventOptions={ld.disasterEventOptions ?? []}
 			linkedDisasterEvents={ld.linkedDisasterEvents ?? []}
+			currentUserOrganization={ld.currentUserOrganization ?? null}
 			user={ld.user}
 			usersWithValidatorRole={ld.usersWithValidatorRole ?? []}
 		/>

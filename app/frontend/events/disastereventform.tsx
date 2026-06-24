@@ -324,12 +324,28 @@ export function fieldsDefCommon(
 			uiRow: {},
 		},
 		{
+			key: "startDateTime",
+			label: ctx.t({
+				code: "start_time",
+				msg: "Start time",
+			}),
+			type: "other",
+		},
+		{
 			key: "endDate",
 			label: ctx.t({
 				code: "common.end_date",
 				msg: "End date",
 			}),
 			type: "date_optional_precision",
+		},
+		{
+			key: "endDateTime",
+			label: ctx.t({
+				code: "end_time",
+				msg: "End time",
+			}),
+			type: "other",
 		},
 		{
 			key: "startDateLocal",
@@ -646,6 +662,7 @@ export function fieldsDef(ctx: DContext): FormInputDef<DisasterEventFields>[] {
 	return [
 		{ key: "hazardousEventId", label: "", type: "uuid" },
 		{ key: "disasterEventId", label: "", type: "uuid" },
+		{ key: "recordingOrganizationId", label: "", type: "uuid" },
 		{ key: "hipHazardId", label: "", type: "other", uiRow: { colOverride: 1 } },
 		{ key: "hipClusterId", label: "", type: "other" },
 		{ key: "hipTypeId", label: "", type: "other" },
@@ -659,6 +676,7 @@ export function fieldsDefApi(
 	return [
 		{ key: "hazardousEventId", label: "", type: "uuid" },
 		{ key: "disasterEventId", label: "", type: "uuid" },
+		{ key: "recordingOrganizationId", label: "", type: "uuid" },
 		{ key: "hipHazardId", label: "", type: "other" },
 		{ key: "hipClusterId", label: "", type: "other" },
 		{ key: "hipTypeId", label: "", type: "other" },
@@ -671,6 +689,17 @@ export function fieldsDefApi(
 export function fieldsDefView(
 	ctx: DContext,
 ): FormInputDef<DisasterEventViewModel>[] {
+	const commonViewFields = fieldsDefCommon(ctx).map((field) => {
+		if (field.key === "startDateTime" || field.key === "endDateTime") {
+			return {
+				...field,
+				type: "text",
+			} as FormInputDef<DisasterEventViewModel>;
+		}
+
+		return field as FormInputDef<DisasterEventViewModel>;
+	});
+
 	return [
 		{
 			key: "hazardousEventId",
@@ -682,7 +711,7 @@ export function fieldsDefView(
 		},
 		{ key: "disasterEventId", label: "", type: "uuid" },
 		{ key: "hipHazard", label: "", type: "other" },
-		...(fieldsDefCommon(ctx) as FormInputDef<DisasterEventViewModel>[]),
+		...commonViewFields,
 		{ key: "createdAt", label: "", type: "other" },
 		{ key: "updatedAt", label: "", type: "other" },
 	];

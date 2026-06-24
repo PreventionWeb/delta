@@ -22,6 +22,10 @@ export const organizationTable = pgTable(
 		),
 	},
 	(table) => [
+		unique("organization___id_country_accounts_id").on(
+			table.id,
+			table.countryAccountsId,
+		),
 		unique("organization___api_import_id_country_accounts_id").on(
 			table.name,
 			table.apiImportId,

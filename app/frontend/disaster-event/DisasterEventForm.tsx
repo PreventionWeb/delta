@@ -90,7 +90,8 @@ type StepperFormState = {
 	nameGlobalOrRegional: string;
 	nationalDisasterId: string;
 	glide: string;
-	recordingInstitution: string;
+	recordingOrganizationId: string;
+	recordingOrganizationName: string;
 };
 
 type EventBasicsCompareFields = {
@@ -99,7 +100,8 @@ type EventBasicsCompareFields = {
 	nameGlobalOrRegional: string;
 	nationalDisasterId: string;
 	glide: string;
-	recordingInstitution: string;
+	recordingOrganizationId: string;
+	recordingOrganizationName: string;
 };
 
 type DatePrecision = "yyyy-mm-dd" | "yyyy-mm" | "yyyy";
@@ -198,11 +200,15 @@ type StepperValidationProps = {
 		nationalDisasterId?: string | null;
 		glide?: string | null;
 		startDate?: string | null;
+		startDateTime?: string | null;
 		endDate?: string | null;
+		endDateTime?: string | null;
 		hipTypeId?: string | null;
 		hipClusterId?: string | null;
 		hipHazardId?: string | null;
 		disasterEventId?: string | null;
+		recordingOrganizationId?: string | null;
+		recordingOrganizationName?: string | null;
 		recordingInstitution?: string | null;
 		id?: string | null;
 		spatialFootprint?: unknown;
@@ -267,6 +273,10 @@ type StepperValidationProps = {
 	linkedDisasterRecords: LinkedEventOption[];
 	disasterEventOptions: LinkedEventOption[];
 	linkedDisasterEvents: LinkedEventOption[];
+	currentUserOrganization: {
+		id: string;
+		name: string;
+	} | null;
 	user: {
 		role?: string | null;
 	} | null;
@@ -288,6 +298,7 @@ function StepperValidation({
 	linkedDisasterRecords,
 	disasterEventOptions,
 	linkedDisasterEvents,
+	currentUserOrganization,
 	user,
 	usersWithValidatorRole,
 }: StepperValidationProps) {
@@ -302,13 +313,21 @@ function StepperValidation({
 		);
 	};
 
+	const resolvedRecordingOrganizationId =
+		disasterEvent?.recordingOrganizationId ?? currentUserOrganization?.id ?? "";
+	const resolvedRecordingOrganizationName =
+		disasterEvent?.recordingOrganizationName ??
+		currentUserOrganization?.name ??
+		"";
+
 	const eventBasicsInitialValues: EventBasicsCompareFields = {
 		id: disasterEvent?.id ?? "",
 		nameNational: disasterEvent?.nameNational ?? "",
 		nameGlobalOrRegional: disasterEvent?.nameGlobalOrRegional ?? "",
 		nationalDisasterId: disasterEvent?.nationalDisasterId ?? "",
 		glide: disasterEvent?.glide ?? "",
-		recordingInstitution: disasterEvent?.recordingInstitution ?? "",
+		recordingOrganizationId: resolvedRecordingOrganizationId,
+		recordingOrganizationName: resolvedRecordingOrganizationName,
 	};
 	const [activeStep, setActiveStep] = useState(0);
 	const [form, setForm] = useState<StepperFormState>({
@@ -317,11 +336,9 @@ function StepperValidation({
 		nameGlobalOrRegional: disasterEvent?.nameGlobalOrRegional ?? "",
 		nationalDisasterId: disasterEvent?.nationalDisasterId ?? "",
 		glide: disasterEvent?.glide ?? "",
-		recordingInstitution: disasterEvent?.recordingInstitution ?? "",
+		recordingOrganizationId: eventBasicsInitialValues.recordingOrganizationId,
+		recordingOrganizationName: eventBasicsInitialValues.recordingOrganizationName,
 	});
-
-	console.log("Initial form state - disasterEvent:", { disasterEvent });
-	console.log("Initial form state - hip:", { hip });
 
 	const parseDateWithPrecision = (
 		value: string | null | undefined,
@@ -394,6 +411,50 @@ function StepperValidation({
 		}
 
 		return `${state.year}-${state.month}-${state.day}`;
+	};
+
+	const parseBackendTime = (value: string | null | undefined): Date | null => {
+		if (!value) {
+			return null;
+		}
+
+		const match = String(value).trim().match(/^(\d{2}):(\d{2})(?::(\d{2}))?/);
+		if (!match) {
+			return null;
+		}
+
+		const hours = Number(match[1]);
+		const minutes = Number(match[2]);
+		const seconds = Number(match[3] ?? "0");
+
+		if (
+			Number.isNaN(hours) ||
+			Number.isNaN(minutes) ||
+			Number.isNaN(seconds) ||
+			hours < 0 ||
+			hours > 23 ||
+			minutes < 0 ||
+			minutes > 59 ||
+			seconds < 0 ||
+			seconds > 59
+		) {
+			return null;
+		}
+
+		const parsed = new Date();
+		parsed.setHours(hours, minutes, seconds, 0);
+		return parsed;
+	};
+
+	const formatTimeForSubmit = (value: Date | null): string => {
+		if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
+			return "";
+		}
+
+		const hours = String(value.getHours()).padStart(2, "0");
+		const minutes = String(value.getMinutes()).padStart(2, "0");
+		const seconds = String(value.getSeconds()).padStart(2, "0");
+		return `${hours}:${minutes}:${seconds}`;
 	};
 
 	const toComparableBoundaryDate = (
@@ -486,8 +547,12 @@ function StepperValidation({
 	const [endDateState, setEndDateState] = useState<DateWithPrecisionState>(
 		parseDateWithPrecision(disasterEvent?.endDate),
 	);
-	const [startTime, setStartTime] = useState<Date | null>(null);
-	const [endTime, setEndTime] = useState<Date | null>(null);
+	const [startTime, setStartTime] = useState<Date | null>(() =>
+		parseBackendTime(disasterEvent?.startDateTime),
+	);
+	const [endTime, setEndTime] = useState<Date | null>(() =>
+		parseBackendTime(disasterEvent?.endDateTime),
+	);
 	const [spatialFootprintValue, setSpatialFootprintValue] = useState<any[]>(
 		() => {
 			try {
@@ -1187,7 +1252,10 @@ function StepperValidation({
 			nameGlobalOrRegional: readFieldValue("nameGlobalOrRegional"),
 			nationalDisasterId: readFieldValue("nationalDisasterId"),
 			glide: readFieldValue("glide"),
-			recordingInstitution: readFieldValue("recordingInstitution"),
+			recordingOrganizationId: form.recordingOrganizationId,
+			recordingOrganizationName: readFieldValue(
+				"recordingOrganizationName",
+			),
 		};
 
 		setForm((current) =>
@@ -1343,8 +1411,7 @@ function StepperValidation({
 
 	const saveDraftAndExit = () => {
 		saveAsDraft();
-		setVisibleExitModal(false);
-		document.location.href = ctx.url("/disaster-event");
+		handleSubmitAction("submit-draft");
 	};
 
 	const formatDateForSubmit = (value: Date | null): string => {
@@ -1383,6 +1450,7 @@ function StepperValidation({
 			}
 
 			setVisibleModalSubmit(false);
+			setVisibleExitModal(false);
 			formElement.requestSubmit();
 		}
 	};
@@ -1406,7 +1474,8 @@ function StepperValidation({
 		pushValue("nameGlobalOrRegional", form.nameGlobalOrRegional);
 		pushValue("nationalDisasterId", form.nationalDisasterId);
 		pushValue("glide", form.glide);
-		pushValue("recordingInstitution", form.recordingInstitution);
+		pushValue("recordingOrganizationId", form.recordingOrganizationId);
+		pushValue("recordingInstitution", form.recordingOrganizationName);
 		pushValue("hipTypeId", selectedHipTypeId);
 		pushValue("hipClusterId", selectedHipClusterId);
 		pushValue("hipHazardId", selectedHipHazardId);
@@ -1416,7 +1485,9 @@ function StepperValidation({
 			JSON.stringify(linkedEventTarget.map((event) => event.id)),
 		);
 		pushValue("startDate", toDateWithPrecisionValue(startDateState));
+		pushValue("startDateTime", formatTimeForSubmit(startTime));
 		pushValue("endDate", toDateWithPrecisionValue(endDateState));
+		pushValue("endDateTime", formatTimeForSubmit(endTime));
 		pushValue("spatialFootprint", JSON.stringify(spatialFootprintValue ?? []));
 		pushValue(
 			"linkedDisasterRecordIds",
@@ -1524,9 +1595,15 @@ function StepperValidation({
 		form,
 		responses,
 		linkedEventTarget,
+		linkedDisasterEventTarget,
+		linkedDisasterRecordTarget,
 		selectedHipClusterId,
 		selectedHipHazardId,
 		selectedHipTypeId,
+		startDateState,
+		startTime,
+		endDateState,
+		endTime,
 		spatialFootprintValue,
 	]);
 
@@ -2594,16 +2671,17 @@ function StepperValidation({
 
 										<div className="col-span-12 md:col-span-4">
 											<label
-												htmlFor="recordingInstitution"
+												htmlFor="recordingOrganizationName"
 												className="mb-1 inline-flex items-center gap-2"
 											>
 												Recording organisation
 											</label>
 											<InputText
-												id="recordingInstitution"
-												name="recordingInstitution"
-												defaultValue={form.recordingInstitution}
-												className="w-full"
+												id="recordingOrganizationName"
+												name="recordingOrganizationName"
+												value={form.recordingOrganizationName}
+												readOnly
+												className="w-full !border-slate-100 !bg-slate-50 shadow-none cursor-not-allowed"
 											/>
 										</div>
 									</div>
@@ -2867,12 +2945,6 @@ function StepperValidation({
 									<div className="flex gap-2">
 										<Button
 											type="button"
-											label="Save as draft"
-											outlined
-											onClick={saveAsDraft}
-										/>
-										<Button
-											type="button"
 											label="Next"
 											icon="pi pi-chevron-right"
 											iconPos="right"
@@ -3063,12 +3135,6 @@ function StepperValidation({
 									<div className="flex gap-2">
 										<Button
 											type="button"
-											label="Save as draft"
-											outlined
-											onClick={saveAsDraft}
-										/>
-										<Button
-											type="button"
 											label="Back"
 											outlined
 											icon="pi pi-chevron-left"
@@ -3224,7 +3290,7 @@ function StepperValidation({
 											: `Add ${detailDialogCategory}`
 									}
 									visible={detailDialogVisible}
-									style={{ width: "34rem" }}
+									style={{ width: "48rem" }}
 									onHide={() => setDetailDialogVisible(false)}
 									draggable={false}
 									resizable={false}
@@ -3435,12 +3501,6 @@ function StepperValidation({
 									<div className="flex gap-2">
 										<Button
 											type="button"
-											label="Save as draft"
-											outlined
-											onClick={saveAsDraft}
-										/>
-										<Button
-											type="button"
 											label="Back"
 											outlined
 											icon="pi pi-chevron-left"
@@ -3508,7 +3568,7 @@ function StepperValidation({
 												{renderReviewItem("Disaster event UUID", form.id)}
 												{renderReviewItem(
 													"Recording organisation",
-													form.recordingInstitution,
+														form.recordingOrganizationName,
 												)}
 											</div>
 										</div>
@@ -3676,12 +3736,6 @@ function StepperValidation({
 										onClick={openExitConfirmModal}
 									/>
 									<div className="flex gap-2">
-										<Button
-											type="button"
-											label="Save as draft"
-											outlined
-											onClick={saveAsDraft}
-										/>
 										<Button
 											type="button"
 											label="Back"
