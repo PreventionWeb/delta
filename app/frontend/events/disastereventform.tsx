@@ -30,9 +30,6 @@ import { HipHazardInfo } from "~/frontend/hip/hip";
 
 import { SpatialFootprintFormView } from "~/frontend/spatialFootprintFormView";
 import { SpatialFootprintView } from "~/frontend/spatialFootprintView";
-import { AttachmentsFormView } from "~/frontend/attachmentsFormView";
-import { AttachmentsView } from "~/frontend/attachmentsView";
-import { TEMP_UPLOAD_PATH } from "~/utils/paths";
 import { ViewContext } from "../context";
 import { DContext } from "~/utils/dcontext";
 import { HazardousEventPickerType } from "~/routes/$lang+/hazardous-event+/picker";
@@ -637,16 +634,6 @@ export function fieldsDefCommon(
 			uiRow: { colOverride: 1 },
 		},
 		{
-			key: "attachments",
-			label: ctx.t({
-				code: "common.attachments",
-				msg: "Attachments",
-			}),
-			type: "other",
-			psqlType: "jsonb",
-			uiRowNew: true,
-		},
-		{
 			key: "spatialFootprint",
 			label: ctx.t({
 				code: "spatial_footprint",
@@ -803,7 +790,7 @@ export function DisasterEventForm(props: DisasterEventFormProps) {
 		else {
 			frmElement = document.getElementById("form-new") as HTMLFormElement | null;
 		}
-		
+
 		if (frmElement) {
 			if (!frmElement.checkValidity()) {
 				// Show native validation tooltips; keep the modal open so they stay visible
@@ -1030,7 +1017,7 @@ export function DisasterEventForm(props: DisasterEventFormProps) {
 		else {
 			frmElement = document.getElementById("form-new") as HTMLFormElement | null;
 		}
-		
+
 		if (frmElement) {
 			if (!frmElement.checkValidity()) {
 				// Show native validation tooltips; keep the modal open so they stay visible
@@ -1304,22 +1291,6 @@ export function DisasterEventForm(props: DisasterEventFormProps) {
 							<></>
 						</Field>
 					),
-					attachments: props.edit ? (
-						<Field key="attachments" label="">
-							<AttachmentsFormView
-								ctx={ctx}
-								save_path_temp={TEMP_UPLOAD_PATH}
-								file_viewer_temp_url="/disaster-event/file-temp-viewer"
-								file_viewer_url="/disaster-event/file-viewer"
-								api_upload_url="/disaster-event/file-pre-upload"
-								initialData={props?.fields?.attachments}
-							/>
-						</Field>
-					) : (
-						<Field key="attachments" label="">
-							<></>
-						</Field>
-					),
 				}}
 			/>
 		</>
@@ -1447,14 +1418,6 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 					((item as any)?.spatialFootprintsDataSource as any[]) || []
 				}
 				ctryIso3={ctryIso3}
-			/>
-		),
-		attachments: (
-			<AttachmentsView
-				ctx={ctx}
-				id={item.id}
-				initialData={(item?.attachments as any[]) || []}
-				file_viewer_url="/disaster-event/file-viewer"
 			/>
 		),
 	};

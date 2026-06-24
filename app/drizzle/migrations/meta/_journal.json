@@ -215,8 +215,22 @@
     {
       "idx": 30,
       "version": "7",
+      "when": 1782197916581,
+      "tag": "20260623065836_migrate_attachments_data_attachments_column_to_disaster_event_attachment_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
       "when": 1782212145240,
       "tag": "20260623105545_add_start_end_datetime_recording_org_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1782282891587,
+      "tag": "20260624063451_migrate_links_data_from+attachements_column_to_disaster_event_link_table",
       "breakpoints": true
     }
   ]

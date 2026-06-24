@@ -228,7 +228,6 @@ export const disasterEventTable = pgTable(
 			"recovery_needs_local_currency_override",
 		),
 		//recoveryNeedsUSD: ourMoney("recovery_needs_usd"),
-		attachments: jsonb("attachments"),
 		spatialFootprint: jsonb("spatial_footprint"),
 
 		legacyData: jsonb("legacy_data"),

@@ -21,6 +21,7 @@ import { InputTextarea } from "primereact/inputtextarea";
 import { Toast } from "primereact/toast";
 import { ViewContext } from "~/frontend/context";
 import { copyTextToClipboardWithToast } from "~/frontend/utils/clipboard";
+import DisasterEventAttachment from "~/frontend/disaster-event/DisasterEventAttachment";
 import {
 	SaveSubmitDialog,
 	type SaveAction,
@@ -584,9 +585,9 @@ function StepperValidation({
 				? ctx.t({ code: "start_time", msg: "Start time" })
 				: ctx.t({ code: "end_time", msg: "End time" });
 		const timePlaceholder = ctx.t({
-				code: "time_placeholder_24h",
-				msg: "Time (24h, e.g. 14:30)",
-			});
+			code: "time_placeholder_24h",
+			msg: "Time (24h, e.g. 14:30)",
+		});
 		const timeValue = prefix === "startDate" ? startTime : endTime;
 
 		return (
@@ -628,20 +629,20 @@ function StepperValidation({
 								htmlFor={`${prefix}Date`}
 								className="mb-1 inline-flex items-center gap-2"
 							>
-								{label} 
+								{label}
 							</label>
 							<Calendar
 								id={`${prefix}DateCalendar`}
 								inputId={`${prefix}Date`}
 								value={
 									state.year.length === 4 &&
-									state.month.length === 2 &&
-									state.day.length === 2
+										state.month.length === 2 &&
+										state.day.length === 2
 										? new Date(
-												Number(state.year),
-												Number(state.month) - 1,
-												Number(state.day),
-											)
+											Number(state.year),
+											Number(state.month) - 1,
+											Number(state.day),
+										)
 										: null
 								}
 								onChange={(event) => {
@@ -982,7 +983,7 @@ function StepperValidation({
 		for (const index of effectIndexes) {
 			const descriptionText = String(
 				disasterEvent?.[`disasterDeclarationTypeAndEffect${index}` as const] ??
-					"",
+				"",
 			).trim();
 			const formattedDate = formatBackendDate(
 				disasterEvent?.[`disasterDeclarationDate${index}` as const] ?? null,
@@ -1122,9 +1123,9 @@ function StepperValidation({
 		? detailForm.declarationStatus !== ""
 		: isOfficialWarningType
 			? detailForm.hadOfficialWarningOrWeatherAdvisory ||
-				hasOfficialWarningAreas
+			hasOfficialWarningAreas
 			: detailForm.description.trim().length > 0 ||
-				detailForm.dateValue !== null;
+			detailForm.dateValue !== null;
 	const canSaveDetail =
 		hasDetailType && hasDetailContent && passesOfficialWarningRule;
 	const [errors, setErrors] = useState<Errors>({});
@@ -1755,9 +1756,9 @@ function StepperValidation({
 	);
 	const canAddAnyDeclaration =
 		(declarationCountByType.disaster_declaration ?? 0) <
-			maxDisasterDeclarationItems ||
+		maxDisasterDeclarationItems ||
 		(declarationCountByType.disaster_declaration_effects ?? 0) <
-			maxDisasterDeclarationEffectsItems ||
+		maxDisasterDeclarationEffectsItems ||
 		(declarationCountByType.official_warning ?? 0) < maxOfficialWarningItems;
 	const reviewSpatialFootprintItems = useMemo(
 		() =>
@@ -1857,7 +1858,7 @@ function StepperValidation({
 				category === "response" && normalizedType === "response_operation"
 					? null
 					: category === "declaration" &&
-						  normalizedType !== "disaster_declaration_effects"
+						normalizedType !== "disaster_declaration_effects"
 						? null
 						: parseDetailDate(item.date),
 			description: item.description,
@@ -1895,16 +1896,16 @@ function StepperValidation({
 		const declarationMeta: AdditionalDetailMeta | undefined =
 			targetCategory === "declaration"
 				? {
-						declarationStatus: isDeclarationStatusType
-							? (detailForm.declarationStatus as DeclarationStatus)
-							: undefined,
-						hadOfficialWarningOrWeatherAdvisory: isOfficialWarningType
-							? detailForm.hadOfficialWarningOrWeatherAdvisory
-							: undefined,
-						officialWarningAffectedAreas: isOfficialWarningType
-							? detailForm.officialWarningAffectedAreas.trim()
-							: undefined,
-					}
+					declarationStatus: isDeclarationStatusType
+						? (detailForm.declarationStatus as DeclarationStatus)
+						: undefined,
+					hadOfficialWarningOrWeatherAdvisory: isOfficialWarningType
+						? detailForm.hadOfficialWarningOrWeatherAdvisory
+						: undefined,
+					officialWarningAffectedAreas: isOfficialWarningType
+						? detailForm.officialWarningAffectedAreas.trim()
+						: undefined,
+				}
 				: undefined;
 		const nextItem: AdditionalDetailItem = {
 			id: editingDetailId ?? `${targetCategory}-${Date.now()}`,
@@ -1913,15 +1914,15 @@ function StepperValidation({
 				targetCategory === "response" && trimmedType === "response_operation"
 					? ""
 					: targetCategory === "declaration" &&
-						  trimmedType !== "disaster_declaration_effects"
+						trimmedType !== "disaster_declaration_effects"
 						? ""
 						: formatDetailDate(detailForm.dateValue),
 			description:
 				targetCategory === "declaration" &&
-				trimmedType === "disaster_declaration"
+					trimmedType === "disaster_declaration"
 					? ""
 					: targetCategory === "declaration" &&
-						  trimmedType === "official_warning"
+						trimmedType === "official_warning"
 						? detailForm.officialWarningAffectedAreas.trim()
 						: trimmedDescription,
 			meta: declarationMeta,
@@ -2050,14 +2051,14 @@ function StepperValidation({
 						<p className="mt-1 text-[14px] text-slate-500">
 							{descriptionValue
 								? (() => {
-										const lines = descriptionValue.split("\n");
-										return lines.map((line, index) => (
-											<span key={`${item.id}-line-${index}`}>
-												{line}
-												{index < lines.length - 1 ? <br /> : null}
-											</span>
-										));
-									})()
+									const lines = descriptionValue.split("\n");
+									return lines.map((line, index) => (
+										<span key={`${item.id}-line-${index}`}>
+											{line}
+											{index < lines.length - 1 ? <br /> : null}
+										</span>
+									));
+								})()
 								: "-"}
 						</p>
 					</div>
@@ -2076,20 +2077,17 @@ function StepperValidation({
 
 	function getDetailDescriptionValue(item: AdditionalDetailItem): string {
 		if (item.type === "disaster_declaration") {
-			return `Disaster declaration: ${
-				declarationStatusOptions.find(
-					(option) => option.value === item.meta?.declarationStatus,
-				)?.label ?? "-"
-			}`;
+			return `Disaster declaration: ${declarationStatusOptions.find(
+				(option) => option.value === item.meta?.declarationStatus,
+			)?.label ?? "-"
+				}`;
 		}
 
 		if (item.type === "official_warning") {
 			return [
-				`Was there an officially issued warning and/or weather advisory?: ${
-					item.meta?.hadOfficialWarningOrWeatherAdvisory ? "Yes" : "No"
+				`Was there an officially issued warning and/or weather advisory?: ${item.meta?.hadOfficialWarningOrWeatherAdvisory ? "Yes" : "No"
 				}`,
-				`Which affected areas were covered by the warning?: ${
-					item.meta?.officialWarningAffectedAreas || "-"
+				`Which affected areas were covered by the warning?: ${item.meta?.officialWarningAffectedAreas || "-"
 				}`,
 			].join("\n");
 		}
@@ -2303,10 +2301,10 @@ function StepperValidation({
 	const specificHazardObservedTooltipRef = useRef<Tooltip>(null);
 
 	function shortUuid(value: string) {
-        if (!value) return "-";
-        return value.slice(0, 6);
-    }
-	
+		if (!value) return "-";
+		return value.slice(0, 6);
+	}
+
 
 	async function copyUuidToClipboard(value: string) {
 		await copyTextToClipboardWithToast({
@@ -2412,13 +2410,13 @@ function StepperValidation({
 						/>
 					</div>
 					<div className="mt-2.5">
-							<Button
-								type="button"
-								label="Discard work and exit"
-								outlined
-								className="w-full"
-								onClick={discardAndExit}
-							/>
+						<Button
+							type="button"
+							label="Discard work and exit"
+							outlined
+							className="w-full"
+							onClick={discardAndExit}
+						/>
 					</div>
 				</Dialog>
 			</div>
@@ -2651,7 +2649,9 @@ function StepperValidation({
 											</label>
 											<div className="flex items-center gap-2">
 												<InputText
-													defaultValue={ shortUuid(form.id.toString()) }
+													id="id"
+													name="id"
+													defaultValue={shortUuid(form.id.toString())}
 													readOnly
 													className="w-full !border-slate-100 !bg-slate-50 shadow-none cursor-not-allowed"
 												/>
@@ -2933,6 +2933,11 @@ function StepperValidation({
 											</div>
 										</div>
 									</div>
+
+									<div id="disaster-event-attachment-divider" className="col-span-12 my-6 border-t border-slate-200" />
+
+									<DisasterEventAttachment ctx={ctx} />
+
 								</div>
 
 								<div className="flex items-center justify-between w-full mt-20">
@@ -3307,11 +3312,11 @@ function StepperValidation({
 														type: selectedType,
 														dateValue:
 															detailDialogCategory === "response" &&
-															selectedType === "response_operation"
+																selectedType === "response_operation"
 																? null
 																: detailDialogCategory === "declaration" &&
-																	  selectedType !==
-																			"disaster_declaration_effects"
+																	selectedType !==
+																	"disaster_declaration_effects"
 																	? null
 																	: state.dateValue,
 														declarationStatus:
@@ -3429,7 +3434,7 @@ function StepperValidation({
 														className="w-full"
 													/>
 													{detailForm.hadOfficialWarningOrWeatherAdvisory &&
-													!hasOfficialWarningAreas ? (
+														!hasOfficialWarningAreas ? (
 														<p className="mt-1 text-xs text-red-600">
 															Affected areas are required when warning/advisory
 															is checked.
@@ -3665,7 +3670,7 @@ function StepperValidation({
 											</div>
 										</>,
 										selectedDivisionItems.length > 0 ||
-											reviewSpatialFootprintItems.length > 0,
+										reviewSpatialFootprintItems.length > 0,
 									)}
 
 									{renderStep4SectionCard(
@@ -3677,7 +3682,7 @@ function StepperValidation({
 											{reviewLinkedDisasterEventRows}
 										</>,
 										reviewLinkedHazardousEventRows.length > 0 ||
-											reviewLinkedDisasterEventRows.length > 0,
+										reviewLinkedDisasterEventRows.length > 0,
 									)}
 
 									{renderStep4SectionCard(
