@@ -6718,5 +6718,21 @@
 	{
 		"id": "upload_supporting_documents",
 		"translation": "Upload supporting documents for this disaster event."
+	},
+	{
+		"id": "disaster_event.attachments.helper.size_limits",
+		"translation": "Maximum attachment size: 10 MB."
+	},
+	{
+		"id": "disaster_event.attachments.helper.accepted_types",
+		"translation": "Accepted: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, PNG, GIF, WEBP, MP3, WAV, M4A, MP4, MOV."
+	},
+	{
+		"id": "disaster_event.attachments.cta",
+		"translation": "Drag and drop or click to upload"
+	},
+	{
+		"id": "upload_files",
+		"translation": "Upload files"
 	}
 ]

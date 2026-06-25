@@ -190,7 +190,7 @@ export default function DisasterEventAttachment({
 		() =>
 			ctx.t({
 				code: "disaster_event.attachments.helper.size_limits",
-				msg: "Maximum 10 MB per file and 10 MB total.",
+				msg: "Maximum attachment size: 10 MB.",
 			}),
 		[ctx],
 	);
@@ -227,12 +227,15 @@ export default function DisasterEventAttachment({
 
 	return (
 		<div className="col-span-12 mb-4">
-			<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
-				{ctx.t({
-					code: "attachments",
-					msg: "Attachments",
-				})}
-			</h2>
+			<div className="flex items-center gap-2">
+				<i className="pi pi-file text-blue-500" />
+				<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
+					{ctx.t({
+						code: "attachments",
+						msg: "Attachments",
+					})}
+				</h2>
+			</div>
 			<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
 				{ctx.t({
 					code: "upload_supporting_documents",
@@ -253,10 +256,11 @@ export default function DisasterEventAttachment({
 					auto={false}
 					chooseOptions={{
 						label: ctx.t({
-							code: "disaster_event.attachments.choose",
-							msg: "Choose",
+							code: "upload_files",
+							msg: "Upload files",
 						}),
 						icon: "pi pi-upload",
+						className: "p-button-outlined",
 					}}
 					headerTemplate={(options) => (
 						<div
