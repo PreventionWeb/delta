@@ -4,10 +4,11 @@ import { disasterEventTable, InsertDisasterEvent } from "~/drizzle/schema";
 import { DisasterRecordsRepository } from "~/db/queries/disasterRecordsRepository";
 
 export const DisasterEventRepository = {
-	delete: (id: string, tx?: Tx) => {
+	deleteById: (id: string, tx?: Tx) => {
 		return (tx ?? dr)
 			.delete(disasterEventTable)
-			.where(eq(disasterEventTable.id, id));
+			.where(eq(disasterEventTable.id, id))
+			.returning({ id: disasterEventTable.id });
 	},
 
 	deleteByCountryAccountId: (countryAccountsId: string, tx?: Tx) => {

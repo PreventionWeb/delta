@@ -4,6 +4,8 @@ import {
 	useNavigation,
 	useParams,
 } from "react-router";
+import fs from "fs";
+import path from "path";
 import { disasterEventById } from "~/backend.server/models/event";
 import { BackendContext } from "~/backend.server/context";
 import DeleteDisasterEventDialog from "~/frontend/disaster-event/DeleteDisasterEventDialog";
@@ -13,6 +15,7 @@ import {
 	redirectWithMessage,
 } from "~/utils/session";
 import { DisasterEventRepository } from "~/db/queries/disasterEventRepository";
+import { BASE_UPLOAD_PATH, DISASTER_EVENT_UPLOAD_PATH } from "~/utils/paths";
 
 export const loader = authLoaderWithPerm(
 	"DeleteDisasterEvent",
@@ -72,7 +75,21 @@ export const action = authActionWithPerm(
 			throw new Response("Unauthorized", { status: 401 });
 		}
 
-		await DisasterEventRepository.delete(id);
+		const deletedEvents = await DisasterEventRepository.deleteById(id);
+
+		if (deletedEvents.length !== 1 || deletedEvents[0]?.id !== id) {
+			throw new Response("Failed to delete disaster event", { status: 500 });
+		}
+
+		const attachmentDirectory = path.resolve(
+			process.cwd(),
+			BASE_UPLOAD_PATH,
+			`tenant-${countryAccountsId}`,
+			path.relative(BASE_UPLOAD_PATH, DISASTER_EVENT_UPLOAD_PATH),
+			id,
+		);
+
+		fs.rmSync(attachmentDirectory, { recursive: true, force: true });
 
 		return redirectWithMessage(actionArgs, "/disaster-event", {
 			type: "info",
