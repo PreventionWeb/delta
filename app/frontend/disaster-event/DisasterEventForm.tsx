@@ -301,6 +301,14 @@ type StepperValidationProps = {
 	}>;
 };
 
+type NewAttachmentUpload = {
+	fileName: string;
+	fileType: string;
+	fileSize: number;
+	tempFilePath: string;
+	tenantPath?: string;
+};
+
 function StepperValidation({
 	ctx,
 	disasterEvent,
@@ -319,6 +327,12 @@ function StepperValidation({
 	const navigate = useNavigate();
 	const [selectedDivisionItems, setSelectedDivisionItems] = useState<
 		SelectedDivisionItem[]
+	>([]);
+	const [keptAttachmentIds, setKeptAttachmentIds] = useState<string[]>(
+		() => disasterEventAttachments.map((attachment) => attachment.id),
+	);
+	const [newAttachmentUploads, setNewAttachmentUploads] = useState<
+		NewAttachmentUpload[]
 	>([]);
 
 	const removeDivisionSelection = (keyToRemove: string) => {
@@ -2484,6 +2498,16 @@ function StepperValidation({
 							name="tempValidatorUserIds"
 						/>
 						<input type="hidden" id="tempAction" name="tempAction" />
+						<input
+							type="hidden"
+							name="existingAttachmentIds"
+							value={JSON.stringify(keptAttachmentIds)}
+						/>
+						<input
+							type="hidden"
+							name="newAttachmentUploads"
+							value={JSON.stringify(newAttachmentUploads)}
+						/>
 						{hiddenFormValues.map((field) => (
 							<input
 								key={field.name}
@@ -2944,6 +2968,9 @@ function StepperValidation({
 									<DisasterEventAttachment
 										ctx={ctx}
 										initialAttachments={disasterEventAttachments ?? []}
+										keptAttachmentIds={keptAttachmentIds}
+										onKeptAttachmentIdsChange={setKeptAttachmentIds}
+										onNewAttachmentUploadsChange={setNewAttachmentUploads}
 									/>
 
 								</div>

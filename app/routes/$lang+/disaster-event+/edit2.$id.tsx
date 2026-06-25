@@ -49,6 +49,8 @@ import {
 import { DisasterEventAttachmentRepository } from "~/db/queries/disasterEventAttachmentRepository";
 import { handleApprovalWorkflowService } from "~/backend.server/services/approvalWorkflowService";
 import { canEditDataCollectionRecord } from "~/frontend/user/roles";
+import { ContentRepeaterUploadFile } from "~/components/ContentRepeater/UploadFile";
+import { TEMP_UPLOAD_PATH } from "~/utils/paths";
 
 export const handle = {
 	hideMainNavigation: true,
@@ -350,12 +352,24 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 	const linkedDisasterEventIdsRaw = String(
 		formData.get("linkedDisasterEventIds") ?? "[]",
 	);
+	const hasExistingAttachmentIdsField = formData.has("existingAttachmentIds");
 	const existingAttachmentIdsRaw = String(
 		formData.get("existingAttachmentIds") ?? "[]",
+	);
+	const hasNewAttachmentUploadsField = formData.has("newAttachmentUploads");
+	const newAttachmentUploadsRaw = String(
+		formData.get("newAttachmentUploads") ?? "[]",
 	);
 	let linkedDisasterRecordIds: string[] = [];
 	let linkedDisasterEventIds: string[] = [];
 	let existingAttachmentIds: string[] = [];
+	let newAttachmentUploads: Array<{
+		fileName: string;
+		fileType: string;
+		fileSize: number;
+		tempFilePath: string;
+		tenantPath?: string;
+	}> = [];
 	try {
 		const parsed = JSON.parse(linkedDisasterRecordIdsRaw);
 		linkedDisasterRecordIds = Array.isArray(parsed)
@@ -379,6 +393,26 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 			: [];
 	} catch {
 		existingAttachmentIds = [];
+	}
+	try {
+		const parsed = JSON.parse(newAttachmentUploadsRaw);
+		newAttachmentUploads = Array.isArray(parsed)
+			? parsed.filter(
+				(value): value is {
+					fileName: string;
+					fileType: string;
+					fileSize: number;
+					tempFilePath: string;
+					tenantPath?: string;
+				} =>
+					typeof value?.fileName === "string" &&
+					typeof value?.fileType === "string" &&
+					typeof value?.fileSize === "number" &&
+					typeof value?.tempFilePath === "string",
+			)
+			: [];
+	} catch {
+		newAttachmentUploads = [];
 	}
 
 	return formSave({
@@ -504,11 +538,83 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 			};
 
 			const syncDisasterEventAttachments = async (eventId: string) => {
-				await DisasterEventAttachmentRepository.deleteByDisasterEventIdExceptAttachmentIds(
-					eventId,
-					existingAttachmentIds,
-					tx,
+				if (hasExistingAttachmentIdsField) {
+					const existingAttachmentsBeforeDelete =
+						await DisasterEventAttachmentRepository.getByDisasterEventId(eventId, tx);
+					const keepIds = new Set(existingAttachmentIds);
+					const attachmentsToDelete = existingAttachmentsBeforeDelete.filter(
+						(attachment) => keepIds.has(attachment.id) === false,
+					);
+
+					await DisasterEventAttachmentRepository.deleteByDisasterEventIdExceptAttachmentIds(
+						eventId,
+						existingAttachmentIds,
+						tx,
+					);
+
+					if (attachmentsToDelete.length > 0) {
+						ContentRepeaterUploadFile.delete(
+							attachmentsToDelete.map((attachment) => ({
+								file: {
+									name: attachment.fileKey,
+								},
+							})),
+							undefined,
+							countryAccountsId,
+						);
+					}
+				}
+
+				if (!hasNewAttachmentUploadsField || newAttachmentUploads.length === 0) {
+					return;
+				}
+
+				const existingAttachmentsAfterSync =
+					await DisasterEventAttachmentRepository.getByDisasterEventId(eventId, tx);
+
+				const savePath = `/uploads/disaster-event/${eventId}`;
+				const existingItems = existingAttachmentsAfterSync.map((attachment) => ({
+					file: {
+						name: attachment.fileKey,
+						content_type: attachment.fileType,
+					},
+				}));
+				const newItems = newAttachmentUploads.map((upload) => ({
+					file: {
+						name: upload.tempFilePath,
+						content_type: upload.fileType,
+						tenantPath: upload.tenantPath,
+					},
+				}));
+				const itemsToMove = [...existingItems, ...newItems];
+
+				const movedItems = ContentRepeaterUploadFile.save(
+					itemsToMove,
+					TEMP_UPLOAD_PATH,
+					savePath,
+					undefined,
+					countryAccountsId,
 				);
+
+				const movedNewItems = movedItems.slice(existingItems.length);
+				const newAttachmentRows = movedNewItems
+					.map((item: { file?: { name?: string; content_type?: string } }, index: number) => ({
+						disasterEventId: eventId,
+						fileKey: String(item?.file?.name ?? ""),
+						fileName: newAttachmentUploads[index]?.fileName ?? "",
+						fileType:
+							newAttachmentUploads[index]?.fileType ||
+							String(item?.file?.content_type ?? ""),
+						fileSize: Number(newAttachmentUploads[index]?.fileSize ?? 0),
+					}))
+					.filter(
+						(row: { fileKey: string; fileName: string }) =>
+							row.fileKey.length > 0 && row.fileName.length > 0,
+					);
+
+				if (newAttachmentRows.length > 0) {
+					await DisasterEventAttachmentRepository.createMany(newAttachmentRows, tx);
+				}
 			};
 
 			if (id) {
@@ -533,6 +639,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 				});
 
 				if (returnValue.ok === true) {
+					await syncDisasterEventAttachments(returnValue.id);
 					await syncLinkedDisasterEvents(returnValue.id);
 					await syncLinkedDisasterRecords(returnValue.id);
 					await handleApprovalWorkflowService(

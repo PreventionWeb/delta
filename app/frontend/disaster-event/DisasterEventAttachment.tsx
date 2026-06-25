@@ -1,7 +1,11 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "primereact/button";
 import { FileUpload, type FileUploadSelectEvent } from "primereact/fileupload";
 import { ViewContext } from "~/frontend/context";
+import {
+	preUploadDisasterEventAttachment,
+	type PreUploadedAttachmentFile,
+} from "~/frontend/disaster-event/attachmentUpload";
 
 type DisasterEventAttachmentProps = {
 	ctx: ViewContext;
@@ -11,6 +15,17 @@ type DisasterEventAttachmentProps = {
 		fileType: string;
 		fileSize: number;
 	}>;
+	keptAttachmentIds: string[];
+	onKeptAttachmentIdsChange: (attachmentIds: string[]) => void;
+	onNewAttachmentUploadsChange: (
+		uploads: Array<{
+			fileName: string;
+			fileType: string;
+			fileSize: number;
+			tempFilePath: string;
+			tenantPath?: string;
+		}>,
+	) => void;
 };
 
 type AttachmentErrorCode =
@@ -23,6 +38,13 @@ type AttachmentRow = {
 	file: File;
 	errorCode: AttachmentErrorCode | null;
 	errorMessage: string | null;
+	uploadStatus: "idle" | "uploading" | "uploaded" | "failed";
+	uploadError: string | null;
+	uploadedFile: {
+		name: string;
+		content_type: string;
+		tenantPath?: string;
+	} | null;
 };
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
@@ -158,9 +180,14 @@ function assignValidation(rows: AttachmentRow[], ctx: ViewContext): AttachmentRo
 export default function DisasterEventAttachment({
 	ctx,
 	initialAttachments,
+	keptAttachmentIds,
+	onKeptAttachmentIdsChange,
+	onNewAttachmentUploadsChange,
 }: DisasterEventAttachmentProps) {
 	const [rows, setRows] = useState<AttachmentRow[]>([]);
-	const [existingRows, setExistingRows] = useState(initialAttachments);
+	const [existingRows, setExistingRows] = useState(
+		initialAttachments.filter((attachment) => keptAttachmentIds.includes(attachment.id)),
+	);
 	const fileUploadRef = useRef<FileUpload | null>(null);
 	const totalExistingAttachmentSize = existingRows.reduce(
 		(sum, row) => sum + row.fileSize,
@@ -190,7 +217,7 @@ export default function DisasterEventAttachment({
 		() =>
 			ctx.t({
 				code: "disaster_event.attachments.helper.size_limits",
-				msg: "Maximum 10 MB per file and 10 MB total.",
+				msg: "Maximum attachment size: 10 MB.",
 			}),
 		[ctx],
 	);
@@ -205,10 +232,86 @@ export default function DisasterEventAttachment({
 				file,
 				errorCode: null,
 				errorMessage: null,
+				uploadStatus: "idle",
+				uploadError: null,
+				uploadedFile: null,
 			}));
 
-			return assignValidation([...currentRows, ...newRows], ctx);
+			const validatedRows = assignValidation([...currentRows, ...newRows], ctx);
+			return validatedRows.map((row) =>
+				row.errorCode
+					? {
+						...row,
+						uploadStatus: "failed",
+						uploadError: row.errorMessage,
+					}
+					: row,
+			);
 		});
+
+		for (const file of selectedFiles) {
+			setRows((currentRows) =>
+				currentRows.map((row) => {
+					if (row.file !== file || row.errorCode) {
+						return row;
+					}
+
+					return {
+						...row,
+						uploadStatus: "uploading",
+						uploadError: null,
+					};
+				}),
+			);
+
+			preUploadDisasterEventAttachment(
+				file,
+				ctx.url("/disaster-event/file-pre-upload"),
+				ctx.t({
+					code: "content_repeater.file_upload_error",
+					msg: "An error occurred while processing the file upload.",
+				}),
+			)
+				.then((uploadedFile) => {
+					setRows((currentRows) =>
+						currentRows.map((row) => {
+							if (row.file !== file) {
+								return row;
+							}
+
+							return {
+								...row,
+								uploadStatus: "uploaded",
+								uploadError: null,
+								uploadedFile: uploadedFile as PreUploadedAttachmentFile,
+							};
+						}),
+					);
+				})
+				.catch((error: unknown) => {
+					const errorMessage =
+						error instanceof Error
+							? error.message
+							: ctx.t({
+								code: "content_repeater.file_upload_error",
+								msg: "An error occurred while processing the file upload.",
+							});
+
+					setRows((currentRows) =>
+						currentRows.map((row) => {
+							if (row.file !== file) {
+								return row;
+							}
+
+							return {
+								...row,
+								uploadStatus: "failed",
+								uploadError: errorMessage,
+							};
+						}),
+					);
+				});
+		}
 
 		fileUploadRef.current?.clear();
 	};
@@ -225,14 +328,41 @@ export default function DisasterEventAttachment({
 		);
 	};
 
+	useEffect(() => {
+		onKeptAttachmentIdsChange(existingRows.map((attachment) => attachment.id));
+	}, [existingRows, onKeptAttachmentIdsChange]);
+
+	useEffect(() => {
+		onNewAttachmentUploadsChange(
+			rows
+				.filter(
+					(row) =>
+						row.errorCode === null &&
+						row.uploadStatus === "uploaded" &&
+						row.uploadedFile,
+				)
+				.map((row) => ({
+					fileName: row.file.name,
+					fileType: row.uploadedFile?.content_type || row.file.type,
+					fileSize: row.file.size,
+					tempFilePath: row.uploadedFile?.name || "",
+					tenantPath: row.uploadedFile?.tenantPath,
+				}))
+				.filter((upload) => upload.tempFilePath.length > 0),
+		);
+	}, [rows, onNewAttachmentUploadsChange]);
+
 	return (
 		<div className="col-span-12 mb-4">
-			<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
-				{ctx.t({
-					code: "attachments",
-					msg: "Attachments",
-				})}
-			</h2>
+			<div className="flex items-center gap-2">
+				<i className="pi pi-file text-blue-500" />
+				<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
+					{ctx.t({
+						code: "attachments",
+						msg: "Attachments",
+					})}
+				</h2>
+			</div>
 			<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
 				{ctx.t({
 					code: "upload_supporting_documents",
@@ -240,7 +370,7 @@ export default function DisasterEventAttachment({
 				})}
 			</p>
 
-			<div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
+			<div className="mt-4">
 				<FileUpload
 					ref={fileUploadRef}
 					name="disasterEventAttachments"
@@ -253,10 +383,11 @@ export default function DisasterEventAttachment({
 					auto={false}
 					chooseOptions={{
 						label: ctx.t({
-							code: "disaster_event.attachments.choose",
-							msg: "Choose",
+							code: "upload_files",
+							msg: "Upload files",
 						}),
 						icon: "pi pi-upload",
+						className: "p-button-outlined",
 					}}
 					headerTemplate={(options) => (
 						<div
@@ -303,12 +434,6 @@ export default function DisasterEventAttachment({
 			</div>
 
 			<div className="mt-4 space-y-2">
-				<input
-					type="hidden"
-					name="existingAttachmentIds"
-					value={JSON.stringify(existingRows.map((attachment) => attachment.id))}
-				/>
-
 				{existingRows.map((attachment) => (
 					<div
 						key={attachment.id}
@@ -375,6 +500,17 @@ export default function DisasterEventAttachment({
 						</div>
 						{row.errorMessage ? (
 							<p className="mt-2 text-xs text-red-600">{row.errorMessage}</p>
+						) : null}
+						{row.uploadStatus === "uploading" ? (
+							<p className="mt-2 text-xs text-slate-500">
+								{ctx.t({
+									code: "common.uploading_please_wait",
+									msg: "Uploading, please wait...",
+								})}
+							</p>
+						) : null}
+						{row.uploadError ? (
+							<p className="mt-2 text-xs text-red-600">{row.uploadError}</p>
 						) : null}
 					</div>
 				))}
