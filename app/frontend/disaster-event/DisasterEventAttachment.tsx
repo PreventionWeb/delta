@@ -5,6 +5,12 @@ import { ViewContext } from "~/frontend/context";
 
 type DisasterEventAttachmentProps = {
 	ctx: ViewContext;
+	initialAttachments: Array<{
+		id: string;
+		fileName: string;
+		fileType: string;
+		fileSize: number;
+	}>;
 };
 
 type AttachmentErrorCode =
@@ -151,10 +157,21 @@ function assignValidation(rows: AttachmentRow[], ctx: ViewContext): AttachmentRo
 
 export default function DisasterEventAttachment({
 	ctx,
+	initialAttachments,
 }: DisasterEventAttachmentProps) {
 	const [rows, setRows] = useState<AttachmentRow[]>([]);
+	const [existingRows, setExistingRows] = useState(initialAttachments);
 	const fileUploadRef = useRef<FileUpload | null>(null);
-	const totalAttachmentSize = rows.reduce((sum, row) => sum + row.file.size, 0);
+	const totalExistingAttachmentSize = existingRows.reduce(
+		(sum, row) => sum + row.fileSize,
+		0,
+	);
+	const totalNewAttachmentSize = rows.reduce(
+		(sum, row) => sum + row.file.size,
+		0,
+	);
+	const totalAttachmentSize =
+		totalExistingAttachmentSize + totalNewAttachmentSize;
 	const totalAttachmentSizePercent = Math.min(
 		100,
 		(totalAttachmentSize / MAX_TOTAL_SIZE_BYTES) * 100,
@@ -202,6 +219,12 @@ export default function DisasterEventAttachment({
 		);
 	};
 
+	const removeExistingRow = (rowId: string) => {
+		setExistingRows((currentRows) =>
+			currentRows.filter((row) => row.id !== rowId),
+		);
+	};
+
 	return (
 		<div className="col-span-12 mb-4">
 			<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
@@ -236,8 +259,27 @@ export default function DisasterEventAttachment({
 						icon: "pi pi-upload",
 					}}
 					headerTemplate={(options) => (
-						<div className={options.className}>
+						<div
+							className={`${options.className} flex items-start justify-between gap-4`}
+						>
 							{options.chooseButton}
+							<div className="ms-auto w-full max-w-64">
+								<div className="mb-1 flex items-center justify-end gap-3 text-xs text-slate-500">
+									<span>
+										{ctx.t({
+											code: "disaster_event.attachments.total_size",
+											msg: "Total size",
+										})}
+									</span>
+									<span>{`${formatFileSize(totalAttachmentSize)} / ${formatFileSize(MAX_TOTAL_SIZE_BYTES)}`}</span>
+								</div>
+								<div className="h-2 overflow-hidden rounded-full bg-slate-200">
+									<div
+										className="h-full rounded-full bg-sky-500 transition-all"
+										style={{ width: `${totalAttachmentSizePercent}%` }}
+									/>
+								</div>
+							</div>
 						</div>
 					)}
 					onSelect={onSelect}
@@ -260,25 +302,48 @@ export default function DisasterEventAttachment({
 				/>
 			</div>
 
-			<div className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
-				<div className="mb-1 flex items-center justify-between gap-3 text-xs text-slate-500">
-					<span>{`${formatFileSize(totalAttachmentSize)} / ${formatFileSize(MAX_TOTAL_SIZE_BYTES)}`}</span>
-					<span>
-						{ctx.t({
-							code: "disaster_event.attachments.total_size",
-							msg: "Total size",
-						})}
-					</span>
-				</div>
-				<div className="h-2 overflow-hidden rounded-full bg-slate-200">
-					<div
-						className="h-full rounded-full bg-sky-500 transition-all"
-						style={{ width: `${totalAttachmentSizePercent}%` }}
-					/>
-				</div>
-			</div>
-
 			<div className="mt-4 space-y-2">
+				<input
+					type="hidden"
+					name="existingAttachmentIds"
+					value={JSON.stringify(existingRows.map((attachment) => attachment.id))}
+				/>
+
+				{existingRows.map((attachment) => (
+					<div
+						key={attachment.id}
+						className="rounded-md border border-slate-200 bg-white px-3 py-2"
+					>
+						<div className="flex items-center justify-between gap-3">
+							<div className="flex min-w-0 items-center gap-3">
+								<i
+									className={`${getFileIconClass(attachment.fileName)} text-slate-500`}
+								/>
+								<div className="min-w-0">
+									<p className="truncate text-sm font-medium text-slate-800">
+										{attachment.fileName}
+									</p>
+									<p className="text-xs text-slate-500">
+										{`${formatFileSize(attachment.fileSize)}${attachment.fileType ? ` • ${attachment.fileType}` : ""
+											}`}
+									</p>
+								</div>
+							</div>
+							<Button
+								type="button"
+								text
+								severity="danger"
+								icon="pi pi-trash"
+								onClick={() => removeExistingRow(attachment.id)}
+								aria-label={ctx.t({
+									code: "disaster_event.attachments.remove_existing_file",
+									msg: `Remove ${attachment.fileName}`,
+								})}
+							/>
+						</div>
+					</div>
+				))}
+
 				{rows.map((row) => (
 					<div
 						key={row.id}

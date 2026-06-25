@@ -268,6 +268,14 @@ type StepperValidationProps = {
 		hadOfficialWarningOrWeatherAdvisory?: boolean | null;
 		officialWarningAffectedAreas?: string | null;
 	} | null;
+	disasterEventAttachments: Array<{
+		id: string;
+		fileKey: string;
+		fileName: string;
+		fileType: string;
+		fileSize: number;
+		createdAt: string | Date;
+	}>;
 	hazardousEventOptions: LinkedEventOption[];
 	linkedHazardousEvents: LinkedEventOption[];
 	disasterRecordOptions: LinkedEventOption[];
@@ -292,6 +300,7 @@ type StepperValidationProps = {
 function StepperValidation({
 	ctx,
 	disasterEvent,
+	disasterEventAttachments,
 	hip,
 	hazardousEventOptions,
 	linkedHazardousEvents,
@@ -2936,7 +2945,10 @@ function StepperValidation({
 
 									<div id="disaster-event-attachment-divider" className="col-span-12 my-6 border-t border-slate-200" />
 
-									<DisasterEventAttachment ctx={ctx} />
+									<DisasterEventAttachment
+										ctx={ctx}
+										initialAttachments={disasterEventAttachments ?? []}
+									/>
 
 								</div>
 
@@ -3573,7 +3585,7 @@ function StepperValidation({
 												{renderReviewItem("Disaster event UUID", form.id)}
 												{renderReviewItem(
 													"Recording organisation",
-														form.recordingOrganizationName,
+													form.recordingOrganizationName,
 												)}
 											</div>
 										</div>

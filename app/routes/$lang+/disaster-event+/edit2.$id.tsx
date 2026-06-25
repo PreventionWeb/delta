@@ -46,6 +46,7 @@ import {
 	getUserCountryAccountsWithAdminRole,
 	getUserCountryAccountsWithValidatorRole,
 } from "~/db/queries/userCountryAccountsRepository";
+import { DisasterEventAttachmentRepository } from "~/db/queries/disasterEventAttachmentRepository";
 import { handleApprovalWorkflowService } from "~/backend.server/services/approvalWorkflowService";
 import { canEditDataCollectionRecord } from "~/frontend/user/roles";
 
@@ -221,9 +222,9 @@ function formatHazardousEventDisplayName(
 			? `${hazardName} (${event.hipHazard.code})`
 			: hazardName
 		: clusterName ||
-			typeName ||
-			event.description?.trim() ||
-			`Hazardous event ${event.id.slice(0, 8)}`;
+		typeName ||
+		event.description?.trim() ||
+		`Hazardous event ${event.id.slice(0, 8)}`;
 
 	return {
 		id: event.id,
@@ -271,8 +272,8 @@ async function getLinkedHazardousData(
 
 	const linkedHazardousEvents = selectedHazardousEventId
 		? hazardousEventOptions.filter(
-				(event) => event.id === selectedHazardousEventId,
-			)
+			(event) => event.id === selectedHazardousEventId,
+		)
 		: [];
 
 	return {
@@ -349,8 +350,12 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 	const linkedDisasterEventIdsRaw = String(
 		formData.get("linkedDisasterEventIds") ?? "[]",
 	);
+	const existingAttachmentIdsRaw = String(
+		formData.get("existingAttachmentIds") ?? "[]",
+	);
 	let linkedDisasterRecordIds: string[] = [];
 	let linkedDisasterEventIds: string[] = [];
+	let existingAttachmentIds: string[] = [];
 	try {
 		const parsed = JSON.parse(linkedDisasterRecordIdsRaw);
 		linkedDisasterRecordIds = Array.isArray(parsed)
@@ -366,6 +371,14 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 			: [];
 	} catch {
 		linkedDisasterEventIds = [];
+	}
+	try {
+		const parsed = JSON.parse(existingAttachmentIdsRaw);
+		existingAttachmentIds = Array.isArray(parsed)
+			? parsed.filter((value): value is string => typeof value === "string")
+			: [];
+	} catch {
+		existingAttachmentIds = [];
 	}
 
 	return formSave({
@@ -490,10 +503,19 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 				}
 			};
 
+			const syncDisasterEventAttachments = async (eventId: string) => {
+				await DisasterEventAttachmentRepository.deleteByDisasterEventIdExceptAttachmentIds(
+					eventId,
+					existingAttachmentIds,
+					tx,
+				);
+			};
+
 			if (id) {
 				const returnValue = await disasterEventUpdate(ctx, tx, id, updatedData);
 
 				if (returnValue.ok === true) {
+					await syncDisasterEventAttachments(id);
 					await syncLinkedDisasterEvents(id);
 					await syncLinkedDisasterRecords(id);
 					await handleApprovalWorkflowService(ctx, tx, id, "disaster_event", {
@@ -548,12 +570,12 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 	if (params.id === "new") {
 		const [treeData, divisionGeoJSON, hip, user, currentUserOrganization] =
 			await Promise.all([
-			getDivisionTreeData(countryAccountsId),
-			getDivisionGeoJSON(countryAccountsId),
-			dataForHazardPicker(ctx),
-			authLoaderGetUserForFrontend(loaderArgs),
-			getCurrentUserOrganization(userId, countryAccountsId),
-		]);
+				getDivisionTreeData(countryAccountsId),
+				getDivisionGeoJSON(countryAccountsId),
+				dataForHazardPicker(ctx),
+				authLoaderGetUserForFrontend(loaderArgs),
+				getCurrentUserOrganization(userId, countryAccountsId),
+			]);
 
 		return {
 			item: null, // No existing item for new disaster event
@@ -561,6 +583,7 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 			treeData,
 			ctryIso3,
 			divisionGeoJSON: divisionGeoJSON || [],
+			disasterEventAttachments: [],
 			hazardousEventOptions: [],
 			linkedHazardousEvents: [],
 			disasterRecordOptions: [],
@@ -607,19 +630,21 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		linkedData,
 		linkedHazardousData,
 		recordingOrganization,
+		disasterEventAttachments,
 	] = await Promise.all([
-			getDivisionTreeData(countryAccountsId),
-			getDivisionGeoJSON(countryAccountsId),
-			dataForHazardPicker(ctx),
-			authLoaderGetUserForFrontend(loaderArgs),
-			getLinkedDisasterData(countryAccountsId, item.id),
-			getLinkedHazardousData(
-				countryAccountsId,
-				ctx.lang,
-				item.hazardousEvent?.id,
-			),
-			getRecordingOrganization(item.recordingOrganizationId),
-		]);
+		getDivisionTreeData(countryAccountsId),
+		getDivisionGeoJSON(countryAccountsId),
+		dataForHazardPicker(ctx),
+		authLoaderGetUserForFrontend(loaderArgs),
+		getLinkedDisasterData(countryAccountsId, item.id),
+		getLinkedHazardousData(
+			countryAccountsId,
+			ctx.lang,
+			item.hazardousEvent?.id,
+		),
+		getRecordingOrganization(item.recordingOrganizationId),
+		DisasterEventAttachmentRepository.getByDisasterEventId(item.id),
+	]);
 
 	return {
 		item,
@@ -627,6 +652,7 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		treeData,
 		ctryIso3,
 		divisionGeoJSON: divisionGeoJSON || [],
+		disasterEventAttachments,
 		hazardousEventOptions: linkedHazardousData.hazardousEventOptions,
 		linkedHazardousEvents: linkedHazardousData.linkedHazardousEvents,
 		disasterRecordOptions: linkedData.disasterRecordOptions,
@@ -646,16 +672,16 @@ export default function FormScreen() {
 	const ctx = new ViewContext();
 	const disasterEventForForm = ld.item
 		? {
-				...ld.item.disasterEvent,
-				recordingOrganizationId: ld.item.recordingOrganizationId,
-				recordingOrganizationName: ld.recordingOrganization?.name ?? null,
-		  }
+			...ld.item.disasterEvent,
+			recordingOrganizationId: ld.item.recordingOrganizationId,
+			recordingOrganizationName: ld.recordingOrganization?.name ?? null,
+		}
 		: null;
 
 	const fixedHazardousEvent = ld.item?.hazardousEvent
 		? {
-				...ld.item.hazardousEvent,
-		  }
+			...ld.item.hazardousEvent,
+		}
 		: null;
 
 	return (
@@ -664,6 +690,7 @@ export default function FormScreen() {
 			hazardousEvent={fixedHazardousEvent}
 			hip={ld.hip}
 			disasterEvent={disasterEventForForm}
+			disasterEventAttachments={ld.disasterEventAttachments ?? []}
 			hazardousEventOptions={ld.hazardousEventOptions ?? []}
 			linkedHazardousEvents={ld.linkedHazardousEvents ?? []}
 			disasterRecordOptions={ld.disasterRecordOptions ?? []}

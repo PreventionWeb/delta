@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, notInArray } from "drizzle-orm";
 import { dr, Tx } from "~/db.server";
 import {
 	disasterEventAttachmentTable,
@@ -13,6 +13,21 @@ export const DisasterEventAttachmentRepository = {
 			.where(
 				inArray(disasterEventAttachmentTable.disasterEventId, disasterEventIds),
 			);
+	},
+
+	getByDisasterEventId: (disasterEventId: string, tx?: Tx) => {
+		return (tx ?? dr)
+			.select({
+				id: disasterEventAttachmentTable.id,
+				fileKey: disasterEventAttachmentTable.fileKey,
+				fileName: disasterEventAttachmentTable.fileName,
+				fileType: disasterEventAttachmentTable.fileType,
+				fileSize: disasterEventAttachmentTable.fileSize,
+				createdAt: disasterEventAttachmentTable.createdAt,
+			})
+			.from(disasterEventAttachmentTable)
+			.where(eq(disasterEventAttachmentTable.disasterEventId, disasterEventId))
+			.orderBy(desc(disasterEventAttachmentTable.createdAt));
 	},
 
 	createMany: (data: InsertDisasterEventAttachment[], tx?: Tx) => {
@@ -31,5 +46,27 @@ export const DisasterEventAttachmentRepository = {
 		return (tx ?? dr)
 			.delete(disasterEventAttachmentTable)
 			.where(eq(disasterEventAttachmentTable.disasterEventId, disasterEventId));
+	},
+
+	deleteByDisasterEventIdExceptAttachmentIds: (
+		disasterEventId: string,
+		keepAttachmentIds: string[],
+		tx?: Tx,
+	) => {
+		if (keepAttachmentIds.length === 0) {
+			return DisasterEventAttachmentRepository.deleteByDisasterEventId(
+				disasterEventId,
+				tx,
+			);
+		}
+
+		return (tx ?? dr)
+			.delete(disasterEventAttachmentTable)
+			.where(
+				and(
+					eq(disasterEventAttachmentTable.disasterEventId, disasterEventId),
+					notInArray(disasterEventAttachmentTable.id, keepAttachmentIds),
+				),
+			);
 	},
 };
