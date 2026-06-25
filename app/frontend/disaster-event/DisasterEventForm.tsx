@@ -13,6 +13,7 @@ import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { Tooltip } from "primereact/tooltip";
 import { Card } from "primereact/card";
+import { DataView } from "primereact/dataview";
 import { PickList } from "primereact/picklist";
 import { Dialog } from "primereact/dialog";
 import { Calendar } from "primereact/calendar";
@@ -124,6 +125,9 @@ export type DisasterEventFormOutletContext = {
 	setSelectedDivisionItems: Dispatch<SetStateAction<SelectedDivisionItem[]>>;
 	spatialFootprintValue: any[];
 	setSpatialFootprintValue: Dispatch<SetStateAction<any[]>>;
+	disasterRecordOptions: LinkedEventOption[];
+	linkedDisasterRecordTarget: LinkedEventOption[];
+	setLinkedDisasterRecordTarget: Dispatch<SetStateAction<LinkedEventOption[]>>;
 };
 
 const requiredFieldOrder: Array<keyof Errors> = ["nameNational"];
@@ -836,21 +840,11 @@ function StepperValidation({
 	const [linkedDisasterEventTarget, setLinkedDisasterEventTarget] = useState<
 		LinkedEventOption[]
 	>(() => linkedDisasterEvents);
-	const [linkedDisasterRecordSearch, setLinkedDisasterRecordSearch] =
-		useState("");
-	const [linkedDisasterRecordLoading, setLinkedDisasterRecordLoading] =
-		useState(false);
-	const [linkedDisasterRecordSource, setLinkedDisasterRecordSource] = useState<
-		LinkedEventOption[]
-	>(() => {
-		const linkedIds = new Set(linkedDisasterRecords.map((record) => record.id));
-		return disasterRecordOptions
-			.filter((record) => !linkedIds.has(record.id))
-			.slice(0, 10);
-	});
 	const [linkedDisasterRecordTarget, setLinkedDisasterRecordTarget] = useState<
 		LinkedEventOption[]
-	>(() => linkedDisasterRecords);
+	>(
+		() => linkedDisasterRecords,
+	);
 
 	const formatBackendDate = (
 		value: string | Date | null | undefined,
@@ -2260,32 +2254,31 @@ function StepperValidation({
 		setLinkedDisasterEventLoading(false);
 	};
 
-	const searchLinkedDisasterRecords = async (query: string) => {
-		setLinkedDisasterRecordLoading(true);
 
-		const lowerQuery = query.trim().toLowerCase();
-		const matched = disasterRecordOptions.filter((item) => {
-			if (!lowerQuery) {
-				return true;
-			}
-
-			return (
-				item.name.toLowerCase().includes(lowerQuery) ||
-				item.code.toLowerCase().includes(lowerQuery)
-			);
-		});
-
-		setLinkedDisasterRecordSource(
-			matched
-				.filter(
-					(item) =>
-						!linkedDisasterRecordTarget.some(
-							(selected) => selected.id === item.id,
-						),
-				)
-				.slice(0, 10),
+	const linkedDisasterRecordItemTemplate = (item: LinkedEventOption) => {
+		return (
+			<div className="mb-2 flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3 last:mb-0">
+				<div className="flex w-full items-start justify-between gap-4">
+					<div>
+						<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
+						<p className="mt-1 text-[12px] text-slate-500">{item.code}</p>
+					</div>
+				</div>
+				<Button
+					type="button"
+					icon="pi pi-times"
+					text
+					rounded
+					className="h-6 w-6 p-0 text-slate-400 hover:text-slate-700"
+					aria-label={`Remove ${item.name}`}
+					onClick={() =>
+						setLinkedDisasterRecordTarget((previous) =>
+							previous.filter((record) => record.id !== item.id),
+						)
+					}
+				/>
+			</div>
 		);
-		setLinkedDisasterRecordLoading(false);
 	};
 
 	const linkedEventItemTemplate = (item: LinkedEventOption) => (
@@ -2301,6 +2294,10 @@ function StepperValidation({
 
 	const openSpatialFootprintModal = () => {
 		navigate("spatial-footprint-modal");
+	};
+
+	const openLinkedDisasterRecordsModal = () => {
+		navigate("linked-disaster-records-modal");
 	};
 
 	const toast = useRef<Toast>(null);
@@ -2360,7 +2357,6 @@ function StepperValidation({
 	useEffect(() => {
 		searchLinkedEvents("");
 		searchLinkedDisasterEvents("");
-		searchLinkedDisasterRecords("");
 	}, []);
 
 	useEffect(() => {
@@ -3091,56 +3087,31 @@ function StepperValidation({
 									<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
 										Link this disaster event to related disaster records.
 									</p>
+									<div className="mt-2.5">
+										<Button
+											type="button"
+											label="Manage linked disaster records"
+											outlined
+											icon="pi pi-link"
+											onClick={openLinkedDisasterRecordsModal}
+										/>
+									</div>
 								</div>
 								<div className="space-y-4">
-									<div className="pt-4">
-										<div className="mt-2 flex gap-3">
-											<div className="relative w-full">
-												<i className="pi pi-search pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-												<InputText
-													id="linkedDisasterRecordSearch"
-													value={linkedDisasterRecordSearch}
-													onChange={(event) =>
-														setLinkedDisasterRecordSearch(event.target.value)
-													}
-													placeholder="Type to search disaster records..."
-													className="w-full pr-10"
-												/>
-											</div>
-											<Button
-												type="button"
-												label={
-													linkedDisasterRecordLoading
-														? "Searching..."
-														: "Search"
-												}
-												onClick={() =>
-													searchLinkedDisasterRecords(
-														linkedDisasterRecordSearch,
-													)
-												}
-												disabled={linkedDisasterRecordLoading}
+									<div className="gap-4 md:cols-2">
+										<div className="rounded-xl border border-slate-200 bg-white p-4">
+											<DataView
+												value={linkedDisasterRecordTarget}
+												itemTemplate={linkedDisasterRecordItemTemplate}
+												emptyMessage="No linked records"
 											/>
+											
 										</div>
 									</div>
-
-									<PickList
-										dataKey="id"
-										source={linkedDisasterRecordSource}
-										target={linkedDisasterRecordTarget}
-										onChange={(event) => {
-											setLinkedDisasterRecordSource(event.source);
-											setLinkedDisasterRecordTarget(event.target);
-										}}
-										itemTemplate={linkedEventItemTemplate}
-										sourceHeader="Latest 10 disaster records / Search results"
-										targetHeader="Selected linked disaster records"
-										sourceStyle={{ height: "18rem" }}
-										targetStyle={{ height: "18rem" }}
-										showSourceFilter={false}
-										showTargetFilter={false}
-									/>
 								</div>
+
+
+								
 
 								<div className="flex items-center justify-between w-full mt-20">
 									<Button
@@ -3787,6 +3758,9 @@ function StepperValidation({
 					setSelectedDivisionItems,
 					spatialFootprintValue,
 					setSpatialFootprintValue,
+					disasterRecordOptions,
+					linkedDisasterRecordTarget,
+					setLinkedDisasterRecordTarget,
 				}}
 			/>
 		</>
