@@ -639,6 +639,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 				});
 
 				if (returnValue.ok === true) {
+					await syncDisasterEventAttachments(returnValue.id);
 					await syncLinkedDisasterEvents(returnValue.id);
 					await syncLinkedDisasterRecords(returnValue.id);
 					await handleApprovalWorkflowService(
