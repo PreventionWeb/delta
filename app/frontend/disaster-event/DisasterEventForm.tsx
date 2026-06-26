@@ -38,6 +38,7 @@ type LinkedEventOption = {
 	id: string;
 	name: string;
 	code: string;
+	hip?: string;
 };
 
 type AdditionalDetailCategory = "response" | "assessment" | "declaration";
@@ -1291,7 +1292,7 @@ function StepperValidation({
 		const hasEndTime = endTime instanceof Date;
 
 		if (!formData.nameNational.trim()) {
-			nextErrors.nameNational = "Name (National) is required";
+			nextErrors.nameNational = "Disaster name (national) is required";
 		}
 
 		const startDateError = validateDateWithPrecisionState(
@@ -2269,28 +2270,61 @@ function StepperValidation({
 	};
 
 
-	const linkedDisasterRecordItemTemplate = (item: LinkedEventOption) => {
+	const linkedDisasterRecordItemTemplate = (
+		item: LinkedEventOption,
+		layout?: "list" | "grid",
+	) => {
+		const wrapperClass =
+			layout === "grid" ? "linked-disaster-record-grid-item" : "w-full";
+
 		return (
-			<div className="mb-2 flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3 last:mb-0">
-				<div className="flex w-full items-start justify-between gap-4">
-					<div>
-						<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
-						<p className="mt-1 text-[12px] text-slate-500">{item.code}</p>
+			<div className={wrapperClass}>
+				<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
+					<div className="flex w-full items-start justify-between gap-4">
+						<div>
+							<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
+							{item.hip ? (
+								<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
+							) : null}
+						</div>
+					</div>
+					<Button
+						type="button"
+						icon="pi pi-times"
+						text
+						rounded
+						className="h-6 w-6 p-0 text-slate-400 hover:text-slate-700"
+						aria-label={`Remove ${item.name}`}
+						onClick={() =>
+							setLinkedDisasterRecordTarget((previous) =>
+								previous.filter((record) => record.id !== item.id),
+							)
+						}
+					/>
+				</div>
+			</div>
+		);
+	};
+
+	const linkedDisasterRecordReviewItemTemplate = (
+		item: LinkedEventOption,
+		layout?: "list" | "grid",
+	) => {
+		const wrapperClass =
+			layout === "grid" ? "linked-disaster-record-grid-item" : "w-full";
+
+		return (
+			<div className={wrapperClass}>
+				<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
+					<div className="flex w-full items-start justify-between gap-4">
+						<div>
+							<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
+							{item.hip ? (
+								<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
+							) : null}
+						</div>
 					</div>
 				</div>
-				<Button
-					type="button"
-					icon="pi pi-times"
-					text
-					rounded
-					className="h-6 w-6 p-0 text-slate-400 hover:text-slate-700"
-					aria-label={`Remove ${item.name}`}
-					onClick={() =>
-						setLinkedDisasterRecordTarget((previous) =>
-							previous.filter((record) => record.id !== item.id),
-						)
-					}
-				/>
 			</div>
 		);
 	};
@@ -2487,6 +2521,29 @@ function StepperValidation({
 			.status-stepper .p-stepper-header .p-stepper-action {
 				pointer-events: none;
 				cursor: default;
+			}
+
+			.linked-disaster-records-grid .p-dataview-content .p-grid {
+				display: grid;
+				grid-template-columns: repeat(1, minmax(0, 1fr));
+				gap: 0.75rem;
+				margin: 0;
+			}
+
+			@media (min-width: 768px) {
+				.linked-disaster-records-grid .p-dataview-content .p-grid {
+					grid-template-columns: repeat(2, minmax(0, 1fr));
+				}
+			}
+
+			@media (min-width: 1280px) {
+				.linked-disaster-records-grid .p-dataview-content .p-grid {
+					grid-template-columns: repeat(3, minmax(0, 1fr));
+				}
+			}
+
+			.linked-disaster-record-grid-item {
+				min-width: 0;
 			}
 		`}</style>
 			<div className="mg-container">
@@ -2975,7 +3032,9 @@ function StepperValidation({
 
 								</div>
 
-								<div className="flex items-center justify-between w-full mt-20">
+								<div className="col-span-12 mt-30 mb-6 h-[2px] w-full bg-slate-200" />
+
+								<div className="flex items-center justify-between w-full">
 									<Button
 										type="button"
 										label="Cancel"
@@ -3128,9 +3187,11 @@ function StepperValidation({
 									<div className="gap-4 md:cols-2">
 										<div className="rounded-xl border border-slate-200 bg-white p-4">
 											<DataView
+												className="linked-disaster-records-grid"
 												value={linkedDisasterRecordTarget}
 												itemTemplate={linkedDisasterRecordItemTemplate}
 												emptyMessage="No linked records"
+												layout="grid"
 											/>
 											
 										</div>
@@ -3138,9 +3199,9 @@ function StepperValidation({
 								</div>
 
 
-								
+								<div className="col-span-12 mt-30 mb-6 h-[2px] w-full bg-slate-200" />
 
-								<div className="flex items-center justify-between w-full mt-20">
+								<div className="flex items-center justify-between w-full">
 									<Button
 										type="button"
 										label="Cancel"
@@ -3506,7 +3567,9 @@ function StepperValidation({
 									</div>
 								</Dialog>
 
-								<div className="flex items-center justify-between w-full mt-20">
+								<div className="col-span-12 mt-30 mb-6 h-[2px] w-full bg-slate-200" />
+
+								<div className="flex items-center justify-between w-full">
 									<Button
 										type="button"
 										label="Cancel"
@@ -3699,16 +3762,12 @@ function StepperValidation({
 										"Linked disaster records",
 										"pi pi-file text-blue-600",
 										"No disaster records linked yet",
-										linkedDisasterRecordTarget.map((record) => (
-											<div key={record.id} className="space-y-1">
-												<p className="text-[14px] font-semibold text-slate-700">
-													{record.name}
-												</p>
-												<p className="text-[13px] text-slate-500">
-													{record.code}
-												</p>
-											</div>
-										)),
+										<DataView
+											className="linked-disaster-records-grid"
+											value={linkedDisasterRecordTarget}
+											itemTemplate={linkedDisasterRecordReviewItemTemplate}
+											layout="grid"
+										/>,
 										linkedDisasterRecordTarget.length > 0,
 									)}
 
@@ -3743,7 +3802,9 @@ function StepperValidation({
 									)}
 								</div>
 
-								<div className="flex items-center justify-between w-full mt-20">
+								<div className="col-span-12 mt-30 mb-6 h-[2px] w-full bg-slate-200" />
+
+								<div className="flex items-center justify-between w-full">
 									<Button
 										type="button"
 										label="Cancel"
@@ -3764,7 +3825,9 @@ function StepperValidation({
 										/>
 										<Button
 											type="button"
-											label="Save"
+											label="Send for validation"
+											icon="pi pi-send"
+											iconPos="right"
 											onClick={() => {
 												const snapshot = saveCurrentFormState();
 												if (validateStep1(snapshot)) {

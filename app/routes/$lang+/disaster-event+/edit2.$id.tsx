@@ -235,6 +235,44 @@ function formatHazardousEventDisplayName(
 	};
 }
 
+function formatDisasterRecordDisplayName(
+	record: {
+		id: string;
+		hipHazard: {
+			name: Record<string, string> | null;
+			code: string | null;
+		} | null;
+		hipCluster: {
+			name: Record<string, string> | null;
+		} | null;
+		hipType: {
+			name: Record<string, string> | null;
+		} | null;
+	},
+	lang: string,
+) {
+	const hazardName = localizedHipName(record.hipHazard?.name, lang);
+	const clusterName = localizedHipName(record.hipCluster?.name, lang);
+	const typeName = localizedHipName(record.hipType?.name, lang);
+	const hipLabel = hazardName
+		? record.hipHazard?.code
+			? `H: ${hazardName} (${record.hipHazard.code})`
+			: `H: ${hazardName}`
+		: clusterName
+			? `C: ${clusterName}`
+			: typeName
+				? `T: ${typeName}`
+				: "";
+
+	return {
+		id: record.id,
+		name:
+			`DR: ${record.id.slice(0, 8)}`,
+		code: record.id,
+		hip: hipLabel,
+	};
+}
+
 async function getLinkedHazardousData(
 	countryAccountsId: string,
 	lang: string,
@@ -287,6 +325,7 @@ async function getLinkedHazardousData(
 async function getLinkedDisasterData(
 	countryAccountsId: string,
 	itemId: string,
+	lang: string,
 ) {
 	const disasterEvents = await dr
 		.select({
@@ -307,28 +346,40 @@ async function getLinkedDisasterData(
 		.filter((event) => event.disasterEventId === itemId)
 		.map(formatDisasterEventDisplayName);
 
-	const disasterRecords = await dr
-		.select({
-			id: disasterRecordsTable.id,
-			disasterEventId: disasterRecordsTable.disasterEventId,
-		})
-		.from(disasterRecordsTable)
-		.where(eq(disasterRecordsTable.countryAccountsId, countryAccountsId))
-		.orderBy(desc(disasterRecordsTable.updatedAt));
+	const disasterRecords = await dr.query.disasterRecordsTable.findMany({
+		columns: {
+			id: true,
+			disasterEventId: true,
+		},
+		with: {
+			hipHazard: {
+				columns: {
+					name: true,
+					code: true,
+				},
+			},
+			hipCluster: {
+				columns: {
+					name: true,
+				},
+			},
+			hipType: {
+				columns: {
+					name: true,
+				},
+			},
+		},
+		where: eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
+		orderBy: [desc(disasterRecordsTable.updatedAt)],
+	});
 
-	const disasterRecordOptions = disasterRecords.map((record) => ({
-		id: record.id,
-		name: `Record ${record.id.slice(0, 8)}`,
-		code: record.id,
-	}));
+	const disasterRecordOptions = disasterRecords.map((record) =>
+		formatDisasterRecordDisplayName(record, lang),
+	);
 
 	const linkedDisasterRecords = disasterRecords
 		.filter((record) => record.disasterEventId === itemId)
-		.map((record) => ({
-			id: record.id,
-			name: `Record ${record.id.slice(0, 8)}`,
-			code: record.id,
-		}));
+		.map((record) => formatDisasterRecordDisplayName(record, lang));
 
 	return {
 		disasterEventOptions,
@@ -743,7 +794,7 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		getDivisionGeoJSON(countryAccountsId),
 		dataForHazardPicker(ctx),
 		authLoaderGetUserForFrontend(loaderArgs),
-		getLinkedDisasterData(countryAccountsId, item.id),
+		getLinkedDisasterData(countryAccountsId, item.id, ctx.lang),
 		getLinkedHazardousData(
 			countryAccountsId,
 			ctx.lang,
