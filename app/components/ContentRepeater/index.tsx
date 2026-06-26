@@ -2016,9 +2016,10 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 											<div className="space-y-2">
 												<div id={fieldId} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
 													{field.options?.map((option, i) => (
-														<div
+														<label
 															key={i}
-															className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2"
+															className="flex cursor-pointer items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2"
+															htmlFor={`${fieldId}_${i}`}
 														>
 															<RadioButton
 																inputId={`${fieldId}_${i}`}
@@ -2029,13 +2030,10 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 																	handleFieldChange(field, e.value)
 																}
 															/>
-															<label
-																htmlFor={`${fieldId}_${i}`}
-																className="cursor-pointer text-sm text-slate-700"
-															>
+															<span className="text-sm text-slate-700">
 																{option.label}
-															</label>
-														</div>
+															</span>
+														</label>
 													))}
 												</div>
 												{field.note && (
