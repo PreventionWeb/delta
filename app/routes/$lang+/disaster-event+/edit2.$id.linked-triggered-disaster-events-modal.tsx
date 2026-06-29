@@ -9,19 +9,14 @@ import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { Checkbox } from "primereact/checkbox";
 import { DataView } from "primereact/dataview";
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
 import { dr } from "~/db.server";
-import { disasterRecordsTable } from "~/drizzle/schema/disasterRecordsTable";
+import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import type { DisasterEventFormOutletContext } from "~/frontend/disaster-event/DisasterEventForm";
 import { authActionWithPerm, authLoaderWithPerm } from "~/utils/auth";
 import { getCountryAccountsIdFromSession } from "~/utils/session";
 
-type LoaderLinkedRecordItem = {
-	id: string;
-	name: string;
-	code: string;
-	hip: string;
-};
+type LinkedEventItem = DisasterEventFormOutletContext["disasterEventOptions"][number];
 
 function localizedHipName(
 	name: Record<string, string> | null | undefined,
@@ -34,9 +29,11 @@ function localizedHipName(
 	return String(name[lang] || name.en || Object.values(name)[0] || "").trim();
 }
 
-function formatDisasterRecordOption(
-	record: {
+function formatDisasterEventOption(
+	event: {
 		id: string;
+		nameNational: string | null;
+		nameGlobalOrRegional: string | null;
 		hipHazard: {
 			name: Record<string, string> | null;
 			code: string | null;
@@ -49,13 +46,17 @@ function formatDisasterRecordOption(
 		} | null;
 	},
 	lang: string,
-): LoaderLinkedRecordItem {
-	const hazardName = localizedHipName(record.hipHazard?.name, lang);
-	const clusterName = localizedHipName(record.hipCluster?.name, lang);
-	const typeName = localizedHipName(record.hipType?.name, lang);
+) {
+	const displayName =
+		event.nameNational?.trim() ||
+		event.nameGlobalOrRegional?.trim() ||
+		`DE: ${event.id.slice(0, 8)}`;
+	const hazardName = localizedHipName(event.hipHazard?.name, lang);
+	const clusterName = localizedHipName(event.hipCluster?.name, lang);
+	const typeName = localizedHipName(event.hipType?.name, lang);
 	const hipLabel = hazardName
-		? record.hipHazard?.code
-			? `H: ${hazardName} (${record.hipHazard.code})`
+		? event.hipHazard?.code
+			? `H: ${hazardName} (${event.hipHazard.code})`
 			: `H: ${hazardName}`
 		: clusterName
 			? `C: ${clusterName}`
@@ -64,15 +65,16 @@ function formatDisasterRecordOption(
 				: "";
 
 	return {
-		id: record.id,
-		name: `DR: ${record.id.slice(0, 8)}`,
-		code: record.id,
+		id: event.id,
+		name: displayName,
+		code: event.id,
 		hip: hipLabel,
 	};
 }
 
-async function queryDisasterRecordOptions(
+async function queryDisasterEventOptions(
 	countryAccountsId: string,
+	currentItemId: string,
 	lang: string,
 	keyword?: string,
 ) {
@@ -80,9 +82,11 @@ async function queryDisasterRecordOptions(
 	const shouldSearch = Boolean(normalizedKeyword);
 	const searchTerm = normalizedKeyword ? `%${normalizedKeyword}%` : "";
 
-	const disasterRecords = await dr.query.disasterRecordsTable.findMany({
+	const disasterEvents = await dr.query.disasterEventTable.findMany({
 		columns: {
 			id: true,
+			nameNational: true,
+			nameGlobalOrRegional: true,
 		},
 		with: {
 			hipHazard: {
@@ -104,29 +108,25 @@ async function queryDisasterRecordOptions(
 		},
 		where: shouldSearch
 			? and(
-				eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
+				eq(disasterEventTable.countryAccountsId, countryAccountsId),
+				ne(disasterEventTable.id, currentItemId),
 				or(
-					ilike(disasterRecordsTable.locationDesc, searchTerm),
-					ilike(disasterRecordsTable.startDate, searchTerm),
-					ilike(disasterRecordsTable.endDate, searchTerm),
-					ilike(disasterRecordsTable.localWarnInst, searchTerm),
-					ilike(disasterRecordsTable.primaryDataSource, searchTerm),
-					ilike(disasterRecordsTable.otherDataSource, searchTerm),
-					ilike(disasterRecordsTable.assessmentModes, searchTerm),
-					ilike(disasterRecordsTable.originatorRecorderInst, searchTerm),
-					ilike(disasterRecordsTable.validatedBy, searchTerm),
-					ilike(disasterRecordsTable.checkedBy, searchTerm),
-					ilike(disasterRecordsTable.dataCollector, searchTerm),
-					sql`cast(${disasterRecordsTable.id} as text) ilike ${searchTerm}`,
-					sql`cast(${disasterRecordsTable.disasterEventId} as text) ilike ${searchTerm}`,
+					ilike(disasterEventTable.nameNational, searchTerm),
+					ilike(disasterEventTable.nameGlobalOrRegional, searchTerm),
+					ilike(disasterEventTable.nationalDisasterId, searchTerm),
+					ilike(disasterEventTable.glide, searchTerm),
+					sql`cast(${disasterEventTable.id} as text) ilike ${searchTerm}`,
 				),
 			)
-			: eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
-		orderBy: [desc(disasterRecordsTable.updatedAt)],
+			: and(
+				eq(disasterEventTable.countryAccountsId, countryAccountsId),
+				ne(disasterEventTable.id, currentItemId),
+			),
+		orderBy: [desc(disasterEventTable.updatedAt)],
 		limit: shouldSearch ? 500 : 200,
 	});
 
-	return disasterRecords.map((record) => formatDisasterRecordOption(record, lang));
+	return disasterEvents.map((event) => formatDisasterEventOption(event, lang));
 }
 
 export const loader = authLoaderWithPerm("EditData", async ({ request, params }) => {
@@ -135,14 +135,22 @@ export const loader = authLoaderWithPerm("EditData", async ({ request, params })
 		throw new Response("Unauthorized", { status: 401 });
 	}
 
+	const currentItemId = String(params.id ?? "").trim();
 	const lang = typeof params.lang === "string" && params.lang ? params.lang : "en";
-	const disasterRecordOptions = await queryDisasterRecordOptions(
+	if (!currentItemId || currentItemId === "new") {
+		return {
+			disasterEventOptions: [],
+		};
+	}
+
+	const disasterEventOptions = await queryDisasterEventOptions(
 		countryAccountsId,
+		currentItemId,
 		lang,
 	);
 
 	return {
-		disasterRecordOptions,
+		disasterEventOptions,
 	};
 });
 
@@ -152,37 +160,46 @@ export const action = authActionWithPerm("EditData", async ({ request, params })
 		throw new Response("Unauthorized", { status: 401 });
 	}
 
+	const currentItemId = String(params.id ?? "").trim();
+	const lang = typeof params.lang === "string" && params.lang ? params.lang : "en";
+	if (!currentItemId || currentItemId === "new") {
+		return {
+			disasterEventOptions: [],
+			keyword: "",
+		};
+	}
+
 	const formData = await request.formData();
 	const keyword = String(formData.get("keyword") ?? "").trim();
-	const lang = typeof params.lang === "string" && params.lang ? params.lang : "en";
-	const disasterRecordOptions = await queryDisasterRecordOptions(
+	const disasterEventOptions = await queryDisasterEventOptions(
 		countryAccountsId,
+		currentItemId,
 		lang,
 		keyword,
 	);
 
 	return {
-		disasterRecordOptions,
+		disasterEventOptions,
 		keyword,
 	};
 });
 
-type LinkedRecordItem =
-	DisasterEventFormOutletContext["disasterRecordOptions"][number];
-
-export default function LinkedDisasterRecordsModalRoute() {
+export default function LinkedTriggeredDisasterEventsModalRoute() {
 	const ld = useLoaderData<typeof loader>();
 	const fetcher = useFetcher<typeof action>();
 	const navigate = useNavigate();
 	const {
-		linkedDisasterRecordTarget,
-		setLinkedDisasterRecordTarget,
+		triggeredDisasterEventTarget,
+		setTriggeredDisasterEventTarget,
+		triggeringDisasterEventTarget,
 	} = useOutletContext<DisasterEventFormOutletContext>();
 
 	const [searchTerm, setSearchTerm] = useState("");
-	const [draftTarget, setDraftTarget] = useState<LinkedRecordItem[]>(
-		Array.isArray(linkedDisasterRecordTarget)
-			? linkedDisasterRecordTarget
+	const [draftTarget, setDraftTarget] = useState<LinkedEventItem[]>(
+		Array.isArray(triggeredDisasterEventTarget)
+			? triggeredDisasterEventTarget.filter(
+				(item) => !triggeringDisasterEventTarget.some((other) => other.id === item.id),
+			)
 			: [],
 	);
 	const [selectedAvailableIds, setSelectedAvailableIds] = useState<string[]>([]);
@@ -205,22 +222,19 @@ export default function LinkedDisasterRecordsModalRoute() {
 
 	const sourceOptions = useMemo(() => {
 		if (searchTerm.trim().length < 3) {
-			return ld.disasterRecordOptions;
+			return ld.disasterEventOptions;
 		}
 
-		return fetcher.data?.disasterRecordOptions ?? [];
-	}, [fetcher.data?.disasterRecordOptions, ld.disasterRecordOptions, searchTerm]);
+		return fetcher.data?.disasterEventOptions ?? [];
+	}, [fetcher.data?.disasterEventOptions, ld.disasterEventOptions, searchTerm]);
 
-	const availableRecords = useMemo(() => {
+	const availableEvents = useMemo(() => {
 		const selectedIds = new Set(draftTarget.map((item) => item.id));
-
-		return sourceOptions.filter((item) => {
-			if (selectedIds.has(item.id)) {
-				return false;
-			}
-			return true;
-		});
-	}, [draftTarget, sourceOptions]);
+		const blockedIds = new Set(triggeringDisasterEventTarget.map((item) => item.id));
+		return sourceOptions.filter(
+			(item) => !selectedIds.has(item.id) && !blockedIds.has(item.id),
+		);
+	}, [draftTarget, sourceOptions, triggeringDisasterEventTarget]);
 
 	const toggleAvailable = (id: string, checked: boolean) => {
 		setSelectedAvailableIds((previous) =>
@@ -243,8 +257,9 @@ export default function LinkedDisasterRecordsModalRoute() {
 			return;
 		}
 
-		const toAdd = availableRecords.filter((item) =>
-			selectedAvailableIds.includes(item.id),
+		const blockedIds = new Set(triggeringDisasterEventTarget.map((item) => item.id));
+		const toAdd = availableEvents.filter((item) =>
+			selectedAvailableIds.includes(item.id) && !blockedIds.has(item.id),
 		);
 		setDraftTarget((previous) => [...previous, ...toAdd]);
 		setSelectedAvailableIds([]);
@@ -262,15 +277,20 @@ export default function LinkedDisasterRecordsModalRoute() {
 	};
 
 	const handleApply = () => {
-		setLinkedDisasterRecordTarget(draftTarget);
+		setTriggeredDisasterEventTarget(
+			draftTarget.filter(
+				(item) =>
+					!triggeringDisasterEventTarget.some((other) => other.id === item.id),
+			),
+		);
 		navigate("..", { replace: true });
 	};
 
-	const renderAvailableItem = (item: LinkedRecordItem) => (
+	const renderAvailableItem = (item: LinkedEventItem) => (
 		<div className="mb-2 flex items-start rounded-lg border border-slate-200 px-4 py-3 last:mb-0">
 			<div className="flex w-full items-start gap-3">
 				<Checkbox
-					inputId={`linked-record-available-${item.id}`}
+					inputId={`linked-triggered-available-${item.id}`}
 					checked={selectedAvailableIds.includes(item.id)}
 					onChange={(event) =>
 						toggleAvailable(item.id, Boolean(event.checked))
@@ -286,11 +306,11 @@ export default function LinkedDisasterRecordsModalRoute() {
 		</div>
 	);
 
-	const renderLinkedItem = (item: LinkedRecordItem) => (
+	const renderLinkedItem = (item: LinkedEventItem) => (
 		<div className="mb-2 flex items-start rounded-lg border border-slate-200 px-4 py-3 last:mb-0">
 			<div className="flex w-full items-start gap-3">
 				<Checkbox
-					inputId={`linked-record-selected-${item.id}`}
+					inputId={`linked-triggered-selected-${item.id}`}
 					checked={selectedLinkedIds.includes(item.id)}
 					onChange={(event) => toggleLinked(item.id, Boolean(event.checked))}
 				/>
@@ -320,7 +340,7 @@ export default function LinkedDisasterRecordsModalRoute() {
 			<div className="max-h-[calc(100vh-2rem)] w-full max-w-6xl overflow-y-auto rounded-xl bg-white p-5 shadow-xl">
 				<div className="mb-4 flex items-center justify-between">
 					<h3 className="text-[18px] font-semibold text-slate-800">
-						Manage linked disaster records
+						Manage linked triggered (subsequent) disaster events
 					</h3>
 					<Button
 						type="button"
@@ -331,7 +351,7 @@ export default function LinkedDisasterRecordsModalRoute() {
 				</div>
 
 				<p className="mb-4 text-[13px] text-slate-500">
-					Search and select disaster records to link this disaster event.
+					Search and select disaster events that were triggered by this event.
 				</p>
 
 				<div className="mb-4 relative">
@@ -339,7 +359,7 @@ export default function LinkedDisasterRecordsModalRoute() {
 					<InputText
 						value={searchTerm}
 						onChange={(event) => setSearchTerm(event.target.value)}
-						placeholder="Search disaster records..."
+						placeholder="Search disaster events..."
 						className="w-full pr-10"
 					/>
 				</div>
@@ -350,7 +370,7 @@ export default function LinkedDisasterRecordsModalRoute() {
 							<h4 className="text-[14px] font-semibold text-slate-800">
 								{searchTerm.trim().length >= 3
 									? "Search results"
-									: "Latest 200 records"}
+									: "Latest 200 events"}
 							</h4>
 							<Button
 								type="button"
@@ -361,9 +381,9 @@ export default function LinkedDisasterRecordsModalRoute() {
 						</div>
 						<div className="max-h-[50vh] overflow-y-auto pr-1">
 							<DataView
-								value={availableRecords}
+								value={availableEvents}
 								itemTemplate={renderAvailableItem}
-								emptyMessage="No records available"
+								emptyMessage="No events available"
 							/>
 						</div>
 					</div>
@@ -371,7 +391,7 @@ export default function LinkedDisasterRecordsModalRoute() {
 					<div className="rounded-xl border border-slate-200 bg-white p-4">
 						<div className="mb-3 flex items-center justify-between gap-2">
 							<h4 className="text-[14px] font-semibold text-slate-800">
-								Selected linked records
+								Selected triggered events
 							</h4>
 							<Button
 								type="button"
@@ -386,7 +406,7 @@ export default function LinkedDisasterRecordsModalRoute() {
 							<DataView
 								value={draftTarget}
 								itemTemplate={renderLinkedItem}
-								emptyMessage="No linked records"
+								emptyMessage="No triggered events linked"
 							/>
 						</div>
 					</div>

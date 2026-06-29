@@ -17,6 +17,7 @@ export * from "./divisionTable";
 export * from "./dtsSystemInfoTable";
 export * from "./entityValidationAssignmentTable";
 export * from "./entityValidationRejectionTable";
+export * from "./eventCausalityTable";
 export * from "./eventRelationshipTable";
 export * from "./eventTable";
 export * from "./hazardousEventTable";
