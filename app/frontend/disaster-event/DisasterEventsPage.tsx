@@ -204,6 +204,19 @@ export default function DisasterEventsPage({
         }
     };
 
+    const isEditRestrictedStatus = (status: unknown) => {
+        if (typeof status !== "string") {
+            return false;
+        }
+
+        const normalizedStatus = status.trim().toLowerCase().replaceAll(" ", "-");
+        return (
+            normalizedStatus === "waiting-for-validation" ||
+            normalizedStatus === "validated" ||
+            normalizedStatus === "published"
+        );
+    };
+
     const actionsBodyTemplate = (row: (typeof data)[number]) => (
         <div className="flex w-full items-center justify-end gap-1">
             <Link to={`/${ctx.lang}/disaster-event/${row.id}`}>
@@ -215,7 +228,7 @@ export default function DisasterEventsPage({
                     <i className="pi pi-eye" aria-hidden="true" />
                 </Button>
             </Link>
-            {canEdit ? (
+            {canEdit && !isEditRestrictedStatus(row.approvalStatus) ? (
                 <Link to={`/${ctx.lang}/disaster-event/edit2/${row.id}`}>
                     <Button
                         type="button"

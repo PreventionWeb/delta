@@ -1032,9 +1032,6 @@ export function DisasterEventForm(props: DisasterEventFormProps) {
 		return true;
 	}
 
-	// const rootData = useRouteLoaderData<typeof rootLoader>("root");
-	// console.log("Root loader data in HazardousEventForm:", rootData.common);
-
 	const footerDialogDiscard = (
 		<>
 			<div>
