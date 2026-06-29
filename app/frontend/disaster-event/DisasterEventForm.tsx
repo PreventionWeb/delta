@@ -1,4 +1,9 @@
-import { Form as RouterForm, Outlet, useNavigate } from "react-router";
+import {
+	Form as RouterForm,
+	Outlet,
+	useNavigate,
+	useNavigation,
+} from "react-router";
 import {
 	type Dispatch,
 	type SetStateAction,
@@ -337,6 +342,23 @@ function StepperValidation({
 	usersWithValidatorRole,
 }: StepperValidationProps) {
 	const navigate = useNavigate();
+	const navigation = useNavigation();
+	const isOpeningAffectedAreasModal =
+		navigation.state !== "idle" &&
+		navigation.location?.pathname.includes("/affected-areas-modal");
+	const isOpeningLinkedTriggeringDisasterEventsModal =
+		navigation.state !== "idle" &&
+		navigation.location?.pathname.includes(
+			"/linked-triggering-disaster-events-modal",
+		);
+	const isOpeningLinkedTriggeredDisasterEventsModal =
+		navigation.state !== "idle" &&
+		navigation.location?.pathname.includes(
+			"/linked-triggered-disaster-events-modal",
+		);
+	const isOpeningLinkedDisasterRecordsModal =
+		navigation.state !== "idle" &&
+		navigation.location?.pathname.includes("/linked-disaster-records-modal");
 	const [selectedDivisionItems, setSelectedDivisionItems] = useState<
 		SelectedDivisionItem[]
 	>([]);
@@ -2415,6 +2437,10 @@ function StepperValidation({
 	};
 
 	const openAffectedAreasModal = () => {
+		if (isOpeningAffectedAreasModal) {
+			return;
+		}
+
 		navigate("affected-areas-modal");
 	};
 
@@ -2423,14 +2449,26 @@ function StepperValidation({
 	};
 
 	const openLinkedDisasterRecordsModal = () => {
+		if (isOpeningLinkedDisasterRecordsModal) {
+			return;
+		}
+
 		navigate("linked-disaster-records-modal");
 	};
 
 	const openLinkedTriggeringDisasterEventsModal = () => {
+		if (isOpeningLinkedTriggeringDisasterEventsModal) {
+			return;
+		}
+
 		navigate("linked-triggering-disaster-events-modal");
 	};
 
 	const openLinkedTriggeredDisasterEventsModal = () => {
+		if (isOpeningLinkedTriggeredDisasterEventsModal) {
+			return;
+		}
+
 		navigate("linked-triggered-disaster-events-modal");
 	};
 
@@ -3042,11 +3080,22 @@ function StepperValidation({
 													<div className="mt-2.5">
 														<Button
 															type="button"
-															label="Add affected areas"
+															label={
+																isOpeningAffectedAreasModal
+																	? "Opening..."
+																	: "Add affected areas"
+															}
 															outlined
 															icon="pi pi-plus"
+															loading={isOpeningAffectedAreasModal}
+															disabled={isOpeningAffectedAreasModal}
 															onClick={openAffectedAreasModal}
 														/>
+														<span className="sr-only" aria-live="polite">
+															{isOpeningAffectedAreasModal
+																? "Loading affected areas selector"
+																: ""}
+														</span>
 													</div>
 													<div className="mt-6 flex flex-wrap gap-2 text-sm">
 														{selectedDivisionItems.length > 0 &&
@@ -3214,11 +3263,22 @@ function StepperValidation({
 										<div className="mt-2.5">
 											<Button
 												type="button"
-												label="Manage linked triggering events"
+														label={
+															isOpeningLinkedTriggeringDisasterEventsModal
+																? "Opening..."
+																: "Manage linked triggering events"
+														}
 												outlined
 												icon="pi pi-link"
+														loading={isOpeningLinkedTriggeringDisasterEventsModal}
+														disabled={isOpeningLinkedTriggeringDisasterEventsModal}
 												onClick={openLinkedTriggeringDisasterEventsModal}
 											/>
+													<span className="sr-only" aria-live="polite">
+														{isOpeningLinkedTriggeringDisasterEventsModal
+															? "Loading linked triggering events selector"
+															: ""}
+													</span>
 										</div>
 
 										<div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
@@ -3238,11 +3298,22 @@ function StepperValidation({
 										<div className="mt-2.5">
 											<Button
 												type="button"
-												label="Manage linked triggered events"
+														label={
+															isOpeningLinkedTriggeredDisasterEventsModal
+																? "Opening..."
+																: "Manage linked triggered events"
+														}
 												outlined
 												icon="pi pi-link"
+														loading={isOpeningLinkedTriggeredDisasterEventsModal}
+														disabled={isOpeningLinkedTriggeredDisasterEventsModal}
 												onClick={openLinkedTriggeredDisasterEventsModal}
 											/>
+													<span className="sr-only" aria-live="polite">
+														{isOpeningLinkedTriggeredDisasterEventsModal
+															? "Loading linked triggered events selector"
+															: ""}
+													</span>
 										</div>
 
 										<div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
@@ -3268,11 +3339,22 @@ function StepperValidation({
 									<div className="mt-2.5">
 										<Button
 											type="button"
-											label="Manage linked disaster records"
+											label={
+												isOpeningLinkedDisasterRecordsModal
+													? "Opening..."
+													: "Manage linked disaster records"
+											}
 											outlined
 											icon="pi pi-link"
+											loading={isOpeningLinkedDisasterRecordsModal}
+											disabled={isOpeningLinkedDisasterRecordsModal}
 											onClick={openLinkedDisasterRecordsModal}
 										/>
+										<span className="sr-only" aria-live="polite">
+											{isOpeningLinkedDisasterRecordsModal
+												? "Loading linked disaster records selector"
+												: ""}
+										</span>
 									</div>
 								</div>
 								<div className="space-y-4">

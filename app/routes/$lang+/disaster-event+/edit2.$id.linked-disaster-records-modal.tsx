@@ -180,6 +180,9 @@ export default function LinkedDisasterRecordsModalRoute() {
 	} = useOutletContext<DisasterEventFormOutletContext>();
 
 	const [searchTerm, setSearchTerm] = useState("");
+	const [pendingExitAction, setPendingExitAction] = useState<
+		"close" | "cancel" | "apply" | null
+	>(null);
 	const [draftTarget, setDraftTarget] = useState<LinkedRecordItem[]>(
 		Array.isArray(linkedDisasterRecordTarget)
 			? linkedDisasterRecordTarget
@@ -261,7 +264,30 @@ export default function LinkedDisasterRecordsModalRoute() {
 		setSelectedLinkedIds([]);
 	};
 
+	const handleClose = () => {
+		if (pendingExitAction) {
+			return;
+		}
+
+		setPendingExitAction("close");
+		navigate("..", { replace: true });
+	};
+
+	const handleCancel = () => {
+		if (pendingExitAction) {
+			return;
+		}
+
+		setPendingExitAction("cancel");
+		navigate("..", { replace: true });
+	};
+
 	const handleApply = () => {
+		if (pendingExitAction) {
+			return;
+		}
+
+		setPendingExitAction("apply");
 		setLinkedDisasterRecordTarget(draftTarget);
 		navigate("..", { replace: true });
 	};
@@ -326,7 +352,9 @@ export default function LinkedDisasterRecordsModalRoute() {
 						type="button"
 						label="Close"
 						text
-						onClick={() => navigate("..", { replace: true })}
+						loading={pendingExitAction === "close"}
+						disabled={Boolean(pendingExitAction)}
+						onClick={handleClose}
 					/>
 				</div>
 
@@ -397,9 +425,22 @@ export default function LinkedDisasterRecordsModalRoute() {
 						type="button"
 						label="Cancel"
 						outlined
-						onClick={() => navigate("..", { replace: true })}
+						loading={pendingExitAction === "cancel"}
+						disabled={Boolean(pendingExitAction)}
+						onClick={handleCancel}
 					/>
-					<Button type="button" label="Apply" onClick={handleApply} />
+					<Button
+						type="button"
+						label="Apply"
+						loading={pendingExitAction === "apply"}
+						disabled={Boolean(pendingExitAction)}
+						onClick={handleApply}
+					/>
+					<span className="sr-only" aria-live="polite">
+						{pendingExitAction
+							? "Closing linked disaster records dialog"
+							: ""}
+					</span>
 				</div>
 			</div>
 		</div>

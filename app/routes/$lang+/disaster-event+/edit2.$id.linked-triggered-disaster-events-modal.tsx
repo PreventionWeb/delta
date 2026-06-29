@@ -195,6 +195,9 @@ export default function LinkedTriggeredDisasterEventsModalRoute() {
 	} = useOutletContext<DisasterEventFormOutletContext>();
 
 	const [searchTerm, setSearchTerm] = useState("");
+	const [pendingExitAction, setPendingExitAction] = useState<
+		"close" | "cancel" | "apply" | null
+	>(null);
 	const [draftTarget, setDraftTarget] = useState<LinkedEventItem[]>(
 		Array.isArray(triggeredDisasterEventTarget)
 			? triggeredDisasterEventTarget.filter(
@@ -276,7 +279,30 @@ export default function LinkedTriggeredDisasterEventsModalRoute() {
 		setSelectedLinkedIds([]);
 	};
 
+	const handleClose = () => {
+		if (pendingExitAction) {
+			return;
+		}
+
+		setPendingExitAction("close");
+		navigate("..", { replace: true });
+	};
+
+	const handleCancel = () => {
+		if (pendingExitAction) {
+			return;
+		}
+
+		setPendingExitAction("cancel");
+		navigate("..", { replace: true });
+	};
+
 	const handleApply = () => {
+		if (pendingExitAction) {
+			return;
+		}
+
+		setPendingExitAction("apply");
 		setTriggeredDisasterEventTarget(
 			draftTarget.filter(
 				(item) =>
@@ -346,7 +372,9 @@ export default function LinkedTriggeredDisasterEventsModalRoute() {
 						type="button"
 						label="Close"
 						text
-						onClick={() => navigate("..", { replace: true })}
+						loading={pendingExitAction === "close"}
+						disabled={Boolean(pendingExitAction)}
+						onClick={handleClose}
 					/>
 				</div>
 
@@ -417,9 +445,22 @@ export default function LinkedTriggeredDisasterEventsModalRoute() {
 						type="button"
 						label="Cancel"
 						outlined
-						onClick={() => navigate("..", { replace: true })}
+						loading={pendingExitAction === "cancel"}
+						disabled={Boolean(pendingExitAction)}
+						onClick={handleCancel}
 					/>
-					<Button type="button" label="Apply" onClick={handleApply} />
+					<Button
+						type="button"
+						label="Apply"
+						loading={pendingExitAction === "apply"}
+						disabled={Boolean(pendingExitAction)}
+						onClick={handleApply}
+					/>
+					<span className="sr-only" aria-live="polite">
+						{pendingExitAction
+							? "Closing linked triggered disaster events dialog"
+							: ""}
+					</span>
 				</div>
 			</div>
 		</div>
