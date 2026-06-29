@@ -54,7 +54,7 @@
 
 - [x] 1.15 Confirm all tests in the new file fail with an import error (module not found) by
   running:
-  ```
+  ```shell
   yarn vitest run tests/integration/db/queries/DrizzleNoticeRepository.test.ts
   ```
 
@@ -87,18 +87,18 @@
   `.delete(noticesTable).where(and(eq(noticesTable.id, id),
   eq(noticesTable.countryAccountsId, tenantId)))`. Return void (no error on zero rows).
 
-- [x] 2.7 Run the test suite and iterate until all 12 test cases are green:
-  ```
+- [x] 2.7 Run the test suite and iterate until all 16 test cases are green:
+  ```shell
   yarn vitest run tests/integration/db/queries/DrizzleNoticeRepository.test.ts
   ```
 
 ## 3. Refactor Phase — Quality Gates
 
 - [x] 3.1 **Gate 1 — Tests green:**
-  ```
+  ```shell
   yarn vitest run tests/integration/db/queries/DrizzleNoticeRepository.test.ts
   ```
-  All 12 tests MUST pass.
+  All 16 tests MUST pass.
 
 - [x] 3.2 **Gate 2 — TypeScript:**
   ```
@@ -107,7 +107,7 @@
   Zero errors. Fix any strict-mode issues (avoid `as any`).
 
 - [x] 3.3 **Gate 3 — Prettier:**
-  ```
+  ```shell
   yarn format:check
   ```
   If it fails, run `yarn format` and re-verify.
@@ -138,7 +138,7 @@
 
 - [x] 4.1 **Regression — full PGlite suite:** Run the full integration test suite and confirm
   no new failures have been introduced:
-  ```
+  ```shell
   yarn test:run2
   ```
   Any failure that was not present before this change MUST be investigated and fixed before

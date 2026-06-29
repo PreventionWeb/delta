@@ -93,16 +93,18 @@ export class DrizzleNoticeRepository implements INoticeRepository {
 	/**
 	 * Returns all notices for `tenantId`, newest first, with offset pagination.
 	 *
-	 * WHY ORDER BY createdAt DESC:
+	 * WHY ORDER BY createdAt DESC, id ASC:
 	 *   The UI list view shows the most recently created notices at the top.
-	 *   This ordering is part of the observable contract (Decision 5 in design.md).
+	 *   The secondary sort on id (unique) makes pagination deterministic when two
+	 *   notices share the same createdAt — without it, tie rows can move between
+	 *   pages on repeated queries (Decision 5 in design.md).
 	 */
 	async findAll(tenantId: string, pagination: Pagination): Promise<Notice[]> {
 		const rows = await this.db
 			.select()
 			.from(noticesTable)
 			.where(eq(noticesTable.countryAccountsId, tenantId))
-			.orderBy(desc(noticesTable.createdAt))
+			.orderBy(desc(noticesTable.createdAt), noticesTable.id)
 			.limit(pagination.pageSize)
 			.offset((pagination.page - 1) * pagination.pageSize);
 
@@ -121,10 +123,17 @@ export class DrizzleNoticeRepository implements INoticeRepository {
 	 *   The ON CONFLICT branch must advance updatedAt so callers always observe an
 	 *   accurate timestamp on the returned entity, regardless of the value stored
 	 *   in the incoming Notice entity.
+	 *
+	 * WHY WHERE clause on onConflictDoUpdate:
+	 *   Without it, a UUID collision across tenants would silently overwrite another
+	 *   tenant's notice. The WHERE restricts the update to rows belonging to the
+	 *   same tenant. If the condition is not met the upsert is a no-op and
+	 *   RETURNING returns [], which we surface as ConflictError.
 	 */
 	async save(notice: Notice): Promise<Notice> {
+		let rows: (typeof noticesTable.$inferSelect)[];
 		try {
-			const rows = await this.db
+			rows = await this.db
 				.insert(noticesTable)
 				.values({
 					id: notice.id,
@@ -147,10 +156,12 @@ export class DrizzleNoticeRepository implements INoticeRepository {
 						publishedAt: notice.publishedAt,
 						updatedAt: new Date(),
 					},
+					// WHY tenant-scoped WHERE: prevents a cross-tenant UUID collision from
+					// overwriting another tenant's notice. If this condition is not met,
+					// the upsert is a no-op and rows will be empty (handled below).
+					where: eq(noticesTable.countryAccountsId, notice.tenantId),
 				})
 				.returning();
-
-			return this.toEntity(rows[0]);
 		} catch (err) {
 			// PostgreSQL error code "23505" is a unique_violation constraint error.
 			// We surface this as ConflictError so callers can handle it without
@@ -165,6 +176,14 @@ export class DrizzleNoticeRepository implements INoticeRepository {
 			}
 			throw err;
 		}
+
+		// Empty rows means the WHERE clause in onConflictDoUpdate was not satisfied:
+		// the id exists but belongs to a different tenant — a cross-tenant collision.
+		if (rows.length === 0) {
+			throw new ConflictError("Notice id already used by a different tenant");
+		}
+
+		return this.toEntity(rows[0]);
 	}
 
 	/**
