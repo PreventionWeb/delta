@@ -118,6 +118,22 @@ describe("DrizzleNoticeRepository", () => {
 		);
 	});
 
+	// ---- save → cross-tenant id collision ----
+
+	it("(3) save — throws ConflictError when id already belongs to a different tenant", async () => {
+		// WHY this test: the onConflictDoUpdate WHERE clause must prevent a cross-tenant
+		// UUID collision from overwriting another tenant's notice.
+		const notice = makeNotice(tenantId);
+		await repo.save(notice);
+
+		const countryId2 = await insertCountry(crypto.randomUUID().slice(0, 8));
+		const tenantId2 = await insertCountryAccount(countryId2);
+		// Same id, different tenant — must not silently overwrite tenantId's notice.
+		const crossTenantNotice = makeNotice(tenantId2, { id: notice.id });
+
+		await expect(repo.save(crossTenantNotice)).rejects.toThrow(ConflictError);
+	});
+
 	// ---- save → concurrent upsert ----
 
 	it("(3) save concurrent — two concurrent saves with same id leave exactly one row", async () => {
@@ -236,6 +252,38 @@ describe("DrizzleNoticeRepository", () => {
 		// Page 1 = noticeB (newest), Page 2 = noticeA (oldest)
 		expect(results).toHaveLength(1);
 		expect(results[0].id).toBe(noticeA.id);
+	});
+
+	// ---- findAll — equal-createdAt pagination is deterministic ----
+
+	it("(10b) findAll — two notices with equal createdAt are returned in stable order across pages", async () => {
+		// WHY this test: without a secondary sort key, ties on createdAt can cause
+		// rows to shift between pages. The secondary sort on id (ASC, unique) guarantees
+		// deterministic ordering regardless of createdAt equality.
+		const sharedTimestamp = new Date("2026-03-01T12:00:00Z");
+		const noticeA = makeNotice(tenantId, {
+			createdAt: sharedTimestamp,
+			updatedAt: sharedTimestamp,
+		});
+		const noticeB = makeNotice(tenantId, {
+			createdAt: sharedTimestamp,
+			updatedAt: sharedTimestamp,
+		});
+
+		await repo.save(noticeA);
+		await repo.save(noticeB);
+
+		const page1 = await repo.findAll(tenantId, { page: 1, pageSize: 1 });
+		const page2 = await repo.findAll(tenantId, { page: 2, pageSize: 1 });
+
+		// Both pages must contain exactly one notice and they must be different
+		expect(page1).toHaveLength(1);
+		expect(page2).toHaveLength(1);
+		expect(page1[0].id).not.toBe(page2[0].id);
+		// Together they cover both notices (no duplication, no omission)
+		expect([page1[0].id, page2[0].id].sort()).toEqual(
+			[noticeA.id, noticeB.id].sort(),
+		);
 	});
 
 	// ---- delete — removes notice ----
