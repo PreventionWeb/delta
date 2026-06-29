@@ -5,6 +5,7 @@ import { authLoaderWithPerm, hasPermission } from "~/utils/auth";
 import {
     getCountryAccountsIdFromSession,
     getUserIdFromSession,
+    getUserRoleFromSession,
 } from "~/utils/session";
 import { paginationQueryFromURL } from "~/frontend/pagination/api.server";
 import { CountryRepository } from "~/db/queries/countriesRepository";
@@ -61,6 +62,7 @@ export const loader = authLoaderWithPerm(
                 },
                 canDeleteDisasterEvent: false,
                 canEditDisasterEvent: false,
+                loggedInUserRoleName: "",
                 countryName: "",
                 filters: {
                     disasterEventName: "",
@@ -107,6 +109,8 @@ export const loader = authLoaderWithPerm(
         const { viewData } = paginationQueryFromURL(request, []);
         const effectivePageSize = url.searchParams.has("pageSize") ? viewData.pageSize : 20;
         const userId = await getUserIdFromSession(request);
+        const loggedInUserRoleName =
+            (await getUserRoleFromSession(request)) || "";
         const canDeleteDisasterEvent = await hasPermission(
             request,
             "DeleteDisasterEvent",
@@ -198,6 +202,7 @@ export const loader = authLoaderWithPerm(
             hipTypes,
             canDeleteDisasterEvent,
             canEditDisasterEvent,
+            loggedInUserRoleName,
             countryName: country.name,
             filters: {
                 disasterEventName,
@@ -223,6 +228,7 @@ export default function DisasterEventLayoutRoute() {
         pagination,
         canDeleteDisasterEvent,
         canEditDisasterEvent,
+        loggedInUserRoleName,
         countryName,
         filters,
     } =
@@ -242,6 +248,7 @@ export default function DisasterEventLayoutRoute() {
                 pagination={pagination}
                 canDelete={canDeleteDisasterEvent}
                 canEdit={canEditDisasterEvent}
+                loggedInUserRoleName={loggedInUserRoleName}
                 countryName={countryName}
                 filters={filters}
             />

@@ -38,6 +38,7 @@ type DisasterEventsPageProps = {
     };
     canDelete?: boolean;
     canEdit?: boolean;
+    loggedInUserRoleName?: string;
     countryName?: string;
     filters?: {
         disasterEventName?: string;
@@ -60,6 +61,7 @@ export default function DisasterEventsPage({
     pagination,
     canDelete = false,
     canEdit = false,
+    loggedInUserRoleName,
     countryName,
     filters,
 }: DisasterEventsPageProps) {
@@ -217,6 +219,19 @@ export default function DisasterEventsPage({
         );
     };
 
+    const isDeleteRestrictedForRole = (status: unknown) => {
+        if (loggedInUserRoleName !== "data-collector") {
+            return false;
+        }
+
+        if (typeof status !== "string") {
+            return false;
+        }
+
+        const normalizedStatus = status.trim().toLowerCase().replaceAll(" ", "-");
+        return normalizedStatus === "validated" || normalizedStatus === "published";
+    };
+
     const actionsBodyTemplate = (row: (typeof data)[number]) => (
         <div className="flex w-full items-center justify-end gap-1">
             <Link to={`/${ctx.lang}/disaster-event/${row.id}`}>
@@ -239,7 +254,7 @@ export default function DisasterEventsPage({
                     </Button>
                 </Link>
             ) : null}
-            {canDelete ? (
+            {canDelete && !isDeleteRestrictedForRole(row.approvalStatus) ? (
                 <Link to={`/${ctx.lang}/disaster-event/delete/${row.id}`}>
                     <Button
                         type="button"
