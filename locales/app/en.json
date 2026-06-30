@@ -5301,7 +5301,7 @@
 	},
 	{
 		"id": "organization.delete_blocked_by_dependencies",
-		"translation": "This organization cannot be deleted because it is still being used by one or more users. Remove those assignments first.",
+		"translation": "This organization cannot be deleted because it is still being used by one or more records. Remove those assignments first.",
 		"description": "File: app/services/organizationService.ts:191"
 	},
 	{
