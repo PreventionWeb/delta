@@ -377,7 +377,56 @@ function StepperValidation({
 		navigation.location?.pathname.includes("/linked-disaster-records-modal");
 	const [selectedDivisionItems, setSelectedDivisionItems] = useState<
 		SelectedDivisionItem[]
-	>([]);
+	>(() => {
+		try {
+			const spatial = Array.isArray(disasterEvent?.spatialFootprint)
+				? disasterEvent.spatialFootprint
+				: typeof disasterEvent?.spatialFootprint === "string"
+					? JSON.parse(disasterEvent.spatialFootprint)
+					: [];
+
+			if (!Array.isArray(spatial)) {
+				return [];
+			}
+
+			const byId = new Map<string, string>();
+			for (const item of spatial) {
+				const maybeItem = item as any;
+				const geojson = maybeItem?.geojson as any;
+				const properties = geojson?.properties;
+				const divisionId =
+					typeof maybeItem?.division_id === "string"
+						? maybeItem.division_id
+						: typeof properties?.division_id === "string"
+							? properties.division_id
+							: null;
+
+				if (!divisionId) {
+					continue;
+				}
+
+				const label =
+					typeof maybeItem?.geographic_level === "string" &&
+					maybeItem.geographic_level.trim().length > 0
+						? maybeItem.geographic_level.trim()
+						: typeof maybeItem?.title === "string" &&
+							maybeItem.title.trim().length > 0
+							? maybeItem.title.trim()
+							: divisionId;
+
+				if (!byId.has(divisionId)) {
+					byId.set(divisionId, label);
+				}
+			}
+
+			return Array.from(byId.entries()).map(([key, label]) => ({
+				key,
+				label,
+			}));
+		} catch {
+			return [];
+		}
+	});
 	const [keptAttachmentIds, setKeptAttachmentIds] = useState<string[]>(
 		() => disasterEventAttachments.map((attachment) => attachment.id),
 	);
@@ -1540,6 +1589,10 @@ function StepperValidation({
 		pushValue("startDateTime", formatTimeForSubmit(startTime));
 		pushValue("endDate", toDateWithPrecisionValue(endDateState));
 		pushValue("endDateTime", formatTimeForSubmit(endTime));
+		pushValue(
+			"selectedDivisionItems",
+			JSON.stringify(selectedDivisionItems ?? []),
+		);
 		pushValue("spatialFootprint", JSON.stringify(spatialFootprintValue ?? []));
 		pushValue(
 			"linkedDisasterRecordIds",
@@ -1662,6 +1715,7 @@ function StepperValidation({
 		startTime,
 		endDateState,
 		endTime,
+		selectedDivisionItems,
 		spatialFootprintValue,
 	]);
 
@@ -1820,12 +1874,49 @@ function StepperValidation({
 	const reviewSpatialFootprintItems = useMemo(
 		() =>
 			spatialFootprintValue
-				.filter((item) => Boolean(item))
+				.filter((item) => {
+					if (!item || typeof item !== "object") {
+						return false;
+					}
+
+					const mapOption =
+						typeof item.map_option === "string" ? item.map_option : "";
+					if (mapOption === "Geographic level") {
+						return false;
+					}
+
+					if (mapOption === "Map coordinates") {
+						return true;
+					}
+
+					return Boolean(item.geojson);
+				})
 				.map((item, index) => {
 					const title =
 						typeof item?.title === "string" ? item.title.trim() : "";
 					return title || `Spatial footprint ${index + 1}`;
 				}),
+		[spatialFootprintValue],
+	);
+	const mapCoordinateSpatialFootprintCount = useMemo(
+		() =>
+			spatialFootprintValue.filter((item) => {
+				if (!item || typeof item !== "object") {
+					return false;
+				}
+
+				const mapOption =
+					typeof item.map_option === "string" ? item.map_option : "";
+				if (mapOption === "Geographic level") {
+					return false;
+				}
+
+				if (mapOption === "Map coordinates") {
+					return true;
+				}
+
+				return Boolean(item.geojson);
+			}).length,
 		[spatialFootprintValue],
 	);
 
@@ -3210,8 +3301,8 @@ function StepperValidation({
 												<i className="pi pi-chevron-right pt-2 text-slate-400" />
 											</div>
 											<div className="px-3 py-3 text-[13px] text-slate-600">
-												{spatialFootprintValue.length > 0
-													? `${spatialFootprintValue.length} spatial footprint item(s) added`
+												{mapCoordinateSpatialFootprintCount > 0
+													? `${mapCoordinateSpatialFootprintCount} spatial footprint item(s) added`
 													: "No spatial footprint items added yet"}
 											</div>
 										</div>

@@ -28,7 +28,7 @@ import {
 	getUserIdFromSession,
 	getUserRoleFromSession,
 } from "~/utils/session";
-import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { dr } from "~/db.server";
 import { divisionTable } from "~/drizzle/schema/divisionTable";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
@@ -105,6 +105,110 @@ async function getDivisionTreeData(countryAccountsId: string) {
 		"level",
 		"name",
 	]);
+}
+
+type SelectedDivisionPayload = {
+	key: string;
+	label: string;
+};
+
+async function buildGeographicLevelSpatialFootprint(
+	tx: Parameters<Parameters<typeof formSave>[0]["save"]>[0],
+	countryAccountsId: string,
+	lang: string,
+	selectedDivisionItems: SelectedDivisionPayload[],
+) {
+	if (selectedDivisionItems.length === 0) {
+		return [] as any[];
+	}
+
+	const selectedIds = Array.from(
+		new Set(
+			selectedDivisionItems
+				.map((item) => item.key)
+				.filter((value): value is string => value.trim().length > 0),
+		),
+	);
+
+	if (selectedIds.length === 0) {
+		return [] as any[];
+	}
+
+	const divisionRows = await tx
+		.select({
+			id: divisionTable.id,
+			name: divisionTable.name,
+			geojson: divisionTable.geojson,
+			importId: divisionTable.importId,
+			nationalId: divisionTable.nationalId,
+			level: divisionTable.level,
+		})
+		.from(divisionTable)
+		.where(
+			and(
+				eq(divisionTable.countryAccountsId, countryAccountsId),
+				inArray(divisionTable.id, selectedIds),
+			),
+		);
+
+	const byId = new Map(divisionRows.map((row) => [row.id, row]));
+
+	return selectedDivisionItems
+		.map((item) => {
+			const division = byId.get(item.key);
+			if (!division) {
+				return null;
+			}
+
+			const nameObject = division.name as Record<string, string> | null;
+			const localizedName =
+				(nameObject &&
+					String(
+						nameObject[lang] ||
+							nameObject.en ||
+							Object.values(nameObject)[0] ||
+							"",
+						).trim()) ||
+				item.label ||
+				item.key;
+
+			const rawGeojson = division.geojson as any;
+			let featureGeojson: any;
+			if (rawGeojson?.type === "Feature") {
+				featureGeojson = rawGeojson;
+			} else if (
+				rawGeojson?.type === "FeatureCollection" &&
+				Array.isArray(rawGeojson.features) &&
+				rawGeojson.features[0]
+			) {
+				featureGeojson = rawGeojson.features[0];
+			} else {
+				featureGeojson = {
+					type: "Feature",
+					geometry: rawGeojson,
+					properties: {},
+				};
+			}
+
+			featureGeojson.properties = {
+				...(featureGeojson.properties || {}),
+				division_id: division.id,
+				division_ids: [division.id],
+				import_id: division.importId,
+				national_id: division.nationalId,
+				level: division.level,
+				name: division.name,
+			};
+
+			return {
+				id: `geographic-${division.id}`,
+				title: localizedName,
+				map_option: "Geographic level",
+				geographic_level: item.label || localizedName,
+				geojson: featureGeojson,
+			};
+		})
+		.filter((item): item is any => Boolean(item));
 }
 
 async function getUsersEligibleForValidation(
@@ -544,6 +648,9 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 	const linkedTriggeredHazardousEventIdsRaw = String(
 		formData.get("linkedTriggeredHazardousEventIds") ?? "[]",
 	);
+	const selectedDivisionItemsRaw = String(
+		formData.get("selectedDivisionItems") ?? "[]",
+	);
 	const hasExistingAttachmentIdsField = formData.has("existingAttachmentIds");
 	const existingAttachmentIdsRaw = String(
 		formData.get("existingAttachmentIds") ?? "[]",
@@ -557,6 +664,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 	let linkedTriggeredDisasterEventIds: string[] = [];
 	let linkedTriggeringHazardousEventIds: string[] = [];
 	let linkedTriggeredHazardousEventIds: string[] = [];
+	let selectedDivisionItems: SelectedDivisionPayload[] = [];
 	let existingAttachmentIds: string[] = [];
 	let newAttachmentUploads: Array<{
 		fileName: string;
@@ -617,6 +725,17 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 		}
 	}
 	try {
+		const parsed = JSON.parse(selectedDivisionItemsRaw);
+		selectedDivisionItems = Array.isArray(parsed)
+			? parsed.filter(
+				(value): value is SelectedDivisionPayload =>
+					typeof value?.key === "string" && typeof value?.label === "string",
+			)
+			: [];
+	} catch {
+		selectedDivisionItems = [];
+	}
+	try {
 		const parsed = JSON.parse(existingAttachmentIdsRaw);
 		existingAttachmentIds = Array.isArray(parsed)
 			? parsed.filter((value): value is string => typeof value === "string")
@@ -654,6 +773,24 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 				countryAccountsId,
 				updatedByUserId: userSession.user.id,
 			};
+
+			const currentSpatial = Array.isArray(updatedData.spatialFootprint)
+				? updatedData.spatialFootprint
+				: [];
+			const nonGeographicSpatial = currentSpatial.filter(
+				(item: any) => item?.map_option !== "Geographic level",
+			);
+			const geographicSpatial = await buildGeographicLevelSpatialFootprint(
+				tx,
+				countryAccountsId,
+				ctx.lang,
+				selectedDivisionItems,
+			);
+			updatedData.spatialFootprint = [
+				...nonGeographicSpatial,
+				...geographicSpatial,
+			];
+
 			const syncLinkedDisasterEvents = async (eventId: string) => {
 				const selectedTriggeringIds = new Set(
 					linkedTriggeringDisasterEventIds.filter((id) => id !== eventId),

@@ -53,24 +53,12 @@ function formatHazardousEventOption(
 	const displayName =
 		hazardName ||
 		clusterName ||
-		typeName ||
-		event.description?.trim() ||
-		`HE: ${event.id.slice(0, 8)}`;
-	const hipLabel = hazardName
-		? event.hipHazard?.code
-			? `H: ${hazardName} (${event.hipHazard.code})`
-			: `H: ${hazardName}`
-		: clusterName
-			? `C: ${clusterName}`
-			: typeName
-				? `T: ${typeName}`
-				: "";
+		typeName;
 
 	return {
 		id: event.id,
 		name: displayName,
 		code: event.id,
-		hip: hipLabel,
 	};
 }
 
