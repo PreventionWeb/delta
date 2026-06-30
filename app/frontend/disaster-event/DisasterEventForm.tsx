@@ -3548,10 +3548,10 @@ function StepperValidation({
 									<div className="space-y-4">
 										<div>
 											<label className="mb-1 block">Type</label>
-											<select
+											<Dropdown
 												value={detailForm.type}
 												onChange={(event) => {
-													const selectedType = event.target.value;
+													const selectedType = String(event.value ?? "");
 													setDetailForm((state) => ({
 														...state,
 														type: selectedType,
@@ -3578,16 +3578,13 @@ function StepperValidation({
 																: "",
 													}));
 												}}
+												options={detailTypeOptions}
+												optionLabel="label"
+												optionValue="value"
+												placeholder="Select type"
 												disabled={Boolean(editingDetailId)}
-												className="w-full rounded-md border border-slate-300 px-3 py-2"
-											>
-												<option value="">Select type</option>
-												{detailTypeOptions.map((option) => (
-													<option key={option.value} value={option.value}>
-														{option.label}
-													</option>
-												))}
-											</select>
+												className="w-full"
+											/>
 										</div>
 
 										{showDateField ? (
@@ -3617,25 +3614,22 @@ function StepperValidation({
 												<label className="mb-1 block">
 													Disaster declaration status
 												</label>
-												<select
+												<Dropdown
 													value={detailForm.declarationStatus}
 													onChange={(event) =>
 														setDetailForm((state) => ({
 															...state,
-															declarationStatus: event.target.value as
+															declarationStatus: String(event.value ?? "") as
 																| DeclarationStatus
 																| "",
 														}))
 													}
-													className="w-full rounded-md border border-slate-300 px-3 py-2"
-												>
-													<option value="">Select declaration status</option>
-													{declarationStatusOptions.map((option) => (
-														<option key={option.value} value={option.value}>
-															{option.label}
-														</option>
-													))}
-												</select>
+													options={declarationStatusOptions}
+													optionLabel="label"
+													optionValue="value"
+													placeholder="Select declaration status"
+													className="w-full"
+												/>
 											</div>
 										) : null}
 
