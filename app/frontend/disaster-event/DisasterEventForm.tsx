@@ -1,4 +1,9 @@
-import { Form as RouterForm, Outlet, useNavigate } from "react-router";
+import {
+	Form as RouterForm,
+	Outlet,
+	useNavigate,
+	useNavigation,
+} from "react-router";
 import {
 	type Dispatch,
 	type SetStateAction,
@@ -14,7 +19,6 @@ import { Button } from "primereact/button";
 import { Tooltip } from "primereact/tooltip";
 import { Card } from "primereact/card";
 import { DataView } from "primereact/dataview";
-import { PickList } from "primereact/picklist";
 import { Dialog } from "primereact/dialog";
 import { Calendar } from "primereact/calendar";
 import { Dropdown } from "primereact/dropdown";
@@ -126,6 +130,20 @@ export type DisasterEventFormOutletContext = {
 	setSelectedDivisionItems: Dispatch<SetStateAction<SelectedDivisionItem[]>>;
 	spatialFootprintValue: any[];
 	setSpatialFootprintValue: Dispatch<SetStateAction<any[]>>;
+	disasterEventOptions: LinkedEventOption[];
+	hazardousEventOptions: LinkedEventOption[];
+	triggeringHazardousEventTarget: LinkedEventOption[];
+	setTriggeringHazardousEventTarget: Dispatch<SetStateAction<LinkedEventOption[]>>;
+	triggeredHazardousEventTarget: LinkedEventOption[];
+	setTriggeredHazardousEventTarget: Dispatch<SetStateAction<LinkedEventOption[]>>;
+	triggeringDisasterEventTarget: LinkedEventOption[];
+	setTriggeringDisasterEventTarget: Dispatch<
+		SetStateAction<LinkedEventOption[]>
+	>;
+	triggeredDisasterEventTarget: LinkedEventOption[];
+	setTriggeredDisasterEventTarget: Dispatch<
+		SetStateAction<LinkedEventOption[]>
+	>;
 	disasterRecordOptions: LinkedEventOption[];
 	linkedDisasterRecordTarget: LinkedEventOption[];
 	setLinkedDisasterRecordTarget: Dispatch<SetStateAction<LinkedEventOption[]>>;
@@ -282,11 +300,13 @@ type StepperValidationProps = {
 		createdAt: string | Date;
 	}>;
 	hazardousEventOptions: LinkedEventOption[];
-	linkedHazardousEvents: LinkedEventOption[];
+	linkedTriggeringHazardousEvents: LinkedEventOption[];
+	linkedTriggeredHazardousEvents: LinkedEventOption[];
+	disasterEventOptions: LinkedEventOption[];
+	linkedTriggeringDisasterEvents: LinkedEventOption[];
+	linkedTriggeredDisasterEvents: LinkedEventOption[];
 	disasterRecordOptions: LinkedEventOption[];
 	linkedDisasterRecords: LinkedEventOption[];
-	disasterEventOptions: LinkedEventOption[];
-	linkedDisasterEvents: LinkedEventOption[];
 	currentUserOrganization: {
 		id: string;
 		name: string;
@@ -316,16 +336,45 @@ function StepperValidation({
 	disasterEventAttachments,
 	hip,
 	hazardousEventOptions,
-	linkedHazardousEvents,
+	linkedTriggeringHazardousEvents,
+	linkedTriggeredHazardousEvents,
+	disasterEventOptions,
+	linkedTriggeringDisasterEvents,
+	linkedTriggeredDisasterEvents,
 	disasterRecordOptions,
 	linkedDisasterRecords,
-	disasterEventOptions,
-	linkedDisasterEvents,
 	currentUserOrganization,
 	user,
 	usersWithValidatorRole,
 }: StepperValidationProps) {
 	const navigate = useNavigate();
+	const navigation = useNavigation();
+	const isOpeningAffectedAreasModal =
+		navigation.state !== "idle" &&
+		navigation.location?.pathname.includes("/affected-areas-modal");
+	const isOpeningLinkedTriggeringDisasterEventsModal =
+		navigation.state !== "idle" &&
+		navigation.location?.pathname.includes(
+			"/linked-triggering-disaster-events-modal",
+		);
+	const isOpeningLinkedTriggeredDisasterEventsModal =
+		navigation.state !== "idle" &&
+		navigation.location?.pathname.includes(
+			"/linked-triggered-disaster-events-modal",
+		);
+	const isOpeningLinkedTriggeringHazardousEventsModal =
+		navigation.state !== "idle" &&
+		navigation.location?.pathname.includes(
+			"/linked-triggering-hazardous-events-modal",
+		);
+	const isOpeningLinkedTriggeredHazardousEventsModal =
+		navigation.state !== "idle" &&
+		navigation.location?.pathname.includes(
+			"/linked-triggered-hazardous-events-modal",
+		);
+	const isOpeningLinkedDisasterRecordsModal =
+		navigation.state !== "idle" &&
+		navigation.location?.pathname.includes("/linked-disaster-records-modal");
 	const [selectedDivisionItems, setSelectedDivisionItems] = useState<
 		SelectedDivisionItem[]
 	>([]);
@@ -827,34 +876,14 @@ function StepperValidation({
 			</>
 		);
 	};
-	const [linkedEventSearch, setLinkedEventSearch] = useState("");
-	const [linkedEventLoading, setLinkedEventLoading] = useState(false);
-	const [linkedEventSource, setLinkedEventSource] = useState<
-		LinkedEventOption[]
-	>(() => {
-		const linkedIds = new Set(linkedHazardousEvents.map((event) => event.id));
-		return hazardousEventOptions
-			.filter((event) => !linkedIds.has(event.id))
-			.slice(0, 10);
-	});
-	const [linkedEventTarget, setLinkedEventTarget] = useState<
-		LinkedEventOption[]
-	>(() => linkedHazardousEvents);
-	const [linkedDisasterEventSearch, setLinkedDisasterEventSearch] =
-		useState("");
-	const [linkedDisasterEventLoading, setLinkedDisasterEventLoading] =
-		useState(false);
-	const [linkedDisasterEventSource, setLinkedDisasterEventSource] = useState<
-		LinkedEventOption[]
-	>(() => {
-		const linkedIds = new Set(linkedDisasterEvents.map((event) => event.id));
-		return disasterEventOptions
-			.filter((event) => !linkedIds.has(event.id))
-			.slice(0, 10);
-	});
-	const [linkedDisasterEventTarget, setLinkedDisasterEventTarget] = useState<
-		LinkedEventOption[]
-	>(() => linkedDisasterEvents);
+	const [triggeringHazardousEventTarget, setTriggeringHazardousEventTarget] =
+		useState<LinkedEventOption[]>(() => linkedTriggeringHazardousEvents);
+	const [triggeredHazardousEventTarget, setTriggeredHazardousEventTarget] =
+		useState<LinkedEventOption[]>(() => linkedTriggeredHazardousEvents);
+	const [triggeringDisasterEventTarget, setTriggeringDisasterEventTarget] =
+		useState<LinkedEventOption[]>(() => linkedTriggeringDisasterEvents);
+	const [triggeredDisasterEventTarget, setTriggeredDisasterEventTarget] =
+		useState<LinkedEventOption[]>(() => linkedTriggeredDisasterEvents);
 	const [linkedDisasterRecordTarget, setLinkedDisasterRecordTarget] = useState<
 		LinkedEventOption[]
 	>(
@@ -1498,10 +1527,14 @@ function StepperValidation({
 		pushValue("hipTypeId", selectedHipTypeId);
 		pushValue("hipClusterId", selectedHipClusterId);
 		pushValue("hipHazardId", selectedHipHazardId);
-		pushValue("hazardousEventId", linkedEventTarget[0]?.id ?? "");
+		pushValue("hazardousEventId", triggeredHazardousEventTarget[0]?.id ?? "");
 		pushValue(
-			"linkedHazardousEventIds",
-			JSON.stringify(linkedEventTarget.map((event) => event.id)),
+			"linkedTriggeringHazardousEventIds",
+			JSON.stringify(triggeringHazardousEventTarget.map((event) => event.id)),
+		);
+		pushValue(
+			"linkedTriggeredHazardousEventIds",
+			JSON.stringify(triggeredHazardousEventTarget.map((event) => event.id)),
 		);
 		pushValue("startDate", toDateWithPrecisionValue(startDateState));
 		pushValue("startDateTime", formatTimeForSubmit(startTime));
@@ -1513,8 +1546,12 @@ function StepperValidation({
 			JSON.stringify(linkedDisasterRecordTarget.map((record) => record.id)),
 		);
 		pushValue(
-			"linkedDisasterEventIds",
-			JSON.stringify(linkedDisasterEventTarget.map((event) => event.id)),
+			"linkedTriggeringDisasterEventIds",
+			JSON.stringify(triggeringDisasterEventTarget.map((event) => event.id)),
+		);
+		pushValue(
+			"linkedTriggeredDisasterEventIds",
+			JSON.stringify(triggeredDisasterEventTarget.map((event) => event.id)),
 		);
 
 		const earlyActions = responses.filter(
@@ -1613,8 +1650,10 @@ function StepperValidation({
 		declarations,
 		form,
 		responses,
-		linkedEventTarget,
-		linkedDisasterEventTarget,
+		triggeringHazardousEventTarget,
+		triggeredHazardousEventTarget,
+		triggeringDisasterEventTarget,
+		triggeredDisasterEventTarget,
 		linkedDisasterRecordTarget,
 		selectedHipClusterId,
 		selectedHipHazardId,
@@ -2154,35 +2193,100 @@ function StepperValidation({
 		);
 	};
 
-	const reviewLinkedDisasterEventRows = linkedDisasterEventTarget.map(
-		(event) => (
-			<div key={event.id} className="space-y-1">
-				<div className="space-y-1">
-					<p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-						Subsequent Disaster Event
-					</p>
-					<p className="text-[14px] font-semibold text-slate-800">
-						{event.name || "-"}
-					</p>
-					<p className="text-[13px] text-slate-500">{event.code || "-"}</p>
+	const hazardousEventItemTemplate = (
+		item: LinkedEventOption,
+		layout?: "list" | "grid",
+	) => {
+		const wrapperClass =
+			layout === "grid" ? "linked-disaster-record-grid-item" : "w-full";
+
+		return (
+			<div className={wrapperClass}>
+				<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
+					<div className="flex w-full items-start justify-between gap-4">
+						<div>
+							<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
+							{item.hip ? (
+								<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
+							) : null}
+						</div>
+					</div>
 				</div>
 			</div>
-		),
-	);
+		);
+	};
 
-	const reviewLinkedHazardousEventRows = linkedEventTarget.map((event) => (
-		<div key={event.id} className="space-y-1">
-			<div className="space-y-1">
-				<p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-					Subsequent Hazardous Event
-				</p>
-				<p className="text-[14px] font-semibold text-slate-800">
-					{event.name || "-"}
-				</p>
-				<p className="text-[13px] text-slate-500">{event.code || "-"}</p>
+	const triggeringHazardousEventItemTemplate = (
+		item: LinkedEventOption,
+		layout?: "list" | "grid",
+	) => {
+		const wrapperClass =
+			layout === "grid" ? "linked-disaster-record-grid-item" : "w-full";
+
+		return (
+			<div className={wrapperClass}>
+				<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
+					<div className="flex w-full items-start justify-between gap-4">
+						<div>
+							<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
+							{item.hip ? (
+								<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
+							) : null}
+						</div>
+					</div>
+					<Button
+						type="button"
+						icon="pi pi-times"
+						text
+						rounded
+						className="h-6 w-6 p-0 text-slate-400 hover:text-slate-700"
+						aria-label={`Remove ${item.name}`}
+						onClick={() =>
+							setTriggeringHazardousEventTarget((previous) =>
+								previous.filter((record) => record.id !== item.id),
+							)
+						}
+					/>
+				</div>
 			</div>
-		</div>
-	));
+		);
+	};
+
+	const triggeredHazardousEventItemTemplate = (
+		item: LinkedEventOption,
+		layout?: "list" | "grid",
+	) => {
+		const wrapperClass =
+			layout === "grid" ? "linked-disaster-record-grid-item" : "w-full";
+
+		return (
+			<div className={wrapperClass}>
+				<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
+					<div className="flex w-full items-start justify-between gap-4">
+						<div>
+							<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
+							{item.hip ? (
+								<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
+							) : null}
+						</div>
+					</div>
+					<Button
+						type="button"
+						icon="pi pi-times"
+						text
+						rounded
+						className="h-6 w-6 p-0 text-slate-400 hover:text-slate-700"
+						aria-label={`Remove ${item.name}`}
+						onClick={() =>
+							setTriggeredHazardousEventTarget((previous) =>
+								previous.filter((record) => record.id !== item.id),
+							)
+						}
+					/>
+				</div>
+			</div>
+		);
+	};
 
 	const renderStep4SectionCard = (
 		title: string,
@@ -2214,61 +2318,6 @@ function StepperValidation({
 			{label}
 		</div>
 	);
-
-	const searchLinkedEvents = async (query: string) => {
-		setLinkedEventLoading(true);
-
-		const lowerQuery = query.trim().toLowerCase();
-		const matched = hazardousEventOptions.filter((item) => {
-			if (!lowerQuery) {
-				return true;
-			}
-
-			return (
-				item.name.toLowerCase().includes(lowerQuery) ||
-				item.code.toLowerCase().includes(lowerQuery)
-			);
-		});
-
-		setLinkedEventSource(
-			matched
-				.filter(
-					(item) =>
-						!linkedEventTarget.some((selected) => selected.id === item.id),
-				)
-				.slice(0, 10),
-		);
-		setLinkedEventLoading(false);
-	};
-
-	const searchLinkedDisasterEvents = async (query: string) => {
-		setLinkedDisasterEventLoading(true);
-
-		const lowerQuery = query.trim().toLowerCase();
-		const matched = disasterEventOptions.filter((item) => {
-			if (!lowerQuery) {
-				return true;
-			}
-
-			return (
-				item.name.toLowerCase().includes(lowerQuery) ||
-				item.code.toLowerCase().includes(lowerQuery)
-			);
-		});
-
-		setLinkedDisasterEventSource(
-			matched
-				.filter(
-					(item) =>
-						!linkedDisasterEventTarget.some(
-							(selected) => selected.id === item.id,
-						),
-				)
-				.slice(0, 10),
-		);
-		setLinkedDisasterEventLoading(false);
-	};
-
 
 	const linkedDisasterRecordItemTemplate = (
 		item: LinkedEventOption,
@@ -2329,14 +2378,129 @@ function StepperValidation({
 		);
 	};
 
-	const linkedEventItemTemplate = (item: LinkedEventOption) => (
-		<div>
-			<p className="font-semibold text-slate-700">{item.name}</p>
-			<p className="text-sm text-slate-500">{item.code}</p>
-		</div>
-	);
+	const triggeringDisasterEventItemTemplate = (
+		item: LinkedEventOption,
+		layout?: "list" | "grid",
+	) => {
+		const wrapperClass =
+			layout === "grid" ? "linked-disaster-record-grid-item" : "w-full";
+
+		return (
+			<div className={wrapperClass}>
+				<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
+					<div className="flex w-full items-start justify-between gap-4">
+						<div>
+							<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
+							{item.hip ? (
+								<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
+							) : null}
+						</div>
+					</div>
+					<Button
+						type="button"
+						icon="pi pi-times"
+						text
+						rounded
+						className="h-6 w-6 p-0 text-slate-400 hover:text-slate-700"
+						aria-label={`Remove ${item.name}`}
+						onClick={() =>
+							setTriggeringDisasterEventTarget((previous) =>
+								previous.filter((record) => record.id !== item.id),
+							)
+						}
+					/>
+				</div>
+			</div>
+		);
+	};
+
+	const triggeredDisasterEventItemTemplate = (
+		item: LinkedEventOption,
+		layout?: "list" | "grid",
+	) => {
+		const wrapperClass =
+			layout === "grid" ? "linked-disaster-record-grid-item" : "w-full";
+
+		return (
+			<div className={wrapperClass}>
+				<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
+					<div className="flex w-full items-start justify-between gap-4">
+						<div>
+							<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
+							{item.hip ? (
+								<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
+							) : null}
+						</div>
+					</div>
+					<Button
+						type="button"
+						icon="pi pi-times"
+						text
+						rounded
+						className="h-6 w-6 p-0 text-slate-400 hover:text-slate-700"
+						aria-label={`Remove ${item.name}`}
+						onClick={() =>
+							setTriggeredDisasterEventTarget((previous) =>
+								previous.filter((record) => record.id !== item.id),
+							)
+						}
+					/>
+				</div>
+			</div>
+		);
+	};
+
+	const triggeringDisasterEventReviewItemTemplate = (
+		item: LinkedEventOption,
+		layout?: "list" | "grid",
+	) => {
+		const wrapperClass =
+			layout === "grid" ? "linked-disaster-record-grid-item" : "w-full";
+
+		return (
+			<div className={wrapperClass}>
+				<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
+					<div className="flex w-full items-start justify-between gap-4">
+						<div>
+							<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
+							{item.hip ? (
+								<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
+							) : null}
+						</div>
+					</div>
+				</div>
+			</div>
+		);
+	};
+
+	const triggeredDisasterEventReviewItemTemplate = (
+		item: LinkedEventOption,
+		layout?: "list" | "grid",
+	) => {
+		const wrapperClass =
+			layout === "grid" ? "linked-disaster-record-grid-item" : "w-full";
+
+		return (
+			<div className={wrapperClass}>
+				<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
+					<div className="flex w-full items-start justify-between gap-4">
+						<div>
+							<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
+							{item.hip ? (
+								<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
+							) : null}
+						</div>
+					</div>
+				</div>
+			</div>
+		);
+	};
 
 	const openAffectedAreasModal = () => {
+		if (isOpeningAffectedAreasModal) {
+			return;
+		}
+
 		navigate("affected-areas-modal");
 	};
 
@@ -2345,7 +2509,43 @@ function StepperValidation({
 	};
 
 	const openLinkedDisasterRecordsModal = () => {
+		if (isOpeningLinkedDisasterRecordsModal) {
+			return;
+		}
+
 		navigate("linked-disaster-records-modal");
+	};
+
+	const openLinkedTriggeringDisasterEventsModal = () => {
+		if (isOpeningLinkedTriggeringDisasterEventsModal) {
+			return;
+		}
+
+		navigate("linked-triggering-disaster-events-modal");
+	};
+
+	const openLinkedTriggeredDisasterEventsModal = () => {
+		if (isOpeningLinkedTriggeredDisasterEventsModal) {
+			return;
+		}
+
+		navigate("linked-triggered-disaster-events-modal");
+	};
+
+	const openLinkedTriggeringHazardousEventsModal = () => {
+		if (isOpeningLinkedTriggeringHazardousEventsModal) {
+			return;
+		}
+
+		navigate("linked-triggering-hazardous-events-modal");
+	};
+
+	const openLinkedTriggeredHazardousEventsModal = () => {
+		if (isOpeningLinkedTriggeredHazardousEventsModal) {
+			return;
+		}
+
+		navigate("linked-triggered-hazardous-events-modal");
 	};
 
 	const toast = useRef<Toast>(null);
@@ -2381,31 +2581,6 @@ function StepperValidation({
 	}
 
 
-
-	useEffect(() => {
-		const linkedIds = new Set(linkedHazardousEvents.map((event) => event.id));
-		setLinkedEventTarget(linkedHazardousEvents);
-		setLinkedEventSource(
-			hazardousEventOptions
-				.filter((event) => !linkedIds.has(event.id))
-				.slice(0, 10),
-		);
-	}, [hazardousEventOptions, linkedHazardousEvents]);
-
-	useEffect(() => {
-		const linkedIds = new Set(linkedDisasterEvents.map((event) => event.id));
-		setLinkedDisasterEventTarget(linkedDisasterEvents);
-		setLinkedDisasterEventSource(
-			disasterEventOptions
-				.filter((event) => !linkedIds.has(event.id))
-				.slice(0, 10),
-		);
-	}, [disasterEventOptions, linkedDisasterEvents]);
-
-	useEffect(() => {
-		searchLinkedEvents("");
-		searchLinkedDisasterEvents("");
-	}, []);
 
 	useEffect(() => {
 		const animationFrameId = requestAnimationFrame(() => {
@@ -2530,8 +2705,19 @@ function StepperValidation({
 				margin: 0;
 			}
 
+			.linked-disaster-event-grid .p-dataview-content .p-grid {
+				display: grid;
+				grid-template-columns: repeat(1, minmax(0, 1fr));
+				gap: 0.75rem;
+				margin: 0;
+			}
+
 			@media (min-width: 768px) {
 				.linked-disaster-records-grid .p-dataview-content .p-grid {
+					grid-template-columns: repeat(2, minmax(0, 1fr));
+				}
+
+				.linked-disaster-event-grid .p-dataview-content .p-grid {
 					grid-template-columns: repeat(2, minmax(0, 1fr));
 				}
 			}
@@ -2956,11 +3142,22 @@ function StepperValidation({
 													<div className="mt-2.5">
 														<Button
 															type="button"
-															label="Add affected areas"
+															label={
+																isOpeningAffectedAreasModal
+																	? "Opening..."
+																	: "Add affected areas"
+															}
 															outlined
 															icon="pi pi-plus"
+															loading={isOpeningAffectedAreasModal}
+															disabled={isOpeningAffectedAreasModal}
 															onClick={openAffectedAreasModal}
 														/>
+														<span className="sr-only" aria-live="polite">
+															{isOpeningAffectedAreasModal
+																? "Loading affected areas selector"
+																: ""}
+														</span>
 													</div>
 													<div className="mt-6 flex flex-wrap gap-2 text-sm">
 														{selectedDivisionItems.length > 0 &&
@@ -3067,49 +3264,81 @@ function StepperValidation({
 										Linked hazardous events
 									</h2>
 									<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
-										Link this disaster event to triggered hazardous events.
+										Link this disaster event to hazardous event causes or
+										consequences.
 									</p>
 								</div>
-								<div className="space-y-4">
+								<div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
 									<div>
-										<div className="mt-2 flex gap-3">
-											<div className="relative w-full">
-												<i className="pi pi-search pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-												<InputText
-													id="linkedEventSearch"
-													value={linkedEventSearch}
-													onChange={(event) =>
-														setLinkedEventSearch(event.target.value)
-													}
-													placeholder="Type to search hazardous events..."
-													className="w-full pr-10"
-												/>
-											</div>
+										<h3 className="text-[16px] leading-[20px] font-semibold text-slate-600 tracking-[-0.01em]">
+											Triggering (causal) events
+										</h3>
+										<div className="mt-2.5">
 											<Button
 												type="button"
-												label={linkedEventLoading ? "Searching..." : "Search"}
-												onClick={() => searchLinkedEvents(linkedEventSearch)}
-												disabled={linkedEventLoading}
+												label={
+													isOpeningLinkedTriggeringHazardousEventsModal
+														? "Opening..."
+														: "Manage linked triggering events"
+												}
+												outlined
+												icon="pi pi-link"
+												loading={isOpeningLinkedTriggeringHazardousEventsModal}
+												disabled={isOpeningLinkedTriggeringHazardousEventsModal}
+												onClick={openLinkedTriggeringHazardousEventsModal}
+											/>
+											<span className="sr-only" aria-live="polite">
+												{isOpeningLinkedTriggeringHazardousEventsModal
+													? "Loading linked triggering hazardous events selector"
+													: ""}
+											</span>
+										</div>
+
+										<div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+											<DataView
+												className="linked-disaster-event-grid"
+												value={triggeringHazardousEventTarget}
+												itemTemplate={triggeringHazardousEventItemTemplate}
+												emptyMessage="No linked triggering (causal) events"
+												layout="grid"
 											/>
 										</div>
 									</div>
+									<div>
+										<h3 className="text-[16px] leading-[20px] font-semibold text-slate-600 tracking-[-0.01em]">
+											Triggered (subsequent) events
+										</h3>
+										<div className="mt-2.5">
+											<Button
+												type="button"
+												label={
+													isOpeningLinkedTriggeredHazardousEventsModal
+														? "Opening..."
+														: "Manage linked triggered events"
+												}
+												outlined
+												icon="pi pi-link"
+												loading={isOpeningLinkedTriggeredHazardousEventsModal}
+												disabled={isOpeningLinkedTriggeredHazardousEventsModal}
+												onClick={openLinkedTriggeredHazardousEventsModal}
+											/>
+											<span className="sr-only" aria-live="polite">
+												{isOpeningLinkedTriggeredHazardousEventsModal
+													? "Loading linked triggered hazardous events selector"
+													: ""}
+											</span>
+										</div>
 
-									<PickList
-										dataKey="id"
-										source={linkedEventSource}
-										target={linkedEventTarget}
-										onChange={(event) => {
-											setLinkedEventSource(event.source);
-											setLinkedEventTarget(event.target);
-										}}
-										itemTemplate={linkedEventItemTemplate}
-										sourceHeader="Latest 10 hazardous events / Search results "
-										targetHeader="Selected triggered (subsequent hazardous events)"
-										sourceStyle={{ height: "18rem" }}
-										targetStyle={{ height: "18rem" }}
-										showSourceFilter={false}
-										showTargetFilter={false}
-									/>
+										<div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+											<DataView
+												className="linked-disaster-event-grid"
+												value={triggeredHazardousEventTarget}
+												itemTemplate={triggeredHazardousEventItemTemplate}
+												emptyMessage="No linked triggered (subsequent) events"
+												layout="grid"
+											/>
+										</div>
+									</div>
 								</div>
 
 								<div className="col-span-12 mb-4 mt-8">
@@ -3117,53 +3346,81 @@ function StepperValidation({
 										Linked disaster events
 									</h2>
 									<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
-										Link this disaster event to triggered disaster events.
+										Link this disaster event to its cause or its consequences.
 									</p>
 								</div>
-								<div className="space-y-4">
-									<div className="pt-4">
-										<div className="mt-2 flex gap-3">
-											<div className="relative w-full">
-												<i className="pi pi-search pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-												<InputText
-													id="linkedDisasterEventSearch"
-													value={linkedDisasterEventSearch}
-													onChange={(event) =>
-														setLinkedDisasterEventSearch(event.target.value)
-													}
-													placeholder="Type to search disaster events..."
-													className="w-full pr-10"
-												/>
-											</div>
+								<div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+									<div>
+										<h3 className="text-[16px] leading-[20px] font-semibold text-slate-600 tracking-[-0.01em]">
+											Triggering (causal) events
+										</h3>
+										<div className="mt-2.5">
 											<Button
 												type="button"
-												label={
-													linkedDisasterEventLoading ? "Searching..." : "Search"
-												}
-												onClick={() =>
-													searchLinkedDisasterEvents(linkedDisasterEventSearch)
-												}
-												disabled={linkedDisasterEventLoading}
+														label={
+															isOpeningLinkedTriggeringDisasterEventsModal
+																? "Opening..."
+																: "Manage linked triggering events"
+														}
+												outlined
+												icon="pi pi-link"
+														loading={isOpeningLinkedTriggeringDisasterEventsModal}
+														disabled={isOpeningLinkedTriggeringDisasterEventsModal}
+												onClick={openLinkedTriggeringDisasterEventsModal}
+											/>
+													<span className="sr-only" aria-live="polite">
+														{isOpeningLinkedTriggeringDisasterEventsModal
+															? "Loading linked triggering events selector"
+															: ""}
+													</span>
+										</div>
+
+										<div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+											<DataView
+												className="linked-disaster-event-grid"
+												value={triggeringDisasterEventTarget}
+												itemTemplate={triggeringDisasterEventItemTemplate}
+												emptyMessage="No linked triggering (causal) events"
+												layout="grid"
 											/>
 										</div>
 									</div>
+									<div>
+										<h3 className="text-[16px] leading-[20px] font-semibold text-slate-600 tracking-[-0.01em]">
+											Triggered (subsequent) events
+										</h3>
+										<div className="mt-2.5">
+											<Button
+												type="button"
+														label={
+															isOpeningLinkedTriggeredDisasterEventsModal
+																? "Opening..."
+																: "Manage linked triggered events"
+														}
+												outlined
+												icon="pi pi-link"
+														loading={isOpeningLinkedTriggeredDisasterEventsModal}
+														disabled={isOpeningLinkedTriggeredDisasterEventsModal}
+												onClick={openLinkedTriggeredDisasterEventsModal}
+											/>
+													<span className="sr-only" aria-live="polite">
+														{isOpeningLinkedTriggeredDisasterEventsModal
+															? "Loading linked triggered events selector"
+															: ""}
+													</span>
+										</div>
 
-									<PickList
-										dataKey="id"
-										source={linkedDisasterEventSource}
-										target={linkedDisasterEventTarget}
-										onChange={(event) => {
-											setLinkedDisasterEventSource(event.source);
-											setLinkedDisasterEventTarget(event.target);
-										}}
-										itemTemplate={linkedEventItemTemplate}
-										sourceHeader="Latest 10 disaster events / Search results"
-										targetHeader="Selected  triggered (subsequent disaster events)"
-										sourceStyle={{ height: "18rem" }}
-										targetStyle={{ height: "18rem" }}
-										showSourceFilter={false}
-										showTargetFilter={false}
-									/>
+										<div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+											<DataView
+												className="linked-disaster-event-grid"
+												value={triggeredDisasterEventTarget}
+												itemTemplate={triggeredDisasterEventItemTemplate}
+												emptyMessage="No linked triggered (subsequent) events"
+												layout="grid"
+											/>										
+										</div>
+										
+									</div>
 								</div>
 
 								<div className="col-span-12 mb-4 mt-8">
@@ -3176,11 +3433,22 @@ function StepperValidation({
 									<div className="mt-2.5">
 										<Button
 											type="button"
-											label="Manage linked disaster records"
+											label={
+												isOpeningLinkedDisasterRecordsModal
+													? "Opening..."
+													: "Manage linked disaster records"
+											}
 											outlined
 											icon="pi pi-link"
+											loading={isOpeningLinkedDisasterRecordsModal}
+											disabled={isOpeningLinkedDisasterRecordsModal}
 											onClick={openLinkedDisasterRecordsModal}
 										/>
+										<span className="sr-only" aria-live="polite">
+											{isOpeningLinkedDisasterRecordsModal
+												? "Loading linked disaster records selector"
+												: ""}
+										</span>
 									</div>
 								</div>
 								<div className="space-y-4">
@@ -3374,10 +3642,10 @@ function StepperValidation({
 									<div className="space-y-4">
 										<div>
 											<label className="mb-1 block">Type</label>
-											<select
+											<Dropdown
 												value={detailForm.type}
 												onChange={(event) => {
-													const selectedType = event.target.value;
+													const selectedType = String(event.value ?? "");
 													setDetailForm((state) => ({
 														...state,
 														type: selectedType,
@@ -3404,16 +3672,13 @@ function StepperValidation({
 																: "",
 													}));
 												}}
+												options={detailTypeOptions}
+												optionLabel="label"
+												optionValue="value"
+												placeholder="Select type"
 												disabled={Boolean(editingDetailId)}
-												className="w-full rounded-md border border-slate-300 px-3 py-2"
-											>
-												<option value="">Select type</option>
-												{detailTypeOptions.map((option) => (
-													<option key={option.value} value={option.value}>
-														{option.label}
-													</option>
-												))}
-											</select>
+												className="w-full"
+											/>
 										</div>
 
 										{showDateField ? (
@@ -3443,25 +3708,22 @@ function StepperValidation({
 												<label className="mb-1 block">
 													Disaster declaration status
 												</label>
-												<select
+												<Dropdown
 													value={detailForm.declarationStatus}
 													onChange={(event) =>
 														setDetailForm((state) => ({
 															...state,
-															declarationStatus: event.target.value as
+															declarationStatus: String(event.value ?? "") as
 																| DeclarationStatus
 																| "",
 														}))
 													}
-													className="w-full rounded-md border border-slate-300 px-3 py-2"
-												>
-													<option value="">Select declaration status</option>
-													{declarationStatusOptions.map((option) => (
-														<option key={option.value} value={option.value}>
-															{option.label}
-														</option>
-													))}
-												</select>
+													options={declarationStatusOptions}
+													optionLabel="label"
+													optionValue="value"
+													placeholder="Select declaration status"
+													className="w-full"
+												/>
 											</div>
 										) : null}
 
@@ -3751,11 +4013,75 @@ function StepperValidation({
 										"pi pi-link text-blue-600",
 										"No linked hazardous or disaster events selected yet",
 										<>
-											{reviewLinkedHazardousEventRows}
-											{reviewLinkedDisasterEventRows}
+											<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+												<div className="rounded-xl border border-slate-200 bg-white p-4">
+													<div className="space-y-3">
+														<p className="text-[14px] font-semibold text-slate-700">
+															Triggering (causal) hazardous events
+														</p>
+														<DataView
+															className="linked-disaster-event-grid"
+															value={triggeringHazardousEventTarget}
+															itemTemplate={hazardousEventItemTemplate}
+															emptyMessage="No linked triggering (causal) hazardous events"
+															layout="grid"
+														/>
+													</div>
+												</div>
+												<div className="rounded-xl border border-slate-200 bg-white p-4">
+													<div className="space-y-3">
+														<p className="text-[14px] font-semibold text-slate-700">
+															Triggered (subsequent) hazardous events
+														</p>
+														<DataView
+															className="linked-disaster-event-grid"
+															value={triggeredHazardousEventTarget}
+															itemTemplate={hazardousEventItemTemplate}
+															emptyMessage="No linked triggered (subsequent) hazardous events"
+															layout="grid"
+														/>
+													</div>
+												</div>
+											</div>
+											<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+												<div className="rounded-xl border border-slate-200 bg-white p-4">
+													<div className="space-y-3">
+														<p className="text-[14px] font-semibold text-slate-700">
+															Triggering (causal) disaster events
+														</p>
+														<DataView
+															className="linked-disaster-event-grid"
+															value={triggeringDisasterEventTarget}
+															itemTemplate={
+																triggeringDisasterEventReviewItemTemplate
+															}
+															emptyMessage="No linked triggering (causal) disaster events"
+															layout="grid"
+														/>
+													</div>
+												</div>
+												<div className="rounded-xl border border-slate-200 bg-white p-4">
+													<div className="space-y-3">
+														<p className="text-[14px] font-semibold text-slate-700">
+															Triggered (subsequent) disaster events
+														</p>
+														<DataView
+															className="linked-disaster-event-grid"
+															value={triggeredDisasterEventTarget}
+															itemTemplate={
+																triggeredDisasterEventReviewItemTemplate
+															}
+															emptyMessage="No linked triggered (subsequent) disaster events"
+															layout="grid"
+														/>
+													</div>
+												</div>
+											</div>
 										</>,
-										reviewLinkedHazardousEventRows.length > 0 ||
-										reviewLinkedDisasterEventRows.length > 0,
+										triggeringHazardousEventTarget.length > 0 ||
+										triggeredHazardousEventTarget.length > 0 ||
+										triggeringDisasterEventTarget.length > 0 ||
+										triggeredDisasterEventTarget.length > 0,
 									)}
 
 									{renderStep4SectionCard(
@@ -3848,6 +4174,16 @@ function StepperValidation({
 					setSelectedDivisionItems,
 					spatialFootprintValue,
 					setSpatialFootprintValue,
+					disasterEventOptions,
+					hazardousEventOptions,
+					triggeringHazardousEventTarget,
+					setTriggeringHazardousEventTarget,
+					triggeredHazardousEventTarget,
+					setTriggeredHazardousEventTarget,
+					triggeringDisasterEventTarget,
+					setTriggeringDisasterEventTarget,
+					triggeredDisasterEventTarget,
+					setTriggeredDisasterEventTarget,
 					disasterRecordOptions,
 					linkedDisasterRecordTarget,
 					setLinkedDisasterRecordTarget,

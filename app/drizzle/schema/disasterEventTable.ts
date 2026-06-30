@@ -7,6 +7,7 @@ import {
 	timestamp,
 	jsonb,
 	unique,
+	index,
 	time,
 	foreignKey,
 } from "drizzle-orm/pg-core";
@@ -237,6 +238,12 @@ export const disasterEventTable = pgTable(
 		unique("disaster_event_api_import_id_tenant_unique").on(
 			table.apiImportId,
 			table.countryAccountsId,
+		),
+		index("disaster_event_hazardous_event_id_idx").on(
+			table.hazardousEventId,
+		),
+		index("disaster_event_disaster_event_id_idx").on(
+			table.disasterEventId,
 		),
 		foreignKey({
 			columns: [table.recordingOrganizationId, table.countryAccountsId],
