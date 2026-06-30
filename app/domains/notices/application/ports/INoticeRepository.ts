@@ -39,8 +39,15 @@ export interface INoticeRepository {
 	 * Persists a notice entity (INSERT or UPDATE depending on whether it already exists).
 	 * The notice's `tenantId` property carries the tenant context — no separate parameter needed.
 	 *
+	 * The implementation uses an upsert (ON CONFLICT DO UPDATE on the `id` column), so
+	 * concurrent saves with the same `id` are safe — the second call updates the row
+	 * created by the first rather than erroring.
+	 *
 	 * @param notice - The notice entity to persist.
 	 * @returns The saved notice as it now exists in the store.
+	 * @throws {ConflictError} if a unique constraint other than the primary key is violated
+	 *   (e.g. a future unique index on a business key). Callers that cannot guarantee
+	 *   uniqueness of such fields should handle this error.
 	 */
 	save(notice: Notice): Promise<Notice>;
 
