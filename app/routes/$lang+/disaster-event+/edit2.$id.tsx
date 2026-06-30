@@ -302,6 +302,7 @@ function formatDisasterRecordDisplayName(
 async function getLinkedHazardousData(
 	countryAccountsId: string,
 	lang: string,
+	itemId: string,
 	selectedHazardousEventId?: string | null,
 ) {
 	const hazardousEvents = await dr.query.hazardousEventTable.findMany({
@@ -334,16 +335,66 @@ async function getLinkedHazardousData(
 	const hazardousEventOptions = hazardousEvents.map((event) =>
 		formatHazardousEventDisplayName(event, lang),
 	);
+	const triggeringLinks = await dr
+		.select({
+			linkedId: eventCausalityTable.triggeringHazardousEventId,
+		})
+		.from(eventCausalityTable)
+		.where(
+			and(
+				eq(eventCausalityTable.triggeringEntityType, "HE"),
+				eq(eventCausalityTable.triggeredEntityType, "DE"),
+				eq(eventCausalityTable.triggeredDisasterEventId, itemId),
+			),
+		);
 
-	const linkedHazardousEvents = selectedHazardousEventId
-		? hazardousEventOptions.filter(
-			(event) => event.id === selectedHazardousEventId,
+	const triggeredLinks = await dr
+		.select({
+			linkedId: eventCausalityTable.triggeredHazardousEventId,
+		})
+		.from(eventCausalityTable)
+		.where(
+			and(
+				eq(eventCausalityTable.triggeringEntityType, "DE"),
+				eq(eventCausalityTable.triggeredEntityType, "HE"),
+				eq(eventCausalityTable.triggeringDisasterEventId, itemId),
+			),
+		);
+
+	const linkedTriggeringHazardousEvents = triggeringLinks
+		.map((row) =>
+			hazardousEventOptions.find((event) => event.id === row.linkedId),
 		)
-		: [];
+		.filter((event): event is (typeof hazardousEventOptions)[number] =>
+			Boolean(event),
+		);
+
+	const linkedTriggeredHazardousEvents = triggeredLinks
+		.map((row) =>
+			hazardousEventOptions.find((event) => event.id === row.linkedId),
+		)
+		.filter((event): event is (typeof hazardousEventOptions)[number] =>
+			Boolean(event),
+		);
+
+	if (selectedHazardousEventId) {
+		const legacyLinked = hazardousEventOptions.find(
+			(event) => event.id === selectedHazardousEventId,
+		);
+		if (
+			legacyLinked &&
+			!linkedTriggeredHazardousEvents.some(
+				(event) => event.id === legacyLinked.id,
+			)
+		) {
+			linkedTriggeredHazardousEvents.unshift(legacyLinked);
+		}
+	}
 
 	return {
 		hazardousEventOptions,
-		linkedHazardousEvents,
+		linkedTriggeringHazardousEvents,
+		linkedTriggeredHazardousEvents,
 	};
 }
 
@@ -484,6 +535,15 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 	const linkedTriggeredDisasterEventIdsRaw = String(
 		formData.get("linkedTriggeredDisasterEventIds") ?? "[]",
 	);
+	const linkedHazardousEventIdsRaw = String(
+		formData.get("linkedHazardousEventIds") ?? "[]",
+	);
+	const linkedTriggeringHazardousEventIdsRaw = String(
+		formData.get("linkedTriggeringHazardousEventIds") ?? "[]",
+	);
+	const linkedTriggeredHazardousEventIdsRaw = String(
+		formData.get("linkedTriggeredHazardousEventIds") ?? "[]",
+	);
 	const hasExistingAttachmentIdsField = formData.has("existingAttachmentIds");
 	const existingAttachmentIdsRaw = String(
 		formData.get("existingAttachmentIds") ?? "[]",
@@ -495,6 +555,8 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 	let linkedDisasterRecordIds: string[] = [];
 	let linkedTriggeringDisasterEventIds: string[] = [];
 	let linkedTriggeredDisasterEventIds: string[] = [];
+	let linkedTriggeringHazardousEventIds: string[] = [];
+	let linkedTriggeredHazardousEventIds: string[] = [];
 	let existingAttachmentIds: string[] = [];
 	let newAttachmentUploads: Array<{
 		fileName: string;
@@ -526,6 +588,33 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 			: [];
 	} catch {
 		linkedTriggeredDisasterEventIds = [];
+	}
+	try {
+		const parsed = JSON.parse(linkedTriggeringHazardousEventIdsRaw);
+		linkedTriggeringHazardousEventIds = Array.isArray(parsed)
+			? parsed.filter((value): value is string => typeof value === "string")
+			: [];
+	} catch {
+		linkedTriggeringHazardousEventIds = [];
+	}
+	try {
+		const parsed = JSON.parse(linkedTriggeredHazardousEventIdsRaw);
+		linkedTriggeredHazardousEventIds = Array.isArray(parsed)
+			? parsed.filter((value): value is string => typeof value === "string")
+			: [];
+	} catch {
+		linkedTriggeredHazardousEventIds = [];
+	}
+
+	if (linkedTriggeredHazardousEventIds.length === 0) {
+		try {
+			const parsed = JSON.parse(linkedHazardousEventIdsRaw);
+			linkedTriggeredHazardousEventIds = Array.isArray(parsed)
+				? parsed.filter((value): value is string => typeof value === "string")
+				: [];
+		} catch {
+			linkedTriggeredHazardousEventIds = [];
+		}
 	}
 	try {
 		const parsed = JSON.parse(existingAttachmentIdsRaw);
@@ -707,6 +796,92 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 				}
 			};
 
+			const syncLinkedHazardousEvents = async (eventId: string) => {
+				const selectedTriggeringIds = new Set(linkedTriggeringHazardousEventIds);
+				const selectedTriggeredIds = new Set(linkedTriggeredHazardousEventIds);
+
+				const currentTriggeringRows = await tx
+					.select({
+						id: eventCausalityTable.id,
+						linkedId: eventCausalityTable.triggeringHazardousEventId,
+					})
+					.from(eventCausalityTable)
+					.where(
+						and(
+							eq(eventCausalityTable.triggeringEntityType, "HE"),
+							eq(eventCausalityTable.triggeredEntityType, "DE"),
+							eq(eventCausalityTable.triggeredDisasterEventId, eventId),
+						),
+					);
+
+				const currentTriggeredRows = await tx
+					.select({
+						id: eventCausalityTable.id,
+						linkedId: eventCausalityTable.triggeredHazardousEventId,
+					})
+					.from(eventCausalityTable)
+					.where(
+						and(
+							eq(eventCausalityTable.triggeringEntityType, "DE"),
+							eq(eventCausalityTable.triggeredEntityType, "HE"),
+							eq(eventCausalityTable.triggeringDisasterEventId, eventId),
+						),
+					);
+
+				const currentTriggeringIds = new Set(
+					currentTriggeringRows
+						.map((row) => row.linkedId)
+						.filter((id): id is string => Boolean(id)),
+				);
+				const currentTriggeredIds = new Set(
+					currentTriggeredRows
+						.map((row) => row.linkedId)
+						.filter((id): id is string => Boolean(id)),
+				);
+
+				for (const row of currentTriggeringRows) {
+					if (row.linkedId && !selectedTriggeringIds.has(row.linkedId)) {
+						await tx
+							.delete(eventCausalityTable)
+							.where(eq(eventCausalityTable.id, row.id));
+					}
+				}
+
+				for (const row of currentTriggeredRows) {
+					if (row.linkedId && !selectedTriggeredIds.has(row.linkedId)) {
+						await tx
+							.delete(eventCausalityTable)
+							.where(eq(eventCausalityTable.id, row.id));
+					}
+				}
+
+				for (const linkedHazardousEventId of selectedTriggeringIds) {
+					if (currentTriggeringIds.has(linkedHazardousEventId)) {
+						continue;
+					}
+
+					await tx.insert(eventCausalityTable).values({
+						triggeringEntityType: "HE",
+						triggeringHazardousEventId: linkedHazardousEventId,
+						triggeredEntityType: "DE",
+						triggeredDisasterEventId: eventId,
+					});
+				}
+
+				for (const linkedHazardousEventId of selectedTriggeredIds) {
+					if (currentTriggeredIds.has(linkedHazardousEventId)) {
+						continue;
+					}
+
+					await tx.insert(eventCausalityTable).values({
+						triggeringEntityType: "DE",
+						triggeringDisasterEventId: eventId,
+						triggeredEntityType: "HE",
+						triggeredHazardousEventId: linkedHazardousEventId,
+					});
+				}
+			};
+
 			const syncDisasterEventAttachments = async (eventId: string) => {
 				if (hasExistingAttachmentIdsField) {
 					const existingAttachmentsBeforeDelete =
@@ -792,6 +967,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 
 				if (returnValue.ok === true) {
 					await syncDisasterEventAttachments(id);
+					await syncLinkedHazardousEvents(id);
 					await syncLinkedDisasterEvents(id);
 					await syncLinkedDisasterRecords(id);
 					await handleApprovalWorkflowService(ctx, tx, id, "disaster_event", {
@@ -810,6 +986,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 
 				if (returnValue.ok === true) {
 					await syncDisasterEventAttachments(returnValue.id);
+					await syncLinkedHazardousEvents(returnValue.id);
 					await syncLinkedDisasterEvents(returnValue.id);
 					await syncLinkedDisasterRecords(returnValue.id);
 					await handleApprovalWorkflowService(
@@ -862,7 +1039,8 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 			divisionGeoJSON: divisionGeoJSON || [],
 			disasterEventAttachments: [],
 			hazardousEventOptions: [],
-			linkedHazardousEvents: [],
+			linkedTriggeringHazardousEvents: [],
+			linkedTriggeredHazardousEvents: [],
 			disasterRecordOptions: [],
 			linkedDisasterRecords: [],
 			disasterEventOptions: [],
@@ -918,6 +1096,7 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		getLinkedHazardousData(
 			countryAccountsId,
 			ctx.lang,
+			item.id,
 			item.hazardousEvent?.id,
 		),
 		getRecordingOrganization(item.recordingOrganizationId),
@@ -932,7 +1111,10 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		divisionGeoJSON: divisionGeoJSON || [],
 		disasterEventAttachments,
 		hazardousEventOptions: linkedHazardousData.hazardousEventOptions,
-		linkedHazardousEvents: linkedHazardousData.linkedHazardousEvents,
+		linkedTriggeringHazardousEvents:
+			linkedHazardousData.linkedTriggeringHazardousEvents,
+		linkedTriggeredHazardousEvents:
+			linkedHazardousData.linkedTriggeredHazardousEvents,
 		disasterRecordOptions: linkedData.disasterRecordOptions,
 		linkedDisasterRecords: linkedData.linkedDisasterRecords,
 		disasterEventOptions: linkedData.disasterEventOptions,
@@ -971,7 +1153,12 @@ export default function FormScreen() {
 			disasterEvent={disasterEventForForm}
 			disasterEventAttachments={ld.disasterEventAttachments ?? []}
 			hazardousEventOptions={ld.hazardousEventOptions ?? []}
-			linkedHazardousEvents={ld.linkedHazardousEvents ?? []}
+			linkedTriggeringHazardousEvents={
+				ld.linkedTriggeringHazardousEvents ?? []
+			}
+			linkedTriggeredHazardousEvents={
+				ld.linkedTriggeredHazardousEvents ?? []
+			}
 			disasterEventOptions={ld.disasterEventOptions ?? []}
 			linkedTriggeringDisasterEvents={
 				ld.linkedTriggeringDisasterEvents ?? []
