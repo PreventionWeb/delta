@@ -74,7 +74,7 @@ function formatDisasterEventOption(
 
 async function queryDisasterEventOptions(
 	countryAccountsId: string,
-	currentItemId: string,
+	currentItemId: string | undefined,
 	lang: string,
 	keyword?: string,
 ) {
@@ -109,18 +109,22 @@ async function queryDisasterEventOptions(
 		where: shouldSearch
 			? and(
 				eq(disasterEventTable.countryAccountsId, countryAccountsId),
-				ne(disasterEventTable.id, currentItemId),
+				currentItemId
+					? ne(disasterEventTable.id, currentItemId)
+					: undefined,
 				or(
 					ilike(disasterEventTable.nameNational, searchTerm),
 					ilike(disasterEventTable.nameGlobalOrRegional, searchTerm),
 					ilike(disasterEventTable.nationalDisasterId, searchTerm),
 					ilike(disasterEventTable.glide, searchTerm),
 					sql`cast(${disasterEventTable.id} as text) ilike ${searchTerm}`,
+					sql`cast(${disasterEventTable.startDate} as text) ilike ${searchTerm}`,
+					sql`cast(${disasterEventTable.endDate} as text) ilike ${searchTerm}`,
 				),
 			)
 			: and(
 				eq(disasterEventTable.countryAccountsId, countryAccountsId),
-				ne(disasterEventTable.id, currentItemId),
+				currentItemId ? ne(disasterEventTable.id, currentItemId) : undefined,
 			),
 		orderBy: [desc(disasterEventTable.updatedAt)],
 		limit: shouldSearch ? 500 : 200,
@@ -135,13 +139,9 @@ export const loader = authLoaderWithPerm("EditData", async ({ request, params })
 		throw new Response("Unauthorized", { status: 401 });
 	}
 
-	const currentItemId = String(params.id ?? "").trim();
+	const rawItemId = String(params.id ?? "").trim();
+	const currentItemId = rawItemId && rawItemId !== "new" ? rawItemId : undefined;
 	const lang = typeof params.lang === "string" && params.lang ? params.lang : "en";
-	if (!currentItemId || currentItemId === "new") {
-		return {
-			disasterEventOptions: [],
-		};
-	}
 
 	const disasterEventOptions = await queryDisasterEventOptions(
 		countryAccountsId,
@@ -160,14 +160,9 @@ export const action = authActionWithPerm("EditData", async ({ request, params })
 		throw new Response("Unauthorized", { status: 401 });
 	}
 
-	const currentItemId = String(params.id ?? "").trim();
+	const rawItemId = String(params.id ?? "").trim();
+	const currentItemId = rawItemId && rawItemId !== "new" ? rawItemId : undefined;
 	const lang = typeof params.lang === "string" && params.lang ? params.lang : "en";
-	if (!currentItemId || currentItemId === "new") {
-		return {
-			disasterEventOptions: [],
-			keyword: "",
-		};
-	}
 
 	const formData = await request.formData();
 	const keyword = String(formData.get("keyword") ?? "").trim();

@@ -74,7 +74,7 @@ function localizedHipName(
 
 	async function queryDisasterEventOptions(
 		countryAccountsId: string,
-		currentItemId: string,
+		currentItemId: string | undefined,
 		lang: string,
 		keyword?: string,
 	) {
@@ -109,18 +109,24 @@ function localizedHipName(
 			where: shouldSearch
 				? and(
 					eq(disasterEventTable.countryAccountsId, countryAccountsId),
-					ne(disasterEventTable.id, currentItemId),
+					currentItemId
+						? ne(disasterEventTable.id, currentItemId)
+						: undefined,
 					or(
 						ilike(disasterEventTable.nameNational, searchTerm),
 						ilike(disasterEventTable.nameGlobalOrRegional, searchTerm),
 						ilike(disasterEventTable.nationalDisasterId, searchTerm),
 						ilike(disasterEventTable.glide, searchTerm),
 						sql`cast(${disasterEventTable.id} as text) ilike ${searchTerm}`,
+						sql`cast(${disasterEventTable.startDate} as text) ilike ${searchTerm}`,
+						sql`cast(${disasterEventTable.endDate} as text) ilike ${searchTerm}`,
 					),
 				)
 				: and(
 					eq(disasterEventTable.countryAccountsId, countryAccountsId),
-					ne(disasterEventTable.id, currentItemId),
+					currentItemId
+						? ne(disasterEventTable.id, currentItemId)
+						: undefined,
 				),
 			orderBy: [desc(disasterEventTable.updatedAt)],
 			limit: shouldSearch ? 500 : 200,
@@ -135,13 +141,9 @@ function localizedHipName(
 			throw new Response("Unauthorized", { status: 401 });
 		}
 
-		const currentItemId = String(params.id ?? "").trim();
+		const rawItemId = String(params.id ?? "").trim();
+		const currentItemId = rawItemId && rawItemId !== "new" ? rawItemId : undefined;
 		const lang = typeof params.lang === "string" && params.lang ? params.lang : "en";
-		if (!currentItemId || currentItemId === "new") {
-			return {
-				disasterEventOptions: [],
-			};
-		}
 
 		const disasterEventOptions = await queryDisasterEventOptions(
 			countryAccountsId,
@@ -160,14 +162,9 @@ function localizedHipName(
 			throw new Response("Unauthorized", { status: 401 });
 		}
 
-		const currentItemId = String(params.id ?? "").trim();
+		const rawItemId = String(params.id ?? "").trim();
+		const currentItemId = rawItemId && rawItemId !== "new" ? rawItemId : undefined;
 		const lang = typeof params.lang === "string" && params.lang ? params.lang : "en";
-		if (!currentItemId || currentItemId === "new") {
-			return {
-				disasterEventOptions: [],
-				keyword: "",
-			};
-		}
 
 		const formData = await request.formData();
 		const keyword = String(formData.get("keyword") ?? "").trim();
@@ -324,7 +321,6 @@ function localizedHipName(
 					/>
 					<div>
 						<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
-						<p className="mt-1 text-[12px] text-slate-500">{item.code}</p>
 						{item.hip ? (
 							<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
 						) : null}
@@ -343,7 +339,6 @@ function localizedHipName(
 					/>
 					<div>
 						<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
-						<p className="mt-1 text-[12px] text-slate-500">{item.code}</p>
 						{item.hip ? (
 							<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
 						) : null}

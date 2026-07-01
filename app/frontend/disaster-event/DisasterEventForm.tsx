@@ -2297,9 +2297,7 @@ function StepperValidation({
 					<div className="flex w-full items-start justify-between gap-4">
 						<div>
 							<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
-							{item.hip ? (
-								<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
-							) : null}
+							<p>{item.code}</p>
 						</div>
 					</div>
 				</div>
@@ -2320,9 +2318,7 @@ function StepperValidation({
 					<div className="flex w-full items-start justify-between gap-4">
 						<div>
 							<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
-							{item.hip ? (
-								<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
-							) : null}
+							<p>UUID: {item.code.substring(0, 8)}</p>
 						</div>
 					</div>
 					<Button
@@ -2356,9 +2352,7 @@ function StepperValidation({
 					<div className="flex w-full items-start justify-between gap-4">
 						<div>
 							<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
-							{item.hip ? (
-								<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
-							) : null}
+							<p>UUID: {item.code.substring(0, 8)}</p>
 						</div>
 					</div>
 					<Button
@@ -3351,12 +3345,19 @@ function StepperValidation({
 								}}
 							>
 								<div className="col-span-12 mb-4">
+									<h1 className="text-[20px] leading-[28px] font-semibold text-slate-800 tracking-[-0.01em]">
+										Linked events
+									</h1>
+									<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
+										Define relationships between this event and other system records.
+									</p>
+								</div>
+								<div className="col-span-12 mb-4">
 									<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
 										Linked hazardous events
 									</h2>
 									<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
-										Link this disaster event to hazardous event causes or
-										consequences.
+										Link this disaster event to related hazardous events.
 									</p>
 								</div>
 								<div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">

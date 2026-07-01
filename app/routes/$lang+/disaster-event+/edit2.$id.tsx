@@ -397,7 +397,7 @@ function formatDisasterRecordDisplayName(
 	return {
 		id: record.id,
 		name:
-			`DR: ${record.id.slice(0, 8)}`,
+			`UUID: ${record.id.slice(0, 8)}`,
 		code: record.id,
 		hip: hipLabel,
 	};

@@ -106,6 +106,8 @@ async function queryHazardousEventOptions(
 				or(
 					ilike(hazardousEventTable.description, searchTerm),
 					sql`cast(${hazardousEventTable.id} as text) ilike ${searchTerm}`,
+					sql`cast(${hazardousEventTable.startDate} as text) ilike ${searchTerm}`,
+					sql`cast(${hazardousEventTable.endDate} as text) ilike ${searchTerm}`,
 				),
 			)
 			: and(
@@ -339,6 +341,7 @@ export default function LinkedTriggeredHazardousEventsModalRoute() {
 				/>
 				<div>
 					<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
+					<p>UUID: {item.code.substring(0, 8)}</p>
 					{item.hip ? (
 						<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
 					) : null}
@@ -357,6 +360,7 @@ export default function LinkedTriggeredHazardousEventsModalRoute() {
 				/>
 				<div>
 					<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
+					<p>{item.code}</p>
 					{item.hip ? (
 						<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
 					) : null}
