@@ -1,9 +1,10 @@
 /**
- * CoreModule — root NestJS module for the Notices Pilot Clean Architecture migration
+ * CoreModule — root NestJS module for Clean Architecture migration
  *
- * WHY application context, not HTTP server:
- *   This module is bootstrapped exclusively via `NestFactory.createApplicationContext()`,
- *   The NestJS container is used purely for dependency injection.
+ * WHY this module is used for both application context and HTTP server:
+ *   Both the DI-only context (NestFactory.createApplicationContext) and the HTTP app
+ *   (NestFactory.create) boot from the same CoreModule so they share the same provider
+ *   graph.
  *
  * WHY a dedicated CoreModule as composition root:
  *   CoreModule is the root module passed to `NestFactory.createApplicationContext`. It
@@ -12,20 +13,23 @@
  *   Feature modules like NoticesModule declare their own providers directly rather than
  *   importing CoreModule, which avoids circular module dependencies.
  *
- * WHY CoreModule imports and re-exports NoticesModule (Decision 5 in design.md):
- *   `CoreModule` is the root module bootstrapped by `initServer()` via
- *   `NestFactory.createApplicationContext(CoreModule)`. Adding `NoticesModule` to
- *   its imports and exports makes the Notices use cases resolvable from
- *   `getAppContext().get(...)` without callers needing to import `NoticesModule` directly.
+ * WHY APP_FILTER instead of app.useGlobalFilters:
+ *   Registering DomainErrorFilter via the APP_FILTER DI token keeps the filter
+ *   within the NestJS DI graph, making it injectable and extensible
  */
 import { Module } from "@nestjs/common";
+import { APP_FILTER } from "@nestjs/core";
 
 import { DrizzleProvider } from "./DrizzleProvider.server";
+import { DomainErrorFilter } from "./DomainErrorFilter.server";
 import { NoticesModule } from "~/domains/notices/infrastructure/NoticesModule.server";
 
 @Module({
 	imports: [NoticesModule],
-	providers: [DrizzleProvider],
+	providers: [
+		DrizzleProvider,
+		{ provide: APP_FILTER, useClass: DomainErrorFilter },
+	],
 	exports: [DrizzleProvider, NoticesModule],
 })
 export class CoreModule {}
