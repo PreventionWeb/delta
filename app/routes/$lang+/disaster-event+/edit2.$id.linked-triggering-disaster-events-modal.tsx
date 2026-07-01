@@ -372,8 +372,9 @@ function localizedHipName(
 						</h3>
 						<Button
 							type="button"
-							label="Close"
+							icon="pi pi-times"
 							text
+							aria-label="Close"
 							loading={pendingExitAction === "close"}
 							disabled={Boolean(pendingExitAction)}
 							onClick={handleClose}
