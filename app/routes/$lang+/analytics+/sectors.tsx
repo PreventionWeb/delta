@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import type { MetaFunction } from "react-router";
-import { useLoaderData, useSubmit } from "react-router";
+import { useLoaderData, useLocation, useSubmit } from "react-router";
 
 import { authLoaderPublicOrWithPerm } from "~/utils/auth";
 import { NavSettings } from "~/frontend/components/NavSettings";
@@ -117,6 +117,51 @@ export const loader = authLoaderPublicOrWithPerm(
 		}
 
 		try {
+			const toGeoJsonGeometry = (rawGeojson: unknown) => {
+				if (!rawGeojson) {
+					return null;
+				}
+
+				let parsedGeojson: any = rawGeojson;
+				if (typeof rawGeojson === "string") {
+					try {
+						parsedGeojson = JSON.parse(rawGeojson);
+					} catch {
+						return null;
+					}
+				}
+
+				if (
+					typeof parsedGeojson === "object" &&
+					parsedGeojson !== null &&
+					typeof parsedGeojson.type === "string"
+				) {
+					if (parsedGeojson.type === "Feature") {
+						return parsedGeojson.geometry ?? null;
+					}
+
+					if (parsedGeojson.type === "FeatureCollection") {
+						if (!Array.isArray(parsedGeojson.features)) {
+							return null;
+						}
+
+						const firstFeatureWithGeometry = parsedGeojson.features.find(
+							(feature: any) => feature?.geometry,
+						);
+						return firstFeatureWithGeometry?.geometry ?? null;
+					}
+
+					if (
+						"coordinates" in parsedGeojson ||
+						"geometries" in parsedGeojson
+					) {
+						return parsedGeojson;
+					}
+				}
+
+				return null;
+			};
+
 			// Parse URL to extract query parameters
 			const url = new URL(request.url);
 			const sectorId = url.searchParams.get("sectorId");
@@ -374,26 +419,38 @@ export const loader = authLoaderPublicOrWithPerm(
 
 					if (geoHandlerResponse) {
 						// Transform the handler response into proper GeoJSON format
-						if (geoHandlerResponse.success && geoHandlerResponse.divisions) {
-							const features = geoHandlerResponse.divisions.map((division) => ({
-								type: "Feature",
-								geometry: division.geojson,
-								properties: {
-									id: division.id,
-									name: division.name,
-									level: division.level,
-									parentId: division.parentId,
-									values: geoHandlerResponse.values[division.id.toString()] || {
-										totalDamage: 0,
-										totalLoss: 0,
-										metadata: {
-											assessmentType: filters.assessmentType || "rapid",
-											confidenceLevel: filters.confidenceLevel || "low",
+					if (geoHandlerResponse.success && geoHandlerResponse.divisions) {
+						const features = geoHandlerResponse.divisions
+							.map((division) => {
+								const geometry = toGeoJsonGeometry(division.geojson);
+
+								if (!geometry) {
+									return null;
+								}
+
+								return {
+									type: "Feature",
+									geometry,
+									properties: {
+										id: division.id,
+										name: division.name,
+										level: division.level,
+										parentId: division.parentId,
+										values: geoHandlerResponse.values[division.id.toString()] || {
+											totalDamage: 0,
+											totalLoss: 0,
+											metadata: {
+												assessmentType: filters.assessmentType || "rapid",
+												confidenceLevel: filters.confidenceLevel || "low",
+											},
+											dataAvailability: "no_data",
 										},
-										dataAvailability: "no_data",
 									},
-								},
-							}));
+								};
+							})
+							.filter((feature): feature is NonNullable<typeof feature> =>
+								Boolean(feature),
+							);
 
 							geographicImpactData = {
 								type: "FeatureCollection",
@@ -565,6 +622,7 @@ export const meta: MetaFunction = () => {
 
 function SectorsAnalysisContent() {
 	const ld = useLoaderData<typeof loader>();
+	const location = useLocation();
 	const ctx = new ViewContext();
 
 	// Get data from loader
@@ -586,22 +644,37 @@ function SectorsAnalysisContent() {
 
 	const submit = useSubmit();
 
-	const [filters, setFilters] = useState<{
-		sectorId: string | null;
-		subSectorId: string | null;
-		hazardTypeId: string | null;
-		hazardClusterId: string | null;
-		specificHazardId: string | null;
-		geographicLevelId: string | null;
-		fromDate: string | null;
-		toDate: string | null;
-		disasterEventId: string | null;
-		assessmentType?: "rapid" | "detailed";
-		confidenceLevel?: "low" | "medium" | "high";
-	} | null>(null);
+	const [filters, setFilters] = useState<Filters | null>(null);
 
 	// Add loading state to track filter application
 	const [pendingFilters, setPendingFilters] = useState<typeof filters>(null);
+
+	const parseFiltersFromSearch = useCallback((search: string): Filters | null => {
+		const searchParams = new URLSearchParams(search);
+		const toNullable = (key: string) => searchParams.get(key) || null;
+
+		const parsedFilters: Filters = {
+			disasterEventId: toNullable("disasterEventId"),
+			sectorId: toNullable("sectorId"),
+			hazardTypeId: toNullable("hazardTypeId"),
+			hazardClusterId: toNullable("hazardClusterId"),
+			specificHazardId: toNullable("specificHazardId"),
+			geographicLevelId: toNullable("geographicLevelId"),
+			fromDate: toNullable("fromDate"),
+			toDate: toNullable("toDate"),
+			subSectorId: toNullable("subSectorId"),
+		};
+
+		const hasAnyFilter = Object.values(parsedFilters).some(
+			(value) => value !== null,
+		);
+
+		return hasAnyFilter ? parsedFilters : null;
+	}, []);
+
+	useEffect(() => {
+		setFilters(parseFiltersFromSearch(location.search));
+	}, [location.search, parseFiltersFromSearch]);
 
 	// Apply debounced filters
 	useEffect(() => {
