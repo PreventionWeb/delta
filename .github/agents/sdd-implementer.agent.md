@@ -126,7 +126,11 @@ on every tenant query, `authLoaderWithPerm` on every loader, `yarn dbsync` for m
 new tests under `tests/` — Vitest for unit/integration, Playwright for routing/auth/
 request-lifecycle changes (see test tier check above).
 
-**Code review:** Invoke the `code-review` skill at `high` effort on the changed files.
+**Code review:** Before invoking the `code-review` skill, explicitly switch cognitive mode.
+You are no longer the implementer whose goal is to make the code work — you are a skeptical
+reviewer whose only goal is to find what is wrong. Re-read your own implementation as if you
+are encountering it for the first time and have no stake in defending any of the choices.
+Then invoke the `code-review` skill at `high` effort on the changed files.
 Treat every finding as a potential gate failure — classify each one (see Review comment
 resolution below) and act accordingly before exiting the loop.
 
