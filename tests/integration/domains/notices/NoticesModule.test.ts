@@ -6,7 +6,7 @@ import "../../db/setup";
 import "reflect-metadata";
 
 import { Test, type TestingModule } from "@nestjs/testing";
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { NoticesModule } from "~/domains/notices/infrastructure/NoticesModule.server";
 import { NOTICE_REPOSITORY } from "~/domains/notices/infrastructure/NoticeRepositoryToken";
@@ -18,44 +18,34 @@ import { CoreModule } from "~/infrastructure/CoreModule.server";
 
 describe("NoticesModule", () => {
 	const modulesToClose: TestingModule[] = [];
+	let module: TestingModule;
+
+	beforeEach(async () => {
+		module = await Test.createTestingModule({
+			imports: [NoticesModule],
+		}).compile();
+		modulesToClose.push(module);
+	});
 
 	afterEach(async () => {
 		await Promise.all(modulesToClose.map((m) => m.close()));
 		modulesToClose.length = 0;
 	});
 
-	it("compiles without error", async () => {
+	it("compiles without error", () => {
 		// Verifies notices-module-wiring spec: NoticesModule compiles.
-		const module = await Test.createTestingModule({
-			imports: [NoticesModule],
-		}).compile();
-		modulesToClose.push(module);
-
 		expect(module).toBeDefined();
 	});
 
-	it("NOTICE_REPOSITORY resolves to an instance of DrizzleNoticeRepository", async () => {
+	it("NOTICE_REPOSITORY resolves to an instance of DrizzleNoticeRepository", () => {
 		// Verifies notices-module-wiring spec: Token resolves to the correct adapter.
-		const module = await Test.createTestingModule({
-			imports: [NoticesModule],
-		}).compile();
-		modulesToClose.push(module);
-
-		const repo = module.get(NOTICE_REPOSITORY);
-		expect(repo).toBeInstanceOf(DrizzleNoticeRepository);
+		expect(module.get(NOTICE_REPOSITORY)).toBeInstanceOf(DrizzleNoticeRepository);
 	});
 
-	it("NOTICE_REPOSITORY token resolves to the same singleton on repeated gets", async () => {
+	it("NOTICE_REPOSITORY token resolves to the same singleton on repeated gets", () => {
 		// Verifies notices-module-wiring spec: Token resolves to the same singleton.
 		// NestJS default scope is Singleton, so two gets must return the exact same reference.
-		const module = await Test.createTestingModule({
-			imports: [NoticesModule],
-		}).compile();
-		modulesToClose.push(module);
-
-		const first = module.get(NOTICE_REPOSITORY);
-		const second = module.get(NOTICE_REPOSITORY);
-		expect(first).toBe(second);
+		expect(module.get(NOTICE_REPOSITORY)).toBe(module.get(NOTICE_REPOSITORY));
 	});
 
 	it("NOTICE_REPOSITORY is a symbol-based token", () => {
@@ -65,58 +55,53 @@ describe("NoticesModule", () => {
 		expect(typeof NOTICE_REPOSITORY).toBe("symbol");
 	});
 
-	it("CreateNoticeUseCase resolves to a defined instance", async () => {
+	it("CreateNoticeUseCase resolves to a defined instance", () => {
 		// Verifies notices-module-wiring spec: CreateNoticeUseCase resolves to a defined instance.
-		const module = await Test.createTestingModule({
-			imports: [NoticesModule],
-		}).compile();
-		modulesToClose.push(module);
-
-		const useCase = module.get(CreateNoticeUseCase);
-		expect(useCase).toBeDefined();
+		expect(module.get(CreateNoticeUseCase)).toBeDefined();
 	});
 
-	it("ListNoticesUseCase resolves to a defined instance", async () => {
+	it("ListNoticesUseCase resolves to a defined instance", () => {
 		// Verifies notices-module-wiring spec: ListNoticesUseCase resolves to a defined instance.
-		const module = await Test.createTestingModule({
-			imports: [NoticesModule],
-		}).compile();
-		modulesToClose.push(module);
-
-		const useCase = module.get(ListNoticesUseCase);
-		expect(useCase).toBeDefined();
+		expect(module.get(ListNoticesUseCase)).toBeDefined();
 	});
 
-	it("GetNoticeByIdUseCase resolves to a defined instance", async () => {
+	it("GetNoticeByIdUseCase resolves to a defined instance", () => {
 		// Verifies notices-module-wiring spec: GetNoticeByIdUseCase resolves to a defined instance.
-		const module = await Test.createTestingModule({
-			imports: [NoticesModule],
-		}).compile();
-		modulesToClose.push(module);
-
-		const useCase = module.get(GetNoticeByIdUseCase);
-		expect(useCase).toBeDefined();
+		expect(module.get(GetNoticeByIdUseCase)).toBeDefined();
 	});
 
-	it("concurrent NoticesModule compilations resolve all providers independently", async () => {
-		// Verifies notices-module-wiring spec: Concurrent compilation produces independent containers.
-		// Each compile() creates an isolated NestJS container; both must resolve all tokens
-		// to defined values without interfering with each other.
-		const [moduleA, moduleB] = await Promise.all([
-			Test.createTestingModule({ imports: [NoticesModule] }).compile(),
-			Test.createTestingModule({ imports: [NoticesModule] }).compile(),
-		]);
-		modulesToClose.push(moduleA, moduleB);
+	describe("concurrent compilation", () => {
+		it("produces independent containers that do not share singleton instances", async () => {
+			// Verifies notices-module-wiring spec: Concurrent compilation produces independent containers.
+			// Each compile() creates an isolated NestJS DI container — providers must resolve
+			// to defined values in both, and each container's singleton instances must be
+			// independent objects (not.toBe) proving the two containers do not share state.
+			const [moduleA, moduleB] = await Promise.all([
+				Test.createTestingModule({ imports: [NoticesModule] }).compile(),
+				Test.createTestingModule({ imports: [NoticesModule] }).compile(),
+			]);
+			modulesToClose.push(moduleA, moduleB);
 
-		expect(moduleA.get(CreateNoticeUseCase)).toBeDefined();
-		expect(moduleA.get(ListNoticesUseCase)).toBeDefined();
-		expect(moduleA.get(GetNoticeByIdUseCase)).toBeDefined();
-		expect(moduleA.get(NOTICE_REPOSITORY)).toBeDefined();
+			// Both containers resolve all providers to defined values.
+			expect(moduleA.get(CreateNoticeUseCase)).toBeDefined();
+			expect(moduleA.get(ListNoticesUseCase)).toBeDefined();
+			expect(moduleA.get(GetNoticeByIdUseCase)).toBeDefined();
+			expect(moduleA.get(NOTICE_REPOSITORY)).toBeDefined();
 
-		expect(moduleB.get(CreateNoticeUseCase)).toBeDefined();
-		expect(moduleB.get(ListNoticesUseCase)).toBeDefined();
-		expect(moduleB.get(GetNoticeByIdUseCase)).toBeDefined();
-		expect(moduleB.get(NOTICE_REPOSITORY)).toBeDefined();
+			expect(moduleB.get(CreateNoticeUseCase)).toBeDefined();
+			expect(moduleB.get(ListNoticesUseCase)).toBeDefined();
+			expect(moduleB.get(GetNoticeByIdUseCase)).toBeDefined();
+			expect(moduleB.get(NOTICE_REPOSITORY)).toBeDefined();
+
+			// Each container's singleton instances are distinct objects — the two containers
+			// are truly isolated and do not share provider instances across compile() calls.
+			expect(moduleA.get(CreateNoticeUseCase)).not.toBe(moduleB.get(CreateNoticeUseCase));
+			expect(moduleA.get(ListNoticesUseCase)).not.toBe(moduleB.get(ListNoticesUseCase));
+			expect(moduleA.get(GetNoticeByIdUseCase)).not.toBe(
+				moduleB.get(GetNoticeByIdUseCase),
+			);
+			expect(moduleA.get(NOTICE_REPOSITORY)).not.toBe(moduleB.get(NOTICE_REPOSITORY));
+		});
 	});
 });
 
