@@ -20,8 +20,8 @@ import { DomainError } from "~/shared/errors/DomainError";
  *
  * WHY HttpException is handled separately (not collapsed into the unknown-error branch):
  *   NestJS throws HttpException for infrastructure-level conditions such as unmatched
- *   routes (NotFoundException → 404) and, in 5c, ValidationPipe failures
- *   (BadRequestException → 400). Mapping these to 500 INTERNAL_ERROR produces incorrect
+ *   routes (NotFoundException -> 404) and, in 5c, ValidationPipe failures
+ *   (BadRequestException -> 400). Mapping these to 500 INTERNAL_ERROR produces incorrect
  *   HTTP semantics. Passing through the HttpException status code preserves correct
  *   semantics while still enforcing the ADR-003 envelope.
  *
@@ -32,7 +32,7 @@ import { DomainError } from "~/shared/errors/DomainError";
 export class DomainErrorFilter implements ExceptionFilter<unknown> {
 	catch(exception: unknown, host: ArgumentsHost): void {
 		const ctx = host.switchToHttp();
-		// Typed as unknown and narrowed below — avoids importing @types/express
+		// Typed as unknown and narrowed below -- avoids importing @types/express
 		// directly in this file (NestJS re-exports the HTTP context types we need).
 		const response = ctx.getResponse<{
 			status(code: number): { json(body: unknown): void };
@@ -47,7 +47,7 @@ export class DomainErrorFilter implements ExceptionFilter<unknown> {
 				error: {
 					code: exception.code,
 					message: exception.message,
-					// Omit the details field entirely when context is absent — the
+					// Omit the details field entirely when context is absent -- the
 					// ADR-003 spec says the field must not be present (not null) when empty.
 					...(exception.context !== undefined
 						? { details: exception.context }
@@ -59,17 +59,32 @@ export class DomainErrorFilter implements ExceptionFilter<unknown> {
 			response.status(exception.statusHint).json(body);
 		} else if (exception instanceof HttpException) {
 			// NestJS infrastructure exceptions (unmatched routes, ValidationPipe, guards).
+			// Use getResponse() rather than exception.message -- the response payload may
+			// carry structured field-level errors (e.g. ValidationPipe returns an array of
+			// messages). If the payload is an object, use exception.message as the
+			// human-readable summary and surface the full payload as details; if it is a
+			// plain string, use it directly with no details field.
+			const nestResponse = exception.getResponse();
+			const isObject =
+				typeof nestResponse === "object" && nestResponse !== null;
+			const message = isObject ? exception.message : String(nestResponse);
+			const details = isObject ? nestResponse : undefined;
 			response.status(exception.getStatus()).json({
 				success: false,
 				error: {
 					code: "HTTP_ERROR",
-					message: exception.message,
+					message,
+					...(details !== undefined ? { details } : {}),
 					traceId,
 					timestamp,
 				},
 			});
 		} else {
-			// Unknown exception — programmer error or infrastructure failure.
+			// Unknown exception -- programmer error or infrastructure failure.
+			// Log server-side with the traceId so the client-facing traceId can be
+			// correlated with the stack trace in server logs. Do NOT surface the original
+			// message or stack in the response -- leaking internal details aids attackers.
+			console.error({ msg: "Unhandled exception", traceId, error: exception });
 			response.status(500).json({
 				success: false,
 				error: {

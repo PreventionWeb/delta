@@ -127,6 +127,36 @@ between `DomainError` subtypes and all other exception types. If it were decorat
 > Mapping these to 500 produces incorrect HTTP semantics. The filter passes through the framework
 > status code while still enforcing the ADR-003 ErrorResponse envelope.
 
+#### Scenario: HttpException with structured payload preserves field-level details in response
+
+- **GIVEN** a controller action throws `new BadRequestException({ message: ['title must not be empty'], error: 'Bad Request', statusCode: 400 })`
+- **WHEN** the HTTP request is processed
+- **THEN** the response status SHALL be 400
+- **AND** `error.code` SHALL be `"HTTP_ERROR"`
+- **AND** `error.details` SHALL contain the full structured payload from `exception.getResponse()`
+
+> **Implementation note:** The filter MUST use `exception.getResponse()` (not `exception.message`)
+> to extract the payload. If `getResponse()` returns an object, `error.message` is set to
+> `exception.message` (the human-readable summary) and the full object is surfaced as
+> `error.details`. If `getResponse()` returns a plain string, it is used as `error.message`
+> with no `details` field. This preserves field-level validation errors from ValidationPipe
+> (5c) while remaining backward-compatible with string-only HttpExceptions.
+
+### Requirement: DomainErrorFilter logs unhandled exceptions server-side with the traceId
+
+When an unknown exception reaches the filter (not a `DomainError` and not an `HttpException`),
+the filter MUST log the exception server-side before writing the 500 response, using the same
+`traceId` that appears in the response body. The log entry SHALL include the `traceId` and the
+original exception so that the client-facing traceId can be correlated with the server-side
+stack trace. The exception MUST NOT be surfaced in the HTTP response body.
+
+#### Scenario: Unknown exception is logged server-side with traceId
+
+- **GIVEN** a controller action throws `new Error('Database connection lost')`
+- **WHEN** the filter catches it
+- **THEN** a server-side log entry SHALL be emitted containing the `traceId` and the original exception
+- **AND** the HTTP response body SHALL NOT contain "Database connection lost" or any stack trace fragment
+
 ### Requirement: Concurrent callers receive independent traceIds
 
 When two HTTP requests trigger `DomainErrorFilter` simultaneously, each response MUST contain

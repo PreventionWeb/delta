@@ -4,8 +4,9 @@
 
 `initServer()` in `app/init.server.tsx` SHALL bootstrap a NestJS HTTP application via
 `NestFactory.create(CoreModule)` and call `app.listen(API_PORT)` where `API_PORT` is
-`process.env.API_PORT` parsed as a number, defaulting to `3001` when the variable is absent
-or empty. The HTTP server SHALL start after the application context bootstrap completes
+`process.env.API_PORT` parsed as an integer, defaulting to `3001` when the variable is absent,
+empty, non-numeric, or outside the valid port range (1–65535). A NaN or out-of-range result
+from `parseInt()` MUST NOT be passed to `app.listen()` — the fallback of 3001 applies. The HTTP server SHALL start after the application context bootstrap completes
 successfully. The global prefix `/api/v2` MUST be set on the HTTP app before `listen()` is
 called. The existing `applicationContext` bootstrap and `getAppContext()` return value MUST
 remain unaffected.
@@ -56,6 +57,20 @@ the same bootstrap Promise and do not create two separate HTTP servers.
 - **GIVEN** the first call to `initServer()` causes the HTTP bootstrap to reject (e.g. port already bound)
 - **WHEN** `initServer()` is called again after the rejection
 - **THEN** the HTTP bootstrap SHALL be attempted again (the rejected Promise SHALL NOT be re-awaited)
+
+### Requirement: HTTP server and DB pool are torn down in order during shutdown
+
+`endServer()` in `app/init.server.tsx` MUST close the NestJS HTTP listener before ending the
+database pool, so that in-flight requests can complete before the DB connection is removed.
+If the HTTP bootstrap Promise is still pending at shutdown time, `endServer()` MUST await it
+before attempting to close the app. `endDB()` in `app/db.server.ts` MUST be `async` and
+`await pool.end()` so that callers can reliably wait for the pool to drain.
+
+#### Scenario: endServer closes HTTP listener before DB pool
+
+- **GIVEN** `initServer()` has resolved and both the HTTP app and DB pool are active
+- **WHEN** `endServer()` is awaited
+- **THEN** `httpApp.close()` SHALL be called and awaited before `endDB()` is called
 
 ### Requirement: HTTP server start is logged as a structured info event
 

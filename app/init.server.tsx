@@ -65,9 +65,11 @@ async function bootstrapAppContext(): Promise<void> {
  */
 async function bootstrapHttpServer(): Promise<void> {
 	if (!httpBootstrapPromise) {
-		const apiPort = process.env.API_PORT
-			? parseInt(process.env.API_PORT, 10)
-			: 3001;
+		const parsed = parseInt(process.env.API_PORT ?? "", 10);
+		// Guard against NaN (invalid env string) and out-of-range values so that
+		// app.listen() never receives an invalid port number.
+		const apiPort =
+			Number.isFinite(parsed) && parsed > 0 && parsed <= 65535 ? parsed : 3001;
 		httpBootstrapPromise = (async () => {
 			const app = await NestFactory.create(CoreModule, { logger: false });
 			app.setGlobalPrefix("/api/v2");
@@ -146,5 +148,5 @@ export async function endServer() {
 		await httpApp.close();
 	}
 	console.log("Ending DB...");
-	endDB();
+	await endDB();
 }
