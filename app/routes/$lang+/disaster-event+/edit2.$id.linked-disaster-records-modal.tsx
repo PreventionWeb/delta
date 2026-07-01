@@ -119,6 +119,7 @@ async function queryDisasterRecordOptions(
 					ilike(disasterRecordsTable.dataCollector, searchTerm),
 					sql`cast(${disasterRecordsTable.id} as text) ilike ${searchTerm}`,
 					sql`cast(${disasterRecordsTable.disasterEventId} as text) ilike ${searchTerm}`,
+					sql`cast(${disasterRecordsTable.approvalStatus} as text) ilike ${searchTerm}`,
 				),
 			)
 			: eq(disasterRecordsTable.countryAccountsId, countryAccountsId),

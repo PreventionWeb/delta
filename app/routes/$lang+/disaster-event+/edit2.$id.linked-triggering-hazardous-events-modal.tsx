@@ -106,6 +106,7 @@ async function queryHazardousEventOptions(
 					sql`cast(${hazardousEventTable.id} as text) ilike ${searchTerm}`,
 					sql`cast(${hazardousEventTable.startDate} as text) ilike ${searchTerm}`,
 					sql`cast(${hazardousEventTable.endDate} as text) ilike ${searchTerm}`,
+					sql`cast(${hazardousEventTable.approvalStatus} as text) ilike ${searchTerm}`,
 				),
 			)
 			: and(

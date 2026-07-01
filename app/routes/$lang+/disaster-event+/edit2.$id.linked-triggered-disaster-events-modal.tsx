@@ -120,6 +120,7 @@ async function queryDisasterEventOptions(
 					sql`cast(${disasterEventTable.id} as text) ilike ${searchTerm}`,
 					sql`cast(${disasterEventTable.startDate} as text) ilike ${searchTerm}`,
 					sql`cast(${disasterEventTable.endDate} as text) ilike ${searchTerm}`,
+					sql`cast(${disasterEventTable.approvalStatus} as text) ilike ${searchTerm}`,
 				),
 			)
 			: and(
