@@ -14,6 +14,7 @@ const { mockApp, mockCreateApp, mockCreateContext } = vi.hoisted(() => {
 	const mockApp = {
 		setGlobalPrefix: vi.fn().mockReturnThis(),
 		listen: vi.fn().mockResolvedValue(undefined),
+		close: vi.fn().mockResolvedValue(undefined),
 	};
 	const mockCreateApp = vi.fn().mockResolvedValue(mockApp);
 	const mockCreateContext = vi
@@ -79,7 +80,9 @@ async function getFreshInitServerAndContext() {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("HttpServerBootstrap", () => {
+// DomainErrorFilter.test.ts runs concurrently and spins up a real HTTP app,
+// which can delay the first vi.resetModules()+import() chain past the default 5s.
+describe("HttpServerBootstrap", { timeout: 15000 }, () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		// Restore mock implementations after clearAllMocks resets them.
@@ -189,6 +192,28 @@ describe("HttpServerBootstrap", () => {
 		const { initServer, getAppContext } = await getFreshInitServerAndContext();
 		await initServer();
 		expect(() => getAppContext()).not.toThrow();
+	});
+
+	// -------------------------------------------------------------------------
+	// Shutdown — endServer() closes HTTP listener before DB pool teardown
+	// -------------------------------------------------------------------------
+
+	it("endServer() calls httpApp.close() before endDB()", async () => {
+		// GIVEN initServer() has completed so httpApp is set
+		vi.resetModules();
+		const mod = await import("~/init.server");
+		await mod.initServer();
+
+		// WHEN endServer() is called
+		const { endDB } = await import("~/db.server");
+		await mod.endServer();
+
+		// THEN httpApp.close() must be called and must precede endDB()
+		expect(mockApp.close).toHaveBeenCalled();
+		const closeOrder = mockApp.close.mock.invocationCallOrder[0];
+		const endDBOrder = (endDB as ReturnType<typeof vi.fn>).mock
+			.invocationCallOrder[0];
+		expect(closeOrder).toBeLessThan(endDBOrder);
 	});
 
 	// -------------------------------------------------------------------------

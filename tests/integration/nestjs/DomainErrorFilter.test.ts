@@ -4,6 +4,7 @@ import "reflect-metadata";
 
 import { Test } from "@nestjs/testing";
 import {
+	BadRequestException,
 	Controller,
 	Get,
 	Module,
@@ -61,6 +62,18 @@ class StubController {
 		// (unmatched routes, ValidationPipe failures) that carry semantically
 		// correct status codes.
 		throw new NotFoundException();
+	}
+
+	@Get("/bad-request")
+	throwBadRequest() {
+		// Simulates a ValidationPipe-style BadRequestException carrying structured
+		// field-level error details. The filter must surface these via getResponse()
+		// rather than exception.message so callers receive the full error payload.
+		throw new BadRequestException({
+			message: ["title must not be empty", "title must be a string"],
+			error: "Bad Request",
+			statusCode: 400,
+		});
 	}
 }
 
@@ -276,6 +289,32 @@ describe("DomainErrorFilter", () => {
 			request.get("/test/not-found"),
 		]);
 		expect(res1.body.error.traceId).not.toBe(res2.body.error.traceId);
+	});
+
+	// -------------------------------------------------------------------------
+	// HttpException with structured details (BadRequestException)
+	// -------------------------------------------------------------------------
+
+	it("BadRequestException returns HTTP 400 with HTTP_ERROR code", async () => {
+		const res = await request.get("/test/bad-request");
+		expect(res.status).toBe(400);
+		expect(res.body).toMatchObject({
+			success: false,
+			error: { code: "HTTP_ERROR" },
+		});
+	});
+
+	it("BadRequestException preserves structured validation details in error.details", async () => {
+		// When a ValidationPipe (or explicit BadRequestException) carries a structured
+		// payload, the filter must forward it via getResponse() rather than discarding
+		// it in favour of exception.message. Field-level errors are the primary
+		// information callers need to fix a 400.
+		const res = await request.get("/test/bad-request");
+		expect(res.body.error.details).toMatchObject({
+			message: ["title must not be empty", "title must be a string"],
+			error: "Bad Request",
+			statusCode: 400,
+		});
 	});
 
 	// -------------------------------------------------------------------------
