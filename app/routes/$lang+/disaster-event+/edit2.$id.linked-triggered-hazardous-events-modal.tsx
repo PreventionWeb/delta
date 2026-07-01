@@ -105,6 +105,24 @@ async function queryHazardousEventOptions(
 					: undefined,
 				or(
 					ilike(hazardousEventTable.description, searchTerm),
+					sql`exists (
+						select 1
+						from hip_hazard hh
+						where hh.id = ${hazardousEventTable.hipHazardId}
+						and cast(hh.name as text) ilike ${searchTerm}
+					)`,
+					sql`exists (
+						select 1
+						from hip_cluster hc
+						where hc.id = ${hazardousEventTable.hipClusterId}
+						and cast(hc.name as text) ilike ${searchTerm}
+					)`,
+					sql`exists (
+						select 1
+						from hip_class ht
+						where ht.id = ${hazardousEventTable.hipTypeId}
+						and cast(ht.name as text) ilike ${searchTerm}
+					)`,
 					sql`cast(${hazardousEventTable.id} as text) ilike ${searchTerm}`,
 					sql`cast(${hazardousEventTable.startDate} as text) ilike ${searchTerm}`,
 					sql`cast(${hazardousEventTable.endDate} as text) ilike ${searchTerm}`,
@@ -361,7 +379,7 @@ export default function LinkedTriggeredHazardousEventsModalRoute() {
 				/>
 				<div>
 					<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
-					<p>{item.code}</p>
+					<p>UUID: {item.code.substring(0, 8)}</p>
 					{item.hip ? (
 						<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
 					) : null}
@@ -409,7 +427,7 @@ export default function LinkedTriggeredHazardousEventsModalRoute() {
 					<InputText
 						value={searchTerm}
 						onChange={(event) => setSearchTerm(event.target.value)}
-						placeholder="Search hazardous events..."
+						placeholder="Search by HIP name or UUID..."
 						className="w-full pr-10"
 					/>
 				</div>

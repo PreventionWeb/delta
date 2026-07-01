@@ -386,7 +386,7 @@ function localizedHipName(
 						<InputText
 							value={searchTerm}
 							onChange={(event) => setSearchTerm(event.target.value)}
-							placeholder="Search disaster events..."
+							placeholder="Search by name or UUID..."
 							className="w-full pr-10"
 						/>
 					</div>

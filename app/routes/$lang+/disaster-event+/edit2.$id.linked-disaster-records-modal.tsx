@@ -369,7 +369,7 @@ export default function LinkedDisasterRecordsModalRoute() {
 					<InputText
 						value={searchTerm}
 						onChange={(event) => setSearchTerm(event.target.value)}
-						placeholder="Search disaster records..."
+						placeholder="Search by UUID..."
 						className="w-full pr-10"
 					/>
 				</div>
