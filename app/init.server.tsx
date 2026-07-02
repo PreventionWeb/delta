@@ -4,7 +4,10 @@
 import "reflect-metadata";
 
 import { NestFactory } from "@nestjs/core";
-import { type INestApplicationContext } from "@nestjs/common";
+import {
+	type INestApplication,
+	type INestApplicationContext,
+} from "@nestjs/common";
 
 import { initDB, endDB } from "./db.server";
 import { initCookieStorage } from "./utils/session";
@@ -13,30 +16,33 @@ import { importTranslationsIfNeeded } from "./backend.server/services/translatio
 import type {} from "~/types/createTranslationGetter.d";
 import { CoreModule } from "~/infrastructure/CoreModule.server";
 
-// The NestJS application context created by initServer().
+// The NestJS application context created by bootstrapAppContext().
 let appContext: INestApplicationContext | undefined;
 
-// In-flight bootstrap Promise stored before it is awaited so that concurrent calls to initServer() 
-// (e.g. two parallel requests on a cold start) share the same Promise and do not create two separate DI containers.
+// The NestJS HTTP application created by bootstrapHttpServer().
+// Stored so endServer() can close the listener on shutdown.
+let httpApp: INestApplication | undefined;
+
+// In-flight bootstrap Promise stored before it is awaited so that concurrent calls to
+// initServer() (e.g. two parallel requests on a cold start) share the same Promise
 let bootstrapPromise: Promise<INestApplicationContext> | undefined;
 
-/**
- * Bootstrap the server: initialise the database, then create the NestJS application context (DI container only — no HTTP server).
- *
- * Ordering matters: initDB() assigns the `dr` singleton before NestFactory is called, DrizzleProvider factory reads `dr` at provider-resolution time.
- * Fire-and-forget from entry.server.tsx: React Router's entry point cannot use top-level await. The bootstrap promise resolves before the first loader/action is dispatched. 
- * BootstrapPromise: storing the in-flight Promise before awaiting it means concurrent callers join the same bootstrap instead of creating a second DI container.
- */
-export async function initServer() {
-	console.log("init.serve.tsx:init");
+// In-flight HTTP bootstrap Promise — mirrors the bootstrapPromise pattern so that
+// concurrent callers share the same HTTP app instance rather than binding two servers on the same port.
+let httpBootstrapPromise: Promise<INestApplication> | undefined;
 
-	// Store the Promise before awaiting it so that concurrent callers share the same bootstrap Promise.
-	// initDB() is inside the guard so it also runs only once.
+/**
+ * Bootstrap the NestJS DI-only application context (no HTTP listener).
+ * Assigns the Promise before awaiting it so that concurrent callers share the same bootstrap
+ */
+async function bootstrapAppContext(): Promise<void> {
 	if (!bootstrapPromise) {
 		console.log("Initing DB...");
+		// initDB() must run before NestFactory so that the `dr` singleton is set
+		// before DrizzleProvider's useFactory reads it at provider-resolution time.
 		initDB();
 		bootstrapPromise = NestFactory.createApplicationContext(CoreModule, {
-			// Suppress NestJS startup banner — this is not an HTTP application.
+			// Suppress NestJS startup banner — this is a DI-only context, not an HTTP app.
 			logger: false,
 		});
 	}
@@ -48,6 +54,56 @@ export async function initServer() {
 		bootstrapPromise = undefined;
 		throw err;
 	}
+}
+
+/**
+ * Bootstrap the NestJS HTTP server on API_PORT (default 3001).
+ *
+ * Assigns the Promise before awaiting it — same concurrent-caller rationale as
+ * bootstrapAppContext: two simultaneous cold-start requests must not bind two
+ * separate HTTP servers on the same port.
+ */
+async function bootstrapHttpServer(): Promise<void> {
+	if (!httpBootstrapPromise) {
+		const parsed = parseInt(process.env.API_PORT ?? "", 10);
+		// Guard against NaN (invalid env string) and out-of-range values so that
+		// app.listen() never receives an invalid port number.
+		const apiPort =
+			Number.isFinite(parsed) && parsed > 0 && parsed <= 65535 ? parsed : 3001;
+		httpBootstrapPromise = (async () => {
+			const app = await NestFactory.create(CoreModule, { logger: false });
+			app.setGlobalPrefix("/api/v2");
+			await app.listen(apiPort);
+			httpApp = app;
+			console.info({ msg: "NestJS HTTP server started", port: apiPort });
+			return app;
+		})();
+	}
+	try {
+		await httpBootstrapPromise;
+	} catch (err) {
+		// Reset so a subsequent call can retry (e.g. port already bound on first attempt).
+		httpBootstrapPromise = undefined;
+		throw err;
+	}
+}
+
+/**
+ * Bootstrap the server: initialise the database, create the NestJS application context
+ * (DI container only — for use by Remix loaders), and then start the NestJS HTTP server
+ * on API_PORT for REST controller requests.
+ *
+ * Two bootstrap paths, each guarded by a module-level Promise:
+ *   1. appContext (INestApplicationContext) — DI container only, no HTTP listener.
+ *      Used by getAppContext() in Remix loaders and actions.
+ *   2. httpApp (INestApplication) — full HTTP server on API_PORT (default 3001).
+ *      Used by REST controllers decorated with @Controller.
+ */
+export async function initServer() {
+	console.log("init.serve.tsx:init");
+
+	await bootstrapAppContext();
+	await bootstrapHttpServer();
 
 	console.log("Initing cookie storage...");
 	initCookieStorage();
@@ -60,7 +116,6 @@ export async function initServer() {
 
 /**
  * Returns the bootstrapped NestJS application context.
- * Throwing here with a clear message surfaces the ordering problem immediately.
  *
  * Call sites must be inside async loaders or actions where initServer() has already
  * resolved before the first request is handled.
@@ -74,8 +129,24 @@ export function getAppContext(): INestApplicationContext {
 	return appContext;
 }
 
-export function endServer() {
+/**
+ * Tear down the server. MUST be awaited — closes the HTTP listener before
+ * tearing down the DB pool.
+ */
+export async function endServer() {
 	console.log("init.serve.tsx:end");
+	// Wait for any in-flight bootstrap to settle before reading httpApp 
+	if (httpBootstrapPromise) {
+		try {
+			await httpBootstrapPromise;
+		} catch {
+			// Bootstrap failed; nothing to close.
+		}
+	}
+	// Close the HTTP listener before ending the DB so that in-flight requests
+	if (httpApp) {
+		await httpApp.close();
+	}
 	console.log("Ending DB...");
-	endDB();
+	await endDB();
 }
