@@ -244,7 +244,7 @@ export default function DisasterEventsPage({
                 </Button>
             </Link>
             {canEdit && !isEditRestrictedStatus(row.approvalStatus) ? (
-                <Link to={`/${ctx.lang}/disaster-event/edit2/${row.id}`}>
+                <Link to={`/${ctx.lang}/disaster-event/edit/${row.id}`}>
                     <Button
                         type="button"
                         text

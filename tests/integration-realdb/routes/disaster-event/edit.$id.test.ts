@@ -12,7 +12,7 @@ import {
 import { createTestDisasterEventWithOptions } from "./test-helpers";
 import { randomUUID } from "crypto";
 import { getCountryAccountsIdFromSession } from "~/utils/session";
-import { loader as editLoader } from "~/routes/$lang+/disaster-event+/edit2.$id";
+import { loader as editLoader } from "~/routes/$lang+/disaster-event+/edit.$id";
 
 const testIds = createTestIds();
 testIds.userEmail = testIds.userEmail.replace("@", "-de-edit@");
@@ -20,7 +20,7 @@ testIds.userEmail = testIds.userEmail.replace("@", "-de-edit@");
 setupSessionMocks();
 
 async function callLoader(params: { id: string }) {
-	const url = new URL(`${TEST_BASE_URL}/en/disaster-event/edit2/${params.id}`);
+	const url = new URL(`${TEST_BASE_URL}/en/disaster-event/edit/${params.id}`);
 	const request = new Request(url.toString());
 	return await editLoader({
 		request,
