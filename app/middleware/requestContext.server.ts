@@ -21,12 +21,27 @@ export const requestContextMiddleware: Route.MiddlewareFunction = (
 
 	return withRequestContext(
 		async () => {
-			// Promise.allSettled, allSettled ensures a failure in one (e.g. a transient DB error) 
+			// Promise.allSettled, allSettled ensures a failure in one (e.g. a transient DB error)
 			// never prevents the other from populating and never rejects this callback
 			const [userResult, tenantIdResult] = await Promise.allSettled([
 				getUserFromSession(request),
 				getCountryAccountsIdFromSession(request),
 			]);
+
+			// Log rejections so recurring session-lookup failures are visible,
+			// without letting them block the request (see the comment above).
+			if (userResult.status === "rejected") {
+				console.error(
+					"requestContextMiddleware: getUserFromSession failed",
+					userResult.reason,
+				);
+			}
+			if (tenantIdResult.status === "rejected") {
+				console.error(
+					"requestContextMiddleware: getCountryAccountsIdFromSession failed",
+					tenantIdResult.reason,
+				);
+			}
 
 			// Mutate the live store (not a second als.run()) so tenantId/userId land
 			// on the same store instance traceId was seeded into.

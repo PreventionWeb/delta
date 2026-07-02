@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { LoaderFunctionArgs } from "react-router";
+import { RouterContextProvider } from "react-router";
 
 import { loader as authenticatedLoader } from "~/routes/$lang+/_authenticated";
 import { loader as publicLoader } from "~/routes/$lang+/_public";
@@ -24,7 +25,7 @@ function makeRouteArgs(url = BASE_URL): LoaderFunctionArgs {
 		url: new URL(url),
 		pattern: "/:lang/hazardous-event",
 		params: { lang: "en" },
-		context: {},
+		context: new RouterContextProvider(),
 	};
 }
 
