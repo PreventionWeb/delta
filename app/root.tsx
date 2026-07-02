@@ -53,7 +53,7 @@ import { UserCountryAccountRepository } from "~/db/queries/userCountryAccountsRe
 import { requestContextMiddleware } from "~/middleware/requestContext.server";
 
 // Runs before any loader/action in the matched route tree, for every request
-// See openspec/changes/ca-request-context-middleware/design.md Decision 3.
+// See openspec/changes/archive/2026-07-02-ca-request-context-middleware/design.md Decision 3.
 export const middleware: Route.MiddlewareFunction[] = [
 	requestContextMiddleware,
 ];

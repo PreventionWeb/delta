@@ -5,7 +5,8 @@
 		"**/.server/**/*.ts",
 		"**/.server/**/*.tsx",
 		"**/.client/**/*.ts",
-		"**/.client/**/*.tsx"
+		"**/.client/**/*.tsx",
+		".react-router/types/**/*"
 	],
 	"compilerOptions": {
 		"lib": ["DOM", "DOM.Iterable", "ES2022"],
@@ -28,7 +29,7 @@
 		"paths": {
 			"~/*": ["./app/*"]
 		},
-		// Lets React Router's generated `+types/*` modules resolve their self-referential 
+		// Lets React Router's generated `+types/*` modules resolve their self-referential
 		// `typeof import("../<route>.js")` back to the real route source file.
 		"rootDirs": [".", "./.react-router/types"],
 		// emitDecoratorMetadata enables Reflect.metadata calls that NestJS DI uses
