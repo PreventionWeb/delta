@@ -441,7 +441,7 @@ export default function LinkedDisasterRecordsModalRoute() {
 					/>
 					<span className="sr-only" aria-live="polite">
 						{pendingExitAction
-							? "Closing linked disaster records dialog"
+							? "Closing dialog"
 							: ""}
 					</span>
 				</div>

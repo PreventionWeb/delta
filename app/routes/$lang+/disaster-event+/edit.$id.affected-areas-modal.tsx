@@ -179,6 +179,9 @@ export default function AffectedAreasModalRoute() {
 	}, [nodes]);
 
 	const [searchTerm, setSearchTerm] = useState("");
+	const [pendingExitAction, setPendingExitAction] = useState<
+		"close" | "cancel" | "apply" | null
+	>(null);
 	const [selectionKeys, setSelectionKeys] = useState<TreeProps["selectionKeys"]>(
 		() => buildInitialSelectionKeys(nodes, selectedDivisionItems),
 	);
@@ -193,13 +196,36 @@ export default function AffectedAreasModalRoute() {
 	}, [nodes, selectionKeys]);
 
 	const handleSave = () => {
+		if (pendingExitAction) {
+			return;
+		}
+
 		const keys = getTopLevelSelectedKeys(nodes, selectionKeys);
 		const nextItems: SelectedDivisionItem[] = keys.map((key) => ({
 			key,
 			label: labelByKey.get(key) ?? key,
 		}));
 
+		setPendingExitAction("apply");
 		setSelectedDivisionItems(nextItems);
+		navigate("..", { replace: true });
+	};
+
+	const handleClose = () => {
+		if (pendingExitAction) {
+			return;
+		}
+
+		setPendingExitAction("close");
+		navigate("..", { replace: true });
+	};
+
+	const handleCancel = () => {
+		if (pendingExitAction) {
+			return;
+		}
+
+		setPendingExitAction("cancel");
 		navigate("..", { replace: true });
 	};
 
@@ -226,7 +252,9 @@ export default function AffectedAreasModalRoute() {
 						icon="pi pi-times"
 						text
 						aria-label="Close"
-						onClick={() => navigate("..", { replace: true })}
+						loading={pendingExitAction === "close"}
+						disabled={Boolean(pendingExitAction)}
+						onClick={handleClose}
 					/>
 				</div>
 
@@ -269,9 +297,20 @@ export default function AffectedAreasModalRoute() {
 						type="button"
 						label="Cancel"
 						outlined
-						onClick={() => navigate("..", { replace: true })}
+						loading={pendingExitAction === "cancel"}
+						disabled={Boolean(pendingExitAction)}
+						onClick={handleCancel}
 					/>
-					<Button type="button" label="Apply" onClick={handleSave} />
+					<Button
+						type="button"
+						label="Apply"
+						loading={pendingExitAction === "apply"}
+						disabled={Boolean(pendingExitAction)}
+						onClick={handleSave}
+					/>
+					<span className="sr-only" aria-live="polite">
+						{pendingExitAction ? "Closing dialog" : ""}
+					</span>
 				</div>
 			</div>
 		</div>

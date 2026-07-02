@@ -533,7 +533,7 @@ export default function LinkedTriggeredDisasterEventsModalRoute() {
 					/>
 					<span className="sr-only" aria-live="polite">
 						{pendingExitAction
-							? "Closing linked triggered disaster events dialog"
+							? "Closing dialog"
 							: ""}
 					</span>
 				</div>

@@ -539,7 +539,7 @@ function localizedHipName(
 						/>
 						<span className="sr-only" aria-live="polite">
 							{pendingExitAction
-								? "Closing linked triggering disaster events dialog"
+								? "Closing dialog"
 								: ""}
 						</span>
 					</div>

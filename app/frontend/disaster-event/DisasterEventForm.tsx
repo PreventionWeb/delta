@@ -378,6 +378,9 @@ function StepperValidation({
 	const isOpeningLinkedDisasterRecordsModal =
 		navigation.state !== "idle" &&
 		navigation.location?.pathname.includes("/linked-disaster-records-modal");
+	const isOpeningSpatialFootprintModal =
+		navigation.state !== "idle" &&
+		navigation.location?.pathname.includes("/spatial-footprint-modal");
 	const [selectedDivisionItems, setSelectedDivisionItems] = useState<
 		SelectedDivisionItem[]
 	>(() => {
@@ -2458,6 +2461,10 @@ function StepperValidation({
 	};
 
 	const openSpatialFootprintModal = () => {
+		if (isOpeningSpatialFootprintModal) {
+			return;
+		}
+
 		navigate("spatial-footprint-modal");
 	};
 
@@ -3175,11 +3182,22 @@ function StepperValidation({
 													<div className="mt-2.5">
 														<Button
 															type="button"
-															label="Define spatial footprint"
+															label={
+																isOpeningSpatialFootprintModal
+																	? "Opening..."
+																	: "Define spatial footprint"
+															}
 															outlined
 															icon="pi pi-map"
+															loading={isOpeningSpatialFootprintModal}
+															disabled={isOpeningSpatialFootprintModal}
 															onClick={openSpatialFootprintModal}
 														/>
+														<span className="sr-only" aria-live="polite">
+															{isOpeningSpatialFootprintModal
+																? "Loading spatial footprint editor"
+																: ""}
+														</span>
 													</div>
 												</div>
 												<i className="pi pi-chevron-right pt-2 text-slate-400" />

@@ -498,7 +498,7 @@ export default function LinkedTriggeredHazardousEventsModalRoute() {
 					/>
 					<span className="sr-only" aria-live="polite">
 						{pendingExitAction
-							? "Closing linked triggered hazardous events dialog"
+							? "Closing dialog"
 							: ""}
 					</span>
 				</div>
