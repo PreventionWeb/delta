@@ -27,6 +27,7 @@ import { Toast } from "primereact/toast";
 import { ViewContext } from "~/frontend/context";
 import { copyTextToClipboardWithToast } from "~/frontend/utils/clipboard";
 import DisasterEventAttachment from "~/frontend/disaster-event/DisasterEventAttachment";
+import DisasterEventReviewStep from "~/frontend/disaster-event/DisasterEventReviewStep";
 import {
 	SaveSubmitDialog,
 	type SaveAction,
@@ -407,7 +408,7 @@ function StepperValidation({
 
 				const label =
 					typeof maybeItem?.geographic_level === "string" &&
-					maybeItem.geographic_level.trim().length > 0
+						maybeItem.geographic_level.trim().length > 0
 						? maybeItem.geographic_level.trim()
 						: typeof maybeItem?.title === "string" &&
 							maybeItem.title.trim().length > 0
@@ -1719,56 +1720,6 @@ function StepperValidation({
 		spatialFootprintValue,
 	]);
 
-	const renderReviewItem = (label: string, value: string) => (
-		<div className="space-y-1">
-			<p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-				{label}
-			</p>
-			<p className="text-[14px] leading-[14px] font-semibold text-slate-800">
-				{value || "-"}
-			</p>
-		</div>
-	);
-
-	const formatReviewDateWithPrecision = (
-		state: DateWithPrecisionState,
-	): string => {
-		const value = toDateWithPrecisionValue(state);
-
-		if (value) {
-			return value;
-		}
-
-		return "-";
-	};
-
-	const formatReviewTime = (value: Date | null): string => {
-		if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
-			return "-";
-		}
-
-		return value.toLocaleTimeString([], {
-			hour: "2-digit",
-			minute: "2-digit",
-			hour12: false,
-		});
-	};
-
-	const renderReviewTimingItem = (
-		label: string,
-		state: DateWithPrecisionState,
-		time: Date | null,
-	) => (
-		<div className="space-y-1">
-			<p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-				{label}
-			</p>
-			<p className="text-[14px] leading-[14px] font-semibold text-slate-800">
-				{`${formatReviewDateWithPrecision(state)} at ${formatReviewTime(time)}`}
-			</p>
-		</div>
-	);
-
 	const maxDetailItems = 5;
 	const maxEarlyActionItems = 5;
 	const maxResponseOperationItems = 1;
@@ -1919,6 +1870,40 @@ function StepperValidation({
 			}).length,
 		[spatialFootprintValue],
 	);
+	const formatReviewDateWithPrecision = (
+		state: DateWithPrecisionState,
+	): string => {
+		const value = toDateWithPrecisionValue(state);
+
+		if (value) {
+			return value;
+		}
+
+		return "-";
+	};
+	const formatReviewTime = (value: Date | null): string => {
+		if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
+			return "-";
+		}
+
+		return value.toLocaleTimeString([], {
+			hour: "2-digit",
+			minute: "2-digit",
+			hour12: false,
+		});
+	};
+	const reviewStartTimingValue = `${formatReviewDateWithPrecision(startDateState)} at ${formatReviewTime(startTime)}`;
+	const reviewEndTimingValue = `${formatReviewDateWithPrecision(endDateState)} at ${formatReviewTime(endTime)}`;
+	const selectedHazardTypeName =
+		sortedHipTypes.find((item) => item.id === selectedHipTypeId)?.name || "";
+	const selectedHazardClusterName =
+		sortedHipClusters.find((item) => item.id === selectedHipClusterId)?.name ||
+		"";
+	const selectedSpecificHazardName =
+		sortedHipHazards.find((item) => item.id === selectedHipHazardId)?.name ||
+		"";
+	const getDetailTypeLabel = (value: string) =>
+		detailTypeLabelByValue.get(normalizeDetailTypeValue(value)) ?? value;
 
 	const openAddDetail = (category: AdditionalDetailCategory) => {
 		if (category === "response" && !canAddAnyResponse) {
@@ -2243,67 +2228,6 @@ function StepperValidation({
 		return item.description;
 	}
 
-	const renderStep4DetailRow = (
-		category: AdditionalDetailCategory,
-		item: AdditionalDetailItem,
-	) => {
-		const badgeClass =
-			category === "response"
-				? "bg-blue-100 text-blue-700"
-				: category === "assessment"
-					? "bg-violet-100 text-violet-700"
-					: "bg-amber-100 text-amber-700";
-		const typeLabel =
-			detailTypeLabelByValue.get(normalizeDetailTypeValue(item.type)) ??
-			item.type;
-		const descriptionValue = getDetailDescriptionValue(item);
-
-		return (
-			<div key={item.id} className="space-y-2">
-				<div className="flex items-center gap-3">
-					<span
-						className={`rounded-full px-2 py-1 text-[11px] font-semibold ${badgeClass}`}
-					>
-						{typeLabel}
-					</span>
-					{item.date ? (
-						<span className="text-[12px] text-slate-500">{item.date}</span>
-					) : null}
-				</div>
-				{descriptionValue ? (
-					<p className="text-[14px] text-slate-500">
-						{descriptionValue.split(/\r?\n/).map((line, index, lines) => (
-							<span key={`${item.id}-review-line-${index}`}>
-								{line}
-								{index < lines.length - 1 ? <br /> : null}
-							</span>
-						))}
-					</p>
-				) : null}
-			</div>
-		);
-	};
-
-	const hazardousEventItemTemplate = (
-		item: LinkedEventOption,
-		layout?: "list" | "grid",
-	) => {
-		const wrapperClass =
-			layout === "grid" ? "linked-disaster-record-grid-item" : "w-full";
-
-		return (
-			<div className={wrapperClass}>
-				<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
-					<div className="flex w-full items-start justify-between gap-4">
-						<div>
-							<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
-							<p>{item.code}</p>
-						</div>
-					</div>
-				</div>
-			</div>
-		);
-	};
 
 	const triggeringHazardousEventItemTemplate = (
 		item: LinkedEventOption,
@@ -2373,31 +2297,6 @@ function StepperValidation({
 		);
 	};
 
-	const renderStep4SectionCard = (
-		title: string,
-		iconClass: string,
-		emptyLabel: string,
-		content: React.ReactNode,
-		hasItems: boolean,
-	) => (
-		<Card
-			className="rounded-2xl border border-slate-200 shadow-none"
-			pt={{ body: { style: { padding: "18px 20px" } } }}
-		>
-			<div className="space-y-4">
-				<div className="flex items-center gap-2 text-slate-800">
-					<i className={iconClass} />
-					<h4 className="text-[18px] leading-[24px] font-semibold">{title}</h4>
-				</div>
-				{hasItems ? (
-					<div className="space-y-5">{content}</div>
-				) : (
-					<p className="text-[14px] italic text-slate-400">{emptyLabel}</p>
-				)}
-			</div>
-		</Card>
-	);
-
 	const renderEmptyDetails = (label: string) => (
 		<div className="mt-4 rounded-xl border border-dashed border-slate-300 px-4 py-7 text-center text-[13px] text-slate-400">
 			{label}
@@ -2440,28 +2339,6 @@ function StepperValidation({
 		);
 	};
 
-	const linkedDisasterRecordReviewItemTemplate = (
-		item: LinkedEventOption,
-		layout?: "list" | "grid",
-	) => {
-		const wrapperClass =
-			layout === "grid" ? "linked-disaster-record-grid-item" : "w-full";
-
-		return (
-			<div className={wrapperClass}>
-				<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
-					<div className="flex w-full items-start justify-between gap-4">
-						<div>
-							<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
-							{item.hip ? (
-								<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
-							) : null}
-						</div>
-					</div>
-				</div>
-			</div>
-		);
-	};
 
 	const triggeringDisasterEventItemTemplate = (
 		item: LinkedEventOption,
@@ -2530,52 +2407,6 @@ function StepperValidation({
 							)
 						}
 					/>
-				</div>
-			</div>
-		);
-	};
-
-	const triggeringDisasterEventReviewItemTemplate = (
-		item: LinkedEventOption,
-		layout?: "list" | "grid",
-	) => {
-		const wrapperClass =
-			layout === "grid" ? "linked-disaster-record-grid-item" : "w-full";
-
-		return (
-			<div className={wrapperClass}>
-				<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
-					<div className="flex w-full items-start justify-between gap-4">
-						<div>
-							<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
-							{item.hip ? (
-								<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
-							) : null}
-						</div>
-					</div>
-				</div>
-			</div>
-		);
-	};
-
-	const triggeredDisasterEventReviewItemTemplate = (
-		item: LinkedEventOption,
-		layout?: "list" | "grid",
-	) => {
-		const wrapperClass =
-			layout === "grid" ? "linked-disaster-record-grid-item" : "w-full";
-
-		return (
-			<div className={wrapperClass}>
-				<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
-					<div className="flex w-full items-start justify-between gap-4">
-						<div>
-							<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
-							{item.hip ? (
-								<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
-							) : null}
-						</div>
-					</div>
 				</div>
 			</div>
 		);
@@ -3449,22 +3280,22 @@ function StepperValidation({
 										<div className="mt-2.5">
 											<Button
 												type="button"
-														label={
-															isOpeningLinkedTriggeringDisasterEventsModal
-																? "Opening..."
-																: "Manage linked triggering events"
-														}
+												label={
+													isOpeningLinkedTriggeringDisasterEventsModal
+														? "Opening..."
+														: "Manage linked triggering events"
+												}
 												outlined
 												icon="pi pi-link"
-														loading={isOpeningLinkedTriggeringDisasterEventsModal}
-														disabled={isOpeningLinkedTriggeringDisasterEventsModal}
+												loading={isOpeningLinkedTriggeringDisasterEventsModal}
+												disabled={isOpeningLinkedTriggeringDisasterEventsModal}
 												onClick={openLinkedTriggeringDisasterEventsModal}
 											/>
-													<span className="sr-only" aria-live="polite">
-														{isOpeningLinkedTriggeringDisasterEventsModal
-															? "Loading linked triggering events selector"
-															: ""}
-													</span>
+											<span className="sr-only" aria-live="polite">
+												{isOpeningLinkedTriggeringDisasterEventsModal
+													? "Loading linked triggering events selector"
+													: ""}
+											</span>
 										</div>
 
 										<div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
@@ -3484,22 +3315,22 @@ function StepperValidation({
 										<div className="mt-2.5">
 											<Button
 												type="button"
-														label={
-															isOpeningLinkedTriggeredDisasterEventsModal
-																? "Opening..."
-																: "Manage linked triggered events"
-														}
+												label={
+													isOpeningLinkedTriggeredDisasterEventsModal
+														? "Opening..."
+														: "Manage linked triggered events"
+												}
 												outlined
 												icon="pi pi-link"
-														loading={isOpeningLinkedTriggeredDisasterEventsModal}
-														disabled={isOpeningLinkedTriggeredDisasterEventsModal}
+												loading={isOpeningLinkedTriggeredDisasterEventsModal}
+												disabled={isOpeningLinkedTriggeredDisasterEventsModal}
 												onClick={openLinkedTriggeredDisasterEventsModal}
 											/>
-													<span className="sr-only" aria-live="polite">
-														{isOpeningLinkedTriggeredDisasterEventsModal
-															? "Loading linked triggered events selector"
-															: ""}
-													</span>
+											<span className="sr-only" aria-live="polite">
+												{isOpeningLinkedTriggeredDisasterEventsModal
+													? "Loading linked triggered events selector"
+													: ""}
+											</span>
 										</div>
 
 										<div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
@@ -3509,9 +3340,9 @@ function StepperValidation({
 												itemTemplate={triggeredDisasterEventItemTemplate}
 												emptyMessage="No linked triggered (subsequent) events"
 												layout="grid"
-											/>										
+											/>
 										</div>
-										
+
 									</div>
 								</div>
 
@@ -3553,7 +3384,7 @@ function StepperValidation({
 												emptyMessage="No linked records"
 												layout="grid"
 											/>
-											
+
 										</div>
 									</div>
 								</div>
@@ -3962,299 +3793,37 @@ function StepperValidation({
 									},
 								}}
 							>
-								<div className="space-y-5">
-									<div>
-										<h3 className="text-[18px] leading-[24px] font-semibold text-slate-800">
-											Review and save
-										</h3>
-										<p className="mt-1 text-[14px] leading-[22px] text-slate-500">
-											Verify the information before saving.
-										</p>
-									</div>
-
-									<Card
-										className="rounded-2xl border border-slate-200 shadow-none"
-										pt={{ body: { style: { padding: "5px 20px 5px 20px" } } }}
-									>
-										<div className="space-y-6">
-											<div className="flex items-center gap-2 text-slate-800">
-												<i className="pi pi-info-circle text-blue-600" />
-												<h4 className="text-[16px] leading-[16px] font-semibold">
-													Basic information
-												</h4>
-											</div>
-											<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-												{renderReviewItem(
-													"Disaster name - national",
-													form.nameNational,
-												)}
-												{renderReviewItem(
-													"Disaster name - global/regional",
-													form.nameGlobalOrRegional,
-												)}
-												{renderReviewItem(
-													"National event ID",
-													form.nationalDisasterId,
-												)}
-												{renderReviewItem("GLIDE number", form.glide)}
-												{renderReviewItem("Disaster event UUID", form.id)}
-												{renderReviewItem(
-													"Recording organisation",
-													form.recordingOrganizationName,
-												)}
-											</div>
-										</div>
-									</Card>
-
-									<Card
-										className="rounded-2xl border border-slate-200 shadow-none"
-										pt={{ body: { style: { padding: "5px 20px 5px 20px" } } }}
-									>
-										<div className="space-y-6">
-											<div className="flex items-center gap-2 text-slate-800">
-												<i className="pi pi-map-marker text-blue-600" />
-												<h4 className="text-[16px] leading-[16px] font-semibold">
-													Hazard details
-												</h4>
-											</div>
-											<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-												{renderReviewItem(
-													"Hazard type",
-													sortedHipTypes.find(
-														(item) => item.id === selectedHipTypeId,
-													)?.name || "",
-												)}
-												{renderReviewItem(
-													"Hazard cluster",
-													sortedHipClusters.find(
-														(item) => item.id === selectedHipClusterId,
-													)?.name || "",
-												)}
-												{renderReviewItem(
-													"Specific hazard",
-													sortedHipHazards.find(
-														(item) => item.id === selectedHipHazardId,
-													)?.name || "",
-												)}
-											</div>
-											<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-												{renderReviewTimingItem(
-													"Start",
-													startDateState,
-													startTime,
-												)}
-												{renderReviewTimingItem(
-													"End",
-													endDateState,
-													endTime,
-												)}
-											</div>
-										</div>
-									</Card>
-
-									{renderStep4SectionCard(
-										"Location",
-										"pi pi-map-marker text-blue-600",
-										"No location details available",
-										<>
-											<div className="space-y-2">
-												<p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-													Geographic levels
-												</p>
-												{selectedDivisionItems.length > 0 ? (
-													<div className="flex flex-wrap gap-2">
-														{selectedDivisionItems.map((item) => (
-															<span
-																key={`review-division-${item.key}`}
-																className="rounded-md bg-blue-50 px-2 py-1 text-[12px] text-blue-700"
-															>
-																{item.label}
-															</span>
-														))}
-													</div>
-												) : (
-													<p className="text-[14px] italic text-slate-400">
-														No geographic levels selected
-													</p>
-												)}
-											</div>
-
-											<div className="space-y-2">
-												<p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-													Spatial footprint
-												</p>
-												{reviewSpatialFootprintItems.length > 0 ? (
-													<ul className="list-disc pl-5 text-[14px] text-slate-500">
-														{reviewSpatialFootprintItems.map((title, index) => (
-															<li key={`review-footprint-${index}`}>{title}</li>
-														))}
-													</ul>
-												) : (
-													<p className="text-[14px] italic text-slate-400">
-														No spatial data defined
-													</p>
-												)}
-											</div>
-										</>,
-										selectedDivisionItems.length > 0 ||
-										reviewSpatialFootprintItems.length > 0,
-									)}
-
-									{renderStep4SectionCard(
-										"Linked events",
-										"pi pi-link text-blue-600",
-										"No linked hazardous or disaster events selected yet",
-										<>
-											<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-												<div className="rounded-xl border border-slate-200 bg-white p-4">
-													<div className="space-y-3">
-														<p className="text-[14px] font-semibold text-slate-700">
-															Triggering (causal) hazardous events
-														</p>
-														<DataView
-															className="linked-disaster-event-grid"
-															value={triggeringHazardousEventTarget}
-															itemTemplate={hazardousEventItemTemplate}
-															emptyMessage="No linked triggering (causal) hazardous events"
-															layout="grid"
-														/>
-													</div>
-												</div>
-												<div className="rounded-xl border border-slate-200 bg-white p-4">
-													<div className="space-y-3">
-														<p className="text-[14px] font-semibold text-slate-700">
-															Triggered (subsequent) hazardous events
-														</p>
-														<DataView
-															className="linked-disaster-event-grid"
-															value={triggeredHazardousEventTarget}
-															itemTemplate={hazardousEventItemTemplate}
-															emptyMessage="No linked triggered (subsequent) hazardous events"
-															layout="grid"
-														/>
-													</div>
-												</div>
-											</div>
-											<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-												<div className="rounded-xl border border-slate-200 bg-white p-4">
-													<div className="space-y-3">
-														<p className="text-[14px] font-semibold text-slate-700">
-															Triggering (causal) disaster events
-														</p>
-														<DataView
-															className="linked-disaster-event-grid"
-															value={triggeringDisasterEventTarget}
-															itemTemplate={
-																triggeringDisasterEventReviewItemTemplate
-															}
-															emptyMessage="No linked triggering (causal) disaster events"
-															layout="grid"
-														/>
-													</div>
-												</div>
-												<div className="rounded-xl border border-slate-200 bg-white p-4">
-													<div className="space-y-3">
-														<p className="text-[14px] font-semibold text-slate-700">
-															Triggered (subsequent) disaster events
-														</p>
-														<DataView
-															className="linked-disaster-event-grid"
-															value={triggeredDisasterEventTarget}
-															itemTemplate={
-																triggeredDisasterEventReviewItemTemplate
-															}
-															emptyMessage="No linked triggered (subsequent) disaster events"
-															layout="grid"
-														/>
-													</div>
-												</div>
-											</div>
-										</>,
-										triggeringHazardousEventTarget.length > 0 ||
-										triggeredHazardousEventTarget.length > 0 ||
-										triggeringDisasterEventTarget.length > 0 ||
-										triggeredDisasterEventTarget.length > 0,
-									)}
-
-									{renderStep4SectionCard(
-										"Linked disaster records",
-										"pi pi-file text-blue-600",
-										"No disaster records linked yet",
-										<DataView
-											className="linked-disaster-records-grid"
-											value={linkedDisasterRecordTarget}
-											itemTemplate={linkedDisasterRecordReviewItemTemplate}
-											layout="grid"
-										/>,
-										linkedDisasterRecordTarget.length > 0,
-									)}
-
-									{renderStep4SectionCard(
-										"Responses",
-										"pi pi-file-edit text-blue-600",
-										"No responses recorded yet",
-										responses.map((item) =>
-											renderStep4DetailRow("response", item),
-										),
-										responses.length > 0,
-									)}
-
-									{renderStep4SectionCard(
-										"Assessments",
-										"pi pi-clipboard text-violet-600",
-										"No assessments recorded yet",
-										assessments.map((item) =>
-											renderStep4DetailRow("assessment", item),
-										),
-										assessments.length > 0,
-									)}
-
-									{renderStep4SectionCard(
-										"Official declarations",
-										"pi pi-send text-amber-600",
-										"No declarations recorded yet",
-										declarations.map((item) =>
-											renderStep4DetailRow("declaration", item),
-										),
-										declarations.length > 0,
-									)}
-								</div>
-
-								<div className="col-span-12 mt-30 mb-6 h-[2px] w-full bg-slate-200" />
-
-								<div className="flex items-center justify-between w-full">
-									<Button
-										type="button"
-										label="Cancel"
-										outlined
-										onClick={openExitConfirmModal}
-									/>
-									<div className="flex gap-2">
-										<Button
-											type="button"
-											label="Back"
-											outlined
-											icon="pi pi-chevron-left"
-											iconPos="left"
-											onClick={() => {
-												saveCurrentFormState();
-												setActiveStep(2);
-											}}
-										/>
-										<Button
-											type="button"
-											label="Send for validation"
-											icon="pi pi-send"
-											iconPos="right"
-											onClick={() => {
-												const snapshot = saveCurrentFormState();
-												if (validateStep1(snapshot)) {
-													setVisibleModalSubmit(true);
-												}
-											}}
-										/>
-									</div>
-								</div>
+								<DisasterEventReviewStep
+									form={form}
+									selectedHazardTypeName={selectedHazardTypeName}
+									selectedHazardClusterName={selectedHazardClusterName}
+									selectedSpecificHazardName={selectedSpecificHazardName}
+									startTimingValue={reviewStartTimingValue}
+									endTimingValue={reviewEndTimingValue}
+									selectedDivisionItems={selectedDivisionItems}
+									reviewSpatialFootprintItems={reviewSpatialFootprintItems}
+									triggeringHazardousEventTarget={triggeringHazardousEventTarget}
+									triggeredHazardousEventTarget={triggeredHazardousEventTarget}
+									triggeringDisasterEventTarget={triggeringDisasterEventTarget}
+									triggeredDisasterEventTarget={triggeredDisasterEventTarget}
+									linkedDisasterRecordTarget={linkedDisasterRecordTarget}
+									responses={responses}
+									assessments={assessments}
+									declarations={declarations}
+									getDetailTypeLabel={getDetailTypeLabel}
+									getDetailDescriptionValue={getDetailDescriptionValue}
+									onCancel={openExitConfirmModal}
+									onBack={() => {
+										saveCurrentFormState();
+										setActiveStep(2);
+									}}
+									onSendForValidation={() => {
+										const snapshot = saveCurrentFormState();
+										if (validateStep1(snapshot)) {
+											setVisibleModalSubmit(true);
+										}
+									}}
+								/>
 							</StepperPanel>
 						</Stepper>
 					</RouterForm>
