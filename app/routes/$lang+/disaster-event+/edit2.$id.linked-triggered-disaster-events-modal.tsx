@@ -9,9 +9,10 @@ import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { Checkbox } from "primereact/checkbox";
 import { DataView } from "primereact/dataview";
-import { and, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
 import { dr } from "~/db.server";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
+import { eventCausalityTable } from "~/drizzle/schema/eventCausalityTable";
 import type { DisasterEventFormOutletContext } from "~/frontend/disaster-event/DisasterEventForm";
 import { authActionWithPerm, authLoaderWithPerm } from "~/utils/auth";
 import { getCountryAccountsIdFromSession } from "~/utils/session";
@@ -134,6 +135,56 @@ async function queryDisasterEventOptions(
 	return disasterEvents.map((event) => formatDisasterEventOption(event, lang));
 }
 
+async function queryAncestorDisasterEventIds(
+	countryAccountsId: string,
+	rootIds: string[],
+) {
+	const normalizedRoots = Array.from(
+		new Set(rootIds.map((id) => id.trim()).filter(Boolean)),
+	);
+
+	if (normalizedRoots.length === 0) {
+		return [];
+	}
+
+	const visited = new Set<string>();
+	let frontier = normalizedRoots;
+
+	while (frontier.length > 0) {
+		const rows = await dr
+			.select({
+				id: eventCausalityTable.triggeringDisasterEventId,
+			})
+			.from(eventCausalityTable)
+			.innerJoin(
+				disasterEventTable,
+				eq(disasterEventTable.id, eventCausalityTable.triggeringDisasterEventId),
+			)
+			.where(
+				and(
+					eq(eventCausalityTable.triggeringEntityType, "DE"),
+					eq(eventCausalityTable.triggeredEntityType, "DE"),
+					inArray(eventCausalityTable.triggeredDisasterEventId, frontier),
+					eq(disasterEventTable.countryAccountsId, countryAccountsId),
+				),
+			);
+
+		const nextFrontier: string[] = [];
+		for (const row of rows) {
+			if (!row.id || visited.has(row.id)) {
+				continue;
+			}
+
+			visited.add(row.id);
+			nextFrontier.push(row.id);
+		}
+
+		frontier = nextFrontier;
+	}
+
+	return Array.from(visited);
+}
+
 export const loader = authLoaderWithPerm("EditData", async ({ request, params }) => {
 	const countryAccountsId = await getCountryAccountsIdFromSession(request);
 	if (!countryAccountsId) {
@@ -149,9 +200,13 @@ export const loader = authLoaderWithPerm("EditData", async ({ request, params })
 		currentItemId,
 		lang,
 	);
+	const ancestorDisasterEventIds = currentItemId
+		? await queryAncestorDisasterEventIds(countryAccountsId, [currentItemId])
+		: [];
 
 	return {
 		disasterEventOptions,
+		ancestorDisasterEventIds,
 	};
 });
 
@@ -173,9 +228,13 @@ export const action = authActionWithPerm("EditData", async ({ request, params })
 		lang,
 		keyword,
 	);
+	const ancestorDisasterEventIds = currentItemId
+		? await queryAncestorDisasterEventIds(countryAccountsId, [currentItemId])
+		: [];
 
 	return {
 		disasterEventOptions,
+		ancestorDisasterEventIds,
 		keyword,
 	};
 });
@@ -227,13 +286,33 @@ export default function LinkedTriggeredDisasterEventsModalRoute() {
 		return fetcher.data?.disasterEventOptions ?? [];
 	}, [fetcher.data?.disasterEventOptions, ld.disasterEventOptions, searchTerm]);
 
+	const ancestorIds = useMemo(() => {
+		if (searchTerm.trim().length < 3) {
+			return new Set(ld.ancestorDisasterEventIds ?? []);
+		}
+
+		return new Set(
+			fetcher.data?.ancestorDisasterEventIds ??
+				ld.ancestorDisasterEventIds ??
+				[],
+		);
+	}, [fetcher.data?.ancestorDisasterEventIds, ld.ancestorDisasterEventIds, searchTerm]);
+
+	const blockedChildIds = useMemo(() => {
+		const blockedIds = new Set(triggeringDisasterEventTarget.map((item) => item.id));
+		for (const ancestorId of ancestorIds) {
+			blockedIds.add(ancestorId);
+		}
+
+		return blockedIds;
+	}, [ancestorIds, triggeringDisasterEventTarget]);
+
 	const availableEvents = useMemo(() => {
 		const selectedIds = new Set(draftTarget.map((item) => item.id));
-		const blockedIds = new Set(triggeringDisasterEventTarget.map((item) => item.id));
 		return sourceOptions.filter(
-			(item) => !selectedIds.has(item.id) && !blockedIds.has(item.id),
+			(item) => !selectedIds.has(item.id) && !blockedChildIds.has(item.id),
 		);
-	}, [draftTarget, sourceOptions, triggeringDisasterEventTarget]);
+	}, [blockedChildIds, draftTarget, sourceOptions]);
 
 	const toggleAvailable = (id: string, checked: boolean) => {
 		setSelectedAvailableIds((previous) =>
@@ -256,9 +335,8 @@ export default function LinkedTriggeredDisasterEventsModalRoute() {
 			return;
 		}
 
-		const blockedIds = new Set(triggeringDisasterEventTarget.map((item) => item.id));
 		const toAdd = availableEvents.filter((item) =>
-			selectedAvailableIds.includes(item.id) && !blockedIds.has(item.id),
+			selectedAvailableIds.includes(item.id) && !blockedChildIds.has(item.id),
 		);
 		setDraftTarget((previous) => [...previous, ...toAdd]);
 		setSelectedAvailableIds([]);
@@ -301,8 +379,7 @@ export default function LinkedTriggeredDisasterEventsModalRoute() {
 		setPendingExitAction("apply");
 		setTriggeredDisasterEventTarget(
 			draftTarget.filter(
-				(item) =>
-					!triggeringDisasterEventTarget.some((other) => other.id === item.id),
+				(item) => !blockedChildIds.has(item.id),
 			),
 		);
 		navigate("..", { replace: true });

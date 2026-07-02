@@ -9,9 +9,10 @@ import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { Checkbox } from "primereact/checkbox";
 import { DataView } from "primereact/dataview";
-import { and, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
 import { dr } from "~/db.server";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
+import { eventCausalityTable } from "~/drizzle/schema/eventCausalityTable";
 import type { DisasterEventFormOutletContext } from "~/frontend/disaster-event/DisasterEventForm";
 import { authActionWithPerm, authLoaderWithPerm } from "~/utils/auth";
 import { getCountryAccountsIdFromSession } from "~/utils/session";
@@ -136,6 +137,56 @@ function localizedHipName(
 		return disasterEvents.map((event) => formatDisasterEventOption(event, lang));
 	}
 
+	async function queryDescendantDisasterEventIds(
+		countryAccountsId: string,
+		rootIds: string[],
+	) {
+		const normalizedRoots = Array.from(
+			new Set(rootIds.map((id) => id.trim()).filter(Boolean)),
+		);
+
+		if (normalizedRoots.length === 0) {
+			return [];
+		}
+
+		const visited = new Set<string>();
+		let frontier = normalizedRoots;
+
+		while (frontier.length > 0) {
+			const rows = await dr
+				.select({
+					id: eventCausalityTable.triggeredDisasterEventId,
+				})
+				.from(eventCausalityTable)
+				.innerJoin(
+					disasterEventTable,
+					eq(disasterEventTable.id, eventCausalityTable.triggeredDisasterEventId),
+				)
+				.where(
+					and(
+						eq(eventCausalityTable.triggeringEntityType, "DE"),
+						eq(eventCausalityTable.triggeredEntityType, "DE"),
+						inArray(eventCausalityTable.triggeringDisasterEventId, frontier),
+						eq(disasterEventTable.countryAccountsId, countryAccountsId),
+					),
+				);
+
+			const nextFrontier: string[] = [];
+			for (const row of rows) {
+				if (!row.id || visited.has(row.id)) {
+					continue;
+				}
+
+				visited.add(row.id);
+				nextFrontier.push(row.id);
+			}
+
+			frontier = nextFrontier;
+		}
+
+		return Array.from(visited);
+	}
+
 	export const loader = authLoaderWithPerm("EditData", async ({ request, params }) => {
 		const countryAccountsId = await getCountryAccountsIdFromSession(request);
 		if (!countryAccountsId) {
@@ -151,9 +202,13 @@ function localizedHipName(
 			currentItemId,
 			lang,
 		);
+		const descendantDisasterEventIds = currentItemId
+			? await queryDescendantDisasterEventIds(countryAccountsId, [currentItemId])
+			: [];
 
 		return {
 			disasterEventOptions,
+			descendantDisasterEventIds,
 		};
 	});
 
@@ -175,9 +230,13 @@ function localizedHipName(
 			lang,
 			keyword,
 		);
+		const descendantDisasterEventIds = currentItemId
+			? await queryDescendantDisasterEventIds(countryAccountsId, [currentItemId])
+			: [];
 
 		return {
 			disasterEventOptions,
+			descendantDisasterEventIds,
 			keyword,
 		};
 	});
@@ -229,13 +288,37 @@ function localizedHipName(
 			return fetcher.data?.disasterEventOptions ?? [];
 		}, [fetcher.data?.disasterEventOptions, ld.disasterEventOptions, searchTerm]);
 
+		const descendantIds = useMemo(() => {
+			if (searchTerm.trim().length < 3) {
+				return new Set(ld.descendantDisasterEventIds ?? []);
+			}
+
+			return new Set(
+				fetcher.data?.descendantDisasterEventIds ??
+					ld.descendantDisasterEventIds ??
+					[],
+			);
+		}, [
+			fetcher.data?.descendantDisasterEventIds,
+			ld.descendantDisasterEventIds,
+			searchTerm,
+		]);
+
+		const blockedParentIds = useMemo(() => {
+			const blockedIds = new Set(triggeredDisasterEventTarget.map((item) => item.id));
+			for (const descendantId of descendantIds) {
+				blockedIds.add(descendantId);
+			}
+
+			return blockedIds;
+		}, [descendantIds, triggeredDisasterEventTarget]);
+
 		const availableEvents = useMemo(() => {
 			const selectedIds = new Set(draftTarget.map((item) => item.id));
-			const blockedIds = new Set(triggeredDisasterEventTarget.map((item) => item.id));
 			return sourceOptions.filter(
-				(item) => !selectedIds.has(item.id) && !blockedIds.has(item.id),
+				(item) => !selectedIds.has(item.id) && !blockedParentIds.has(item.id),
 			);
-		}, [draftTarget, sourceOptions, triggeredDisasterEventTarget]);
+		}, [blockedParentIds, draftTarget, sourceOptions]);
 
 		const toggleAvailable = (id: string, checked: boolean) => {
 			setSelectedAvailableIds((previous) =>
@@ -258,9 +341,8 @@ function localizedHipName(
 				return;
 			}
 
-			const blockedIds = new Set(triggeredDisasterEventTarget.map((item) => item.id));
 			const toAdd = availableEvents.filter((item) =>
-				selectedAvailableIds.includes(item.id) && !blockedIds.has(item.id),
+				selectedAvailableIds.includes(item.id) && !blockedParentIds.has(item.id),
 			);
 			setDraftTarget((previous) => [...previous, ...toAdd]);
 			setSelectedAvailableIds([]);
@@ -303,8 +385,7 @@ function localizedHipName(
 			setPendingExitAction("apply");
 			setTriggeringDisasterEventTarget(
 				draftTarget.filter(
-					(item) =>
-						!triggeredDisasterEventTarget.some((other) => other.id === item.id),
+					(item) => !blockedParentIds.has(item.id),
 				),
 			);
 			navigate("..", { replace: true });

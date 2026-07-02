@@ -52,10 +52,10 @@ function formatHazardousEventOption(
 	const typeName = localizedHipName(event.hipType?.name, lang);
 	const displayName =
 		event.hipHazard?.code
-			? `H: ${hazardName} (${event.hipHazard.code})`
-			: `H: ${hazardName}` ||
-		`C: ${clusterName}` ||
-		`T: ${typeName}`;
+			? `${hazardName} (${event.hipHazard.code})`
+			: hazardName ||
+		clusterName ||
+		typeName;
 
 	return {
 		id: event.id,
