@@ -53,15 +53,16 @@ function formatDisasterRecordOption(
 	const hazardName = localizedHipName(record.hipHazard?.name, lang);
 	const clusterName = localizedHipName(record.hipCluster?.name, lang);
 	const typeName = localizedHipName(record.hipType?.name, lang);
-	const hipLabel = hazardName
-		? record.hipHazard?.code
+	let hipLabel = "";
+	if (hazardName) {
+		hipLabel = record.hipHazard?.code
 			? `H: ${hazardName} (${record.hipHazard.code})`
-			: `H: ${hazardName}`
-		: clusterName
-			? `C: ${clusterName}`
-			: typeName
-				? `T: ${typeName}`
-				: "";
+			: `H: ${hazardName}`;
+	} else if (clusterName) {
+		hipLabel = `C: ${clusterName}`;
+	} else if (typeName) {
+		hipLabel = `T: ${typeName}`;
+	}
 
 	return {
 		id: record.id,

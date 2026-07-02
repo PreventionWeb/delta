@@ -55,15 +55,16 @@ function localizedHipName(
 		const hazardName = localizedHipName(event.hipHazard?.name, lang);
 		const clusterName = localizedHipName(event.hipCluster?.name, lang);
 		const typeName = localizedHipName(event.hipType?.name, lang);
-		const hipLabel = hazardName
-			? event.hipHazard?.code
+		let hipLabel = "";
+		if (hazardName) {
+			hipLabel = event.hipHazard?.code
 				? `H: ${hazardName} (${event.hipHazard.code})`
-				: `H: ${hazardName}`
-			: clusterName
-				? `C: ${clusterName}`
-				: typeName
-					? `T: ${typeName}`
-					: "";
+				: `H: ${hazardName}`;
+		} else if (clusterName) {
+			hipLabel = `C: ${clusterName}`;
+		} else if (typeName) {
+			hipLabel = `T: ${typeName}`;
+		}
 
 		return {
 			id: event.id,

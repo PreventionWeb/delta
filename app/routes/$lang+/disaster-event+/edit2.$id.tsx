@@ -12,7 +12,7 @@ import { formSave } from "~/backend.server/handlers/form/form";
 
 import { route } from "~/frontend/events/disastereventform";
 
-import { useLoaderData } from "react-router";
+import { useActionData, useLoaderData } from "react-router";
 
 import { getItem2 } from "~/backend.server/handlers/view";
 import { dataForHazardPicker } from "~/backend.server/models/hip_hazard_picker";
@@ -799,6 +799,65 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 					linkedTriggeredDisasterEventIds.filter((id) => id !== eventId),
 				);
 
+				const formatConflictSummary = async (ids: string[]) => {
+					if (ids.length === 0) {
+						return "";
+					}
+
+					const rows = await tx
+						.select({
+							id: disasterEventTable.id,
+							nameNational: disasterEventTable.nameNational,
+							nameGlobalOrRegional: disasterEventTable.nameGlobalOrRegional,
+						})
+						.from(disasterEventTable)
+						.where(
+							and(
+								eq(disasterEventTable.countryAccountsId, countryAccountsId),
+								inArray(disasterEventTable.id, ids),
+							),
+						);
+
+					const byId = new Map(rows.map((row) => [row.id, row]));
+					return ids
+						.map((id) => {
+							const event = byId.get(id);
+							const name =
+								event?.nameNational?.trim() ||
+								event?.nameGlobalOrRegional?.trim() ||
+								`DE ${id.slice(0, 8)}`;
+							return `${name} (${id.slice(0, 8)})`;
+						})
+						.join(", ");
+				};
+
+				const cycleErrorResult = async (
+					messageCode: string,
+					message: string,
+					conflictIds: string[],
+				) => {
+					const conflictSummary = await formatConflictSummary(conflictIds);
+					const detail = conflictSummary
+						? ` ${ctx.t({
+								code: "disaster_event.cycle_conflicts",
+								msg: "Conflicting events:",
+							})} ${conflictSummary}`
+						: "";
+
+					return {
+						ok: false as const,
+						errors: {
+							fields: {},
+							form: [
+								ctx.t({
+									code: messageCode,
+									msg: message,
+								}) + detail,
+							],
+						},
+					};
+				};
+
 				const currentTriggeringRows = await tx
 					.select({
 						id: eventCausalityTable.id,
@@ -837,6 +896,101 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 						.map((row) => row.linkedId)
 						.filter((id): id is string => Boolean(id)),
 				);
+
+				const descendantsResult = await tx.execute(sql`
+					WITH RECURSIVE descendants AS (
+						SELECT ${eventCausalityTable.triggeredDisasterEventId} AS id
+						FROM ${eventCausalityTable}
+						INNER JOIN ${disasterEventTable}
+							ON ${disasterEventTable.id} = ${eventCausalityTable.triggeredDisasterEventId}
+						WHERE
+							${eventCausalityTable.triggeringEntityType} = 'DE'
+							AND ${eventCausalityTable.triggeredEntityType} = 'DE'
+							AND ${eventCausalityTable.triggeringDisasterEventId} = ${eventId}
+							AND ${disasterEventTable.countryAccountsId} = ${countryAccountsId}
+
+						UNION
+
+						SELECT ${eventCausalityTable.triggeredDisasterEventId} AS id
+						FROM ${eventCausalityTable}
+						INNER JOIN descendants
+							ON ${eventCausalityTable.triggeringDisasterEventId} = descendants.id
+						INNER JOIN ${disasterEventTable}
+							ON ${disasterEventTable.id} = ${eventCausalityTable.triggeredDisasterEventId}
+						WHERE
+							${eventCausalityTable.triggeringEntityType} = 'DE'
+							AND ${eventCausalityTable.triggeredEntityType} = 'DE'
+							AND ${disasterEventTable.countryAccountsId} = ${countryAccountsId}
+					)
+					SELECT DISTINCT id
+					FROM descendants
+					WHERE id IS NOT NULL
+				`);
+
+				const descendantIds = new Set(
+					descendantsResult.rows
+						.map((row) => String((row as { id?: string | null }).id || ""))
+						.filter(Boolean),
+				);
+
+				const invalidTriggeringIds = Array.from(selectedTriggeringIds).filter(
+					(linkedEventId) =>
+						linkedEventId === eventId || descendantIds.has(linkedEventId),
+				);
+				if (invalidTriggeringIds.length > 0) {
+					return cycleErrorResult(
+						"disaster_event.cycle_triggering_not_allowed",
+						"Cannot save linked triggering disaster events because one or more selected events are already downstream of this event. This would create a cycle.",
+						invalidTriggeringIds,
+					);
+				}
+
+				const ancestorsResult = await tx.execute(sql`
+					WITH RECURSIVE ancestors AS (
+						SELECT ${eventCausalityTable.triggeringDisasterEventId} AS id
+						FROM ${eventCausalityTable}
+						INNER JOIN ${disasterEventTable}
+							ON ${disasterEventTable.id} = ${eventCausalityTable.triggeringDisasterEventId}
+						WHERE
+							${eventCausalityTable.triggeringEntityType} = 'DE'
+							AND ${eventCausalityTable.triggeredEntityType} = 'DE'
+							AND ${eventCausalityTable.triggeredDisasterEventId} = ${eventId}
+							AND ${disasterEventTable.countryAccountsId} = ${countryAccountsId}
+
+						UNION
+
+						SELECT ${eventCausalityTable.triggeringDisasterEventId} AS id
+						FROM ${eventCausalityTable}
+						INNER JOIN ancestors
+							ON ${eventCausalityTable.triggeredDisasterEventId} = ancestors.id
+						INNER JOIN ${disasterEventTable}
+							ON ${disasterEventTable.id} = ${eventCausalityTable.triggeringDisasterEventId}
+						WHERE
+							${eventCausalityTable.triggeringEntityType} = 'DE'
+							AND ${eventCausalityTable.triggeredEntityType} = 'DE'
+							AND ${disasterEventTable.countryAccountsId} = ${countryAccountsId}
+					)
+					SELECT DISTINCT id
+					FROM ancestors
+					WHERE id IS NOT NULL
+				`);
+
+				const ancestorIds = new Set(
+					ancestorsResult.rows
+						.map((row) => String((row as { id?: string | null }).id || ""))
+						.filter(Boolean),
+				);
+
+				const invalidTriggeredIds = Array.from(selectedTriggeredIds).filter(
+					(linkedEventId) => linkedEventId === eventId || ancestorIds.has(linkedEventId),
+				);
+				if (invalidTriggeredIds.length > 0) {
+					return cycleErrorResult(
+						"disaster_event.cycle_triggered_not_allowed",
+						"Cannot save linked triggered disaster events because one or more selected events are already upstream of this event. This would create a cycle.",
+						invalidTriggeredIds,
+					);
+				}
 
 				for (const row of currentTriggeringRows) {
 					if (row.linkedId && !selectedTriggeringIds.has(row.linkedId)) {
@@ -879,6 +1033,8 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 						triggeredDisasterEventId: linkedEventId,
 					});
 				}
+
+				return { ok: true as const };
 			};
 			const syncLinkedDisasterRecords = async (eventId: string) => {
 				const selectedIds = new Set(linkedDisasterRecordIds);
@@ -1105,7 +1261,10 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 				if (returnValue.ok === true) {
 					await syncDisasterEventAttachments(id);
 					await syncLinkedHazardousEvents(id);
-					await syncLinkedDisasterEvents(id);
+					const syncDisasterEventResult = await syncLinkedDisasterEvents(id);
+					if (!syncDisasterEventResult.ok) {
+						return syncDisasterEventResult;
+					}
 					await syncLinkedDisasterRecords(id);
 					await handleApprovalWorkflowService(ctx, tx, id, "disaster_event", {
 						...updatedData,
@@ -1124,7 +1283,12 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 				if (returnValue.ok === true) {
 					await syncDisasterEventAttachments(returnValue.id);
 					await syncLinkedHazardousEvents(returnValue.id);
-					await syncLinkedDisasterEvents(returnValue.id);
+					const syncDisasterEventResult = await syncLinkedDisasterEvents(
+						returnValue.id,
+					);
+					if (!syncDisasterEventResult.ok) {
+						return syncDisasterEventResult;
+					}
 					await syncLinkedDisasterRecords(returnValue.id);
 					await handleApprovalWorkflowService(
 						ctx,
@@ -1267,6 +1431,18 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 
 export default function FormScreen() {
 	const ld = useLoaderData<typeof loader>();
+	const actionData = useActionData() as
+		| {
+				ok?: boolean;
+				errors?: {
+					form?: string[];
+				};
+		  }
+		| undefined;
+	const serverFormErrors =
+		actionData?.ok === false && Array.isArray(actionData.errors?.form)
+			? actionData.errors.form
+			: [];
 	const ctx = new ViewContext();
 	const disasterEventForForm = ld.item
 		? {
@@ -1308,6 +1484,7 @@ export default function FormScreen() {
 			currentUserOrganization={ld.currentUserOrganization ?? null}
 			user={ld.user}
 			usersWithValidatorRole={ld.usersWithValidatorRole ?? []}
+			serverFormErrors={serverFormErrors}
 		/>
 	);
 }

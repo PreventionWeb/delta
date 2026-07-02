@@ -321,6 +321,7 @@ type StepperValidationProps = {
 		lastName: string;
 		email: string;
 	}>;
+	serverFormErrors?: string[];
 };
 
 type NewAttachmentUpload = {
@@ -347,6 +348,7 @@ function StepperValidation({
 	currentUserOrganization,
 	user,
 	usersWithValidatorRole,
+	serverFormErrors = [],
 }: StepperValidationProps) {
 	const navigate = useNavigate();
 	const navigation = useNavigation();
@@ -1228,6 +1230,7 @@ function StepperValidation({
 	const [errors, setErrors] = useState<Errors>({});
 	const [visibleModalSubmit, setVisibleModalSubmit] = useState<boolean>(false);
 	const [visibleExitModal, setVisibleExitModal] = useState<boolean>(false);
+	const serverErrorRef = useRef<HTMLDivElement | null>(null);
 	const [selectedHipTypeId, setSelectedHipTypeId] = useState(
 		disasterEvent?.hipTypeId ?? "",
 	);
@@ -1237,6 +1240,20 @@ function StepperValidation({
 	const [selectedHipHazardId, setSelectedHipHazardId] = useState(
 		disasterEvent?.hipHazardId ?? "",
 	);
+
+	useEffect(() => {
+		if (serverFormErrors.length === 0) {
+			return;
+		}
+
+		window.requestAnimationFrame(() => {
+			serverErrorRef.current?.scrollIntoView({
+				behavior: "smooth",
+				block: "start",
+			});
+			serverErrorRef.current?.focus();
+		});
+	}, [serverFormErrors]);
 
 	const sortedHipTypes = [...(hip?.types ?? [])].sort((a, b) =>
 		a.name.localeCompare(b.name),
@@ -2712,6 +2729,28 @@ function StepperValidation({
 								/>
 							</div>
 						</div>
+
+						{serverFormErrors.length > 0 ? (
+							<div
+								ref={serverErrorRef}
+								className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-red-700"
+								role="alert"
+								aria-live="polite"
+								tabIndex={-1}
+							>
+								<p className="text-sm font-semibold">
+									{ctx.t({
+										code: "common.cannot_save_record",
+										msg: "Could not save this record",
+									})}
+								</p>
+								<ul className="mt-2 list-disc pl-5 text-sm">
+									{serverFormErrors.map((error, index) => (
+										<li key={`server-form-error-${index}`}>{error}</li>
+									))}
+								</ul>
+							</div>
+						) : null}
 
 						<Tooltip
 							key={`glide-tooltip-${activeStep}`}
