@@ -8,10 +8,9 @@
  *   store for each request so that repeated lookups within the same request
  *   lifecycle can be short-circuited after the first real DB call.
  *
- * Extension point (ADR-004):
- *   The store type `RequestContextStore` is intentionally minimal at this stage.
- *   ADR-004 (structured request logging) will add a `traceId` field to this
- *   same store without requiring changes to any of the existing consumers.
+ * ADR-004 (structured request logging):
+ *   The store also carries `traceId` / `tenantId` / `userId`, seeded once per
+ *   request by `app/middleware/requestContext.server.ts`
  */
 
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -42,6 +41,23 @@ export type RequestContextStore = {
 	 * `undefined` once the promise settles and `sessionCache` is populated.
 	 */
 	sessionCachePromise: Promise<UserSession | null> | undefined;
+
+	/**
+	 * Generated once per request via crypto.randomUUID()
+	 */
+	traceId: string;
+
+	/**
+	 * Tenant scoping the current request, resolved from the session cookie via
+	 * getCountryAccountsIdFromSession().
+	 */
+	tenantId: string | null;
+
+	/**
+	 * Authenticated user id for the current request, resolved from the session
+	 * via getUserFromSession(). 
+	 */
+	userId: string | null;
 };
 
 // Module-private singleton — one ALS instance for the entire process lifetime.
@@ -56,9 +72,24 @@ const als = new AsyncLocalStorage<RequestContextStore>();
  * Uses `als.run()` (NOT `als.enterWith()`) to guarantee that each call
  * produces its own isolated store. `enterWith` would mutate the current
  * async context in-place, allowing state to bleed between requests/tests.
+ *
+ * `seed.traceId`, when provided, is written at store-creation time so it is
+ * guaranteed present from the very first statement executed inside `fn`
  */
-export function withRequestContext<T>(fn: () => Promise<T>): Promise<T> {
-	return als.run({ sessionCache: undefined, sessionCachePromise: undefined }, fn);
+export function withRequestContext<T>(
+	fn: () => Promise<T>,
+	seed?: { traceId?: string },
+): Promise<T> {
+	return als.run(
+		{
+			sessionCache: undefined,
+			sessionCachePromise: undefined,
+			traceId: seed?.traceId ?? crypto.randomUUID(),
+			tenantId: null,
+			userId: null,
+		},
+		fn,
+	);
 }
 
 /**

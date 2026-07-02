@@ -28,9 +28,10 @@
 		"paths": {
 			"~/*": ["./app/*"]
 		},
-		// Required for NestJS @Module(), @Injectable(), and @Inject() decorators.
+		// Lets React Router's generated `+types/*` modules resolve their self-referential 
+		// `typeof import("../<route>.js")` back to the real route source file.
+		"rootDirs": [".", "./.react-router/types"],
 		// emitDecoratorMetadata enables Reflect.metadata calls that NestJS DI uses
-		// to resolve constructor-injected types at runtime.
 		"experimentalDecorators": true,
 		"emitDecoratorMetadata": true,
 		// Vite takes care of building everything, not tsc.

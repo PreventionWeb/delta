@@ -1,0 +1,49 @@
+/**
+ * Root-level React Router v7 middleware that opens exactly one `withRequestContext` scope per HTTP request
+ * Registered from `app/root.tsx`'s `middleware` export so it runs for every request
+ */
+
+import type { Route } from "../+types/root";
+import {
+	withRequestContext,
+	getRequestContext,
+} from "~/utils/requestContext.server";
+import {
+	getUserFromSession,
+	getCountryAccountsIdFromSession,
+} from "~/utils/session";
+
+export const requestContextMiddleware: Route.MiddlewareFunction = (
+	{ request },
+	next,
+) => {
+	const traceId = crypto.randomUUID();
+
+	return withRequestContext(
+		async () => {
+			// Promise.allSettled, allSettled ensures a failure in one (e.g. a transient DB error) 
+			// never prevents the other from populating and never rejects this callback
+			const [userResult, tenantIdResult] = await Promise.allSettled([
+				getUserFromSession(request),
+				getCountryAccountsIdFromSession(request),
+			]);
+
+			// Mutate the live store (not a second als.run()) so tenantId/userId land
+			// on the same store instance traceId was seeded into.
+			const ctx = getRequestContext();
+			if (ctx) {
+				ctx.userId =
+					userResult.status === "fulfilled"
+						? (userResult.value?.user.id ?? null)
+						: null;
+				ctx.tenantId =
+					tenantIdResult.status === "fulfilled"
+						? (tenantIdResult.value ?? null)
+						: null;
+			}
+
+			return next();
+		},
+		{ traceId },
+	);
+};
