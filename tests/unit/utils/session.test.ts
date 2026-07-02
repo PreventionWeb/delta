@@ -56,7 +56,10 @@ vi.mock("react-router", async (importOriginal) => {
 // Imports under test (after mocks are registered)
 // ---------------------------------------------------------------------------
 import { getUserFromSession, initCookieStorage } from "~/utils/session";
-import { withRequestContext } from "~/utils/requestContext.server";
+import {
+	withRequestContext,
+	getRequestContext,
+} from "~/utils/requestContext.server";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -212,6 +215,62 @@ describe("getUserFromSession — session memoization", () => {
 
 		expect(result1).toBeUndefined();
 		expect(result2).toBeUndefined();
+		expect(findFirstMock).toHaveBeenCalledTimes(1);
+	});
+
+	// regression guard: traceId/tenantId/userId on the same store must not disturb 
+	// the pre-existing sessionCache memoization contract (P1-14). 
+	it("memoization holds when the store also carries traceId/tenantId/userId (sequential calls)", async () => {
+		const request = makeRequest();
+
+		let result1: Awaited<ReturnType<typeof getUserFromSession>>;
+		let result2: Awaited<ReturnType<typeof getUserFromSession>>;
+
+		await withRequestContext(
+			async () => {
+				const ctx = getRequestContext()!;
+				ctx.tenantId = "tenant-1";
+				ctx.userId = "user-1";
+
+				result1 = await getUserFromSession(request);
+				result2 = await getUserFromSession(request);
+			},
+			{ traceId: "t-1" },
+		);
+
+		expect(result1).toBeDefined();
+		expect(result2).toBeDefined();
+		expect(result1).toBe(result2);
+		expect(findFirstMock).toHaveBeenCalledTimes(1);
+	});
+
+	// Task 2.1 — regression guard: concurrent-caller coordination on sessionCachePromise
+	// is unaffected by tenantId/userId being set concurrently elsewhere in the same scope.
+	it("memoization holds when the store also carries traceId/tenantId/userId (concurrent callers)", async () => {
+		const request = makeRequest();
+
+		let result1: Awaited<ReturnType<typeof getUserFromSession>>;
+		let result2: Awaited<ReturnType<typeof getUserFromSession>>;
+
+		await withRequestContext(async () => {
+			const ctx = getRequestContext()!;
+
+			[result1, result2] = await Promise.all([
+				getUserFromSession(request),
+				(async () => {
+					// Mutate tenantId/userId concurrently while the first lookup is in flight —
+					// mirrors the middleware setting these fields after its own
+					// getUserFromSession/getCountryAccountsIdFromSession Promise.allSettled resolves.
+					ctx.tenantId = "tenant-2";
+					ctx.userId = "user-2";
+					return getUserFromSession(request);
+				})(),
+			]);
+		});
+
+		expect(result1).toBeDefined();
+		expect(result2).toBeDefined();
+		expect(result1).toBe(result2);
 		expect(findFirstMock).toHaveBeenCalledTimes(1);
 	});
 });

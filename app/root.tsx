@@ -1,5 +1,6 @@
 import type { LinksFunction } from "react-router";
 import type { LoaderFunctionArgs } from "react-router";
+import type { Route } from "./+types/root";
 
 import {
 	useLoaderData,
@@ -40,11 +41,22 @@ import { Toast } from "primereact/toast";
 import RegularMenuBar from "./components/RegularMenuBar";
 import SuperAdminMenuBar from "./components/SuperAdminMenuBar";
 import InactivityWarning from "./components/InactivityWarning";
-import { isRouteErrorResponse, useRouteError, useRouteLoaderData } from "react-router";
+import {
+	isRouteErrorResponse,
+	useRouteError,
+	useRouteLoaderData,
+} from "react-router";
 import { Footer } from "./frontend/footer/footer";
 
 import { getUserRoleFromSession } from "~/utils/session";
 import { UserCountryAccountRepository } from "~/db/queries/userCountryAccountsRepository";
+import { requestContextMiddleware } from "~/middleware/requestContext.server";
+
+// Runs before any loader/action in the matched route tree, for every request
+// See openspec/changes/ca-request-context-middleware/design.md Decision 3.
+export const middleware: Route.MiddlewareFunction[] = [
+	requestContextMiddleware,
+];
 
 export const links: LinksFunction = () => [
 	{ rel: "stylesheet", href: "/assets/css/style-dts.css?asof=20250630" },
@@ -65,7 +77,9 @@ export const loader = async (
 	);
 	const message = getFlashMessage(session);
 	const userForRoute = onAdminRoute ? undefined : user;
-	const superAdminSessionForRoute = onAdminRoute ? superAdminSession : undefined;
+	const superAdminSessionForRoute = onAdminRoute
+		? superAdminSession
+		: undefined;
 
 	const userRole = await getUserRoleFromSession(request);
 	const isCountryAccountSelected = onAdminRoute
@@ -77,7 +91,10 @@ export const loader = async (
 
 	let activeInstanceCount = 0;
 	if (userForRoute) {
-		activeInstanceCount = await UserCountryAccountRepository.countActiveByUserId(userForRoute.user.id);
+		activeInstanceCount =
+			await UserCountryAccountRepository.countActiveByUserId(
+				userForRoute.user.id,
+			);
 	}
 
 	// Admin routes only honor super admin sessions.
@@ -115,10 +132,10 @@ export const loader = async (
 	const userForFrontend = onAdminRoute
 		? isSuperAdmin
 			? {
-				role: "super_admin",
-				firstName: "Super",
-				lastName: "Admin",
-			}
+					role: "super_admin",
+					firstName: "Super",
+					lastName: "Admin",
+				}
 			: null
 		: await authLoaderGetOptionalUserForFrontend(routeArgs);
 
@@ -183,7 +200,7 @@ export default function Screen() {
 		lang,
 		translations,
 		isCountryAccountSelected,
-		activeInstanceCount
+		activeInstanceCount,
 	} = loaderData;
 	const firstName = loaderData.common?.user?.firstName || "";
 	const lastName = loaderData.common?.user?.lastName || "";
@@ -217,7 +234,10 @@ export default function Screen() {
 				/>
 			</head>
 			<body>
-				<Toast ref={toast} position={loaderData.common.lang === "ar" ? "top-left" : "top-right"} />
+				<Toast
+					ref={toast}
+					position={loaderData.common.lang === "ar" ? "top-left" : "top-right"}
+				/>
 				<PrimeReactProvider
 					value={{
 						ripple: true,
@@ -225,7 +245,6 @@ export default function Screen() {
 				>
 					<InactivityWarning ctx={ctx} loggedIn={isLoggedIn} />
 					<div className="min-h-screen flex flex-col bg-white">
-
 						{/* Header */}
 						{!hideMainNavigation ? (
 							<header className="w-full bg-white border-b border-gray-200">
@@ -271,8 +290,6 @@ export default function Screen() {
 							</footer>
 						) : null}
 					</div>
-
-
 				</PrimeReactProvider>
 				<Scripts />
 			</body>
@@ -315,7 +332,6 @@ export function ErrorBoundary() {
 			<body>
 				<div className="min-h-screen bg-gray-50 px-8 py-12">
 					<div className="w-full bg-white shadow-sm border border-gray-200 rounded-xl p-8">
-
 						<div className="flex items-start gap-4 mb-6">
 							<i className="pi pi-exclamation-triangle text-3xl text-red-500"></i>
 
@@ -324,9 +340,7 @@ export function ErrorBoundary() {
 									{title}
 								</h1>
 
-								<p className="text-gray-600 mt-2">
-									{message}
-								</p>
+								<p className="text-gray-600 mt-2">{message}</p>
 							</div>
 						</div>
 
@@ -356,7 +370,6 @@ export function ErrorBoundary() {
 								{error.stack}
 							</pre>
 						)}
-
 					</div>
 				</div>
 
