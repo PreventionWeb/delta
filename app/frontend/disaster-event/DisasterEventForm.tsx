@@ -3158,6 +3158,7 @@ function StepperValidation({
 									<DisasterEventAttachment
 										ctx={ctx}
 										initialAttachments={disasterEventAttachments ?? []}
+										initialNewAttachmentUploads={newAttachmentUploads}
 										keptAttachmentIds={keptAttachmentIds}
 										onKeptAttachmentIdsChange={setKeptAttachmentIds}
 										onNewAttachmentUploadsChange={setNewAttachmentUploads}

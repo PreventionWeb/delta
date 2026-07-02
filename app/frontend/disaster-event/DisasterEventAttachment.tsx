@@ -15,6 +15,13 @@ type DisasterEventAttachmentProps = {
 		fileType: string;
 		fileSize: number;
 	}>;
+	initialNewAttachmentUploads: Array<{
+		fileName: string;
+		fileType: string;
+		fileSize: number;
+		tempFilePath: string;
+		tenantPath?: string;
+	}>;
 	keptAttachmentIds: string[];
 	onKeptAttachmentIdsChange: (attachmentIds: string[]) => void;
 	onNewAttachmentUploadsChange: (
@@ -177,14 +184,54 @@ function assignValidation(rows: AttachmentRow[], ctx: ViewContext): AttachmentRo
 	return validated;
 }
 
+function buildRestoredRow(upload: {
+	fileName: string;
+	fileType: string;
+	fileSize: number;
+	tempFilePath: string;
+	tenantPath?: string;
+}): AttachmentRow {
+	return {
+		id: `restored-${upload.tempFilePath}`,
+		file: new File([new Uint8Array(upload.fileSize)], upload.fileName, {
+			type: upload.fileType,
+		}),
+		errorCode: null,
+		errorMessage: null,
+		uploadStatus: "uploaded",
+		uploadError: null,
+		uploadedFile: {
+			name: upload.tempFilePath,
+			content_type: upload.fileType,
+			tenantPath: upload.tenantPath,
+		},
+	};
+}
+
+function buildRestoredRows(
+	uploads: Array<{
+		fileName: string;
+		fileType: string;
+		fileSize: number;
+		tempFilePath: string;
+		tenantPath?: string;
+	}>,
+	ctx: ViewContext,
+): AttachmentRow[] {
+	return assignValidation(uploads.map((upload) => buildRestoredRow(upload)), ctx);
+}
+
 export default function DisasterEventAttachment({
 	ctx,
 	initialAttachments,
+	initialNewAttachmentUploads,
 	keptAttachmentIds,
 	onKeptAttachmentIdsChange,
 	onNewAttachmentUploadsChange,
 }: DisasterEventAttachmentProps) {
-	const [rows, setRows] = useState<AttachmentRow[]>([]);
+	const [rows, setRows] = useState<AttachmentRow[]>(() =>
+		buildRestoredRows(initialNewAttachmentUploads, ctx),
+	);
 	const [existingRows, setExistingRows] = useState(
 		initialAttachments.filter((attachment) => keptAttachmentIds.includes(attachment.id)),
 	);
