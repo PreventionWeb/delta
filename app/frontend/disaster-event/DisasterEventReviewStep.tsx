@@ -28,6 +28,51 @@ type AdditionalDetailItem = {
     meta?: AdditionalDetailMeta;
 };
 
+type ReviewAttachmentItem = {
+    id: string;
+    fileName: string;
+    fileType?: string;
+    fileSize?: number;
+};
+
+function extensionFromName(fileName: string): string {
+    const segments = fileName.split(".");
+    if (segments.length < 2) return "";
+    return segments[segments.length - 1].toLowerCase();
+}
+
+function formatFileSize(fileSize: number): string {
+    if (!Number.isFinite(fileSize) || fileSize <= 0) {
+        return "0 B";
+    }
+
+    const units = ["B", "KB", "MB", "GB"];
+    let unitIndex = 0;
+    let value = fileSize;
+
+    while (value >= 1024 && unitIndex < units.length - 1) {
+        value /= 1024;
+        unitIndex += 1;
+    }
+
+    const fixed = value >= 10 || unitIndex === 0 ? value.toFixed(0) : value.toFixed(1);
+    return `${fixed} ${units[unitIndex]}`;
+}
+
+function getFileIconClass(fileName: string): string {
+    const ext = extensionFromName(fileName);
+
+    if (["pdf"].includes(ext)) return "pi pi-file-pdf";
+    if (["doc", "docx"].includes(ext)) return "pi pi-file-word";
+    if (["xls", "xlsx"].includes(ext)) return "pi pi-file-excel";
+    if (["ppt", "pptx"].includes(ext)) return "pi pi-file";
+    if (["jpg", "png", "gif", "webp"].includes(ext)) return "pi pi-image";
+    if (["mp3", "wav", "m4a"].includes(ext)) return "pi pi-volume-up";
+    if (["mp4", "mov"].includes(ext)) return "pi pi-video";
+
+    return "pi pi-file";
+}
+
 type DisasterEventReviewStepProps = {
     form: {
         nameNational: string;
@@ -44,6 +89,7 @@ type DisasterEventReviewStepProps = {
     endTimingValue: string;
     selectedDivisionItems: SelectedDivisionItem[];
     reviewSpatialFootprintItems: string[];
+    reviewAttachments: ReviewAttachmentItem[];
     triggeringHazardousEventTarget: LinkedEventOption[];
     triggeredHazardousEventTarget: LinkedEventOption[];
     triggeringDisasterEventTarget: LinkedEventOption[];
@@ -170,6 +216,7 @@ export default function DisasterEventReviewStep({
     endTimingValue,
     selectedDivisionItems,
     reviewSpatialFootprintItems,
+    reviewAttachments,
     triggeringHazardousEventTarget,
     triggeredHazardousEventTarget,
     triggeringDisasterEventTarget,
@@ -294,6 +341,40 @@ export default function DisasterEventReviewStep({
                     selectedDivisionItems.length > 0 ||
                     reviewSpatialFootprintItems.length > 0,
                 )}
+
+                {reviewAttachments.length > 0
+                    ? renderStep4SectionCard(
+                        "Attachments",
+                        "pi pi-paperclip text-blue-600",
+                        "No attachments",
+                        <div className="space-y-3">
+                            {reviewAttachments.map((attachment) => (
+                                <div
+                                    key={attachment.id}
+                                    className="rounded-md border border-slate-200 bg-white px-3 py-2"
+                                >
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex min-w-0 items-center gap-3">
+                                            <i
+                                                className={`${getFileIconClass(attachment.fileName)} text-slate-500`}
+                                            />
+                                            <div className="min-w-0">
+                                                <p className="truncate text-sm font-medium text-slate-800">
+                                                    {attachment.fileName}
+                                                </p>
+                                                <p className="text-xs text-slate-500">
+                                                    {`${formatFileSize(attachment.fileSize ?? 0)}${attachment.fileType ? ` • ${attachment.fileType}` : ""
+                                                        }`}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>,
+                        true,
+                    )
+                    : null}
 
                 {renderStep4SectionCard(
                     "Linked events",

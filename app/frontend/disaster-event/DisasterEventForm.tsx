@@ -1870,6 +1870,26 @@ function StepperValidation({
 			}).length,
 		[spatialFootprintValue],
 	);
+	const reviewAttachments = useMemo(() => {
+		const keptIds = new Set(keptAttachmentIds);
+		const keptExisting = disasterEventAttachments
+			.filter((attachment) => keptIds.has(attachment.id))
+			.map((attachment) => ({
+				id: attachment.id,
+				fileName: attachment.fileName,
+				fileType: attachment.fileType,
+				fileSize: attachment.fileSize,
+			}));
+
+		const pendingUploads = newAttachmentUploads.map((upload, index) => ({
+			id: `new-${index}-${upload.fileName}`,
+			fileName: upload.fileName,
+			fileType: upload.fileType,
+			fileSize: upload.fileSize,
+		}));
+
+		return [...keptExisting, ...pendingUploads];
+	}, [disasterEventAttachments, keptAttachmentIds, newAttachmentUploads]);
 	const formatReviewDateWithPrecision = (
 		state: DateWithPrecisionState,
 	): string => {
@@ -3802,6 +3822,7 @@ function StepperValidation({
 									endTimingValue={reviewEndTimingValue}
 									selectedDivisionItems={selectedDivisionItems}
 									reviewSpatialFootprintItems={reviewSpatialFootprintItems}
+									reviewAttachments={reviewAttachments}
 									triggeringHazardousEventTarget={triggeringHazardousEventTarget}
 									triggeredHazardousEventTarget={triggeredHazardousEventTarget}
 									triggeringDisasterEventTarget={triggeringDisasterEventTarget}
