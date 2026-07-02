@@ -342,11 +342,11 @@ export default function DisasterEventReviewStep({
                     reviewSpatialFootprintItems.length > 0,
                 )}
 
-                {reviewAttachments.length > 0
-                    ? renderStep4SectionCard(
-                        "Attachments",
-                        "pi pi-paperclip text-blue-600",
-                        "No attachments",
+                {renderStep4SectionCard(
+                    "Attachments",
+                    "pi pi-paperclip text-blue-600",
+                    "No attachments selected",
+                    reviewAttachments.length > 0 ? (
                         <div className="space-y-3">
                             {reviewAttachments.map((attachment) => (
                                 <div
@@ -371,10 +371,14 @@ export default function DisasterEventReviewStep({
                                     </div>
                                 </div>
                             ))}
-                        </div>,
-                        true,
-                    )
-                    : null}
+                        </div>
+                    ) : (
+                        <p className="text-[14px] italic text-slate-400">
+                            No attachments selected
+                        </p>
+                    ),
+                    true,
+                )}
 
                 {renderStep4SectionCard(
                     "Linked events",
