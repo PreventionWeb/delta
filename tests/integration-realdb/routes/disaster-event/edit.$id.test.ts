@@ -40,7 +40,7 @@ async function callLoader(params: { id: string }) {
 	} as any);
 }
 
-describe("edit2.$id.tsx loader", () => {
+describe("edit.$id.tsx loader", () => {
 	let testData: Awaited<ReturnType<typeof createTestDisasterEventWithOptions>>;
 
 	beforeEach(async () => {

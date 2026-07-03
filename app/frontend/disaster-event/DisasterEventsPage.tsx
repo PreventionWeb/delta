@@ -346,7 +346,7 @@ export default function DisasterEventsPage({
                             {ctx.t({ code: "disaster_event_data_management", msg: "Disaster event data management" })}
                         </p>
                     </div>
-                    <Link to={`/${ctx.lang}/disaster-event/edit2/new`}>
+                    <Link to={`/${ctx.lang}/disaster-event/edit/new`}>
                         <Button
                             label={ctx.t({
                                 code: "event.add_new",
