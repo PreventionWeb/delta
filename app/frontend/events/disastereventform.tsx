@@ -1308,7 +1308,7 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 	// Find the route where the loader returned `env`
 	const rootData = matches.find(
 		(match: any) => match.id === "root", // 👈 or the actual route ID if not in root
-	)?.data as { env?: { DTS_INSTANCE_CTRY_ISO3?: string } };
+	)?.loaderData as { env?: { DTS_INSTANCE_CTRY_ISO3?: string } };
 	const ctryIso3 = rootData?.env?.DTS_INSTANCE_CTRY_ISO3;
 
 	const { item, auditLogs } = props;
