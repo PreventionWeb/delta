@@ -39,8 +39,7 @@ function shouldShowListingBackground(pathname: string): boolean {
 
 export const loader = authLoaderWithPerm(
     "ViewDisasterEvents",
-    async ({ request }) => {
-        const url = new URL(request.url);
+    async ({ request, url }) => {
         const showListing = shouldShowListingBackground(url.pathname);
         if (!showListing) {
             return {

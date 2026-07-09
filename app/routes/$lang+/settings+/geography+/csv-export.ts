@@ -7,7 +7,7 @@ import { DivisionRepository } from "~/db/queries/divisonRepository";
 export const loader = authLoaderWithPerm(
 	"ManageCountrySettings",
 	async (loaderArgs) => {
-		const { request } = loaderArgs;
+		const { request, url } = loaderArgs;
 
 		const countryAccountsId = await getCountryAccountsIdFromSession(request);
 
@@ -23,7 +23,6 @@ export const loader = authLoaderWithPerm(
 			.sort((a, b) => a.id.localeCompare(b.id));
 
 		// Format data for CSV export
-		const url = new URL(request.url);
 		const parts = url.pathname.split("/").filter((s) => s !== "");
 		const typeName = parts.length > 1 ? parts[parts.length - 2] : "";
 

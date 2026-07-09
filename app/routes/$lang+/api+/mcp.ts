@@ -264,7 +264,7 @@ export async function action({ request }: ActionFunctionArgs) {
 	}
 }
 
-export async function loader({ request }: LoaderFunctionArgs) {
+export async function loader({ request, url }: LoaderFunctionArgs) {
 	console.log("[MCP Loader] Request:", request.method, request.url);
 	const accept = request.headers.get("Accept") || "";
 	console.log("[MCP Loader] Accept:", accept);
@@ -272,7 +272,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
 	if (accept.includes("text/event-stream")) {
 		console.log("[MCP Loader] SSE connection established");
 		const encoder = new TextEncoder();
-		const url = new URL(request.url);
 		const postEndpoint = url.pathname;
 
 		const stream = new ReadableStream({
