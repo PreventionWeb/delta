@@ -11,6 +11,22 @@ export const DisasterEventRepository = {
 			.returning({ id: disasterEventTable.id });
 	},
 
+	deleteByIdAndCountryAccountsId: (
+		id: string,
+		countryAccountsId: string,
+		tx?: Tx,
+	) => {
+		return (tx ?? dr)
+			.delete(disasterEventTable)
+			.where(
+				and(
+					eq(disasterEventTable.id, id),
+					eq(disasterEventTable.countryAccountsId, countryAccountsId),
+				),
+			)
+			.returning({ id: disasterEventTable.id });
+	},
+
 	deleteByCountryAccountId: (countryAccountsId: string, tx?: Tx) => {
 		return (tx ?? dr)
 			.delete(disasterEventTable)

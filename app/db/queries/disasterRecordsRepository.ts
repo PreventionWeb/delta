@@ -47,6 +47,21 @@ export const DisasterRecordsRepository = {
 			eq(disasterRecordsTable.disasterEventId, disasterEventId),
 		);
 	},
+	unlinkByDisasterEventIdAndCountryAccountsId: (
+		disasterEventId: string,
+		countryAccountsId: string,
+		tx?: Tx,
+	) => {
+		return (tx ?? dr)
+			.update(disasterRecordsTable)
+			.set({ disasterEventId: null })
+			.where(
+				and(
+					eq(disasterRecordsTable.disasterEventId, disasterEventId),
+					eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
+				),
+			);
+	},
 	createMany: (data: InsertDisasterRecord[], tx?: Tx) => {
 		return (tx ?? dr)
 			.insert(disasterRecordsTable)

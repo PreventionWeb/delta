@@ -15,7 +15,9 @@ import {
 	redirectWithMessage,
 } from "~/utils/session";
 import { DisasterEventRepository } from "~/db/queries/disasterEventRepository";
+import { DisasterRecordsRepository } from "~/db/queries/disasterRecordsRepository";
 import { BASE_UPLOAD_PATH, DISASTER_EVENT_UPLOAD_PATH } from "~/utils/paths";
+import { dr } from "~/db.server";
 
 export const loader = authLoaderWithPerm(
 	"DeleteDisasterEvent",
@@ -75,7 +77,19 @@ export const action = authActionWithPerm(
 			throw new Response("Unauthorized", { status: 401 });
 		}
 
-		const deletedEvents = await DisasterEventRepository.deleteById(id);
+		const deletedEvents = await dr.transaction(async (tx) => {
+			await DisasterRecordsRepository.unlinkByDisasterEventIdAndCountryAccountsId(
+				id,
+				countryAccountsId,
+				tx,
+			);
+
+			return DisasterEventRepository.deleteByIdAndCountryAccountsId(
+				id,
+				countryAccountsId,
+				tx,
+			);
+		});
 
 		if (deletedEvents.length !== 1 || deletedEvents[0]?.id !== id) {
 			throw new Response("Failed to delete disaster event", { status: 500 });
