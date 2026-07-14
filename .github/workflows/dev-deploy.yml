@@ -54,7 +54,7 @@ jobs:
           labels: |
             org.opencontainers.image.title=delta-country
             org.opencontainers.image.description=DELTA country instance container image for development deployments.
-            org.opencontainers.image.source=https://github.com/unisdr/delta
+            org.opencontainers.image.source=https://github.com/preventionweb/delta
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
