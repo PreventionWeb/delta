@@ -24,7 +24,7 @@ Visit the [project website for more details](https://www.undrr.org/building-risk
 ## Technology stack
 
 - TypeScript
-- Node.js (v22 recommended)
+- Node.js (v24.18.0 recommended)
 - React Router v7 (React)
 - Vite
 - Tailwind CSS v4
@@ -94,7 +94,7 @@ Open http://localhost:3000. Use `docker-compose logs -f app` to tail logs.
 
 Prerequisites:
 
-- Node.js (22.x recommended)
+- Node.js (v24.18.0 recommended)
 - Yarn (or use npm)
 - PostgreSQL 17 with PostGIS
 
@@ -218,8 +218,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for branch naming, commit style, and PR c
 
 DELTA Resilience is built with and supported by the following open-source and OSS-sponsored tools:
 
-| Tool | Area | Notes |
-|------|------|-------|
-| [CodeRabbit](https://coderabbit.ai) | Code review | AI-assisted PR reviews, free for open-source projects |
-| [GitHub](https://github.com/open-source) | Source control & CI/CD | Source control, Actions, and GHCR free for public repositories |
-| [BrowserStack](https://www.browserstack.com/open-source) | This project is tested with BrowserStack | Cross-browser testing via open-source sponsorship |
+| Tool                                                     | Area                                     | Notes                                                          |
+| -------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------- |
+| [CodeRabbit](https://coderabbit.ai)                      | Code review                              | AI-assisted PR reviews, free for open-source projects          |
+| [GitHub](https://github.com/open-source)                 | Source control & CI/CD                   | Source control, Actions, and GHCR free for public repositories |
