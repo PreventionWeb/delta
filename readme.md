@@ -9,7 +9,7 @@ DELTA Resilience is a comprehensive system, not just an open-source software. Co
 
 It supports nationally owned Disaster Tracking Systems to monitor hazardous events and record losses and damages at national and subnational levels—whether countries use the DELTA Resilience software interface or strengthen their existing national platforms.
 
-Visit the [project website for more details](https://www.undrr.org/building-risk-knowledge/disaster-losses-and-damages-tracking-system-delta-resilience). See [CHANGELOG.md](CHANGELOG.md) for release history.
+Visit the [project website for more details](https://www.undrr.org/building-risk-knowledge/disaster-losses-and-damages-tracking-system-delta-resilience). See [CHANGELOG.md](CHANGELOG.md) for release history, and [ARCHITECTURE.md](ARCHITECTURE.md) for how the system is designed and how to contribute to it structurally.
 
 ## Features
 
@@ -73,6 +73,8 @@ Notes:
 - `public/` contains static front-end assets and theme files.
 
 - `build/`, `uploads/`, and `logs/` are generated at build/runtime and are not committed to the repository.
+
+- DELTA is migrating toward a Clean Architecture / Domain-Driven Design layout (`app/domain/`, `app/application/`, `app/infrastructure/`) one bounded context at a time. This tree reflects the current layout; see [ARCHITECTURE.md](ARCHITECTURE.md) for the target structure and which parts have migrated so far.
 
 ## Quick start (local development)
 
@@ -210,7 +212,7 @@ yarn test:e2e
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for branch naming, commit style, and PR conventions. Full developer documentation is in [`_docs/`](_docs/index.md) — start there for architecture guides, code conventions, and feature-specific references.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for branch naming, commit style, and PR conventions, and [ARCHITECTURE.md](ARCHITECTURE.md) for the system design and rules to follow when adding a feature or a new bounded context. Full developer documentation is in [`_docs/`](_docs/index.md) — start there for code conventions and feature-specific references. Found a security issue instead? See [SECURITY.md](SECURITY.md).
 
 ## Acknowledgements
 
