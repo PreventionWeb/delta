@@ -8,13 +8,20 @@
 
 import { join } from "node:path";
 import FsBackend from "i18next-fs-backend";
-import { createI18nextMiddleware } from "remix-i18next/middleware";
+import { createI18nextMiddleware } from "remix-i18next";
 import { DEFAULT_LANGUAGE, VALID_LANGUAGES } from "~/utils/lang.backend";
 import { getCountrySettingsFromSession } from "~/utils/session";
 import { getPinoLogger } from "~/infrastructure/logging/PinoLogger.server";
 
+// remix-i18next@8 (RR8) passes the full middleware args, not a bare Request — derived from
+// its own public Options type since LanguageDetectorArgs itself isn't exported.
+export type FindLocaleArgs = Parameters<
+	NonNullable<createI18nextMiddleware.Options["detection"]["findLocale"]>
+>[0];
+
 // ADR-001's 4-step locale resolution chain (design.md Decision 3).
-export async function findLocale(request: Request): Promise<string | null> {
+export async function findLocale(args: FindLocaleArgs): Promise<string | null> {
+	const { request } = args;
 	try {
 		const segment = new URL(request.url).pathname.split("/")[1];
 		if (VALID_LANGUAGES.includes(segment)) return segment; // step 1: URL segment

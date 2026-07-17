@@ -15,7 +15,12 @@ vi.mock("~/infrastructure/logging/PinoLogger.server", () => ({
 	getPinoLogger: () => ({ error: pinoErrorMock }),
 }));
 
-import { findLocale } from "~/middleware/i18next.server";
+import { findLocale, type FindLocaleArgs } from "~/middleware/i18next.server";
+
+// findLocale only reads args.request; the other MiddlewareArgs fields are unused here.
+function argsFor(request: Request): FindLocaleArgs {
+	return { request } as FindLocaleArgs;
+}
 
 describe("findLocale", () => {
 	beforeEach(() => {
@@ -26,7 +31,7 @@ describe("findLocale", () => {
 		getCountrySettingsFromSessionMock.mockResolvedValue({ language: "es" });
 
 		const result = await findLocale(
-			new Request("http://localhost/fr/some-route"),
+			argsFor(new Request("http://localhost/fr/some-route")),
 		);
 
 		expect(result).toBe("fr");
@@ -36,7 +41,9 @@ describe("findLocale", () => {
 	it("falls through to the tenant default locale when no URL segment is present (step 3)", async () => {
 		getCountrySettingsFromSessionMock.mockResolvedValue({ language: "fr" });
 
-		const result = await findLocale(new Request("http://localhost/some-route"));
+		const result = await findLocale(
+			argsFor(new Request("http://localhost/some-route")),
+		);
 
 		expect(result).toBe("fr");
 	});
@@ -45,7 +52,7 @@ describe("findLocale", () => {
 		getCountrySettingsFromSessionMock.mockResolvedValue(undefined);
 
 		const result = await findLocale(
-			new Request("http://localhost/xx/some-route"),
+			argsFor(new Request("http://localhost/xx/some-route")),
 		);
 
 		expect(result).toBeNull();
@@ -54,7 +61,7 @@ describe("findLocale", () => {
 	it("returns null when there is no URL segment and no tenant setting is cached (anonymous/pre-login request)", async () => {
 		getCountrySettingsFromSessionMock.mockResolvedValue(undefined);
 
-		const result = await findLocale(new Request("http://localhost/"));
+		const result = await findLocale(argsFor(new Request("http://localhost/")));
 
 		expect(result).toBeNull();
 	});
@@ -62,7 +69,9 @@ describe("findLocale", () => {
 	it("returns null when the cached tenant settings row has no language field", async () => {
 		getCountrySettingsFromSessionMock.mockResolvedValue({});
 
-		const result = await findLocale(new Request("http://localhost/some-route"));
+		const result = await findLocale(
+			argsFor(new Request("http://localhost/some-route")),
+		);
 
 		expect(result).toBeNull();
 	});
@@ -72,7 +81,7 @@ describe("findLocale", () => {
 		getCountrySettingsFromSessionMock.mockRejectedValue(rejectionError);
 
 		await expect(
-			findLocale(new Request("http://localhost/some-route")),
+			findLocale(argsFor(new Request("http://localhost/some-route"))),
 		).resolves.toBeNull();
 		expect(pinoErrorMock).toHaveBeenCalledWith(
 			expect.objectContaining({ err: rejectionError }),

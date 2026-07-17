@@ -4,7 +4,9 @@ import config from "../../../i18next.config";
 
 describe("i18next.config.ts", () => {
 	it("outputs to locales/**/*.json namespace files, not locales/app/", () => {
-		expect(config.extract.output).toBe("locales/{{language}}/{{namespace}}.json");
+		expect(config.extract.output).toBe(
+			"locales/{{language}}/{{namespace}}.json",
+		);
 		expect(config.extract.output).not.toContain("locales/app");
 	});
 

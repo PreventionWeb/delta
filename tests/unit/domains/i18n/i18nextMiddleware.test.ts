@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { join } from "node:path";
-import type { createI18nextMiddleware } from "remix-i18next/middleware";
+import type { createI18nextMiddleware } from "remix-i18next";
 import type { RouterContextProvider } from "react-router";
 
 // Avoids transitively pulling in ~/db.server (and its PGlite schema-pull cost)
@@ -20,7 +20,7 @@ const { createI18nextMiddlewareMock, getInstanceMock } = vi.hoisted(() => {
 	return { createI18nextMiddlewareMock, getInstanceMock };
 });
 
-vi.mock("remix-i18next/middleware", () => ({
+vi.mock("remix-i18next", () => ({
 	createI18nextMiddleware: createI18nextMiddlewareMock,
 }));
 
