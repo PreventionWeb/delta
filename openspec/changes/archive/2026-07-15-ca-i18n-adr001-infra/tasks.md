@@ -296,3 +296,42 @@ scripts/check-i18n-missing-keys.ts"` so the workflow and local developers invoke
       separate worktree.
 
 - [x] 11.3 Run `opsx:archive` on this branch (`feature/ca-i18n-adr001-infra`) before raising the PR.
+
+## 12. Post-archive: React Router v8 compat fix (before PR)
+
+`dev` upgraded to React Router v8 (`#658`) before this branch's PR was opened, breaking the exact-pinned
+`remix-i18next@7.5.0` (requires react-router `^7.0.0`; see design.md Decision 1's correction).
+
+- [x] 12.1 Merged `origin/dev` into this branch (merge commit, not rebase — branch already pushed).
+      Real conflicts limited to `package.json`/`yarn.lock`; `readme.md` and `react-router.config.ts`
+      auto-merged clean.
+- [x] 12.2 Resolved `package.json` by hand (kept dev's RR8 bumps + this branch's i18n deps, bumped
+      `remix-i18next` to exact `8.0.0`), regenerated `yarn.lock` via `yarn install` rather than
+      hand-merging it — required a clean `node_modules` reinstall building from dev's own already-working
+      lockfile as the base, then layering the 5 i18n packages on top incrementally (a from-scratch resolve
+      with no lockfile at all hit a yarn v1 linker bug unrelated to any real version conflict).
+- [x] 12.3 Switched `i18next-parser` → `i18next-cli`: the former's upstream repo is archived
+      (2026-02-22), a hard EOL. New `i18next.config.ts` replaces `i18next-parser.config.js`. Caught and
+      fixed a real bug before it shipped: i18next-cli's `extract` auto-creates locale files for every
+      configured language and defaults to `removeUnusedKeys: true` — running it against the permanent
+      `__e2e_fixture__` namespace created an empty `locales/es/__e2e_fixture__.json`, which would have
+      silently broken the E2E test asserting `es` has no fixture file and falls back to English. Fixed via
+      `extract.ignoreNamespaces: ["__e2e_fixture__"]`; verified by re-running extraction and confirming
+      `git status locales/` reports zero changes.
+- [x] 12.4 Applied the 2 required code changes in `app/middleware/i18next.server.ts`: import path
+      `"remix-i18next/middleware"` → `"remix-i18next"` (subpath export removed in 8.0.0); `findLocale`'s
+      parameter changed from a bare `Request` to the full middleware-args object (`FindLocaleArgs`, derived
+      from `createI18nextMiddleware.Options["detection"]["findLocale"]` since the library doesn't export
+      that type directly). Updated `findLocale.test.ts` and `i18nextMiddleware.test.ts` accordingly.
+      Confirmed via real installed `node_modules` (not docs) that `entry.server.tsx` needed no change.
+- [x] 12.5 Verification sweep: `yarn tsc --noEmit` clean; i18n-scoped unit tests 24/24; `yarn format:check`
+      clean; `yarn test:run2` 300/304 (same 4 pre-existing failures, confirmed stable across repeated
+      runs); i18n E2E spec `--repeat-each=5` clean (one transient Vite dep-optimizer 504 on the very first
+      run after the dependency churn, gone on retry — not a code issue); manual `yarn dev` smoke test on
+      `/en`, `/fr`, `/es` fixture routes and the old `ViewContext.t()` system; full `yarn test:e2e` 8/23
+      pass, same 15 pre-existing failures as the established baseline.
+- [x] 12.6 Fresh outsider code review scoped to this fix only (not the whole change). Verified every
+      dependency-compatibility claim against the actually-installed packages rather than trusting them;
+      empirically re-confirmed the `ignoreNamespaces` fix by running the real extractor. No blocking
+      issues. Fixed: 2 stale doc references to `i18next-parser` in living (non-archived) docs
+      (`openspec/specs/i18n-key-extraction/spec.md`, `_docs/decisions/ADR-001-multilingual-strategy.md`).

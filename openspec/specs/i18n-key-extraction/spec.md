@@ -2,7 +2,7 @@
 
 ### Requirement: A second, independent key-extraction pipeline scans `t('key')` syntax
 
-A new `yarn i18n:extract:new` script SHALL run `i18next-parser` configured (via `i18next-parser.config.js`)
+A new `yarn i18n:extract:new` script SHALL run `i18next-cli` configured (via `i18next.config.ts`)
 to scan source files for `t('key')`-style calls and write/update entries under `locales/<lang>/<domain>.json`
 namespace files. This pipeline SHALL run independently of, and SHALL NOT replace or modify the behavior of,
 the existing `yarn i18n:extractor` script (`scripts/extractor-i18n.ts`), which continues to scan

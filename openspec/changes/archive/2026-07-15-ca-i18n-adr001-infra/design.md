@@ -70,6 +70,15 @@ Using a caret range risks a future `yarn install` picking up `8.x`, which requir
 break the build. Exact-pin `7.5.0` in `package.json` (no `^`). This mirrors how the repo already pins exact
 versions for sensitive framework packages (`isbot": "5.1.35"`, `"ol": "10.8.0"`).
 
+**Correction (post-archive, pre-PR):** `dev` upgraded to React Router v8 (`#658`) before this branch merged.
+`remix-i18next@7.5.0` requires `react-router@^7.0.0` — a hard incompatibility, not a text conflict. Bumped
+the exact pin to `8.0.0` (its only v8-compatible release) after merging `dev` into this branch. Two real
+code changes followed, both verified against the actually-installed package rather than assumed: the
+`remix-i18next/middleware` subpath export is gone in 8.0.0 (import from the package root instead), and
+`findLocale` now receives the full middleware-args object, not a bare `Request` (see `FindLocaleArgs` in
+`app/middleware/i18next.server.ts`). `entry.server.tsx` needed no change — RR8's `HandleDocumentRequestFunction`
+makes the `RouterContextProvider` 5th argument unconditional, matching what this file already assumed.
+
 ### Decision 2: Server i18next instance uses `plugins: [FsBackend]` + `i18next.backend.loadPath`, not `i18next: { resources }`
 
 `remix-i18next`'s own documented quick-start passes fully-bundled `resources` directly into
