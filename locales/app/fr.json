@@ -6731,5 +6731,69 @@
     {
         "id": "user_login.enter_your_password",
         "translation": "Entrez votre mot de passe"
+    },
+    {
+        "id": "admin.add_fictitious_country",
+        "translation": "Ajouter un pays fictif"
+    },
+    {
+        "id": "admin.clone_country_account",
+        "translation": "Dupliquer le compte du pays"
+    },
+    {
+        "id": "admin.country_account_cloned",
+        "translation": "Compte du pays dupliqué avec succès"
+    },
+    {
+        "id": "admin.country_type",
+        "translation": "Type de pays"
+    },
+    {
+        "id": "admin.delete_instance_confirm_header",
+        "translation": "Supprimer cette instance"
+    },
+    {
+        "id": "admin.delete_instance_confirm_message",
+        "translation": "Etes-vous certain de vouloir supprimer cette instance? Aucun retour en arrière possible"
+    },
+    {
+        "id": "admin.edit_fictitious_country",
+        "translation": "Editer le pays fictif"
+    },
+    {
+        "id": "admin.fictitious_country_deleted",
+        "translation": "Pays fictif supprimé avec succès"
+    },
+    {
+        "id": "admin.fictitious_country_management",
+        "translation": "Gestion du pays fictif"
+    },
+    {
+        "id": "admin.instance_deleted",
+        "translation": "Cette instance a été supprimée avec succès"
+    },
+    {
+        "id": "admin.instance_type",
+        "translation": "Type d'instance"
+    },
+    {
+        "id": "admin.invitation_resent",
+        "translation": "Un e-mail d'invitation a été envoyé avec succès"
+    },
+    {
+        "id": "admin.resend_email",
+        "translation": "Envoyer à nouveau l'email d'invitation"
+    },
+    {
+        "id": "admin.resend_invitation_confirm_message",
+        "translation": "Voulez-vous envoyer à nouveau l'e-mail d'invitation à l'administrateur principal ?"
+    },
+    {
+        "id": "api_keys.session_secret",
+        "translation": "Clé secrète de session"
+    },
+    {
+        "id": "common.addedAt",
+        "translation": "Ajouté à"
     }
 ]
