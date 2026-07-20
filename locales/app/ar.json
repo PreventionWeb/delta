@@ -5162,7 +5162,7 @@
     {
         "id": "admin.add_country_account",
         "description": "File: routes/$lang+/admin+/country-accounts.tsx:240",
-        "translation": "إضافة حساب لدولة"
+        "translation": "إضافة حساب الدولة"
     },
     {
         "id": "admin.admins_email",
@@ -5462,7 +5462,7 @@
     {
         "id": "users.first_name_placeholder",
         "description": "File: routes/$lang+/user+/accept-invite.tsx:251",
-        "translation": "الاسم الأول"
+        "translation": "الإسم الأول"
     },
     {
         "id": "users.installing_assets_taxonomy_step",
@@ -5497,12 +5497,12 @@
     {
         "id": "users.password.min_characters",
         "description": "Minimum character length for password is 12 File: routes/$lang+/user+/accept-invite.tsx:373",
-        "translation": "على الأقل {min} حرفاً على الأقل"
+        "translation": "{min} حرف واحد على الأقل"
     },
     {
         "id": "users.password.not_common",
         "description": "File: routes/$lang+/user+/accept-invite.tsx:420",
-        "translation": "يجب ألا تكون كلمة مرور بسيطة أو شائعة الاستخدام"
+        "translation": "يجب ألا تكون كلمة مرور بسيطة (سهلة التخمين) أو شائعة الاستخدام"
     },
     {
         "id": "users.password.not_username",
@@ -6740,7 +6740,7 @@
     {
         "id": "admin.add_fictitious_country",
         "description": "File: app/routes/$lang+/admin+/fictitious-country-mgmt+/_layout.tsx:41",
-        "translation": "إضافة دولة وهمية"
+        "translation": "إضافة دولة وهمية (افتراضية)"
     },
     {
         "id": "admin.clone_country_account",
@@ -6750,7 +6750,7 @@
     {
         "id": "admin.country_account_cloned",
         "description": "File: app/routes/$lang+/admin+/country-accounts+/clone.$id.tsx:31",
-        "translation": "تم استنساخ الحساب الدولة بنجاح"
+        "translation": "تم نسخ حساب الدولة بنجاح"
     },
     {
         "id": "admin.country_type",
@@ -6770,17 +6770,17 @@
     {
         "id": "admin.edit_fictitious_country",
         "description": "File: app/routes/$lang+/admin+/fictitious-country-mgmt+/edit.$id.tsx:77",
-        "translation": "تحرير دولة وهمية"
+        "translation": "تحرير حساب الدولة الوهمية"
     },
     {
         "id": "admin.fictitious_country_deleted",
         "description": "File: app/routes/$lang+/admin+/fictitious-country-mgmt+/delete.$id.tsx:50",
-        "translation": "تم حذف البلد الوهمي بنجاح"
+        "translation": "تم حذف الدولة الوهمية بنجاح"
     },
     {
         "id": "admin.fictitious_country_management",
         "description": "File: app/routes/$lang+/admin+/fictitious-country-mgmt+/_layout.tsx:32",
-        "translation": "إدارة البلد الوهمي"
+        "translation": "إدارة الدولة الوهمية"
     },
     {
         "id": "admin.instance_deleted",
@@ -7277,7 +7277,7 @@
     {
         "id": "users.enter_totp_generated_code",
         "description": "File: app/routes/$lang+/user+/totp-login.tsx:86",
-        "translation": "أدخل الرمز الموجود في تطبيق المصادقة لمواصلة العملية."
+        "translation": "أدخل الرمز الموجود في تطبيق المصادقة (authenicator app) لمواصلة العملية."
     },
     {
         "id": "your_account_has_been_set_up_successfully.",
