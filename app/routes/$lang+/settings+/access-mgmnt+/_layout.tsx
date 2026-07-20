@@ -5,7 +5,7 @@ import { paginationQueryFromURL } from "~/frontend/pagination/api.server";
 import { authLoaderWithPerm } from "~/utils/auth";
 import {
 	getCountryAccountsIdFromSession,
-	getUserRoleFromSession
+	getUserRoleFromSession,
 } from "~/utils/session";
 import { ViewContext } from "~/frontend/context";
 import { htmlTitle } from "~/utils/htmlmeta";
@@ -40,15 +40,14 @@ export const loader = authLoaderWithPerm("ViewUsers", async (loaderArgs) => {
 	const search = url.searchParams.get("search") || "";
 
 	const countryAccountsId = await getCountryAccountsIdFromSession(request);
-	const organizations = await OrganizationRepository.getByCountryAccountsId(
-		countryAccountsId,
-	);
+	const organizations =
+		await OrganizationRepository.getByCountryAccountsId(countryAccountsId);
 
 	const pagination = paginationQueryFromURL(request, []);
 
 	const items = await getUserCountryAccountsWithUserByCountryAccountsId(
-		pagination.query.skip,
-		pagination.query.take,
+		pagination.viewData.page,
+		pagination.viewData.pageSize,
 		countryAccountsId,
 	);
 

@@ -9,7 +9,8 @@ export function paginationQueryFromURL(
 	extraParams: string[],
 ) {
 	const url = new URL(request.url);
-	const page = parseInt(url.searchParams.get("page") || "1", 10);
+	const rawPage = parseInt(url.searchParams.get("page") || "1", 10);
+	const page = Math.max(1, isNaN(rawPage) ? 1 : rawPage);
 	let pageSize = parseInt(
 		url.searchParams.get("pageSize") || DEFAULT_PAGE_SIZE.toString(),
 		10,

@@ -15,7 +15,7 @@ export async function getUserCountryAccountsWithUserByCountryAccountsId(
 	pageSize: number,
 	countryAccountsId: string,
 ) {
-	const offset = pageNumber * pageSize;
+	const offset = (pageNumber - 1) * pageSize;
 	const items = await dr.query.userCountryAccountsTable.findMany({
 		where: eq(userCountryAccountsTable.countryAccountsId, countryAccountsId),
 		limit: pageSize,
