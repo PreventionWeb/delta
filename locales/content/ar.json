@@ -17,7 +17,7 @@
     },
     {
         "id": "asset.name.0b5b8885-290f-42b3-a87c-9885f8f212bf.6ccf91",
-        "translation": "منصات الحفر البحري"
+        "translation": "منصات الحفر البحرية"
     },
     {
         "id": "asset.name.0c70f0c1-1a04-4198-a027-6617c0de227e.0bfe0c",
@@ -85,7 +85,7 @@
     },
     {
         "id": "asset.name.2a5e75a5-2283-4160-aec9-11e3cfdce569.758f48",
-        "translation": "المخزون"
+        "translation": "الجرد"
     },
     {
         "id": "asset.name.2a296db5-faff-4d42-8c8a-e244f0707101.34a4f3",
@@ -117,7 +117,7 @@
     },
     {
         "id": "asset.name.2e568e75-9239-4744-be03-369d2f22e095.1fe8f5",
-        "translation": "مصارف فرنسية"
+        "translation": "نظام التصريف الفرنسي (French Drains)"
     },
     {
         "id": "asset.name.2f0096a4-9e15-4ff2-bdbc-ef9aaba16db3.4c4157",
@@ -149,7 +149,7 @@
     },
     {
         "id": "asset.name.3d8bc735-3790-407b-8091-485368235bce.a1dd0d",
-        "translation": "جوزة الطيب والصولجان والهيل والهيل"
+        "translation": "جوزة الطيب والهيل"
     },
     {
         "id": "asset.name.3dd667b9-2d85-4a41-b544-400a0935d126.14861f",
@@ -181,7 +181,7 @@
     },
     {
         "id": "asset.name.4a92b447-5561-4a97-9211-d34b64a9aa63.321300",
-        "translation": "مطابع الطباعة"
+        "translation": "مطابع الطباعة . "
     },
     {
         "id": "asset.name.4ad83d00-5f32-47ee-97a3-2a7ee6635452.784ad7",
@@ -317,7 +317,7 @@
     },
     {
         "id": "asset.name.07e7abbb-bd3b-4149-a2dd-fb49a16486e7.3ff168",
-        "translation": "الكتلة الجراحية"
+        "translation": "الجناح الجراحي"
     },
     {
         "id": "asset.name.7e9b3b49-5991-4578-abfc-2d1efbb8add3.46a8be",
@@ -445,7 +445,7 @@
     },
     {
         "id": "asset.name.14a7a88b-f82f-4e82-86d3-39dee58caf04.b078e8",
-        "translation": "العيادات المتخصصة"
+        "translation": "العيادات التخصصية"
     },
     {
         "id": "asset.name.14b32c3f-07c1-49fa-81f2-89407b1921e2.eaa175",
@@ -453,7 +453,7 @@
     },
     {
         "id": "asset.name.15de048d-11c7-4302-8d8c-64e0fe042433.e404aa",
-        "translation": "المحفوظات"
+        "translation": "المحفوظات (الأرشيف)"
     },
     {
         "id": "asset.name.17ab719c-4705-4665-a858-bf0f0c2c49fa.fad4d4",
@@ -497,11 +497,11 @@
     },
     {
         "id": "asset.name.32e469e1-35e2-411e-9cfd-d04cae4c0126.0a9b4d",
-        "translation": "رافعات المضخة"
+        "translation": "وحدات الضخ"
     },
     {
         "id": "asset.name.33e739db-4cc1-4e52-86f2-de871be86af2.500c5e",
-        "translation": "البرقوق والبطاطا"
+        "translation": "البرقوق و التوتيات"
     },
     {
         "id": "asset.name.34e545e3-6857-4fb3-81af-8978ec53a427.c29b43",
@@ -509,11 +509,11 @@
     },
     {
         "id": "asset.name.35a74151-ce5a-4407-bbee-c2922f569bfb.249a81",
-        "translation": "مرافق المحكمة"
+        "translation": "مرافق-منشات المحاكم (الهيئات القضائية)"
     },
     {
         "id": "asset.name.36eb213e-709c-4ad0-ab6e-e3e9f7eff9a9.4d9817",
-        "translation": "ماكينات التكسير"
+        "translation": "معدات التكسير (الكسّارات)"
     },
     {
         "id": "asset.name.37baa2fa-0fc2-4d71-bc93-28175ba0babf.551535",
@@ -525,7 +525,7 @@
     },
     {
         "id": "asset.name.40d0948c-e15a-49fa-b562-a83994b8e856.e0b1c3",
-        "translation": "الأجنحة الرياضية"
+        "translation": "الأجنحة (المرافق) الرياضية"
     },
     {
         "id": "asset.name.40f53f44-1c51-47ab-8fbe-2895017f17b1.af330c",
@@ -533,7 +533,7 @@
     },
     {
         "id": "asset.name.41ff479d-0357-4596-8f6b-3ffb7f54a19c.56c630",
-        "translation": "آلات دقّ الخوازيق"
+        "translation": "آلات دقّ الأوتاد / الركائز"
     },
     {
         "id": "asset.name.42eb4a4c-2be7-4630-8dfc-d9003df3e4db.61ca7b",
@@ -549,7 +549,7 @@
     },
     {
         "id": "asset.name.46c3136b-49b0-49b0-b856-af9c310192d5.2c33c7",
-        "translation": "البطاطا"
+        "translation": "اليام (البطاطا الحلوة في سياق الشرق الأوسط و شمال افريقيا)"
     },
     {
         "id": "asset.name.49a3cc04-d4b7-46a5-8cf2-dea6d4d0abfb.fbb161",
@@ -713,11 +713,11 @@
     },
     {
         "id": "asset.name.171eb06f-33dc-4002-97ab-8b84e3473d0c.8491fb",
-        "translation": "المركبات الترفيهية (RVs) - مقطورات السفر"
+        "translation": "المركبات الترفيهية (RVs) - مقطورات السفر -الكرفانات"
     },
     {
         "id": "asset.name.173b19aa-49aa-4036-b633-2c18b4002d93.fd6a19",
-        "translation": "السكن غير المستقر - السكن متعدد العائلات - الوحدات السكنية"
+        "translation": "السكن الهش (العشوائي)، والمساكن متعددة الأسر، والإسكان المشترك"
     },
     {
         "id": "asset.name.240b31f0-7e83-4080-8a6a-0e2bd258c8f5.680cb3",
@@ -745,7 +745,7 @@
     },
     {
         "id": "asset.name.313cd4af-4f1a-4065-8fe3-d03306d2853f.8beb19",
-        "translation": "الخرشوف"
+        "translation": "الخرشوف - الأرضي شوكي"
     },
     {
         "id": "asset.name.348e8821-ae4a-476e-8abc-4b912cbec15d.55f50a",
@@ -933,7 +933,7 @@
     },
     {
         "id": "asset.name.2961e26b-36f6-4738-9036-59e24713a740.f58195",
-        "translation": "حوائط ساندة"
+        "translation": "جدران استنادية"
     },
     {
         "id": "asset.name.3115c3e2-5c77-499c-b2d2-155ecb932c07.b19383",
@@ -945,7 +945,7 @@
     },
     {
         "id": "asset.name.3932ca75-1ee0-4a2c-8153-c0f6807679d0.d6b087",
-        "translation": "سدود صغيرة"
+        "translation": "سدود صغيرة (حواجز ترابية صغيرة) "
     },
     {
         "id": "asset.name.004397c5-166b-4ccc-9765-d45e2d228bdc.7a4ef9",
@@ -953,7 +953,7 @@
     },
     {
         "id": "asset.name.4801e89e-374a-4772-a40e-f75543c3f668.a905a4",
-        "translation": "المحاصيل البقولية غير مذكورة ولا داخلة في مكان آخر."
+        "translation": "المحاصيل البقولية الغير مذكورة في مكان آخر"
     },
     {
         "id": "asset.name.4820ac23-e157-43e2-acfc-020b15667243.a23770",
@@ -1001,7 +1001,7 @@
     },
     {
         "id": "asset.name.09519eef-862a-44f6-95aa-31f9059d638d.543d76",
-        "translation": "هياكل المدخل"
+        "translation": "منشأة المدخل المائي"
     },
     {
         "id": "asset.name.9920d104-4fd6-4c6d-af38-7255092d812d.d4b22a",
@@ -1013,7 +1013,7 @@
     },
     {
         "id": "asset.name.27830a75-ab3b-4eb5-aab5-4c60f4e0f97c.462bbc",
-        "translation": "لوبين"
+        "translation": "الترمس"
     },
     {
         "id": "asset.name.30867e26-001e-4605-a50b-8578537476f4.5ae3f5",
@@ -1081,7 +1081,7 @@
     },
     {
         "id": "asset.name.308939ef-17a0-4a9e-80dc-c4e20fa49be0.5059f6",
-        "translation": "المصانع اللامركزية"
+        "translation": "محطات المعالجة اللامركزية"
     },
     {
         "id": "asset.name.517539d4-e73a-4592-9526-fba1d04f5aab.017365",
@@ -2409,7 +2409,7 @@
     },
     {
         "id": "hip_hazard.name.78504.bc9260",
-        "translation": "الملوحة \u0026 مالح \u0026؛ الصوديوم"
+        "translation": "الملوحة & مالح &؛ الصوديوم"
     },
     {
         "id": "hip_hazard.name.78505.1261e4",
@@ -2901,7 +2901,7 @@
     },
     {
         "id": "hip_hazard.name.78654.6c1a2f",
-        "translation": "اختراق البيانات \u0026 أمب؛ اختراق معلومات تحديد الهوية الشخصية"
+        "translation": "اختراق البيانات & أمب؛ اختراق معلومات تحديد الهوية الشخصية"
     },
     {
         "id": "hip_hazard.name.78659.d29fe0",
