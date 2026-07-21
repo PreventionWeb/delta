@@ -225,7 +225,7 @@
     },
     {
         "id": "asset.name.5f17cb11-f5cf-46a3-be54-885a2fcb7341.090709",
-        "translation": "الشمّام والبطيخ الآخر"
+        "translation": "الشمّام والبطيخ وغيرها"
     },
     {
         "id": "asset.name.5f7799c8-d246-4825-9b81-b23cc874cedd.a92afa",
@@ -277,7 +277,7 @@
     },
     {
         "id": "asset.name.7ac8bbaf-99c2-4229-a99b-4614891703d7.8337ef",
-        "translation": "بازلاء الحمص، جافة"
+        "translation": "حبوب الحمص المجففة"
     },
     {
         "id": "asset.name.7b2a5afc-9990-4a02-a462-fbfd0414691c.12b296",
@@ -357,7 +357,7 @@
     },
     {
         "id": "asset.name.8d444136-9124-450b-8782-0a1cd93e73cf.fea1c4",
-        "translation": "مركبة نقل البضائع الصلبة (2-3 محاور)"
+        "translation": "مركبة شحن ثقيل (مزودة بمحورين او ثلاثة محاور)"
     },
     {
         "id": "asset.name.8dff59a8-555f-4c77-b481-2915e97265e2.f6e3ec",
@@ -373,7 +373,7 @@
     },
     {
         "id": "asset.name.9bb969b9-219d-402c-9cbf-2bb0e2865dfb.dffafd",
-        "translation": "الفلفل (فلفل (بيبر سوب) 2"
+        "translation": "الفلفل"
     },
     {
         "id": "asset.name.9bb96832-87b4-4f6c-8aaa-5de12fae9bd0.1e4a01",
@@ -381,7 +381,7 @@
     },
     {
         "id": "asset.name.9bc700f0-aa67-4bf1-8a03-89b1c3a2a8a0.98e3f5",
-        "translation": "مناطق التخزين"
+        "translation": "أماكن التخزين"
     },
     {
         "id": "asset.name.9d16d1da-0d3f-4656-931e-7ed08e174bd9.8c653b",
@@ -413,7 +413,7 @@
     },
     {
         "id": "asset.name.9e431b88-ba3c-4216-b6e0-5ed2627f3f32.dffafd",
-        "translation": "الفلفل (فلفل (بيبر سوب) 2"
+        "translation": "الفلفل"
     },
     {
         "id": "asset.name.9ee3e6da-783c-45a8-9635-785c4c299e7e.ac61e3",
@@ -449,7 +449,7 @@
     },
     {
         "id": "asset.name.14b32c3f-07c1-49fa-81f2-89407b1921e2.eaa175",
-        "translation": "الخضروات الجذرية أو البصلية أو الدرنية الأخرى، غير مذكورة ولا داخلة في مكان آخر"
+        "translation": "الخضروات الجذرية أو البصلية أو الدرنية الأخرى، غير مذكورة ولا مسجلة في مكان آخر"
     },
     {
         "id": "asset.name.15de048d-11c7-4302-8d8c-64e0fe042433.e404aa",
@@ -593,7 +593,7 @@
     },
     {
         "id": "asset.name.57b621e8-b148-4ac2-9f61-10f320d95808.f22f76",
-        "translation": "مستوصف/تمريض مدرسي"
+        "translation": "المستوصف/التمريض في المدرسة"
     },
     {
         "id": "asset.name.58a5e280-0026-41d7-8064-15070e76b0af.ab90ba",
@@ -805,7 +805,7 @@
     },
     {
         "id": "asset.name.600c8a50-4aca-4b3e-bf77-f973eab831f5.f24c4e",
-        "translation": "دار الحكومة"
+        "translation": "مقر-مبنى الحكومة"
     },
     {
         "id": "asset.name.601b203a-e7ea-4ec8-ad40-a4d9dbfa4ba9.e39f6c",
@@ -853,7 +853,7 @@
     },
     {
         "id": "asset.name.823e56bf-41a3-49ba-b628-e91cb59231d5.81180d",
-        "translation": "فاصوليا عريضة، جافة"
+        "translation": "حبوب الفول المجففة"
     },
     {
         "id": "asset.name.0823edc2-32ec-4f6f-b6de-ebf3e691b567.299074",
@@ -865,7 +865,7 @@
     },
     {
         "id": "asset.name.840c3fb0-6822-47e4-8dfc-1f153727120a.a1dd0d",
-        "translation": "جوزة الطيب والصولجان والهيل والهيل"
+        "translation": "جوزة الطيب والصولجان والهيل"
     },
     {
         "id": "asset.name.845b008b-be31-48c1-82af-d95833194d93.48e593",
@@ -885,7 +885,7 @@
     },
     {
         "id": "asset.name.868cf501-7e0a-41ce-a8bf-559eb537d964.b96473",
-        "translation": "الفواكه التفاحية الأخرى والفواكه ذات النواة الحجرية، غير موجودة ولا داخلة في مكان آخر"
+        "translation": "الفواكه التفاحية الأخرى والفواكه ذات النواة الحجرية، غير موجودة ولا مسجلة في مكان آخر"
     },
     {
         "id": "asset.name.887c31e8-9854-48ae-a1c9-1ffa89102894.d08056",
@@ -1029,7 +1029,7 @@
     },
     {
         "id": "asset.name.61275f5c-aac0-4f7c-8dbf-2bd48a706933.af74c6",
-        "translation": "مرافق المعالجة"
+        "translation": "مرافق تجهيز الأغذية"
     },
     {
         "id": "asset.name.67783d9d-b251-4258-96fd-4baeb0aad172.6215f1",
@@ -1037,7 +1037,7 @@
     },
     {
         "id": "asset.name.75335dfb-5734-4be5-9bfe-7b2f1cfc50ce.bddbef",
-        "translation": "اليوسفي واليوسفي واليوسفي والكليمونتين"
+        "translation": "اليوسفي و المندرين و الكلمنتين"
     },
     {
         "id": "asset.name.78274c14-d0ec-4ff1-86c7-8e7819b5ad65.fd7b46",
@@ -1045,7 +1045,7 @@
     },
     {
         "id": "asset.name.78836c2c-9120-4ee3-99a8-32b72a9313a9.29cb8b",
-        "translation": "مرافق الصرف الصحي المدرسي"
+        "translation": "مرافق الصرف الصحي المدرسية"
     },
     {
         "id": "asset.name.80012e57-edb3-4e74-9200-f6cbb171b725.46f8ab",
@@ -1065,7 +1065,7 @@
     },
     {
         "id": "asset.name.89090ff2-e57d-4be8-bad2-671de871746b.20d365",
-        "translation": "اليقطين والقرع والقرع والقرع"
+        "translation": "اليقطين والقرع"
     },
     {
         "id": "asset.name.91060c21-e3bb-4b76-b551-0d101e43361c.687e63",
