@@ -1,0 +1,17 @@
+{
+	"list": {
+		"empty": "Aucun avis trouvé.",
+		"columns": {
+			"title": "Titre",
+			"status": "Statut",
+			"published_at": "Publié",
+			"updated_at": "Dernière mise à jour",
+			"actions": "Actions"
+		}
+	},
+	"status": {
+		"published": "Publié",
+		"draft": "Brouillon"
+	},
+	"title": "Avis"
+}

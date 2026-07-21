@@ -1,0 +1,7 @@
+{
+	"view": "Voir",
+	"error": {
+		"generic": "Une erreur inattendue s'est produite.",
+		"generic_retry": "Une erreur inattendue s'est produite. Veuillez réessayer plus tard."
+	}
+}
