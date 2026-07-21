@@ -9,7 +9,5 @@ export default defineConfig({
 		output: "locales/{{language}}/{{namespace}}.json",
 		defaultNS: "translation",
 		sort: true,
-		// __e2e_fixture__ is hand-crafted and intentionally partial (e.g. no es/) — never auto-managed.
-		ignoreNamespaces: ["__e2e_fixture__"],
 	},
 });

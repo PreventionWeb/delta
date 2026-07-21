@@ -17,8 +17,4 @@ describe("i18next.config.ts", () => {
 	it("reuses VALID_LANGUAGES rather than hardcoding a second locale list", () => {
 		expect(config.locales).toEqual(VALID_LANGUAGES);
 	});
-
-	it("excludes the permanent E2E fixture namespace from automated extraction", () => {
-		expect(config.extract.ignoreNamespaces).toContain("__e2e_fixture__");
-	});
 });

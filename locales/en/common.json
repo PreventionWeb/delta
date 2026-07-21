@@ -1,0 +1,7 @@
+{
+	"view": "View",
+	"error": {
+		"generic": "An unexpected error occurred.",
+		"generic_retry": "An unexpected error occurred. Please try again later."
+	}
+}
