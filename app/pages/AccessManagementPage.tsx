@@ -22,16 +22,12 @@ export default function AccessManagementPage() {
 
 	const [isClient, setIsClient] = useState(false);
 
-	// Ensure client-specific rendering only occurs after the component mounts
-	useEffect(() => {
-		setIsClient(true);
-		setFilteredItems(items); // Ensure data is consistent
-	}, [items]);
-
-	// State for search and filtered users
-	const [filteredItems, setFilteredItems] = useState(items);
-	const [organizationFilter, setOrganizationFilter] = useState("");
-	const [roleFilter, setRoleFilter] = useState("all");
+	const [organizationFilter, setOrganizationFilter] = useState(
+		() => new URLSearchParams(location.search).get("organization") || "",
+	);
+	const [roleFilter, setRoleFilter] = useState(
+		() => new URLSearchParams(location.search).get("role") || "all",
+	);
 
 	const pageSizeOptions = [10, 20, 30, 40, 50];
 
@@ -42,46 +38,64 @@ export default function AccessManagementPage() {
 		navigate(`${location.pathname}?${params.toString()}`);
 	};
 
-	const applyFilters = (organizationValue: string, selectedRole: string) => {
-		const orgSearch = organizationValue.trim().toLowerCase();
-		const filteredData = items.filter((item) => {
-			const matchesOrganization = orgSearch
-				? item.organization?.name.toLowerCase().includes(orgSearch)
-				: true;
-			const matchesRole =
-				selectedRole === "all" ? true : item.role === selectedRole;
-			return matchesOrganization && matchesRole;
-		});
-		setFilteredItems(filteredData);
+	const updateFilterParams = (
+		nextOrganizationFilter: string,
+		nextRoleFilter: string,
+	) => {
+		const params = new URLSearchParams(location.search);
+
+		if (nextOrganizationFilter.trim()) {
+			params.set("organization", nextOrganizationFilter);
+		} else {
+			params.delete("organization");
+		}
+
+		if (nextRoleFilter !== "all") {
+			params.set("role", nextRoleFilter);
+		} else {
+			params.delete("role");
+		}
+
+		params.set("page", "1");
+		navigate(`${location.pathname}?${params.toString()}`);
 	};
+
+	// Ensure client-specific rendering only occurs after the component mounts
+	useEffect(() => {
+		setIsClient(true);
+		const params = new URLSearchParams(location.search);
+		const nextOrganizationFilter = params.get("organization") || "";
+		const nextRoleFilter = params.get("role") || "all";
+
+		setOrganizationFilter(nextOrganizationFilter);
+		setRoleFilter(nextRoleFilter);
+	}, [location.search]);
 
 	const handleOrganizationFilter = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const value = e.target.value;
 		setOrganizationFilter(value);
-		applyFilters(value, roleFilter);
+		updateFilterParams(value, roleFilter);
 	};
 
 	const handleRoleFilter = (e: DropdownChangeEvent) => {
 		const selectedRole = (e.value as string | null) ?? "all";
 		setRoleFilter(selectedRole);
-		applyFilters(organizationFilter, selectedRole);
+		updateFilterParams(organizationFilter, selectedRole);
 	};
 
 	// Calculate user stats
 	const totalUsers = pagination.total;
 
 	// Handle different formats for `emailVerified`
-	const activatedUsers = filteredItems.filter((item) => {
+	const activatedUsers = items.filter((item) => {
 		return item.user.emailVerified === true;
 	}).length;
 
-	const pendingUsers = filteredItems.filter(
-		(item) => !item.user.emailVerified,
-	).length;
+	const pendingUsers = items.filter((item) => !item.user.emailVerified).length;
 
 	const navSettings = <NavSettings ctx={ctx} userRole={ld.userRole} />;
 
-	const statusBodyTemplate = (item: (typeof filteredItems)[number]) => (
+	const statusBodyTemplate = (item: (typeof items)[number]) => (
 		<span
 			className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
 				item.user.emailVerified
@@ -103,7 +117,7 @@ export default function AccessManagementPage() {
 		</span>
 	);
 
-	const nameBodyTemplate = (item: (typeof filteredItems)[number]) => (
+	const nameBodyTemplate = (item: (typeof items)[number]) => (
 		<Button
 			type="button"
 			link
@@ -114,7 +128,7 @@ export default function AccessManagementPage() {
 		/>
 	);
 
-	const roleBodyTemplate = (item: (typeof filteredItems)[number]) => {
+	const roleBodyTemplate = (item: (typeof items)[number]) => {
 		const roleObj = getCountryRole(ctx, item.role);
 		return (
 			<span>
@@ -124,10 +138,10 @@ export default function AccessManagementPage() {
 		);
 	};
 
-	const addedAtBodyTemplate = (item: (typeof filteredItems)[number]) =>
+	const addedAtBodyTemplate = (item: (typeof items)[number]) =>
 		item.addedAt ? format(item.addedAt, "dd-MM-yyyy") : "";
 
-	const actionsBodyTemplate = (item: (typeof filteredItems)[number]) => (
+	const actionsBodyTemplate = (item: (typeof items)[number]) => (
 		<div className="flex items-center gap-2">
 			<Button
 				type="button"
@@ -278,7 +292,7 @@ export default function AccessManagementPage() {
 			<section className="dts-page-section">
 				<div>
 					<strong className="dts-body-label">
-						{filteredItems.length} of {totalUsers} Users
+						{items.length} of {totalUsers} Users
 					</strong>
 				</div>
 
@@ -319,7 +333,7 @@ export default function AccessManagementPage() {
 			{isClient && (
 				<section className="dts-page-section">
 					<DataTable
-						value={filteredItems}
+						value={items}
 						dataKey="id"
 						emptyMessage={ctx.t({
 							code: "common.no_data_found",

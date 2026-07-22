@@ -3,7 +3,7 @@ import {
 	userCountryAccountsTable,
 } from "~/drizzle/schema/userCountryAccountsTable";
 import { userTable } from "~/drizzle/schema";
-import { and, count, eq, ne, sql } from "drizzle-orm";
+import { and, count, eq, inArray, ne, sql } from "drizzle-orm";
 import { dr, Tx } from "~/db.server";
 import {
 	countryAccountsTable,
@@ -14,10 +14,43 @@ export async function getUserCountryAccountsWithUserByCountryAccountsId(
 	pageNumber: number,
 	pageSize: number,
 	countryAccountsId: string,
+	filters?: {
+		role?: string;
+		organizationIds?: string[];
+	},
 ) {
+	if (filters?.organizationIds && filters.organizationIds.length === 0) {
+		return {
+			items: [],
+			pagination: {
+				total: 0,
+				pageNumber,
+				pageSize,
+				totalPages: 0,
+				extraParams: {},
+			},
+		};
+	}
+
 	const offset = (pageNumber - 1) * pageSize;
+	const conditions = [
+		eq(userCountryAccountsTable.countryAccountsId, countryAccountsId),
+	];
+
+	if (filters?.role) {
+		conditions.push(eq(userCountryAccountsTable.role, filters.role));
+	}
+
+	if (filters?.organizationIds?.length) {
+		conditions.push(
+			inArray(userCountryAccountsTable.organizationId, filters.organizationIds),
+		);
+	}
+
+	const where = and(...conditions);
+
 	const items = await dr.query.userCountryAccountsTable.findMany({
-		where: eq(userCountryAccountsTable.countryAccountsId, countryAccountsId),
+		where,
 		limit: pageSize,
 		offset: offset,
 		with: {
@@ -38,10 +71,7 @@ export async function getUserCountryAccountsWithUserByCountryAccountsId(
 			},
 		},
 	});
-	const total = await dr.$count(
-		userCountryAccountsTable,
-		eq(userCountryAccountsTable.countryAccountsId, countryAccountsId),
-	);
+	const total = await dr.$count(userCountryAccountsTable, where);
 
 	return {
 		items,
