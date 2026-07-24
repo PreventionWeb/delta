@@ -143,6 +143,7 @@ export const loader = authLoaderWithPerm(
 
 		return {
 			division: item,
+			hasGeom: Boolean(item.geom),
 			breadcrumbs: breadcrumbs,
 		};
 	},
@@ -243,7 +244,7 @@ export default function Screen() {
 		>
 			<Common loaderData={loaderData} />
 			{isClient &&
-				(loaderData.division.geojson ? (
+				(loaderData.hasGeom && loaderData.division.geojson ? (
 					<DTSMap geoData={loaderData.division.geojson} />
 				) : (
 					<Message

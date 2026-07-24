@@ -259,7 +259,7 @@ interface DivisionData {
 	importId: string;
 	nationalId: string;
 	parent: string;
-	geodataFile: string;
+	geodataFile: string | null;
 	name: Record<string, string>;
 }
 
@@ -412,11 +412,14 @@ function parseDivisionRow(
 	if (!id) return null;
 
 	const parent = row[headers.indexOf("parent")]?.trim() || "";
-	const geodata = row[headers.indexOf("geodata")]?.trim();
+	const geodata = row[headers.indexOf("geodata")]?.trim() || null;
 	const nationalId = row[headers.indexOf("national_id")]?.trim();
 
-	if (!geodata || !nationalId) {
-		logger.warn("Skipping row with missing required fields", { id });
+	if (!nationalId) {
+		logger.warn("Skipping row with missing required fields", {
+			id,
+			missing: ["national_id"],
+		});
 		return null;
 	}
 
@@ -705,62 +708,68 @@ async function processSingleDivision(
 		logger.info("Processing division", {
 			importId: division.importId,
 			parent: division.parent || "none",
-			geodataFile: division.geodataFile,
+			geodataFile: division.geodataFile || "none",
 			currentIdMapSize: idMap.size,
 			hasParentInMap: division.parent ? idMap.has(division.parent) : "N/A",
 		});
 
-		// Find GeoJSON file
-		const normalizedFilename = division.geodataFile.toLowerCase();
-		const geoJsonPath = geoJsonLookup.get(normalizedFilename);
+		let geoJsonContent: string | null = null;
+		if (division.geodataFile) {
+			// Find GeoJSON file
+			const normalizedFilename = division.geodataFile.toLowerCase();
+			const geoJsonPath = geoJsonLookup.get(normalizedFilename);
 
-		if (!geoJsonPath) {
-			throw new ImportError(`GeoJSON file not found: ${division.geodataFile}`);
-		}
+			if (!geoJsonPath) {
+				throw new ImportError(`GeoJSON file not found: ${division.geodataFile}`);
+			}
 
-		let geoJsonContent: string;
-		try {
-			geoJsonContent = await zip.files[geoJsonPath].async("text");
-		} catch (error) {
-			throw new ImportError(
-				`Failed to read GeoJSON file ${division.geodataFile}: ${error instanceof Error ? error.message : "Unknown error"}`,
-			);
-		}
+			try {
+				geoJsonContent = await zip.files[geoJsonPath].async("text");
+			} catch (error) {
+				throw new ImportError(
+					`Failed to read GeoJSON file ${division.geodataFile}: ${error instanceof Error ? error.message : "Unknown error"}`,
+				);
+			}
 
-		// Validate GeoJSON before processing
-		let parsedGeoJson: any;
-		try {
-			parsedGeoJson = JSON.parse(geoJsonContent);
-		} catch (error) {
-			throw new ImportError(
-				`Invalid JSON in file ${division.geodataFile}: ${error instanceof Error ? error.message : "Unknown error"}`,
-			);
-		}
+			// Validate GeoJSON before processing
+			let parsedGeoJson: any;
+			try {
+				parsedGeoJson = JSON.parse(geoJsonContent);
+			} catch (error) {
+				throw new ImportError(
+					`Invalid JSON in file ${division.geodataFile}: ${error instanceof Error ? error.message : "Unknown error"}`,
+				);
+			}
 
-		// Basic GeoJSON validation
-		if (!parsedGeoJson.type) {
-			throw new ImportError(
-				`Invalid GeoJSON in ${division.geodataFile}: missing 'type' property`,
-			);
-		}
+			// Basic GeoJSON validation
+			if (!parsedGeoJson.type) {
+				throw new ImportError(
+					`Invalid GeoJSON in ${division.geodataFile}: missing 'type' property`,
+				);
+			}
 
-		// Validate based on GeoJSON type
-		const validTypes = [
-			"Feature",
-			"FeatureCollection",
-			"Point",
-			"LineString",
-			"Polygon",
-			"MultiPoint",
-			"MultiLineString",
-			"MultiPolygon",
-			"GeometryCollection",
-		];
+			// Validate based on GeoJSON type
+			const validTypes = [
+				"Feature",
+				"FeatureCollection",
+				"Point",
+				"LineString",
+				"Polygon",
+				"MultiPoint",
+				"MultiLineString",
+				"MultiPolygon",
+				"GeometryCollection",
+			];
 
-		if (!validTypes.includes(parsedGeoJson.type)) {
-			throw new ImportError(
-				`Invalid GeoJSON in ${division.geodataFile}: unknown type '${parsedGeoJson.type}'`,
-			);
+			if (!validTypes.includes(parsedGeoJson.type)) {
+				throw new ImportError(
+					`Invalid GeoJSON in ${division.geodataFile}: unknown type '${parsedGeoJson.type}'`,
+				);
+			}
+		} else {
+			logger.info("Importing division without geodata", {
+				importId: division.importId,
+			});
 		}
 
 		// Import within transaction and get the database ID and operation type
@@ -830,31 +839,35 @@ async function importDivision(
 	division: DivisionData,
 	idMap: Map<string, string>,
 	countryAccountsId: string,
-	geoJsonContent: string,
+	geoJsonContent: string | null,
 ): Promise<{ dbId: string; wasUpdate: boolean }> {
-	// Parse GeoJSON
-	const geojson = JSON.parse(geoJsonContent);
+	let geojson: any = null;
+	let geometryJson: any = null;
 
-	// Extract geometry based on GeoJSON type
-	let geometryJson: any;
-	if (geojson.type === "FeatureCollection") {
-		// If it's a FeatureCollection, use the first feature's geometry
-		if (!geojson.features || geojson.features.length === 0) {
-			throw new ImportError(
-				`FeatureCollection in division ${division.importId} has no features`,
-			);
+	if (geoJsonContent) {
+		// Parse GeoJSON
+		geojson = JSON.parse(geoJsonContent);
+
+		// Extract geometry based on GeoJSON type
+		if (geojson.type === "FeatureCollection") {
+			// If it's a FeatureCollection, use the first feature's geometry
+			if (!geojson.features || geojson.features.length === 0) {
+				throw new ImportError(
+					`FeatureCollection in division ${division.importId} has no features`,
+				);
+			}
+			geometryJson = geojson.features[0].geometry;
+		} else if (geojson.type === "Feature") {
+			// If it's a Feature, extract the geometry
+			geometryJson = geojson.geometry;
+		} else {
+			// It's already a geometry object
+			geometryJson = geojson;
 		}
-		geometryJson = geojson.features[0].geometry;
-	} else if (geojson.type === "Feature") {
-		// If it's a Feature, extract the geometry
-		geometryJson = geojson.geometry;
-	} else {
-		// It's already a geometry object
-		geometryJson = geojson;
-	}
 
-	if (!geometryJson) {
-		throw new ImportError(`No geometry found in division ${division.importId}`);
+		if (!geometryJson) {
+			throw new ImportError(`No geometry found in division ${division.importId}`);
+		}
 	}
 
 	// Determine parent ID from idMap if parent exists
@@ -904,16 +917,22 @@ async function importDivision(
 		divisionDbId = existing[0].id;
 		wasUpdate = true;
 
+		const geometrySql = geometryJson
+			? {
+					geojson,
+					geom: sql`ST_MakeValid(ST_GeomFromGeoJSON(${JSON.stringify(geometryJson)}))`,
+					bbox: sql`ST_Envelope(ST_MakeValid(ST_GeomFromGeoJSON(${JSON.stringify(geometryJson)})))`,
+				}
+			: {};
+
 		await tx
 			.update(divisionTable)
 			.set({
 				nationalId: division.nationalId,
 				parentId,
 				name: division.name,
-				geojson: geojson,
 				level: BigInt(level),
-				geom: sql`ST_MakeValid(ST_GeomFromGeoJSON(${JSON.stringify(geometryJson)}))`,
-				bbox: sql`ST_Envelope(ST_MakeValid(ST_GeomFromGeoJSON(${JSON.stringify(geometryJson)})))`,
+				...geometrySql,
 			})
 			.where(eq(divisionTable.id, divisionDbId));
 
@@ -925,6 +944,18 @@ async function importDivision(
 		});
 	} else {
 		// Insert new division
+		const geometrySql = geometryJson
+			? {
+					geojson,
+					geom: sql`ST_MakeValid(ST_GeomFromGeoJSON(${JSON.stringify(geometryJson)}))`,
+					bbox: sql`ST_Envelope(ST_MakeValid(ST_GeomFromGeoJSON(${JSON.stringify(geometryJson)})))`,
+				}
+			: {
+					geojson: null,
+					geom: null,
+					bbox: null,
+				};
+
 		const [inserted] = await tx
 			.insert(divisionTable)
 			.values({
@@ -933,10 +964,8 @@ async function importDivision(
 				parentId,
 				countryAccountsId,
 				name: division.name,
-				geojson: geojson,
 				level: BigInt(level),
-				geom: sql`ST_MakeValid(ST_GeomFromGeoJSON(${JSON.stringify(geometryJson)}))`,
-				bbox: sql`ST_Envelope(ST_MakeValid(ST_GeomFromGeoJSON(${JSON.stringify(geometryJson)})))`,
+				...geometrySql,
 			})
 			.returning({ id: divisionTable.id });
 

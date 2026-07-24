@@ -446,16 +446,8 @@ export default function Screen() {
             <div className="mb-4 mt-3 flex w-full flex-wrap justify-end gap-2">
                 <Button
                     type="button"
-                    outlined
-                    icon="pi pi-download"
-                    label={ctx.t({ code: "common.csv_export", msg: "CSV export" })}
-                    onClick={() => navigate(ctx.url("/settings/geography/csv-export"))}
-                    size="small"
-                />
-                <Button
-                    type="button"
                     icon="pi pi-upload"
-                    label={ctx.t({ code: "common.upload_csv", msg: "Upload CSV" })}
+                    label={ctx.t({ code: "common.upload_zip", msg: "Upload ZIP" })}
                     onClick={() => navigate(ctx.url("/settings/geography/upload"))}
                     size="small"
                 />

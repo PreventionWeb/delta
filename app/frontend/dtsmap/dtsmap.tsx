@@ -7,6 +7,7 @@ import VectorSource from "ol/source/Vector";
 import GeoJSON from "ol/format/GeoJSON";
 import { OSM } from "ol/source";
 import { fromLonLat } from "ol/proj";
+import { isEmpty as isEmptyExtent } from "ol/extent";
 
 import { Fill, Stroke, Style } from "ol/style.js";
 
@@ -49,13 +50,29 @@ export default function DTSMap({ geoData }: DTSMapProps) {
 			}),
 		});
 
-		if (geoData.bbox) {
+		const sourceExtent = vectorSource.getExtent();
+
+		if (
+			sourceExtent &&
+			sourceExtent.every((value) => Number.isFinite(value)) &&
+			!isEmptyExtent(sourceExtent)
+		) {
+			map.getView().fit(sourceExtent, {
+				size: map.getSize(),
+				padding: [24, 24, 24, 24],
+				maxZoom: 12,
+			});
+		} else if (geoData.bbox) {
 			const bbox = geoData.bbox;
 			const extent = [
 				...fromLonLat([bbox[0], bbox[1]]),
 				...fromLonLat([bbox[2], bbox[3]]),
 			];
-			map.getView().fit(extent, { size: map.getSize() });
+			map.getView().fit(extent, {
+				size: map.getSize(),
+				padding: [24, 24, 24, 24],
+				maxZoom: 12,
+			});
 		}
 
 		return () => map.setTarget(undefined);
