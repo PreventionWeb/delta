@@ -38,10 +38,23 @@ export const loader = authLoaderWithPerm("ViewUsers", async (loaderArgs) => {
 	const { request } = loaderArgs;
 	const url = new URL(request.url);
 	const search = url.searchParams.get("search") || "";
+	const roleFilter = url.searchParams.get("role") || "all";
+	const organizationFilter = url.searchParams.get("organization") || "";
 
 	const countryAccountsId = await getCountryAccountsIdFromSession(request);
 	const organizations =
 		await OrganizationRepository.getByCountryAccountsId(countryAccountsId);
+
+	const normalizedOrganizationFilter = organizationFilter.trim().toLowerCase();
+	const organizationIds = normalizedOrganizationFilter
+		? organizations
+				.filter((organization) =>
+					organization.name
+						.toLowerCase()
+						.includes(normalizedOrganizationFilter),
+				)
+				.map((organization) => organization.id)
+		: undefined;
 
 	const pagination = paginationQueryFromURL(request, []);
 
@@ -49,6 +62,10 @@ export const loader = authLoaderWithPerm("ViewUsers", async (loaderArgs) => {
 		pagination.viewData.page,
 		pagination.viewData.pageSize,
 		countryAccountsId,
+		{
+			role: roleFilter !== "all" ? roleFilter : undefined,
+			organizationIds,
+		},
 	);
 
 	const userRole = await getUserRoleFromSession(request);
