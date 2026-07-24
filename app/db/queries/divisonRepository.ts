@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { dr, Tx } from "../../db.server";
 import { divisionTable, InsertDivision } from "~/drizzle/schema/divisionTable";
 export const DivisionRepository = {
@@ -53,6 +53,44 @@ export const DivisionRepository = {
 			return { ok: true };
 		} catch {
 			return { ok: false, errors: ["Failed to update the division"] };
+		}
+	},
+	updateGeometryIfMissing: async (
+		id: string,
+		countryAccountsId: string,
+		geojsonFeature: unknown,
+		geometry: unknown,
+		tx?: Tx,
+	): Promise<{ ok: boolean; errors?: string[] }> => {
+		try {
+			const updated = await (tx ?? dr)
+				.update(divisionTable)
+				.set({
+					geojson: geojsonFeature,
+					geom: sql`ST_MakeValid(ST_GeomFromGeoJSON(${JSON.stringify(geometry)}))`,
+					bbox: sql`ST_Envelope(ST_MakeValid(ST_GeomFromGeoJSON(${JSON.stringify(geometry)})))`,
+				})
+				.where(
+					and(
+						eq(divisionTable.id, id),
+						eq(divisionTable.countryAccountsId, countryAccountsId),
+						sql`${divisionTable.geom} IS NULL`,
+					),
+				)
+				.returning({ id: divisionTable.id });
+
+			if (!updated.length) {
+				return {
+					ok: false,
+					errors: [
+						"Division geometry already exists, or division not found/access denied",
+					],
+				};
+			}
+
+			return { ok: true };
+		} catch {
+			return { ok: false, errors: ["Failed to update division geometry"] };
 		}
 	},
 };

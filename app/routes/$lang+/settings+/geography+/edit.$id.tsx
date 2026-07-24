@@ -1,6 +1,7 @@
 import { authActionWithPerm, authLoaderWithPerm } from "~/utils/auth";
 
 import { InsertDivision } from "~/drizzle/schema/divisionTable";
+import { dr } from "~/db.server";
 
 import {
 	DivisionBreadcrumbRow,
@@ -16,6 +17,7 @@ import { Divider } from "primereact/divider";
 import { BreadCrumb as PrimeBreadCrumb } from "primereact/breadcrumb";
 import { MenuItem } from "primereact/menuitem";
 import { formStringData } from "~/utils/httputil";
+import { normalizeGeoJSONToFeature } from "~/utils/geoValidation";
 import { NavSettings } from "~/frontend/components/NavSettings";
 
 import { MainContainer } from "~/frontend/container";
@@ -157,8 +159,9 @@ export const action = authActionWithPerm(
 		}
 
 		const countryAccountsId = await getCountryAccountsIdFromSession(request);
-
-		const rawForm = formStringData(await request.formData());
+		const formData = await request.formData();
+		const rawForm = formStringData(formData);
+		const geometryFile = formData.get("geometryFile");
 		const { parentId, ...nameFields } = rawForm;
 		const names = Object.entries(nameFields)
 			.filter(([key]) => key.startsWith("names[") && key.endsWith("]"))
@@ -183,20 +186,73 @@ export const action = authActionWithPerm(
 			data.level = 1;
 		}
 
-		const res = await DivisionRepository.update(id, data, countryAccountsId);
+		try {
+			const result = await dr.transaction(async (tx) => {
+				const current = await DivisionRepository.getById(id, countryAccountsId, tx);
+				if (!current) {
+					throw new Error("Division not found");
+				}
 
-		if (!res.ok) {
+				const updateRes = await DivisionRepository.update(
+					id,
+					data,
+					countryAccountsId,
+					tx,
+				);
+				if (!updateRes.ok) {
+					throw new Error(updateRes.errors?.[0] || "Failed to update the division");
+				}
+
+				let geometryUploaded = false;
+				if (geometryFile instanceof File && geometryFile.size > 0) {
+					if (current.geom) {
+						throw new Error(
+							"Geometry already exists for this division and cannot be overwritten.",
+						);
+					}
+
+					const textContent = await geometryFile.text();
+					let parsedGeoJSON: any;
+					try {
+						parsedGeoJSON = JSON.parse(textContent);
+					} catch {
+						throw new Error("Uploaded geometry file is not valid JSON");
+					}
+
+					const normalizedGeoJSON = normalizeGeoJSONToFeature(parsedGeoJSON);
+					const geometryRes = await DivisionRepository.updateGeometryIfMissing(
+						id,
+						countryAccountsId,
+						normalizedGeoJSON.feature,
+						normalizedGeoJSON.geometry,
+						tx,
+					);
+
+					if (!geometryRes.ok) {
+						throw new Error(
+							geometryRes.errors?.[0] ||
+								"Failed to update geometry for this division",
+						);
+					}
+
+					geometryUploaded = true;
+				}
+
+				return { geometryUploaded };
+			});
+
+			return {
+				ok: true,
+				data,
+				geometryUploaded: result.geometryUploaded,
+			};
+		} catch (error) {
 			return {
 				ok: false,
-				data: data,
-				errors: res.errors,
+				data,
+				errors: [error instanceof Error ? error.message : "Failed to update the division"],
 			};
 		}
-
-		return {
-			ok: true,
-			data: data,
-		};
 	},
 );
 
@@ -209,10 +265,30 @@ export default function Screen() {
 	const isSubmitting = navigation.state === "submitting";
 	const saved = actionData?.ok === true;
 	const hasError = actionData?.ok === false;
+	const geometryUploaded = actionData?.ok === true && actionData?.geometryUploaded === true;
 
 	const fields: InsertDivision = actionData?.data ?? loaderData.data;
 	const nameMap = (fields.name ?? {}) as Record<string, string>;
 	const langs = Object.keys(nameMap).sort();
+	const canUploadGeometry = !loaderData.data.geom && !geometryUploaded;
+	const canDownloadGeoJSON = Boolean(loaderData.data.geom && loaderData.data.geojson);
+
+	const handleDownloadGeoJSON = () => {
+		if (!loaderData.data.geojson) {
+			return;
+		}
+
+		const blob = new Blob([
+			JSON.stringify(loaderData.data.geojson, null, 2),
+		], { type: "application/geo+json" });
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement("a");
+		const baseName = loaderData.data.importId || loaderData.data.id;
+		link.href = url;
+		link.download = `${baseName}.geojson`;
+		link.click();
+		URL.revokeObjectURL(url);
+	};
 
 	const navSettings = <NavSettings ctx={ctx} userRole={ctx.user?.role} />;
 
@@ -266,15 +342,22 @@ export default function Screen() {
 						<Message
 							className="mb-4 w-full"
 							severity="error"
-							text={ctx.t({
-								code: "common.save_error",
-								msg: "There was an error saving the data. Please try again.",
-							})}
+							text={
+								actionData?.errors?.[0] ||
+								ctx.t({
+									code: "common.save_error",
+									msg: "There was an error saving the data. Please try again.",
+								})
+							}
 						/>
 					)}
 
 					{/* Form */}
-					<RRForm method="post" className="flex flex-col gap-5">
+					<RRForm
+						method="post"
+						encType="multipart/form-data"
+						className="flex flex-col gap-5"
+					>
 						{/* Parent ID */}
 						<div className="flex flex-col gap-1">
 							<label
@@ -333,10 +416,60 @@ export default function Screen() {
 							</div>
 						)}
 
+						{canDownloadGeoJSON && (
+							<div className="flex flex-col gap-1">
+								<p className="text-sm font-medium text-gray-700">
+									{ctx.t({
+										code: "geographies.download_geometry",
+										msg: "Download geometry",
+									})}
+								</p>
+								<div>
+									<Button
+										type="button"
+										outlined
+										icon="pi pi-download"
+										label={ctx.t({
+											code: "geographies.download_geometry",
+											msg: "Download geometry",
+										})}
+										onClick={handleDownloadGeoJSON}
+									/>
+								</div>
+							</div>
+						)}
+
+						{canUploadGeometry && (
+							<div className="flex flex-col gap-1">
+								<label
+									htmlFor="field-geometry-file"
+									className="text-sm font-medium text-gray-700"
+								>
+									{ctx.t({
+										code: "geographies.upload_geometry",
+										msg: "Upload geometry",
+									})}
+								</label>
+								<input
+									id="field-geometry-file"
+									name="geometryFile"
+									type="file"
+									accept=".geojson,.json,application/geo+json,application/json"
+									className="p-inputtext w-full"
+								/>
+								<p className="text-xs text-gray-500">
+									{ctx.t({
+										code: "geographies.upload_geometry_hint",
+										msg: "Geometry upload is available only when this division has no geometry yet.",
+									})}
+								</p>
+							</div>
+						)}
+
 						<Divider className="my-1" />
 
 						{/* Actions */}
-						<div className="flex items-center justify-between gap-3">
+						<div className="flex flex-wrap items-center justify-between gap-3">
 							<LangLink
 								lang={ctx.lang}
 								to={`/settings/geography${fields.parentId ? "?parent=" + fields.parentId + "&view=table" : "?view=table"}`}
@@ -351,16 +484,18 @@ export default function Screen() {
 									})}
 								/>
 							</LangLink>
-							<Button
-								type="submit"
-								icon="pi pi-check"
-								label={ctx.t({
-									code: "geographies.update_division",
-									msg: "Update division",
-								})}
-								loading={isSubmitting}
-								disabled={isSubmitting}
-							/>
+							<div className="flex flex-wrap items-center gap-2">
+								<Button
+									type="submit"
+									icon="pi pi-check"
+									label={ctx.t({
+										code: "geographies.update_division",
+										msg: "Update division",
+									})}
+									loading={isSubmitting}
+									disabled={isSubmitting}
+								/>
+							</div>
 						</div>
 					</RRForm>
 				</Card>

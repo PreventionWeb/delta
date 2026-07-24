@@ -23,7 +23,10 @@ import {
 	TransactionError,
 	AppError,
 } from "~/utils/errors";
-import { validateGeoJSON } from "~/utils/geoValidation";
+import {
+	validateGeoJSON,
+	normalizeGeoJSONToFeature,
+} from "~/utils/geoValidation";
 
 // Create logger
 const logger = createLogger("division");
@@ -848,25 +851,13 @@ async function importDivision(
 		// Parse GeoJSON
 		geojson = JSON.parse(geoJsonContent);
 
-		// Extract geometry based on GeoJSON type
-		if (geojson.type === "FeatureCollection") {
-			// If it's a FeatureCollection, use the first feature's geometry
-			if (!geojson.features || geojson.features.length === 0) {
-				throw new ImportError(
-					`FeatureCollection in division ${division.importId} has no features`,
-				);
-			}
-			geometryJson = geojson.features[0].geometry;
-		} else if (geojson.type === "Feature") {
-			// If it's a Feature, extract the geometry
-			geometryJson = geojson.geometry;
-		} else {
-			// It's already a geometry object
-			geometryJson = geojson;
-		}
-
-		if (!geometryJson) {
-			throw new ImportError(`No geometry found in division ${division.importId}`);
+		try {
+			const normalizedGeoJSON = normalizeGeoJSONToFeature(geojson);
+			geometryJson = normalizedGeoJSON.geometry;
+		} catch (error) {
+			throw new ImportError(
+				`Invalid geodata in division ${division.importId}: ${error instanceof Error ? error.message : "Unknown error"}`,
+			);
 		}
 	}
 
