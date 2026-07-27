@@ -35,15 +35,16 @@ describe("noticesTable", () => {
 
 		const [row] = await dr
 			.insert(noticesTable)
-			.values({ countryAccountsId, titleJson: { en: "Draft Notice" } })
+			.values({ countryAccountsId, title: "Draft Notice", locale: "en" })
 			.returning();
 
 		expect(row.id).toBeTruthy();
 		expect(row.isPublished).toBe(false);
 		expect(row.audience).toBe("private");
 		expect(row.publishedAt).toBeNull();
-		expect(row.titleJson).toEqual({ en: "Draft Notice" });
-		expect(row.bodyJson).toBeNull();
+		expect(row.title).toBe("Draft Notice");
+		expect(row.locale).toBe("en");
+		expect(row.body).toBeNull();
 		expect(row.createdAt).toBeInstanceOf(Date);
 	});
 
@@ -51,15 +52,14 @@ describe("noticesTable", () => {
 		const countryId = await insertCountry(crypto.randomUUID().slice(0, 8));
 		const countryAccountsId = await insertCountryAccount(countryId);
 		const publishedAt = new Date("2026-01-15T12:00:00Z");
-		const titleJson = { en: "Test Title", fr: "Titre de test" };
-		const bodyJson = { en: "Body content", fr: "Contenu du corps" };
 
 		const [row] = await dr
 			.insert(noticesTable)
 			.values({
 				countryAccountsId,
-				titleJson,
-				bodyJson,
+				title: "Titre de test",
+				body: "Contenu du corps",
+				locale: "fr",
 				isPublished: true,
 				publishedAt,
 				audience: "public",
@@ -69,8 +69,9 @@ describe("noticesTable", () => {
 		expect(row.isPublished).toBe(true);
 		expect(row.audience).toBe("public");
 		expect(row.publishedAt).toEqual(publishedAt);
-		expect(row.titleJson).toEqual(titleJson);
-		expect(row.bodyJson).toEqual(bodyJson);
+		expect(row.title).toBe("Titre de test");
+		expect(row.body).toBe("Contenu du corps");
+		expect(row.locale).toBe("fr");
 	});
 
 	it("(c) audience column only accepts declared enum values", async () => {
@@ -92,11 +93,19 @@ describe("noticesTable", () => {
 		const [result1, result2] = await Promise.all([
 			dr
 				.insert(noticesTable)
-				.values({ countryAccountsId: countryAccountsId1, titleJson: { en: "Notice 1" } })
+				.values({
+					countryAccountsId: countryAccountsId1,
+					title: "Notice 1",
+					locale: "en",
+				})
 				.returning(),
 			dr
 				.insert(noticesTable)
-				.values({ countryAccountsId: countryAccountsId2, titleJson: { en: "Notice 2" } })
+				.values({
+					countryAccountsId: countryAccountsId2,
+					title: "Notice 2",
+					locale: "en",
+				})
 				.returning(),
 		]);
 
@@ -117,7 +126,7 @@ describe("noticesTable", () => {
 
 		const [inserted] = await dr
 			.insert(noticesTable)
-			.values({ countryAccountsId, titleJson: { en: "Cascade Test" } })
+			.values({ countryAccountsId, title: "Cascade Test", locale: "en" })
 			.returning({ id: noticesTable.id });
 
 		// Delete the parent tenant row — cascade should remove its notices automatically.

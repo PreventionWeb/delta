@@ -32,6 +32,12 @@ vi.mock("~/infrastructure/logging/PinoLogger.server", () => ({
 	}),
 }));
 
+// Mock ~/init.server so the middleware's `await initServer()` doesn't trigger a
+// real DB/NestJS/HTTP bootstrap in this unit test.
+vi.mock("~/init.server", () => ({
+	initServer: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { requestContextMiddleware } from "~/middleware/requestContext.server";
 import { getRequestContext } from "~/utils/requestContext.server";
 import type { Route } from "../../../app/+types/root";
