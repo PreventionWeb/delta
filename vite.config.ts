@@ -49,6 +49,9 @@ export default defineConfig({
 	publicDir: path.resolve(__dirname, "public"), // Ensures the "public" folder is correctly configured
 	optimizeDeps: {
 		include: ["react", "react-dom", "react-router"],
+		// nestjs-i18n's optional-peer require()s (graphql/hbs) break the scanner even though
+		// it's server-only — see vite.config.ts git history for details.
+		exclude: ["nestjs-i18n"],
 	},
 	server: {
 		allowedHosts: ['.ddev.site', '.undrr.org', '.deltaresilience.org'],
