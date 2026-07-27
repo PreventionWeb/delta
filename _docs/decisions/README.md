@@ -49,3 +49,6 @@ Related ADRs, external standards, or documentation.
 | [ADR-003](ADR-003-error-handling-architecture.md) | Error Handling Architecture | Proposed |
 | [ADR-004](ADR-004-logging-and-traceability.md) | Logging and Traceability | Proposed |
 | [ADR-005](ADR-005-currency-storage-and-conversion.md) | Currency Storage and Conversion | Proposed |
+| [ADR-006](ADR-006-session-revocation-and-idp-trust.md) | Session Revocation and Identity Provider Trust Boundary | Proposed |
+| [ADR-007](ADR-007-success-response-shape.md) | Success Response Shape — Plain Resource, No Envelope | Proposed |
+| [ADR-008](ADR-008-user-content-not-translated.md) | User-Generated Content Is Not Translated | Proposed |
