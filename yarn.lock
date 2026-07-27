@@ -862,10 +862,10 @@
   resolved "https://registry.npmjs.org/@polka/url/-/url-1.0.0-next.29.tgz#5a40109a1ab5f84d6fd8fc928b19f367cbe7e7b1"
   integrity sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==
 
-"@react-router/dev@^8.2.0":
-  version "8.2.0"
-  resolved "https://registry.yarnpkg.com/@react-router/dev/-/dev-8.2.0.tgz#7e1236a17235d71c9f24805cd3b0462f106bbcc9"
-  integrity sha512-NSWDdCQm7enrjBNlUVZK1nUMGHcARIF7hvXHlIhhFXd3zZA073+z2A6nzzUtSN+CEcdH66se5uoMuot3l69eQw==
+"@react-router/dev@^8.3.0":
+  version "8.3.0"
+  resolved "https://registry.yarnpkg.com/@react-router/dev/-/dev-8.3.0.tgz#8c79371cb07d7e1af11fbe8a8cea939639f3ad61"
+  integrity sha512-XR+N2fEFOPjczYo2efc3/AOtosbSICCroLF/IxnZ6ErGBeBGRG6SqAso0SYoff0e18OA05qOyhJHFhXKMGIPRw==
   dependencies:
     "@babel/core" "^7.29.7"
     "@babel/generator" "^7.29.7"
@@ -874,7 +874,7 @@
     "@babel/preset-typescript" "^7.29.7"
     "@babel/traverse" "^7.29.7"
     "@babel/types" "^7.29.7"
-    "@react-router/node" "8.2.0"
+    "@react-router/node" "8.3.0"
     "@remix-run/node-fetch-server" "^0.13.3"
     babel-dead-code-elimination "^1.0.12"
     chokidar "^5.0.0"
@@ -894,32 +894,32 @@
     tinyglobby "^0.2.16"
     valibot "^1.4.1"
 
-"@react-router/express@8.2.0", "@react-router/express@^8.2.0":
-  version "8.2.0"
-  resolved "https://registry.yarnpkg.com/@react-router/express/-/express-8.2.0.tgz#c7e620df3a63f4b41e586624ce3e0115ffeb8836"
-  integrity sha512-rGAQ0uh1UvzC6Ae765IMHqEB87GGFJDmn7wHjr5gt5RHw1KOrrijDDYs23P/Vuc2rImypMQVUGWkqBjWKhySVw==
+"@react-router/express@8.3.0", "@react-router/express@^8.3.0":
+  version "8.3.0"
+  resolved "https://registry.yarnpkg.com/@react-router/express/-/express-8.3.0.tgz#6eac33e0c71fb17bb2352cd0a57bb816dece4325"
+  integrity sha512-ejgJTbGO0CzwjgU4IMM3JTJvqtisc+qF6l0iMzwx+NnrsYwtFy0V1BrajM9499+YQ/420LbuRTtZqDfpUIkwHw==
   dependencies:
-    "@react-router/node" "8.2.0"
+    "@react-router/node" "8.3.0"
 
-"@react-router/node@8.2.0", "@react-router/node@^8.2.0":
-  version "8.2.0"
-  resolved "https://registry.yarnpkg.com/@react-router/node/-/node-8.2.0.tgz#33ee3f6dee1c05b3c81e0c1dff13e7d3feba5e04"
-  integrity sha512-Zs4j+OEUeMWqhyHK1Grx9x9u+TKvyYoPk8lDoYhFf52kmleEPDo84dJaXfxwUDd0HFtjL5cYm9v3KyMFZG7ciw==
+"@react-router/node@8.3.0", "@react-router/node@^8.3.0":
+  version "8.3.0"
+  resolved "https://registry.yarnpkg.com/@react-router/node/-/node-8.3.0.tgz#03a7802b8e1dd882e94d36dd24c87a27eda34fea"
+  integrity sha512-qw5ibcolE1OcwngiEw6t7LR11Hi6yWEDvj6cfvaYROX+w18JPxc0YSmsdn3Wlc9TOX+Qo8FVcxbXRdc9vojn2w==
   dependencies:
     "@remix-run/node-fetch-server" "^0.13.3"
 
-"@react-router/remix-routes-option-adapter@^8.2.0":
-  version "8.2.0"
-  resolved "https://registry.yarnpkg.com/@react-router/remix-routes-option-adapter/-/remix-routes-option-adapter-8.2.0.tgz#ef4932667a1488952e60aa4e026394a66c8fee25"
-  integrity sha512-GE22/LVHcG3f8SyteljVBK56/vIRIIjlkf5LjjumTxLa/pwYzfmMBpSAotDP72HdqfgCW+Bd1uRM3uWxSJWaFQ==
+"@react-router/remix-routes-option-adapter@^8.3.0":
+  version "8.3.0"
+  resolved "https://registry.yarnpkg.com/@react-router/remix-routes-option-adapter/-/remix-routes-option-adapter-8.3.0.tgz#b39d93a092801bc932b825bb6e1ea879406cec49"
+  integrity sha512-YAf+FwqEFN2iwBuRR4xHPRX2nEb4yaiOuCY89t1QvhmgGdxs/0AfcIgVau40pbKFSokmiR3GZt1tbf79Vz3gag==
 
-"@react-router/serve@^8.2.0":
-  version "8.2.0"
-  resolved "https://registry.yarnpkg.com/@react-router/serve/-/serve-8.2.0.tgz#862f78151b58f1a0f32c8df1627614f5ac611fb7"
-  integrity sha512-rnXwCkMeTqwS2AO3W2BCJ5XmkwTQh83ATrYvFk1ZwcVxgzZn8LtRMKRG/2C1xFyChCJUrs0t6EKYCOZqHmFrfg==
+"@react-router/serve@^8.3.0":
+  version "8.3.0"
+  resolved "https://registry.yarnpkg.com/@react-router/serve/-/serve-8.3.0.tgz#27dec895c4a5e6530ed5e40bde9654116d8c176d"
+  integrity sha512-ILFhPizuaNtQKfX1aLg6lr7r5FMZO/DgerUpGFhnK85t7M5c6ZNOb7VUURlJpu/ArUR2Sh+f5nBYTsgFt2R2OA==
   dependencies:
-    "@react-router/express" "8.2.0"
-    "@react-router/node" "8.2.0"
+    "@react-router/express" "8.3.0"
+    "@react-router/node" "8.3.0"
     "@remix-run/node-fetch-server" "^0.13.3"
     compression "^1.8.1"
     express "^5.2.1"
@@ -1970,10 +1970,10 @@ body-parser@^2.2.1, body-parser@^2.3.0:
     raw-body "^3.0.2"
     type-is "^2.1.0"
 
-brace-expansion@^5.0.5, brace-expansion@^5.0.7:
-  version "5.0.7"
-  resolved "https://registry.yarnpkg.com/brace-expansion/-/brace-expansion-5.0.7.tgz#1b0e46965b479dad65af737b4a02790a05498337"
-  integrity sha512-7oFy703dxfY3/NLxC1fh2SUCQ0H9rmAY+5EpDVfXjUTTs+HEwR2nYaqLv+GWcTsumwxPfiz6CzCNkwXwBUwqCA==
+brace-expansion@^5.0.5, brace-expansion@^5.0.8:
+  version "5.0.8"
+  resolved "https://registry.yarnpkg.com/brace-expansion/-/brace-expansion-5.0.8.tgz#135ad0d8d808eb18eb5e0ec9a21f3a0b92ef18cf"
+  integrity sha512-JZyDyq3D4AUifKTPOB7DELf6XsB3WdPuNxCtob1vFXPsSXhdAiHBWJ/tJ8HAc9aH84BK+5JFZLNkJKx3G9kzQg==
   dependencies:
     balanced-match "^4.0.2"
 
@@ -3846,10 +3846,10 @@ nano-spawn@^2.0.0:
   resolved "https://registry.npmjs.org/nano-spawn/-/nano-spawn-2.0.0.tgz#f1250434c09ae18870d4f729fc54b406cf85a3e1"
   integrity sha512-tacvGzUY5o2D8CBh2rrwxyNojUsZNU2zjNTzKQrkgGJQTbGAfArVWXSKMBokBeeg6C7OLRGUEyoFlYbfeWQIqw==
 
-nanoid@^3.3.11:
-  version "3.3.11"
-  resolved "https://registry.npmjs.org/nanoid/-/nanoid-3.3.11.tgz#4f4f112cefbe303202f2199838128936266d185b"
-  integrity sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w==
+nanoid@^3.3.16:
+  version "3.3.16"
+  resolved "https://registry.yarnpkg.com/nanoid/-/nanoid-3.3.16.tgz#a04d8ec4b1f10009d2d533947aefe4293737816c"
+  integrity sha512-bzlKTyNJ7+LdGIIwy8ijFpIqEQIvafahV7eYykJ8Cvh42EdJeODoJ6gUJXpQJvej1BddH8OqTXZNE/KfbWAu8Q==
 
 negotiator@^1.0.0:
   version "1.0.0"
@@ -4297,12 +4297,12 @@ postcss-value-parser@^4.0.0:
   resolved "https://registry.npmjs.org/postcss-value-parser/-/postcss-value-parser-4.2.0.tgz#723c09920836ba6d3e5af019f92bc0971c02e514"
   integrity sha512-1NNCs6uurfkVbeXG4S8JFT9t19m45ICnif8zWLd5oPSZ50QnwMfK+H3jv408d4jw/7Bttv5axS5IiHoLaVNHeQ==
 
-postcss@^8.5.10, postcss@^8.5.6:
-  version "8.5.14"
-  resolved "https://registry.npmjs.org/postcss/-/postcss-8.5.14.tgz#a66c2d7808fadf69ebb5b84a03f8bafd76c4919c"
-  integrity sha512-SoSL4+OSEtR99LHFZQiJLkT59C5B1amGO1NzTwj7TT1qCUgUO6hxOvzkOYxD+vMrXBM3XJIKzokoERdqQq/Zmg==
+postcss@^8.5.18, postcss@^8.5.6:
+  version "8.5.23"
+  resolved "https://registry.yarnpkg.com/postcss/-/postcss-8.5.23.tgz#3493550116f478487298301d2c2e8dc5a56e6594"
+  integrity sha512-g50586zr4bZmwFiTlflMu8E0bDTb5I5gertgwAKmsdUlTQIhZtunzUlD1WSzwcVWPoAVpsrA6vlfCD7oXvRwgg==
   dependencies:
-    nanoid "^3.3.11"
+    nanoid "^3.3.16"
     picocolors "^1.1.1"
     source-map-js "^1.2.1"
 
@@ -4510,10 +4510,10 @@ react-refresh@^0.18.0:
   resolved "https://registry.yarnpkg.com/react-refresh/-/react-refresh-0.18.0.tgz#2dce97f4fe932a4d8142fa1630e475c1729c8062"
   integrity sha512-QgT5//D3jfjJb6Gsjxv0Slpj23ip+HtOpnNgnb2S5zU3CB26G/IDPGoy4RJB42wzFE46DRsstbW6tKHoKbhAxw==
 
-react-router@^8.2.0:
-  version "8.2.0"
-  resolved "https://registry.yarnpkg.com/react-router/-/react-router-8.2.0.tgz#194809cb06a1b9ed83654882fd549b7fd47a20fd"
-  integrity sha512-uP1LgGNHyilL1u+ZkecQk74DJOKOb6q4NLNYLRJcD/fjoogftNb5/Rj/07o/QBFsY/5MbAKPm1peTCQuVPv9cQ==
+react-router@^8.3.0:
+  version "8.3.0"
+  resolved "https://registry.yarnpkg.com/react-router/-/react-router-8.3.0.tgz#b7bc69c3e3833ba79ebf892aef03d62b649508f8"
+  integrity sha512-qyPMvW83jGIct3yiieisxdk9M745anqhpIMKN5m1t6yBMfgVPpt77aHOqs5fUlEJRMCGffg9BaQLH9oPVOL7xQ==
   dependencies:
     cookie-es "^3.1.1"
 
