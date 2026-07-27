@@ -23,6 +23,7 @@ import { buildTree } from "~/components/TreeView";
 import { getCountryAccountsIdFromSession, getUserRoleFromSession } from "~/utils/session";
 import { ViewContext } from "~/frontend/context";
 import { LangLink } from "~/utils/link";
+import { canAddNewRecord } from "~/frontend/user/roles";
 
 interface ItemRes {
     id: string;
@@ -356,6 +357,7 @@ export default function Screen() {
     const navigate = useNavigate();
     const location = useLocation();
     const navSettings = <NavSettings ctx={ctx} userRole={ld.userRole} />;
+    const canAdd = canAddNewRecord(ld.userRole ?? null);
     const primeTreeNodes = useMemo(
         () => toPrimeTreeNodes(ld.treeData as DivisionTreeNodeInput[]),
         [ld.treeData],
@@ -444,6 +446,22 @@ export default function Screen() {
     const GeographicLevelsTable = () => (
         <>
             <div className="mb-4 mt-3 flex w-full flex-wrap justify-end gap-2">
+                {canAdd && (
+                    <Button
+                        type="button"
+                        icon="pi pi-plus"
+                        label={ctx.t({
+                            code: "common.add_new_record",
+                            msg: "Add new",
+                        })}
+                        onClick={() => {
+                            const params = new URLSearchParams(location.search);
+                            params.set("view", "table");
+                            navigate(ctx.url(`/settings/geography/new?${params.toString()}`));
+                        }}
+                        size="small"
+                    />
+                )}
                 <Button
                     type="button"
                     icon="pi pi-upload"
@@ -493,6 +511,16 @@ export default function Screen() {
                         code: "geographies.no_admin_divisions_configured",
                         msg: "No administrative divisions configured. Please upload CSV with data.",
                     })}
+                    {" "}
+                    {canAdd && (
+                        <LangLink lang={ctx.lang} to="/settings/geography/new?view=table">
+                            {ctx.t({
+                                code: "common.add_new_record",
+                                msg: "Add new",
+                            })}
+                        </LangLink>
+                    )}
+                    {" "}
                     <a href="/assets/division_sample.zip">
                         {ctx.t({ code: "geographies.see_example", msg: "See example" })}
                     </a>
