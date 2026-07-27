@@ -7,12 +7,14 @@ import type { Route } from "../+types/root";
 import {
 	withRequestContext,
 	getRequestContext,
+	writeSessionIntoContext,
 } from "~/utils/requestContext.server";
 import {
 	getUserFromSession,
 	getCountryAccountsIdFromSession,
 } from "~/utils/session";
 import { getPinoLogger } from "~/infrastructure/logging/PinoLogger.server";
+import { initServer } from "~/init.server";
 
 export const requestContextMiddleware: Route.MiddlewareFunction = (
 	{ request },
@@ -22,6 +24,10 @@ export const requestContextMiddleware: Route.MiddlewareFunction = (
 
 	return withRequestContext(
 		async () => {
+			// Waits out a still-running (or dev-reload-restarted) initServer() rather than
+			// hitting the session store before initCookieStorage() has run.
+			await initServer();
+
 			// Promise.allSettled, allSettled ensures a failure in one (e.g. a transient DB error)
 			// never prevents the other from populating and never rejects this callback
 			const [userResult, tenantIdResult] = await Promise.allSettled([
@@ -50,14 +56,16 @@ export const requestContextMiddleware: Route.MiddlewareFunction = (
 			// on the same store instance traceId was seeded into.
 			const ctx = getRequestContext();
 			if (ctx) {
-				ctx.userId =
-					userResult.status === "fulfilled"
-						? (userResult.value?.user.id ?? null)
-						: null;
-				ctx.tenantId =
-					tenantIdResult.status === "fulfilled"
-						? (tenantIdResult.value ?? null)
-						: null;
+				writeSessionIntoContext(ctx, {
+					userId:
+						userResult.status === "fulfilled"
+							? (userResult.value?.user.id ?? null)
+							: null,
+					tenantId:
+						tenantIdResult.status === "fulfilled"
+							? (tenantIdResult.value ?? null)
+							: null,
+				});
 			}
 
 			return next();
