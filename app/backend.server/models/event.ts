@@ -1492,6 +1492,7 @@ export async function disasterEventUpdate(
 			.update(disasterEventTable)
 			.set({
 				...fields,
+				updatedAt: new Date(),
 			})
 			.where(
 				and(
@@ -1597,6 +1598,7 @@ export async function disasterEventUpdateByIdAndCountryAccountsId(
 			.update(disasterEventTable)
 			.set({
 				...fields,
+				updatedAt: new Date(),
 			})
 			.where(
 				and(
