@@ -28,8 +28,8 @@ import { BackendContext } from "~/backend.server/context";
 import { htmlTitle } from "~/utils/htmlmeta";
 import { requireDisasterRecordAccess } from "../requireDisasterRecordAccess.server";
 
-export const meta: MetaFunction = () => {
-	const ctx = new ViewContext();
+export const meta: MetaFunction = ({ params }) => {
+	const ctx = new ViewContext({ lang: params.lang || "en" });
 
 	return [
 		{

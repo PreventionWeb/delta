@@ -228,6 +228,7 @@ export default function Screen() {
 		<html
 			lang={loaderData.common.lang}
 			dir={loaderData.common.lang === "ar" ? "rtl" : "ltr"}
+			suppressHydrationWarning
 		>
 			<head>
 				<meta charSet="utf-8" />
@@ -336,7 +337,7 @@ export function ErrorBoundary() {
 	}
 
 	return (
-		<html>
+		<html suppressHydrationWarning>
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width,initial-scale=1" />

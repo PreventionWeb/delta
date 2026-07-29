@@ -24,8 +24,8 @@ import { sendWelcomeRegistrationEmail } from "~/utils/emailUtil";
 import { ErrorState } from "~/components/ErrorState";
 import { redirectWithMessage } from "~/utils/session";
 
-export const meta: MetaFunction = () => {
-	const ctx = new ViewContext();
+export const meta: MetaFunction = ({ params }) => {
+	const ctx = new ViewContext({ lang: params.lang || "en" });
 
 	return [
 		{
