@@ -5,8 +5,9 @@ import { Notice, type NoticeProps } from "./Notice";
 const baseProps: NoticeProps = {
 	id: "notice-1",
 	tenantId: "tenant-1",
-	titleJson: { en: "My Notice" },
-	bodyJson: null,
+	title: "My Notice",
+	body: null,
+	locale: "en",
 	isPublished: false,
 	audience: "public",
 	publishedAt: null,
@@ -16,19 +17,20 @@ const baseProps: NoticeProps = {
 
 describe("Notice.create()", () => {
 	describe("Happy paths", () => {
-		it("returns a Notice instance when titleJson has one locale, isPublished is false, publishedAt is null", () => {
+		it("returns a Notice instance when title is non-empty, isPublished is false, publishedAt is null", () => {
 			const notice = Notice.create(baseProps);
 
 			expect(notice).toBeInstanceOf(Notice);
-			expect(notice.titleJson).toEqual({ en: "My Notice" });
+			expect(notice.title).toBe("My Notice");
+			expect(notice.locale).toBe("en");
 			expect(notice.isPublished).toBe(false);
 			expect(notice.publishedAt).toBeNull();
 		});
 
-		it("returns a Notice instance without throwing when titleJson has multiple locales", () => {
+		it("returns a Notice instance without throwing when body is set", () => {
 			const props: NoticeProps = {
 				...baseProps,
-				titleJson: { en: "My Notice", fr: "Mon Avis" },
+				body: "Some body text",
 			};
 
 			expect(() => Notice.create(props)).not.toThrow();
@@ -37,7 +39,7 @@ describe("Notice.create()", () => {
 		it("returns a Notice instance without throwing when isPublished is true and publishedAt is set", () => {
 			const props: NoticeProps = {
 				...baseProps,
-				titleJson: { en: "Published" },
+				title: "Published",
 				isPublished: true,
 				publishedAt: new Date("2024-06-01T00:00:00Z"),
 			};
@@ -51,7 +53,7 @@ describe("Notice.create()", () => {
 			// Only the reverse is an invariant: a DRAFT must never carry a publishedAt.
 			const props: NoticeProps = {
 				...baseProps,
-				titleJson: { en: "Published without timestamp" },
+				title: "Published without timestamp",
 				isPublished: true,
 				publishedAt: null,
 			};
@@ -61,28 +63,28 @@ describe("Notice.create()", () => {
 	});
 
 	describe("Failure paths", () => {
-		it("throws ValidationError when titleJson is an empty object", () => {
+		it("throws ValidationError when title is an empty string", () => {
 			const props: NoticeProps = {
 				...baseProps,
-				titleJson: {},
+				title: "",
 			};
 
 			expect(() => Notice.create(props)).toThrow(ValidationError);
 		});
 
-		it("throws ValidationError with a message referencing titleJson when titleJson is empty", () => {
+		it("throws ValidationError with a message referencing title when title is empty", () => {
 			const props: NoticeProps = {
 				...baseProps,
-				titleJson: {},
+				title: "",
 			};
 
-			expect(() => Notice.create(props)).toThrow(/titleJson/);
+			expect(() => Notice.create(props)).toThrow(/title/);
 		});
 
-		it("throws ValidationError when titleJson has only whitespace-only locale values", () => {
+		it("throws ValidationError when title is whitespace-only", () => {
 			const props: NoticeProps = {
 				...baseProps,
-				titleJson: { en: "   ", fr: "" },
+				title: "   ",
 			};
 
 			expect(() => Notice.create(props)).toThrow(ValidationError);
@@ -91,7 +93,7 @@ describe("Notice.create()", () => {
 		it("throws ValidationError when publishedAt is non-null but isPublished is false", () => {
 			const props: NoticeProps = {
 				...baseProps,
-				titleJson: { en: "Draft" },
+				title: "Draft",
 				isPublished: false,
 				publishedAt: new Date("2024-06-01T00:00:00Z"),
 			};
@@ -102,7 +104,7 @@ describe("Notice.create()", () => {
 		it("throws ValidationError with a message referencing publishedAt/isPublished when publishedAt is set on an unpublished notice", () => {
 			const props: NoticeProps = {
 				...baseProps,
-				titleJson: { en: "Draft" },
+				title: "Draft",
 				isPublished: false,
 				publishedAt: new Date("2024-06-01T00:00:00Z"),
 			};
@@ -121,14 +123,14 @@ describe("Notice.create()", () => {
 			// Each call returns its own object — not the same reference
 			expect(a).not.toBe(b);
 			// Both reflect the input props correctly
-			expect(a.titleJson).toEqual(baseProps.titleJson);
-			expect(b.titleJson).toEqual(baseProps.titleJson);
+			expect(a.title).toEqual(baseProps.title);
+			expect(b.title).toEqual(baseProps.title);
 		});
 
 		it("two sequential calls with invalid props each throw their own independent ValidationError", () => {
 			const invalidProps: NoticeProps = {
 				...baseProps,
-				titleJson: {},
+				title: "",
 			};
 
 			const call = () => Notice.create(invalidProps);
@@ -144,8 +146,9 @@ describe("Notice.create()", () => {
 			const props: NoticeProps = {
 				id: "notice-42",
 				tenantId: "tenant-99",
-				titleJson: { en: "Title", fr: "Titre" },
-				bodyJson: { en: "Body text", fr: "Corps du texte" },
+				title: "Title",
+				body: "Body text",
+				locale: "fr",
 				isPublished: true,
 				audience: "private",
 				publishedAt: new Date("2024-06-15T12:00:00Z"),
@@ -157,13 +160,66 @@ describe("Notice.create()", () => {
 
 			expect(notice.id).toBe(props.id);
 			expect(notice.tenantId).toBe(props.tenantId);
-			expect(notice.titleJson).toEqual(props.titleJson);
-			expect(notice.bodyJson).toEqual(props.bodyJson);
+			expect(notice.title).toBe(props.title);
+			expect(notice.body).toBe(props.body);
+			expect(notice.locale).toBe(props.locale);
 			expect(notice.isPublished).toBe(props.isPublished);
 			expect(notice.audience).toBe(props.audience);
 			expect(notice.publishedAt).toEqual(props.publishedAt);
 			expect(notice.createdAt).toEqual(props.createdAt);
 			expect(notice.updatedAt).toEqual(props.updatedAt);
 		});
+	});
+});
+
+// Consolidates the publishedAt transition rule previously duplicated between
+// CreateNoticeUseCase and UpdateNoticeUseCase (SOLID review finding).
+describe("Notice.computePublishedAt()", () => {
+	const now = new Date("2026-02-01T12:00:00.000Z");
+
+	it("stamps now on first publish (was not published, will be published)", () => {
+		const result = Notice.computePublishedAt({
+			willBePublished: true,
+			wasPublished: false,
+			existingPublishedAt: null,
+			now,
+		});
+
+		expect(result).toEqual(now);
+	});
+
+	it("keeps the existing publishedAt when already published and staying published", () => {
+		const originalPublishedAt = new Date("2024-01-01T00:00:00.000Z");
+
+		const result = Notice.computePublishedAt({
+			willBePublished: true,
+			wasPublished: true,
+			existingPublishedAt: originalPublishedAt,
+			now,
+		});
+
+		expect(result).toBe(originalPublishedAt);
+	});
+
+	it("returns null when unpublishing", () => {
+		const result = Notice.computePublishedAt({
+			willBePublished: false,
+			wasPublished: true,
+			existingPublishedAt: new Date("2024-01-01T00:00:00.000Z"),
+			now,
+		});
+
+		expect(result).toBeNull();
+	});
+
+	it("returns null for a brand-new, never-published notice", () => {
+		const result = Notice.computePublishedAt({
+			willBePublished: false,
+			wasPublished: false,
+			existingPublishedAt: null,
+			now,
+		});
+
+		expect(result).toBeNull();
 	});
 });

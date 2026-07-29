@@ -21,6 +21,7 @@ import {
 	AuthorizationError,
 	ConflictError,
 } from "~/shared/errors/DomainError";
+import { InvalidLocaleTagError } from "~/shared/i18n/resolveLocale";
 import { DomainErrorFilter } from "~/infrastructure/DomainErrorFilter.server";
 
 // ---------------------------------------------------------------------------
@@ -74,6 +75,13 @@ class StubController {
 			error: "Bad Request",
 			statusCode: 400,
 		});
+	}
+
+	@Get("/invalid-locale-tag")
+	throwInvalidLocaleTag() {
+		// Framework-agnostic error type from resolveLocale() (design.md Decision 4) --
+		// not an HttpException, so it needs its own filter branch and its own coverage here.
+		throw new InvalidLocaleTagError(["en", "fr", "es"]);
 	}
 }
 
@@ -318,6 +326,29 @@ describe("DomainErrorFilter", () => {
 	});
 
 	// -------------------------------------------------------------------------
+	// InvalidLocaleTagError (framework-agnostic type, not an HttpException)
+	// -------------------------------------------------------------------------
+
+	it("InvalidLocaleTagError returns HTTP 400 with its own code", async () => {
+		const res = await request.get("/test/invalid-locale-tag");
+		expect(res.status).toBe(400);
+		expect(res.body).toMatchObject({
+			success: false,
+			error: {
+				code: "INVALID_LOCALE_TAG",
+				message: "Invalid Accept-Language tag",
+			},
+		});
+	});
+
+	it("InvalidLocaleTagError lists supportedLocales in error.details", async () => {
+		const res = await request.get("/test/invalid-locale-tag");
+		expect(res.body.error.details).toEqual({
+			supportedLocales: ["en", "fr", "es"],
+		});
+	});
+
+	// -------------------------------------------------------------------------
 	// APP_FILTER propagation to nested modules (W1)
 	// -------------------------------------------------------------------------
 
@@ -333,5 +364,24 @@ describe("DomainErrorFilter", () => {
 			success: false,
 			error: { code: "NOT_FOUND" },
 		});
+	});
+
+	// -------------------------------------------------------------------------
+	// Unmatched-route 404s get a documentationUrl (design.md Decision 15)
+	// -------------------------------------------------------------------------
+
+	it("an unmatched route's 404 includes a documentationUrl pointing at /api/v2/docs", async () => {
+		// Genuinely unmatched route — Nest 404s it itself, unlike /test/nest-exception's deliberate throw.
+		const res = await request.get("/this-path-matches-no-route");
+		expect(res.status).toBe(404);
+		expect(res.body.documentationUrl).toMatch(
+			/^https?:\/\/[^/]+\/api\/v2\/docs$/,
+		);
+	});
+
+	it("a resource-not-found 404 (NotFoundError) does not include a documentationUrl", async () => {
+		const res = await request.get("/test/not-found");
+		expect(res.status).toBe(404);
+		expect(res.body).not.toHaveProperty("documentationUrl");
 	});
 });

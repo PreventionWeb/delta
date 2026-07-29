@@ -55,7 +55,7 @@ export type RequestContextStore = {
 
 	/**
 	 * Authenticated user id for the current request, resolved from the session
-	 * via getUserFromSession(). 
+	 * via getUserFromSession().
 	 */
 	userId: string | null;
 };
@@ -101,4 +101,17 @@ export function withRequestContext<T>(
  */
 export function getRequestContext(): RequestContextStore | undefined {
 	return als.getStore();
+}
+
+/**
+ * Mutates a live store's tenantId/userId in place. Shared by
+ * `requestContextMiddleware` and `SessionAuthGuard` so "how the store gets
+ * populated" has one implementation, not two independent copies.
+ */
+export function writeSessionIntoContext(
+	ctx: RequestContextStore,
+	values: { tenantId: string | null; userId: string | null },
+): void {
+	ctx.tenantId = values.tenantId;
+	ctx.userId = values.userId;
 }

@@ -65,12 +65,15 @@ function renderWithI18n(ui: React.ReactElement): string {
 	);
 }
 
+// ADR-008: title/body are plain strings, in the single locale the notice was authored in —
+// no more locale-map, so no resolution helper to exercise here.
 function makeNotice(overrides: Partial<NoticeDto> = {}): NoticeDto {
 	return {
 		id: crypto.randomUUID(),
 		tenantId: "tenant-1",
-		titleJson: { en: "Untitled" },
-		bodyJson: null,
+		title: "Untitled",
+		body: null,
+		locale: "en",
 		isPublished: true,
 		publishedAt: "2026-01-01T00:00:00.000Z",
 		audience: "all",
@@ -81,11 +84,11 @@ function makeNotice(overrides: Partial<NoticeDto> = {}): NoticeDto {
 }
 
 describe("NoticeListPage", () => {
-	it("renders one row per notice with the resolved title", () => {
+	it("renders one row per notice with its own title", () => {
 		const noticeList = [
-			makeNotice({ titleJson: { en: "Notice A" } }),
-			makeNotice({ titleJson: { en: "Notice B" } }),
-			makeNotice({ titleJson: { en: "Notice C" } }),
+			makeNotice({ title: "Notice A" }),
+			makeNotice({ title: "Notice B" }),
+			makeNotice({ title: "Notice C" }),
 		];
 
 		const html = renderWithI18n(<NoticeListPage data={noticeList} />);
@@ -113,8 +116,8 @@ describe("NoticeListPage", () => {
 
 	it("renders distinct Published/Draft status labels", () => {
 		const noticeList = [
-			makeNotice({ titleJson: { en: "Published notice" }, isPublished: true }),
-			makeNotice({ titleJson: { en: "Draft notice" }, isPublished: false }),
+			makeNotice({ title: "Published notice", isPublished: true }),
+			makeNotice({ title: "Draft notice", isPublished: false }),
 		];
 
 		const html = renderWithI18n(<NoticeListPage data={noticeList} />);

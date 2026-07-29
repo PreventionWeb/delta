@@ -15,10 +15,9 @@ vi.stubGlobal(
 	(_lang: string) => stubTranslationGetter,
 );
 
-let currentLang = "en";
 vi.mock("react-router", () => ({
 	useRouteLoaderData: vi.fn(() => ({
-		common: { lang: currentLang, user: null },
+		common: { lang: "en", user: null },
 	})),
 }));
 
@@ -66,15 +65,15 @@ function renderWithI18n(ui: ReactElement): string {
 	);
 }
 
-function makeNotice(
-	titleJson: Record<string, string>,
-	overrides: Partial<NoticeDto> = {},
-): NoticeDto {
+// ADR-008: title/body are plain strings in a single authored locale — no more locale-map,
+// no per-request resolution helper.
+function makeNotice(overrides: Partial<NoticeDto> = {}): NoticeDto {
 	return {
 		id: "notice-1",
 		tenantId: "tenant-1",
-		titleJson,
-		bodyJson: null,
+		title: "Untitled",
+		body: null,
+		locale: "en",
 		isPublished: true,
 		publishedAt: "2026-01-01T00:00:00.000Z",
 		audience: "all",
@@ -85,39 +84,36 @@ function makeNotice(
 }
 
 describe("NoticeDetailPage", () => {
-	it("renders the title for the current language when the key is present", () => {
-		currentLang = "fr";
+	it("renders the notice's own title, whatever locale it was authored in", () => {
 		const html = renderWithI18n(
-			<NoticeDetailPage data={makeNotice({ en: "Title", fr: "Titre" })} />,
+			<NoticeDetailPage data={makeNotice({ title: "Titre", locale: "fr" })} />,
 		);
 
 		expect(html).toContain("Titre");
 	});
 
-	it("falls back to the en key when the current language key is absent", () => {
-		currentLang = "ar";
+	it("renders the notice's own body", () => {
 		const html = renderWithI18n(
-			<NoticeDetailPage data={makeNotice({ en: "Title" })} />,
+			<NoticeDetailPage
+				data={makeNotice({ title: "Title", body: "Some body text" })}
+			/>,
 		);
 
-		expect(html).toContain("Title");
+		expect(html).toContain("Some body text");
 	});
 
-	it("renders an empty title string when neither the current language nor en is present", () => {
-		currentLang = "ar";
+	it("renders an empty body when body is null", () => {
 		const html = renderWithI18n(
-			<NoticeDetailPage data={makeNotice({ fr: "Titre" })} />,
+			<NoticeDetailPage data={makeNotice({ title: "Title", body: null })} />,
 		);
 
-		expect(html).not.toContain("Titre");
-		expect(html).toContain('<h1 class="dts-heading-2"></h1>');
+		expect(html).toContain("<div></div>");
 	});
 
 	it("renders the translated Published status label", () => {
-		currentLang = "en";
 		const html = renderWithI18n(
 			<NoticeDetailPage
-				data={makeNotice({ en: "Title" }, { isPublished: true })}
+				data={makeNotice({ title: "Title", isPublished: true })}
 			/>,
 		);
 
@@ -125,10 +121,9 @@ describe("NoticeDetailPage", () => {
 	});
 
 	it("renders the translated Draft status label", () => {
-		currentLang = "en";
 		const html = renderWithI18n(
 			<NoticeDetailPage
-				data={makeNotice({ en: "Title" }, { isPublished: false })}
+				data={makeNotice({ title: "Title", isPublished: false })}
 			/>,
 		);
 
@@ -136,11 +131,10 @@ describe("NoticeDetailPage", () => {
 	});
 
 	it("renders the French status label when the i18n instance's language is fr", async () => {
-		currentLang = "fr";
 		await testI18n.changeLanguage("fr");
 		const html = renderWithI18n(
 			<NoticeDetailPage
-				data={makeNotice({ en: "Title", fr: "Titre" }, { isPublished: true })}
+				data={makeNotice({ title: "Titre", isPublished: true })}
 			/>,
 		);
 		await testI18n.changeLanguage("en");

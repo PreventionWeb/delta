@@ -18,7 +18,7 @@ import type { Dr } from "~/db.server";
 import { noticesTable, type SelectNotice } from "~/drizzle/schema/noticesTable";
 import { DRIZZLE_CLIENT } from "~/infrastructure/DrizzleProvider.server";
 import type { INoticeRepository } from "~/domains/notices/application/ports/INoticeRepository";
-import { Notice, type LocaleMap, type Audience } from "~/domains/notices/domain/Notice";
+import { Notice, type Audience } from "~/domains/notices/domain/Notice";
 import type { Pagination } from "~/shared/types";
 import { ConflictError, NotFoundError } from "~/shared/errors/DomainError";
 
@@ -52,11 +52,9 @@ export class DrizzleNoticeRepository implements INoticeRepository {
 			// country_accounts_id → tenantId: the DB uses the infra column name;
 			// the domain uses the concept name.
 			tenantId: row.countryAccountsId,
-			titleJson: row.titleJson as LocaleMap,
-			// bodyJson is nullable jsonb; the cast is safe because upstream save()
-			// always receives a domain entity whose bodyJson was already validated
-			// as LocaleMap | null before persistence.
-			bodyJson: row.bodyJson as LocaleMap | null,
+			title: row.title,
+			body: row.body,
+			locale: row.locale,
 			isPublished: row.isPublished,
 			audience: row.audience as Audience,
 			publishedAt: row.publishedAt,
@@ -138,8 +136,9 @@ export class DrizzleNoticeRepository implements INoticeRepository {
 				.values({
 					id: notice.id,
 					countryAccountsId: notice.tenantId,
-					titleJson: notice.titleJson,
-					bodyJson: notice.bodyJson,
+					title: notice.title,
+					body: notice.body,
+					locale: notice.locale,
 					isPublished: notice.isPublished,
 					audience: notice.audience,
 					publishedAt: notice.publishedAt,
@@ -149,8 +148,9 @@ export class DrizzleNoticeRepository implements INoticeRepository {
 				.onConflictDoUpdate({
 					target: noticesTable.id,
 					set: {
-						titleJson: notice.titleJson,
-						bodyJson: notice.bodyJson,
+						title: notice.title,
+						body: notice.body,
+						locale: notice.locale,
 						isPublished: notice.isPublished,
 						audience: notice.audience,
 						publishedAt: notice.publishedAt,

@@ -17,15 +17,29 @@
  *   Registering DomainErrorFilter via the APP_FILTER DI token keeps the filter
  *   within the NestJS DI graph, making it injectable and extensible
  */
+import { join } from "node:path";
 import { Module } from "@nestjs/common";
 import { APP_FILTER } from "@nestjs/core";
+import { I18nModule } from "nestjs-i18n";
 
 import { DrizzleProvider } from "./DrizzleProvider.server";
 import { DomainErrorFilter } from "./DomainErrorFilter.server";
 import { NoticesModule } from "~/domains/notices/infrastructure/NoticesModule.server";
+import { AcceptLanguageI18nResolver } from "~/shared/i18n/AcceptLanguageI18nResolver.server";
+import { DEFAULT_LANGUAGE } from "~/utils/lang.backend";
 
+// ADR-001's deferred nestjs-i18n clause, activated now that NestJS exposes external HTTP
+// endpoints (design.md Decision 19). @Global(), so I18nService is injectable from NoticesModule
+// without a separate import there.
 @Module({
-	imports: [NoticesModule],
+	imports: [
+		NoticesModule,
+		I18nModule.forRoot({
+			fallbackLanguage: DEFAULT_LANGUAGE,
+			loaderOptions: { path: join(process.cwd(), "locales"), watch: false },
+			resolvers: [AcceptLanguageI18nResolver],
+		}),
+	],
 	providers: [
 		DrizzleProvider,
 		{ provide: APP_FILTER, useClass: DomainErrorFilter },

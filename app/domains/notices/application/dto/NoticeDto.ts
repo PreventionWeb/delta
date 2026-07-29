@@ -1,4 +1,4 @@
-import type { Audience, LocaleMap, Notice } from "~/domains/notices/domain/Notice";
+import type { Audience, Notice } from "~/domains/notices/domain/Notice";
 
 /**
  * Serialisable representation of a Notice that can cross the application-to-
@@ -12,8 +12,9 @@ import type { Audience, LocaleMap, Notice } from "~/domains/notices/domain/Notic
 export interface NoticeDto {
 	id: string;
 	tenantId: string;
-	titleJson: LocaleMap;
-	bodyJson: LocaleMap | null;
+	title: string;
+	body: string | null;
+	locale: string;
 	isPublished: boolean;
 	/** ISO 8601 timestamp of first publication, or null when the notice is unpublished. */
 	publishedAt: string | null;
@@ -36,8 +37,9 @@ export function toNoticeDto(notice: Notice): NoticeDto {
 	return {
 		id: notice.id,
 		tenantId: notice.tenantId,
-		titleJson: notice.titleJson,
-		bodyJson: notice.bodyJson,
+		title: notice.title,
+		body: notice.body,
+		locale: notice.locale,
 		isPublished: notice.isPublished,
 		publishedAt: notice.publishedAt?.toISOString() ?? null,
 		audience: notice.audience,

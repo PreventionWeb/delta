@@ -16,8 +16,9 @@ function buildCommand(
 ): CreateNoticeCommand {
 	return {
 		tenantId: "tenant-1",
-		titleJson: { en: "Test Notice" },
-		bodyJson: null,
+		title: "Test Notice",
+		body: null,
+		locale: "en",
 		isPublished: false,
 		...overrides,
 	};
@@ -67,15 +68,16 @@ describe("CreateNoticeUseCase", () => {
 	it("saves the notice and returns a NoticeDto for an unpublished notice", async () => {
 		const repo = makeRepository();
 		const useCase = new CreateNoticeUseCase(logger, repo);
-		const command = buildCommand({ isPublished: false, bodyJson: null });
+		const command = buildCommand({ isPublished: false, body: null });
 
 		const dto = await useCase.execute(command);
 
 		expect(repo.save).toHaveBeenCalledOnce();
 		const savedNotice = vi.mocked(repo.save).mock.calls[0][0];
 		expect(savedNotice.tenantId).toBe(command.tenantId);
-		expect(savedNotice.titleJson).toEqual(command.titleJson);
-		expect(savedNotice.bodyJson).toBeNull();
+		expect(savedNotice.title).toBe(command.title);
+		expect(savedNotice.body).toBeNull();
+		expect(savedNotice.locale).toBe(command.locale);
 		expect(savedNotice.isPublished).toBe(false);
 		expect(savedNotice.publishedAt).toBeNull();
 		expect(savedNotice.audience).toBe("private");
@@ -96,7 +98,7 @@ describe("CreateNoticeUseCase", () => {
 		const useCase = new CreateNoticeUseCase(logger, repo);
 		const command = buildCommand({
 			isPublished: true,
-			titleJson: { en: "Published Notice" },
+			title: "Published Notice",
 		});
 
 		const dto = await useCase.execute(command);
@@ -126,13 +128,13 @@ describe("CreateNoticeUseCase", () => {
 	});
 
 	// -------------------------------------------------------------------------
-	// ValidationError propagation — empty titleJson
+	// ValidationError propagation — empty title
 	// -------------------------------------------------------------------------
 
-	it("propagates ValidationError when titleJson is empty", async () => {
+	it("propagates ValidationError when title is empty", async () => {
 		const repo = makeRepository();
 		const useCase = new CreateNoticeUseCase(logger, repo);
-		const command = buildCommand({ titleJson: {} });
+		const command = buildCommand({ title: "" });
 
 		await expect(useCase.execute(command)).rejects.toBeInstanceOf(
 			ValidationError,
@@ -141,13 +143,13 @@ describe("CreateNoticeUseCase", () => {
 	});
 
 	// -------------------------------------------------------------------------
-	// ValidationError propagation — whitespace-only titleJson
+	// ValidationError propagation — whitespace-only title
 	// -------------------------------------------------------------------------
 
-	it("propagates ValidationError when titleJson contains only whitespace", async () => {
+	it("propagates ValidationError when title is whitespace-only", async () => {
 		const repo = makeRepository();
 		const useCase = new CreateNoticeUseCase(logger, repo);
-		const command = buildCommand({ titleJson: { en: "   " } });
+		const command = buildCommand({ title: "   " });
 
 		await expect(useCase.execute(command)).rejects.toBeInstanceOf(
 			ValidationError,
@@ -198,15 +200,17 @@ describe("CreateNoticeUseCase", () => {
 		const useCase = new CreateNoticeUseCase(logger, repo);
 		const command = buildCommand({
 			isPublished: true,
-			titleJson: { en: "My Notice", fr: "Mon Avis" },
-			bodyJson: { en: "Body text" },
+			title: "My Notice",
+			locale: "fr",
+			body: "Body text",
 		});
 
 		const dto = await useCase.execute(command);
 
 		expect(dto.tenantId).toBe(command.tenantId);
-		expect(dto.titleJson).toEqual(command.titleJson);
-		expect(dto.bodyJson).toEqual(command.bodyJson);
+		expect(dto.title).toBe(command.title);
+		expect(dto.body).toBe(command.body);
+		expect(dto.locale).toBe(command.locale);
 		expect(dto.isPublished).toBe(true);
 		expect(dto.audience).toBe("private");
 		expect(dto.publishedAt).toBe(frozenNow.toISOString());

@@ -49,8 +49,9 @@ test.beforeAll(async () => {
 		await tx.insert(noticesTable).values({
 			id: knownNoticeId,
 			countryAccountsId: countryAccountId,
-			titleJson: { en: "System maintenance notice" },
-			bodyJson: { en: "The system will be unavailable on Sunday." },
+			title: "System maintenance notice",
+			body: "The system will be unavailable on Sunday.",
+			locale: "en",
 			isPublished: true,
 			audience: "all",
 			publishedAt: new Date("2026-01-01T00:00:00.000Z"),

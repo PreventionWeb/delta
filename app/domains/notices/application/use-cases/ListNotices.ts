@@ -7,10 +7,9 @@ import type { Pagination } from "~/shared/types";
 /**
  * Input value object for ListNoticesUseCase.
  *
- * WHY no `locale` field: the use case does not transform any DTO field based on
- * locale — `toNoticeDto()` preserves the full `LocaleMap` and the presentation
- * layer (route loader, component) resolves a single locale string from the map
- * using the `$lang` URL segment it already holds.
+ * WHY no `locale` query field: notices are single-locale content (ADR-008) —
+ * each notice's own `locale` field is returned as authored via `toNoticeDto()`,
+ * there is no per-request resolution to parameterize here.
  */
 export interface ListNoticesQuery {
 	tenantId: string;

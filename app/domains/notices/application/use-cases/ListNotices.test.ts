@@ -1,7 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { NoOpLogger } from "~/shared/logging/NoOpLogger";
 import type { INoticeRepository } from "~/domains/notices/application/ports/INoticeRepository";
-import { Notice as NoticeCls, type Notice } from "~/domains/notices/domain/Notice";
+import {
+	Notice as NoticeCls,
+	type Notice,
+} from "~/domains/notices/domain/Notice";
 import { ListNoticesUseCase } from "./ListNotices";
 import type { ListNoticesQuery } from "./ListNotices";
 
@@ -20,16 +23,18 @@ function buildNotice(
 	overrides: {
 		id?: string;
 		tenantId?: string;
-		titleJson?: Record<string, string>;
-		bodyJson?: Record<string, string> | null;
+		title?: string;
+		body?: string | null;
+		locale?: string;
 	} = {},
 ): Notice {
 	const now = new Date("2024-01-15T10:00:00.000Z");
 	return NoticeCls.create({
 		id: overrides.id ?? crypto.randomUUID(),
 		tenantId: overrides.tenantId ?? "t1",
-		titleJson: overrides.titleJson ?? { en: "Test Notice" },
-		bodyJson: overrides.bodyJson ?? null,
+		title: overrides.title ?? "Test Notice",
+		body: overrides.body ?? null,
+		locale: overrides.locale ?? "en",
 		isPublished: false,
 		audience: "private",
 		publishedAt: null,
@@ -84,12 +89,12 @@ describe("ListNoticesUseCase", () => {
 		const notice1 = buildNotice({
 			id: "id-1",
 			tenantId: "t1",
-			titleJson: { en: "Notice One" },
+			title: "Notice One",
 		});
 		const notice2 = buildNotice({
 			id: "id-2",
 			tenantId: "t1",
-			titleJson: { en: "Notice Two" },
+			title: "Notice Two",
 		});
 		const repo = makeRepository(() => Promise.resolve([notice1, notice2]));
 		const useCase = new ListNoticesUseCase(new NoOpLogger(), repo);
@@ -99,13 +104,13 @@ describe("ListNoticesUseCase", () => {
 		expect(result).toHaveLength(2);
 		expect(result[0].id).toBe("id-1");
 		expect(result[0].tenantId).toBe("t1");
-		expect(result[0].titleJson).toEqual({ en: "Notice One" });
+		expect(result[0].title).toBe("Notice One");
 		expect(new Date(result[0].createdAt).toISOString()).toBe(
 			result[0].createdAt,
 		);
 		expect(result[1].id).toBe("id-2");
 		expect(result[1].tenantId).toBe("t1");
-		expect(result[1].titleJson).toEqual({ en: "Notice Two" });
+		expect(result[1].title).toBe("Notice Two");
 	});
 
 	// -------------------------------------------------------------------------
@@ -136,32 +141,19 @@ describe("ListNoticesUseCase", () => {
 	});
 
 	// -------------------------------------------------------------------------
-	// LocaleMap preservation — multi-locale
+	// title/body/locale preservation — as authored, no per-request resolution
 	// -------------------------------------------------------------------------
 
-	it("preserves full LocaleMap in each NoticeDto (does not strip locale keys)", async () => {
-		const notice = buildNotice({ titleJson: { en: "Title", fr: "Titre" } });
+	it("preserves title/body/locale exactly as authored (no resolution applied)", async () => {
+		const notice = buildNotice({ title: "Titre", body: "Corps", locale: "fr" });
 		const repo = makeRepository(() => Promise.resolve([notice]));
 		const useCase = new ListNoticesUseCase(new NoOpLogger(), repo);
 
 		const result = await useCase.execute(buildQuery());
 
-		expect(result[0].titleJson).toEqual({ en: "Title", fr: "Titre" });
-	});
-
-	// -------------------------------------------------------------------------
-	// LocaleMap preservation — single locale
-	// -------------------------------------------------------------------------
-
-	it("preserves a single-locale LocaleMap unchanged", async () => {
-		const notice = buildNotice({ titleJson: { en: "English Only" } });
-		const repo = makeRepository(() => Promise.resolve([notice]));
-		const useCase = new ListNoticesUseCase(new NoOpLogger(), repo);
-
-		const result = await useCase.execute(buildQuery());
-
-		expect(result).toHaveLength(1);
-		expect(result[0].titleJson).toEqual({ en: "English Only" });
+		expect(result[0].title).toBe("Titre");
+		expect(result[0].body).toBe("Corps");
+		expect(result[0].locale).toBe("fr");
 	});
 
 	// -------------------------------------------------------------------------
@@ -231,12 +223,12 @@ describe("ListNoticesUseCase", () => {
 		const noticeA = buildNotice({
 			id: "a-1",
 			tenantId: "tenant-A",
-			titleJson: { en: "A Notice" },
+			title: "A Notice",
 		});
 		const noticeB = buildNotice({
 			id: "b-1",
 			tenantId: "tenant-B",
-			titleJson: { en: "B Notice" },
+			title: "B Notice",
 		});
 
 		const repo = makeRepository((tenantId: string) =>

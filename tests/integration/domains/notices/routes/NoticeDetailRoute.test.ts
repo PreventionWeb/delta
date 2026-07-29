@@ -69,8 +69,9 @@ describe("Notice detail route loader", () => {
 			.insert(noticesTable)
 			.values({
 				countryAccountsId: tenantId,
-				titleJson: { en: "Test notice" },
-				bodyJson: { en: "Body" },
+				title: "Test notice",
+				body: "Body",
+				locale: "en",
 				isPublished: true,
 				audience: "all",
 				publishedAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -121,7 +122,7 @@ describe("Notice detail route loader", () => {
 		expect(result).toMatchObject({
 			id: noticeId,
 			tenantId,
-			titleJson: { en: "Test notice" },
+			title: "Test notice",
 		});
 		expect(result).not.toHaveProperty("success");
 	});
