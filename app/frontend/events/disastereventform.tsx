@@ -857,13 +857,12 @@ export function DisasterEventForm(props: DisasterEventFormProps) {
 
 	useEffect(() => {
 		const handleMessage = (event: any) => {
-			console.log("got message from another window", event.data);
-			if (event.data?.type == "select_hazard") {
+			if (event.data?.type === "select_hazard") {
 				if (event.data?.selected) {
 					setSelectedHazardousEvent(event.data.selected);
 				}
 			}
-			if (event.data?.type == "select_disaster") {
+			if (event.data?.type === "select_disaster") {
 				if (event.data?.selected) {
 					setSelectedDisasterEvent(event.data.selected);
 				}

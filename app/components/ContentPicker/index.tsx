@@ -206,38 +206,35 @@ export const ContentPicker = forwardRef<HTMLDivElement, ContentPickerProps>(
 
 			if (dialogRef.current) {
 				dialogRef.current.showModal();
+				window.requestAnimationFrame(() => {
+					if (!dialogRef.current) {
+						return;
+					}
 
-				let contHeight = [] as number[];
-				contHeight[0] =
-					(
-						dialogRef.current.querySelector(
-							".dts-dialog__content",
-						) as HTMLElement | null
-					)?.offsetHeight || 0;
-				contHeight[1] =
-					(
-						dialogRef.current.querySelector(
-							".dts-dialog__header",
-						) as HTMLElement | null
-					)?.offsetHeight || 0;
-				//contHeight[2] = (dialogRef.current.querySelector(".cp-filters") as HTMLElement | null)?.offsetHeight || 0;
-				//contHeight[3] = (dialogRef.current.querySelector(".cp-footer") as HTMLElement | null)?.offsetHeight || 0;
-				let getHeight = contHeight[0] - contHeight[1]; //- contHeight[2] - contHeight[3];
-				getHeight += 240;
-
-				const dtsFormBody = dialogRef.current.querySelector(
-					".dts-form__body",
-				) as HTMLElement | null;
-				if (dtsFormBody) {
-					dtsFormBody.style.height = `${window.innerHeight - getHeight}px`;
-
+					const content = dialogRef.current.querySelector(
+						".dts-dialog__content",
+					) as HTMLElement | null;
+					const header = dialogRef.current.querySelector(
+						".dts-dialog__header",
+					) as HTMLElement | null;
+					const dtsFormBody = dialogRef.current.querySelector(
+						".dts-form__body",
+					) as HTMLElement | null;
 					const cpContainer = dialogRef.current.querySelector(
 						".cp-view-mode",
 					) as HTMLElement | null;
+
+					if (!content || !header || !dtsFormBody) {
+						return;
+					}
+
+					const getHeight = content.offsetHeight - header.offsetHeight + 240;
+					dtsFormBody.style.height = `${window.innerHeight - getHeight}px`;
+
 					if (cpContainer) {
 						cpContainer.style.display = "block";
 					}
-				}
+				});
 
 				fetchTableData(); // Fetch initial data
 			}

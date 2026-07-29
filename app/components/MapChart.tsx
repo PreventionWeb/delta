@@ -158,11 +158,15 @@ const MapChart = forwardRef<MapChartRef, MapChartProps>(
 			let offsetX = 0,
 				offsetY = 0,
 				isDragging = false;
+			const legendWidth = legend.offsetWidth;
+			const legendHeight = legend.offsetHeight;
+			const legendLeft = legend.offsetLeft;
+			const legendTop = legend.offsetTop;
 
 			legend.style.position = "absolute";
-			legend.style.width = `${legend.offsetWidth}px`;
-			legend.style.top = legend.offsetTop + "px";
-			legend.style.left = legend.offsetLeft + "px";
+			legend.style.width = `${legendWidth}px`;
+			legend.style.top = legendTop + "px";
+			legend.style.left = legendLeft + "px";
 			legend.style.right = "auto";
 			legend.style.bottom = "auto";
 
@@ -177,8 +181,8 @@ const MapChart = forwardRef<MapChartRef, MapChartProps>(
 					let newLeft = e.clientX - offsetX;
 					let newTop = e.clientY - offsetY;
 
-					const maxLeft = window.innerWidth - legend.offsetWidth;
-					const maxTop = window.innerHeight - legend.offsetHeight;
+					const maxLeft = window.innerWidth - legendWidth;
+					const maxTop = window.innerHeight - legendHeight;
 
 					newLeft = Math.max(0, Math.min(newLeft, maxLeft));
 					newTop = Math.max(0, Math.min(newTop, maxTop));
