@@ -786,9 +786,10 @@ export function DisasterEventForm(props: DisasterEventFormProps) {
 		let frmElement = null;
 		if (props.id) {
 			frmElement = document.getElementById(props.id) as HTMLFormElement | null;
-		}
-		else {
-			frmElement = document.getElementById("form-new") as HTMLFormElement | null;
+		} else {
+			frmElement = document.getElementById(
+				"form-new",
+			) as HTMLFormElement | null;
 		}
 
 		if (frmElement) {
@@ -1012,9 +1013,10 @@ export function DisasterEventForm(props: DisasterEventFormProps) {
 		let frmElement = null;
 		if (props.id) {
 			frmElement = document.getElementById(props.id) as HTMLFormElement | null;
-		}
-		else {
-			frmElement = document.getElementById("form-new") as HTMLFormElement | null;
+		} else {
+			frmElement = document.getElementById(
+				"form-new",
+			) as HTMLFormElement | null;
 		}
 
 		if (frmElement) {
