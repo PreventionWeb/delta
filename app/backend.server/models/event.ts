@@ -206,7 +206,7 @@ export async function hazardousEventCreate(
 			.values({
 				...values,
 				id: eventId,
-				createdAt: new Date(),
+				createdAt: sql`CURRENT_TIMESTAMP`,
 			})
 			.returning();
 
@@ -486,7 +486,7 @@ export async function hazardousEventUpdate(
 				.update(hazardousEventTable)
 				.set({
 					...fields,
-					updatedAt: new Date(),
+					updatedAt: sql`CURRENT_TIMESTAMP`,
 				})
 				.where(eq(hazardousEventTable.id, id))
 				.returning();
@@ -534,7 +534,7 @@ export async function hazardousEventUpdateApprovalStatus(
 ): Promise<UpdateResult<HazardousEventFields>> {
 	await dr
 		.update(hazardousEventTable)
-		.set({ approvalStatus: status, updatedAt: new Date() })
+		.set({ approvalStatus: status, updatedAt: sql`CURRENT_TIMESTAMP` })
 		.where(eq(hazardousEventTable.id, id))
 		.returning();
 
@@ -555,7 +555,7 @@ export async function hazardousEventUpdateApprovalStatusOnGoing(
 			validatedAt: null,
 			publishedByUserId: null,
 			publishedAt: null,
-			updatedAt: new Date(),
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(hazardousEventTable.id, id))
 		.returning();
@@ -574,7 +574,7 @@ export async function hazardousEventUpdateApprovalStatusNeedRevision(
 			validatedAt: null,
 			publishedByUserId: null,
 			publishedAt: null,
-			updatedAt: new Date(),
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(hazardousEventTable.id, id))
 		.returning();
@@ -591,10 +591,10 @@ export async function hazardousEventUpdateApprovalStatusValidate(
 		.set({
 			approvalStatus: "validated",
 			validatedByUserId: validatedByUserId,
-			validatedAt: new Date(),
+			validatedAt: sql`CURRENT_TIMESTAMP`,
 			publishedByUserId: null,
 			publishedAt: null,
-			updatedAt: new Date(),
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(hazardousEventTable.id, id))
 		.returning();
@@ -611,10 +611,10 @@ export async function hazardousEventUpdateApprovalStatusPublish(
 		.set({
 			approvalStatus: "published",
 			validatedByUserId: publishedByUserId,
-			validatedAt: new Date(),
+			validatedAt: sql`CURRENT_TIMESTAMP`,
 			publishedByUserId: publishedByUserId,
-			publishedAt: new Date(),
-			updatedAt: new Date(),
+			publishedAt: sql`CURRENT_TIMESTAMP`,
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(hazardousEventTable.id, id))
 		.returning();
@@ -786,7 +786,7 @@ export async function hazardousEventUpdateByIdAndCountryAccountsId(
 				.update(hazardousEventTable)
 				.set({
 					...fields,
-					updatedAt: new Date(),
+					updatedAt: sql`CURRENT_TIMESTAMP`,
 				})
 				.where(eq(hazardousEventTable.id, id))
 				.returning();
@@ -1492,7 +1492,7 @@ export async function disasterEventUpdate(
 			.update(disasterEventTable)
 			.set({
 				...fields,
-				updatedAt: new Date(),
+				updatedAt: sql`CURRENT_TIMESTAMP`,
 			})
 			.where(
 				and(
@@ -1598,7 +1598,7 @@ export async function disasterEventUpdateByIdAndCountryAccountsId(
 			.update(disasterEventTable)
 			.set({
 				...fields,
-				updatedAt: new Date(),
+				updatedAt: sql`CURRENT_TIMESTAMP`,
 			})
 			.where(
 				and(
@@ -1625,7 +1625,7 @@ export async function disasterEventUpdateApprovalStatus(
 ): Promise<UpdateResult<DisasterEventFields>> {
 	await dr
 		.update(disasterEventTable)
-		.set({ approvalStatus: status, updatedAt: new Date() })
+		.set({ approvalStatus: status, updatedAt: sql`CURRENT_TIMESTAMP` })
 		.where(eq(disasterEventTable.id, id))
 		.returning();
 
@@ -1646,7 +1646,7 @@ export async function disasterEventUpdateApprovalStatusOnGoing(
 			validatedAt: null,
 			publishedByUserId: null,
 			publishedAt: null,
-			updatedAt: new Date(),
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(disasterEventTable.id, id))
 		.returning();
@@ -1665,7 +1665,7 @@ export async function disasterEventUpdateApprovalStatusNeedRevision(
 			validatedAt: null,
 			publishedByUserId: null,
 			publishedAt: null,
-			updatedAt: new Date(),
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(disasterEventTable.id, id))
 		.returning();
@@ -1682,10 +1682,10 @@ export async function disasterEventUpdateApprovalStatusValidate(
 		.set({
 			approvalStatus: "validated",
 			validatedByUserId: validatedByUserId,
-			validatedAt: new Date(),
+			validatedAt: sql`CURRENT_TIMESTAMP`,
 			publishedByUserId: null,
 			publishedAt: null,
-			updatedAt: new Date(),
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(disasterEventTable.id, id))
 		.returning();
@@ -1702,10 +1702,10 @@ export async function disasterEventUpdateApprovalStatusPublish(
 		.set({
 			approvalStatus: "published",
 			validatedByUserId: publishedByUserId,
-			validatedAt: new Date(),
+			validatedAt: sql`CURRENT_TIMESTAMP`,
 			publishedByUserId: publishedByUserId,
-			publishedAt: new Date(),
-			updatedAt: new Date(),
+			publishedAt: sql`CURRENT_TIMESTAMP`,
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(disasterEventTable.id, id))
 		.returning();

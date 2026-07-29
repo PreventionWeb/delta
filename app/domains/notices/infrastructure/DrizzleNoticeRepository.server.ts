@@ -12,7 +12,7 @@
  *   the client bundle (Decision 1 in design.md).
  */
 import { Injectable, Inject } from "@nestjs/common";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import type { Dr } from "~/db.server";
 import { noticesTable, type SelectNotice } from "~/drizzle/schema/noticesTable";
@@ -117,7 +117,7 @@ export class DrizzleNoticeRepository implements INoticeRepository {
 	 *   between the check and the write. The single-statement upsert is atomic at
 	 *   the DB level (Decision 3 in design.md).
 	 *
-	 * WHY updatedAt: new Date() in the conflict branch:
+	 * WHY updatedAt: CURRENT_TIMESTAMP in the conflict branch:
 	 *   The ON CONFLICT branch must advance updatedAt so callers always observe an
 	 *   accurate timestamp on the returned entity, regardless of the value stored
 	 *   in the incoming Notice entity.
@@ -154,7 +154,7 @@ export class DrizzleNoticeRepository implements INoticeRepository {
 						isPublished: notice.isPublished,
 						audience: notice.audience,
 						publishedAt: notice.publishedAt,
-						updatedAt: new Date(),
+						updatedAt: sql`CURRENT_TIMESTAMP`,
 					},
 					// WHY tenant-scoped WHERE: prevents a cross-tenant UUID collision from
 					// overwriting another tenant's notice. If this condition is not met,
