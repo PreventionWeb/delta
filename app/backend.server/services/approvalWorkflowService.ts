@@ -211,6 +211,7 @@ async function handleSubmitForValidation(
 			approvalStatus: "waiting-for-validation",
 			submittedByUserId: submittedByUserId,
 			submittedAt: new Date(),
+			updatedAt: new Date(),
 		})
 		.where(eq(table.id, entityId));
 
@@ -253,6 +254,7 @@ async function handleSubmitAsDraft(
 			validatedAt: null,
 			publishedByUserId: null,
 			publishedAt: null,
+			updatedAt: new Date(),
 		})
 		.where(eq(table.id, entityId));
 
@@ -282,6 +284,7 @@ async function handleSubmitAsValidated(
 			approvalStatus: "validated",
 			validatedByUserId: submittedByUserId,
 			validatedAt: new Date(),
+			updatedAt: new Date(),
 		})
 		.where(eq(table.id, entityId));
 
@@ -309,6 +312,7 @@ async function handleSubmitAsPublished(
 			validatedAt: new Date(),
 			publishedByUserId: submittedByUserId,
 			publishedAt: new Date(),
+			updatedAt: new Date(),
 		})
 		.where(eq(table.id, entityId));
 
@@ -333,6 +337,7 @@ async function handleSubmitAsReturned(
 			approvalStatus: "needs-revision",
 			submittedByUserId: submittedByUserId,
 			submittedAt: new Date(),
+			updatedAt: new Date(),
 		})
 		.where(eq(table.id, entityId));
 }
