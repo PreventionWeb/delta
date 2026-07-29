@@ -1,12 +1,5 @@
 import { sql } from "drizzle-orm";
-import {
-	pgTable,
-	uuid,
-	jsonb,
-	boolean,
-	timestamp,
-	text,
-} from "drizzle-orm/pg-core";
+import { pgTable, uuid, boolean, timestamp, text } from "drizzle-orm/pg-core";
 import { ourRandomUUID } from "~/utils/drizzleUtil";
 import { countryAccountsTable } from "./countryAccountsTable";
 
@@ -15,8 +8,10 @@ export const noticesTable = pgTable("notices", {
 	countryAccountsId: uuid("country_accounts_id")
 		.notNull()
 		.references(() => countryAccountsTable.id, { onDelete: "cascade" }),
-	titleJson: jsonb("title_json").notNull(),
-	bodyJson: jsonb("body_json"),
+	// ADR-008: single-locale content — plain text, no locale-map, no per-request resolution.
+	title: text("title").notNull(),
+	body: text("body"),
+	locale: text("locale").notNull(),
 	isPublished: boolean("is_published").notNull().default(false),
 	// audience exists from day one to avoid a breaking migration when public/hybrid support is added
 	audience: text("audience", { enum: ["public", "private", "all"] })

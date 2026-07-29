@@ -181,13 +181,15 @@ describe("Notices list route loader", () => {
 		await dr.insert(noticesTable).values([
 			{
 				countryAccountsId: tenantId,
-				titleJson: { en: "Notice A" },
+				title: "Notice A",
+				locale: "en",
 				isPublished: true,
 				audience: "all",
 			},
 			{
 				countryAccountsId: tenantId,
-				titleJson: { en: "Notice B" },
+				title: "Notice B",
+				locale: "en",
 				isPublished: false,
 				audience: "all",
 			},
