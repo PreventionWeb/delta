@@ -148,6 +148,7 @@ type ActionData = {
 	ok: boolean;
 	data?: {
 		parentId: string;
+		nationalId: string;
 		names: Record<string, string>;
 	};
 	errors?: string[];
@@ -162,6 +163,7 @@ export const action = authActionWithPerm(
 		const rawForm = formStringData(formData);
 
 		const parentId = (rawForm.parentId || "").trim();
+		const nationalId = (rawForm.nationalId || "").trim();
 		const names = Object.entries(rawForm)
 			.filter(([key]) => key.startsWith("names[") && key.endsWith("]"))
 			.reduce(
@@ -179,8 +181,16 @@ export const action = authActionWithPerm(
 		if (Object.keys(nonEmptyNames).length === 0) {
 			return {
 				ok: false,
-				data: { parentId, names },
+				data: { parentId, nationalId, names },
 				errors: ["Please provide at least one name."],
+			} satisfies ActionData;
+		}
+
+		if (!nationalId) {
+			return {
+				ok: false,
+				data: { parentId, nationalId, names },
+				errors: ["National ID is required."],
 			} satisfies ActionData;
 		}
 
@@ -188,7 +198,7 @@ export const action = authActionWithPerm(
 			if (!isValidUUID(parentId)) {
 				return {
 					ok: false,
-					data: { parentId, names },
+					data: { parentId, nationalId, names },
 					errors: ["Parent ID must be a valid UUID."],
 				} satisfies ActionData;
 			}
@@ -200,7 +210,7 @@ export const action = authActionWithPerm(
 			if (!parent) {
 				return {
 					ok: false,
-					data: { parentId, names },
+					data: { parentId, nationalId, names },
 					errors: ["Parent division was not found."],
 				} satisfies ActionData;
 			}
@@ -212,7 +222,7 @@ export const action = authActionWithPerm(
 			if (!topLevelParent) {
 				return {
 					ok: false,
-					data: { parentId, names },
+					data: { parentId, nationalId, names },
 					errors: [
 						"The top-level parent division was not found in this tenant.",
 					],
@@ -222,6 +232,7 @@ export const action = authActionWithPerm(
 
 		const data: InsertDivision = {
 			parentId: parentId || null,
+			nationalId,
 			name: nonEmptyNames,
 			countryAccountsId,
 		};
@@ -230,7 +241,7 @@ export const action = authActionWithPerm(
 		if (!result.ok) {
 			return {
 				ok: false,
-				data: { parentId, names },
+				data: { parentId, nationalId, names },
 				errors: result.errors,
 			} satisfies ActionData;
 		}
@@ -306,6 +317,7 @@ export default function NewGeographyPage() {
 
 	const fields = actionData?.data ?? {
 		parentId: ld.initialParentId,
+		nationalId: "",
 		names: Object.fromEntries(ld.initialLangs.map((lang) => [lang, ""])),
 	};
 
@@ -399,15 +411,34 @@ export default function NewGeographyPage() {
 											},
 											{ lang },
 										)}
+										<span className="text-red-500" aria-hidden="true">*</span>
 									</label>
 									<InputText
 										id={`field-name-${lang}`}
 										name={`names[${lang}]`}
 										defaultValue={fields.names[lang] || ""}
 										className="w-full"
+										required
 									/>
 								</div>
 							))}
+						</div>
+
+						<div className="flex flex-col gap-1">
+							<label
+								htmlFor="field-nationalId"
+								className="text-sm font-medium text-gray-700"
+							>
+								{ctx.t({ code: "common.national_id", msg: "National ID" })}{" "}
+								<span className="text-red-500" aria-hidden="true">*</span>
+							</label>
+							<InputText
+								id="field-nationalId"
+								name="nationalId"
+								defaultValue={fields.nationalId}
+								className="w-full"
+								required
+							/>
 						</div>
 
 						<Divider className="my-1" />

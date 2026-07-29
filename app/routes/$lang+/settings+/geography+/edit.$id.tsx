@@ -162,6 +162,7 @@ export const action = authActionWithPerm(
 		const formData = await request.formData();
 		const rawForm = formStringData(formData);
 		const geometryFile = formData.get("geometryFile");
+		const nationalId = (rawForm.nationalId || "").trim();
 		const { parentId, ...nameFields } = rawForm;
 		const names = Object.entries(nameFields)
 			.filter(([key]) => key.startsWith("names[") && key.endsWith("]"))
@@ -175,9 +176,18 @@ export const action = authActionWithPerm(
 
 		let data: InsertDivision = {
 			parentId: parentId || null,
+			nationalId,
 			name: names,
 			countryAccountsId,
 		};
+
+		if (!nationalId) {
+			return {
+				ok: false,
+				data,
+				errors: ["National ID is required."],
+			};
+		}
 
 		if (data.parentId) {
 			const parentRecord = await DivisionRepository.getById(data.parentId, countryAccountsId);
@@ -404,17 +414,36 @@ export default function Screen() {
 												},
 												{ lang },
 											)}
+											<span className="text-red-500" aria-hidden="true">*</span>
 										</label>
 										<InputText
 											id={`field-name-${lang}`}
 											name={`names[${lang}]`}
 											defaultValue={nameMap[lang] || ""}
 											className="w-full"
+											required
 										/>
 									</div>
 								))}
 							</div>
 						)}
+
+						<div className="flex flex-col gap-1">
+							<label
+								htmlFor="field-nationalId"
+								className="text-sm font-medium text-gray-700"
+							>
+								{ctx.t({ code: "common.national_id", msg: "National ID" })}
+								<span className="text-red-500" aria-hidden="true">*</span>
+							</label>
+							<InputText
+								id="field-nationalId"
+								name="nationalId"
+								defaultValue={fields.nationalId || ""}
+								className="w-full"
+								required
+							/>
+						</div>
 
 						{canDownloadGeoJSON && (
 							<div className="flex flex-col gap-1">

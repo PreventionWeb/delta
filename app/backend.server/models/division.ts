@@ -1055,10 +1055,15 @@ async function validateDivisionData(
 		errors.push("Division name is required");
 	}
 
+	const normalizedNationalId = data.nationalId?.trim() || "";
+	if (!normalizedNationalId) {
+		errors.push("Division national ID is required");
+	}
+
 	// Check for duplicate nationalId if provided
-	if (data.nationalId) {
+	if (normalizedNationalId) {
 		const query = and(
-			eq(divisionTable.nationalId, data.nationalId),
+			eq(divisionTable.nationalId, normalizedNationalId),
 			eq(divisionTable.countryAccountsId, countryAccountsId),
 		);
 
@@ -1073,7 +1078,7 @@ async function validateDivisionData(
 
 		if (existingWithSameNationalId) {
 			errors.push(
-				`A division with the national ID "${data.nationalId}" already exists`,
+				`A division with the national ID "${normalizedNationalId}" already exists`,
 			);
 		}
 	}

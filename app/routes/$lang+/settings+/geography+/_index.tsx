@@ -32,6 +32,22 @@ interface ItemRes {
     name: Record<string, string>;
 }
 
+function divisionNameForTreeSort(name: Record<string, string> | null | undefined) {
+    if (!name || typeof name !== "object") {
+        return "";
+    }
+
+    const enName = String(name.en || "").trim();
+    if (enName) {
+        return enName;
+    }
+
+    const fallback = Object.values(name).find((value) =>
+        String(value || "").trim().length > 0,
+    );
+    return String(fallback || "").trim();
+}
+
 type BreadcrumbProps = {
     ctx: ViewContext;
     rows: DivisionBreadcrumbRow[] | null;
@@ -165,7 +181,25 @@ export const loader = authLoaderWithPerm(
             hasChildren: childrenParentSet.has(row.id),
         }));
 
-        const treeData = buildTree(allRows, "id", "parentId", "name", "en");
+        const treeSortedRows = [...allRows].sort((a, b) => {
+            const aName = divisionNameForTreeSort(
+                a.name as Record<string, string> | null,
+            );
+            const bName = divisionNameForTreeSort(
+                b.name as Record<string, string> | null,
+            );
+
+            const byName = aName.localeCompare(bName, "en", {
+                sensitivity: "base",
+            });
+            if (byName !== 0) {
+                return byName;
+            }
+
+            return a.id.localeCompare(b.id);
+        });
+
+        const treeData = buildTree(treeSortedRows, "id", "parentId", "name", "en");
 
         const extraParams: Record<string, string[]> = {};
         if (parentId) {
