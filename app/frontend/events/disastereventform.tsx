@@ -786,9 +786,10 @@ export function DisasterEventForm(props: DisasterEventFormProps) {
 		let frmElement = null;
 		if (props.id) {
 			frmElement = document.getElementById(props.id) as HTMLFormElement | null;
-		}
-		else {
-			frmElement = document.getElementById("form-new") as HTMLFormElement | null;
+		} else {
+			frmElement = document.getElementById(
+				"form-new",
+			) as HTMLFormElement | null;
 		}
 
 		if (frmElement) {
@@ -857,13 +858,12 @@ export function DisasterEventForm(props: DisasterEventFormProps) {
 
 	useEffect(() => {
 		const handleMessage = (event: any) => {
-			console.log("got message from another window", event.data);
-			if (event.data?.type == "select_hazard") {
+			if (event.data?.type === "select_hazard") {
 				if (event.data?.selected) {
 					setSelectedHazardousEvent(event.data.selected);
 				}
 			}
-			if (event.data?.type == "select_disaster") {
+			if (event.data?.type === "select_disaster") {
 				if (event.data?.selected) {
 					setSelectedDisasterEvent(event.data.selected);
 				}
@@ -1013,9 +1013,10 @@ export function DisasterEventForm(props: DisasterEventFormProps) {
 		let frmElement = null;
 		if (props.id) {
 			frmElement = document.getElementById(props.id) as HTMLFormElement | null;
-		}
-		else {
-			frmElement = document.getElementById("form-new") as HTMLFormElement | null;
+		} else {
+			frmElement = document.getElementById(
+				"form-new",
+			) as HTMLFormElement | null;
 		}
 
 		if (frmElement) {

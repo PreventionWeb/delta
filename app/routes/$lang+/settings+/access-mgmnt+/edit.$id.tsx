@@ -24,8 +24,8 @@ import { OrganizationRepository } from "~/db/queries/organizationRepository";
 import { Dialog } from "primereact/dialog";
 import { AccessManagementService, AccessManagementServiceError } from "~/services/accessManagementService";
 
-export const meta: MetaFunction = () => {
-	const ctx = new ViewContext();
+export const meta: MetaFunction = ({ params }) => {
+	const ctx = new ViewContext({ lang: params.lang || "en" });
 
 	return [
 		{

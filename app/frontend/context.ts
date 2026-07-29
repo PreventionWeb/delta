@@ -14,6 +14,27 @@ export interface ViewContextResult extends DContext {
 	user: UserForFrontend | null;
 }
 
+type ViewContextInit = {
+	lang: string;
+	user?: UserForFrontend | null;
+};
+
+function createViewContextFromInit(init: ViewContextInit): ViewContextResult {
+	const lang = init.lang;
+	const user = init.user ?? null;
+
+	const { baseLang, isDebug } = parseLanguageAndDebugFlag(lang);
+	const translationGetter = globalThis.createTranslationGetter(baseLang);
+	const t = createTranslator(translationGetter, baseLang, isDebug);
+
+	return {
+		t,
+		lang,
+		user,
+		url: (path: string) => urlLang(lang, path),
+	};
+}
+
 /**
  * Custom React hook that reads root loader data and returns a fully resolved
  * view context.  All presentation-layer components should call this hook
@@ -32,25 +53,10 @@ export function useViewContext(): ViewContextResult {
 		throw new Error("lang not passed to ViewContext");
 	}
 
-	const lang = commonData.lang;
-	const user = commonData.user;
-
-	const { baseLang, isDebug } = parseLanguageAndDebugFlag(lang);
-	// createTranslationGetter is a global set by init.server.tsx (SSR) and
-	// frontend/translations.ts (browser).  Using a global is necessary because
-	// Remix/React Router cannot conditionally load different implementations
-	// for the same module path at server vs. browser build time.
-	const translationGetter = globalThis.createTranslationGetter(baseLang);
-	const t = createTranslator(translationGetter, baseLang, isDebug);
-
-	return {
-		t,
-		lang,
-		user,
-		// url closes over the current render's lang value so callers can build
-		// language-prefixed paths without threading lang through every call site.
-		url: (path: string) => urlLang(lang, path),
-	};
+	return createViewContextFromInit({
+		lang: commonData.lang,
+		user: commonData.user,
+	});
 }
 
 /**
@@ -72,8 +78,8 @@ export class ViewContext implements ViewContextResult {
 	user: UserForFrontend | null;
 	url: (path: string) => string;
 
-	constructor() {
-		const ctx = useViewContext();
+	constructor(init?: ViewContextInit) {
+		const ctx = init ? createViewContextFromInit(init) : useViewContext();
 		this.t = ctx.t;
 		this.lang = ctx.lang;
 		this.user = ctx.user;
