@@ -349,9 +349,10 @@ export function HazardousEventForm(props: HazardousEventFormProps) {
 		let frmElement = null;
 		if (props.id) {
 			frmElement = document.getElementById(props.id) as HTMLFormElement | null;
-		}
-		else {
-			frmElement = document.getElementById("form-new") as HTMLFormElement | null;
+		} else {
+			frmElement = document.getElementById(
+				"form-new",
+			) as HTMLFormElement | null;
 		}
 
 		if (frmElement) {
@@ -467,9 +468,10 @@ export function HazardousEventForm(props: HazardousEventFormProps) {
 		let frmElement = null;
 		if (props.id) {
 			frmElement = document.getElementById(props.id) as HTMLFormElement | null;
-		}
-		else {
-			frmElement = document.getElementById("form-new") as HTMLFormElement | null;
+		} else {
+			frmElement = document.getElementById(
+				"form-new",
+			) as HTMLFormElement | null;
 		}
 
 		if (frmElement) {
@@ -651,7 +653,7 @@ export function HazardousEventForm(props: HazardousEventFormProps) {
 								divisions={divisionGeoJSON}
 								ctryIso3={ctryIso3 || ""}
 								treeData={treeData ?? []}
-								initialData={fields?.spatialFootprint}
+								initialData={((fields as any)?.spatialFootprint as any[]) || []}
 							/>
 						</Field>
 					),
@@ -829,7 +831,7 @@ export function HazardousEventView(props: HazardousEventViewProps) {
 					spatialFootprint: (
 						<SpatialFootprintView
 							ctx={ctx}
-							initialData={(item?.spatialFootprint as any[]) || []}
+							initialData={((item as any)?.spatialFootprint as any[]) || []}
 							mapViewerOption={0}
 							mapViewerDataSources={[]}
 						/>

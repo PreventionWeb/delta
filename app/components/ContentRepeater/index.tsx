@@ -78,15 +78,15 @@ interface DialogField {
 	id: string;
 	caption: string;
 	type:
-	| "input"
-	| "select"
-	| "file"
-	| "option"
-	| "textarea"
-	| "mapper"
-	| "tokenfield"
-	| "hidden"
-	| "custom";
+		| "input"
+		| "select"
+		| "file"
+		| "option"
+		| "textarea"
+		| "mapper"
+		| "tokenfield"
+		| "hidden"
+		| "custom";
 	required?: boolean;
 	options?: { value: string; label: string }[];
 	placeholder?: string;
@@ -100,7 +100,9 @@ interface DialogField {
 		formData?: any | null,
 		setFormData?: React.Dispatch<React.SetStateAction<any>> | null,
 		currentDialogFields?: DialogField[] | null,
-		setDialogFields?: React.Dispatch<React.SetStateAction<DialogField[]>> | null,
+		setDialogFields?: React.Dispatch<
+			React.SetStateAction<DialogField[]>
+		> | null,
 	) => void;
 	mapperGeoJSONField?: string;
 	render?: (
@@ -331,17 +333,31 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 			const initialFormData = item
 				? { ...item }
 				: dialog_fields.reduce<Record<string, any>>((acc, field) => {
-					if (field.type === "select" && field.options?.length) {
-						acc[field.id] = field.options[0].value;
-					} else if (field.type === "option" && field.options?.length) {
-						acc[field.id] = field.options[0].value;
-					} else if (field.type === "tokenfield") {
-						acc[field.id] = [];
-					} else if (field.type === "input" || field.type === "textarea") {
-						acc[field.id] = "";
+						if (field.type === "select" && field.options?.length) {
+							acc[field.id] = field.options[0].value;
+						} else if (field.type === "option" && field.options?.length) {
+							acc[field.id] = field.options[0].value;
+						} else if (field.type === "tokenfield") {
+							acc[field.id] = [];
+						} else if (field.type === "input" || field.type === "textarea") {
+							acc[field.id] = "";
+						}
+						return acc;
+					}, {});
+
+			if (item) {
+				dialog_fields.forEach((field) => {
+					if (
+						field.type === "mapper" &&
+						field.mapperGeoJSONField &&
+						!initialFormData[field.id] &&
+						initialFormData[field.mapperGeoJSONField]
+					) {
+						initialFormData[field.id] =
+							initialFormData[field.mapperGeoJSONField];
 					}
-					return acc;
-				}, {});
+				});
+			}
 
 			const dialogFieldsWithDOM = dialog_fields.map((field) => ({
 				...field,
@@ -963,6 +979,42 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 		const processInitialData = (data: any) => {
 			const L = (window as any).L || null;
 
+			const normalizeGeoJsonInput = (value: any) => {
+				if (!value) {
+					return null;
+				}
+
+				let parsed = value;
+				if (typeof parsed === "string") {
+					try {
+						parsed = JSON.parse(parsed);
+					} catch {
+						return null;
+					}
+				}
+
+				if (
+					parsed?.type === "Feature" ||
+					parsed?.type === "FeatureCollection"
+				) {
+					return parsed;
+				}
+
+				if (parsed?.type && parsed?.coordinates) {
+					return {
+						type: "Feature",
+						geometry: parsed,
+						properties: {},
+					};
+				}
+
+				if (parsed?.geojson) {
+					return normalizeGeoJsonInput(parsed.geojson);
+				}
+
+				return null;
+			};
+
 			if (data.mode) {
 				console.log("data:", data);
 				const { mode, coordinates, center, radius, popups } = data;
@@ -1183,18 +1235,34 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 					}
 
 					if (debug) console.log("Markers initialized:", state.current.points);
+				}
+			} else {
+				const geojson = normalizeGeoJsonInput(data);
+				if (geojson && mapRef.current && L) {
+					const layer = L.geoJSON(geojson, {
+						style: {
+							color: "#4c6ef5",
+							weight: 2,
+							fillOpacity: 0.2,
+						},
+					}).addTo(mapRef.current);
+
+					if ((layer as any).getBounds) {
+						const bounds = (layer as any).getBounds();
+						if (bounds && bounds.isValid()) {
+							mapRef.current.fitBounds(bounds);
+						}
+					}
 
 					const selectElement = dialogMapRef.current?.querySelector("select");
 					if (selectElement) {
 						selectElement.setAttribute("last_mode", "placeMarker");
 					}
 				} else {
-					console.warn("Unsupported or invalid mode in initialData:", mode);
+					console.warn(
+						"Invalid initialData format. Expected mapper mode or GeoJSON data.",
+					);
 				}
-			} else {
-				console.warn(
-					"Invalid initialData format. Expected object with 'mode' and related data.",
-				);
 			}
 		};
 
@@ -1697,13 +1765,13 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 					header={
 						editingItem
 							? ctx.t({
-								code: "common.edit_item",
-								msg: "Edit item",
-							})
+									code: "common.edit_item",
+									msg: "Edit item",
+								})
 							: ctx.t({
-								code: "common.add_new_item",
-								msg: "Add new item",
-							})
+									code: "common.add_new_item",
+									msg: "Add new item",
+								})
 					}
 					modal
 					style={{ width: "min(92vw, 72rem)" }}
@@ -1745,9 +1813,7 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 									}}
 								>
 									<label
-										{...(field.type !== "option"
-											? { htmlFor: fieldId }
-											: {})}
+										{...(field.type !== "option" ? { htmlFor: fieldId } : {})}
 										className="block"
 									>
 										<div className="mb-2 text-sm font-medium text-slate-700">
@@ -1846,6 +1912,223 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 																if (value.mode) {
 																	return `Shape: ${String(value.mode).toUpperCase()}`;
 																}
+
+																const getSourceValue = () => {
+																	if (field.mapperGeoJSONField) {
+																		const geoFieldValue =
+																			formData[field.mapperGeoJSONField];
+																		if (geoFieldValue) {
+																			return geoFieldValue;
+																		}
+																	}
+																	return value;
+																};
+
+																const normalizeGeoJSON = (input: any) => {
+																	if (!input) {
+																		return null;
+																	}
+																	let parsed = input;
+																	if (typeof parsed === "string") {
+																		parsed = JSON.parse(parsed);
+																	}
+																	if (parsed?.geojson) {
+																		return normalizeGeoJSON(parsed.geojson);
+																	}
+																	if (
+																		parsed?.type === "Feature" ||
+																		parsed?.type === "FeatureCollection"
+																	) {
+																		return parsed;
+																	}
+																	if (parsed?.type && parsed?.coordinates) {
+																		return {
+																			type: "Feature",
+																			geometry: parsed,
+																			properties: {},
+																		};
+																	}
+																	return null;
+																};
+
+																const getPrimaryGeometry = (geojson: any) => {
+																	if (!geojson) {
+																		return null;
+																	}
+																	if (geojson.type === "Feature") {
+																		return geojson.geometry || null;
+																	}
+																	if (geojson.type === "FeatureCollection") {
+																		return (
+																			geojson.features?.find(
+																				(f: any) => f?.geometry,
+																			)?.geometry || null
+																		);
+																	}
+																	return geojson.type && geojson.coordinates
+																		? geojson
+																		: null;
+																};
+
+																const inferPolygonShape = (
+																	geojson: any,
+																): string | null => {
+																	const geometry = getPrimaryGeometry(geojson);
+																	if (
+																		!geometry ||
+																		geometry.type !== "Polygon"
+																	) {
+																		return null;
+																	}
+																	const ring = Array.isArray(
+																		geometry.coordinates?.[0],
+																	)
+																		? geometry.coordinates[0]
+																		: [];
+																	const points = ring
+																		.map((coord: any) => ({
+																			lat: coord?.[1],
+																			lng: coord?.[0],
+																		}))
+																		.filter(
+																			(p: any) =>
+																				Number.isFinite(p.lat) &&
+																				Number.isFinite(p.lng),
+																		);
+																	if (points.length < 5) {
+																		return null;
+																	}
+																	const first = points[0];
+																	const last = points[points.length - 1];
+																	const isClosed =
+																		Math.abs(first.lat - last.lat) < 1e-9 &&
+																		Math.abs(first.lng - last.lng) < 1e-9;
+																	const noClosePoints = isClosed
+																		? points.slice(0, -1)
+																		: points;
+
+																	if (noClosePoints.length === 4) {
+																		const lats = noClosePoints.map(
+																			(p: any) => p.lat,
+																		);
+																		const lngs = noClosePoints.map(
+																			(p: any) => p.lng,
+																		);
+																		const minLat = Math.min(...lats);
+																		const maxLat = Math.max(...lats);
+																		const minLng = Math.min(...lngs);
+																		const maxLng = Math.max(...lngs);
+																		const approxEqual = (
+																			a: number,
+																			b: number,
+																		) => Math.abs(a - b) < 1e-8;
+																		const rectangleLike = noClosePoints.every(
+																			(p: any) =>
+																				(approxEqual(p.lat, minLat) ||
+																					approxEqual(p.lat, maxLat)) &&
+																				(approxEqual(p.lng, minLng) ||
+																					approxEqual(p.lng, maxLng)),
+																		);
+																		if (rectangleLike) {
+																			return "RECTANGLE";
+																		}
+																	}
+
+																	if (noClosePoints.length >= 16) {
+																		const toRad = (deg: number) =>
+																			(deg * Math.PI) / 180;
+																		const haversine = (
+																			lat1: number,
+																			lng1: number,
+																			lat2: number,
+																			lng2: number,
+																		) => {
+																			const R = 6371000;
+																			const dLat = toRad(lat2 - lat1);
+																			const dLng = toRad(lng2 - lng1);
+																			const a =
+																				Math.sin(dLat / 2) *
+																					Math.sin(dLat / 2) +
+																				Math.cos(toRad(lat1)) *
+																					Math.cos(toRad(lat2)) *
+																					Math.sin(dLng / 2) *
+																					Math.sin(dLng / 2);
+																			const c =
+																				2 *
+																				Math.atan2(
+																					Math.sqrt(a),
+																					Math.sqrt(1 - a),
+																				);
+																			return R * c;
+																		};
+																		const centerLat =
+																			noClosePoints.reduce(
+																				(sum: number, p: any) => sum + p.lat,
+																				0,
+																			) / noClosePoints.length;
+																		const centerLng =
+																			noClosePoints.reduce(
+																				(sum: number, p: any) => sum + p.lng,
+																				0,
+																			) / noClosePoints.length;
+																		const distances = noClosePoints.map(
+																			(p: any) =>
+																				haversine(
+																					centerLat,
+																					centerLng,
+																					p.lat,
+																					p.lng,
+																				),
+																		);
+																		const mean =
+																			distances.reduce(
+																				(sum: number, d: number) => sum + d,
+																				0,
+																			) / distances.length;
+																		const variance =
+																			distances.reduce(
+																				(sum: number, d: number) =>
+																					sum + Math.pow(d - mean, 2),
+																				0,
+																			) / distances.length;
+																		const stdDev = Math.sqrt(variance);
+																		if (mean > 0 && stdDev / mean < 0.12) {
+																			return "CIRCLE";
+																		}
+																	}
+
+																	return null;
+																};
+
+																const sourceValue = getSourceValue();
+																const geojson = normalizeGeoJSON(sourceValue);
+																const inferredShape =
+																	inferPolygonShape(geojson);
+																if (inferredShape) {
+																	return `Shape: ${inferredShape}`;
+																}
+
+																if (typeof value === "string") {
+																	const parsed = JSON.parse(value);
+																	const geometryType =
+																		parsed?.type === "Feature"
+																			? parsed?.geometry?.type
+																			: parsed?.type;
+																	if (geometryType) {
+																		return `Shape: ${String(geometryType).toUpperCase()}`;
+																	}
+																}
+
+																if (typeof value === "object") {
+																	const geometryType =
+																		value?.type === "Feature"
+																			? value?.geometry?.type
+																			: value?.type;
+																	if (geometryType) {
+																		return `Shape: ${String(geometryType).toUpperCase()}`;
+																	}
+																	return "Shape: GEOJSON";
+																}
 															} catch {
 																return String(value);
 															}
@@ -1870,9 +2153,10 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 														outlined
 														onClick={() => {
 															if (dialogMapRef.current) {
-																const dialogElement = dialogMapRef.current as HTMLDialogElement & {
-																	mapperField?: any;
-																};
+																const dialogElement =
+																	dialogMapRef.current as HTMLDialogElement & {
+																		mapperField?: any;
+																	};
 																dialogElement.showModal();
 																dialogElement.mapperField = field;
 															}
@@ -1893,10 +2177,277 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 															return retValue;
 														};
 
+														const normalizeGeoJSON = (input: any) => {
+															if (!input) {
+																return null;
+															}
+
+															let parsed = input;
+															if (typeof parsed === "string") {
+																try {
+																	parsed = JSON.parse(parsed);
+																} catch {
+																	return null;
+																}
+															}
+
+															if (parsed?.geojson) {
+																return normalizeGeoJSON(parsed.geojson);
+															}
+
+															if (
+																parsed?.type === "Feature" ||
+																parsed?.type === "FeatureCollection"
+															) {
+																return parsed;
+															}
+
+															if (parsed?.type && parsed?.coordinates) {
+																return {
+																	type: "Feature",
+																	geometry: parsed,
+																	properties: {},
+																};
+															}
+
+															return null;
+														};
+
+														const getPrimaryGeometry = (geojson: any) => {
+															if (!geojson) {
+																return null;
+															}
+															if (geojson.type === "Feature") {
+																return geojson.geometry || null;
+															}
+															if (geojson.type === "FeatureCollection") {
+																return (
+																	geojson.features?.find(
+																		(f: any) => f?.geometry,
+																	)?.geometry || null
+																);
+															}
+															return geojson.type && geojson.coordinates
+																? geojson
+																: null;
+														};
+
+														const haversineMeters = (
+															lat1: number,
+															lng1: number,
+															lat2: number,
+															lng2: number,
+														): number => {
+															const R = 6371000;
+															const toRad = (deg: number) =>
+																(deg * Math.PI) / 180;
+															const dLat = toRad(lat2 - lat1);
+															const dLng = toRad(lng2 - lng1);
+															const a =
+																Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+																Math.cos(toRad(lat1)) *
+																	Math.cos(toRad(lat2)) *
+																	Math.sin(dLng / 2) *
+																	Math.sin(dLng / 2);
+															const c =
+																2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+															return R * c;
+														};
+
+														const inferGeoSummary = (geojson: any) => {
+															const geometry = getPrimaryGeometry(geojson);
+															if (!geometry) {
+																return null;
+															}
+
+															if (geometry.type === "Polygon") {
+																const ring = Array.isArray(
+																	geometry.coordinates?.[0],
+																)
+																	? geometry.coordinates[0]
+																	: [];
+																const points = ring
+																	.map((coord: any) => ({
+																		lat: coord?.[1],
+																		lng: coord?.[0],
+																	}))
+																	.filter(
+																		(p: any) =>
+																			Number.isFinite(p.lat) &&
+																			Number.isFinite(p.lng),
+																	);
+
+																if (points.length >= 5) {
+																	const first = points[0];
+																	const last = points[points.length - 1];
+																	const isClosed =
+																		Math.abs(first.lat - last.lat) < 1e-9 &&
+																		Math.abs(first.lng - last.lng) < 1e-9;
+
+																	const noClosePoints = isClosed
+																		? points.slice(0, -1)
+																		: points;
+
+																	if (noClosePoints.length === 4) {
+																		const lats = noClosePoints.map(
+																			(p: any) => p.lat,
+																		);
+																		const lngs = noClosePoints.map(
+																			(p: any) => p.lng,
+																		);
+																		const minLat = Math.min(...lats);
+																		const maxLat = Math.max(...lats);
+																		const minLng = Math.min(...lngs);
+																		const maxLng = Math.max(...lngs);
+																		const approxEqual = (
+																			a: number,
+																			b: number,
+																		) => Math.abs(a - b) < 1e-8;
+																		const rectangleLike = noClosePoints.every(
+																			(p: any) =>
+																				(approxEqual(p.lat, minLat) ||
+																					approxEqual(p.lat, maxLat)) &&
+																				(approxEqual(p.lng, minLng) ||
+																					approxEqual(p.lng, maxLng)),
+																		);
+																		if (rectangleLike) {
+																			return {
+																				shape: "RECTANGLE",
+																				lines: [
+																					`Lat: ${maxLat}, Lng: ${minLng}`,
+																					`Lat: ${minLat}, Lng: ${maxLng}`,
+																				],
+																			};
+																		}
+																	}
+
+																	if (noClosePoints.length >= 16) {
+																		const centerLat =
+																			noClosePoints.reduce(
+																				(sum: number, p: any) => sum + p.lat,
+																				0,
+																			) / noClosePoints.length;
+																		const centerLng =
+																			noClosePoints.reduce(
+																				(sum: number, p: any) => sum + p.lng,
+																				0,
+																			) / noClosePoints.length;
+																		const distances = noClosePoints.map(
+																			(p: any) =>
+																				haversineMeters(
+																					centerLat,
+																					centerLng,
+																					p.lat,
+																					p.lng,
+																				),
+																		);
+																		const mean =
+																			distances.reduce(
+																				(sum: number, d: number) => sum + d,
+																				0,
+																			) / distances.length;
+																		const variance =
+																			distances.reduce(
+																				(sum: number, d: number) =>
+																					sum + Math.pow(d - mean, 2),
+																				0,
+																			) / distances.length;
+																		const stdDev = Math.sqrt(variance);
+																		const circleLike =
+																			mean > 0 && stdDev / mean < 0.12;
+
+																		if (circleLike) {
+																			return {
+																				shape: "CIRCLE",
+																				lines: [
+																					`Center: Lat ${centerLat}, Lng ${centerLng}`,
+																					`Radius: ${mean.toFixed(2)} meters`,
+																				],
+																			};
+																		}
+																	}
+																}
+															}
+
+															return null;
+														};
+
+														const getPreviewPoints = (
+															geometry: any,
+														): [number, number][] => {
+															if (!geometry) {
+																return [];
+															}
+
+															const toLatLngPair = (
+																coord: any,
+															): [number, number] | null => {
+																const lat = coord?.[1];
+																const lng = coord?.[0];
+																if (
+																	!Number.isFinite(lat) ||
+																	!Number.isFinite(lng)
+																) {
+																	return null;
+																}
+																return [lat, lng];
+															};
+
+															const mapCoords = (
+																coords: any[],
+															): [number, number][] =>
+																coords.reduce(
+																	(acc: [number, number][], coord: any) => {
+																		const pair = toLatLngPair(coord);
+																		if (pair) {
+																			acc.push(pair);
+																		}
+																		return acc;
+																	},
+																	[],
+																);
+
+															switch (geometry.type) {
+																case "Point": {
+																	const [lng, lat] = geometry.coordinates || [];
+																	return Number.isFinite(lat) &&
+																		Number.isFinite(lng)
+																		? [[lat, lng]]
+																		: [];
+																}
+																case "LineString":
+																case "MultiPoint":
+																	return Array.isArray(geometry.coordinates)
+																		? mapCoords(geometry.coordinates)
+																		: [];
+																case "Polygon":
+																	return Array.isArray(
+																		geometry.coordinates?.[0],
+																	)
+																		? mapCoords(geometry.coordinates[0])
+																		: [];
+																case "MultiLineString":
+																	return Array.isArray(
+																		geometry.coordinates?.[0],
+																	)
+																		? mapCoords(geometry.coordinates[0])
+																		: [];
+																case "MultiPolygon":
+																	return Array.isArray(
+																		geometry.coordinates?.[0]?.[0],
+																	)
+																		? mapCoords(geometry.coordinates[0][0])
+																		: [];
+																default:
+																	return [];
+															}
+														};
+
 														try {
 															let parsedValue = value;
 															if (parsedValue && parsedValue.mode) {
-																const { mode, coordinates, center, radius } = parsedValue;
+																const { mode, coordinates, center, radius } =
+																	parsedValue;
 																const title = `Shape: ${mode.toUpperCase()}`;
 
 																if (mode === "circle" && center && radius) {
@@ -1905,14 +2456,22 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 																			className="mapper-selected-shape"
 																			title={title}
 																			onClick={() => {
-																				parsedValue = getGeoJSON() || parsedValue;
-																				previewGeoJSON(JSON.stringify(parsedValue, null, 2));
+																				parsedValue =
+																					getGeoJSON() || parsedValue;
+																				previewGeoJSON(
+																					JSON.stringify(parsedValue, null, 2),
+																				);
 																			}}
 																		>
 																			<h4>{title}</h4>
 																			<ul>
-																				<li>Center: Lat {center[0]}, Lng {center[1]}</li>
-																				<li>Radius: {radius.toFixed(2)} meters</li>
+																				<li>
+																					Center: Lat {center[0]}, Lng{" "}
+																					{center[1]}
+																				</li>
+																				<li>
+																					Radius: {radius.toFixed(2)} meters
+																				</li>
 																			</ul>
 																		</div>
 																	);
@@ -1926,7 +2485,8 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 																			onClick={() => {
 																				const newWindow = window.open();
 																				if (newWindow) {
-																					parsedValue = getGeoJSON() || parsedValue;
+																					parsedValue =
+																						getGeoJSON() || parsedValue;
 																					newWindow.document.write(
 																						`<pre>${JSON.stringify(parsedValue, null, 2)}</pre>`,
 																					);
@@ -1936,28 +2496,99 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 																		>
 																			<h4>{title}</h4>
 																			<ul>
-																				{coordinates.map((coordinate, index) => (
-																					<li key={index}>
-																						{ctx.t({
-																							code: "spatial_footprint.latitude",
-																							desc: "Label for latitude value (short)",
-																							msg: "Lat",
-																						})}
-																						: {coordinate[0]}, {ctx.t({
-																							code: "spatial_footprint.longitude",
-																							desc: "Label for longitude value (short)",
-																							msg: "Lng",
-																						})}
-																						: {coordinate[1]}
-																					</li>
-																				))}
+																				{coordinates.map(
+																					(coordinate, index) => (
+																						<li key={index}>
+																							{ctx.t({
+																								code: "spatial_footprint.latitude",
+																								desc: "Label for latitude value (short)",
+																								msg: "Lat",
+																							})}
+																							: {coordinate[0]},{" "}
+																							{ctx.t({
+																								code: "spatial_footprint.longitude",
+																								desc: "Label for longitude value (short)",
+																								msg: "Lng",
+																							})}
+																							: {coordinate[1]}
+																						</li>
+																					),
+																				)}
 																			</ul>
 																		</div>
 																	);
 																}
 															}
 
-															return <pre>{value}</pre>;
+															const geojson = normalizeGeoJSON(
+																getGeoJSON() || value,
+															);
+															if (geojson) {
+																const geometry = getPrimaryGeometry(geojson);
+																const geometryType = geometry?.type;
+																const coordinates = getPreviewPoints(geometry);
+																const inferredSummary =
+																	inferGeoSummary(geojson);
+																const title = inferredSummary?.shape
+																	? `Shape: ${inferredSummary.shape}`
+																	: geometryType
+																		? `Shape: ${String(geometryType).toUpperCase()}`
+																		: "Shape";
+
+																return (
+																	<div
+																		className="mapper-selected-shape"
+																		title={title}
+																		onClick={() => {
+																			previewGeoJSON(
+																				JSON.stringify(geojson, null, 2),
+																			);
+																		}}
+																	>
+																		<h4>{title}</h4>
+																		{inferredSummary?.lines && (
+																			<ul>
+																				{inferredSummary.lines.map(
+																					(line: string, idx: number) => (
+																						<li key={idx}>{line}</li>
+																					),
+																				)}
+																			</ul>
+																		)}
+																		{!inferredSummary &&
+																			coordinates.length > 0 && (
+																				<ul>
+																					{coordinates
+																						.slice(0, 10)
+																						.map((coordinate, idx) => (
+																							<li key={idx}>
+																								{ctx.t({
+																									code: "spatial_footprint.latitude",
+																									desc: "Label for latitude value (short)",
+																									msg: "Lat",
+																								})}
+																								: {coordinate[0]},{" "}
+																								{ctx.t({
+																									code: "spatial_footprint.longitude",
+																									desc: "Label for longitude value (short)",
+																									msg: "Lng",
+																								})}
+																								: {coordinate[1]}
+																							</li>
+																						))}
+																					{coordinates.length > 10 && (
+																						<li>
+																							+{coordinates.length - 10} more
+																							points
+																						</li>
+																					)}
+																				</ul>
+																			)}
+																	</div>
+																);
+															}
+
+															return <div>Shape data available</div>;
 														} catch (err) {
 															console.error("Failed to parse value:", err);
 															return <pre>Invalid data</pre>;
@@ -1995,9 +2626,7 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 													optionLabel="label"
 													optionValue="value"
 													value={value}
-													onChange={(e) =>
-														handleFieldChange(field, e.value)
-													}
+													onChange={(e) => handleFieldChange(field, e.value)}
 												/>
 												{field.note && (
 													<div
@@ -2014,7 +2643,10 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 										)}
 										{field.type === "option" && (
 											<div className="space-y-2">
-												<div id={fieldId} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+												<div
+													id={fieldId}
+													className="grid grid-cols-1 gap-2 sm:grid-cols-2"
+												>
 													{field.options?.map((option, i) => (
 														<label
 															key={i}
@@ -2066,22 +2698,21 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 													<>
 														<a
 															id={`file-link-${field.id}`}
-															href={`${base_path}${formData[field.id]?.view ??
+															href={`${base_path}${
+																formData[field.id]?.view ??
 																(file_viewer_url
 																	? ctx.url(
-																		`${file_viewer_url}${file_viewer_url.includes("?") ? "&" : "?"}name=${encodeURIComponent(
-																			formData[field.id]?.name
-																				.split("/")
-																				.slice(-2)
-																				.join("/") || "",
-																		)}${field.download ? "&download=true" : ""}`,
-																	)
+																			`${file_viewer_url}${file_viewer_url.includes("?") ? "&" : "?"}name=${encodeURIComponent(
+																				formData[field.id]?.name
+																					.split("/")
+																					.slice(-2)
+																					.join("/") || "",
+																			)}${field.download ? "&download=true" : ""}`,
+																		)
 																	: formData[field.id]?.name || "")
-																}`}
+															}`}
 															className="file-link inline-flex text-sm font-medium text-sky-700 hover:text-sky-800 hover:underline"
-															target={
-																!field.download ? "_blank" : undefined
-															}
+															target={!field.download ? "_blank" : undefined}
 															rel="noopener noreferrer"
 														>
 															{formData[field.id]?.name.split("/").pop()}
@@ -2097,9 +2728,9 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 													accept={
 														field.accept
 															? field.accept
-																.split("|")
-																.map((ext) => `.${ext}`)
-																.join(",")
+																	.split("|")
+																	.map((ext) => `.${ext}`)
+																	.join(",")
 															: undefined
 													}
 													chooseOptions={{
@@ -2141,11 +2772,13 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 															if (fileLinkElement)
 																fileLinkElement.style.display = "none";
 
-															const previousHrefElement = document.getElementById(
-																`file-link-${field.id}`,
-															);
+															const previousHrefElement =
+																document.getElementById(
+																	`file-link-${field.id}`,
+																);
 															const previousHref =
-																previousHrefElement?.getAttribute("href") || null;
+																previousHrefElement?.getAttribute("href") ||
+																null;
 
 															const fileData = await handleFileUpload(
 																file,

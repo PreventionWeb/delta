@@ -43,7 +43,6 @@ export const hazardousEventTable = pgTable(
 		description: zeroText("description"),
 		chainsExplanation: zeroText("chains_explanation"),
 		magnitude: zeroText("magniture"),
-		spatialFootprint: jsonb("spatial_footprint"),
 		attachments: jsonb("attachments"),
 		recordOriginator: zeroText("record_originator"),
 		hazardousEventStatus: text("hazardous_event_status", {

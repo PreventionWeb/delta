@@ -50,7 +50,7 @@ export async function getDisasterEventCount(
 	if (geographicLevelId) {
 		conditions.push(
 			sql`jsonb_path_exists(
-          ${disasterEventTable.spatialFootprint},
+			${(disasterEventTable as any).spatialFootprint},
           concat(
             '$[*].geojson.properties.division_id ? (@ == "',
             ${geographicLevelId}::text,
@@ -116,7 +116,7 @@ export async function getDisasterEventCountByYear(
 	if (geographicLevelId) {
 		conditions.push(
 			sql`jsonb_path_exists(
-        ${disasterEventTable.spatialFootprint},
+			${(disasterEventTable as any).spatialFootprint},
         concat(
           '$[*].geojson.properties.division_id ? (@ == "',
           ${geographicLevelId}::text,

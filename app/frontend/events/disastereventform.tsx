@@ -633,15 +633,6 @@ export function fieldsDefCommon(
 			type: "json",
 			uiRow: { colOverride: 1 },
 		},
-		{
-			key: "spatialFootprint",
-			label: ctx.t({
-				code: "spatial_footprint",
-				msg: "Spatial footprint",
-			}),
-			type: "other",
-			psqlType: "jsonb",
-		},
 	];
 }
 
@@ -738,6 +729,7 @@ interface DisasterEventFormProps extends UserFormProps<DisasterEventFields> {
 export function DisasterEventForm(props: DisasterEventFormProps) {
 	const ctx = props.ctx;
 	const fields = props.fields;
+	const spatialFootprint = (fields as any)?.spatialFootprint ?? [];
 
 	const [selectedHazardousEvent, setSelectedHazardousEvent] = useState(
 		props.hazardousEvent,
@@ -1281,7 +1273,7 @@ export function DisasterEventForm(props: DisasterEventFormProps) {
 								divisions={divisionGeoJSON}
 								ctryIso3={ctryIso3 || ""}
 								treeData={treeData ?? []}
-								initialData={props.fields?.spatialFootprint}
+								initialData={spatialFootprint}
 							/>
 						</Field>
 					) : (

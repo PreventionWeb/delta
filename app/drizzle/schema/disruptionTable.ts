@@ -26,7 +26,6 @@ export const disruptionTable = pgTable("disruption", {
 	responseOperation: text("response_operation"),
 	responseCost: ourMoney("response_cost"),
 	responseCurrency: text("response_currency"),
-	spatialFootprint: jsonb("spatial_footprint"),
 	attachments: jsonb("attachments"),
 });
 
