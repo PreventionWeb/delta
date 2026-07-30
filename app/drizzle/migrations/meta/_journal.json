@@ -260,6 +260,13 @@
       "when": 1785385572454,
       "tag": "20260730042612_migration_spatial_footprint_columns_to_new_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1785395601635,
+      "tag": "20260730071321_remove_spatial_footprint_columns",
+      "breakpoints": true
     }
   ]
 }

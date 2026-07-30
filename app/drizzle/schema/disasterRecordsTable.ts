@@ -56,7 +56,6 @@ export const disasterRecordsTable = pgTable(
 		checkedBy: text("checked_by"),
 		dataCollector: text("data_collector"),
 		legacyData: jsonb("legacy_data"),
-		spatialFootprint: jsonb("spatial_footprint"),
 		attachments: jsonb("attachments"),
 		...approvalFields,
 		...createdUpdatedTimestamps,

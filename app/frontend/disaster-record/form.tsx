@@ -412,9 +412,9 @@ export function DisasterRecordsForm(props: DisasterRecordsFormProps) {
 		hazardousEventLinkInitial = "disaster_event";
 	}
 
-	const [hazardousEventLinkType, setHazardousEventLinkType] = useState<"none" | "disaster_event">(
-		hazardousEventLinkInitial,
-	);
+	const [hazardousEventLinkType, setHazardousEventLinkType] = useState<
+		"none" | "disaster_event"
+	>(hazardousEventLinkInitial);
 
 	// Modal submit validation function
 	function validateBeforeSubmit(
@@ -656,7 +656,7 @@ export function DisasterRecordsForm(props: DisasterRecordsFormProps) {
 								divisions={divisionGeoJSON}
 								ctryIso3={ctryIso3 || ""}
 								treeData={treeData ?? []}
-								initialData={fields?.spatialFootprint}
+								initialData={((fields as any)?.spatialFootprint as any[]) || []}
 							/>
 						</Field>
 					),
@@ -703,7 +703,6 @@ interface DisasterRecordsViewProps {
 
 export function DisasterRecordsView(props: DisasterRecordsViewProps) {
 	const { ctx, item } = props;
-	const dataSource: Array<Record<string, unknown>> = (item as any)?.disasterRecord || [];
 
 	return (
 		<ViewComponentMainDataCollection
@@ -734,6 +733,14 @@ export function DisasterRecordsView(props: DisasterRecordsViewProps) {
 							}}
 						/>
 					) : null,
+					spatialFootprint: (
+						<SpatialFootprintView
+							ctx={ctx}
+							initialData={((item as any)?.spatialFootprint as any[]) || []}
+							mapViewerOption={0}
+							mapViewerDataSources={[]}
+						/>
+					),
 					createdAt: (
 						<p key="createdAt">
 							{ctx.t({
@@ -776,16 +783,6 @@ export function DisasterRecordsView(props: DisasterRecordsViewProps) {
 							})}
 							: {(item as any).cpDisplayName || ""}
 						</p>
-					),
-					spatialFootprint: (
-						<div key="debug1">
-							<SpatialFootprintView
-								ctx={ctx}
-								initialData={(item?.spatialFootprint as any[]) || []}
-								mapViewerOption={1}
-								mapViewerDataSources={dataSource}
-							/>
-						</div>
 					),
 					attachments: (
 						<AttachmentsView

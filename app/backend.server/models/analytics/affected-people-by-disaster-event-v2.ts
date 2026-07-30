@@ -119,19 +119,21 @@ async function totalsForOneTable(
 				eq(de.id, disasterEventId),
 				eq(presenceCol, true),
 				or(
-					eq(dr.approvalStatus, "published"),	
-					eq(dr.approvalStatus, "validated"),	
+					eq(dr.approvalStatus, "published"),
+					eq(dr.approvalStatus, "validated"),
 				),
 				conditions?.divisionId
 					? sql`EXISTS (
 					SELECT 1
-					FROM jsonb_array_elements(${dr.spatialFootprint}) AS elem
+					FROM jsonb_array_elements(${(dr as any).spatialFootprint}) AS elem
 					WHERE elem->'geojson'->'properties'->>'division_id' = ${conditions.divisionId}
 					OR elem->'geojson'->'properties'->'division_ids' @> to_jsonb(ARRAY[${conditions.divisionId}])
 					OR jsonb_path_exists(disaster_records.spatial_footprint, ${`$[*].geojson.properties.division_ids  ? (@ == "${conditions.divisionId}")`})
 				)`
 					: undefined,
-				conditions?.publishedOnly ? eq(dr.approvalStatus, "published") : undefined,
+				conditions?.publishedOnly
+					? eq(dr.approvalStatus, "published")
+					: undefined,
 			),
 		);
 
@@ -191,8 +193,8 @@ async function totalsForOneTableRecords(
 				eq(presenceCol, true),
 				or(
 					eq(dr.approvalStatus, "published"),
-					eq(dr.approvalStatus, "validated")
-				)
+					eq(dr.approvalStatus, "validated"),
+				),
 			),
 		);
 
@@ -427,12 +429,15 @@ async function countsForOneTable(
 				conditions?.divisionId
 					? sql`EXISTS (
 					SELECT 1
-					FROM jsonb_array_elements(${dr.spatialFootprint}) AS elem
+					FROM jsonb_array_elements(${(dr as any).spatialFootprint}) AS elem
 					WHERE elem->'geojson'->'features'->0->'properties'->>'division_id' = ${conditions.divisionId}
 					OR elem->'geojson'->'features'->0->'properties'->'division_ids' @> to_jsonb(ARRAY[${conditions.divisionId}])
 					
-				)` : undefined,
-				conditions?.publishedOnly ? eq(dr.approvalStatus, "published") : undefined,
+				)`
+					: undefined,
+				conditions?.publishedOnly
+					? eq(dr.approvalStatus, "published")
+					: undefined,
 			),
 		)
 		.groupBy(groupBy);

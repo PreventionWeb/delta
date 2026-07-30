@@ -67,8 +67,6 @@ export const damagesTable = pgTable("damages", {
 	tdDisruptionUsersAffected: ourBigint("td_disruption_users_affected"),
 	tdDisruptionPeopleAffected: ourBigint("td_disruption_people_affected"),
 	tdDisruptionDescription: text("td_disruption_description"),
-
-	spatialFootprint: jsonb("spatial_footprint"),
 	attachments: jsonb("attachments"),
 });
 
