@@ -31,6 +31,7 @@ import { TEMP_UPLOAD_PATH } from "~/utils/paths";
 import { ViewContext } from "~/frontend/context";
 
 import { LangLink } from "~/utils/link";
+import { urlLang } from "~/utils/url";
 import { DContext } from "~/utils/dcontext";
 import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
@@ -251,16 +252,31 @@ interface HazardousEventFormProps extends UserFormProps<HazardousEventFields> {
 export function hazardousEventLabel(args: {
 	id?: string;
 	description?: string;
-	hazard?: { name: string };
+	hazard?: { name: string; code?: string };
+	clusterName?: string;
+	typeName?: string;
+	hipHazard?: { name?: string; code?: string } | null;
+	hipCluster?: { name?: string } | null;
+	hipType?: { name?: string } | null;
 }): string {
 	let parts: string[] = [];
-	if (args.hazard && args.hazard.name) {
-		parts.push(args.hazard.name.slice(0, 50));
+	const hazardName = args.hazard?.name ?? args.hipHazard?.name;
+	const hazardCode = args.hazard?.code ?? args.hipHazard?.code;
+	const clusterName = args.clusterName ?? args.hipCluster?.name;
+	const typeName = args.typeName ?? args.hipType?.name;
+	if (hazardName) {
+		parts.push(hazardName.slice(0, 50));
 	}
 	if (args.description) {
 		parts.push(args.description.slice(0, 50));
 	}
-	if (args.id) {
+	if (hazardCode) {
+		parts.push(hazardCode.slice(0, 50));
+	} else if (clusterName) {
+		parts.push(clusterName.slice(0, 50));
+	} else if (typeName) {
+		parts.push(typeName.slice(0, 50));
+	} else if (args.id) {
 		parts.push(args.id.slice(0, 5));
 	}
 	return parts.join(" ");
@@ -271,7 +287,9 @@ export function hazardousEventLink(
 	args: {
 		id: string;
 		description: string;
-		hazard?: { name: string };
+		hazard?: { name: string; code?: string };
+		clusterName?: string;
+		typeName?: string;
 	},
 ) {
 	return (
@@ -304,6 +322,9 @@ export function HazardousEventForm(props: HazardousEventFormProps) {
 			id: user.id,
 			email: user.email,
 		})) || [];
+	const openHazardousEventPicker = () => {
+		window.open(urlLang(ctx.lang, "/hazardous-event/picker"), "_blank");
+	};
 	// console.log(
 	// 	selectedCities.map((c) => c.name).join(", ")
 	// );
@@ -570,19 +591,17 @@ export function HazardousEventForm(props: HazardousEventFormProps) {
 							})}
 						>
 							{selected ? hazardousEventLink(ctx, selected) : "-"}&nbsp;
-							<LangLink
-								lang={ctx.lang}
-								target="_blank"
-								rel="opener"
-								to={"/hazardous-event/picker"}
-								className="mx-2"
+							<button
+								type="button"
+								className="mg-button mg-button-outline mx-2"
+								onClick={openHazardousEventPicker}
 							>
 								{ctx.t({
 									code: "common.change",
 									desc: "Label for change action link or button",
 									msg: "Change",
 								})}
-							</LangLink>
+							</button>
 							<button
 								className="mg-button mg-button-outline"
 								onClick={(e: any) => {
@@ -732,7 +751,19 @@ export function HazardousEventView(props: HazardousEventViewProps) {
 								desc: "Label for the 'Caused by' relationship",
 								msg: "Caused by",
 							})}
-							:&nbsp;{hazardousEventLink(ctx, parent)}
+							:&nbsp;
+							{hazardousEventLink(ctx, {
+								id: parent.id,
+								description: parent.description,
+								hazard: parent.hipHazard
+									? {
+										name: parent.hipHazard.name,
+										code: parent.hipHazard.code ?? undefined,
+									}
+									: undefined,
+								clusterName: parent.hipCluster?.name,
+								typeName: parent.hipType?.name,
+							})}
 						</p>
 					) : null}
 
@@ -747,7 +778,22 @@ export function HazardousEventView(props: HazardousEventViewProps) {
 								:
 							</p>
 							{children.map((child) => {
-								return <p key={child.id}>{hazardousEventLink(ctx, child)}</p>;
+								return (
+									<p key={child.id}>
+										{hazardousEventLink(ctx, {
+											id: child.id,
+											description: child.description,
+											hazard: child.hipHazard
+												? {
+													name: child.hipHazard.name,
+													code: child.hipHazard.code ?? undefined,
+												}
+												: undefined,
+											clusterName: child.hipCluster?.name,
+											typeName: child.hipType?.name,
+										})}
+									</p>
+								);
 							})}
 						</>
 					)}
