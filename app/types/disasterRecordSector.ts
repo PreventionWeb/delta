@@ -24,4 +24,6 @@ export interface SectorDisasterRecord {
 	sectorDamagesTotal: number | null;
 
 	sectorDamagesRecoveryTotal: number | null;
+
+	sectorLossesTotal: number | null;
 }

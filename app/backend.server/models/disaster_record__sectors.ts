@@ -560,6 +560,15 @@ export async function sectorsFilterByDisasterRecordId(
 				WHERE d.sector_id = ${sectorDisasterRecordsRelationTable.sectorId}
 					AND d.record_id = ${sectorDisasterRecordsRelationTable.disasterRecordId}
 			)`.as("sectorDamagesRecoveryTotal"),
+			sectorLossesTotal: sql<number>`(
+				SELECT COALESCE(
+					SUM(COALESCE(l.public_cost_total, 0) + COALESCE(l.private_cost_total, 0)),
+					0
+				)
+				FROM losses l
+				WHERE l.sector_id = ${sectorDisasterRecordsRelationTable.sectorId}
+					AND l.record_id = ${sectorDisasterRecordsRelationTable.disasterRecordId}
+			)`.as("sectorLossesTotal"),
 		})
 		.from(sectorDisasterRecordsRelationTable)
 		.leftJoin(

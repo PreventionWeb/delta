@@ -482,6 +482,15 @@ export default function Screen() {
 																) : (
 																	<div>-</div>
 																)}
+
+																{item.sectorLossesTotal && item.sectorLossesTotal > 0 ? (
+																	<div title="Sector disaggregation losses total cost">
+																		{item.sectorLossesTotal}{" "}
+																		{item.disRecSectorsLossesCostCurrency}
+																	</div>
+																) : (
+																	<div>-</div>
+																)}
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
 																{item.disRecSectorsWithDisruption && (
