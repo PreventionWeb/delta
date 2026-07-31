@@ -1,4 +1,4 @@
-import { DisasterRecordsView } from "~/frontend/disaster-record/form";
+﻿import { DisasterRecordsView } from "~/frontend/disaster-record/form";
 
 import {
 	createViewLoaderPublicApproved,
@@ -368,8 +368,13 @@ export default function Screen() {
 													</th>
 													<th
 														className="border border-gray-300 px-3 py-2"
-														colSpan={1}
-													/>
+														colSpan={2}
+													>
+														{ctx.t({
+															code: "sector_effects.disruption",
+															msg: "Disruption",
+														})}
+													</th>
 												</tr>
 												<tr>
 													{[
@@ -387,6 +392,7 @@ export default function Screen() {
 															code: "sector_effects.disruption",
 															msg: "Disruption",
 														},
+														{ code: "sector_effects.cost", msg: "Cost" },
 													].map(({ code, msg }, i) => (
 														<th
 															key={`${code}-${i}`}
@@ -415,21 +421,49 @@ export default function Screen() {
 																)}
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
-																{item.disRecSectorsDamageRecoveryCost && (
-																	<span>
+																{item.disRecSectorsDamageRecoveryCost ? (
+																	<div title="Sector damages recovery total cost">
 																		{item.disRecSectorsDamageRecoveryCost}{" "}
 																		{
 																			item.disRecSectorsDamageRecoveryCostCurrency
 																		}
-																	</span>
+																	</div>
+																) : (
+																	<div>-</div>
+																)}
+
+																{item.sectorDamagesRecoveryTotal && item.sectorDamagesRecoveryTotal > 0 ? (
+																	<div title="Sector disaggregation damages recovery total cost">
+																		{item.sectorDamagesRecoveryTotal}
+																		{" "}
+																		{
+																			item.disRecSectorsDamageRecoveryCostCurrency
+																		}
+																	</div>
+																) : (
+																	<div>-</div>
 																)}
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
-																{item.disRecSectorsDamageCost && (
-																	<span>
+																{item.disRecSectorsDamageCost ? (
+																	<div title="Sector damages total cost">
 																		{item.disRecSectorsDamageCost}{" "}
 																		{item.disRecSectorsDamageCostCurrency}
-																	</span>
+																	</div>
+																) : (
+																	<div>-</div>
+																)}
+
+																{item.sectorDamagesTotal && item.sectorDamagesTotal > 0 ? (
+																	<div title="Sector disaggregation damages total cost">
+																		{item.sectorDamagesTotal}
+																		{" "}
+																		{
+																			item.disRecSectorsDamageCostCurrency
+																		}
+																	</div>
+																) : (
+																	<div>-</div>
 																)}
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -440,11 +474,13 @@ export default function Screen() {
 																)}
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
-																{item.disRecSectorsLossesCost && (
-																	<span>
+																{item.disRecSectorsLossesCost ? (
+																	<div>
 																		{item.disRecSectorsLossesCost}{" "}
 																		{item.disRecSectorsLossesCostCurrency}
-																	</span>
+																	</div>
+																) : (
+																	<div>-</div>
 																)}
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -452,6 +488,17 @@ export default function Screen() {
 																	<span>
 																		{ctx.t({ code: "common.yes", msg: "Yes" })}
 																	</span>
+																)}
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																{item.sectorDisruptionTotal && item.sectorDisruptionTotal > 0 ? (
+																	<div title="Sector disaggregation disruption response total cost">
+																		{item.sectorDisruptionTotal}
+																		{" "}
+																		{item.sectorDisruptionTotalCurrency}
+																	</div>
+																) : (
+																	<div>-</div>
 																)}
 															</td>
 														</tr>

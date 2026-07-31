@@ -1436,7 +1436,7 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 			<br />
 			{auditLogs && auditLogs.length > 0 && (
 				<>
-					<h3>
+					<h3 className="dts-heading-3">
 						{ctx.t({
 							code: "audit_log_history",
 							msg: "Audit log history",

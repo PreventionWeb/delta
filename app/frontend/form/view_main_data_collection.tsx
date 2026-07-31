@@ -449,7 +449,7 @@ export function ViewComponentMainDataCollection(
 								</div>
 							</>
 						)}
-						<h2>{props.title}</h2>
+						<h2 className="dts-heading-2">{props.title}</h2>
 						<p>
 							{ctx.t({
 								code: "common.id",

@@ -532,6 +532,34 @@ export async function sectorsFilterByDisasterRecordId(
 				FROM ParentCTE
 				WHERE parent_id IS NULL
 			)`.as("sectorTreeDisplayIds"),
+			sectorDisruptionTotal: sql<number>`(
+				SELECT COALESCE(SUM(d.response_cost), 0)
+				FROM disruption d
+				WHERE d.sector_id = ${sectorDisasterRecordsRelationTable.sectorId}
+					AND d.record_id = ${sectorDisasterRecordsRelationTable.disasterRecordId}
+			)`.as("sectorDisruptionTotal"),
+			sectorDisruptionTotalCurrency: sql<string>`(
+				SELECT COALESCE(string_agg(c.response_currency, ', '), '')
+				FROM (
+					SELECT d.response_currency
+					FROM disruption d
+					WHERE d.sector_id = ${sectorDisasterRecordsRelationTable.sectorId}
+						AND d.record_id = ${sectorDisasterRecordsRelationTable.disasterRecordId}
+					GROUP BY d.response_currency
+				) c
+			)`.as("sectorDisruptionTotalCurrency"),
+			sectorDamagesTotal: sql<number>`(
+				SELECT COALESCE(SUM(d.total_repair_replacement), 0)
+				FROM damages d
+				WHERE d.sector_id = ${sectorDisasterRecordsRelationTable.sectorId}
+					AND d.record_id = ${sectorDisasterRecordsRelationTable.disasterRecordId}
+			)`.as("sectorDamagesTotal"),
+			sectorDamagesRecoveryTotal: sql<number>`(
+				SELECT COALESCE(SUM(d.total_recovery), 0)
+				FROM damages d
+				WHERE d.sector_id = ${sectorDisasterRecordsRelationTable.sectorId}
+					AND d.record_id = ${sectorDisasterRecordsRelationTable.disasterRecordId}
+			)`.as("sectorDamagesRecoveryTotal"),
 		})
 		.from(sectorDisasterRecordsRelationTable)
 		.leftJoin(

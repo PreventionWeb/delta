@@ -178,7 +178,7 @@ export function ViewComponentMainDataCollection(
 							{props.recordDate && <p>{props.recordDate}</p>}
 
 							<p>
-								{ctx.t({ code: "common.status", msg: "Status" })}:{" "}
+								<strong>{ctx.t({ code: "common.status", msg: "Status" })}:</strong>{" "}
 								<span
 									className={`dts-status dts-status--${props.approvalStatus}`}
 								></span>{" "}

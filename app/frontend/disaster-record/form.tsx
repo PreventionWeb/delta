@@ -742,13 +742,13 @@ export function DisasterRecordsView(props: DisasterRecordsViewProps) {
 						/>
 					),
 					createdAt: (
-						<p key="createdAt">
+						<p key="createdAt"><strong>
 							{ctx.t({
 								code: "common.created_at",
 								desc: "Created date",
 								msg: "Created at",
 							})}
-							:{" "}
+							:</strong>{" "}
 							{item?.createdAt
 								? formatDate(item.createdAt)
 								: ctx.t({
@@ -759,13 +759,13 @@ export function DisasterRecordsView(props: DisasterRecordsViewProps) {
 						</p>
 					),
 					updatedAt: (
-						<p key="updatedAt">
+						<p key="updatedAt"><strong>
 							{ctx.t({
 								code: "common.updated_at",
 								desc: "Last updated date",
 								msg: "Updated at",
 							})}
-							:{" "}
+							:</strong>{" "}
 							{item?.updatedAt
 								? formatDate(item.updatedAt)
 								: ctx.t({
@@ -776,12 +776,12 @@ export function DisasterRecordsView(props: DisasterRecordsViewProps) {
 						</p>
 					),
 					disasterEventId: (
-						<p key="disasterEventId">
+						<p key="disasterEventId"><strong>
 							{ctx.t({
 								code: "disaster_event",
 								msg: "Disaster event",
 							})}
-							: {(item as any).cpDisplayName || ""}
+							:</strong> {(item as any).cpDisplayName || ""}
 						</p>
 					),
 					attachments: (
