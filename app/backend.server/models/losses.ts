@@ -516,11 +516,8 @@ export async function lossesCreate(
 	}
 
 	const spatialFootprintValue = (fields as any).spatialFootprint;
-	const {
-		spatialFootprint: _ignoredSpatialFootprint,
-		sectorIsAgriculture: _ignoredSectorIsAgriculture,
-		...insertValues
-	} = fields as any;
+	const { spatialFootprint: _ignoredSpatialFootprint, ...insertValues } =
+		fields as any;
 
 	const res = await tx
 		.insert(lossesTable)
@@ -549,11 +546,8 @@ export async function lossesUpdate(
 	}
 
 	const spatialFootprintValue = (fields as any).spatialFootprint;
-	const {
-		spatialFootprint: _ignoredSpatialFootprint,
-		sectorIsAgriculture: _ignoredSectorIsAgriculture,
-		...updateValues
-	} = fields as any;
+	const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
+		fields as any;
 
 	await tx
 		.update(lossesTable)
@@ -601,11 +595,8 @@ export async function lossesUpdateByIdAndCountryAccountsId(
 	}
 
 	const spatialFootprintValue = (fields as any).spatialFootprint;
-	const {
-		spatialFootprint: _ignoredSpatialFootprint,
-		sectorIsAgriculture: _ignoredSectorIsAgriculture,
-		...updateValues
-	} = fields as any;
+	const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
+		fields as any;
 
 	await tx
 		.update(lossesTable)
