@@ -22,6 +22,18 @@ export function DataCollectionActionLinks(props: {
 }) {
 	const ctx = props.ctx;
 	const userRole = props.user?.role;
+	const actionSlotsStyle: React.CSSProperties = {
+		display: "grid",
+		gridTemplateColumns: "repeat(3, 2.25rem)",
+		alignItems: "center",
+		justifyItems: "center",
+		columnGap: "0.25rem",
+	};
+	const emptySlotStyle: React.CSSProperties = {
+		display: "inline-block",
+		width: "2.25rem",
+		height: "2.25rem",
+	};
 	const canEdit =
 		!!userRole &&
 		!props.hideEditButton &&
@@ -32,8 +44,8 @@ export function DataCollectionActionLinks(props: {
 		canDeleteDataCollectionRecord(userRole, props.approvalStatus);
 
 	return (
-		<>
-			{canEdit && (
+		<div style={actionSlotsStyle}>
+			{canEdit ? (
 				<LangLink lang={ctx.lang} to={`${props.route}/edit/${props.id}`}>
 					<button
 						type="button"
@@ -48,8 +60,10 @@ export function DataCollectionActionLinks(props: {
 						</svg>
 					</button>
 				</LangLink>
+			) : (
+				<span aria-hidden="true" style={emptySlotStyle} />
 			)}
-			{!props.hideViewButton && (
+			{!props.hideViewButton ? (
 				<LangLink lang={ctx.lang} to={`${props.route}/${props.id}`}>
 					<button
 						type="button"
@@ -64,14 +78,18 @@ export function DataCollectionActionLinks(props: {
 						</svg>
 					</button>
 				</LangLink>
+			) : (
+				<span aria-hidden="true" style={emptySlotStyle} />
 			)}
-			{canDelete && (
+			{canDelete ? (
 				<HazardousEventDeleteButton
 					ctx={ctx}
 					action={ctx.url(`${props.route}/delete/${props.id}`)}
 					useIcon
 				/>
+			) : (
+				<span aria-hidden="true" style={emptySlotStyle} />
 			)}
-		</>
+		</div>
 	);
 }

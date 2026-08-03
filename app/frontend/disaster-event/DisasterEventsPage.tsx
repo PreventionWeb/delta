@@ -232,40 +232,53 @@ export default function DisasterEventsPage({
         return normalizedStatus === "validated" || normalizedStatus === "published";
     };
 
+    const actionSlotClassName =
+        "inline-flex h-9 w-9 items-center justify-center";
+
     const actionsBodyTemplate = (row: (typeof data)[number]) => (
-        <div className="flex w-full items-center justify-end gap-1">
-            <Link to={`/${ctx.lang}/disaster-event/${row.id}`}>
-                <Button
-                    type="button"
-                    text
-                    aria-label="View"
-                >
-                    <i className="pi pi-eye" aria-hidden="true" />
-                </Button>
-            </Link>
-            {canEdit && !isEditRestrictedStatus(row.approvalStatus) ? (
-                <Link to={`/${ctx.lang}/disaster-event/edit/${row.id}`}>
+        <div className="grid w-full grid-cols-3 items-center justify-items-center gap-1">
+            <span className={actionSlotClassName}>
+                <Link to={`/${ctx.lang}/disaster-event/${row.id}`}>
                     <Button
                         type="button"
                         text
-                        aria-label="Edit"
+                        aria-label="View"
                     >
-                        <i className="pi pi-pencil" aria-hidden="true" />
+                        <i className="pi pi-eye" aria-hidden="true" />
                     </Button>
                 </Link>
-            ) : null}
-            {canDelete && !isDeleteRestrictedForRole(row.approvalStatus) ? (
-                <Link to={`/${ctx.lang}/disaster-event/delete/${row.id}`}>
-                    <Button
-                        type="button"
-                        text
-                        severity="danger"
-                        aria-label="Delete"
-                    >
-                        <i className="pi pi-trash" aria-hidden="true" />
-                    </Button>
-                </Link>
-            ) : null}
+            </span>
+            <span className={actionSlotClassName}>
+                {canEdit && !isEditRestrictedStatus(row.approvalStatus) ? (
+                    <Link to={`/${ctx.lang}/disaster-event/edit/${row.id}`}>
+                        <Button
+                            type="button"
+                            text
+                            aria-label="Edit"
+                        >
+                            <i className="pi pi-pencil" aria-hidden="true" />
+                        </Button>
+                    </Link>
+                ) : (
+                    <span aria-hidden="true" className={actionSlotClassName} />
+                )}
+            </span>
+            <span className={actionSlotClassName}>
+                {canDelete && !isDeleteRestrictedForRole(row.approvalStatus) ? (
+                    <Link to={`/${ctx.lang}/disaster-event/delete/${row.id}`}>
+                        <Button
+                            type="button"
+                            text
+                            severity="danger"
+                            aria-label="Delete"
+                        >
+                            <i className="pi pi-trash" aria-hidden="true" />
+                        </Button>
+                    </Link>
+                ) : (
+                    <span aria-hidden="true" className={actionSlotClassName} />
+                )}
+            </span>
         </div>
     );
     const statusBodyTemplate = (row: (typeof data)[number]) => {

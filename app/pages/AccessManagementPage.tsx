@@ -142,58 +142,66 @@ export default function AccessManagementPage() {
 		item.addedAt ? format(item.addedAt, "dd-MM-yyyy") : "";
 
 	const actionsBodyTemplate = (item: (typeof items)[number]) => (
-		<div className="flex items-center gap-2">
-			<Button
-				type="button"
-				text
-				aria-label={ctx.t({
-					code: "common.edit",
-					msg: "Edit",
-				})}
-				onClick={() =>
-					navigate(ctx.url(`/settings/access-mgmnt/edit/${item.user.id}`))
-				}
-			>
-				<i className="pi pi-pencil" aria-hidden="true" />
-			</Button>
-			{!item.user.emailVerified ? (
+		<div className="grid grid-cols-3 items-center justify-items-center gap-1">
+			<span className="inline-flex h-9 w-9 items-center justify-center">
 				<Button
 					type="button"
 					text
-					severity="help"
 					aria-label={ctx.t({
-						code: "admin.resend_email",
-						msg: "Resend invitation email",
-					})}
-					title={ctx.t({
-						code: "admin.resend_email",
-						msg: "Resend invitation email",
+						code: "common.edit",
+						msg: "Edit",
 					})}
 					onClick={() =>
-						navigate(
-							ctx.url(
-								`/settings/access-mgmnt/resend-invitation/${item.user.id}`,
-							),
-						)
+						navigate(ctx.url(`/settings/access-mgmnt/edit/${item.user.id}`))
 					}
 				>
-					<i className="pi pi-envelope" aria-hidden="true" />
+					<i className="pi pi-pencil" aria-hidden="true" />
 				</Button>
-			) : null}
-			<Button
-				type="button"
-				text
-				severity="danger"
-				aria-label={ctx.t({
-					code: "settings.access_mgmnt.delete_user",
-					msg: "Delete User",
-				})}
-				onClick={() =>
-					navigate(ctx.url(`/settings/access-mgmnt/delete/${item.user.id}`))
-				}
-			>
-				<i className="pi pi-trash" aria-hidden="true" />
-			</Button>
+			</span>
+			<span className="inline-flex h-9 w-9 items-center justify-center">
+				<Button
+					type="button"
+					text
+					severity="danger"
+					aria-label={ctx.t({
+						code: "settings.access_mgmnt.delete_user",
+						msg: "Delete User",
+					})}
+					onClick={() =>
+						navigate(ctx.url(`/settings/access-mgmnt/delete/${item.user.id}`))
+					}
+				>
+					<i className="pi pi-trash" aria-hidden="true" />
+				</Button>
+			</span>
+			<span className="inline-flex h-9 w-9 items-center justify-center">
+				{!item.user.emailVerified ? (
+					<Button
+						type="button"
+						text
+						severity="help"
+						aria-label={ctx.t({
+							code: "admin.resend_email",
+							msg: "Resend invitation email",
+						})}
+						title={ctx.t({
+							code: "admin.resend_email",
+							msg: "Resend invitation email",
+						})}
+						onClick={() =>
+							navigate(
+								ctx.url(
+									`/settings/access-mgmnt/resend-invitation/${item.user.id}`,
+								),
+							)
+						}
+					>
+						<i className="pi pi-envelope" aria-hidden="true" />
+					</Button>
+				) : (
+					<span aria-hidden="true" className="inline-flex h-9 w-9" />
+				)}
+			</span>
 		</div>
 	);
 

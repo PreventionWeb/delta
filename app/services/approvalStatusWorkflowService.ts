@@ -47,7 +47,7 @@ interface ProcessApprovalStatusActionParams {
  */
 export async function processApprovalStatusActionService({
 	ctx,
-	request,
+	request: _request,
 	formData,
 	routeRecordId,
 	countryAccountsId,

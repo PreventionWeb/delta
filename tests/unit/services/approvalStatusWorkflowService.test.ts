@@ -46,6 +46,7 @@ describe("processApprovalStatusActionService", () => {
 			ctx,
 			request: new Request("http://localhost/en/disaster-event/record-1"),
 			formData,
+			routeRecordId: "record-1",
 			countryAccountsId: "country-1",
 			userId: "user-1",
 			recordType: "disaster_event"
@@ -65,6 +66,7 @@ describe("processApprovalStatusActionService", () => {
 			ctx,
 			request: new Request("http://localhost/en/disaster-event/record-1"),
 			formData,
+			routeRecordId: "record-1",
 			countryAccountsId: "country-1",
 			userId: "user-1",
 			recordType: "disaster_event"
@@ -99,6 +101,7 @@ describe("processApprovalStatusActionService", () => {
 			ctx,
 			request: new Request("http://localhost/en/disaster-record/record-1"),
 			formData,
+			routeRecordId: "record-1",
 			countryAccountsId: "country-1",
 			userId: "user-1",
 			recordType: "disaster_records"
