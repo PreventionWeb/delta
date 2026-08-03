@@ -568,6 +568,8 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 					mapRef.current.setView(coords, 2); // Default zoom if no bounds found
 				}
 
+				const divisionBounds = L.latLngBounds([]);
+
 				divisions.forEach(function (division: {
 					geojson: any;
 					name?: { en?: string };
@@ -587,6 +589,10 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 						// }
 					});
 					layer.addTo(mapRef.current);
+					const layerBounds = layer.getBounds?.();
+					if (layerBounds?.isValid()) {
+						divisionBounds.extend(layerBounds);
+					}
 				});
 
 				// Handle map click events
@@ -638,6 +644,25 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 					`${id}_mapper_modeSelect`,
 				) as HTMLSelectElement;
 				if (modeSelect) modeSelect.selectedIndex = 0;
+
+				requestAnimationFrame(() => {
+					if (!mapRef.current) {
+						return;
+					}
+
+					mapRef.current.invalidateSize();
+
+					// For new items, fit after size invalidation so zoom uses actual modal dimensions.
+					if (!initialData) {
+						if (divisionBounds.isValid()) {
+							mapRef.current.fitBounds(divisionBounds, { padding: [30, 30] });
+						} else if (bounds) {
+							mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+						} else {
+							mapRef.current.setView(coords, 2);
+						}
+					}
+				});
 
 				if (debug) console.log("Map initialized");
 			}
