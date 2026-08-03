@@ -155,7 +155,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
 };
 
 export const action = authActionWithPerm("EditData", async (actionArgs) => {
-	const { request } = actionArgs;
+	const { request, params } = actionArgs;
 
 	const countryAccountsId = await getCountryAccountsIdFromSession(request);
 	const userSession = authActionGetAuth(actionArgs);
@@ -166,6 +166,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 		ctx,
 		request,
 		formData,
+		routeRecordId: params.id,
 		countryAccountsId,
 		userId: userSession.user.id,
 		recordType: "disaster_event"
