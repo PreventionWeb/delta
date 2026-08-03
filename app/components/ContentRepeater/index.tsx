@@ -2185,7 +2185,9 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 																dialogElement.showModal();
 																dialogElement.mapperField = field;
 															}
-															initializeMap(value ? value : null);
+															requestAnimationFrame(() => {
+																initializeMap(value ? value : null);
+															});
 														}}
 													/>
 												</div>
