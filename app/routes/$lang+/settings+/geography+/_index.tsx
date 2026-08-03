@@ -29,6 +29,7 @@ interface ItemRes {
     id: string;
     nationalId: string;
     hasChildren: boolean;
+    canDelete: boolean;
     name: Record<string, string>;
 }
 
@@ -171,14 +172,49 @@ export const loader = authLoaderWithPerm(
         const childrenParentSet = new Set(
             allRows.filter((row) => row.parentId).map((row) => row.parentId),
         );
+        const childrenByParent = new Map<string, string[]>();
+        for (const row of allRows) {
+            if (!row.parentId) {
+                continue;
+            }
+            const current = childrenByParent.get(row.parentId) || [];
+            current.push(row.id);
+            childrenByParent.set(row.parentId, current);
+        }
+
+        const inUseDivisionIds = await DivisionRepository.getInUseDivisionIds(
+            allRows.map((row) => row.id),
+        );
+
+        const hasLinkedDescendant = (divisionId: string) => {
+            const queue = [...(childrenByParent.get(divisionId) || [])];
+            while (queue.length) {
+                const childId = queue.shift();
+                if (!childId) {
+                    continue;
+                }
+                if (inUseDivisionIds.has(childId)) {
+                    return true;
+                }
+                for (const nested of childrenByParent.get(childId) || []) {
+                    queue.push(nested);
+                }
+            }
+            return false;
+        };
 
         const totalItems = rowsByParent.length;
         const offset = (page - 1) * pageSize;
-        const items: ItemRes[] = rowsByParent.slice(offset, offset + pageSize).map((row) => ({
+        const pageRows = rowsByParent.slice(offset, offset + pageSize);
+        const items: ItemRes[] = pageRows.map((row) => ({
             id: row.id,
             nationalId: row.nationalId || "",
             name: (row.name || {}) as Record<string, string>,
             hasChildren: childrenParentSet.has(row.id),
+            canDelete:
+                !childrenParentSet.has(row.id) &&
+                !inUseDivisionIds.has(row.id) &&
+                !hasLinkedDescendant(row.id),
         }));
 
         const treeSortedRows = [...allRows].sort((a, b) => {
@@ -210,6 +246,7 @@ export const loader = authLoaderWithPerm(
 
         return {
             langs,
+            parentId,
             breadcrumbs,
             selectedLangs,
             treeData,
@@ -266,13 +303,14 @@ type DivisionsTableProps = {
     ctx: ViewContext;
     items: ItemRes[];
     langs: string[];
+    parentId?: string | null;
 };
 
 function relLinkOrText(linkUrl: string, text: string | number) {
     return linkUrl ? <Link to={linkUrl}>{text}</Link> : <span>{text}</span>;
 }
 
-function DivisionsTable({ ctx, items, langs }: DivisionsTableProps) {
+function DivisionsTable({ ctx, items, langs, parentId }: DivisionsTableProps) {
     const idBody = (item: ItemRes) => {
         const linkUrl = item.hasChildren ? `?parent=${item.id}&view=table` : "";
         return relLinkOrText(linkUrl, item.id);
@@ -284,6 +322,10 @@ function DivisionsTable({ ctx, items, langs }: DivisionsTableProps) {
     };
 
     const actionBody = (item: ItemRes) => {
+        const deleteUrl = parentId
+            ? `/settings/geography/delete/${item.id}?view=table&parent=${parentId}`
+            : `/settings/geography/delete/${item.id}?view=table`;
+
         return (
             <div className="flex justify-end gap-2">
                 <LangLink lang={ctx.lang} to={`/settings/geography/${item.id}`}>
@@ -304,6 +346,18 @@ function DivisionsTable({ ctx, items, langs }: DivisionsTableProps) {
                         aria-label={ctx.t({ code: "common.edit", msg: "Edit" })}
                     />
                 </LangLink>
+                {item.canDelete ? (
+                    <LangLink lang={ctx.lang} to={deleteUrl}>
+                        <Button
+                            type="button"
+                            icon="pi pi-trash"
+                            text
+                            severity="danger"
+                            size="small"
+                            aria-label={ctx.t({ code: "common.delete", msg: "Delete" })}
+                        />
+                    </LangLink>
+                ) : null}
             </div>
         );
     };
@@ -513,7 +567,12 @@ export default function Screen() {
                     />
                     <GeographyBreadcrumb ctx={ctx} rows={ld.breadcrumbs} />
                     <div className="w-full">
-                        <DivisionsTable ctx={ctx} langs={selectedLangs} items={ld.items} />
+                        <DivisionsTable
+                            ctx={ctx}
+                            langs={selectedLangs}
+                            items={ld.items}
+                            parentId={ld.parentId}
+                        />
                     </div>
                     <Paginator
                         first={(ld.pagination.page - 1) * ld.pagination.pageSize}
