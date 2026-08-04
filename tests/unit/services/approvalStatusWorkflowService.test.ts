@@ -117,6 +117,7 @@ describe("processApprovalStatusActionService", () => {
 		});
 		expect(saveValidationWorkflowRejectionCommentService).toHaveBeenCalledWith({
 			ctx,
+			countryAccountsId: "country-1",
 			approvalStatus: "needs-revision",
 			recordId: "record-1",
 			recordType: "disaster_records",
@@ -125,6 +126,7 @@ describe("processApprovalStatusActionService", () => {
 		});
 		expect(emailValidationWorkflowStatusChangeNotificationService).toHaveBeenCalledWith({
 			ctx,
+			countryAccountsId: "country-1",
 			recordId: "record-1",
 			recordType: "disaster_records",
 			newStatus: "needs-revision",
