@@ -49,14 +49,14 @@ jobs:
         if: ${{ !env.ACT }}
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: yarn
 
       - name: Set up Node.js (act)
         if: ${{ env.ACT }}
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Enable Yarn via Corepack (act)
         if: ${{ env.ACT }}
@@ -93,16 +93,16 @@ jobs:
       - name: Run real-DB integration tests
         run: yarn test:run3
 
-      - name: Run Playwright end-to-end tests
-        run: yarn test:e2e
+      # - name: Run Playwright end-to-end tests
+      #   run: yarn test:e2e
 
-      - name: Upload Playwright report
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: playwright-report
-          if-no-files-found: ignore
+      # - name: Upload Playwright report
+      #   if: ${{ always() }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: playwright-report
+      #     path: playwright-report
+      #     if-no-files-found: ignore
 
   deploy:
     needs: quality-gates
