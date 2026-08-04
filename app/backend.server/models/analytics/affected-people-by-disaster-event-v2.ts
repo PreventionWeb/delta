@@ -125,10 +125,9 @@ async function totalsForOneTable(
 				conditions?.divisionId
 					? sql`EXISTS (
 					SELECT 1
-					FROM jsonb_array_elements(${(dr as any).spatialFootprint}) AS elem
-					WHERE elem->'geojson'->'properties'->>'division_id' = ${conditions.divisionId}
-					OR elem->'geojson'->'properties'->'division_ids' @> to_jsonb(ARRAY[${conditions.divisionId}])
-					OR jsonb_path_exists(disaster_records.spatial_footprint, ${`$[*].geojson.properties.division_ids  ? (@ == "${conditions.divisionId}")`})
+					FROM disaster_records_division drd
+					WHERE drd.disaster_record_id = ${dr.id}
+						AND drd.division_id = ${conditions.divisionId}::uuid
 				)`
 					: undefined,
 				conditions?.publishedOnly
@@ -429,10 +428,9 @@ async function countsForOneTable(
 				conditions?.divisionId
 					? sql`EXISTS (
 					SELECT 1
-					FROM jsonb_array_elements(${(dr as any).spatialFootprint}) AS elem
-					WHERE elem->'geojson'->'features'->0->'properties'->>'division_id' = ${conditions.divisionId}
-					OR elem->'geojson'->'features'->0->'properties'->'division_ids' @> to_jsonb(ARRAY[${conditions.divisionId}])
-					
+					FROM disaster_records_division drd
+					WHERE drd.disaster_record_id = ${dr.id}
+						AND drd.division_id = ${conditions.divisionId}::uuid
 				)`
 					: undefined,
 				conditions?.publishedOnly

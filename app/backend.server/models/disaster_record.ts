@@ -46,6 +46,14 @@ type SpatialFootprintItem = {
 	[key: string]: unknown;
 };
 
+type GeoJsonLike = {
+	type?: string;
+	geometry?: unknown;
+	features?: unknown;
+	geometries?: unknown;
+	[key: string]: unknown;
+};
+
 function parseSpatialFootprintItems(value: unknown): SpatialFootprintItem[] {
 	if (Array.isArray(value)) {
 		return value.filter((item): item is SpatialFootprintItem => !!item);
@@ -65,12 +73,56 @@ function parseSpatialFootprintItems(value: unknown): SpatialFootprintItem[] {
 	return [];
 }
 
+function isGeoJsonObject(value: unknown): value is GeoJsonLike {
+	return !!value && typeof value === "object";
+}
+
+function isGeoJsonGeometry(value: unknown): value is GeoJsonLike {
+	return isGeoJsonObject(value) && typeof value.type === "string";
+}
+
 function extractGeojsonGeometry(item: SpatialFootprintItem) {
-	if (item?.geojson && typeof item.geojson === "object") {
-		const geojson = item.geojson as any;
-		if (geojson.geometry) {
-			return geojson.geometry;
+	if (!isGeoJsonObject(item?.geojson)) {
+		return null;
+	}
+
+	const geojson = item.geojson;
+
+	if (geojson.type === "FeatureCollection") {
+		const features = Array.isArray(geojson.features) ? geojson.features : [];
+		const geometries = features
+			.map((feature) => {
+				if (!isGeoJsonObject(feature)) {
+					return null;
+				}
+
+				return isGeoJsonGeometry(feature.geometry) ? feature.geometry : null;
+			})
+			.filter((geometry): geometry is GeoJsonLike => geometry !== null);
+
+		if (geometries.length === 0) {
+			return null;
 		}
+
+		if (geometries.length === 1) {
+			return geometries[0];
+		}
+
+		return {
+			type: "GeometryCollection",
+			geometries,
+		};
+	}
+
+	if (geojson.type === "Feature") {
+		return isGeoJsonGeometry(geojson.geometry) ? geojson.geometry : null;
+	}
+
+	if (isGeoJsonGeometry(geojson.geometry)) {
+		return geojson.geometry;
+	}
+
+	if (isGeoJsonGeometry(geojson)) {
 		return geojson;
 	}
 
