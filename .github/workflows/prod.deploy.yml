@@ -52,7 +52,7 @@ jobs:
           cache: yarn
 
       - name: Install dependencies
-        run: HUSKY=0 yarn install --frozen-lockfile --production
+        run: HUSKY=0 yarn install --frozen-lockfile
 
       - name: Install Playwright browser and system deps
         run: npx playwright install --with-deps chromium
