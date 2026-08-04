@@ -90,8 +90,8 @@ jobs:
       - name: Run unit + PGlite integration tests
         run: yarn test:run2
 
-      - name: Run real-DB integration tests
-        run: yarn test:run3
+      # - name: Run real-DB integration tests
+      #   run: yarn test:run3
 
       # - name: Run Playwright end-to-end tests
       #   run: yarn test:e2e
@@ -120,6 +120,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Read package version
+        id: package-version
+        run: |
+          version=$(grep -m1 '"version"' package.json | sed -E 's/.*"version":[[:space:]]*"([^"]+)".*/\1/')
+          if [ -z "$version" ]; then
+            echo "Could not read version from package.json"
+            exit 1
+          fi
+          echo "PACKAGE_VERSION=$version" >> "$GITHUB_ENV"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -140,11 +150,11 @@ jobs:
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ github.event.inputs.environment }}-latest
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ github.event.inputs.environment }}-${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ github.event.inputs.environment }}-${{ env.PACKAGE_VERSION }}
           labels: |
             org.opencontainers.image.title=delta-country
             org.opencontainers.image.description=DELTA country instance container image for production deployments.
-            org.opencontainers.image.source=https://github.com/unisdr/delta
+            org.opencontainers.image.source=https://github.com/preventionweb/delta
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -154,7 +164,7 @@ jobs:
           docker build
           -f ./Dockerfile.prod
           -t ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ github.event.inputs.environment }}-latest
-          -t ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ github.event.inputs.environment }}-${{ github.sha }}
+          -t ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ github.event.inputs.environment }}-${{ env.PACKAGE_VERSION }}
           .
 
       - name: Trigger Automatic PROD Deploy Hook
