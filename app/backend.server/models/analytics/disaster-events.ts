@@ -409,9 +409,11 @@ export async function disasterEventSectorTotal__ByDivisionId(
 		// .innerJoin(damagesTable, eq(damagesTable.recordId, disasterRecordsTable.id))
 		.where(
 			and(
-				sql`(
-					disaster_records.spatial_footprint->'geojson'->'properties'->'division_ids' @> to_jsonb(ARRAY[${divisionId}])
-					OR jsonb_path_exists(disaster_records.spatial_footprint, ${`$[*].geojson.properties.division_ids  ? (@ == "${divisionId}")`})
+				sql`EXISTS (
+					SELECT 1
+					FROM disaster_records_division drd
+					WHERE drd.disaster_record_id = ${disasterRecordsTable.id}
+						AND drd.division_id = ${divisionId}::uuid
 				)`,
 				or(
 					eq(disasterRecordsTable.approvalStatus, "published"),

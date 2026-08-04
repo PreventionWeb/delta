@@ -295,10 +295,12 @@ export async function getSectorImpactTotal(
 
 	// Condition for division
 	if (args.divisionId) {
-		baseWhere.push(sql`(
-            disaster_records.spatial_footprint->'geojson'->'properties'->'division_ids' @> to_jsonb(ARRAY[${args.divisionId}])
-            OR jsonb_path_exists(disaster_records.spatial_footprint, ${`$[*].geojson.properties.division_ids  ? (@ == "${args.divisionId}")`})
-        )`);
+		baseWhere.push(sql`EXISTS (
+			SELECT 1
+			FROM disaster_records_division drd
+			WHERE drd.disaster_record_id = ${disasterRecordsTable.id}
+				AND drd.division_id = ${args.divisionId}::uuid
+		)`);
 	}
 
 	// Condition for Type = sector (sectorId)

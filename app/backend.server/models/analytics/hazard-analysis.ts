@@ -1,6 +1,7 @@
 import { and, eq, gte, lte, SQL, sql } from "drizzle-orm";
 import { dr } from "~/db.server";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
+import { disasterRecordsDivisionTable } from "~/drizzle/schema/disasterRecordsDivisionTable";
 
 interface HazardFilters {
 	countryAccountsId: string;
@@ -49,14 +50,12 @@ export async function getDisasterEventCount(
 
 	if (geographicLevelId) {
 		conditions.push(
-			sql`jsonb_path_exists(
-			${(disasterEventTable as any).spatialFootprint},
-          concat(
-            '$[*].geojson.properties.division_id ? (@ == "',
-            ${geographicLevelId}::text,
-            '")'
-          )::jsonpath
-        )`,
+			sql`EXISTS (
+				SELECT 1
+				FROM disaster_event_division ded
+				WHERE ded.disaster_event_id = ${disasterEventTable.id}
+					AND ded.division_id = ${geographicLevelId}::uuid
+			)`,
 		);
 	}
 
@@ -115,14 +114,12 @@ export async function getDisasterEventCountByYear(
 
 	if (geographicLevelId) {
 		conditions.push(
-			sql`jsonb_path_exists(
-			${(disasterEventTable as any).spatialFootprint},
-        concat(
-          '$[*].geojson.properties.division_id ? (@ == "',
-          ${geographicLevelId}::text,
-          '")'
-        )::jsonpath
-      )`,
+			sql`EXISTS (
+				SELECT 1
+				FROM disaster_event_division ded
+				WHERE ded.disaster_event_id = ${disasterEventTable.id}
+					AND ded.division_id = ${geographicLevelId}::uuid
+			)`,
 		);
 	}
 
@@ -258,7 +255,7 @@ export async function getAffectedPeopleByHazardFilters(
 		// WITH geographic filtering
 		const geoConditions = [
 			...whereConditions,
-			sql`(sf->'geojson'->'properties'->>'division_id' IS NOT NULL OR sf->'geojson'->'properties'->'division_ids' IS NOT NULL)`,
+			sql`drd."division_id" IS NOT NULL`,
 			sql`dh.level1_id IN (
                 SELECT level1_id 
                 FROM division_hierarchy 
@@ -281,14 +278,10 @@ export async function getAffectedPeopleByHazardFilters(
           filtered_records AS (
             SELECT DISTINCT dr."id" AS record_id
             FROM "disaster_records" dr
-            LEFT JOIN LATERAL jsonb_array_elements(dr."spatial_footprint") AS sf ON true
+			LEFT JOIN "disaster_records_division" drd
+			  ON dr."id" = drd."disaster_record_id"
             LEFT JOIN division_hierarchy dh 
-              ON (sf->'geojson'->'properties'->>'division_id') = dh.id::text 
-              OR EXISTS (
-                SELECT 1 
-                FROM jsonb_array_elements_text(sf->'geojson'->'properties'->'division_ids') AS div_id 
-                WHERE div_id = dh.id::text
-              )
+			  ON drd."division_id" = dh.id
             ${combinedWhereClause}
           )
           SELECT 
@@ -445,7 +438,7 @@ export async function getGenderTotalsByHazardFilters(
 		// WITH geographic filtering
 		const geoConditions = [
 			...whereConditions,
-			sql`(sf->'geojson'->'properties'->>'division_id' IS NOT NULL OR sf->'geojson'->'properties'->'division_ids' IS NOT NULL)`,
+			sql`drd."division_id" IS NOT NULL`,
 			sql`dh.level1_id IN (
                 SELECT level1_id 
                 FROM division_hierarchy 
@@ -468,14 +461,10 @@ export async function getGenderTotalsByHazardFilters(
           filtered_records AS (
             SELECT DISTINCT dr."id" AS record_id
             FROM "disaster_records" dr
-            LEFT JOIN LATERAL jsonb_array_elements(dr."spatial_footprint") AS sf ON true
+			LEFT JOIN "disaster_records_division" drd
+			  ON dr."id" = drd."disaster_record_id"
             LEFT JOIN division_hierarchy dh 
-              ON (sf->'geojson'->'properties'->>'division_id') = dh.id::text 
-              OR EXISTS (
-                SELECT 1 
-                FROM jsonb_array_elements_text(sf->'geojson'->'properties'->'division_ids') AS div_id 
-                WHERE div_id = dh.id::text
-              )
+			  ON drd."division_id" = dh.id
             ${combinedWhereClause}
           )
           SELECT 
@@ -657,7 +646,7 @@ export async function getAgeTotalsByHazardFilters(
 		// WITH geographic filtering
 		const geoConditions = [
 			...whereConditions,
-			sql`(sf->'geojson'->'properties'->>'division_id' IS NOT NULL OR sf->'geojson'->'properties'->'division_ids' IS NOT NULL)`,
+			sql`drd."division_id" IS NOT NULL`,
 			sql`dh.level1_id IN (
                 SELECT level1_id 
                 FROM division_hierarchy 
@@ -680,14 +669,10 @@ export async function getAgeTotalsByHazardFilters(
           filtered_records AS (
             SELECT DISTINCT dr."id" AS record_id
             FROM "disaster_records" dr
-            LEFT JOIN LATERAL jsonb_array_elements(dr."spatial_footprint") AS sf ON true
+			LEFT JOIN "disaster_records_division" drd
+			  ON dr."id" = drd."disaster_record_id"
             LEFT JOIN division_hierarchy dh 
-              ON (sf->'geojson'->'properties'->>'division_id') = dh.id::text 
-              OR EXISTS (
-                SELECT 1 
-                FROM jsonb_array_elements_text(sf->'geojson'->'properties'->'division_ids') AS div_id 
-                WHERE div_id = dh.id::text
-              )
+			  ON drd."division_id" = dh.id
             ${combinedWhereClause}
           )
           SELECT 
@@ -855,7 +840,7 @@ export async function getDisabilityTotalByHazardFilters(
 		// WITH geographic filtering
 		const geoConditions = [
 			...whereConditions,
-			sql`(sf->'geojson'->'properties'->>'division_id' IS NOT NULL OR sf->'geojson'->'properties'->'division_ids' IS NOT NULL)`,
+			sql`drd."division_id" IS NOT NULL`,
 			sql`dh.level1_id IN (
                 SELECT level1_id 
                 FROM division_hierarchy 
@@ -878,14 +863,10 @@ export async function getDisabilityTotalByHazardFilters(
           filtered_records AS (
             SELECT DISTINCT dr."id" AS record_id
             FROM "disaster_records" dr
-            LEFT JOIN LATERAL jsonb_array_elements(dr."spatial_footprint") AS sf ON true
+			LEFT JOIN "disaster_records_division" drd
+			  ON dr."id" = drd."disaster_record_id"
             LEFT JOIN division_hierarchy dh 
-              ON (sf->'geojson'->'properties'->>'division_id') = dh.id::text 
-              OR EXISTS (
-                SELECT 1 
-                FROM jsonb_array_elements_text(sf->'geojson'->'properties'->'division_ids') AS div_id 
-                WHERE div_id = dh.id::text
-              )
+			  ON drd."division_id" = dh.id
             ${combinedWhereClause}
           )
           SELECT 
@@ -1020,7 +1001,7 @@ export async function getInternationalPovertyTotalByHazardFilters(
 		// WITH geographic filtering
 		const geoConditions = [
 			...whereConditions,
-			sql`(sf->'geojson'->'properties'->>'division_id' IS NOT NULL OR sf->'geojson'->'properties'->'division_ids' IS NOT NULL)`,
+			sql`drd."division_id" IS NOT NULL`,
 			sql`dh.level1_id IN (
                 SELECT level1_id 
                 FROM division_hierarchy 
@@ -1043,14 +1024,10 @@ export async function getInternationalPovertyTotalByHazardFilters(
           filtered_records AS (
             SELECT DISTINCT dr."id" AS record_id
             FROM "disaster_records" dr
-            LEFT JOIN LATERAL jsonb_array_elements(dr."spatial_footprint") AS sf ON true
+			LEFT JOIN "disaster_records_division" drd
+			  ON dr."id" = drd."disaster_record_id"
             LEFT JOIN division_hierarchy dh 
-              ON (sf->'geojson'->'properties'->>'division_id') = dh.id::text 
-              OR EXISTS (
-                SELECT 1 
-                FROM jsonb_array_elements_text(sf->'geojson'->'properties'->'division_ids') AS div_id 
-                WHERE div_id = dh.id::text
-              )
+			  ON drd."division_id" = dh.id
             ${combinedWhereClause}
           )
           SELECT 
@@ -1182,7 +1159,7 @@ export async function getNationalPovertyTotalByHazardFilters(
 		// WITH geographic filtering
 		const geoConditions = [
 			...whereConditions,
-			sql`(sf->'geojson'->'properties'->>'division_id' IS NOT NULL OR sf->'geojson'->'properties'->'division_ids' IS NOT NULL)`,
+			sql`drd."division_id" IS NOT NULL`,
 			sql`dh.level1_id IN (
                 SELECT level1_id 
                 FROM division_hierarchy 
@@ -1205,14 +1182,10 @@ export async function getNationalPovertyTotalByHazardFilters(
           filtered_records AS (
             SELECT DISTINCT dr."id" AS record_id
             FROM "disaster_records" dr
-            LEFT JOIN LATERAL jsonb_array_elements(dr."spatial_footprint") AS sf ON true
+			LEFT JOIN "disaster_records_division" drd
+			  ON dr."id" = drd."disaster_record_id"
             LEFT JOIN division_hierarchy dh 
-              ON (sf->'geojson'->'properties'->>'division_id') = dh.id::text 
-              OR EXISTS (
-                SELECT 1 
-                FROM jsonb_array_elements_text(sf->'geojson'->'properties'->'division_ids') AS div_id 
-                WHERE div_id = dh.id::text
-              )
+			  ON drd."division_id" = dh.id
             ${combinedWhereClause}
           )
           SELECT 
@@ -1406,7 +1379,7 @@ export async function getFilteredDisasterRecords(filters: HazardFilters) {
 
 	// Fetch matching disaster_records
 	const query = sql`
-    SELECT id, spatial_footprint, hip_type_id, hip_cluster_id, hip_hazard_id, start_date, end_date
+	SELECT id, hip_type_id, hip_cluster_id, hip_hazard_id, start_date, end_date
     FROM disaster_records
     ${whereClause}
   `;
@@ -1812,28 +1785,26 @@ export async function getTotalDamagesByDivision(
 	// 5. Accumulate totals by division
 	const divisionTotals = new Map<string, number>();
 
-	for (const record of disasterRecords) {
-		// Extract division IDs from spatial_footprint
-		const divisions: string[] = [];
+	const recordDivisionRows = await dr
+		.select({
+			recordId: disasterRecordsDivisionTable.disasterRecordId,
+			divisionId: disasterRecordsDivisionTable.divisionId,
+		})
+		.from(disasterRecordsDivisionTable)
+		.where(
+			sql`${disasterRecordsDivisionTable.disasterRecordId} = ANY(ARRAY[${sql.raw(disasterIdsList)}]::uuid[])`,
+		);
 
-		try {
-			const spatial = record.spatial_footprint;
-			if (spatial && Array.isArray(spatial)) {
-				for (const feature of spatial) {
-					const divId =
-						feature?.geojson?.properties?.division_id ??
-						feature?.properties?.division_id;
-					if (divId) divisions.push(String(divId));
-				}
-			} else if (typeof spatial === "object") {
-				const divId =
-					spatial?.geojson?.properties?.division_id ??
-					spatial?.properties?.division_id;
-				if (divId) divisions.push(String(divId));
-			}
-		} catch {
-			// ignore malformed spatial data
-		}
+	const divisionsByRecord = new Map<string, string[]>();
+	for (const row of recordDivisionRows) {
+		const rid = String(row.recordId);
+		const list = divisionsByRecord.get(rid) ?? [];
+		list.push(String(row.divisionId));
+		divisionsByRecord.set(rid, list);
+	}
+
+	for (const record of disasterRecords) {
+		const divisions = divisionsByRecord.get(record.id) ?? [];
 
 		if (!divisions.length) continue;
 
@@ -1956,28 +1927,26 @@ export async function getTotalLossesByDivision(
 	// 5. Accumulate totals by division
 	const divisionTotals = new Map<string, number>();
 
-	for (const record of disasterRecords) {
-		// Extract division IDs from spatial_footprint
-		const divisions: string[] = [];
+	const recordDivisionRows = await dr
+		.select({
+			recordId: disasterRecordsDivisionTable.disasterRecordId,
+			divisionId: disasterRecordsDivisionTable.divisionId,
+		})
+		.from(disasterRecordsDivisionTable)
+		.where(
+			sql`${disasterRecordsDivisionTable.disasterRecordId} = ANY(ARRAY[${sql.raw(disasterIdsList)}]::uuid[])`,
+		);
 
-		try {
-			const spatial = record.spatial_footprint;
-			if (spatial && Array.isArray(spatial)) {
-				for (const feature of spatial) {
-					const divId =
-						feature?.geojson?.properties?.division_id ??
-						feature?.properties?.division_id;
-					if (divId) divisions.push(String(divId));
-				}
-			} else if (typeof spatial === "object") {
-				const divId =
-					spatial?.geojson?.properties?.division_id ??
-					spatial?.properties?.division_id;
-				if (divId) divisions.push(String(divId));
-			}
-		} catch {
-			// ignore malformed spatial data
-		}
+	const divisionsByRecord = new Map<string, string[]>();
+	for (const row of recordDivisionRows) {
+		const rid = String(row.recordId);
+		const list = divisionsByRecord.get(rid) ?? [];
+		list.push(String(row.divisionId));
+		divisionsByRecord.set(rid, list);
+	}
+
+	for (const record of disasterRecords) {
+		const divisions = divisionsByRecord.get(record.id) ?? [];
 
 		if (!divisions.length) continue;
 
@@ -2105,9 +2074,11 @@ export async function getTotalDeathsByDivision(
 	  FROM (
 		SELECT 
 		  "disaster_records"."id" AS record_id, 
-		  jsonb_array_elements("disaster_records"."spatial_footprint")->'geojson'->'properties'->>'division_id' AS division_id,
+		  drd."division_id"::text AS division_id,
 		  "deaths"."deaths" AS deaths
 		FROM "disaster_records"
+		LEFT JOIN "disaster_records_division" drd
+		  ON "disaster_records"."id" = drd."disaster_record_id"
 		LEFT JOIN "human_dsg" ON "disaster_records"."id" = "human_dsg"."record_id"
 		LEFT JOIN "deaths" ON "human_dsg"."id" = "deaths"."dsg_id"
 		${subqueryWhereClause}
@@ -2227,12 +2198,14 @@ export async function getTotalAffectedPeopleByDivision(
 	  FROM (
 		SELECT 
 		  "disaster_records"."id" AS record_id, 
-		  jsonb_array_elements("disaster_records"."spatial_footprint")->'geojson'->'properties'->>'division_id' AS division_id,
+		  drd."division_id"::text AS division_id,
 		  COALESCE("injured"."injured", 0) +
 		  COALESCE("missing"."missing", 0) +
 		  COALESCE("displaced"."displaced", 0) +
 		  COALESCE("affected"."direct", 0) AS total_affected
 		FROM "disaster_records"
+		LEFT JOIN "disaster_records_division" drd
+		  ON "disaster_records"."id" = drd."disaster_record_id"
 		LEFT JOIN "human_dsg" ON "disaster_records"."id" = "human_dsg"."record_id"
 		LEFT JOIN "injured" ON "human_dsg"."id" = "injured"."dsg_id"
 		LEFT JOIN "missing" ON "human_dsg"."id" = "missing"."dsg_id"
@@ -2344,8 +2317,10 @@ export async function getDisasterEventCountByDivision(
 		dh.level1_id::text AS division_id,
 		COUNT(DISTINCT ds.record_id) AS event_count
 	  FROM (
-		SELECT "id" AS record_id, jsonb_array_elements("spatial_footprint")->'geojson'->'properties'->>'division_id' AS division_id
-		FROM "disaster_event"
+		SELECT de."id" AS record_id, ded."division_id"::text AS division_id
+		FROM "disaster_event" de
+		LEFT JOIN "disaster_event_division" ded
+		  ON de."id" = ded."disaster_event_id"
 		${subqueryWhereClause}
 	  ) ds
 	  LEFT JOIN division_hierarchy dh 
@@ -2415,7 +2390,7 @@ export async function getDisasterSummary(
 		whereConditions.length > 0 ? sql`WHERE ${and(...whereConditions)}` : sql``;
 
 	const disasterEventsRes = await dr.execute(sql`
-    SELECT id, name_national, start_date, end_date, spatial_footprint
+	SELECT id, name_national, start_date, end_date
     FROM disaster_event
     ${whereClause}
   `);
@@ -2425,7 +2400,6 @@ export async function getDisasterSummary(
 		name_national: string | null;
 		start_date: string;
 		end_date: string;
-		spatial_footprint: any;
 	}>;
 
 	if (!disasterEvents.length) return [];
