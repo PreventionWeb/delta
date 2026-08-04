@@ -1653,9 +1653,7 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 				)}
 				selectedDivisionItems={selectedDivisionItems}
 				reviewSpatialFootprintItems={reviewSpatialFootprintItems}
-				reviewSpatialFootprintData={
-					(itemAny?.spatialFootprint as any[]) || []
-				}
+				reviewSpatialFootprintData={(itemAny?.spatialFootprint as any[]) || []}
 				reviewAttachments={reviewAttachments}
 				triggeringHazardousEventTarget={[]}
 				triggeredHazardousEventTarget={[]}

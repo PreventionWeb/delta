@@ -195,7 +195,9 @@ function ReviewLocationMap({
 	const mapRef = useRef<any>(null);
 
 	const mapLayers = useMemo(() => {
-		const input = Array.isArray(spatialFootprintData) ? spatialFootprintData : [];
+		const input = Array.isArray(spatialFootprintData)
+			? spatialFootprintData
+			: [];
 
 		const geographicItems = input
 			.filter(
@@ -218,7 +220,9 @@ function ReviewLocationMap({
 			})
 			.sort((a, b) => a.rank - b.rank);
 
-		const levelKeys = Array.from(new Set(geographicItems.map((item) => item.key)));
+		const levelKeys = Array.from(
+			new Set(geographicItems.map((item) => item.key)),
+		);
 		const levelColorByKey = new Map(
 			levelKeys.map((key, index) => [
 				key,
@@ -283,9 +287,12 @@ function ReviewLocationMap({
 			const map = L.map(mapContainerRef.current, { preferCanvas: true });
 			mapRef.current = map;
 
-			L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-				attribution: "",
-			}).addTo(map);
+			L.tileLayer(
+				"https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+				{
+					attribution: "",
+				},
+			).addTo(map);
 
 			const bounds = L.latLngBounds([]);
 
