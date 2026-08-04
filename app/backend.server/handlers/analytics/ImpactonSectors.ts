@@ -178,8 +178,8 @@ export async function getSectorImpactTotal(
 		eq(disasterRecordsTable.countryAccountsId, args.countryAccountsId),
 		or(
 			eq(disasterRecordsTable.approvalStatus, "published"),
-			eq(disasterRecordsTable.approvalStatus, "validated")
-		)!
+			eq(disasterRecordsTable.approvalStatus, "validated"),
+		)!,
 	];
 
 	const distinctOnCols = [

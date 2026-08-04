@@ -110,7 +110,7 @@ export async function disasterEventSectorsById(
 				or(
 					eq(disasterEventTable.approvalStatus, "published"),
 					eq(disasterEventTable.approvalStatus, "validated"),
-				)
+				),
 			),
 		)
 		.orderBy(sectorTable.id)
@@ -143,7 +143,7 @@ export async function disasterEvent_DisasterRecordsCount__ById(id: any) {
 				or(
 					eq(disasterEventTable.approvalStatus, "published"),
 					eq(disasterEventTable.approvalStatus, "validated"),
-				)
+				),
 			),
 		)
 		.execute();
@@ -217,7 +217,7 @@ export async function disasterEventTotalLosses_RecordsAssets__ById(
 				or(
 					eq(disasterEventTable.approvalStatus, "published"),
 					eq(disasterEventTable.approvalStatus, "validated"),
-				)
+				),
 			),
 		);
 
@@ -277,7 +277,7 @@ export async function disasterEventTotalRecovery_RecordsAssets__ById(
 				or(
 					eq(disasterEventTable.approvalStatus, "published"),
 					eq(disasterEventTable.approvalStatus, "validated"),
-				)
+				),
 			),
 		);
 
@@ -353,7 +353,7 @@ export async function disasterEventTotalDamages_RecordsAssets__ById(
 				or(
 					eq(disasterEventTable.approvalStatus, "published"),
 					eq(disasterEventTable.approvalStatus, "validated"),
-				)
+				),
 			),
 		);
 
