@@ -1612,17 +1612,20 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 			hideEditButton={true}
 			extraInfo={
 				<div className="mb-4">
-					<LangLink
-						lang={ctx.lang}
-						to={route}
-						className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-blue-500 hover:text-blue-700 hover:shadow"
-					>
-						<i className="pi pi-arrow-left text-xs" />
-						{ctx.t({
+					<Button
+						type="button"
+						outlined
+						icon="pi pi-arrow-left"
+						iconPos="left"
+						label={ctx.t({
 							code: "disaster_events.back_to_list",
 							msg: "Back to Disaster events",
 						})}
-					</LangLink>
+						className="p-button-sm"
+						onClick={() => {
+							document.location.href = ctx.url(route);
+						}}
+					/>
 				</div>
 			}
 			title={ctx.t({
