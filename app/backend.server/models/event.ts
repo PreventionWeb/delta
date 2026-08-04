@@ -44,6 +44,8 @@ import {
 	getTypeById,
 	queryHipEntity,
 } from "~/backend.server/models/hip";
+import { entityValidationAssignmentDeleteByEntityId } from "~/backend.server/models/entity_validation_assignment";
+import { entityValidationRejectionDeleteByEntityId } from "~/backend.server/models/entity_validation_rejection";
 
 interface TemporalValidationResult {
 	isValid: boolean;
@@ -1764,6 +1766,17 @@ export async function hazardousEventDelete(
 		}
 
 		await dr.transaction(async (tx) => {
+			await entityValidationAssignmentDeleteByEntityId(
+				id,
+				"hazardous_event",
+				tx,
+			);
+			await entityValidationRejectionDeleteByEntityId(
+				id,
+				"hazardous_event",
+				tx,
+			);
+
 			await tx
 				.delete(hazardousEventTable)
 				.where(and(eq(hazardousEventTable.id, id)));
@@ -2379,6 +2392,17 @@ export async function disasterEventDelete(
 	}
 
 	await dr.transaction(async (tx) => {
+		await entityValidationAssignmentDeleteByEntityId(
+			id,
+			"disaster_event",
+			tx,
+		);
+		await entityValidationRejectionDeleteByEntityId(
+			id,
+			"disaster_event",
+			tx,
+		);
+
 		await DisasterEventDivisionRepository.deleteByDisasterEventId(id, tx);
 		await DisasterEventGeomRepository.deleteByDisasterEventId(id, tx);
 

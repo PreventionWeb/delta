@@ -1,4 +1,4 @@
-import { dr } from "~/db.server";
+import { dr, Tx } from "~/db.server";
 import {
 	entityValidationAssignmentTable,
 	InsertEntityValidationAssignment,
@@ -91,13 +91,11 @@ export async function entityValidationAssignmentCreate(
 export async function entityValidationAssignmentDeleteByEntityId(
 	idStr: string,
 	entityType: entityType,
+	tx: Tx = dr,
 ): Promise<DeleteResult> {
-	const entityTypes =
-		entityType === "disaster_records"
-			? ["disaster_records", "disaster_record"]
-			: [entityType];
+	const entityTypes = [entityType];
 
-	await dr
+	await tx
 		.delete(entityValidationAssignmentTable)
 		.where(
 			and(

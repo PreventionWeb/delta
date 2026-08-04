@@ -29,6 +29,8 @@ import {
 import { deleteAllData as deleteAllDataHumanEffects } from "~/backend.server/handlers/human_effects";
 import { BackendContext } from "../context";
 import { approvalStatusIds } from "~/frontend/approval";
+import { entityValidationAssignmentDeleteByEntityId } from "~/backend.server/models/entity_validation_assignment";
+import { entityValidationRejectionDeleteByEntityId } from "~/backend.server/models/entity_validation_rejection";
 
 export interface DisasterRecordsFields extends Omit<
 	SelectDisasterRecords,
@@ -833,15 +835,28 @@ export async function disasterRecordsDeleteById(
 		};
 	}
 
-	// Delete with tenant isolation
-	await dr
-		.delete(disasterRecordsTable)
-		.where(
-			and(
-				eq(disasterRecordsTable.id, idStr),
-				eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
-			),
+	await dr.transaction(async (tx) => {
+		await entityValidationAssignmentDeleteByEntityId(
+			idStr,
+			"disaster_records",
+			tx,
 		);
+		await entityValidationRejectionDeleteByEntityId(
+			idStr,
+			"disaster_records",
+			tx,
+		);
+
+		// Delete with tenant isolation
+		await tx
+			.delete(disasterRecordsTable)
+			.where(
+				and(
+					eq(disasterRecordsTable.id, idStr),
+					eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
+				),
+			);
+	});
 	return { ok: true };
 }
 
@@ -937,6 +952,17 @@ export async function deleteAllDataByDisasterRecordId(
 		// -------------------------------------
 		// DELETE parent disaster record
 		// -------------------------------------
+		await entityValidationAssignmentDeleteByEntityId(
+			idStr,
+			"disaster_records",
+			tx,
+		);
+		await entityValidationRejectionDeleteByEntityId(
+			idStr,
+			"disaster_records",
+			tx,
+		);
+
 		await tx
 			.delete(disasterRecordsTable)
 			.where(
