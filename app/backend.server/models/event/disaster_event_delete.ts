@@ -1,4 +1,3 @@
-
 import { DeleteResult } from "~/backend.server/handlers/form/form";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import { eventTable } from "~/drizzle/schema/eventTable";
@@ -35,16 +34,8 @@ export async function disasterEventDelete(
 	}
 
 	await dr.transaction(async (tx) => {
-		await entityValidationAssignmentDeleteByEntityId(
-			id,
-			"disaster_event",
-			tx,
-		);
-		await entityValidationRejectionDeleteByEntityId(
-			id,
-			"disaster_event",
-			tx,
-		);
+		await entityValidationAssignmentDeleteByEntityId(id, "disaster_event", tx);
+		await entityValidationRejectionDeleteByEntityId(id, "disaster_event", tx);
 
 		await tx
 			.delete(disasterEventTable)
@@ -59,4 +50,3 @@ export async function disasterEventDelete(
 	});
 	return { ok: true };
 }
-

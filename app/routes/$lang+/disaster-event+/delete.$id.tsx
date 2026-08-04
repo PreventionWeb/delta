@@ -47,10 +47,7 @@ export const loader = authLoaderWithPerm(
 		return {
 			item: {
 				id: item.id,
-				name:
-					item.nameNational ||
-					item.nameGlobalOrRegional ||
-					item.id,
+				name: item.nameNational || item.nameGlobalOrRegional || item.id,
 			},
 		};
 	},
@@ -85,11 +82,7 @@ export const action = authActionWithPerm(
 				"disaster_event",
 				tx,
 			);
-			await entityValidationRejectionDeleteByEntityId(
-				id,
-				"disaster_event",
-				tx,
-			);
+			await entityValidationRejectionDeleteByEntityId(id, "disaster_event", tx);
 
 			await DisasterRecordsRepository.unlinkByDisasterEventIdAndCountryAccountsId(
 				id,

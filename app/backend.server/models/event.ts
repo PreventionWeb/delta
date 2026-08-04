@@ -321,19 +321,19 @@ async function loadDisasterEventSpatialFootprint(
 			const geographicGeojson =
 				geojson && typeof geojson === "object"
 					? {
-						...(geojson.type === "Feature"
-							? geojson
-							: { type: "Feature", geometry: geojson, properties: {} }),
-						properties: {
-							...((geojson as any)?.properties || {}),
-							...divisionProperties,
-						},
-				  }
+							...(geojson.type === "Feature"
+								? geojson
+								: { type: "Feature", geometry: geojson, properties: {} }),
+							properties: {
+								...((geojson as any)?.properties || {}),
+								...divisionProperties,
+							},
+						}
 					: {
-						type: "Feature",
-						geometry: null,
-						properties: divisionProperties,
-				  };
+							type: "Feature",
+							geometry: null,
+							properties: divisionProperties,
+						};
 
 			return {
 				id: `geographic-${division.id}`,
@@ -2392,16 +2392,8 @@ export async function disasterEventDelete(
 	}
 
 	await dr.transaction(async (tx) => {
-		await entityValidationAssignmentDeleteByEntityId(
-			id,
-			"disaster_event",
-			tx,
-		);
-		await entityValidationRejectionDeleteByEntityId(
-			id,
-			"disaster_event",
-			tx,
-		);
+		await entityValidationAssignmentDeleteByEntityId(id, "disaster_event", tx);
+		await entityValidationRejectionDeleteByEntityId(id, "disaster_event", tx);
 
 		await DisasterEventDivisionRepository.deleteByDisasterEventId(id, tx);
 		await DisasterEventGeomRepository.deleteByDisasterEventId(id, tx);

@@ -89,5 +89,3 @@ export async function hazardousEventDelete(
 	}
 	return { ok: true };
 }
-
-
