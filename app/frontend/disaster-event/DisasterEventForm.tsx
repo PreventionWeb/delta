@@ -3880,6 +3880,7 @@ function StepperValidation({
 									endTimingValue={reviewEndTimingValue}
 									selectedDivisionItems={selectedDivisionItems}
 									reviewSpatialFootprintItems={reviewSpatialFootprintItems}
+									reviewSpatialFootprintData={spatialFootprintValue}
 									reviewAttachments={reviewAttachments}
 									triggeringHazardousEventTarget={triggeringHazardousEventTarget}
 									triggeredHazardousEventTarget={triggeredHazardousEventTarget}

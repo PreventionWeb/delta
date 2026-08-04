@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useRef } from "react";
 import { Button } from "primereact/button";
 import { Card } from "primereact/card";
 import { DataView } from "primereact/dataview";
@@ -92,6 +93,7 @@ type DisasterEventReviewStepProps = {
 	endTimingValue: string;
 	selectedDivisionItems: SelectedDivisionItem[];
 	reviewSpatialFootprintItems: string[];
+	reviewSpatialFootprintData: any[];
 	reviewAttachments: ReviewAttachmentItem[];
 	triggeringHazardousEventTarget: LinkedEventOption[];
 	triggeredHazardousEventTarget: LinkedEventOption[];
@@ -109,6 +111,243 @@ type DisasterEventReviewStepProps = {
 	onBack: () => void;
 	onSendForValidation: () => void;
 };
+
+const glbMapperJS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+const glbMapperCSS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+
+const ensureLeafletLoaded = (() => {
+	let promise: Promise<any> | null = null;
+	return () => {
+		if (typeof window === "undefined") {
+			return Promise.resolve(null);
+		}
+
+		if ((window as any).L) {
+			return Promise.resolve((window as any).L);
+		}
+
+		if (promise) {
+			return promise;
+		}
+
+		promise = new Promise((resolve) => {
+			if (!document.querySelector(`link[href="${glbMapperCSS}"]`)) {
+				const leafletCSS = document.createElement("link");
+				leafletCSS.rel = "stylesheet";
+				leafletCSS.href = glbMapperCSS;
+				document.head.appendChild(leafletCSS);
+			}
+
+			const script = document.createElement("script");
+			script.src = glbMapperJS;
+			script.async = true;
+			script.onload = () => resolve((window as any).L || null);
+			document.head.appendChild(script);
+		});
+
+		return promise;
+	};
+})();
+
+const LOCATION_LEVEL_COLORS = [
+	{ stroke: "#0f4c81", fill: "#dbeafe" },
+	{ stroke: "#1d7a46", fill: "#dcfce7" },
+	{ stroke: "#92400e", fill: "#fef3c7" },
+	{ stroke: "#7e22ce", fill: "#f3e8ff" },
+	{ stroke: "#b91c1c", fill: "#fee2e2" },
+];
+
+function levelRank(value: unknown): number {
+	if (typeof value === "number" && Number.isFinite(value)) {
+		return value;
+	}
+
+	if (typeof value === "string") {
+		const trimmed = value.trim().toLowerCase();
+		if (trimmed.length === 0) {
+			return 999;
+		}
+
+		const numeric = Number(trimmed);
+		if (Number.isFinite(numeric)) {
+			return numeric;
+		}
+
+		if (trimmed.includes("country") || trimmed === "0") {
+			return 0;
+		}
+
+		const adminMatch = trimmed.match(/admin\s*(\d+)/);
+		if (adminMatch) {
+			return Number(adminMatch[1]);
+		}
+	}
+
+	return 999;
+}
+
+function ReviewLocationMap({
+	spatialFootprintData,
+}: {
+	spatialFootprintData: any[];
+}) {
+	const mapContainerRef = useRef<HTMLDivElement | null>(null);
+	const mapRef = useRef<any>(null);
+
+	const mapLayers = useMemo(() => {
+		const input = Array.isArray(spatialFootprintData) ? spatialFootprintData : [];
+
+		const geographicItems = input
+			.filter(
+				(item) =>
+					item?.map_option === "Geographic level" &&
+					item?.geojson &&
+					typeof item.geojson === "object",
+			)
+			.map((item, index) => {
+				const levelValue =
+					item?.geojson?.properties?.level ??
+					item?.geographic_level ??
+					item?.title ??
+					`level-${index}`;
+				return {
+					key: String(levelValue),
+					rank: levelRank(levelValue),
+					geojson: item.geojson,
+				};
+			})
+			.sort((a, b) => a.rank - b.rank);
+
+		const levelKeys = Array.from(new Set(geographicItems.map((item) => item.key)));
+		const levelColorByKey = new Map(
+			levelKeys.map((key, index) => [
+				key,
+				LOCATION_LEVEL_COLORS[index % LOCATION_LEVEL_COLORS.length],
+			]),
+		);
+
+		const styledGeographic = geographicItems.map((item) => ({
+			kind: "geographic" as const,
+			geojson: item.geojson,
+			style: {
+				color: levelColorByKey.get(item.key)?.stroke || "#0f4c81",
+				fillColor: levelColorByKey.get(item.key)?.fill || "#dbeafe",
+				weight: 1.5,
+				fillOpacity: 0.28,
+			},
+		}));
+
+		const footprintItems = input
+			.filter((item) => {
+				if (!item?.geojson || typeof item.geojson !== "object") {
+					return false;
+				}
+				const mapOption =
+					typeof item?.map_option === "string" ? item.map_option : "";
+				return mapOption !== "Geographic level";
+			})
+			.map((item) => ({
+				kind: "footprint" as const,
+				geojson: item.geojson,
+				style: {
+					color: "#1d4ed8",
+					fillColor: "#60a5fa",
+					weight: 2.2,
+					fillOpacity: 0.36,
+				},
+			}));
+
+		return [...styledGeographic, ...footprintItems];
+	}, [spatialFootprintData]);
+
+	useEffect(() => {
+		if (mapLayers.length === 0 || !mapContainerRef.current) {
+			if (mapRef.current) {
+				mapRef.current.remove();
+				mapRef.current = null;
+			}
+			return;
+		}
+
+		let cancelled = false;
+		ensureLeafletLoaded().then((L) => {
+			if (cancelled || !L || !mapContainerRef.current) {
+				return;
+			}
+
+			if (mapRef.current) {
+				mapRef.current.remove();
+				mapRef.current = null;
+			}
+
+			const map = L.map(mapContainerRef.current, { preferCanvas: true });
+			mapRef.current = map;
+
+			L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+				attribution: "",
+			}).addTo(map);
+
+			const bounds = L.latLngBounds([]);
+
+			for (const entry of mapLayers) {
+				const layer = L.geoJSON(entry.geojson, {
+					style: () => entry.style,
+					pointToLayer: (_feature: any, latlng: any) =>
+						L.circleMarker(latlng, {
+							radius: 6,
+							color: entry.style.color,
+							fillColor: entry.style.fillColor,
+							fillOpacity: 0.8,
+							weight: 1.5,
+						}),
+				});
+				layer.addTo(map);
+				try {
+					const layerBounds = layer.getBounds?.();
+					if (layerBounds && layerBounds.isValid()) {
+						bounds.extend(layerBounds);
+					}
+				} catch {
+					// Ignore invalid bounds and keep rendering remaining layers.
+				}
+			}
+
+			if (bounds.isValid()) {
+				map.fitBounds(bounds, { padding: [24, 24] });
+			} else {
+				map.setView([0, 0], 2);
+			}
+
+			setTimeout(() => {
+				map.invalidateSize();
+			}, 0);
+		});
+
+		return () => {
+			cancelled = true;
+			if (mapRef.current) {
+				mapRef.current.remove();
+				mapRef.current = null;
+			}
+		};
+	}, [mapLayers]);
+
+	if (mapLayers.length === 0) {
+		return null;
+	}
+
+	return (
+		<div className="space-y-2">
+			<p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+				Map
+			</p>
+			<div
+				ref={mapContainerRef}
+				className="h-[360px] w-full overflow-hidden rounded-lg border border-slate-200"
+			/>
+		</div>
+	);
+}
 
 const renderReviewItem = (label: string, value: string) => (
 	<div className="space-y-1">
@@ -223,6 +462,7 @@ export default function DisasterEventReviewStep({
 	endTimingValue,
 	selectedDivisionItems,
 	reviewSpatialFootprintItems,
+	reviewSpatialFootprintData,
 	reviewAttachments,
 	triggeringHazardousEventTarget,
 	triggeredHazardousEventTarget,
@@ -348,6 +588,10 @@ export default function DisasterEventReviewStep({
 								</p>
 							)}
 						</div>
+
+						<ReviewLocationMap
+							spatialFootprintData={reviewSpatialFootprintData}
+						/>
 					</>,
 					selectedDivisionItems.length > 0 ||
 						reviewSpatialFootprintItems.length > 0,
