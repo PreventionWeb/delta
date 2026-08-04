@@ -21,6 +21,8 @@ interface ViewComponentMainDataCollectionProps {
 	listUrl?: string;
 	id: any;
 	title: string;
+	hideTopSummary?: boolean;
+	hideEditButton?: boolean;
 	extraActions?: React.ReactNode;
 	extraInfo?: React.ReactNode;
 	children?: React.ReactNode;
@@ -178,7 +180,9 @@ export function ViewComponentMainDataCollection(
 							{props.recordDate && <p>{props.recordDate}</p>}
 
 							<p>
-								<strong>{ctx.t({ code: "common.status", msg: "Status" })}:</strong>{" "}
+								<strong>
+									{ctx.t({ code: "common.status", msg: "Status" })}:
+								</strong>{" "}
 								<span
 									className={`dts-status dts-status--${props.approvalStatus}`}
 								></span>{" "}
@@ -583,29 +587,33 @@ export function ViewComponentMainDataCollection(
 			<MainContainer title={props.title}>
 				<>
 					<form className="dts-form">
-						<p>
-							<LangLink lang={ctx.lang} to={props.listUrl || props.path}>
-								{props.title}
-							</LangLink>
-						</p>
+						{!props.hideTopSummary && (
+							<p>
+								<LangLink lang={ctx.lang} to={props.listUrl || props.path}>
+									{props.title}
+								</LangLink>
+							</p>
+						)}
 						{!props.isPublic && (
 							<>
 								<div style={{ textAlign: "right" }}>
-									<LangLink
-										visible={canEditDataCollectionRecord(
-											ctx.user?.role ?? null,
-											props.approvalStatus,
-										)}
-										lang={ctx.lang}
-										to={`${props.path}/edit/${String(props.id)}`}
-										className="mg-button mg-button-secondary"
-										style={{ margin: "5px" }}
-									>
-										{ctx.t({
-											code: "common.edit",
-											msg: "Edit",
-										})}
-									</LangLink>
+									{!props.hideEditButton && (
+										<LangLink
+											visible={canEditDataCollectionRecord(
+												ctx.user?.role ?? null,
+												props.approvalStatus,
+											)}
+											lang={ctx.lang}
+											to={`${props.path}/edit/${String(props.id)}`}
+											className="mg-button mg-button-secondary"
+											style={{ margin: "5px" }}
+										>
+											{ctx.t({
+												code: "common.edit",
+												msg: "Edit",
+											})}
+										</LangLink>
+									)}
 
 									{props.approvalStatus === "waiting-for-validation" && (
 										<>
@@ -665,14 +673,18 @@ export function ViewComponentMainDataCollection(
 								</div>
 							</>
 						)}
-						<h2>{props.title}</h2>
-						<p>
-							{ctx.t({
-								code: "common.id",
-								msg: "ID",
-							})}
-							: {String(props.id)}
-						</p>
+						{!props.hideTopSummary && (
+							<>
+								<h2>{props.title}</h2>
+								<p>
+									{ctx.t({
+										code: "common.id",
+										msg: "ID",
+									})}
+									: {String(props.id)}
+								</p>
+							</>
+						)}
 						{props.extraInfo}
 						{props.children}
 					</form>

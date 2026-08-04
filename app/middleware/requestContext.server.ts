@@ -3,7 +3,6 @@
  * Registered from `app/root.tsx`'s `middleware` export so it runs for every request
  */
 
-import type { Route } from "../+types/root";
 import {
 	withRequestContext,
 	getRequestContext,
@@ -16,9 +15,12 @@ import {
 import { getPinoLogger } from "~/infrastructure/logging/PinoLogger.server";
 import { initServer } from "~/init.server";
 
-export const requestContextMiddleware: Route.MiddlewareFunction = (
-	{ request },
-	next,
+type MiddlewareArgs = { request: Request };
+type MiddlewareNext = () => Response | Promise<Response>;
+
+export const requestContextMiddleware = (
+	{ request }: MiddlewareArgs,
+	next: MiddlewareNext,
 ) => {
 	const traceId = crypto.randomUUID();
 

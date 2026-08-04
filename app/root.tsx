@@ -1,6 +1,5 @@
 import type { LinksFunction } from "react-router";
 import type { LoaderFunctionArgs } from "react-router";
-import type { Route } from "./+types/root";
 
 import {
 	useLoaderData,
@@ -57,10 +56,7 @@ import { i18nextMiddleware } from "~/middleware/i18next.server";
 // Runs before any loader/action in the matched route tree, for every request
 // See openspec/changes/archive/2026-07-02-ca-request-context-middleware/design.md Decision 3.
 // i18nextMiddleware appended after requestContextMiddleware for future step-2 (user.preferredLocale) use; no current dependency.
-export const middleware: Route.MiddlewareFunction[] = [
-	requestContextMiddleware,
-	i18nextMiddleware,
-];
+export const middleware = [requestContextMiddleware, i18nextMiddleware];
 
 export const links: LinksFunction = () => [
 	{ rel: "stylesheet", href: "/assets/css/style-dts.css?asof=20250630" },

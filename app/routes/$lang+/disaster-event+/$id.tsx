@@ -2,14 +2,9 @@ import { disasterEventById } from "~/backend.server/models/event";
 
 import { DisasterEventView } from "~/frontend/events/disastereventform";
 
-import {
-	createViewLoaderPublicApproved,
-	createViewLoaderPublicApprovedWithAuditLog,
-} from "~/backend.server/handlers/form/form";
+import { createViewLoaderPublicApproved } from "~/backend.server/handlers/form/form";
 
 import { ViewScreenPublicApproved } from "~/frontend/form";
-import { getTableName } from "drizzle-orm";
-import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import {
 	authActionGetAuth,
 	authActionWithPerm,
@@ -27,6 +22,7 @@ import { BackendContext } from "~/backend.server/context";
 import { processApprovalStatusActionService } from "~/services/approvalStatusWorkflowService";
 import { getUserIdFromSession } from "~/utils/session";
 import { getReturnAssigneeUsers } from "~/db/queries/userCountryAccountsRepository";
+import { DisasterEventAttachmentRepository } from "~/db/queries/disasterEventAttachmentRepository";
 
 export const loader = async (args: LoaderFunctionArgs) => {
 	const { request, params } = args;
@@ -40,107 +36,28 @@ export const loader = async (args: LoaderFunctionArgs) => {
 	const countryAccountsId = await getCountryAccountsIdFromSession(request);
 	const userId = userSession ? await getUserIdFromSession(request) : null;
 
-	const loaderFunction = userSession
-		? createViewLoaderPublicApprovedWithAuditLog({
-				getById: disasterEventById,
-				recordId: id,
-				tableName: getTableName(disasterEventTable),
-			})
-		: createViewLoaderPublicApproved({
-				getById: disasterEventById,
-			});
+	const loaderFunction = createViewLoaderPublicApproved({
+		getById: disasterEventById,
+	});
 
 	const result = await loaderFunction(args);
 	if (result.item.countryAccountsId !== countryAccountsId) {
 		throw new Response("Unauthorized access", { status: 401 });
 	}
 
-	// const disasterEvents = await dr.execute(sql`
-	//   SELECT 
-	// 	de.id,
-	// 	de.spatial_footprint AS event_spatial_footprint,
-	// 	de.name_global_or_regional,
-	// 	de.name_national,
-	// 	jsonb_agg(
-	// 	  jsonb_build_object(
-	// 		'id', dr.id,
-	// 		'spatial_footprint', (
-	// 		  SELECT jsonb_agg(
-	// 			CASE 
-	// 			  WHEN sf -> 'geojson' -> 'properties' ? 'division_id' THEN
-	// 				jsonb_set(
-	// 				  sf,
-	// 				  '{geojson,geometry}',
-	// 				  '{}'::jsonb,
-	// 				  true
-	// 				)
-	// 			  ELSE
-	// 				sf
-	// 			END
-	// 		  )
-	// 		  FROM jsonb_array_elements(dr.spatial_footprint) AS sf
-	// 		),
-	// 		'damages', COALESCE(damages.items, '[]'::jsonb),
-	// 		'losses', COALESCE(losses.items, '[]'::jsonb),
-	// 		'disruption', COALESCE(disruption.items, '[]'::jsonb)
-	// 	  )
-	// 	) AS disaster_records
-	//   FROM disaster_event de
-	//   LEFT JOIN disaster_records dr ON dr.disaster_event_id = de.id
-  
-	//   -- Damages
-	//   LEFT JOIN LATERAL (
-	// 	SELECT jsonb_agg(jsonb_build_object(
-	// 	  'id', d.id,
-	// 	  'spatial_footprint', d.spatial_footprint
-	// 	)) AS items
-	// 	FROM damages d
-	// 	WHERE d.record_id = dr.id
-	//   ) damages ON true
-  
-	//   -- Losses
-	//   LEFT JOIN LATERAL (
-	// 	SELECT jsonb_agg(jsonb_build_object(
-	// 	  'id', l.id,
-	// 	  'spatial_footprint', l.spatial_footprint
-	// 	)) AS items
-	// 	FROM losses l
-	// 	WHERE l.record_id = dr.id
-	//   ) losses ON true
-  
-	//   -- Disruption
-	//   LEFT JOIN LATERAL (
-	// 	SELECT jsonb_agg(jsonb_build_object(
-	// 	  'id', di.id,
-	// 	  'spatial_footprint', di.spatial_footprint
-	// 	)) AS items
-	// 	FROM disruption di
-	// 	WHERE di.record_id = dr.id
-	//   ) disruption ON true
-  
-	//   WHERE de.id = ${id}
-	//   -- Apply tenant filtering for authenticated users
-	//   ${
-	// 		countryAccountsId
-	// 			? sql`AND de.country_accounts_id = ${countryAccountsId}`
-	// 			: sql``
-	// 	}
-  
-	//   GROUP BY 
-	// 	de.id, 
-	// 	de.spatial_footprint, 
-	// 	de.name_global_or_regional, 
-	// 	de.name_national;
-	// `);
+	const disasterEventAttachments =
+		await DisasterEventAttachmentRepository.getByDisasterEventId(
+			result.item.id,
+		);
 
 	const returnAssignees =
 		userSession && countryAccountsId
-			? (
-					await getReturnAssigneeUsers(countryAccountsId, userId)
-				).map((user) => ({
-					label: `${user.firstName} ${user.lastName}`.trim(),
-					value: user.id,
-				}))
+			? (await getReturnAssigneeUsers(countryAccountsId, userId)).map(
+					(user) => ({
+						label: `${user.firstName} ${user.lastName}`.trim(),
+						value: user.id,
+					}),
+				)
 			: [];
 
 	return {
@@ -149,6 +66,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
 		item: {
 			...result.item,
 			spatialFootprintsDataSource: [],
+			attachments: disasterEventAttachments,
 			returnAssignees,
 		},
 	};
@@ -169,7 +87,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 		routeRecordId: params.id,
 		countryAccountsId,
 		userId: userSession.user.id,
-		recordType: "disaster_event"
+		recordType: "disaster_event",
 	});
 
 	return Response.json(result);
