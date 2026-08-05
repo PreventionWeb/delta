@@ -8,9 +8,15 @@ import {
 } from "~/backend.server/models/division";
 import { DivisionRepository } from "~/db/queries/divisonRepository";
 
-import { useLoaderData, useActionData, useNavigation, Form as RRForm } from "react-router";
-import { Card } from "primereact/card";
+import {
+	useLoaderData,
+	useActionData,
+	useNavigation,
+	useNavigate,
+	Form as RRForm,
+} from "react-router";
 import { Button } from "primereact/button";
+import { Dialog } from "primereact/dialog";
 import { Message } from "primereact/message";
 import { InputText } from "primereact/inputtext";
 import { Divider } from "primereact/divider";
@@ -18,13 +24,23 @@ import { BreadCrumb as PrimeBreadCrumb } from "primereact/breadcrumb";
 import { MenuItem } from "primereact/menuitem";
 import { formStringData } from "~/utils/httputil";
 import { normalizeGeoJSONToFeature } from "~/utils/geoValidation";
-import { NavSettings } from "~/frontend/components/NavSettings";
-
-import { MainContainer } from "~/frontend/container";
 import { getCountryAccountsIdFromSession } from "~/utils/session";
 
 import { ViewContext } from "~/frontend/context";
 import { LangLink } from "~/utils/link";
+
+function listPathWithQuery(
+	divisionParentId: string | null,
+	searchParams: URLSearchParams,
+) {
+	const params = new URLSearchParams();
+	params.set("view", searchParams.get("view") || "table");
+	const parent = searchParams.get("parent") || divisionParentId;
+	if (parent) {
+		params.set("parent", parent);
+	}
+	return `/settings/geography?${params.toString()}`;
+}
 
 type DivisionBreadcrumbSourceRow = {
 	id: string;
@@ -121,6 +137,7 @@ export const loader = authLoaderWithPerm(
 	async (loaderArgs) => {
 		const { id } = loaderArgs.params;
 		const { request } = loaderArgs;
+		const url = new URL(request.url);
 		if (!id) {
 			throw new Response("Missing item ID", { status: 400 });
 		}
@@ -144,6 +161,7 @@ export const loader = authLoaderWithPerm(
 		return {
 			data: item,
 			breadcrumbs: breadcrumbs,
+			backPath: listPathWithQuery(item.parentId, url.searchParams),
 		};
 	},
 );
@@ -270,6 +288,7 @@ export default function Screen() {
 	const loaderData = useLoaderData<typeof loader>();
 	const actionData = useActionData<typeof action>();
 	const navigation = useNavigation();
+	const navigate = useNavigate();
 	const ctx = new ViewContext();
 
 	const isSubmitting = navigation.state === "submitting";
@@ -300,74 +319,67 @@ export default function Screen() {
 		URL.revokeObjectURL(url);
 	};
 
-	const navSettings = <NavSettings ctx={ctx} userRole={ctx.user?.role} />;
-
 	return (
-		<MainContainer
-			title={ctx.t({
-				code: "geographies.geographic_levels",
-				msg: "Geographic levels",
+		<Dialog
+			visible
+			header={ctx.t({
+				code: "geographies.edit_division",
+				msg: "Edit division",
 			})}
-			headerExtra={navSettings}
+			onHide={() => navigate(ctx.url(loaderData.backPath))}
+			style={{ width: "min(720px, 96vw)" }}
 		>
 			<div className="mx-auto w-full max-w-2xl">
 				<Breadcrumb ctx={ctx} rows={loaderData.breadcrumbs} linkLast={true} />
 
-				<Card className="shadow-sm">
-					{/* Header */}
-					<div className="mb-1 flex items-center gap-3">
-						<div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-							<i className="pi pi-map-marker text-lg text-primary" />
-						</div>
-						<div>
-							<h2 className="text-lg font-semibold text-gray-800">
-								{ctx.t({
-									code: "geographies.edit_division",
-									msg: "Edit division",
-								})}
-							</h2>
-							<p className="text-sm text-gray-500">
-								{ctx.t({
-									code: "geographies.edit_division_subtitle",
-									msg: "Update the details for this administrative division.",
-								})}
-							</p>
-						</div>
+				{/* Header */}
+				<div className="mb-1 flex items-center gap-3">
+					<div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+						<i className="pi pi-map-marker text-lg text-primary" />
 					</div>
-
-					<Divider className="my-4" />
-
-					{/* Status messages */}
-					{saved && (
-						<Message
-							className="mb-4 w-full"
-							severity="success"
-							text={ctx.t({
-								code: "common.data_updated",
-								msg: "The data was updated.",
+					<div>
+						<p className="text-sm text-gray-500">
+							{ctx.t({
+								code: "geographies.edit_division_subtitle",
+								msg: "Update the details for this administrative division.",
 							})}
-						/>
-					)}
-					{hasError && (
-						<Message
-							className="mb-4 w-full"
-							severity="error"
-							text={
-								actionData?.errors?.[0] ||
-								ctx.t({
-									code: "common.save_error",
-									msg: "There was an error saving the data. Please try again.",
-								})
-							}
-						/>
-					)}
+						</p>
+					</div>
+				</div>
 
-					{/* Form */}
-					<RRForm
-						method="post"
-						encType="multipart/form-data"
-						className="flex flex-col gap-5"
-					>
+				<Divider className="my-4" />
+
+				{/* Status messages */}
+				{saved && (
+					<Message
+						className="mb-4 w-full"
+						severity="success"
+						text={ctx.t({
+							code: "common.data_updated",
+							msg: "The data was updated.",
+						})}
+					/>
+				)}
+				{hasError && (
+					<Message
+						className="mb-4 w-full"
+						severity="error"
+						text={
+							actionData?.errors?.[0] ||
+							ctx.t({
+								code: "common.save_error",
+								msg: "There was an error saving the data. Please try again.",
+							})
+						}
+					/>
+				)}
+
+				{/* Form */}
+				<RRForm
+					method="post"
+					encType="multipart/form-data"
+					className="flex flex-col gap-5"
+				>
 						{/* Parent ID */}
 						<div className="flex flex-col gap-1">
 							<label
@@ -498,21 +510,17 @@ export default function Screen() {
 						<Divider className="my-1" />
 
 						{/* Actions */}
-						<div className="flex flex-wrap items-center justify-between gap-3">
-							<LangLink
-								lang={ctx.lang}
-								to={`/settings/geography${fields.parentId ? "?parent=" + fields.parentId + "&view=table" : "?view=table"}`}
-							>
-								<Button
-									type="button"
-									outlined
-									icon="pi pi-arrow-left"
-									label={ctx.t({
-										code: "common.back_to_list",
-										msg: "Back to list",
-									})}
-								/>
-							</LangLink>
+						<div className="flex flex-wrap items-center justify-end gap-2">
+							<Button
+								type="button"
+								outlined
+								icon="pi pi-times"
+								label={ctx.t({
+									code: "common.close",
+									msg: "Close",
+								})}
+								onClick={() => navigate(ctx.url(loaderData.backPath))}
+							/>
 							<div className="flex flex-wrap items-center gap-2">
 								<Button
 									type="submit"
@@ -526,9 +534,8 @@ export default function Screen() {
 								/>
 							</div>
 						</div>
-					</RRForm>
-				</Card>
+				</RRForm>
 			</div>
-		</MainContainer>
+		</Dialog>
 	);
 }

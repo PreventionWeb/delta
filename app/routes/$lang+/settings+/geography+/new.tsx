@@ -1,6 +1,6 @@
 import { Form, useActionData, useLoaderData, useNavigate, useNavigation } from "react-router";
 import { Button } from "primereact/button";
-import { Card } from "primereact/card";
+import { Dialog } from "primereact/dialog";
 import { Divider } from "primereact/divider";
 import { InputText } from "primereact/inputtext";
 import { Message } from "primereact/message";
@@ -11,12 +11,9 @@ import { authActionWithPerm, authLoaderWithPerm } from "~/utils/auth";
 import { formStringData } from "~/utils/httputil";
 import {
 	getCountryAccountsIdFromSession,
-	getUserRoleFromSession,
 	redirectWithMessage,
 } from "~/utils/session";
 import { ViewContext } from "~/frontend/context";
-import { NavSettings } from "~/frontend/components/NavSettings";
-import { MainContainer } from "~/frontend/container";
 import {
 	DivisionBreadcrumbRow,
 	createDivision,
@@ -26,6 +23,19 @@ import { LangLink } from "~/utils/link";
 import { InsertDivision } from "~/drizzle/schema/divisionTable";
 import { BackendContext } from "~/backend.server/context";
 import { isValidUUID } from "~/utils/id";
+
+function listPathWithQuery(
+	divisionParentId: string | null,
+	searchParams: URLSearchParams,
+) {
+	const params = new URLSearchParams();
+	params.set("view", searchParams.get("view") || "table");
+	const parent = searchParams.get("parent") || divisionParentId;
+	if (parent) {
+		params.set("parent", parent);
+	}
+	return `/settings/geography?${params.toString()}`;
+}
 
 type DivisionBreadcrumbSourceRow = {
 	id: string;
@@ -87,7 +97,7 @@ type LoaderData = {
 	initialParentId: string;
 	initialLangs: string[];
 	breadcrumbs: DivisionBreadcrumbRow[] | null;
-	userRole: string | null;
+	backPath: string;
 };
 
 export const loader = authLoaderWithPerm(
@@ -133,13 +143,11 @@ export const loader = authLoaderWithPerm(
 			initialLangs = ["en"];
 		}
 
-		const userRole = await getUserRoleFromSession(request);
-
 		return {
 			initialParentId,
 			initialLangs,
 			breadcrumbs,
-			userRole: userRole ?? null,
+			backPath: listPathWithQuery(initialParentId || null, url.searchParams),
 		} satisfies LoaderData;
 	},
 );
@@ -313,7 +321,6 @@ export default function NewGeographyPage() {
 	const ctx = new ViewContext();
 
 	const isSubmitting = navigation.state === "submitting";
-	const navSettings = <NavSettings ctx={ctx} userRole={ld.userRole ?? undefined} />;
 
 	const fields = actionData?.data ?? {
 		parentId: ld.initialParentId,
@@ -325,53 +332,44 @@ export default function NewGeographyPage() {
 		? Object.keys(fields.names).sort()
 		: ld.initialLangs;
 
-	const parentParam = fields.parentId
-		? `?parent=${encodeURIComponent(fields.parentId)}&view=table`
-		: "?view=table";
-
 	return (
-		<MainContainer
-			title={ctx.t({
-				code: "geographies.geographic_levels",
-				msg: "Geographic levels",
+		<Dialog
+			visible
+			header={ctx.t({
+				code: "geographies.add_division",
+				msg: "Add division",
 			})}
-			headerExtra={navSettings}
+			onHide={() => navigate(ctx.url(ld.backPath))}
+			style={{ width: "min(720px, 96vw)" }}
 		>
 			<div className="mx-auto w-full max-w-2xl">
 				<Breadcrumb ctx={ctx} rows={ld.breadcrumbs} />
 
-				<Card className="shadow-sm">
-					<div className="mb-1 flex items-center gap-3">
-						<div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-							<i className="pi pi-plus text-lg text-primary" />
-						</div>
-						<div>
-							<h2 className="text-lg font-semibold text-gray-800">
-								{ctx.t({
-									code: "geographies.add_division",
-									msg: "Add division",
-								})}
-							</h2>
-							<p className="text-sm text-gray-500">
-								{ctx.t({
-									code: "geographies.add_division_subtitle",
-									msg: "Create a new administrative division.",
-								})}
-							</p>
-						</div>
+				<div className="mb-1 flex items-center gap-3">
+					<div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+						<i className="pi pi-plus text-lg text-primary" />
 					</div>
+					<div>
+						<p className="text-sm text-gray-500">
+							{ctx.t({
+								code: "geographies.add_division_subtitle",
+								msg: "Create a new administrative division.",
+							})}
+						</p>
+					</div>
+				</div>
 
-					<Divider className="my-4" />
+				<Divider className="my-4" />
 
-					{actionData && !actionData.ok && (
-						<Message
-							className="mb-4 w-full"
-							severity="error"
-							text={actionData.errors?.[0] || "Failed to create division"}
-						/>
-					)}
+				{actionData && !actionData.ok && (
+					<Message
+						className="mb-4 w-full"
+						severity="error"
+						text={actionData.errors?.[0] || "Failed to create division"}
+					/>
+				)}
 
-					<Form method="post" className="flex flex-col gap-5">
+				<Form method="post" className="flex flex-col gap-5">
 						<div className="flex flex-col gap-1">
 							<label htmlFor="field-parentId" className="text-sm font-medium text-gray-700">
 								{ctx.t({ code: "common.parent_id", msg: "Parent ID" })}
@@ -443,13 +441,13 @@ export default function NewGeographyPage() {
 
 						<Divider className="my-1" />
 
-						<div className="flex flex-wrap items-center justify-between gap-3">
+						<div className="flex flex-wrap items-center justify-end gap-2">
 							<Button
 								type="button"
 								outlined
-								icon="pi pi-arrow-left"
-								label={ctx.t({ code: "common.back_to_list", msg: "Back to list" })}
-								onClick={() => navigate(ctx.url(`/settings/geography${parentParam}`))}
+								icon="pi pi-times"
+								label={ctx.t({ code: "common.cancel", msg: "Cancel" })}
+								onClick={() => navigate(ctx.url(ld.backPath))}
 							/>
 							<Button
 								type="submit"
@@ -462,9 +460,8 @@ export default function NewGeographyPage() {
 								disabled={isSubmitting}
 							/>
 						</div>
-					</Form>
-				</Card>
+				</Form>
 			</div>
-		</MainContainer>
+		</Dialog>
 	);
 }

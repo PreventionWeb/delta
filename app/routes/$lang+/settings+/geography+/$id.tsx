@@ -1,6 +1,6 @@
 import { authLoaderWithPerm } from "~/utils/auth";
 
-import { useLoaderData } from "react-router";
+import { useLoaderData, useNavigate } from "react-router";
 
 import {
 	DivisionBreadcrumbRow,
@@ -8,23 +8,33 @@ import {
 import { DivisionRepository } from "~/db/queries/divisonRepository";
 
 import { useState, useEffect } from "react";
-import { Button } from "primereact/button";
-import { Card } from "primereact/card";
 import { Column } from "primereact/column";
 import { DataTable } from "primereact/datatable";
+import { Dialog } from "primereact/dialog";
 import { Message } from "primereact/message";
 import { BreadCrumb as PrimeBreadCrumb } from "primereact/breadcrumb";
 import { MenuItem } from "primereact/menuitem";
 
 import DTSMap from "~/frontend/dtsmap/dtsmap";
 
-import { NavSettings } from "~/frontend/components/NavSettings";
-import { MainContainer } from "~/frontend/container";
 import { getCountryAccountsIdFromSession } from "~/utils/session";
 
 import { ViewContext } from "~/frontend/context";
 
 import { LangLink } from "~/utils/link";
+
+function listPathWithQuery(
+	divisionParentId: string | null,
+	searchParams: URLSearchParams,
+) {
+	const params = new URLSearchParams();
+	params.set("view", searchParams.get("view") || "table");
+	const parent = searchParams.get("parent") || divisionParentId;
+	if (parent) {
+		params.set("parent", parent);
+	}
+	return `/settings/geography?${params.toString()}`;
+}
 
 type DivisionBreadcrumbSourceRow = {
 	id: string;
@@ -121,6 +131,7 @@ export const loader = authLoaderWithPerm(
 	async (loaderArgs) => {
 		const { id } = loaderArgs.params;
 		const { request } = loaderArgs;
+		const url = new URL(request.url);
 		if (!id) {
 			throw new Response("Missing item ID", { status: 400 });
 		}
@@ -145,16 +156,14 @@ export const loader = authLoaderWithPerm(
 			division: item,
 			hasGeom: Boolean(item.geom),
 			breadcrumbs: breadcrumbs,
+			backPath: listPathWithQuery(item.parentId, url.searchParams),
 		};
 	},
 );
 
-type LoaderData = ReturnType<typeof useLoaderData<typeof loader>>;
-interface CommonProps {
-	loaderData: LoaderData;
-}
-
-function Common({ loaderData }: CommonProps) {
+function DivisionDetailsContent({ loaderData }: {
+	loaderData: ReturnType<typeof useLoaderData<typeof loader>>;
+}) {
 	const ctx = new ViewContext();
 
 	const { division, breadcrumbs } = loaderData;
@@ -164,68 +173,38 @@ function Common({ loaderData }: CommonProps) {
 	}));
 
 	return (
-		<Card>
-			<div className="flex flex-col gap-3">
-				<div className="flex flex-wrap items-center justify-between gap-2">
-					<h1 className="m-0">
+		<div className="flex flex-col gap-3">
+			<Breadcrumb ctx={ctx} rows={breadcrumbs} linkLast={true} />
+
+			<div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+				<div>
+					<strong>{ctx.t({ code: "common.id", msg: "ID" })}:</strong> {division.id}
+				</div>
+				<div>
+					<strong>
 						{ctx.t({
-							code: "geographies.division_details",
-							msg: "Division details",
+							code: "common.parent_id",
+							desc: "ID of the parent node in a hierarchical structure.",
+							msg: "Parent ID",
 						})}
-					</h1>
-					<div className="flex items-center gap-2">
-						<LangLink
-							lang={ctx.lang}
-							to={`/settings/geography${division.parentId ? "?parent=" + division.parentId + "&view=table" : "?view=table"}`}
-						>
-							<Button
-								icon="pi pi-arrow-left"
-								label={ctx.t({ code: "common.back_to_list", msg: "Back to list" })}
-								outlined
-								size="small"
-							/>
-						</LangLink>
-						<LangLink lang={ctx.lang} to={`/settings/geography/edit/${division.id}`}>
-							<Button
-								icon="pi pi-pencil"
-								label={ctx.t({ code: "common.edit", msg: "Edit" })}
-								size="small"
-							/>
-						</LangLink>
-					</div>
+						:
+					</strong>{" "}
+					{division.parentId || "-"}
 				</div>
-
-				<Breadcrumb ctx={ctx} rows={breadcrumbs} linkLast={true} />
-
-				<div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-					<div>
-						<strong>{ctx.t({ code: "common.id", msg: "ID" })}:</strong> {division.id}
-					</div>
-					<div>
-						<strong>
-							{ctx.t({
-								code: "common.parent_id",
-								desc: "ID of the parent node in a hierarchical structure.",
-								msg: "Parent ID",
-							})}
-							:
-						</strong>{" "}
-						{division.parentId || "-"}
-					</div>
-				</div>
-
-				<h2 className="m-0">{ctx.t({ code: "common.names", msg: "Names" })}</h2>
-				<DataTable value={names} size="small" stripedRows className="w-full">
-					<Column header="Language" field="lang" />
-					<Column header={ctx.t({ code: "common.name", msg: "Name" })} field="name" />
-				</DataTable>
 			</div>
-		</Card>
+
+			<h2 className="m-0">{ctx.t({ code: "common.names", msg: "Names" })}</h2>
+			<DataTable value={names} size="small" stripedRows className="w-full">
+				<Column header="Language" field="lang" />
+				<Column header={ctx.t({ code: "common.name", msg: "Name" })} field="name" />
+			</DataTable>
+		</div>
 	);
 }
 
 export default function Screen() {
 	const loaderData = useLoaderData<typeof loader>();
+	const navigate = useNavigate();
 	const ctx = new ViewContext();
 
 	// only render in the browser, not server
@@ -234,27 +213,38 @@ export default function Screen() {
 		setIsClient(true);
 	}, []);
 
+	const footer = (
+		<></>
+	);
+
 	return (
-		<MainContainer
-			title={ctx.t({
-				code: "geographies.geographic_levels",
-				msg: "Geographic levels",
+		<Dialog
+			visible
+			header={ctx.t({
+				code: "geographies.division_details",
+				msg: "Division details",
 			})}
-			headerExtra={<NavSettings ctx={ctx} userRole={ctx.user?.role} />}
+			onHide={() => navigate(ctx.url(loaderData.backPath))}
+			style={{ width: "min(960px, 96vw)" }}
+			footer={footer}
 		>
-			<Common loaderData={loaderData} />
+			<DivisionDetailsContent loaderData={loaderData} />
 			{isClient &&
 				(loaderData.hasGeom && loaderData.division.geojson ? (
-					<DTSMap geoData={loaderData.division.geojson} />
+					<div className="mt-4">
+						<DTSMap geoData={loaderData.division.geojson} />
+					</div>
 				) : (
-					<Message
-						severity="info"
-						text={ctx.t({
-							code: "geographies.no_geodata_for_division",
-							msg: "No geodata for this division",
-						})}
-					/>
+					<div className="mt-4">
+						<Message
+							severity="info"
+							text={ctx.t({
+								code: "geographies.no_geodata_for_division",
+								msg: "No geodata for this division",
+							})}
+						/>
+					</div>
 				))}
-		</MainContainer>
+		</Dialog>
 	);
 }
