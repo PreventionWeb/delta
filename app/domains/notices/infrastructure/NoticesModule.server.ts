@@ -2,7 +2,7 @@
  * NoticesModule — NestJS module that wires the Notices domain providers.
  *
  * WHY `.server.ts` suffix (Decision 1b in design.md):
- *   React Router v7's bundler excludes any file ending in `.server.ts` from the client bundle. 
+ *   React Router v7's bundler excludes any file ending in `.server.ts` from the client bundle.
  *
  * WHY DrizzleProvider is declared here rather than importing CoreModule (Decision 2):
  *   to avoid a circular NestJS module dependency (CoreModule → NoticesModule → CoreModule)
@@ -10,18 +10,28 @@
  * WHY NOTICE_REPOSITORY is NOT exported from this module:
  *   Callers must depend on the use case interface, not on the repository adapter directly.
  */
-import { Module } from "@nestjs/common";
+import {
+	Module,
+	type MiddlewareConsumer,
+	type NestModule,
+} from "@nestjs/common";
 
 import { DrizzleProvider } from "~/infrastructure/DrizzleProvider.server";
 import { getPinoLogger } from "~/infrastructure/logging/PinoLogger.server";
+import { RequestContextMiddleware } from "~/infrastructure/RequestContextMiddleware.server";
 import { CreateNoticeUseCase } from "~/domains/notices/application/use-cases/CreateNotice";
 import { ListNoticesUseCase } from "~/domains/notices/application/use-cases/ListNotices";
 import { GetNoticeByIdUseCase } from "~/domains/notices/application/use-cases/GetNoticeById";
+import { UpdateNoticeUseCase } from "~/domains/notices/application/use-cases/UpdateNotice";
+import { DeleteNoticeUseCase } from "~/domains/notices/application/use-cases/DeleteNotice";
+import { NoticesController } from "~/domains/notices/presentation/NoticesController.server";
+import { SessionAuthGuard } from "~/domains/notices/presentation/guards/SessionAuthGuard.server";
 import { DrizzleNoticeRepository } from "./DrizzleNoticeRepository.server";
 import { NOTICE_REPOSITORY } from "./NoticeRepositoryToken";
 import type { INoticeRepository } from "~/domains/notices/application/ports/INoticeRepository";
 
 @Module({
+	controllers: [NoticesController],
 	providers: [
 		// DrizzleProvider registers DRIZZLE_CLIENT within this module's DI scope.
 		// The factory returns the same global dr singleton — no new DB connection.
@@ -52,10 +62,34 @@ import type { INoticeRepository } from "~/domains/notices/application/ports/INot
 				new GetNoticeByIdUseCase(getPinoLogger(), repo),
 			inject: [NOTICE_REPOSITORY],
 		},
+		{
+			provide: UpdateNoticeUseCase,
+			useFactory: (repo: INoticeRepository) =>
+				new UpdateNoticeUseCase(getPinoLogger(), repo),
+			inject: [NOTICE_REPOSITORY],
+		},
+		{
+			provide: DeleteNoticeUseCase,
+			useFactory: (repo: INoticeRepository) =>
+				new DeleteNoticeUseCase(getPinoLogger(), repo),
+			inject: [NOTICE_REPOSITORY],
+		},
+		SessionAuthGuard,
+		RequestContextMiddleware,
 	],
 	// Export the use cases so they are resolvable from consuming modules (e.g. CoreModule).
 	// NOTICE_REPOSITORY is intentionally NOT exported — callers must use the use cases,
 	// not bypass them by depending on the repository adapter directly.
-	exports: [CreateNoticeUseCase, ListNoticesUseCase, GetNoticeByIdUseCase],
+	exports: [
+		CreateNoticeUseCase,
+		ListNoticesUseCase,
+		GetNoticeByIdUseCase,
+		UpdateNoticeUseCase,
+		DeleteNoticeUseCase,
+	],
 })
-export class NoticesModule {}
+export class NoticesModule implements NestModule {
+	configure(consumer: MiddlewareConsumer) {
+		consumer.apply(RequestContextMiddleware).forRoutes(NoticesController);
+	}
+}

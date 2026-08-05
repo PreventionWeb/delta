@@ -1,6 +1,5 @@
 import type { LinksFunction } from "react-router";
 import type { LoaderFunctionArgs } from "react-router";
-import type { Route } from "./+types/root";
 
 import {
 	useLoaderData,
@@ -21,7 +20,8 @@ import {
 	getCountryAccountsIdFromSession,
 } from "~/utils/session";
 
-import { useEffect, useRef } from "react";
+import { useContext, useEffect, useRef } from "react";
+import { I18nContext } from "react-i18next";
 
 import allStylesHref from "./styles/all.css?url";
 
@@ -51,12 +51,12 @@ import { Footer } from "./frontend/footer/footer";
 import { getUserRoleFromSession } from "~/utils/session";
 import { UserCountryAccountRepository } from "~/db/queries/userCountryAccountsRepository";
 import { requestContextMiddleware } from "~/middleware/requestContext.server";
+import { i18nextMiddleware } from "~/middleware/i18next.server";
 
 // Runs before any loader/action in the matched route tree, for every request
 // See openspec/changes/archive/2026-07-02-ca-request-context-middleware/design.md Decision 3.
-export const middleware: Route.MiddlewareFunction[] = [
-	requestContextMiddleware,
-];
+// i18nextMiddleware appended after requestContextMiddleware for future step-2 (user.preferredLocale) use; no current dependency.
+export const middleware = [requestContextMiddleware, i18nextMiddleware];
 
 export const links: LinksFunction = () => [
 	{ rel: "stylesheet", href: "/assets/css/style-dts.css?asof=20250630" },
@@ -205,6 +205,10 @@ export default function Screen() {
 	const firstName = loaderData.common?.user?.firstName || "";
 	const lastName = loaderData.common?.user?.lastName || "";
 	const toast = useRef<Toast>(null);
+	// Read at render time, not in the loader — avoids a race with child-route loadNamespaces() loaders.
+	const i18nResourceBundle =
+		useContext(I18nContext)?.i18n.getDataByLanguage(loaderData.common.lang) ??
+		{};
 
 	useEffect(() => {
 		if (flashMessage) {
@@ -220,6 +224,7 @@ export default function Screen() {
 		<html
 			lang={loaderData.common.lang}
 			dir={loaderData.common.lang === "ar" ? "rtl" : "ltr"}
+			suppressHydrationWarning
 		>
 			<head>
 				<meta charSet="utf-8" />
@@ -230,6 +235,13 @@ export default function Screen() {
 				<script
 					dangerouslySetInnerHTML={{
 						__html: createTranslationScript(lang, translations),
+					}}
+				/>
+				<script
+					type="application/json"
+					id="i18n-resource-bundle"
+					dangerouslySetInnerHTML={{
+						__html: JSON.stringify(i18nResourceBundle),
 					}}
 				/>
 			</head>
@@ -321,7 +333,7 @@ export function ErrorBoundary() {
 	}
 
 	return (
-		<html>
+		<html suppressHydrationWarning>
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width,initial-scale=1" />

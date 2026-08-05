@@ -38,7 +38,6 @@ function testHazardFields(id: number) {
 		description: `Test hazard event ${id}`,
 		chainsExplanation: "Test explanation",
 		magnitude: "Moderate",
-		spatialFootprint: "todo",
 		recordOriginator: "external-user",
 		dataSource: "external",
 		approvalStatus: "draft",

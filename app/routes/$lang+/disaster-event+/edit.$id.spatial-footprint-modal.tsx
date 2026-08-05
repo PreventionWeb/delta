@@ -91,13 +91,20 @@ export default function SpatialFootprintModalRoute() {
 				inset: 0,
 				zIndex: 40,
 				display: "flex",
-				alignItems: "center",
+				alignItems: "flex-start",
 				justifyContent: "center",
 				background: "rgba(0, 0, 0, 0.35)",
 				padding: "1rem",
+				overflowY: "auto",
 			}}
 		>
-			<div className="w-full max-w-6xl rounded-xl bg-white p-5 shadow-xl">
+			<div
+				className="w-full max-w-6xl rounded-xl bg-white p-5 shadow-xl"
+				style={{
+					maxHeight: "calc(100vh - 2rem)",
+					overflowY: "auto",
+				}}
+			>
 				<div className="mb-4 flex items-center justify-between">
 					<h3 className="text-[18px] font-semibold text-slate-800">
 						Edit spatial footprint

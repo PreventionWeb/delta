@@ -1,6 +1,6 @@
 
 import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { Tx } from "~/db.server";
 import type { BackendContext } from "../../context";
 import {
@@ -42,7 +42,8 @@ export async function processValidationAssignmentWorkflow(
 		.set({
 			approvalStatus: "waiting-for-validation",
 			submittedByUserId: submittedByUserId,
-			submittedAt: new Date(),
+			submittedAt: sql`CURRENT_TIMESTAMP`,
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(hazardousEventTable.id, entityId));
 

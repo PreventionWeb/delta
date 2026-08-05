@@ -1,4 +1,4 @@
-import { DisasterRecordsView } from "~/frontend/disaster-record/form";
+﻿import { DisasterRecordsView } from "~/frontend/disaster-record/form";
 
 import {
 	createViewLoaderPublicApproved,
@@ -12,14 +12,10 @@ import { sectorsFilterByDisasterRecordId } from "~/backend.server/models/disaste
 import { getAffectedByDisasterRecord } from "~/backend.server/models/analytics/affected-people-by-disaster-record";
 import AuditLogHistory from "~/components/AuditLogHistory";
 import { disasterRecordsTable } from "~/drizzle/schema/disasterRecordsTable";
-import { lossesTable } from "~/drizzle/schema/lossesTable";
-import { damagesTable } from "~/drizzle/schema/damagesTable";
-import { disruptionTable } from "~/drizzle/schema/disruptionTable";
 import { getTableName } from "drizzle-orm";
 
 import { dr } from "~/db.server";
 import { contentPickerConfig } from "./content-picker-config";
-import { sql, eq } from "drizzle-orm";
 import {
 	authActionGetAuth,
 	authActionWithPerm,
@@ -35,6 +31,14 @@ import { BackendContext } from "~/backend.server/context";
 import { processApprovalStatusActionService } from "~/services/approvalStatusWorkflowService";
 import { getReturnAssigneeUsers } from "~/db/queries/userCountryAccountsRepository";
 import { queryHipEntity } from "~/backend.server/models/hip";
+import { DisasterRecordsGeomRepository } from "~/db/queries/disasterRecordsGeomRepository";
+import { DisasterRecordsDivisionRepository } from "~/db/queries/disasterRecordsDivisionRepository";
+import { DisruptionGeomRepository } from "~/db/queries/disruptionGeomRepository";
+import { DisruptionDivisionRepository } from "~/db/queries/disruptionDivisionRepository";
+import { LossesGeomRepository } from "~/db/queries/lossesGeomRepository";
+import { LossesDivisionRepository } from "~/db/queries/lossesDivisionRepository";
+import { DamagesGeomRepository } from "~/db/queries/damagesGeomRepository";
+import { DamagesDivisionRepository } from "~/db/queries/damagesDivisionRepository";
 
 export const loader = async (args: LoaderFunctionArgs) => {
 	const { request, params } = args;
@@ -77,52 +81,71 @@ export const loader = async (args: LoaderFunctionArgs) => {
 			dr,
 			result.item.disasterEventId,
 		)) ?? "";
-
-	const disasterId = id;
-	const disasterRecord = await dr
-		.select({
-			disaster_id: disasterRecordsTable.id,
-			disaster_spatial_footprint: disasterRecordsTable.spatialFootprint,
-			disruptions: sql`
-				COALESCE(
-					jsonb_agg(
-						jsonb_build_object(
-						'id', ${disruptionTable.id},
-						'spatial_footprint', ${disruptionTable.spatialFootprint}
-						)
-					) FILTER (WHERE ${disruptionTable.id} IS NOT NULL), '[]'::jsonb
-				)
-			`.as("disruptions"),
-			losses: sql`
-				COALESCE(
-					jsonb_agg(
-						jsonb_build_object(
-						'id', ${lossesTable.id},
-						'spatial_footprint', ${lossesTable.spatialFootprint}
-						)
-					) FILTER (WHERE ${lossesTable.id} IS NOT NULL), '[]'::jsonb
-				)
-			`.as("losses"),
-			damages: sql`
-				COALESCE(
-					jsonb_agg(
-						jsonb_build_object(
-						'id', ${damagesTable.id},
-						'spatial_footprint', ${damagesTable.spatialFootprint}
-						)
-					) FILTER (WHERE ${damagesTable.id} IS NOT NULL), '[]'::jsonb
-				)
-			`.as("damages"),
-		})
-		.from(disasterRecordsTable)
-		.leftJoin(
-			disruptionTable,
-			eq(disasterRecordsTable.id, disruptionTable.recordId),
-		)
-		.leftJoin(lossesTable, eq(disasterRecordsTable.id, lossesTable.recordId))
-		.leftJoin(damagesTable, eq(disasterRecordsTable.id, damagesTable.recordId))
-		.where(eq(disasterRecordsTable.id, disasterId))
-		.groupBy(disasterRecordsTable.id, disasterRecordsTable.spatialFootprint);
+	const [disasterRecordGeoms, disasterRecordDivisions] = await Promise.all([
+		DisasterRecordsGeomRepository.getByDisasterRecordId(id),
+		DisasterRecordsDivisionRepository.getByDisasterRecordId(id),
+	]);
+	const [
+		disruptionGeoms,
+		disruptionDivisions,
+		lossesGeoms,
+		lossesDivisions,
+		damagesGeoms,
+		damagesDivisions,
+	] = await Promise.all([
+		DisruptionGeomRepository.getByDisruptionIds(
+			((result.item as any).children || []).map((child: any) => child.id),
+		),
+		DisruptionDivisionRepository.getByDisruptionIds(
+			((result.item as any).children || []).map((child: any) => child.id),
+		),
+		LossesGeomRepository.getByLossIds(
+			((result.item as any).losses || []).map((item: any) => item.id),
+		),
+		LossesDivisionRepository.getByLossIds(
+			((result.item as any).losses || []).map((item: any) => item.id),
+		),
+		DamagesGeomRepository.getByDamageIds(
+			((result.item as any).damages || []).map((item: any) => item.id),
+		),
+		DamagesDivisionRepository.getByDamageIds(
+			((result.item as any).damages || []).map((item: any) => item.id),
+		),
+	]);
+	const disasterRecord = [
+		...disasterRecordGeoms.map((row) => ({
+			kind: "disaster_record_geom",
+			...row,
+		})),
+		...disasterRecordDivisions.map((row) => ({
+			kind: "disaster_record_division",
+			...row,
+		})),
+		...disruptionGeoms.map((row) => ({
+			kind: "disruption_geom",
+			...row,
+		})),
+		...disruptionDivisions.map((row) => ({
+			kind: "disruption_division",
+			...row,
+		})),
+		...lossesGeoms.map((row) => ({
+			kind: "losses_geom",
+			...row,
+		})),
+		...lossesDivisions.map((row) => ({
+			kind: "losses_division",
+			...row,
+		})),
+		...damagesGeoms.map((row) => ({
+			kind: "damages_geom",
+			...row,
+		})),
+		...damagesDivisions.map((row) => ({
+			kind: "damages_division",
+			...row,
+		})),
+	];
 
 	const returnAssignees = userSession
 		? (await getReturnAssigneeUsers(countryAccountsId, userId)).map((user) => ({
@@ -179,7 +202,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
 };
 
 export const action = authActionWithPerm("EditData", async (actionArgs) => {
-	const { request } = actionArgs;
+	const { request, params } = actionArgs;
 	const ctx = new BackendContext(actionArgs);
 	const countryAccountsId = await getCountryAccountsIdFromSession(request);
 	const userSession = authActionGetAuth(actionArgs);
@@ -189,6 +212,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 		ctx,
 		request,
 		formData,
+		routeRecordId: params.id,
 		countryAccountsId,
 		userId: userSession.user.id,
 		recordType: "disaster_records",
@@ -345,8 +369,13 @@ export default function Screen() {
 													</th>
 													<th
 														className="border border-gray-300 px-3 py-2"
-														colSpan={1}
-													/>
+														colSpan={2}
+													>
+														{ctx.t({
+															code: "sector_effects.disruption",
+															msg: "Disruption",
+														})}
+													</th>
 												</tr>
 												<tr>
 													{[
@@ -364,6 +393,7 @@ export default function Screen() {
 															code: "sector_effects.disruption",
 															msg: "Disruption",
 														},
+														{ code: "sector_effects.cost", msg: "Cost" },
 													].map(({ code, msg }, i) => (
 														<th
 															key={`${code}-${i}`}
@@ -392,21 +422,49 @@ export default function Screen() {
 																)}
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
-																{item.disRecSectorsDamageRecoveryCost && (
-																	<span>
+																{item.disRecSectorsDamageRecoveryCost ? (
+																	<div title="Sector damages recovery total cost">
 																		{item.disRecSectorsDamageRecoveryCost}{" "}
 																		{
 																			item.disRecSectorsDamageRecoveryCostCurrency
 																		}
-																	</span>
+																	</div>
+																) : (
+																	<div>-</div>
+																)}
+
+																{item.sectorDamagesRecoveryTotal && item.sectorDamagesRecoveryTotal > 0 ? (
+																	<div title="Sector disaggregation damages recovery total cost">
+																		{item.sectorDamagesRecoveryTotal}
+																		{" "}
+																		{
+																			item.disRecSectorsDamageRecoveryCostCurrency
+																		}
+																	</div>
+																) : (
+																	<div>-</div>
 																)}
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
-																{item.disRecSectorsDamageCost && (
-																	<span>
+																{item.disRecSectorsDamageCost ? (
+																	<div title="Sector damages total cost">
 																		{item.disRecSectorsDamageCost}{" "}
 																		{item.disRecSectorsDamageCostCurrency}
-																	</span>
+																	</div>
+																) : (
+																	<div>-</div>
+																)}
+
+																{item.sectorDamagesTotal && item.sectorDamagesTotal > 0 ? (
+																	<div title="Sector disaggregation damages total cost">
+																		{item.sectorDamagesTotal}
+																		{" "}
+																		{
+																			item.disRecSectorsDamageCostCurrency
+																		}
+																	</div>
+																) : (
+																	<div>-</div>
 																)}
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -417,11 +475,22 @@ export default function Screen() {
 																)}
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
-																{item.disRecSectorsLossesCost && (
-																	<span>
+																{item.disRecSectorsLossesCost ? (
+																	<div>
 																		{item.disRecSectorsLossesCost}{" "}
 																		{item.disRecSectorsLossesCostCurrency}
-																	</span>
+																	</div>
+																) : (
+																	<div>-</div>
+																)}
+
+																{item.sectorLossesTotal && item.sectorLossesTotal > 0 ? (
+																	<div title="Sector disaggregation losses total cost">
+																		{item.sectorLossesTotal}{" "}
+																		{item.disRecSectorsLossesCostCurrency}
+																	</div>
+																) : (
+																	<div>-</div>
 																)}
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -429,6 +498,17 @@ export default function Screen() {
 																	<span>
 																		{ctx.t({ code: "common.yes", msg: "Yes" })}
 																	</span>
+																)}
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																{item.sectorDisruptionTotal && item.sectorDisruptionTotal > 0 ? (
+																	<div title="Sector disaggregation disruption response total cost">
+																		{item.sectorDisruptionTotal}
+																		{" "}
+																		{item.sectorDisruptionTotalCurrency}
+																	</div>
+																) : (
+																	<div>-</div>
 																)}
 															</td>
 														</tr>

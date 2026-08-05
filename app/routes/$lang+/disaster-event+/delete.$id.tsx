@@ -18,6 +18,8 @@ import { DisasterEventRepository } from "~/db/queries/disasterEventRepository";
 import { DisasterRecordsRepository } from "~/db/queries/disasterRecordsRepository";
 import { BASE_UPLOAD_PATH, DISASTER_EVENT_UPLOAD_PATH } from "~/utils/paths";
 import { dr } from "~/db.server";
+import { entityValidationAssignmentDeleteByEntityId } from "~/backend.server/models/entity_validation_assignment";
+import { entityValidationRejectionDeleteByEntityId } from "~/backend.server/models/entity_validation_rejection";
 
 export const loader = authLoaderWithPerm(
 	"DeleteDisasterEvent",
@@ -45,10 +47,7 @@ export const loader = authLoaderWithPerm(
 		return {
 			item: {
 				id: item.id,
-				name:
-					item.nameNational ||
-					item.nameGlobalOrRegional ||
-					item.id,
+				name: item.nameNational || item.nameGlobalOrRegional || item.id,
 			},
 		};
 	},
@@ -78,6 +77,13 @@ export const action = authActionWithPerm(
 		}
 
 		const deletedEvents = await dr.transaction(async (tx) => {
+			await entityValidationAssignmentDeleteByEntityId(
+				id,
+				"disaster_event",
+				tx,
+			);
+			await entityValidationRejectionDeleteByEntityId(id, "disaster_event", tx);
+
 			await DisasterRecordsRepository.unlinkByDisasterEventIdAndCountryAccountsId(
 				id,
 				countryAccountsId,

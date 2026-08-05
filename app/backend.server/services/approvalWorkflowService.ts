@@ -5,7 +5,7 @@ import {
 	disasterEventTable,
 	disasterRecordsTable,
 } from "~/drizzle/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import {
 	entityValidationAssignmentCreate,
 	entityValidationAssignmentDeleteByEntityId,
@@ -210,7 +210,8 @@ async function handleSubmitForValidation(
 		.set({
 			approvalStatus: "waiting-for-validation",
 			submittedByUserId: submittedByUserId,
-			submittedAt: new Date(),
+			submittedAt: sql`CURRENT_TIMESTAMP`,
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(table.id, entityId));
 
@@ -253,6 +254,7 @@ async function handleSubmitAsDraft(
 			validatedAt: null,
 			publishedByUserId: null,
 			publishedAt: null,
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(table.id, entityId));
 
@@ -281,7 +283,8 @@ async function handleSubmitAsValidated(
 		.set({
 			approvalStatus: "validated",
 			validatedByUserId: submittedByUserId,
-			validatedAt: new Date(),
+			validatedAt: sql`CURRENT_TIMESTAMP`,
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(table.id, entityId));
 
@@ -306,9 +309,10 @@ async function handleSubmitAsPublished(
 		.set({
 			approvalStatus: "published",
 			validatedByUserId: submittedByUserId,
-			validatedAt: new Date(),
+			validatedAt: sql`CURRENT_TIMESTAMP`,
 			publishedByUserId: submittedByUserId,
-			publishedAt: new Date(),
+			publishedAt: sql`CURRENT_TIMESTAMP`,
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(table.id, entityId));
 
@@ -332,7 +336,8 @@ async function handleSubmitAsReturned(
 		.set({
 			approvalStatus: "needs-revision",
 			submittedByUserId: submittedByUserId,
-			submittedAt: new Date(),
+			submittedAt: sql`CURRENT_TIMESTAMP`,
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(table.id, entityId));
 }

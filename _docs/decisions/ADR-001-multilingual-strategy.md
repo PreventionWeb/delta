@@ -1,9 +1,11 @@
 # ADR-001: Multi-lingual Strategy
 
 ## Status
+
 Proposed
 
 ## Date
+
 2026-05-12
 
 ## Context
@@ -13,12 +15,14 @@ DELTA is a multi-tenant application supporting UN member states across multiple 
 As part of the Clean Architecture migration, new domains need a proper, standards-based i18n foundation. Decisions here apply to new domains written during the strangler fig migration — the existing system is not replaced wholesale.
 
 Two fundamentally different translation concerns exist and must remain separate:
+
 1. **UI strings** — component labels, button text, form fields. Extracted from source, stored in locale JSON files.
 2. **Content translations** — translatable data stored in the database (event names, sector labels, etc.) managed via Weblate with content-hash IDs.
 
 ## Decision
 
 ### Library — Frontend
+
 New domain presentation layers use **`react-i18next`** with **`remix-i18next`** for SSR hydration.
 
 `remix-i18next` manages the server/client split: the server reads locale files from disk (`i18next-fs-backend`), serialises translations into the HTML payload, and the client hydrates without a separate HTTP fetch. The generic `HttpBackend` is not used — it would cause an internal HTTP round-trip during SSR.
@@ -26,12 +30,15 @@ New domain presentation layers use **`react-i18next`** with **`remix-i18next`** 
 The old `ViewContext.t({code, msg})` system is left untouched until each domain is rewritten via the strangler fig. Old and new systems coexist during migration.
 
 ### Library — Backend (external API surface)
+
 `nestjs-i18n` is adopted only when NestJS exposes external HTTP endpoints. For the current phase (NestJS as application context, no HTTP server), locale is passed as an explicit `string` parameter to every use case `execute()` method — no framework resolver magic.
 
 ### I18nService in the Domain Layer
+
 Each domain exposes an `I18nService` port in its application layer. The service translates server-originated text (validation errors, API error messages, notification strings). It receives `locale: string` as an explicit parameter — it does not read from HTTP context. The infrastructure layer provides the implementation.
 
 ### File Structure
+
 Namespace-per-domain, one file per language per domain:
 
 ```
@@ -62,17 +69,22 @@ The existing flat per-language files (`locales/en.json` etc.) remain for the old
 Resolution is null-safe at every step. The `user.preferredLocale` column is added when the user settings domain is built — the resolver works correctly without it today.
 
 ### External REST API Locale
+
 The external API (`/api/v2/...`) does **not** include lang in the URL path. Locale is resolved from the authenticated token context using the same chain above. Consumers may optionally override per-request via the standard `Accept-Language` HTTP header, which takes precedence when provided.
 
 ### Translation Platform
+
 **Weblate** — already in use, open-source, self-hostable, appropriate for a DPG project. No migration to paid platforms (Lokalise, Crowdin).
 
 ### Key Extraction
+
 Two parallel extraction pipelines:
+
 - **Old system**: custom `scripts/extractor-i18n.ts` (scans `t({code, msg})` syntax). Fixed to exit non-zero on duplicate keys (P1-36).
-- **New domains**: `i18next-parser` (scans `t('key')` syntax). Runs in CI alongside the custom extractor, targeting `locales/` namespace files.
+- **New domains**: `i18next-cli` (scans `t('key')` syntax). Runs in CI alongside the custom extractor, targeting `locales/` namespace files.
 
 ### Formatting
+
 Native `Intl` API for all locale-aware formatting (numbers, currency display, dates). Formatter instances are cached to avoid expensive object reconstruction on each call. Pluralisation uses i18next's built-in `_one`/`_other` suffix convention — no if/else in components.
 
 ## Consequences

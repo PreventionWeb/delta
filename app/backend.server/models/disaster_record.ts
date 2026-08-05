@@ -3,12 +3,16 @@ import { sectorDisasterRecordsRelationTable } from "~/drizzle/schema/sectorDisas
 import { nonecoLossesTable } from "~/drizzle/schema/nonecoLossesTable";
 import { disasterRecordsTable } from "~/drizzle/schema/disasterRecordsTable";
 import { SelectDisasterRecords } from "~/drizzle/schema/disasterRecordsTable";
+import { disasterRecordsGeomTable } from "~/drizzle/schema/disasterRecordsGeomTable";
 import { lossesTable } from "~/drizzle/schema/lossesTable";
 import { damagesTable } from "~/drizzle/schema/damagesTable";
 import { disruptionTable } from "~/drizzle/schema/disruptionTable";
 import { humanCategoryPresenceTable } from "~/drizzle/schema/humanCategoryPresenceTable";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
-import { eq, sql, and } from "drizzle-orm";
+import { divisionTable } from "~/drizzle/schema/divisionTable";
+import { DisasterRecordsGeomRepository } from "~/db/queries/disasterRecordsGeomRepository";
+import { DisasterRecordsDivisionRepository } from "~/db/queries/disasterRecordsDivisionRepository";
+import { eq, sql, and, inArray } from "drizzle-orm";
 
 import {
 	CreateResult,
@@ -25,11 +29,284 @@ import {
 import { deleteAllData as deleteAllDataHumanEffects } from "~/backend.server/handlers/human_effects";
 import { BackendContext } from "../context";
 import { approvalStatusIds } from "~/frontend/approval";
+import { entityValidationAssignmentDeleteByEntityId } from "~/backend.server/models/entity_validation_assignment";
+import { entityValidationRejectionDeleteByEntityId } from "~/backend.server/models/entity_validation_rejection";
 
 export interface DisasterRecordsFields extends Omit<
 	SelectDisasterRecords,
 	"id"
-> {}
+> {
+	spatialFootprint?: unknown;
+}
+
+type SpatialFootprintItem = {
+	id?: string;
+	title?: string;
+	map_option?: string;
+	geojson?: any;
+	geographic_level?: string;
+	[key: string]: unknown;
+};
+
+type GeoJsonLike = {
+	type?: string;
+	geometry?: unknown;
+	features?: unknown;
+	geometries?: unknown;
+	[key: string]: unknown;
+};
+
+function parseSpatialFootprintItems(value: unknown): SpatialFootprintItem[] {
+	if (Array.isArray(value)) {
+		return value.filter((item): item is SpatialFootprintItem => !!item);
+	}
+
+	if (typeof value === "string") {
+		try {
+			const parsed = JSON.parse(value);
+			return Array.isArray(parsed)
+				? parsed.filter((item): item is SpatialFootprintItem => !!item)
+				: [];
+		} catch {
+			return [];
+		}
+	}
+
+	return [];
+}
+
+function isGeoJsonObject(value: unknown): value is GeoJsonLike {
+	return !!value && typeof value === "object";
+}
+
+function isGeoJsonGeometry(value: unknown): value is GeoJsonLike {
+	return isGeoJsonObject(value) && typeof value.type === "string";
+}
+
+function extractGeojsonGeometry(item: SpatialFootprintItem) {
+	if (!isGeoJsonObject(item?.geojson)) {
+		return null;
+	}
+
+	const geojson = item.geojson;
+
+	if (geojson.type === "FeatureCollection") {
+		const features = Array.isArray(geojson.features) ? geojson.features : [];
+		const geometries = features
+			.map((feature) => {
+				if (!isGeoJsonObject(feature)) {
+					return null;
+				}
+
+				return isGeoJsonGeometry(feature.geometry) ? feature.geometry : null;
+			})
+			.filter((geometry): geometry is GeoJsonLike => geometry !== null);
+
+		if (geometries.length === 0) {
+			return null;
+		}
+
+		if (geometries.length === 1) {
+			return geometries[0];
+		}
+
+		return {
+			type: "GeometryCollection",
+			geometries,
+		};
+	}
+
+	if (geojson.type === "Feature") {
+		return isGeoJsonGeometry(geojson.geometry) ? geojson.geometry : null;
+	}
+
+	if (isGeoJsonGeometry(geojson.geometry)) {
+		return geojson.geometry;
+	}
+
+	if (isGeoJsonGeometry(geojson)) {
+		return geojson;
+	}
+
+	return null;
+}
+
+async function syncDisasterRecordSpatialFootprint(
+	tx: Tx,
+	disasterRecordId: string,
+	spatialFootprintValue: unknown,
+) {
+	const items = parseSpatialFootprintItems(spatialFootprintValue);
+	const mapCoordinateItems = items.filter(
+		(item) => item.map_option === "Map coordinates",
+	);
+	const geographicItems = items.filter(
+		(item) => item.map_option === "Geographic level",
+	);
+
+	await DisasterRecordsGeomRepository.deleteByDisasterRecordId(
+		disasterRecordId,
+		tx,
+	);
+	await DisasterRecordsDivisionRepository.deleteByDisasterRecordId(
+		disasterRecordId,
+		tx,
+	);
+
+	if (mapCoordinateItems.length > 0) {
+		await DisasterRecordsGeomRepository.createMany(
+			mapCoordinateItems
+				.map((item) => {
+					const geometry = extractGeojsonGeometry(item);
+					if (!geometry) {
+						return null;
+					}
+
+					return {
+						disasterRecordId,
+						title: typeof item.title === "string" ? item.title : null,
+						geom: sql`ST_MakeValid(ST_GeomFromGeoJSON(${JSON.stringify(geometry)}))`,
+					};
+				})
+				.filter((item): item is NonNullable<typeof item> => item !== null),
+			tx,
+		);
+	}
+
+	if (geographicItems.length > 0) {
+		const divisionIds = Array.from(
+			new Set(
+				geographicItems
+					.map((item) => String(item?.geojson?.properties?.division_id ?? ""))
+					.filter((value) => value.length > 0),
+			),
+		);
+
+		if (divisionIds.length > 0) {
+			const validDivisions = await tx
+				.select({ id: divisionTable.id })
+				.from(divisionTable)
+				.where(inArray(divisionTable.id, divisionIds));
+
+			const validDivisionIds = new Set(validDivisions.map((row) => row.id));
+			const rows = geographicItems
+				.map((item) => String(item?.geojson?.properties?.division_id ?? ""))
+				.filter((value) => validDivisionIds.has(value))
+				.map((divisionId) => ({
+					disasterRecordId,
+					divisionId,
+				}));
+
+			if (rows.length > 0) {
+				await DisasterRecordsDivisionRepository.createMany(rows, tx);
+			}
+		}
+	}
+}
+
+async function loadDisasterRecordSpatialFootprint(
+	tx: Tx,
+	disasterRecordId: string,
+) {
+	const [geomRows, divisionRows] = await Promise.all([
+		tx
+			.select({
+				id: disasterRecordsGeomTable.id,
+				title: disasterRecordsGeomTable.title,
+				geom: sql<string>`ST_AsGeoJSON(${disasterRecordsGeomTable.geom})`,
+			})
+			.from(disasterRecordsGeomTable)
+			.where(eq(disasterRecordsGeomTable.disasterRecordId, disasterRecordId)),
+		DisasterRecordsDivisionRepository.getByDisasterRecordId(
+			disasterRecordId,
+			tx,
+		),
+	]);
+
+	const divisionIds = divisionRows.map(
+		(row: { divisionId: string }) => row.divisionId,
+	);
+	const divisionDetails = divisionIds.length
+		? await tx
+				.select({
+					id: divisionTable.id,
+					name: divisionTable.name,
+					geojson: divisionTable.geojson,
+					importId: divisionTable.importId,
+					nationalId: divisionTable.nationalId,
+					level: divisionTable.level,
+				})
+				.from(divisionTable)
+				.where(inArray(divisionTable.id, divisionIds))
+		: [];
+
+	const divisionsById = new Map(
+		divisionDetails.map((row: (typeof divisionDetails)[number]) => [
+			row.id,
+			row,
+		]),
+	);
+
+	const mapCoordinates = geomRows
+		.map((row: (typeof geomRows)[number]) => {
+			if (!row.geom || typeof row.geom !== "string") {
+				return null;
+			}
+
+			try {
+				const geometry = JSON.parse(row.geom);
+				return {
+					id: row.id,
+					title: row.title,
+					map_option: "Map coordinates",
+					geojson: {
+						type: "Feature",
+						geometry,
+						properties: {},
+					},
+				};
+			} catch {
+				return null;
+			}
+		})
+		.filter((item): item is NonNullable<typeof item> => item !== null);
+
+	const geographic = divisionRows
+		.map((row: { divisionId: string }) => divisionsById.get(row.divisionId))
+		.filter((division): division is NonNullable<typeof division> => !!division)
+		.map((division: NonNullable<(typeof divisionDetails)[number]>) => {
+			const geojson = division.geojson as any;
+			const nameObject = division.name as Record<string, string> | null;
+			const title =
+				nameObject?.en || Object.values(nameObject || {})[0] || division.id;
+
+			return {
+				id: `geographic-${division.id}`,
+				title,
+				map_option: "Geographic level",
+				geographic_level: title,
+				geojson:
+					geojson && typeof geojson === "object"
+						? {
+								...(geojson.type === "Feature"
+									? geojson
+									: { type: "Feature", geometry: geojson, properties: {} }),
+								properties: {
+									...((geojson as any)?.properties || {}),
+									division_id: division.id,
+									division_ids: [division.id],
+									import_id: division.importId,
+									national_id: division.nationalId,
+									level: division.level,
+									name: division.name,
+								},
+							}
+						: null,
+			};
+		});
+
+	return [...mapCoordinates, ...geographic];
+}
 
 // do not change
 export function validate(
@@ -158,13 +435,23 @@ export async function disasterRecordsCreate(
 		}
 	}
 
+	const spatialFootprintValue = (fields as any).spatialFootprint;
+	const { spatialFootprint: _ignoredSpatialFootprint, ...insertValues } =
+		fields as any;
+
 	const res = await tx
 		.insert(disasterRecordsTable)
 		.values({
-			...fields,
+			...insertValues,
 			updatedAt: sql`NOW()`,
 		})
 		.returning({ id: disasterRecordsTable.id });
+
+	await syncDisasterRecordSpatialFootprint(
+		tx,
+		res[0].id,
+		spatialFootprintValue,
+	);
 
 	return { ok: true, id: res[0].id };
 }
@@ -270,10 +557,13 @@ export async function disasterRecordsUpdate(
 	}
 
 	let id = idStr;
+	const spatialFootprintValue = (fields as any).spatialFootprint;
+	const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
+		fields as any;
 	await tx
 		.update(disasterRecordsTable)
 		.set({
-			...fields,
+			...updateValues,
 			updatedAt: sql`NOW()`,
 		})
 		.where(
@@ -282,6 +572,8 @@ export async function disasterRecordsUpdate(
 				eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
 			),
 		);
+
+	await syncDisasterRecordSpatialFootprint(tx, id, spatialFootprintValue);
 
 	await updateTotalsUsingDisasterRecordId(tx, idStr);
 
@@ -522,7 +814,12 @@ export async function disasterRecordsByIdTx(
 		return null;
 	}
 
-	return record[0];
+	const spatialFootprint = await loadDisasterRecordSpatialFootprint(tx, id);
+
+	return {
+		...record[0],
+		spatialFootprint,
+	};
 }
 
 export async function disasterRecordsDeleteById(
@@ -538,15 +835,28 @@ export async function disasterRecordsDeleteById(
 		};
 	}
 
-	// Delete with tenant isolation
-	await dr
-		.delete(disasterRecordsTable)
-		.where(
-			and(
-				eq(disasterRecordsTable.id, idStr),
-				eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
-			),
+	await dr.transaction(async (tx) => {
+		await entityValidationAssignmentDeleteByEntityId(
+			idStr,
+			"disaster_records",
+			tx,
 		);
+		await entityValidationRejectionDeleteByEntityId(
+			idStr,
+			"disaster_records",
+			tx,
+		);
+
+		// Delete with tenant isolation
+		await tx
+			.delete(disasterRecordsTable)
+			.where(
+				and(
+					eq(disasterRecordsTable.id, idStr),
+					eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
+				),
+			);
+	});
 	return { ok: true };
 }
 
@@ -642,6 +952,17 @@ export async function deleteAllDataByDisasterRecordId(
 		// -------------------------------------
 		// DELETE parent disaster record
 		// -------------------------------------
+		await entityValidationAssignmentDeleteByEntityId(
+			idStr,
+			"disaster_records",
+			tx,
+		);
+		await entityValidationRejectionDeleteByEntityId(
+			idStr,
+			"disaster_records",
+			tx,
+		);
+
 		await tx
 			.delete(disasterRecordsTable)
 			.where(

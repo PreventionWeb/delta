@@ -1,8 +1,5 @@
 import { ValidationError } from "~/shared/errors";
 
-/** Maps a BCP 47 locale code to its translated string value, e.g. `{ en: "Title", fr: "Titre" }`. */
-export type LocaleMap = Record<string, string>;
-
 /**
  * Who can see a published notice.
  * Mirrors the `audience` constraint on the `notices` DB table.
@@ -15,10 +12,15 @@ export interface NoticeProps {
 	id: string;
 	/** The tenant this notice belongs to. Maps to `country_accounts_id` in the DB. */
 	tenantId: string;
-	/** Locale-keyed title map. NOT NULL in the DB — a notice must always have a title. */
-	titleJson: LocaleMap;
-	/** Locale-keyed body map. Null when no body has been authored yet. */
-	bodyJson: LocaleMap | null;
+	/**
+	 * Plain-text title, in the single language recorded in `locale` (ADR-008: content is
+	 * single-locale — no translation, no locale-map). NOT NULL in the DB.
+	 */
+	title: string;
+	/** Plain-text body, in the same language as `title`. Null when no body has been authored yet. */
+	body: string | null;
+	/** BCP-47 locale the title/body were authored in. */
+	locale: string;
 	/** Whether this notice is visible to its audience. */
 	isPublished: boolean;
 	/** Who the notice is targeted at. */
@@ -48,8 +50,8 @@ export class Notice {
 	 * Validated factory for `Notice` instances.
 	 *
 	 * Enforces two invariants before constructing the entity:
-	 * 1. `titleJson` must have at least one key whose trimmed value is non-empty,
-	 *    because a notice without any title is meaningless.
+	 * 1. `title` must be non-empty after trimming, because a notice without a title
+	 *    is meaningless.
 	 * 2. `publishedAt` must be null when `isPublished` is false, because setting
 	 *    a publication timestamp on a draft introduces a data-integrity contradiction
 	 *    that downstream use-cases cannot safely resolve.
@@ -57,13 +59,8 @@ export class Notice {
 	 * @throws {ValidationError} when either invariant is violated.
 	 */
 	static create(props: NoticeProps): Notice {
-		const hasValidTitle = Object.values(props.titleJson).some(
-			(v) => v.trim().length > 0,
-		);
-		if (!hasValidTitle) {
-			throw new ValidationError(
-				"titleJson must have at least one non-empty locale entry",
-			);
+		if (props.title.trim().length === 0) {
+			throw new ValidationError("title must not be empty");
 		}
 
 		if (!props.isPublished && props.publishedAt !== null) {
@@ -75,6 +72,21 @@ export class Notice {
 		return new Notice(props);
 	}
 
+	/**
+	 * Publication-timestamp transition rule, shared by Create and Update use cases (previously
+	 * duplicated with slightly different shapes — SOLID review). Stamp on first publish, clear
+	 * on unpublish, leave untouched if already published and staying published.
+	 */
+	static computePublishedAt(params: {
+		willBePublished: boolean;
+		wasPublished: boolean;
+		existingPublishedAt: Date | null;
+		now: Date;
+	}): Date | null {
+		if (!params.willBePublished) return null;
+		return params.wasPublished ? params.existingPublishedAt : params.now;
+	}
+
 	get id(): string {
 		return this.props.id;
 	}
@@ -83,12 +95,16 @@ export class Notice {
 		return this.props.tenantId;
 	}
 
-	get titleJson(): LocaleMap {
-		return this.props.titleJson;
+	get title(): string {
+		return this.props.title;
 	}
 
-	get bodyJson(): LocaleMap | null {
-		return this.props.bodyJson;
+	get body(): string | null {
+		return this.props.body;
+	}
+
+	get locale(): string {
+		return this.props.locale;
 	}
 
 	get isPublished(): boolean {

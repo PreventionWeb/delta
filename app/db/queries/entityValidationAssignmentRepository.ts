@@ -17,12 +17,17 @@ export const EntityValidationAssignmentRepository = {
 		entityType: string,
 		tx?: Tx,
 	) => {
+		const entityTypes =
+			entityType === "disaster_records"
+				? ["disaster_records", "disaster_record"]
+				: [entityType];
+
 		return (tx ?? dr)
 			.delete(entityValidationAssignmentTable)
 			.where(
 				and(
 					inArray(entityValidationAssignmentTable.entityId, entityId),
-					eq(entityValidationAssignmentTable.entityType, entityType),
+					inArray(entityValidationAssignmentTable.entityType, entityTypes),
 				),
 			);
 	},

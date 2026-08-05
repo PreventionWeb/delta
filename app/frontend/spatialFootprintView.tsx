@@ -28,13 +28,13 @@ export function SpatialFootprintView({
 		return (
 			<>
 				<div>
-					<p>
+					<p><strong>
 						{ctx.t({
 							code: "record.spatial_footprint",
 							msg: "Spatial footprint",
 						})}
 						:
-					</p>
+					</strong></p>
 
 					{(() => {
 						try {

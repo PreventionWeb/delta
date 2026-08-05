@@ -136,6 +136,79 @@ export const geoJSONSchema = z.union([
 	featureCollectionSchema,
 ]);
 
+export function normalizeGeoJSONToFeature(parsedGeoJSON: any): {
+	feature: {
+		type: "Feature";
+		geometry: any;
+		properties: Record<string, any>;
+	};
+	geometry: any;
+} {
+	if (!parsedGeoJSON || typeof parsedGeoJSON !== "object") {
+		throw new Error("Uploaded geometry must be a valid GeoJSON object");
+	}
+
+	if (parsedGeoJSON.type === "FeatureCollection") {
+		if (
+			!Array.isArray(parsedGeoJSON.features) ||
+			parsedGeoJSON.features.length === 0
+		) {
+			throw new Error("Uploaded GeoJSON FeatureCollection has no features");
+		}
+
+		const firstFeature = parsedGeoJSON.features[0];
+		const firstGeometry = firstFeature?.geometry;
+		if (!firstGeometry) {
+			throw new Error("Uploaded GeoJSON feature has no geometry");
+		}
+
+		return {
+			feature: {
+				type: "Feature",
+				geometry: firstGeometry,
+				properties:
+					firstFeature?.properties &&
+					typeof firstFeature.properties === "object"
+						? firstFeature.properties
+						: {},
+			},
+			geometry: firstGeometry,
+		};
+	}
+
+	if (parsedGeoJSON.type === "Feature") {
+		if (!parsedGeoJSON.geometry) {
+			throw new Error("Uploaded GeoJSON feature has no geometry");
+		}
+
+		return {
+			feature: {
+				type: "Feature",
+				geometry: parsedGeoJSON.geometry,
+				properties:
+					parsedGeoJSON.properties &&
+					typeof parsedGeoJSON.properties === "object"
+						? parsedGeoJSON.properties
+						: {},
+			},
+			geometry: parsedGeoJSON.geometry,
+		};
+	}
+
+	if (!parsedGeoJSON.type || typeof parsedGeoJSON.type !== "string") {
+		throw new Error("Uploaded geometry is missing a valid GeoJSON type");
+	}
+
+	return {
+		feature: {
+			type: "Feature",
+			geometry: parsedGeoJSON,
+			properties: {},
+		},
+		geometry: parsedGeoJSON,
+	};
+}
+
 /**
  * Validates GeoJSON structure
  * @param data - The GeoJSON data to validate

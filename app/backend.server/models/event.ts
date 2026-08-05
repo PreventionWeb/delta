@@ -10,18 +10,25 @@ import {
 	disasterEventTable,
 	disasterEventTableConstrains,
 } from "~/drizzle/schema/disasterEventTable";
+import { disasterEventGeomTable } from "~/drizzle/schema/disasterEventGeomTable";
 import {
 	hazardousEventTable,
 	InsertHazardousEvent,
 	hazardousEventTableConstraits,
 } from "~/drizzle/schema/hazardousEventTable";
+import { hazardousEventGeomTable } from "~/drizzle/schema/hazardousEventGeomTable";
+import { divisionTable } from "~/drizzle/schema/divisionTable";
 import { eventRelationshipTable } from "~/drizzle/schema/eventRelationshipTable";
 import { eventTable, EventInsert } from "~/drizzle/schema/eventTable";
+import { DisasterEventDivisionRepository } from "~/db/queries/disasterEventDivisionRepository";
+import { DisasterEventGeomRepository } from "~/db/queries/disasterEventGeomRepository";
+import { HazardousEventDivisionRepository } from "~/db/queries/hazardousEventDivisionRepository";
+import { HazardousEventGeomRepository } from "~/db/queries/hazardousEventGeomRepository";
 import { checkConstraintError } from "./common";
 
 import { dr, Tx } from "~/db.server";
 
-import { eq, sql, and, getTableName } from "drizzle-orm";
+import { eq, sql, and, getTableName, inArray } from "drizzle-orm";
 
 import { ContentRepeaterUploadFile } from "~/components/ContentRepeater/UploadFile";
 import { getRequiredAndSetToNullHipFields } from "./hip_hazard_picker";
@@ -37,6 +44,8 @@ import {
 	getTypeById,
 	queryHipEntity,
 } from "~/backend.server/models/hip";
+import { entityValidationAssignmentDeleteByEntityId } from "~/backend.server/models/entity_validation_assignment";
+import { entityValidationRejectionDeleteByEntityId } from "~/backend.server/models/entity_validation_rejection";
 
 interface TemporalValidationResult {
 	isValid: boolean;
@@ -62,6 +71,458 @@ export interface HazardousEventFields
 	submittedByUserId: string | null;
 	validatedByUserId: string | null;
 	publishedByUserId: string | null;
+}
+
+type SpatialFootprintItem = {
+	id?: string;
+	title?: string;
+	map_option?: string;
+	geojson?: any;
+	geographic_level?: string;
+	[key: string]: unknown;
+};
+
+type GeoJsonLike = {
+	type?: unknown;
+	geometry?: unknown;
+	features?: unknown;
+	geometries?: unknown;
+	[key: string]: unknown;
+};
+
+function parseSpatialFootprintItems(value: unknown): SpatialFootprintItem[] {
+	if (Array.isArray(value)) {
+		return value.filter((item): item is SpatialFootprintItem => !!item);
+	}
+
+	if (typeof value === "string") {
+		try {
+			const parsed = JSON.parse(value);
+			return Array.isArray(parsed)
+				? parsed.filter((item): item is SpatialFootprintItem => !!item)
+				: [];
+		} catch {
+			return [];
+		}
+	}
+
+	return [];
+}
+
+function isGeoJsonObject(value: unknown): value is GeoJsonLike {
+	return !!value && typeof value === "object";
+}
+
+function isGeoJsonGeometry(value: unknown): value is GeoJsonLike {
+	return isGeoJsonObject(value) && typeof value.type === "string";
+}
+
+function extractGeojsonGeometry(item: SpatialFootprintItem) {
+	if (!isGeoJsonObject(item?.geojson)) {
+		return null;
+	}
+
+	const geojson = item.geojson;
+
+	if (geojson.type === "FeatureCollection") {
+		const features = Array.isArray(geojson.features) ? geojson.features : [];
+		const geometries = features
+			.map((feature) => {
+				if (!isGeoJsonObject(feature)) {
+					return null;
+				}
+
+				return isGeoJsonGeometry(feature.geometry) ? feature.geometry : null;
+			})
+			.filter((geometry): geometry is GeoJsonLike => geometry !== null);
+
+		if (geometries.length === 0) {
+			return null;
+		}
+
+		if (geometries.length === 1) {
+			return geometries[0];
+		}
+
+		return {
+			type: "GeometryCollection",
+			geometries,
+		};
+	}
+
+	if (geojson.type === "Feature") {
+		return isGeoJsonGeometry(geojson.geometry) ? geojson.geometry : null;
+	}
+
+	if (isGeoJsonGeometry(geojson.geometry)) {
+		return geojson.geometry;
+	}
+
+	if (isGeoJsonGeometry(geojson)) {
+		return geojson;
+	}
+
+	return null;
+}
+
+async function syncDisasterEventSpatialFootprint(
+	tx: Tx,
+	disasterEventId: string,
+	spatialFootprintValue: unknown,
+) {
+	const items = parseSpatialFootprintItems(spatialFootprintValue);
+	const mapCoordinateItems = items.filter(
+		(item) => item.map_option === "Map coordinates",
+	);
+	const geographicItems = items.filter(
+		(item) => item.map_option === "Geographic level",
+	);
+
+	await DisasterEventGeomRepository.deleteByDisasterEventId(
+		disasterEventId,
+		tx,
+	);
+	await DisasterEventDivisionRepository.deleteByDisasterEventId(
+		disasterEventId,
+		tx,
+	);
+
+	if (mapCoordinateItems.length > 0) {
+		await DisasterEventGeomRepository.createMany(
+			mapCoordinateItems
+				.map((item) => {
+					const geometry = extractGeojsonGeometry(item);
+					if (!geometry) {
+						return null;
+					}
+
+					return {
+						disasterEventId,
+						title: typeof item.title === "string" ? item.title : null,
+						geom: sql`ST_MakeValid(ST_GeomFromGeoJSON(${JSON.stringify(geometry)}))`,
+					};
+				})
+				.filter((item): item is NonNullable<typeof item> => item !== null),
+			tx,
+		);
+	}
+
+	if (geographicItems.length > 0) {
+		const divisionIds = Array.from(
+			new Set(
+				geographicItems
+					.map((item) => String(item?.geojson?.properties?.division_id ?? ""))
+					.filter((value) => value.length > 0),
+			),
+		);
+
+		if (divisionIds.length > 0) {
+			const validDivisions = await tx
+				.select({ id: divisionTable.id })
+				.from(divisionTable)
+				.where(inArray(divisionTable.id, divisionIds));
+
+			const validDivisionIds = new Set(validDivisions.map((row) => row.id));
+			const rows = geographicItems
+				.map((item) => String(item?.geojson?.properties?.division_id ?? ""))
+				.filter((value) => validDivisionIds.has(value))
+				.map((divisionId) => ({
+					disasterEventId,
+					divisionId,
+				}));
+
+			if (rows.length > 0) {
+				await DisasterEventDivisionRepository.createMany(rows, tx);
+			}
+		}
+	}
+}
+
+async function loadDisasterEventSpatialFootprint(
+	tx: Tx,
+	disasterEventId: string,
+) {
+	const [geomRows, divisionRows] = await Promise.all([
+		tx
+			.select({
+				id: disasterEventGeomTable.id,
+				title: disasterEventGeomTable.title,
+				geom: sql<string>`ST_AsGeoJSON(${disasterEventGeomTable.geom})`,
+			})
+			.from(disasterEventGeomTable)
+			.where(eq(disasterEventGeomTable.disasterEventId, disasterEventId)),
+		DisasterEventDivisionRepository.getByDisasterEventId(disasterEventId, tx),
+	]);
+
+	const divisionIds = divisionRows.map(
+		(row: { divisionId: string }) => row.divisionId,
+	);
+	const divisionDetails = divisionIds.length
+		? await tx
+				.select({
+					id: divisionTable.id,
+					name: divisionTable.name,
+					geojson: divisionTable.geojson,
+					importId: divisionTable.importId,
+					nationalId: divisionTable.nationalId,
+					level: divisionTable.level,
+				})
+				.from(divisionTable)
+				.where(inArray(divisionTable.id, divisionIds))
+		: [];
+
+	const divisionsById = new Map(
+		divisionDetails.map((row: (typeof divisionDetails)[number]) => [
+			row.id,
+			row,
+		]),
+	);
+
+	const mapCoordinates = geomRows
+		.map((row: (typeof geomRows)[number]) => {
+			if (!row.geom || typeof row.geom !== "string") {
+				return null;
+			}
+
+			try {
+				const geometry = JSON.parse(row.geom);
+				return {
+					id: row.id,
+					title: row.title,
+					map_option: "Map coordinates",
+					geojson: {
+						type: "Feature",
+						geometry,
+						properties: {},
+					},
+				};
+			} catch {
+				return null;
+			}
+		})
+		.filter((item): item is NonNullable<typeof item> => item !== null);
+
+	const geographic = divisionRows
+		.map((row: { divisionId: string }) => divisionsById.get(row.divisionId))
+		.filter((division): division is NonNullable<typeof division> => !!division)
+		.map((division: NonNullable<(typeof divisionDetails)[number]>) => {
+			const geojson = division.geojson as any;
+			const nameObject = division.name as Record<string, string> | null;
+			const title =
+				nameObject?.en || Object.values(nameObject || {})[0] || division.id;
+			const divisionProperties = {
+				division_id: division.id,
+				division_ids: [division.id],
+				import_id: division.importId,
+				national_id: division.nationalId,
+				level: division.level,
+				name: division.name,
+			};
+			const geographicGeojson =
+				geojson && typeof geojson === "object"
+					? {
+							...(geojson.type === "Feature"
+								? geojson
+								: { type: "Feature", geometry: geojson, properties: {} }),
+							properties: {
+								...((geojson as any)?.properties || {}),
+								...divisionProperties,
+							},
+						}
+					: {
+							type: "Feature",
+							geometry: null,
+							properties: divisionProperties,
+						};
+
+			return {
+				id: `geographic-${division.id}`,
+				title,
+				map_option: "Geographic level",
+				division_id: division.id,
+				geographic_level: title,
+				geojson: geographicGeojson,
+			};
+		});
+
+	return [...mapCoordinates, ...geographic];
+}
+
+async function syncHazardousEventSpatialFootprint(
+	tx: Tx,
+	hazardousEventId: string,
+	spatialFootprintValue: unknown,
+) {
+	const items = parseSpatialFootprintItems(spatialFootprintValue);
+	const mapCoordinateItems = items.filter(
+		(item) => item.map_option === "Map coordinates",
+	);
+	const geographicItems = items.filter(
+		(item) => item.map_option === "Geographic level",
+	);
+
+	await HazardousEventGeomRepository.deleteByHazardousEventId(
+		hazardousEventId,
+		tx,
+	);
+	await HazardousEventDivisionRepository.deleteByHazardousEventId(
+		hazardousEventId,
+		tx,
+	);
+
+	if (mapCoordinateItems.length > 0) {
+		await HazardousEventGeomRepository.createMany(
+			mapCoordinateItems
+				.map((item) => {
+					const geometry = extractGeojsonGeometry(item);
+					if (!geometry) {
+						return null;
+					}
+
+					return {
+						hazardousEventId,
+						title: typeof item.title === "string" ? item.title : null,
+						geom: sql`ST_MakeValid(ST_GeomFromGeoJSON(${JSON.stringify(geometry)}))`,
+					};
+				})
+				.filter((item): item is NonNullable<typeof item> => item !== null),
+			tx,
+		);
+	}
+
+	if (geographicItems.length > 0) {
+		const divisionIds = Array.from(
+			new Set(
+				geographicItems
+					.map((item) => String(item?.geojson?.properties?.division_id ?? ""))
+					.filter((value) => value.length > 0),
+			),
+		);
+
+		if (divisionIds.length > 0) {
+			const validDivisions = await tx
+				.select({ id: divisionTable.id })
+				.from(divisionTable)
+				.where(inArray(divisionTable.id, divisionIds));
+
+			const validDivisionIds = new Set(validDivisions.map((row) => row.id));
+			const rows = geographicItems
+				.map((item) => String(item?.geojson?.properties?.division_id ?? ""))
+				.filter((value) => validDivisionIds.has(value))
+				.map((divisionId) => ({
+					hazardousEventId,
+					divisionId,
+				}));
+
+			if (rows.length > 0) {
+				await HazardousEventDivisionRepository.createMany(rows, tx);
+			}
+		}
+	}
+}
+
+async function loadHazardousEventSpatialFootprint(
+	tx: Tx,
+	hazardousEventId: string,
+) {
+	const [geomRows, divisionRows] = await Promise.all([
+		tx
+			.select({
+				id: hazardousEventGeomTable.id,
+				title: hazardousEventGeomTable.title,
+				geom: sql<string>`ST_AsGeoJSON(${hazardousEventGeomTable.geom})`,
+			})
+			.from(hazardousEventGeomTable)
+			.where(eq(hazardousEventGeomTable.hazardousEventId, hazardousEventId)),
+		HazardousEventDivisionRepository.getByHazardousEventId(
+			hazardousEventId,
+			tx,
+		),
+	]);
+
+	const divisionIds = divisionRows.map(
+		(row: { divisionId: string }) => row.divisionId,
+	);
+	const divisionDetails = divisionIds.length
+		? await tx
+				.select({
+					id: divisionTable.id,
+					name: divisionTable.name,
+					geojson: divisionTable.geojson,
+					importId: divisionTable.importId,
+					nationalId: divisionTable.nationalId,
+					level: divisionTable.level,
+				})
+				.from(divisionTable)
+				.where(inArray(divisionTable.id, divisionIds))
+		: [];
+
+	const divisionsById = new Map(
+		divisionDetails.map((row: (typeof divisionDetails)[number]) => [
+			row.id,
+			row,
+		]),
+	);
+
+	const mapCoordinates = geomRows
+		.map((row: (typeof geomRows)[number]) => {
+			if (!row.geom || typeof row.geom !== "string") {
+				return null;
+			}
+
+			try {
+				const geometry = JSON.parse(row.geom);
+				return {
+					id: row.id,
+					title: row.title,
+					map_option: "Map coordinates",
+					geojson: {
+						type: "Feature",
+						geometry,
+						properties: {},
+					},
+				};
+			} catch {
+				return null;
+			}
+		})
+		.filter((item): item is NonNullable<typeof item> => item !== null);
+
+	const geographic = divisionRows
+		.map((row: { divisionId: string }) => divisionsById.get(row.divisionId))
+		.filter((division): division is NonNullable<typeof division> => !!division)
+		.map((division: NonNullable<(typeof divisionDetails)[number]>) => {
+			const geojson = division.geojson as any;
+			const nameObject = division.name as Record<string, string> | null;
+			const title =
+				nameObject?.en || Object.values(nameObject || {})[0] || division.id;
+
+			return {
+				id: `geographic-${division.id}`,
+				title,
+				map_option: "Geographic level",
+				geographic_level: title,
+				geojson:
+					geojson && typeof geojson === "object"
+						? {
+								...(geojson.type === "Feature"
+									? geojson
+									: { type: "Feature", geometry: geojson, properties: {} }),
+								properties: {
+									...((geojson as any)?.properties || {}),
+									division_id: division.id,
+									division_ids: [division.id],
+									import_id: division.importId,
+									national_id: division.nationalId,
+									level: division.level,
+									name: division.name,
+								},
+							}
+						: null,
+			};
+		});
+
+	return [...mapCoordinates, ...geographic];
 }
 
 export function validate(
@@ -200,15 +661,24 @@ export async function hazardousEventCreate(
 	let values = {
 		...fields,
 	};
+	const spatialFootprintValue = (fields as any).spatialFootprint;
+	const { spatialFootprint: _ignoredSpatialFootprint, ...insertValues } =
+		values as any;
 	try {
 		const [insertedHazardousEvent] = await tx
 			.insert(hazardousEventTable)
 			.values({
-				...values,
+				...insertValues,
 				id: eventId,
-				createdAt: new Date(),
+				createdAt: sql`CURRENT_TIMESTAMP`,
 			})
 			.returning();
+
+		await syncHazardousEventSpatialFootprint(
+			tx,
+			insertedHazardousEvent.id,
+			spatialFootprintValue,
+		);
 
 		const createByUserId = fields.createdByUserId;
 		if (createByUserId) {
@@ -459,6 +929,10 @@ export async function hazardousEventUpdate(
 	// All validations passed, proceed with transaction
 	return await tx.transaction(async (tx) => {
 		try {
+			const spatialFootprintValue = (fields as any).spatialFootprint;
+			const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
+				fields as any;
+
 			// 3. Handle parent relationship updates if needed
 			if (fields.parent !== undefined) {
 				// Delete existing parent relationship if any
@@ -485,11 +959,17 @@ export async function hazardousEventUpdate(
 			const [updatedHazardousEvent] = await tx
 				.update(hazardousEventTable)
 				.set({
-					...fields,
-					updatedAt: new Date(),
+					...updateValues,
+					updatedAt: sql`CURRENT_TIMESTAMP`,
 				})
 				.where(eq(hazardousEventTable.id, id))
 				.returning();
+
+			await syncHazardousEventSpatialFootprint(
+				tx,
+				updatedHazardousEvent.id,
+				spatialFootprintValue,
+			);
 
 			const updatedByUserId = fields.updatedByUserId;
 			if (updatedByUserId) {
@@ -534,7 +1014,7 @@ export async function hazardousEventUpdateApprovalStatus(
 ): Promise<UpdateResult<HazardousEventFields>> {
 	await dr
 		.update(hazardousEventTable)
-		.set({ approvalStatus: status, updatedAt: new Date() })
+		.set({ approvalStatus: status, updatedAt: sql`CURRENT_TIMESTAMP` })
 		.where(eq(hazardousEventTable.id, id))
 		.returning();
 
@@ -555,7 +1035,7 @@ export async function hazardousEventUpdateApprovalStatusOnGoing(
 			validatedAt: null,
 			publishedByUserId: null,
 			publishedAt: null,
-			updatedAt: new Date(),
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(hazardousEventTable.id, id))
 		.returning();
@@ -574,7 +1054,7 @@ export async function hazardousEventUpdateApprovalStatusNeedRevision(
 			validatedAt: null,
 			publishedByUserId: null,
 			publishedAt: null,
-			updatedAt: new Date(),
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(hazardousEventTable.id, id))
 		.returning();
@@ -591,10 +1071,10 @@ export async function hazardousEventUpdateApprovalStatusValidate(
 		.set({
 			approvalStatus: "validated",
 			validatedByUserId: validatedByUserId,
-			validatedAt: new Date(),
+			validatedAt: sql`CURRENT_TIMESTAMP`,
 			publishedByUserId: null,
 			publishedAt: null,
-			updatedAt: new Date(),
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(hazardousEventTable.id, id))
 		.returning();
@@ -611,10 +1091,10 @@ export async function hazardousEventUpdateApprovalStatusPublish(
 		.set({
 			approvalStatus: "published",
 			validatedByUserId: publishedByUserId,
-			validatedAt: new Date(),
+			validatedAt: sql`CURRENT_TIMESTAMP`,
 			publishedByUserId: publishedByUserId,
-			publishedAt: new Date(),
-			updatedAt: new Date(),
+			publishedAt: sql`CURRENT_TIMESTAMP`,
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(hazardousEventTable.id, id))
 		.returning();
@@ -759,6 +1239,10 @@ export async function hazardousEventUpdateByIdAndCountryAccountsId(
 	// All validations passed, proceed with transaction
 	return await tx.transaction(async (tx) => {
 		try {
+			const spatialFootprintValue = (fields as any).spatialFootprint;
+			const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
+				fields as any;
+
 			// 3. Handle parent relationship updates if needed
 			if (fields.parent !== undefined) {
 				// Delete existing parent relationship if any
@@ -782,14 +1266,20 @@ export async function hazardousEventUpdateByIdAndCountryAccountsId(
 			}
 
 			// 3. Update the hazardous event
-			await tx
+			const [updatedHazardousEvent] = await tx
 				.update(hazardousEventTable)
 				.set({
-					...fields,
-					updatedAt: new Date(),
+					...updateValues,
+					updatedAt: sql`CURRENT_TIMESTAMP`,
 				})
 				.where(eq(hazardousEventTable.id, id))
 				.returning();
+
+			await syncHazardousEventSpatialFootprint(
+				tx,
+				updatedHazardousEvent.id,
+				spatialFootprintValue,
+			);
 
 			// 5. Process attachments
 			if (Array.isArray(fields?.attachments)) {
@@ -1116,8 +1606,7 @@ export async function hazardousEventBasicInfoById(
 				eq(hazardousEventTable.id, id),
 				eq(hazardousEventTable.countryAccountsId, countryAccountsId),
 			)
-		: eq(hazardousEventTable.id, id); // For public/system access
-
+		: eq(hazardousEventTable.id, id);
 	const event = await dr.query.hazardousEventTable.findFirst({
 		where: whereClause,
 		with: {
@@ -1199,6 +1688,7 @@ export async function hazardousEventById(
 	if (!hazardousEvent) {
 		throw new Error("hazardous event not found");
 	}
+	const spatialFootprint = await loadHazardousEventSpatialFootprint(dr, id);
 	const event = hazardousEvent.event;
 	if (!event) {
 		const selfInfo = await basicInfo(id);
@@ -1207,6 +1697,7 @@ export async function hazardousEventById(
 		}
 		return {
 			...selfInfo,
+			spatialFootprint,
 			parent: null,
 			children: [],
 		};
@@ -1228,6 +1719,7 @@ export async function hazardousEventById(
 
 	return {
 		...selfInfo,
+		spatialFootprint,
 		parent: parentInfo,
 		children: childrenInfo.filter((info) => info !== null),
 	};
@@ -1274,6 +1766,17 @@ export async function hazardousEventDelete(
 		}
 
 		await dr.transaction(async (tx) => {
+			await entityValidationAssignmentDeleteByEntityId(
+				id,
+				"hazardous_event",
+				tx,
+			);
+			await entityValidationRejectionDeleteByEntityId(
+				id,
+				"hazardous_event",
+				tx,
+			);
+
 			await tx
 				.delete(hazardousEventTable)
 				.where(and(eq(hazardousEventTable.id, id)));
@@ -1368,9 +1871,9 @@ export async function disasterEventCreate(
 		.returning({ id: eventTable.id });
 	eventId = res[0].id;
 
-	let values: DisasterEventFields = {
-		...fields,
-	};
+	const spatialFootprintValue = (fields as any).spatialFootprint;
+	const { spatialFootprint: _ignoredSpatialFootprint, ...values } =
+		fields as any;
 	try {
 		const [insertedDisasterEvent] = await tx
 			.insert(disasterEventTable)
@@ -1379,6 +1882,12 @@ export async function disasterEventCreate(
 				id: eventId,
 			})
 			.returning();
+
+		await syncDisasterEventSpatialFootprint(
+			tx,
+			insertedDisasterEvent.id,
+			spatialFootprintValue,
+		);
 
 		const createdByUserId = fields.createdByUserId;
 		if (createdByUserId) {
@@ -1488,10 +1997,14 @@ export async function disasterEventUpdate(
 	}
 
 	try {
+		const spatialFootprintValue = (fields as any).spatialFootprint;
+		const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
+			fields as any;
 		const [updatedDisasterEvent] = await tx
 			.update(disasterEventTable)
 			.set({
-				...fields,
+				...updateValues,
+				updatedAt: sql`CURRENT_TIMESTAMP`,
 			})
 			.where(
 				and(
@@ -1500,6 +2013,12 @@ export async function disasterEventUpdate(
 				),
 			)
 			.returning();
+
+		await syncDisasterEventSpatialFootprint(
+			tx,
+			updatedDisasterEvent.id,
+			spatialFootprintValue,
+		);
 
 		const updatedByUserId = fields.updatedByUserId;
 		if (updatedByUserId) {
@@ -1593,17 +2112,28 @@ export async function disasterEventUpdateByIdAndCountryAccountsId(
 	}
 
 	try {
-		await tx
+		const spatialFootprintValue = (fields as any).spatialFootprint;
+		const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
+			fields as any;
+		const [updatedDisasterEvent] = await tx
 			.update(disasterEventTable)
 			.set({
-				...fields,
+				...updateValues,
+				updatedAt: sql`CURRENT_TIMESTAMP`,
 			})
 			.where(
 				and(
 					eq(disasterEventTable.id, id),
 					eq(disasterEventTable.countryAccountsId, countryAccountsId),
 				),
-			);
+			)
+			.returning();
+
+		await syncDisasterEventSpatialFootprint(
+			tx,
+			updatedDisasterEvent.id,
+			spatialFootprintValue,
+		);
 
 		// no-op: disaster event attachments are no longer stored in disaster_event.attachments
 	} catch (error: any) {
@@ -1623,7 +2153,7 @@ export async function disasterEventUpdateApprovalStatus(
 ): Promise<UpdateResult<DisasterEventFields>> {
 	await dr
 		.update(disasterEventTable)
-		.set({ approvalStatus: status, updatedAt: new Date() })
+		.set({ approvalStatus: status, updatedAt: sql`CURRENT_TIMESTAMP` })
 		.where(eq(disasterEventTable.id, id))
 		.returning();
 
@@ -1644,7 +2174,7 @@ export async function disasterEventUpdateApprovalStatusOnGoing(
 			validatedAt: null,
 			publishedByUserId: null,
 			publishedAt: null,
-			updatedAt: new Date(),
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(disasterEventTable.id, id))
 		.returning();
@@ -1663,7 +2193,7 @@ export async function disasterEventUpdateApprovalStatusNeedRevision(
 			validatedAt: null,
 			publishedByUserId: null,
 			publishedAt: null,
-			updatedAt: new Date(),
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(disasterEventTable.id, id))
 		.returning();
@@ -1680,10 +2210,10 @@ export async function disasterEventUpdateApprovalStatusValidate(
 		.set({
 			approvalStatus: "validated",
 			validatedByUserId: validatedByUserId,
-			validatedAt: new Date(),
+			validatedAt: sql`CURRENT_TIMESTAMP`,
 			publishedByUserId: null,
 			publishedAt: null,
-			updatedAt: new Date(),
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(disasterEventTable.id, id))
 		.returning();
@@ -1700,10 +2230,10 @@ export async function disasterEventUpdateApprovalStatusPublish(
 		.set({
 			approvalStatus: "published",
 			validatedByUserId: publishedByUserId,
-			validatedAt: new Date(),
+			validatedAt: sql`CURRENT_TIMESTAMP`,
 			publishedByUserId: publishedByUserId,
-			publishedAt: new Date(),
-			updatedAt: new Date(),
+			publishedAt: sql`CURRENT_TIMESTAMP`,
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(disasterEventTable.id, id))
 		.returning();
@@ -1795,14 +2325,20 @@ export async function disasterEventById(ctx: BackendContext, id: any) {
 			? hipEntity
 			: undefined;
 
+	const spatialFootprint = await loadDisasterEventSpatialFootprint(dr, id);
+
 	return {
 		...disasterEvent,
+		spatialFootprint,
 		hazardousEvent: hazardousEvent || undefined,
 		hipHazard: hipHazard || undefined,
 		hipCluster: hipCluster || undefined,
 		hipType: hipType || undefined,
 		event: event || undefined,
-		disasterEvent: disasterEvent, // Self-reference for backward compatibility
+		disasterEvent: {
+			...disasterEvent,
+			spatialFootprint,
+		}, // Self-reference for backward compatibility
 	};
 }
 
@@ -1856,6 +2392,12 @@ export async function disasterEventDelete(
 	}
 
 	await dr.transaction(async (tx) => {
+		await entityValidationAssignmentDeleteByEntityId(id, "disaster_event", tx);
+		await entityValidationRejectionDeleteByEntityId(id, "disaster_event", tx);
+
+		await DisasterEventDivisionRepository.deleteByDisasterEventId(id, tx);
+		await DisasterEventGeomRepository.deleteByDisasterEventId(id, tx);
+
 		await tx
 			.delete(disasterEventTable)
 			.where(

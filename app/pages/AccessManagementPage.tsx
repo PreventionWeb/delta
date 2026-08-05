@@ -14,345 +14,388 @@ import { Dropdown, DropdownChangeEvent } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
 
 export default function AccessManagementPage() {
-    const ld = useLoaderData<typeof loader>();
-    const ctx = new ViewContext();
-    const navigate = useNavigate();
-    const location = useLocation();
-    const { items } = ld;
+	const ld = useLoaderData<typeof loader>();
+	const ctx = new ViewContext();
+	const navigate = useNavigate();
+	const location = useLocation();
+	const { items, pagination } = ld;
 
-    const [isClient, setIsClient] = useState(false);
+	const [isClient, setIsClient] = useState(false);
 
-    // Ensure client-specific rendering only occurs after the component mounts
-    useEffect(() => {
-        setIsClient(true);
-        setFilteredItems(items); // Ensure data is consistent
-    }, [items]);
+	const [organizationFilter, setOrganizationFilter] = useState(
+		() => new URLSearchParams(location.search).get("organization") || "",
+	);
+	const [roleFilter, setRoleFilter] = useState(
+		() => new URLSearchParams(location.search).get("role") || "all",
+	);
 
-    // State for search and filtered users
-    const [filteredItems, setFilteredItems] = useState(items);
-    const [organizationFilter, setOrganizationFilter] = useState("");
-    const [roleFilter, setRoleFilter] = useState("all");
+	const pageSizeOptions = [10, 20, 30, 40, 50];
 
-    const pageSizeOptions = [10, 20, 30, 40, 50];
+	const updatePaginationParams = (nextPage: number, nextPageSize: number) => {
+		const params = new URLSearchParams(location.search);
+		params.set("page", String(nextPage));
+		params.set("pageSize", String(nextPageSize));
+		navigate(`${location.pathname}?${params.toString()}`);
+	};
 
-    const updatePaginationParams = (nextPage: number, nextPageSize: number) => {
-        const params = new URLSearchParams(location.search);
-        params.set("page", String(nextPage));
-        params.set("pageSize", String(nextPageSize));
-        navigate(`${location.pathname}?${params.toString()}`);
-    };
+	const updateFilterParams = (
+		nextOrganizationFilter: string,
+		nextRoleFilter: string,
+	) => {
+		const params = new URLSearchParams(location.search);
 
-    const applyFilters = (organizationValue: string, selectedRole: string) => {
-        const orgSearch = organizationValue.trim().toLowerCase();
-        const filteredData = items.filter((item) => {
-            const matchesOrganization = orgSearch
-                ? item.organization?.name.toLowerCase().includes(orgSearch)
-                : true;
-            const matchesRole =
-                selectedRole === "all" ? true : item.role === selectedRole;
-            return matchesOrganization && matchesRole;
-        });
-        setFilteredItems(filteredData);
-    };
+		if (nextOrganizationFilter.trim()) {
+			params.set("organization", nextOrganizationFilter);
+		} else {
+			params.delete("organization");
+		}
 
-    const handleOrganizationFilter = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value;
-        setOrganizationFilter(value);
-        applyFilters(value, roleFilter);
-    };
+		if (nextRoleFilter !== "all") {
+			params.set("role", nextRoleFilter);
+		} else {
+			params.delete("role");
+		}
 
-    const handleRoleFilter = (e: DropdownChangeEvent) => {
-        const selectedRole = (e.value as string | null) ?? "all";
-        setRoleFilter(selectedRole);
-        applyFilters(organizationFilter, selectedRole);
-    };
+		params.set("page", "1");
+		navigate(`${location.pathname}?${params.toString()}`);
+	};
 
-    // Calculate user stats
-    const totalUsers = items.length;
+	// Ensure client-specific rendering only occurs after the component mounts
+	useEffect(() => {
+		setIsClient(true);
+		const params = new URLSearchParams(location.search);
+		const nextOrganizationFilter = params.get("organization") || "";
+		const nextRoleFilter = params.get("role") || "all";
 
-    // Handle different formats for `emailVerified`
-    const activatedUsers = filteredItems.filter((item) => {
-        return item.user.emailVerified === true;
-    }).length;
+		setOrganizationFilter(nextOrganizationFilter);
+		setRoleFilter(nextRoleFilter);
+	}, [location.search]);
 
-    const pendingUsers = filteredItems.filter(
-        (item) => !item.user.emailVerified,
-    ).length;
+	const handleOrganizationFilter = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const value = e.target.value;
+		setOrganizationFilter(value);
+		updateFilterParams(value, roleFilter);
+	};
 
-    const navSettings = <NavSettings ctx={ctx} userRole={ld.userRole} />;
+	const handleRoleFilter = (e: DropdownChangeEvent) => {
+		const selectedRole = (e.value as string | null) ?? "all";
+		setRoleFilter(selectedRole);
+		updateFilterParams(organizationFilter, selectedRole);
+	};
 
-    const statusBodyTemplate = (item: (typeof filteredItems)[number]) => (
-        <span
-            className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${item.user.emailVerified
-                ? "bg-emerald-100 text-emerald-700"
-                : "bg-amber-100 text-amber-700"
-                }`}
-        >
-            <span
-                className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${item.user.emailVerified ? "bg-emerald-600" : "bg-amber-600"
-                    }`}
-            />
-            {item.user.emailVerified
-                ? ctx.t({
-                    code: "common.activated",
-                    msg: "Activated",
-                })
-                : ctx.t({ code: "common.pending", msg: "Pending" })}
-        </span>
-    );
+	// Calculate user stats
+	const totalUsers = pagination.total;
 
-    const nameBodyTemplate = (item: (typeof filteredItems)[number]) => (
-        <Button
-            type="button"
-            link
-            label={`${item.user.firstName} ${item.user.lastName}`}
-            onClick={() => navigate(ctx.url(`/settings/access-mgmnt/edit/${item.user.id}`))}
-        />
-    );
+	// Handle different formats for `emailVerified`
+	const activatedUsers = items.filter((item) => {
+		return item.user.emailVerified === true;
+	}).length;
 
-    const roleBodyTemplate = (item: (typeof filteredItems)[number]) => {
-        const roleObj = getCountryRole(ctx, item.role);
-        return (
-            <span>
-                {roleObj ? roleObj.label : item.role}{" "}
-                {item.isPrimaryAdmin ? "(Primary Admin)" : ""}
-            </span>
-        );
-    };
+	const pendingUsers = items.filter((item) => !item.user.emailVerified).length;
 
-    const addedAtBodyTemplate = (item: (typeof filteredItems)[number]) => (
-        item.addedAt ? format(item.addedAt, "dd-MM-yyyy") : ""
-    );
+	const navSettings = <NavSettings ctx={ctx} userRole={ld.userRole} />;
 
-    const actionsBodyTemplate = (item: (typeof filteredItems)[number]) => (
-        <div className="flex items-center gap-2">
-            <Button
-                type="button"
-                text
-                aria-label={ctx.t({
-                    code: "common.edit",
-                    msg: "Edit",
-                })}
-                onClick={() => navigate(ctx.url(`/settings/access-mgmnt/edit/${item.user.id}`))}
-            >
-                <i className="pi pi-pencil" aria-hidden="true" />
-            </Button>
-            {!item.user.emailVerified ? (
-                <Button
-                    type="button"
-                    text
-                    severity="help"
-                    aria-label={ctx.t({
-                        code: "admin.resend_email",
-                        msg: "Resend invitation email",
-                    })}
-                    title={ctx.t({
-                        code: "admin.resend_email",
-                        msg: "Resend invitation email",
-                    })}
-                    onClick={() => navigate(ctx.url(`/settings/access-mgmnt/resend-invitation/${item.user.id}`))}
-                >
-                    <i className="pi pi-envelope" aria-hidden="true" />
-                </Button>
-            ) : null}
-            <Button
-                type="button"
-                text
-                severity="danger"
-                aria-label={ctx.t({
-                    code: "settings.access_mgmnt.delete_user",
-                    msg: "Delete User",
-                })}
-                onClick={() => navigate(ctx.url(`/settings/access-mgmnt/delete/${item.user.id}`))}
-            >
-                <i className="pi pi-trash" aria-hidden="true" />
-            </Button>
-        </div>
-    );
+	const statusBodyTemplate = (item: (typeof items)[number]) => (
+		<span
+			className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+				item.user.emailVerified
+					? "bg-emerald-100 text-emerald-700"
+					: "bg-amber-100 text-amber-700"
+			}`}
+		>
+			<span
+				className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${
+					item.user.emailVerified ? "bg-emerald-600" : "bg-amber-600"
+				}`}
+			/>
+			{item.user.emailVerified
+				? ctx.t({
+						code: "common.activated",
+						msg: "Activated",
+					})
+				: ctx.t({ code: "common.pending", msg: "Pending" })}
+		</span>
+	);
 
-    return (
-        <MainContainer
-            title={ctx.t({ code: "nav.access_management", msg: "Access management" })}
-            headerExtra={navSettings}
-        >
-            <div className="dts-page-intro">
-                <div className="flex justify-end">
-                    <Button
-                        type="button"
-                        label={ctx.t({ code: "settings.access_mgmnt.add_user", msg: "Add user" })}
-                        icon="pi pi-plus"
-                        onClick={() => navigate(ctx.url("/settings/access-mgmnt/new"))}
-                    />
-                </div>
-            </div>
+	const nameBodyTemplate = (item: (typeof items)[number]) => (
+		<Button
+			type="button"
+			link
+			label={`${item.user.firstName} ${item.user.lastName}`}
+			onClick={() =>
+				navigate(ctx.url(`/settings/access-mgmnt/edit/${item.user.id}`))
+			}
+		/>
+	);
 
-            <section className="dts-page-section">
-                <div className="dts-element-summary">
-                    <h2 className="dts-element-summary__title">
-                        <span>
-                            {ctx.t(
-                                {
-                                    code: "settings.access_mgmnt.current_user_count",
-                                    msg: "Currently there are [{totalUsers}] users in the system.",
-                                },
-                                { totalUsers: totalUsers },
-                            )}
-                        </span>
-                    </h2>
-                </div>
+	const roleBodyTemplate = (item: (typeof items)[number]) => {
+		const roleObj = getCountryRole(ctx, item.role);
+		return (
+			<span>
+				{roleObj ? roleObj.label : item.role}{" "}
+				{item.isPrimaryAdmin ? "(Primary Admin)" : ""}
+			</span>
+		);
+	};
 
+	const addedAtBodyTemplate = (item: (typeof items)[number]) =>
+		item.addedAt ? format(item.addedAt, "dd-MM-yyyy") : "";
 
-                <Form method="get" className="mb-6">
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:max-w-3xl">
-                        <div className="flex flex-col gap-2">
-                            <label
-                                htmlFor="organization-filter"
-                                className="text-sm font-semibold text-gray-800"
-                            >
-                                {ctx.t({ code: "common.organization", msg: "Organization" })}
-                            </label>
-                            <InputText
-                                id="organization-filter"
-                                name="organization"
-                                type="search"
-                                value={organizationFilter}
-                                onChange={handleOrganizationFilter}
-                                autoComplete="organization"
-                                placeholder={ctx.t({
-                                    code: "common.search_organization",
-                                    msg: "Type organization name",
-                                })}
-                                className="w-full p-inputtext-sm"
-                            />
-                        </div>
+	const actionsBodyTemplate = (item: (typeof items)[number]) => (
+		<div className="grid grid-cols-3 items-center justify-items-center gap-1">
+			<span className="inline-flex h-9 w-9 items-center justify-center">
+				<Button
+					type="button"
+					text
+					aria-label={ctx.t({
+						code: "common.edit",
+						msg: "Edit",
+					})}
+					onClick={() =>
+						navigate(ctx.url(`/settings/access-mgmnt/edit/${item.user.id}`))
+					}
+				>
+					<i className="pi pi-pencil" aria-hidden="true" />
+				</Button>
+			</span>
+			<span className="inline-flex h-9 w-9 items-center justify-center">
+				<Button
+					type="button"
+					text
+					severity="danger"
+					aria-label={ctx.t({
+						code: "settings.access_mgmnt.delete_user",
+						msg: "Delete User",
+					})}
+					onClick={() =>
+						navigate(ctx.url(`/settings/access-mgmnt/delete/${item.user.id}`))
+					}
+				>
+					<i className="pi pi-trash" aria-hidden="true" />
+				</Button>
+			</span>
+			<span className="inline-flex h-9 w-9 items-center justify-center">
+				{!item.user.emailVerified ? (
+					<Button
+						type="button"
+						text
+						severity="help"
+						aria-label={ctx.t({
+							code: "admin.resend_email",
+							msg: "Resend invitation email",
+						})}
+						title={ctx.t({
+							code: "admin.resend_email",
+							msg: "Resend invitation email",
+						})}
+						onClick={() =>
+							navigate(
+								ctx.url(
+									`/settings/access-mgmnt/resend-invitation/${item.user.id}`,
+								),
+							)
+						}
+					>
+						<i className="pi pi-envelope" aria-hidden="true" />
+					</Button>
+				) : (
+					<span aria-hidden="true" className="inline-flex h-9 w-9" />
+				)}
+			</span>
+		</div>
+	);
 
-                        <div className="flex flex-col gap-2">
-                            <label
-                                htmlFor="role-filter"
-                                className="text-sm font-semibold text-gray-800"
-                            >
-                                {ctx.t({ code: "common.role", msg: "Role" })}
-                            </label>
-                            <Dropdown
-                                inputId="role-filter"
-                                name="role"
-                                value={roleFilter}
-                                onChange={handleRoleFilter}
-                                options={[
-                                    {
-                                        id: "all",
-                                        label: ctx.t({
-                                            code: "access_management.all_roles",
-                                            msg: "All Roles",
-                                        }),
-                                    },
-                                    ...getCountryRoles(ctx).map((role) => ({
-                                        id: role.id,
-                                        label: role.label,
-                                    })),
-                                ]}
-                                optionLabel="label"
-                                optionValue="id"
-                                className="w-full p-inputtext-sm"
-                            />
-                        </div>
-                    </div>
-                </Form>
-            </section>
+	return (
+		<MainContainer
+			title={ctx.t({ code: "nav.access_management", msg: "Access management" })}
+			headerExtra={navSettings}
+		>
+			<div className="dts-page-intro">
+				<div className="flex justify-end">
+					<Button
+						type="button"
+						label={ctx.t({
+							code: "settings.access_mgmnt.add_user",
+							msg: "Add user",
+						})}
+						icon="pi pi-plus"
+						onClick={() => navigate(ctx.url("/settings/access-mgmnt/new"))}
+					/>
+				</div>
+			</div>
 
-            <section className="dts-page-section">
-                <div>
-                    <strong className="dts-body-label">
-                        {filteredItems.length} of {totalUsers} Users
-                    </strong>
-                </div>
+			<section className="dts-page-section">
+				<div className="dts-element-summary">
+					<h2 className="dts-element-summary__title">
+						<span>
+							{ctx.t(
+								{
+									code: "settings.access_mgmnt.current_user_count",
+									msg: "Currently there are [{totalUsers}] users in the system.",
+								},
+								{ totalUsers: totalUsers },
+							)}
+						</span>
+					</h2>
+				</div>
 
-                {/* Status Legend */}
-                <div className="dts-legend">
-                    <span className="dts-body-label">
-                        {ctx.t({ code: "common.status_legend", msg: "Status legend" })}
-                    </span>
+				<Form method="get" className="mb-6">
+					<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:max-w-3xl">
+						<div className="flex flex-col gap-2">
+							<label
+								htmlFor="organization-filter"
+								className="text-sm font-semibold text-gray-800"
+							>
+								{ctx.t({ code: "common.organization", msg: "Organization" })}
+							</label>
+							<InputText
+								id="organization-filter"
+								name="organization"
+								type="search"
+								value={organizationFilter}
+								onChange={handleOrganizationFilter}
+								autoComplete="organization"
+								placeholder={ctx.t({
+									code: "common.search_organization",
+									msg: "Type organization name",
+								})}
+								className="w-full p-inputtext-sm"
+							/>
+						</div>
 
-                    <div className="dts-legend__item">
-                        <span
-                            className="dts-status dts-status--activated"
-                            aria-labelledby="legend7"
-                        ></span>
-                        <span id="legend7">
-                            {ctx.t({
-                                code: "settings.access_mgmnt.account_activated",
-                                msg: "Account activated",
-                            })}
-                            : {activatedUsers}
-                        </span>
-                    </div>
+						<div className="flex flex-col gap-2">
+							<label
+								htmlFor="role-filter"
+								className="text-sm font-semibold text-gray-800"
+							>
+								{ctx.t({ code: "common.role", msg: "Role" })}
+							</label>
+							<Dropdown
+								inputId="role-filter"
+								name="role"
+								value={roleFilter}
+								onChange={handleRoleFilter}
+								options={[
+									{
+										id: "all",
+										label: ctx.t({
+											code: "access_management.all_roles",
+											msg: "All Roles",
+										}),
+									},
+									...getCountryRoles(ctx).map((role) => ({
+										id: role.id,
+										label: role.label,
+									})),
+								]}
+								optionLabel="label"
+								optionValue="id"
+								className="w-full p-inputtext-sm"
+							/>
+						</div>
+					</div>
+				</Form>
+			</section>
 
-                    <div className="dts-legend__item">
-                        <span aria-labelledby="legend8"></span>
-                        <span id="legend8">
-                            {ctx.t({
-                                code: "settings.access_mgmnt.account_activation_pending",
-                                msg: "Account activation pending",
-                            })}
-                            : {pendingUsers}
-                        </span>
-                    </div>
-                </div>
-            </section>
+			<section className="dts-page-section">
+				<div>
+					<strong className="dts-body-label">
+						{items.length} of {totalUsers} Users
+					</strong>
+				</div>
 
-            {/* Users Table */}
-            {isClient && (
-                <section className="dts-page-section">
-                    <DataTable
-                        value={filteredItems}
-                        dataKey="id"
-                        emptyMessage={ctx.t({ code: "common.no_data_found", msg: "No data found" })}
-                    >
-                        <Column
-                            header={ctx.t({ code: "common.status", msg: "Status" })}
-                            body={statusBodyTemplate}
-                        />
-                        <Column
-                            header={ctx.t({ code: "common.name", msg: "Name" })}
-                            body={nameBodyTemplate}
-                        />
-                        <Column
-                            header={ctx.t({ code: "common.email", msg: "Email" })}
-                            body={(item) => item.user.email}
-                        />
-                        <Column
-                            header={ctx.t({ code: "common.organization", msg: "Organization" })}
-                            body={(item) => item.organization?.name || ""}
-                        />
-                        <Column
-                            header={ctx.t({ code: "common.role", msg: "Role" })}
-                            body={roleBodyTemplate}
-                        />
-                        <Column
-                            header={ctx.t({ code: "common.addedAt", msg: "Added At" })}
-                            body={addedAtBodyTemplate}
-                        />
-                        <Column
-                            header={ctx.t({ code: "common.actions", msg: "Actions" })}
-                            body={actionsBodyTemplate}
-                        />
-                    </DataTable>
-                </section>
-            )}
-            {ld.pagination.total > 0 && (
-                <section className="dts-page-section">
-                    <Paginator
-                        first={(ld.pagination.pageNumber - 1) * ld.pagination.pageSize}
-                        rows={ld.pagination.pageSize}
-                        totalRecords={ld.pagination.total}
-                        rowsPerPageOptions={pageSizeOptions}
-                        onPageChange={(event) => {
-                            updatePaginationParams(event.page + 1, event.rows);
-                        }}
-                        className="mt-4 !justify-end"
-                    />
-                </section>
-            )}
-        </MainContainer>
-    );
+				{/* Status Legend */}
+				<div className="dts-legend">
+					<span className="dts-body-label">
+						{ctx.t({ code: "common.status_legend", msg: "Status legend" })}
+					</span>
+
+					<div className="dts-legend__item">
+						<span
+							className="dts-status dts-status--activated"
+							aria-labelledby="legend7"
+						></span>
+						<span id="legend7">
+							{ctx.t({
+								code: "settings.access_mgmnt.account_activated",
+								msg: "Account activated",
+							})}
+							: {activatedUsers}
+						</span>
+					</div>
+
+					<div className="dts-legend__item">
+						<span aria-labelledby="legend8"></span>
+						<span id="legend8">
+							{ctx.t({
+								code: "settings.access_mgmnt.account_activation_pending",
+								msg: "Account activation pending",
+							})}
+							: {pendingUsers}
+						</span>
+					</div>
+				</div>
+			</section>
+
+			{/* Users Table */}
+			{isClient && (
+				<section className="dts-page-section">
+					<DataTable
+						value={items}
+						dataKey="id"
+						emptyMessage={ctx.t({
+							code: "common.no_data_found",
+							msg: "No data found",
+						})}
+					>
+						<Column
+							header={ctx.t({ code: "common.status", msg: "Status" })}
+							body={statusBodyTemplate}
+						/>
+						<Column
+							header={ctx.t({ code: "common.name", msg: "Name" })}
+							body={nameBodyTemplate}
+						/>
+						<Column
+							header={ctx.t({ code: "common.email", msg: "Email" })}
+							body={(item) => item.user.email}
+						/>
+						<Column
+							header={ctx.t({
+								code: "common.organization",
+								msg: "Organization",
+							})}
+							body={(item) => item.organization?.name || ""}
+						/>
+						<Column
+							header={ctx.t({ code: "common.role", msg: "Role" })}
+							body={roleBodyTemplate}
+						/>
+						<Column
+							header={ctx.t({ code: "common.addedAt", msg: "Added At" })}
+							body={addedAtBodyTemplate}
+						/>
+						<Column
+							header={ctx.t({ code: "common.actions", msg: "Actions" })}
+							body={actionsBodyTemplate}
+						/>
+					</DataTable>
+				</section>
+			)}
+			{pagination.total > 0 && (
+				<section className="dts-page-section">
+					<Paginator
+						first={(pagination.pageNumber - 1) * pagination.pageSize}
+						rows={pagination.pageSize}
+						totalRecords={pagination.total}
+						rowsPerPageOptions={pageSizeOptions}
+						onPageChange={(event) => {
+							updatePaginationParams(event.page + 1, event.rows);
+						}}
+						className="mt-4 !justify-end"
+					/>
+				</section>
+			)}
+		</MainContainer>
+	);
 }

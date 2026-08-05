@@ -1,4 +1,4 @@
-import { dr } from "~/db.server";
+import { dr, Tx } from "~/db.server";
 import {
 	entityValidationAssignmentTable,
 	InsertEntityValidationAssignment,
@@ -11,7 +11,7 @@ import {
 import { Errors, hasErrors } from "~/frontend/form";
 
 import { isValidUUID } from "~/utils/id";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 
 export type entityType =
 	| "hazardous_event"
@@ -91,13 +91,16 @@ export async function entityValidationAssignmentCreate(
 export async function entityValidationAssignmentDeleteByEntityId(
 	idStr: string,
 	entityType: entityType,
+	tx: Tx = dr,
 ): Promise<DeleteResult> {
-	await dr
+	const entityTypes = [entityType];
+
+	await tx
 		.delete(entityValidationAssignmentTable)
 		.where(
 			and(
 				eq(entityValidationAssignmentTable.entityId, idStr),
-				eq(entityValidationAssignmentTable.entityType, entityType),
+				inArray(entityValidationAssignmentTable.entityType, entityTypes),
 			),
 		)
 		.execute();

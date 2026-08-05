@@ -1,10 +1,14 @@
 import { dr, Tx } from "~/db.server";
 import { disasterRecordsTable } from "~/drizzle/schema/disasterRecordsTable";
+import { disruptionGeomTable } from "~/drizzle/schema/disruptionGeomTable";
 import {
 	disruptionTable,
 	InsertDisruption,
 } from "~/drizzle/schema/disruptionTable";
-import { and, eq } from "drizzle-orm";
+import { divisionTable } from "~/drizzle/schema/divisionTable";
+import { DisruptionGeomRepository } from "~/db/queries/disruptionGeomRepository";
+import { DisruptionDivisionRepository } from "~/db/queries/disruptionDivisionRepository";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import {
 	CreateResult,
@@ -16,7 +20,266 @@ import { updateTotalsUsingDisasterRecordId } from "./analytics/disaster-events-c
 import { DisasterRecordsRepository } from "~/db/queries/disasterRecordsRepository";
 import { BackendContext } from "../context";
 import { DContext } from "~/utils/dcontext";
-export interface DisruptionFields extends Omit<InsertDisruption, "id"> {}
+export interface DisruptionFields extends Omit<InsertDisruption, "id"> {
+	spatialFootprint?: unknown;
+}
+
+type SpatialFootprintItem = {
+	id?: string;
+	title?: string;
+	map_option?: string;
+	geojson?: any;
+	geographic_level?: string;
+	[key: string]: unknown;
+};
+
+type GeoJsonLike = {
+	type?: string;
+	geometry?: unknown;
+	features?: unknown;
+	geometries?: unknown;
+	[key: string]: unknown;
+};
+
+function parseSpatialFootprintItems(value: unknown): SpatialFootprintItem[] {
+	if (Array.isArray(value)) {
+		return value.filter((item): item is SpatialFootprintItem => !!item);
+	}
+
+	if (typeof value === "string") {
+		try {
+			const parsed = JSON.parse(value);
+			return Array.isArray(parsed)
+				? parsed.filter((item): item is SpatialFootprintItem => !!item)
+				: [];
+		} catch {
+			return [];
+		}
+	}
+
+	return [];
+}
+
+function isGeoJsonObject(value: unknown): value is GeoJsonLike {
+	return !!value && typeof value === "object";
+}
+
+function isGeoJsonGeometry(value: unknown): value is GeoJsonLike {
+	return isGeoJsonObject(value) && typeof value.type === "string";
+}
+
+function extractGeojsonGeometry(item: SpatialFootprintItem) {
+	if (!isGeoJsonObject(item?.geojson)) {
+		return null;
+	}
+
+	const geojson = item.geojson;
+
+	if (geojson.type === "FeatureCollection") {
+		const features = Array.isArray(geojson.features) ? geojson.features : [];
+		const geometries = features
+			.map((feature) => {
+				if (!isGeoJsonObject(feature)) {
+					return null;
+				}
+
+				return isGeoJsonGeometry(feature.geometry) ? feature.geometry : null;
+			})
+			.filter((geometry): geometry is GeoJsonLike => geometry !== null);
+
+		if (geometries.length === 0) {
+			return null;
+		}
+
+		if (geometries.length === 1) {
+			return geometries[0];
+		}
+
+		return {
+			type: "GeometryCollection",
+			geometries,
+		};
+	}
+
+	if (geojson.type === "Feature") {
+		return isGeoJsonGeometry(geojson.geometry) ? geojson.geometry : null;
+	}
+
+	if (isGeoJsonGeometry(geojson.geometry)) {
+		return geojson.geometry;
+	}
+
+	if (isGeoJsonGeometry(geojson)) {
+		return geojson;
+	}
+
+	return null;
+}
+
+async function syncDisruptionSpatialFootprint(
+	tx: Tx,
+	disruptionId: string,
+	spatialFootprintValue: unknown,
+) {
+	const items = parseSpatialFootprintItems(spatialFootprintValue);
+	const mapCoordinateItems = items.filter(
+		(item) => item.map_option === "Map coordinates",
+	);
+	const geographicItems = items.filter(
+		(item) => item.map_option === "Geographic level",
+	);
+
+	await DisruptionGeomRepository.deleteByDisruptionId(disruptionId, tx);
+	await DisruptionDivisionRepository.deleteByDisruptionId(disruptionId, tx);
+
+	if (mapCoordinateItems.length > 0) {
+		await DisruptionGeomRepository.createMany(
+			mapCoordinateItems
+				.map((item) => {
+					const geometry = extractGeojsonGeometry(item);
+					if (!geometry) {
+						return null;
+					}
+
+					return {
+						disruptionId,
+						title: typeof item.title === "string" ? item.title : null,
+						geom: sql`ST_MakeValid(ST_GeomFromGeoJSON(${JSON.stringify(geometry)}))`,
+					};
+				})
+				.filter((item): item is NonNullable<typeof item> => item !== null),
+			tx,
+		);
+	}
+
+	if (geographicItems.length > 0) {
+		const divisionIds = Array.from(
+			new Set(
+				geographicItems
+					.map((item) => String(item?.geojson?.properties?.division_id ?? ""))
+					.filter((value) => value.length > 0),
+			),
+		);
+
+		if (divisionIds.length > 0) {
+			const validDivisions = await tx
+				.select({ id: divisionTable.id })
+				.from(divisionTable)
+				.where(inArray(divisionTable.id, divisionIds));
+
+			const validDivisionIds = new Set(validDivisions.map((row) => row.id));
+			const rows = geographicItems
+				.map((item) => String(item?.geojson?.properties?.division_id ?? ""))
+				.filter((value) => validDivisionIds.has(value))
+				.map((divisionId) => ({
+					disruptionId,
+					divisionId,
+				}));
+
+			if (rows.length > 0) {
+				await DisruptionDivisionRepository.createMany(rows, tx);
+			}
+		}
+	}
+}
+
+async function loadDisruptionSpatialFootprint(tx: Tx, disruptionId: string) {
+	const [geomRows, divisionRows] = await Promise.all([
+		tx
+			.select({
+				id: disruptionGeomTable.id,
+				title: disruptionGeomTable.title,
+				geom: sql<string>`ST_AsGeoJSON(${disruptionGeomTable.geom})`,
+			})
+			.from(disruptionGeomTable)
+			.where(eq(disruptionGeomTable.disruptionId, disruptionId)),
+		DisruptionDivisionRepository.getByDisruptionId(disruptionId, tx),
+	]);
+
+	const divisionIds = divisionRows.map(
+		(row: { divisionId: string }) => row.divisionId,
+	);
+	const divisionDetails = divisionIds.length
+		? await tx
+				.select({
+					id: divisionTable.id,
+					name: divisionTable.name,
+					geojson: divisionTable.geojson,
+					importId: divisionTable.importId,
+					nationalId: divisionTable.nationalId,
+					level: divisionTable.level,
+				})
+				.from(divisionTable)
+				.where(inArray(divisionTable.id, divisionIds))
+		: [];
+
+	const divisionsById = new Map(
+		divisionDetails.map((row: (typeof divisionDetails)[number]) => [
+			row.id,
+			row,
+		]),
+	);
+
+	const mapCoordinates = geomRows
+		.map((row: (typeof geomRows)[number]) => {
+			if (!row.geom || typeof row.geom !== "string") {
+				return null;
+			}
+
+			try {
+				const geometry = JSON.parse(row.geom);
+				return {
+					id: row.id,
+					title: row.title,
+					map_option: "Map coordinates",
+					geojson: {
+						type: "Feature",
+						geometry,
+						properties: {},
+					},
+				};
+			} catch {
+				return null;
+			}
+		})
+		.filter((item): item is NonNullable<typeof item> => item !== null);
+
+	const geographic = divisionRows
+		.map((row: { divisionId: string }) => divisionsById.get(row.divisionId))
+		.filter((division): division is NonNullable<typeof division> => !!division)
+		.map((division: NonNullable<(typeof divisionDetails)[number]>) => {
+			const geojson = division.geojson as any;
+			const nameObject = division.name as Record<string, string> | null;
+			const title =
+				nameObject?.en || Object.values(nameObject || {})[0] || division.id;
+
+			return {
+				id: `geographic-${division.id}`,
+				title,
+				map_option: "Geographic level",
+				geographic_level: title,
+				geojson:
+					geojson && typeof geojson === "object"
+						? {
+								...(geojson.type === "Feature"
+									? geojson
+									: { type: "Feature", geometry: geojson, properties: {} }),
+								properties: {
+									...((geojson as any)?.properties || {}),
+									division_id: division.id,
+									division_ids: [division.id],
+									import_id: division.importId,
+									national_id: division.nationalId,
+									level: division.level,
+									name: division.name,
+								},
+							}
+						: null,
+			};
+		});
+
+	return [...mapCoordinates, ...geographic];
+}
 
 export function getFieldsDef(
 	ctx: DContext,
@@ -102,7 +365,7 @@ export function getFieldsDef(
 		{
 			key: "spatialFootprint",
 			label: ctx.t({
-				code: "common.spatial_footprint",
+				code: "spatial_footprint",
 				msg: "Spatial footprint",
 			}),
 			type: "other",
@@ -117,6 +380,7 @@ export function getFieldsDef(
 			}),
 			type: "other",
 			psqlType: "jsonb",
+			uiRowNew: true,
 		},
 	];
 }
@@ -190,12 +454,18 @@ export async function disruptionCreate(
 		return { ok: false, errors };
 	}
 
+	const spatialFootprintValue = (fields as any).spatialFootprint;
+	const { spatialFootprint: _ignoredSpatialFootprint, ...insertValues } =
+		fields as any;
+
 	const res = await tx
 		.insert(disruptionTable)
 		.values({
-			...fields,
+			...insertValues,
 		})
 		.returning({ id: disruptionTable.id });
+
+	await syncDisruptionSpatialFootprint(tx, res[0].id, spatialFootprintValue);
 
 	await updateTotalsUsingDisasterRecordId(tx, fields.recordId);
 
@@ -212,12 +482,19 @@ export async function disruptionUpdate(
 	if (hasErrors(errors)) {
 		return { ok: false, errors };
 	}
+	const spatialFootprintValue = (fields as any).spatialFootprint;
+	const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
+		fields as any;
 	await tx
 		.update(disruptionTable)
 		.set({
-			...fields,
+			...updateValues,
 		})
 		.where(eq(disruptionTable.id, id));
+
+	if ("spatialFootprint" in fields) {
+		await syncDisruptionSpatialFootprint(tx, id, spatialFootprintValue);
+	}
 
 	let recordId = await getRecordId(tx, id);
 	await updateTotalsUsingDisasterRecordId(tx, recordId);
@@ -236,6 +513,10 @@ export async function disruptionUpdateByIdAndCountryAccountsId(
 	if (hasErrors(errors)) {
 		return { ok: false, errors };
 	}
+
+	const spatialFootprintValue = (fields as any).spatialFootprint;
+	const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
+		fields as any;
 
 	let recordId = await getRecordId(tx, id);
 
@@ -257,9 +538,13 @@ export async function disruptionUpdateByIdAndCountryAccountsId(
 	await tx
 		.update(disruptionTable)
 		.set({
-			...fields,
+			...updateValues,
 		})
 		.where(and(eq(disruptionTable.id, id)));
+
+	if ("spatialFootprint" in fields) {
+		await syncDisruptionSpatialFootprint(tx, id, spatialFootprintValue);
+	}
 
 	await updateTotalsUsingDisasterRecordId(tx, recordId);
 
@@ -336,7 +621,12 @@ export async function disruptionByIdTx(
 	if (!res) {
 		return null;
 	}
-	return res;
+
+	const spatialFootprint = await loadDisruptionSpatialFootprint(tx, id);
+	return {
+		...res,
+		spatialFootprint,
+	};
 }
 
 export async function disruptionByIdAndCountryAccountsId(
@@ -363,7 +653,12 @@ export async function disruptionByIdAndCountryAccountsIdTx(
 	});
 	if (!res) return null;
 	if (res.disasterRecord.countryAccountsId !== countryAccountsId) return null;
-	return res;
+
+	const spatialFootprint = await loadDisruptionSpatialFootprint(tx, id);
+	return {
+		...res,
+		spatialFootprint,
+	};
 }
 
 export async function disruptionDeleteById(

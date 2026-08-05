@@ -40,6 +40,23 @@ vi.mock("@nestjs/core", async (importOriginal) => {
 	};
 });
 
+// mockApp has no real Nest internals — real Swagger generation is covered by OpenApiDocs.test.ts.
+vi.mock("@nestjs/swagger", async (importOriginal) => {
+	const original = await importOriginal<typeof import("@nestjs/swagger")>();
+	return {
+		...original,
+		SwaggerModule: {
+			createDocument: vi.fn().mockReturnValue({ openapi: "3.0.0", paths: {} }),
+			setup: vi.fn(),
+		},
+	};
+});
+
+vi.mock("nestjs-zod", async (importOriginal) => {
+	const original = await importOriginal<typeof import("nestjs-zod")>();
+	return { ...original, cleanupOpenApiDoc: vi.fn((doc: unknown) => doc) };
+});
+
 vi.mock("~/db.server", () => ({
 	dr: undefined,
 	initDB: vi.fn(),
@@ -96,6 +113,14 @@ describe("HttpServerBootstrap", { timeout: 15000 }, () => {
 		// Ensure each test starts with a clean module cache so module-level
 		// singletons (bootstrapPromise, httpBootstrapPromise) are reset.
 		vi.resetModules();
+		// globalForHttpApp is stashed on globalThis (survives Vite dev-mode reloads
+		// by design), so vi.resetModules() alone doesn't clear it between tests.
+		const globalForHttpApp = globalThis as {
+			__deltaHttpApp?: unknown;
+			__deltaHttpBootstrap?: unknown;
+		};
+		delete globalForHttpApp.__deltaHttpApp;
+		delete globalForHttpApp.__deltaHttpBootstrap;
 	});
 
 	it("NestFactory.create is called with CoreModule when initServer() resolves", async () => {

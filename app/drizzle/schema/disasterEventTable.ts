@@ -229,7 +229,6 @@ export const disasterEventTable = pgTable(
 			"recovery_needs_local_currency_override",
 		),
 		//recoveryNeedsUSD: ourMoney("recovery_needs_usd"),
-		spatialFootprint: jsonb("spatial_footprint"),
 
 		legacyData: jsonb("legacy_data"),
 	},
@@ -239,15 +238,14 @@ export const disasterEventTable = pgTable(
 			table.apiImportId,
 			table.countryAccountsId,
 		),
-		index("disaster_event_hazardous_event_id_idx").on(
-			table.hazardousEventId,
-		),
-		index("disaster_event_disaster_event_id_idx").on(
-			table.disasterEventId,
-		),
+		index("disaster_event_hazardous_event_id_idx").on(table.hazardousEventId),
+		index("disaster_event_disaster_event_id_idx").on(table.disasterEventId),
 		foreignKey({
 			columns: [table.recordingOrganizationId, table.countryAccountsId],
-			foreignColumns: [organizationTable.id, organizationTable.countryAccountsId],
+			foreignColumns: [
+				organizationTable.id,
+				organizationTable.countryAccountsId,
+			],
 			name: "fk_disaster_event_recording_org",
 		}),
 	],

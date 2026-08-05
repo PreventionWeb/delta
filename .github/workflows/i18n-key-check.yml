@@ -1,0 +1,27 @@
+name: i18n missing key check
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+
+jobs:
+  check-missing-keys:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - name: Install dependencies
+        run: HUSKY=0 yarn install --frozen-lockfile
+
+      # Always exits 0 by design (design.md Decision 6) — report-only, never a merge gate.
+      - name: Report missing i18n namespace keys
+        run: yarn i18n:check-missing-keys

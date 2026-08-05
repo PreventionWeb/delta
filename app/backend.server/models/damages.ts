@@ -2,7 +2,11 @@ import { dr, Tx } from "~/db.server";
 import { disasterRecordsTable } from "~/drizzle/schema/disasterRecordsTable";
 import { assetTable } from "~/drizzle/schema/assetTable";
 import { damagesTable, InsertDamages } from "~/drizzle/schema/damagesTable";
-import { sql, and, eq } from "drizzle-orm";
+import { damagesGeomTable } from "~/drizzle/schema/damagesGeomTable";
+import { divisionTable } from "~/drizzle/schema/divisionTable";
+import { DamagesGeomRepository } from "~/db/queries/damagesGeomRepository";
+import { DamagesDivisionRepository } from "~/db/queries/damagesDivisionRepository";
+import { sql, and, eq, inArray } from "drizzle-orm";
 
 import {
 	CreateResult,
@@ -15,7 +19,266 @@ import { updateTotalsUsingDisasterRecordId } from "./analytics/disaster-events-c
 import { DisasterRecordsRepository } from "~/db/queries/disasterRecordsRepository";
 import { BackendContext } from "../context";
 
-export interface DamagesFields extends Omit<InsertDamages, "id"> {}
+export interface DamagesFields extends Omit<InsertDamages, "id"> {
+	spatialFootprint?: unknown;
+}
+
+type SpatialFootprintItem = {
+	id?: string;
+	title?: string;
+	map_option?: string;
+	geojson?: any;
+	geographic_level?: string;
+	[key: string]: unknown;
+};
+
+type GeoJsonLike = {
+	type?: string;
+	geometry?: unknown;
+	features?: unknown;
+	geometries?: unknown;
+	[key: string]: unknown;
+};
+
+function parseSpatialFootprintItems(value: unknown): SpatialFootprintItem[] {
+	if (Array.isArray(value)) {
+		return value.filter((item): item is SpatialFootprintItem => !!item);
+	}
+
+	if (typeof value === "string") {
+		try {
+			const parsed = JSON.parse(value);
+			return Array.isArray(parsed)
+				? parsed.filter((item): item is SpatialFootprintItem => !!item)
+				: [];
+		} catch {
+			return [];
+		}
+	}
+
+	return [];
+}
+
+function isGeoJsonObject(value: unknown): value is GeoJsonLike {
+	return !!value && typeof value === "object";
+}
+
+function isGeoJsonGeometry(value: unknown): value is GeoJsonLike {
+	return isGeoJsonObject(value) && typeof value.type === "string";
+}
+
+function extractGeojsonGeometry(item: SpatialFootprintItem) {
+	if (!isGeoJsonObject(item?.geojson)) {
+		return null;
+	}
+
+	const geojson = item.geojson;
+
+	if (geojson.type === "FeatureCollection") {
+		const features = Array.isArray(geojson.features) ? geojson.features : [];
+		const geometries = features
+			.map((feature) => {
+				if (!isGeoJsonObject(feature)) {
+					return null;
+				}
+
+				return isGeoJsonGeometry(feature.geometry) ? feature.geometry : null;
+			})
+			.filter((geometry): geometry is GeoJsonLike => geometry !== null);
+
+		if (geometries.length === 0) {
+			return null;
+		}
+
+		if (geometries.length === 1) {
+			return geometries[0];
+		}
+
+		return {
+			type: "GeometryCollection",
+			geometries,
+		};
+	}
+
+	if (geojson.type === "Feature") {
+		return isGeoJsonGeometry(geojson.geometry) ? geojson.geometry : null;
+	}
+
+	if (isGeoJsonGeometry(geojson.geometry)) {
+		return geojson.geometry;
+	}
+
+	if (isGeoJsonGeometry(geojson)) {
+		return geojson;
+	}
+
+	return null;
+}
+
+async function syncDamagesSpatialFootprint(
+	tx: Tx,
+	damageId: string,
+	spatialFootprintValue: unknown,
+) {
+	const items = parseSpatialFootprintItems(spatialFootprintValue);
+	const mapCoordinateItems = items.filter(
+		(item) => item.map_option === "Map coordinates",
+	);
+	const geographicItems = items.filter(
+		(item) => item.map_option === "Geographic level",
+	);
+
+	await DamagesGeomRepository.deleteByDamageId(damageId, tx);
+	await DamagesDivisionRepository.deleteByDamageId(damageId, tx);
+
+	if (mapCoordinateItems.length > 0) {
+		await DamagesGeomRepository.createMany(
+			mapCoordinateItems
+				.map((item) => {
+					const geometry = extractGeojsonGeometry(item);
+					if (!geometry) {
+						return null;
+					}
+
+					return {
+						damageId,
+						title: typeof item.title === "string" ? item.title : null,
+						geom: sql`ST_MakeValid(ST_GeomFromGeoJSON(${JSON.stringify(geometry)}))`,
+					};
+				})
+				.filter((item): item is NonNullable<typeof item> => item !== null),
+			tx,
+		);
+	}
+
+	if (geographicItems.length > 0) {
+		const divisionIds = Array.from(
+			new Set(
+				geographicItems
+					.map((item) => String(item?.geojson?.properties?.division_id ?? ""))
+					.filter((value) => value.length > 0),
+			),
+		);
+
+		if (divisionIds.length > 0) {
+			const validDivisions = await tx
+				.select({ id: divisionTable.id })
+				.from(divisionTable)
+				.where(inArray(divisionTable.id, divisionIds));
+
+			const validDivisionIds = new Set(validDivisions.map((row) => row.id));
+			const rows = geographicItems
+				.map((item) => String(item?.geojson?.properties?.division_id ?? ""))
+				.filter((value) => validDivisionIds.has(value))
+				.map((divisionId) => ({
+					damageId,
+					divisionId,
+				}));
+
+			if (rows.length > 0) {
+				await DamagesDivisionRepository.createMany(rows, tx);
+			}
+		}
+	}
+}
+
+async function loadDamagesSpatialFootprint(tx: Tx, damageId: string) {
+	const [geomRows, divisionRows] = await Promise.all([
+		tx
+			.select({
+				id: damagesGeomTable.id,
+				title: damagesGeomTable.title,
+				geom: sql<string>`ST_AsGeoJSON(${damagesGeomTable.geom})`,
+			})
+			.from(damagesGeomTable)
+			.where(eq(damagesGeomTable.damageId, damageId)),
+		DamagesDivisionRepository.getByDamageId(damageId, tx),
+	]);
+
+	const divisionIds = divisionRows.map(
+		(row: { divisionId: string }) => row.divisionId,
+	);
+	const divisionDetails = divisionIds.length
+		? await tx
+				.select({
+					id: divisionTable.id,
+					name: divisionTable.name,
+					geojson: divisionTable.geojson,
+					importId: divisionTable.importId,
+					nationalId: divisionTable.nationalId,
+					level: divisionTable.level,
+				})
+				.from(divisionTable)
+				.where(inArray(divisionTable.id, divisionIds))
+		: [];
+
+	const divisionsById = new Map(
+		divisionDetails.map((row: (typeof divisionDetails)[number]) => [
+			row.id,
+			row,
+		]),
+	);
+
+	const mapCoordinates = geomRows
+		.map((row: (typeof geomRows)[number]) => {
+			if (!row.geom || typeof row.geom !== "string") {
+				return null;
+			}
+
+			try {
+				const geometry = JSON.parse(row.geom);
+				return {
+					id: row.id,
+					title: row.title,
+					map_option: "Map coordinates",
+					geojson: {
+						type: "Feature",
+						geometry,
+						properties: {},
+					},
+				};
+			} catch {
+				return null;
+			}
+		})
+		.filter((item): item is NonNullable<typeof item> => item !== null);
+
+	const geographic = divisionRows
+		.map((row: { divisionId: string }) => divisionsById.get(row.divisionId))
+		.filter((division): division is NonNullable<typeof division> => !!division)
+		.map((division: NonNullable<(typeof divisionDetails)[number]>) => {
+			const geojson = division.geojson as any;
+			const nameObject = division.name as Record<string, string> | null;
+			const title =
+				nameObject?.en || Object.values(nameObject || {})[0] || division.id;
+
+			return {
+				id: `geographic-${division.id}`,
+				title,
+				map_option: "Geographic level",
+				geographic_level: title,
+				geojson:
+					geojson && typeof geojson === "object"
+						? {
+								...(geojson.type === "Feature"
+									? geojson
+									: { type: "Feature", geometry: geojson, properties: {} }),
+								properties: {
+									...((geojson as any)?.properties || {}),
+									division_id: division.id,
+									division_ids: [division.id],
+									import_id: division.importId,
+									national_id: division.nationalId,
+									level: division.level,
+									name: division.name,
+								},
+							}
+						: null,
+			};
+		});
+
+	return [...mapCoordinates, ...geographic];
+}
 
 export function fieldsForPd(
 	ctx: BackendContext,
@@ -263,7 +526,6 @@ export async function fieldsDef(
 		...fieldsForPd(ctx, "pd", currencies),
 		// Totally damaged
 		...fieldsForPd(ctx, "td", currencies),
-
 		{
 			key: "spatialFootprint",
 			label: ctx.t({
@@ -272,7 +534,6 @@ export async function fieldsDef(
 			}),
 			type: "other",
 			psqlType: "jsonb",
-			uiRowNew: true,
 		},
 		{
 			key: "attachments",
@@ -348,10 +609,16 @@ export async function damagesCreate(
 	let errors = validate(fields);
 	if (hasErrors(errors)) return { ok: false, errors };
 
+	const spatialFootprintValue = (fields as any).spatialFootprint;
+	const { spatialFootprint: _ignoredSpatialFootprint, ...insertValues } =
+		fields as any;
+
 	const res = await tx
 		.insert(damagesTable)
-		.values({ ...fields })
+		.values({ ...insertValues })
 		.returning({ id: damagesTable.id });
+
+	await syncDamagesSpatialFootprint(tx, res[0].id, spatialFootprintValue);
 
 	await updateTotalsUsingDisasterRecordId(tx, fields.recordId);
 
@@ -367,10 +634,18 @@ export async function damagesUpdate(
 	let errors = validate(fields);
 	if (hasErrors(errors)) return { ok: false, errors };
 
+	const spatialFootprintValue = (fields as any).spatialFootprint;
+	const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
+		fields as any;
+
 	await tx
 		.update(damagesTable)
-		.set({ ...fields })
+		.set({ ...updateValues })
 		.where(eq(damagesTable.id, id));
+
+	if ("spatialFootprint" in fields) {
+		await syncDamagesSpatialFootprint(tx, id, spatialFootprintValue);
+	}
 
 	let recordId = await getRecordId(tx, id);
 	await updateTotalsUsingDisasterRecordId(tx, recordId);
@@ -386,6 +661,10 @@ export async function damagesUpdateByIdAndCountryAccountsId(
 ): Promise<UpdateResult<DamagesFields>> {
 	let errors = validate(fields);
 	if (hasErrors(errors)) return { ok: false, errors };
+
+	const spatialFootprintValue = (fields as any).spatialFootprint;
+	const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
+		fields as any;
 
 	let recordId = await getRecordId(tx, id);
 	const disasterRecords =
@@ -405,8 +684,12 @@ export async function damagesUpdateByIdAndCountryAccountsId(
 
 	await tx
 		.update(damagesTable)
-		.set({ ...fields })
+		.set({ ...updateValues })
 		.where(eq(damagesTable.id, id));
+
+	if ("spatialFootprint" in fields) {
+		await syncDamagesSpatialFootprint(tx, id, spatialFootprintValue);
+	}
 
 	await updateTotalsUsingDisasterRecordId(tx, recordId);
 
@@ -480,7 +763,12 @@ export async function damagesByIdTx(ctx: BackendContext, tx: Tx, id: string) {
 		},
 	});
 	if (!res) return null;
-	return res;
+
+	const spatialFootprint = await loadDamagesSpatialFootprint(tx, id);
+	return {
+		...res,
+		spatialFootprint,
+	};
 }
 
 export async function damagesByIdAndCountryAccountsId(
@@ -516,7 +804,12 @@ export async function damagesByIdAndCountryAccountsIdTx(
 	});
 	if (!res) return null;
 	if (res.disasterRecord.countryAccountsId !== countryAccountsId) return null;
-	return res;
+
+	const spatialFootprint = await loadDamagesSpatialFootprint(tx, id);
+	return {
+		...res,
+		spatialFootprint,
+	};
 }
 
 export async function damagesDeleteById(

@@ -17,4 +17,13 @@ export interface SectorDisasterRecord {
 
 	sectorTreeDisplay: string;
 	sectorTreeDisplayIds: string;
+
+	sectorDisruptionTotal: number | null;
+	sectorDisruptionTotalCurrency: string | null;
+
+	sectorDamagesTotal: number | null;
+
+	sectorDamagesRecoveryTotal: number | null;
+
+	sectorLossesTotal: number | null;
 }

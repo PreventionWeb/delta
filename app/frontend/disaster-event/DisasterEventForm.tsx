@@ -134,9 +134,13 @@ export type DisasterEventFormOutletContext = {
 	disasterEventOptions: LinkedEventOption[];
 	hazardousEventOptions: LinkedEventOption[];
 	triggeringHazardousEventTarget: LinkedEventOption[];
-	setTriggeringHazardousEventTarget: Dispatch<SetStateAction<LinkedEventOption[]>>;
+	setTriggeringHazardousEventTarget: Dispatch<
+		SetStateAction<LinkedEventOption[]>
+	>;
 	triggeredHazardousEventTarget: LinkedEventOption[];
-	setTriggeredHazardousEventTarget: Dispatch<SetStateAction<LinkedEventOption[]>>;
+	setTriggeredHazardousEventTarget: Dispatch<
+		SetStateAction<LinkedEventOption[]>
+	>;
 	triggeringDisasterEventTarget: LinkedEventOption[];
 	setTriggeringDisasterEventTarget: Dispatch<
 		SetStateAction<LinkedEventOption[]>
@@ -413,10 +417,10 @@ function StepperValidation({
 
 				const label =
 					typeof maybeItem?.geographic_level === "string" &&
-						maybeItem.geographic_level.trim().length > 0
+					maybeItem.geographic_level.trim().length > 0
 						? maybeItem.geographic_level.trim()
 						: typeof maybeItem?.title === "string" &&
-							maybeItem.title.trim().length > 0
+							  maybeItem.title.trim().length > 0
 							? maybeItem.title.trim()
 							: divisionId;
 
@@ -433,8 +437,8 @@ function StepperValidation({
 			return [];
 		}
 	});
-	const [keptAttachmentIds, setKeptAttachmentIds] = useState<string[]>(
-		() => disasterEventAttachments.map((attachment) => attachment.id),
+	const [keptAttachmentIds, setKeptAttachmentIds] = useState<string[]>(() =>
+		disasterEventAttachments.map((attachment) => attachment.id),
 	);
 	const [newAttachmentUploads, setNewAttachmentUploads] = useState<
 		NewAttachmentUpload[]
@@ -470,7 +474,8 @@ function StepperValidation({
 		nationalDisasterId: disasterEvent?.nationalDisasterId ?? "",
 		glide: disasterEvent?.glide ?? "",
 		recordingOrganizationId: eventBasicsInitialValues.recordingOrganizationId,
-		recordingOrganizationName: eventBasicsInitialValues.recordingOrganizationName,
+		recordingOrganizationName:
+			eventBasicsInitialValues.recordingOrganizationName,
 	});
 
 	const parseDateWithPrecision = (
@@ -551,7 +556,9 @@ function StepperValidation({
 			return null;
 		}
 
-		const match = String(value).trim().match(/^(\d{2}):(\d{2})(?::(\d{2}))?/);
+		const match = String(value)
+			.trim()
+			.match(/^(\d{2}):(\d{2})(?::(\d{2}))?/);
 		if (!match) {
 			return null;
 		}
@@ -768,13 +775,13 @@ function StepperValidation({
 								inputId={`${prefix}Date`}
 								value={
 									state.year.length === 4 &&
-										state.month.length === 2 &&
-										state.day.length === 2
+									state.month.length === 2 &&
+									state.day.length === 2
 										? new Date(
-											Number(state.year),
-											Number(state.month) - 1,
-											Number(state.day),
-										)
+												Number(state.year),
+												Number(state.month) - 1,
+												Number(state.day),
+											)
 										: null
 								}
 								onChange={(event) => {
@@ -926,7 +933,6 @@ function StepperValidation({
 						placeholder={timePlaceholder}
 						className="w-full"
 					/>
-
 				</div>
 			</>
 		);
@@ -941,9 +947,7 @@ function StepperValidation({
 		useState<LinkedEventOption[]>(() => linkedTriggeredDisasterEvents);
 	const [linkedDisasterRecordTarget, setLinkedDisasterRecordTarget] = useState<
 		LinkedEventOption[]
-	>(
-		() => linkedDisasterRecords,
-	);
+	>(() => linkedDisasterRecords);
 
 	const formatBackendDate = (
 		value: string | Date | null | undefined,
@@ -1085,7 +1089,7 @@ function StepperValidation({
 		for (const index of effectIndexes) {
 			const descriptionText = String(
 				disasterEvent?.[`disasterDeclarationTypeAndEffect${index}` as const] ??
-				"",
+					"",
 			).trim();
 			const formattedDate = formatBackendDate(
 				disasterEvent?.[`disasterDeclarationDate${index}` as const] ?? null,
@@ -1225,9 +1229,9 @@ function StepperValidation({
 		? detailForm.declarationStatus !== ""
 		: isOfficialWarningType
 			? detailForm.hadOfficialWarningOrWeatherAdvisory ||
-			hasOfficialWarningAreas
+				hasOfficialWarningAreas
 			: detailForm.description.trim().length > 0 ||
-			detailForm.dateValue !== null;
+				detailForm.dateValue !== null;
 	const canSaveDetail =
 		hasDetailType && hasDetailContent && passesOfficialWarningRule;
 	const [errors, setErrors] = useState<Errors>({});
@@ -1371,9 +1375,7 @@ function StepperValidation({
 			nationalDisasterId: readFieldValue("nationalDisasterId"),
 			glide: readFieldValue("glide"),
 			recordingOrganizationId: form.recordingOrganizationId,
-			recordingOrganizationName: readFieldValue(
-				"recordingOrganizationName",
-			),
+			recordingOrganizationName: readFieldValue("recordingOrganizationName"),
 		};
 
 		setForm((current) =>
@@ -1418,16 +1420,23 @@ function StepperValidation({
 				"Start time requires a complete start date (YYYY-MM-DD)";
 		}
 
-		if (hasEndTime && (endDateState.precision !== "yyyy-mm-dd" || !endDateValue)) {
+		if (
+			hasEndTime &&
+			(endDateState.precision !== "yyyy-mm-dd" || !endDateValue)
+		) {
 			nextErrors.endDate = "End time requires a complete end date (YYYY-MM-DD)";
 		}
 
 		if (endDateValue && !startDateValue) {
-			nextErrors.startDate =
-				"Start date is required when end date has a value";
+			nextErrors.startDate = "Start date is required when end date has a value";
 		}
 
-		if (!nextErrors.startDate && !nextErrors.endDate && startDateValue && endDateValue) {
+		if (
+			!nextErrors.startDate &&
+			!nextErrors.endDate &&
+			startDateValue &&
+			endDateValue
+		) {
 			const startBoundary = toComparableBoundaryDate(startDateState, "start");
 			const endBoundary = toComparableBoundaryDate(endDateState, "end");
 
@@ -1838,9 +1847,9 @@ function StepperValidation({
 	);
 	const canAddAnyDeclaration =
 		(declarationCountByType.disaster_declaration ?? 0) <
-		maxDisasterDeclarationItems ||
+			maxDisasterDeclarationItems ||
 		(declarationCountByType.disaster_declaration_effects ?? 0) <
-		maxDisasterDeclarationEffectsItems ||
+			maxDisasterDeclarationEffectsItems ||
 		(declarationCountByType.official_warning ?? 0) < maxOfficialWarningItems;
 	const reviewSpatialFootprintItems = useMemo(
 		() =>
@@ -2031,7 +2040,7 @@ function StepperValidation({
 				category === "response" && normalizedType === "response_operation"
 					? null
 					: category === "declaration" &&
-						normalizedType !== "disaster_declaration_effects"
+						  normalizedType !== "disaster_declaration_effects"
 						? null
 						: parseDetailDate(item.date),
 			description: item.description,
@@ -2069,16 +2078,16 @@ function StepperValidation({
 		const declarationMeta: AdditionalDetailMeta | undefined =
 			targetCategory === "declaration"
 				? {
-					declarationStatus: isDeclarationStatusType
-						? (detailForm.declarationStatus as DeclarationStatus)
-						: undefined,
-					hadOfficialWarningOrWeatherAdvisory: isOfficialWarningType
-						? detailForm.hadOfficialWarningOrWeatherAdvisory
-						: undefined,
-					officialWarningAffectedAreas: isOfficialWarningType
-						? detailForm.officialWarningAffectedAreas.trim()
-						: undefined,
-				}
+						declarationStatus: isDeclarationStatusType
+							? (detailForm.declarationStatus as DeclarationStatus)
+							: undefined,
+						hadOfficialWarningOrWeatherAdvisory: isOfficialWarningType
+							? detailForm.hadOfficialWarningOrWeatherAdvisory
+							: undefined,
+						officialWarningAffectedAreas: isOfficialWarningType
+							? detailForm.officialWarningAffectedAreas.trim()
+							: undefined,
+					}
 				: undefined;
 		const nextItem: AdditionalDetailItem = {
 			id: editingDetailId ?? `${targetCategory}-${Date.now()}`,
@@ -2087,15 +2096,15 @@ function StepperValidation({
 				targetCategory === "response" && trimmedType === "response_operation"
 					? ""
 					: targetCategory === "declaration" &&
-						trimmedType !== "disaster_declaration_effects"
+						  trimmedType !== "disaster_declaration_effects"
 						? ""
 						: formatDetailDate(detailForm.dateValue),
 			description:
 				targetCategory === "declaration" &&
-					trimmedType === "disaster_declaration"
+				trimmedType === "disaster_declaration"
 					? ""
 					: targetCategory === "declaration" &&
-						trimmedType === "official_warning"
+						  trimmedType === "official_warning"
 						? detailForm.officialWarningAffectedAreas.trim()
 						: trimmedDescription,
 			meta: declarationMeta,
@@ -2224,14 +2233,14 @@ function StepperValidation({
 						<p className="mt-1 text-[14px] text-slate-500">
 							{descriptionValue
 								? (() => {
-									const lines = descriptionValue.split("\n");
-									return lines.map((line, index) => (
-										<span key={`${item.id}-line-${index}`}>
-											{line}
-											{index < lines.length - 1 ? <br /> : null}
-										</span>
-									));
-								})()
+										const lines = descriptionValue.split("\n");
+										return lines.map((line, index) => (
+											<span key={`${item.id}-line-${index}`}>
+												{line}
+												{index < lines.length - 1 ? <br /> : null}
+											</span>
+										));
+									})()
 								: "-"}
 						</p>
 					</div>
@@ -2250,24 +2259,26 @@ function StepperValidation({
 
 	function getDetailDescriptionValue(item: AdditionalDetailItem): string {
 		if (item.type === "disaster_declaration") {
-			return `Disaster declaration: ${declarationStatusOptions.find(
-				(option) => option.value === item.meta?.declarationStatus,
-			)?.label ?? "-"
-				}`;
+			return `Disaster declaration: ${
+				declarationStatusOptions.find(
+					(option) => option.value === item.meta?.declarationStatus,
+				)?.label ?? "-"
+			}`;
 		}
 
 		if (item.type === "official_warning") {
 			return [
-				`Was there an officially issued warning and/or weather advisory?: ${item.meta?.hadOfficialWarningOrWeatherAdvisory ? "Yes" : "No"
+				`Was there an officially issued warning and/or weather advisory?: ${
+					item.meta?.hadOfficialWarningOrWeatherAdvisory ? "Yes" : "No"
 				}`,
-				`Which affected areas were covered by the warning?: ${item.meta?.officialWarningAffectedAreas || "-"
+				`Which affected areas were covered by the warning?: ${
+					item.meta?.officialWarningAffectedAreas || "-"
 				}`,
 			].join("\n");
 		}
 
 		return item.description;
 	}
-
 
 	const triggeringHazardousEventItemTemplate = (
 		item: LinkedEventOption,
@@ -2281,7 +2292,9 @@ function StepperValidation({
 				<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
 					<div className="flex w-full items-start justify-between gap-4">
 						<div>
-							<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
+							<p className="text-[14px] font-semibold text-slate-700">
+								{item.name}
+							</p>
 							<p>UUID: {item.code.substring(0, 8)}</p>
 						</div>
 					</div>
@@ -2315,7 +2328,9 @@ function StepperValidation({
 				<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
 					<div className="flex w-full items-start justify-between gap-4">
 						<div>
-							<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
+							<p className="text-[14px] font-semibold text-slate-700">
+								{item.name}
+							</p>
 							<p>UUID: {item.code.substring(0, 8)}</p>
 						</div>
 					</div>
@@ -2355,7 +2370,9 @@ function StepperValidation({
 				<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
 					<div className="flex w-full items-start justify-between gap-4">
 						<div>
-							<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
+							<p className="text-[14px] font-semibold text-slate-700">
+								{item.name}
+							</p>
 							{item.hip ? (
 								<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
 							) : null}
@@ -2379,7 +2396,6 @@ function StepperValidation({
 		);
 	};
 
-
 	const triggeringDisasterEventItemTemplate = (
 		item: LinkedEventOption,
 		layout?: "list" | "grid",
@@ -2392,7 +2408,9 @@ function StepperValidation({
 				<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
 					<div className="flex w-full items-start justify-between gap-4">
 						<div>
-							<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
+							<p className="text-[14px] font-semibold text-slate-700">
+								{item.name}
+							</p>
 							{item.hip ? (
 								<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
 							) : null}
@@ -2428,7 +2446,9 @@ function StepperValidation({
 				<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
 					<div className="flex w-full items-start justify-between gap-4">
 						<div>
-							<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
+							<p className="text-[14px] font-semibold text-slate-700">
+								{item.name}
+							</p>
 							{item.hip ? (
 								<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
 							) : null}
@@ -2519,7 +2539,6 @@ function StepperValidation({
 		return value.slice(0, 6);
 	}
 
-
 	async function copyUuidToClipboard(value: string) {
 		await copyTextToClipboardWithToast({
 			value,
@@ -2539,8 +2558,6 @@ function StepperValidation({
 			}),
 		});
 	}
-
-
 
 	useEffect(() => {
 		const animationFrameId = requestAnimationFrame(() => {
@@ -2909,7 +2926,12 @@ function StepperValidation({
 													readOnly
 													className="w-full !border-slate-100 !bg-slate-50 shadow-none cursor-not-allowed"
 												/>
-												<input type="hidden" id="id" name="id" value={form.id} />
+												<input
+													type="hidden"
+													id="id"
+													name="id"
+													value={form.id}
+												/>
 
 												<Button
 													type="button"
@@ -2918,7 +2940,9 @@ function StepperValidation({
 													rounded
 													title="Copy UUID"
 													aria-label="Copy disaster event UUID"
-													onClick={() => copyUuidToClipboard(form.id.toString())}
+													onClick={() =>
+														copyUuidToClipboard(form.id.toString())
+													}
 												/>
 											</div>
 										</div>
@@ -3080,7 +3104,6 @@ function StepperValidation({
 													errors.endDate,
 												)}
 
-
 												<input
 													type="hidden"
 													name="startDate"
@@ -3177,7 +3200,8 @@ function StepperValidation({
 														</h3>
 													</div>
 													<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
-														Define the specific geographic area affected using interactive map coordinates or manual input.
+														Define the specific geographic area affected using
+														interactive map coordinates or manual input.
 													</p>
 													<div className="mt-2.5">
 														<Button
@@ -3210,7 +3234,10 @@ function StepperValidation({
 										</div>
 									</div>
 
-									<div id="disaster-event-attachment-divider" className="col-span-12 my-6 border-t border-slate-200" />
+									<div
+										id="disaster-event-attachment-divider"
+										className="col-span-12 my-6 border-t border-slate-200"
+									/>
 
 									<DisasterEventAttachment
 										ctx={ctx}
@@ -3220,7 +3247,6 @@ function StepperValidation({
 										onKeptAttachmentIdsChange={setKeptAttachmentIds}
 										onNewAttachmentUploadsChange={setNewAttachmentUploads}
 									/>
-
 								</div>
 
 								<div className="col-span-12 mt-30 mb-6 h-[2px] w-full bg-slate-200" />
@@ -3258,7 +3284,8 @@ function StepperValidation({
 										Linked events
 									</h1>
 									<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
-										Define relationships between this event and other system records.
+										Define relationships between this event and other system
+										records.
 									</p>
 								</div>
 								<div className="col-span-12 mb-4">
@@ -3420,7 +3447,6 @@ function StepperValidation({
 												layout="grid"
 											/>
 										</div>
-
 									</div>
 								</div>
 
@@ -3462,11 +3488,9 @@ function StepperValidation({
 												emptyMessage="No linked records"
 												layout="grid"
 											/>
-
 										</div>
 									</div>
 								</div>
-
 
 								<div className="col-span-12 mt-30 mb-6 h-[2px] w-full bg-slate-200" />
 
@@ -3652,11 +3676,11 @@ function StepperValidation({
 														type: selectedType,
 														dateValue:
 															detailDialogCategory === "response" &&
-																selectedType === "response_operation"
+															selectedType === "response_operation"
 																? null
 																: detailDialogCategory === "declaration" &&
-																	selectedType !==
-																	"disaster_declaration_effects"
+																	  selectedType !==
+																			"disaster_declaration_effects"
 																	? null
 																	: state.dateValue,
 														declarationStatus:
@@ -3768,7 +3792,7 @@ function StepperValidation({
 														className="w-full"
 													/>
 													{detailForm.hadOfficialWarningOrWeatherAdvisory &&
-														!hasOfficialWarningAreas ? (
+													!hasOfficialWarningAreas ? (
 														<p className="mt-1 text-xs text-red-600">
 															Affected areas are required when warning/advisory
 															is checked.
@@ -3880,8 +3904,11 @@ function StepperValidation({
 									endTimingValue={reviewEndTimingValue}
 									selectedDivisionItems={selectedDivisionItems}
 									reviewSpatialFootprintItems={reviewSpatialFootprintItems}
+									reviewSpatialFootprintData={spatialFootprintValue}
 									reviewAttachments={reviewAttachments}
-									triggeringHazardousEventTarget={triggeringHazardousEventTarget}
+									triggeringHazardousEventTarget={
+										triggeringHazardousEventTarget
+									}
 									triggeredHazardousEventTarget={triggeredHazardousEventTarget}
 									triggeringDisasterEventTarget={triggeringDisasterEventTarget}
 									triggeredDisasterEventTarget={triggeredDisasterEventTarget}
@@ -3932,7 +3959,6 @@ function StepperValidation({
 		</>
 	);
 }
-
 
 export type DisasterEventFormProps = StepperValidationProps;
 

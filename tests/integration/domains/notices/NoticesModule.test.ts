@@ -6,7 +6,19 @@ import "../../db/setup";
 import "reflect-metadata";
 
 import { Test, type TestingModule } from "@nestjs/testing";
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { GUARDS_METADATA, PATH_METADATA } from "@nestjs/common/constants";
+import { type INestApplication } from "@nestjs/common";
+import supertest from "supertest";
+import {
+	describe,
+	it,
+	expect,
+	beforeEach,
+	afterEach,
+	beforeAll,
+	afterAll,
+	vi,
+} from "vitest";
 
 import { NoticesModule } from "~/domains/notices/infrastructure/NoticesModule.server";
 import { NOTICE_REPOSITORY } from "~/domains/notices/infrastructure/NoticeRepositoryToken";
@@ -14,8 +26,15 @@ import { DrizzleNoticeRepository } from "~/domains/notices/infrastructure/Drizzl
 import { CreateNoticeUseCase } from "~/domains/notices/application/use-cases/CreateNotice";
 import { ListNoticesUseCase } from "~/domains/notices/application/use-cases/ListNotices";
 import { GetNoticeByIdUseCase } from "~/domains/notices/application/use-cases/GetNoticeById";
+import { UpdateNoticeUseCase } from "~/domains/notices/application/use-cases/UpdateNotice";
+import { DeleteNoticeUseCase } from "~/domains/notices/application/use-cases/DeleteNotice";
+import { NoticesController } from "~/domains/notices/presentation/NoticesController.server";
+import { SessionAuthGuard } from "~/domains/notices/presentation/guards/SessionAuthGuard.server";
 import { CoreModule } from "~/infrastructure/CoreModule.server";
 import { getPinoLogger } from "~/infrastructure/logging/PinoLogger.server";
+import { initCookieStorage } from "~/utils/session";
+import * as requestContextModule from "~/utils/requestContext.server";
+import { insertTenant, insertUser, buildSessionCookie } from "./testHelpers";
 
 describe("NoticesModule", () => {
 	const modulesToClose: TestingModule[] = [];
@@ -93,6 +112,28 @@ describe("NoticesModule", () => {
 	it("GetNoticeByIdUseCase's useFactory constructs its logger via getPinoLogger(), not NoOpLogger", () => {
 		// Verifies notices-module-wiring spec: same identity check as above for GetNoticeByIdUseCase.
 		const useCase = module.get(GetNoticeByIdUseCase) as unknown as {
+			logger: unknown;
+		};
+		expect(useCase.logger).toBe(getPinoLogger());
+	});
+
+	it("UpdateNoticeUseCase resolves to a defined instance", () => {
+		expect(module.get(UpdateNoticeUseCase)).toBeDefined();
+	});
+
+	it("DeleteNoticeUseCase resolves to a defined instance", () => {
+		expect(module.get(DeleteNoticeUseCase)).toBeDefined();
+	});
+
+	it("UpdateNoticeUseCase's useFactory constructs its logger via getPinoLogger(), not NoOpLogger", () => {
+		const useCase = module.get(UpdateNoticeUseCase) as unknown as {
+			logger: unknown;
+		};
+		expect(useCase.logger).toBe(getPinoLogger());
+	});
+
+	it("DeleteNoticeUseCase's useFactory constructs its logger via getPinoLogger(), not NoOpLogger", () => {
+		const useCase = module.get(DeleteNoticeUseCase) as unknown as {
 			logger: unknown;
 		};
 		expect(useCase.logger).toBe(getPinoLogger());
@@ -187,5 +228,93 @@ describe("NoticesModule — CoreModule resolution", () => {
 
 		const useCase = module.get(GetNoticeByIdUseCase);
 		expect(useCase).toBeDefined();
+	});
+});
+
+describe("NoticesModule — SessionAuthGuard applies to NoticesController", () => {
+	it("SessionAuthGuard is registered at the class level, covering all five routes", () => {
+		const guards = Reflect.getMetadata(
+			GUARDS_METADATA,
+			NoticesController,
+		) as unknown[];
+		expect(guards).toContain(SessionAuthGuard);
+
+		const prototype = NoticesController.prototype as unknown as Record<
+			string,
+			() => unknown
+		>;
+		const routeMethods = Object.getOwnPropertyNames(prototype).filter(
+			(name) =>
+				name !== "constructor" &&
+				Reflect.getMetadata(PATH_METADATA, prototype[name]) !== undefined,
+		);
+		expect(routeMethods).toHaveLength(5);
+	});
+});
+
+describe("NoticesModule — request-context middleware", () => {
+	const modulesToClose: TestingModule[] = [];
+	let app: INestApplication;
+	let request: ReturnType<typeof supertest>;
+
+	beforeAll(async () => {
+		initCookieStorage();
+		const module = await Test.createTestingModule({
+			imports: [NoticesModule],
+		}).compile();
+		modulesToClose.push(module);
+		app = module.createNestApplication();
+		await app.init();
+		await app.listen(0);
+		request = supertest(app.getHttpServer());
+	});
+
+	afterAll(async () => {
+		await app.close();
+		await Promise.all(modulesToClose.map((m) => m.close()));
+	});
+
+	it("opens exactly one request-context scope per incoming request", async () => {
+		const spy = vi.spyOn(requestContextModule, "withRequestContext");
+		const tenantId = await insertTenant();
+		const userId = await insertUser();
+		const cookie = await buildSessionCookie({ userId, tenantId });
+
+		await request.get("/notices").set("Cookie", cookie);
+
+		expect(spy).toHaveBeenCalledTimes(1);
+		spy.mockRestore();
+	});
+
+	it("does not leak tenantId/userId between concurrent requests for different tenants", async () => {
+		const tenantA = await insertTenant();
+		const cookieA = await buildSessionCookie({
+			userId: await insertUser(),
+			tenantId: tenantA,
+		});
+		const tenantB = await insertTenant();
+		const cookieB = await buildSessionCookie({
+			userId: await insertUser(),
+			tenantId: tenantB,
+		});
+
+		const [resA, resB] = await Promise.all([
+			request.get("/notices").set("Cookie", cookieA),
+			request.get("/notices").set("Cookie", cookieB),
+		]);
+
+		expect(resA.status).toBe(200);
+		expect(resB.status).toBe(200);
+		// ADR-007: GET /notices returns the bare array directly, no { success, data } envelope.
+		expect(
+			(resA.body as Array<{ tenantId: string }>).every(
+				(n) => n.tenantId === tenantA,
+			),
+		).toBe(true);
+		expect(
+			(resB.body as Array<{ tenantId: string }>).every(
+				(n) => n.tenantId === tenantB,
+			),
+		).toBe(true);
 	});
 });

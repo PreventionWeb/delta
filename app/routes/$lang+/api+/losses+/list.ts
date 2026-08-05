@@ -56,7 +56,6 @@ export const loader = async (args: LoaderFunctionArgs) => {
 					privateCostUnitCurrency: true,
 					privateCostTotal: true,
 					privateCostTotalOverride: true,
-					spatialFootprint: true,
 					attachments: true,
 				},
 				where: (losses, { eq, and, inArray }) =>

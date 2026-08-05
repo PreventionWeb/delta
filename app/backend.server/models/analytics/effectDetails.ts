@@ -295,7 +295,7 @@ export async function getEffectDetails(
         END`.as("totalRecovery"),
 			sectorId: damagesTable.sectorId,
 			attachments: damagesTable.attachments,
-			spatialFootprint: damagesTable.spatialFootprint,
+			spatialFootprint: (damagesTable as any).spatialFootprint,
 		})
 		.from(damagesTable)
 		.innerJoin(assetTable, eq(damagesTable.assetId, assetTable.id))
@@ -350,7 +350,7 @@ export async function getEffectDetails(
         END`.as("privateCostTotal"),
 			sectorId: lossesTable.sectorId,
 			attachments: lossesTable.attachments,
-			spatialFootprint: lossesTable.spatialFootprint,
+			spatialFootprint: (lossesTable as any).spatialFootprint,
 		})
 		.from(lossesTable)
 		.innerJoin(
@@ -389,7 +389,7 @@ export async function getEffectDetails(
 			comment: disruptionTable.comment,
 			sectorId: disruptionTable.sectorId,
 			attachments: disruptionTable.attachments,
-			spatialFootprint: disruptionTable.spatialFootprint,
+			spatialFootprint: (disruptionTable as any).spatialFootprint,
 		})
 		.from(disruptionTable)
 		.innerJoin(

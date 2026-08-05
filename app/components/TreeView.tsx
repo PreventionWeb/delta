@@ -867,6 +867,9 @@ export const TreeView = forwardRef<HTMLDivElement, TreeViewProps>(
 					</div>
 					{noAction && (
 						<>
+							<div className="tree-footer pt-4">
+								<div data-ids="" data-id=""></div>
+							</div>
 							<div className="flex w-full justify-end gap-2 pt-6">
 								<Button
 									label={ctx.t({ code: "common.apply", msg: "Apply" })}

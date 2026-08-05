@@ -1,0 +1,17 @@
+{
+	"list": {
+		"empty": "No notices found.",
+		"columns": {
+			"title": "Title",
+			"status": "Status",
+			"published_at": "Published",
+			"updated_at": "Last updated",
+			"actions": "Actions"
+		}
+	},
+	"status": {
+		"published": "Published",
+		"draft": "Draft"
+	},
+	"title": "Notices"
+}

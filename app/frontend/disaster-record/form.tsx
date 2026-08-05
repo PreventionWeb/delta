@@ -412,9 +412,9 @@ export function DisasterRecordsForm(props: DisasterRecordsFormProps) {
 		hazardousEventLinkInitial = "disaster_event";
 	}
 
-	const [hazardousEventLinkType, setHazardousEventLinkType] = useState<"none" | "disaster_event">(
-		hazardousEventLinkInitial,
-	);
+	const [hazardousEventLinkType, setHazardousEventLinkType] = useState<
+		"none" | "disaster_event"
+	>(hazardousEventLinkInitial);
 
 	// Modal submit validation function
 	function validateBeforeSubmit(
@@ -656,7 +656,7 @@ export function DisasterRecordsForm(props: DisasterRecordsFormProps) {
 								divisions={divisionGeoJSON}
 								ctryIso3={ctryIso3 || ""}
 								treeData={treeData ?? []}
-								initialData={fields?.spatialFootprint}
+								initialData={((fields as any)?.spatialFootprint as any[]) || []}
 							/>
 						</Field>
 					),
@@ -703,7 +703,6 @@ interface DisasterRecordsViewProps {
 
 export function DisasterRecordsView(props: DisasterRecordsViewProps) {
 	const { ctx, item } = props;
-	const dataSource: Array<Record<string, unknown>> = (item as any)?.disasterRecord || [];
 
 	return (
 		<ViewComponentMainDataCollection
@@ -734,14 +733,22 @@ export function DisasterRecordsView(props: DisasterRecordsViewProps) {
 							}}
 						/>
 					) : null,
+					spatialFootprint: (
+						<SpatialFootprintView
+							ctx={ctx}
+							initialData={((item as any)?.spatialFootprint as any[]) || []}
+							mapViewerOption={0}
+							mapViewerDataSources={[]}
+						/>
+					),
 					createdAt: (
-						<p key="createdAt">
+						<p key="createdAt"><strong>
 							{ctx.t({
 								code: "common.created_at",
 								desc: "Created date",
 								msg: "Created at",
 							})}
-							:{" "}
+							:</strong>{" "}
 							{item?.createdAt
 								? formatDate(item.createdAt)
 								: ctx.t({
@@ -752,13 +759,13 @@ export function DisasterRecordsView(props: DisasterRecordsViewProps) {
 						</p>
 					),
 					updatedAt: (
-						<p key="updatedAt">
+						<p key="updatedAt"><strong>
 							{ctx.t({
 								code: "common.updated_at",
 								desc: "Last updated date",
 								msg: "Updated at",
 							})}
-							:{" "}
+							:</strong>{" "}
 							{item?.updatedAt
 								? formatDate(item.updatedAt)
 								: ctx.t({
@@ -769,23 +776,13 @@ export function DisasterRecordsView(props: DisasterRecordsViewProps) {
 						</p>
 					),
 					disasterEventId: (
-						<p key="disasterEventId">
+						<p key="disasterEventId"><strong>
 							{ctx.t({
 								code: "disaster_event",
 								msg: "Disaster event",
 							})}
-							: {(item as any).cpDisplayName || ""}
+							:</strong> {(item as any).cpDisplayName || ""}
 						</p>
-					),
-					spatialFootprint: (
-						<div key="debug1">
-							<SpatialFootprintView
-								ctx={ctx}
-								initialData={(item?.spatialFootprint as any[]) || []}
-								mapViewerOption={1}
-								mapViewerDataSources={dataSource}
-							/>
-						</div>
 					),
 					attachments: (
 						<AttachmentsView

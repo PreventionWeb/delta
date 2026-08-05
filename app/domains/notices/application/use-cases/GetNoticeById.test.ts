@@ -6,11 +6,8 @@ import {
 	type Notice,
 } from "~/domains/notices/domain/Notice";
 import { NotFoundError } from "~/shared/errors/DomainError";
-import {
-	GetNoticeByIdUseCase,
-	NoticeNotFoundError,
-	type GetNoticeByIdQuery,
-} from "./GetNoticeById";
+import { NoticeNotFoundError } from "~/domains/notices/application/errors/NoticeErrors";
+import { GetNoticeByIdUseCase, type GetNoticeByIdQuery } from "./GetNoticeById";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -27,16 +24,17 @@ function buildNotice(
 	overrides: {
 		id?: string;
 		tenantId?: string;
-		titleJson?: Record<string, string>;
-		bodyJson?: Record<string, string> | null;
+		title?: string;
+		body?: string | null;
 	} = {},
 ): Notice {
 	const now = new Date("2024-01-15T10:00:00.000Z");
 	return NoticeCls.create({
 		id: overrides.id ?? "abc",
 		tenantId: overrides.tenantId ?? "t1",
-		titleJson: overrides.titleJson ?? { en: "Test Notice" },
-		bodyJson: overrides.bodyJson ?? null,
+		title: overrides.title ?? "Test Notice",
+		body: overrides.body ?? null,
+		locale: "en",
 		isPublished: false,
 		audience: "private",
 		publishedAt: null,
@@ -94,7 +92,7 @@ describe("GetNoticeByIdUseCase", () => {
 
 		expect(result.id).toBe("abc");
 		expect(result.tenantId).toBe("t1");
-		expect(result.titleJson).toEqual({ en: "Test Notice" });
+		expect(result.title).toBe("Test Notice");
 		expect(new Date(result.createdAt).toISOString()).toBe(result.createdAt);
 	});
 
@@ -243,12 +241,12 @@ describe("GetNoticeByIdUseCase", () => {
 		const noticeA = buildNotice({
 			id: "a",
 			tenantId: "t1",
-			titleJson: { en: "Notice A" },
+			title: "Notice A",
 		});
 		const noticeB = buildNotice({
 			id: "b",
 			tenantId: "t1",
-			titleJson: { en: "Notice B" },
+			title: "Notice B",
 		});
 
 		const repo = makeRepository((id: string) =>

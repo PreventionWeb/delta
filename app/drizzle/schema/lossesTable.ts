@@ -47,7 +47,6 @@ export const lossesTable = pgTable("losses", {
 	privateCostUnitCurrency: text("private_cost_unit_currency"),
 	privateCostTotal: ourMoney("private_cost_total"),
 	privateCostTotalOverride: zeroBool("private_cost_total_override"),
-	spatialFootprint: jsonb("spatial_footprint"),
 	attachments: jsonb("attachments"),
 });
 

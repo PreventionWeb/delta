@@ -16,10 +16,12 @@ interface UpdateStatusResult {
 /** Parameters for {@link processApprovalStatusActionService}. */
 interface ProcessApprovalStatusActionParams {
 	ctx: BackendContext;
-	/** The incoming Remix request — used to verify route ID exactly matches form ID. */
+	/** The incoming request (kept for compatibility and future auditing needs). */
 	request: Request;
 	/** Parsed form data from the submit action. Expected fields: `action`, `id`, `rejection-comments`, `assignedToUserId` (multi-value). */
 	formData: FormData;
+	/** Record ID from route params (the source of truth for action authorization context). */
+	routeRecordId: string | null | undefined;
 	countryAccountsId: string;
 	/** UUID of the authenticated user performing the action. */
 	userId: string;
@@ -45,8 +47,9 @@ interface ProcessApprovalStatusActionParams {
  */
 export async function processApprovalStatusActionService({
 	ctx,
-	request,
+	request: _request,
 	formData,
+	routeRecordId,
 	countryAccountsId,
 	userId,
 	recordType,
@@ -55,18 +58,7 @@ export async function processApprovalStatusActionService({
 	const rejectionComments = formData.get("rejection-comments");
 	const actionType = String(formData.get("action") || "");
 	const id = String(formData.get("id") || "");
-	const routeId = (() => {
-		try {
-			const pathname = new URL(request.url).pathname;
-			const segments = pathname
-				.split("/")
-				.filter(Boolean)
-				.map((segment) => decodeURIComponent(segment));
-			return segments.at(-1) || "";
-		} catch {
-			return "";
-		}
-	})();
+	const routeId = routeRecordId ? String(routeRecordId) : "";
 
 	if (!id || !routeId || routeId !== id) {
 		return {

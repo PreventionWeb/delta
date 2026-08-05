@@ -239,13 +239,34 @@
       "when": 1782294479744,
       "tag": "20260624094759_add_start_end_datetime_recording_org_id",
       "breakpoints": true
-	},
-	{
-	  "idx": 34,
-	  "version": "7",
-	  "when": 1782734400000,
-	  "tag": "20260629120000_add_event_causality",
-	  "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1782734400000,
+      "tag": "20260629120000_add_event_causality",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1784797200000,
+      "tag": "20260723090000_notices_single_locale_content",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1785385572454,
+      "tag": "20260730042612_migration_spatial_footprint_columns_to_new_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1785395601635,
+      "tag": "20260730071321_remove_spatial_footprint_columns",
+      "breakpoints": true
     }
   ]
 }

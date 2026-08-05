@@ -168,7 +168,7 @@ async function buildGeographicLevelSpatialFootprint(
 							nameObject.en ||
 							Object.values(nameObject)[0] ||
 							"",
-						).trim()) ||
+					).trim()) ||
 				item.label ||
 				item.key;
 
@@ -260,7 +260,9 @@ async function getCurrentUserOrganization(
 	});
 }
 
-async function getRecordingOrganization(recordingOrganizationId?: string | null) {
+async function getRecordingOrganization(
+	recordingOrganizationId?: string | null,
+) {
 	if (!recordingOrganizationId) {
 		return null;
 	}
@@ -354,9 +356,9 @@ function formatHazardousEventDisplayName(
 			? `${hazardName} (${event.hipHazard.code})`
 			: hazardName
 		: clusterName ||
-		typeName ||
-		event.description?.trim() ||
-		`HE: ${event.id.slice(0, 8)}`;
+			typeName ||
+			event.description?.trim() ||
+			`HE: ${event.id.slice(0, 8)}`;
 
 	return {
 		id: event.id,
@@ -396,8 +398,7 @@ function formatDisasterRecordDisplayName(
 
 	return {
 		id: record.id,
-		name:
-			`UUID: ${record.id.slice(0, 8)}`,
+		name: `UUID: ${record.id.slice(0, 8)}`,
 		code: record.id,
 		hip: hipLabel,
 	};
@@ -507,7 +508,6 @@ async function getLinkedDisasterData(
 	itemId: string,
 	lang: string,
 ) {
-
 	const disasterEvents = await dr.query.disasterEventTable.findMany({
 		columns: {
 			id: true,
@@ -571,11 +571,15 @@ async function getLinkedDisasterData(
 		);
 
 	const linkedTriggeringDisasterEvents = triggeringLinks
-		.map((row) => (row.linkedId ? disasterEventOptionsById.get(row.linkedId) : null))
+		.map((row) =>
+			row.linkedId ? disasterEventOptionsById.get(row.linkedId) : null,
+		)
 		.filter((event): event is NonNullable<typeof event> => Boolean(event));
 
 	const linkedTriggeredDisasterEvents = triggeredLinks
-		.map((row) => (row.linkedId ? disasterEventOptionsById.get(row.linkedId) : null))
+		.map((row) =>
+			row.linkedId ? disasterEventOptionsById.get(row.linkedId) : null,
+		)
 		.filter((event): event is NonNullable<typeof event> => Boolean(event));
 
 	const disasterRecords = await dr.query.disasterRecordsTable.findMany({
@@ -651,6 +655,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 	const selectedDivisionItemsRaw = String(
 		formData.get("selectedDivisionItems") ?? "[]",
 	);
+	const spatialFootprintRaw = String(formData.get("spatialFootprint") ?? "[]");
 	const hasExistingAttachmentIdsField = formData.has("existingAttachmentIds");
 	const existingAttachmentIdsRaw = String(
 		formData.get("existingAttachmentIds") ?? "[]",
@@ -665,6 +670,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 	let linkedTriggeringHazardousEventIds: string[] = [];
 	let linkedTriggeredHazardousEventIds: string[] = [];
 	let selectedDivisionItems: SelectedDivisionPayload[] = [];
+	let spatialFootprintValue: any[] = [];
 	let existingAttachmentIds: string[] = [];
 	let newAttachmentUploads: Array<{
 		fileName: string;
@@ -728,12 +734,18 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 		const parsed = JSON.parse(selectedDivisionItemsRaw);
 		selectedDivisionItems = Array.isArray(parsed)
 			? parsed.filter(
-				(value): value is SelectedDivisionPayload =>
-					typeof value?.key === "string" && typeof value?.label === "string",
-			)
+					(value): value is SelectedDivisionPayload =>
+						typeof value?.key === "string" && typeof value?.label === "string",
+				)
 			: [];
 	} catch {
 		selectedDivisionItems = [];
+	}
+	try {
+		const parsed = JSON.parse(spatialFootprintRaw);
+		spatialFootprintValue = Array.isArray(parsed) ? parsed : [];
+	} catch {
+		spatialFootprintValue = [];
 	}
 	try {
 		const parsed = JSON.parse(existingAttachmentIdsRaw);
@@ -747,18 +759,20 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 		const parsed = JSON.parse(newAttachmentUploadsRaw);
 		newAttachmentUploads = Array.isArray(parsed)
 			? parsed.filter(
-				(value): value is {
-					fileName: string;
-					fileType: string;
-					fileSize: number;
-					tempFilePath: string;
-					tenantPath?: string;
-				} =>
-					typeof value?.fileName === "string" &&
-					typeof value?.fileType === "string" &&
-					typeof value?.fileSize === "number" &&
-					typeof value?.tempFilePath === "string",
-			)
+					(
+						value,
+					): value is {
+						fileName: string;
+						fileType: string;
+						fileSize: number;
+						tempFilePath: string;
+						tenantPath?: string;
+					} =>
+						typeof value?.fileName === "string" &&
+						typeof value?.fileType === "string" &&
+						typeof value?.fileSize === "number" &&
+						typeof value?.tempFilePath === "string",
+				)
 			: [];
 	} catch {
 		newAttachmentUploads = [];
@@ -768,14 +782,8 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 		actionArgs,
 		fieldsDef: fieldsDef(ctx),
 		save: async (tx, id, data) => {
-			const updatedData = {
-				...data,
-				countryAccountsId,
-				updatedByUserId: userSession.user.id,
-			};
-
-			const currentSpatial = Array.isArray(updatedData.spatialFootprint)
-				? updatedData.spatialFootprint
+			const currentSpatial = Array.isArray(spatialFootprintValue)
+				? spatialFootprintValue
 				: [];
 			const nonGeographicSpatial = currentSpatial.filter(
 				(item: any) => item?.map_option !== "Geographic level",
@@ -786,10 +794,13 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 				ctx.lang,
 				selectedDivisionItems,
 			);
-			updatedData.spatialFootprint = [
-				...nonGeographicSpatial,
-				...geographicSpatial,
-			];
+			const spatialFootprint = [...nonGeographicSpatial, ...geographicSpatial];
+			const updatedData = {
+				...data,
+				countryAccountsId,
+				updatedByUserId: userSession.user.id,
+				spatialFootprint,
+			};
 
 			const syncLinkedDisasterEvents = async (eventId: string) => {
 				const selectedTriggeringIds = new Set(
@@ -982,7 +993,8 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 				);
 
 				const invalidTriggeredIds = Array.from(selectedTriggeredIds).filter(
-					(linkedEventId) => linkedEventId === eventId || ancestorIds.has(linkedEventId),
+					(linkedEventId) =>
+						linkedEventId === eventId || ancestorIds.has(linkedEventId),
 				);
 				if (invalidTriggeredIds.length > 0) {
 					return cycleErrorResult(
@@ -1090,7 +1102,9 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 			};
 
 			const syncLinkedHazardousEvents = async (eventId: string) => {
-				const selectedTriggeringIds = new Set(linkedTriggeringHazardousEventIds);
+				const selectedTriggeringIds = new Set(
+					linkedTriggeringHazardousEventIds,
+				);
 				const selectedTriggeredIds = new Set(linkedTriggeredHazardousEventIds);
 
 				const currentTriggeringRows = await tx
@@ -1178,7 +1192,10 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 			const syncDisasterEventAttachments = async (eventId: string) => {
 				if (hasExistingAttachmentIdsField) {
 					const existingAttachmentsBeforeDelete =
-						await DisasterEventAttachmentRepository.getByDisasterEventId(eventId, tx);
+						await DisasterEventAttachmentRepository.getByDisasterEventId(
+							eventId,
+							tx,
+						);
 					const keepIds = new Set(existingAttachmentIds);
 					const attachmentsToDelete = existingAttachmentsBeforeDelete.filter(
 						(attachment) => keepIds.has(attachment.id) === false,
@@ -1203,20 +1220,28 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 					}
 				}
 
-				if (!hasNewAttachmentUploadsField || newAttachmentUploads.length === 0) {
+				if (
+					!hasNewAttachmentUploadsField ||
+					newAttachmentUploads.length === 0
+				) {
 					return;
 				}
 
 				const existingAttachmentsAfterSync =
-					await DisasterEventAttachmentRepository.getByDisasterEventId(eventId, tx);
+					await DisasterEventAttachmentRepository.getByDisasterEventId(
+						eventId,
+						tx,
+					);
 
 				const savePath = `/uploads/disaster-event/${eventId}`;
-				const existingItems = existingAttachmentsAfterSync.map((attachment) => ({
-					file: {
-						name: attachment.fileKey,
-						content_type: attachment.fileType,
-					},
-				}));
+				const existingItems = existingAttachmentsAfterSync.map(
+					(attachment) => ({
+						file: {
+							name: attachment.fileKey,
+							content_type: attachment.fileType,
+						},
+					}),
+				);
 				const newItems = newAttachmentUploads.map((upload) => ({
 					file: {
 						name: upload.tempFilePath,
@@ -1236,22 +1261,30 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 
 				const movedNewItems = movedItems.slice(existingItems.length);
 				const newAttachmentRows = movedNewItems
-					.map((item: { file?: { name?: string; content_type?: string } }, index: number) => ({
-						disasterEventId: eventId,
-						fileKey: String(item?.file?.name ?? ""),
-						fileName: newAttachmentUploads[index]?.fileName ?? "",
-						fileType:
-							newAttachmentUploads[index]?.fileType ||
-							String(item?.file?.content_type ?? ""),
-						fileSize: Number(newAttachmentUploads[index]?.fileSize ?? 0),
-					}))
+					.map(
+						(
+							item: { file?: { name?: string; content_type?: string } },
+							index: number,
+						) => ({
+							disasterEventId: eventId,
+							fileKey: String(item?.file?.name ?? ""),
+							fileName: newAttachmentUploads[index]?.fileName ?? "",
+							fileType:
+								newAttachmentUploads[index]?.fileType ||
+								String(item?.file?.content_type ?? ""),
+							fileSize: Number(newAttachmentUploads[index]?.fileSize ?? 0),
+						}),
+					)
 					.filter(
 						(row: { fileKey: string; fileName: string }) =>
 							row.fileKey.length > 0 && row.fileName.length > 0,
 					);
 
 				if (newAttachmentRows.length > 0) {
-					await DisasterEventAttachmentRepository.createMany(newAttachmentRows, tx);
+					await DisasterEventAttachmentRepository.createMany(
+						newAttachmentRows,
+						tx,
+					);
 				}
 			};
 
@@ -1428,7 +1461,6 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 	};
 });
 
-
 export default function FormScreen() {
 	const ld = useLoaderData<typeof loader>();
 	const actionData = useActionData() as
@@ -1446,16 +1478,16 @@ export default function FormScreen() {
 	const ctx = new ViewContext();
 	const disasterEventForForm = ld.item
 		? {
-			...ld.item.disasterEvent,
-			recordingOrganizationId: ld.item.recordingOrganizationId,
-			recordingOrganizationName: ld.recordingOrganization?.name ?? null,
-		}
+				...ld.item.disasterEvent,
+				recordingOrganizationId: ld.item.recordingOrganizationId,
+				recordingOrganizationName: ld.recordingOrganization?.name ?? null,
+			}
 		: null;
 
 	const fixedHazardousEvent = ld.item?.hazardousEvent
 		? {
-			...ld.item.hazardousEvent,
-		}
+				...ld.item.hazardousEvent,
+			}
 		: null;
 
 	return (
@@ -1466,19 +1498,11 @@ export default function FormScreen() {
 			disasterEvent={disasterEventForForm}
 			disasterEventAttachments={ld.disasterEventAttachments ?? []}
 			hazardousEventOptions={ld.hazardousEventOptions ?? []}
-			linkedTriggeringHazardousEvents={
-				ld.linkedTriggeringHazardousEvents ?? []
-			}
-			linkedTriggeredHazardousEvents={
-				ld.linkedTriggeredHazardousEvents ?? []
-			}
+			linkedTriggeringHazardousEvents={ld.linkedTriggeringHazardousEvents ?? []}
+			linkedTriggeredHazardousEvents={ld.linkedTriggeredHazardousEvents ?? []}
 			disasterEventOptions={ld.disasterEventOptions ?? []}
-			linkedTriggeringDisasterEvents={
-				ld.linkedTriggeringDisasterEvents ?? []
-			}
-			linkedTriggeredDisasterEvents={
-				ld.linkedTriggeredDisasterEvents ?? []
-			}
+			linkedTriggeringDisasterEvents={ld.linkedTriggeringDisasterEvents ?? []}
+			linkedTriggeredDisasterEvents={ld.linkedTriggeredDisasterEvents ?? []}
 			disasterRecordOptions={ld.disasterRecordOptions ?? []}
 			linkedDisasterRecords={ld.linkedDisasterRecords ?? []}
 			currentUserOrganization={ld.currentUserOrganization ?? null}

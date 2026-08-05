@@ -3,7 +3,7 @@ import {
 	countryAccountsTable,
 	type InsertCountryAccounts,
 } from "~/drizzle/schema/countryAccountsTable";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { dr, Tx } from "~/db.server";
 
 export const CountryAccountsRepository = {
@@ -143,7 +143,7 @@ export const CountryAccountsRepository = {
 		const db = tx || dr;
 		const result = await db
 			.update(countryAccountsTable)
-			.set({ status, updatedAt: new Date(), shortDescription })
+			.set({ status, updatedAt: sql`CURRENT_TIMESTAMP`, shortDescription })
 			.where(eq(countryAccountsTable.id, id))
 			.returning()
 			.execute();

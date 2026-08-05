@@ -19,11 +19,18 @@ export abstract class DomainError extends Error {
 	abstract readonly code: string;
 	abstract readonly statusHint: number;
 	readonly context: Record<string, unknown> | undefined;
+	// Optional nestjs-i18n key; DomainErrorFilter translates via this, falling back to `message`.
+	readonly i18nKey: string | undefined;
 
-	constructor(message: string, context?: Record<string, unknown>) {
+	constructor(
+		message: string,
+		context?: Record<string, unknown>,
+		i18nKey?: string,
+	) {
 		super(message);
 		this.name = this.constructor.name;
 		this.context = context;
+		this.i18nKey = i18nKey;
 	}
 }
 
@@ -32,7 +39,7 @@ export class NotFoundError extends DomainError {
 	readonly statusHint = 404;
 
 	constructor(entity: string, id: string) {
-		super(`${entity} not found`, { entity, id });
+		super(`${entity} not found`, { entity, id }, "common.error.not_found");
 	}
 }
 

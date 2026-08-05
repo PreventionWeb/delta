@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { dr, Tx } from "../../db.server";
 import { InsertUser, SelectUser, userTable } from "~/drizzle/schema";
 import { isValidUUID } from "~/utils/id";
@@ -48,7 +48,7 @@ export const UserRepository = {
 			.update(userTable)
 			.set({
 				...data,
-				updatedAt: new Date(),
+				updatedAt: sql`CURRENT_TIMESTAMP`,
 			})
 			.where(eq(userTable.id, userId))
 			.returning()

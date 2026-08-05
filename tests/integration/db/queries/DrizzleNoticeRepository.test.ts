@@ -40,8 +40,9 @@ function makeNotice(
 	return Notice.create({
 		id: crypto.randomUUID(),
 		tenantId,
-		titleJson: { en: "Test Notice" },
-		bodyJson: null,
+		title: "Test Notice",
+		body: null,
+		locale: "en",
 		isPublished: false,
 		audience: "private",
 		publishedAt: null,
@@ -66,7 +67,8 @@ describe("DrizzleNoticeRepository", () => {
 
 	it("(1) save INSERT — persists all fields and returns the entity", async () => {
 		const notice = makeNotice(tenantId, {
-			titleJson: { en: "My Notice", fr: "Ma Notice" },
+			title: "My Notice",
+			locale: "fr",
 		});
 
 		const saved = await repo.save(notice);
@@ -74,7 +76,8 @@ describe("DrizzleNoticeRepository", () => {
 		// Verify the returned entity reflects the persisted state
 		expect(saved.id).toBe(notice.id);
 		expect(saved.tenantId).toBe(tenantId);
-		expect(saved.titleJson).toEqual({ en: "My Notice", fr: "Ma Notice" });
+		expect(saved.title).toBe("My Notice");
+		expect(saved.locale).toBe("fr");
 
 		// Verify the row exists in the DB with the correct countryAccountsId
 		const rows = await dr
@@ -83,7 +86,8 @@ describe("DrizzleNoticeRepository", () => {
 			.where(eq(noticesTable.id, notice.id));
 		expect(rows).toHaveLength(1);
 		expect(rows[0].countryAccountsId).toBe(tenantId);
-		expect(rows[0].titleJson).toEqual({ en: "My Notice", fr: "Ma Notice" });
+		expect(rows[0].title).toBe("My Notice");
+		expect(rows[0].locale).toBe("fr");
 	});
 
 	// ---- save → UPDATE ----
@@ -100,8 +104,9 @@ describe("DrizzleNoticeRepository", () => {
 		const updated = Notice.create({
 			id: notice.id,
 			tenantId,
-			titleJson: { en: "Updated Title" },
-			bodyJson: null,
+			title: "Updated Title",
+			body: null,
+			locale: "en",
 			isPublished: false,
 			audience: "private",
 			publishedAt: null,
@@ -111,7 +116,7 @@ describe("DrizzleNoticeRepository", () => {
 
 		const saved = await repo.save(updated);
 
-		expect(saved.titleJson).toEqual({ en: "Updated Title" });
+		expect(saved.title).toBe("Updated Title");
 		// updatedAt on the returned entity must be newer than the original
 		expect(saved.updatedAt.getTime()).toBeGreaterThan(
 			new Date("2026-01-01T00:00:00Z").getTime(),
@@ -153,14 +158,14 @@ describe("DrizzleNoticeRepository", () => {
 	// ---- findById — happy path ----
 
 	it("(4) findById — returns the entity when found", async () => {
-		const notice = makeNotice(tenantId, { titleJson: { en: "Hello" } });
+		const notice = makeNotice(tenantId, { title: "Hello" });
 		await repo.save(notice);
 
 		const found = await repo.findById(notice.id, tenantId);
 
 		expect(found.id).toBe(notice.id);
 		expect(found.tenantId).toBe(tenantId);
-		expect(found.titleJson).toEqual({ en: "Hello" });
+		expect(found.title).toBe("Hello");
 	});
 
 	// ---- findById — not found ----
@@ -355,8 +360,9 @@ describe("DrizzleNoticeRepository", () => {
 	it("(14) full field round-trip — save and findById preserve all mapped fields", async () => {
 		const publishedAt = new Date("2026-03-15T10:00:00Z");
 		const notice = makeNotice(tenantId, {
-			titleJson: { en: "Full Round-Trip", fr: "Aller-retour complet" },
-			bodyJson: { en: "Body text", fr: "Corps du texte" },
+			title: "Full Round-Trip",
+			body: "Body text",
+			locale: "fr",
 			isPublished: true,
 			audience: "public",
 			publishedAt,
@@ -367,8 +373,9 @@ describe("DrizzleNoticeRepository", () => {
 
 		expect(found.id).toBe(notice.id);
 		expect(found.tenantId).toBe(tenantId);
-		expect(found.titleJson).toEqual(notice.titleJson);
-		expect(found.bodyJson).toEqual(notice.bodyJson);
+		expect(found.title).toBe(notice.title);
+		expect(found.body).toBe(notice.body);
+		expect(found.locale).toBe(notice.locale);
 		expect(found.isPublished).toBe(true);
 		expect(found.audience).toBe("public");
 		expect(found.publishedAt?.toISOString()).toBe(publishedAt.toISOString());
