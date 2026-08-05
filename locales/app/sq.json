@@ -6733,5 +6733,50 @@
     {
         "id": "upload_files",
         "translation": "Ngarko skedarë"
+    },
+    {
+        "id": "notices",
+        "description": "File: app/routes/$lang+/_authenticated+/notices+/_index.tsx:33",
+        "translation": "Njoftime"
+    },
+    {
+        "id": "notices.actions",
+        "description": "File: app/domains/notices/presentation/NoticeListPage.tsx:56",
+        "translation": "Aksionet"
+    },
+    {
+        "id": "notices.empty",
+        "description": "File: app/domains/notices/presentation/NoticeListPage.tsx:27",
+        "translation": "Nuk u gjetën njoftime."
+    },
+    {
+        "id": "notices.published_at",
+        "description": "File: app/domains/notices/presentation/NoticeListPage.tsx:45",
+        "translation": "Botuar"
+    },
+    {
+        "id": "notices.status",
+        "description": "File: app/domains/notices/presentation/NoticeListPage.tsx:36",
+        "translation": "Statusi"
+    },
+    {
+        "id": "notices.status_draft",
+        "description": "File: app/domains/notices/presentation/NoticeDetailPage.tsx:24",
+        "translation": "Projekt"
+    },
+    {
+        "id": "notices.status_published",
+        "description": "File: app/domains/notices/presentation/NoticeDetailPage.tsx:23",
+        "translation": "Botuar"
+    },
+    {
+        "id": "notices.title",
+        "description": "File: app/domains/notices/presentation/NoticeListPage.tsx:31",
+        "translation": "Titulli"
+    },
+    {
+        "id": "notices.updated_at",
+        "description": "File: app/domains/notices/presentation/NoticeListPage.tsx:52",
+        "translation": "Përditësuar së fundi"
     }
 ]
