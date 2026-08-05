@@ -61,6 +61,8 @@ export function DeleteButton(props: DeleteButtonProps) {
 		props.confirmLabel ?? ctx.t({ code: "common.yes", msg: "Yes" });
 	const cancelLabel =
 		props.cancelLabel ?? ctx.t({ code: "common.no", msg: "No" });
+	const dialogActionButtonClass =
+		"h-10 min-w-[6.5rem] justify-center px-3 [&_.p-button-icon]:text-sm [&_svg]:h-4 [&_svg]:w-4";
 
 	const confirmButton = (
 		<Button
@@ -70,6 +72,7 @@ export function DeleteButton(props: DeleteButtonProps) {
 			outlined={!confirmButtonFirst}
 			icon={props.confirmIcon as any}
 			label={confirmLabel}
+			className={dialogActionButtonClass}
 			disabled={submitting}
 			loading={submitting}
 		/>
@@ -83,6 +86,7 @@ export function DeleteButton(props: DeleteButtonProps) {
 			outlined={confirmButtonFirst}
 			icon={props.cancelIcon as any}
 			label={cancelLabel}
+			className={dialogActionButtonClass}
 			disabled={submitting}
 		/>
 	);
@@ -129,7 +133,7 @@ export function DeleteButton(props: DeleteButtonProps) {
 					ctx.t({ code: "common.record_deletion", msg: "Record Deletion" })
 				}
 				footer={
-					<div className="flex justify-end gap-2">
+					<div className="flex items-center justify-end gap-2">
 						{confirmButtonFirst ? (
 							<>
 								{confirmButton}
