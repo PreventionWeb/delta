@@ -1298,7 +1298,8 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 		if (!value) {
 			return "-";
 		}
-		return formatDate(value as any);
+		const formatted = formatDate(value as any);
+		return formatted || "-";
 	};
 	const formatReviewDateTime = (
 		dateValue: unknown,
