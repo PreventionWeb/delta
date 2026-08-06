@@ -373,59 +373,71 @@ export function SpatialFootprintFormView({
 						})}
 						onApply={async (selectedItems: any) => {
 							if (contentRepeaterRef.current?.handleFieldChange) {
-								await Promise.all(
-									selectedItems.data.map(async (item: any) => {
-										if (item.id == selectedItems.selectedId) {
-											try {
-												const res = await fetch(
-													`/${ctx.lang}/api/geojson/${item.id}`,
-												);
-												if (!res.ok) throw new Error("Failed to fetch GeoJSON");
+								const selectedItem = selectedItems?.data?.find(
+									(item: any) => item.id == selectedItems.selectedId,
+								);
+								if (!selectedItem) {
+									treeViewDiscard();
+									return;
+								}
 
-												const { geojson } = await res.json();
-												let arrValue = {
-													type: "Feature",
-													geometry: geojson,
-													properties: {
-														division_id: selectedItems.selectedId || null,
-														division_ids: selectedItems.dataIds
-															? selectedItems.dataIds.split(",")
-															: [],
-														import_id:
-															item?.importId || null
-																? JSON.parse(item.importId)
-																: null,
-														level:
-															item?.level || null
-																? JSON.parse(item.level)
-																: null,
-														name:
-															item?.name || null ? JSON.parse(item.name) : null,
-														national_id:
-															item?.nationalId || null
-																? JSON.parse(item.nationalId)
-																: null,
-													},
-												};
-												arrValue = rewindGeoJSON(arrValue);
-												const setField = { id: "geojson", value: arrValue };
-												contentRepeaterRef.current.handleFieldChange(
-													setField,
-													arrValue,
-												);
-												const setFieldGoeLevel = {
-													id: "geographic_level",
-													value: selectedItems.names,
-												};
-												contentRepeaterRef.current.handleFieldChange(
-													setFieldGoeLevel,
-													selectedItems.names,
-												);
-											} catch (err) {
-												console.error("Error fetching GEoJSON", err);
-											}
-										}
-									}),
+								const parseMaybeJSON = (value: unknown) => {
+									if (typeof value !== "string") {
+										return value ?? null;
+									}
+									try {
+										return JSON.parse(value);
+									} catch {
+										return value;
+									}
+								};
+
+								const metadata = {
+									division_id: selectedItems.selectedId || null,
+									division_ids: selectedItems.dataIds
+										? selectedItems.dataIds.split(",")
+										: [],
+									import_id: parseMaybeJSON(selectedItem?.importId),
+									level: parseMaybeJSON(selectedItem?.level),
+									name: parseMaybeJSON(selectedItem?.name),
+									national_id: parseMaybeJSON(selectedItem?.nationalId),
+								};
+
+								// Always set selected geographic level text first.
+								const setFieldGeoLevel = {
+									id: "geographic_level",
+									value: selectedItems.names,
+								};
+								contentRepeaterRef.current.handleFieldChange(
+									setFieldGeoLevel,
+									selectedItems.names,
+								);
+
+								let geometry: any = null;
+								try {
+									const res = await fetch(`/${ctx.lang}/api/geojson/${selectedItem.id}`);
+									if (res.ok) {
+										const data = await res.json();
+										geometry = data?.geojson ?? null;
+									}
+								} catch (err) {
+									console.error("Error fetching GeoJSON", err);
+								}
+
+								let geojsonValue: any = {
+									type: "Feature",
+									geometry,
+									properties: metadata,
+								};
+
+								if (geojsonValue?.geometry?.type) {
+									geojsonValue = rewindGeoJSON(geojsonValue);
+								}
+
+								const setFieldGeojson = { id: "geojson", value: geojsonValue };
+								contentRepeaterRef.current.handleFieldChange(
+									setFieldGeojson,
+									geojsonValue,
 								);
 
 								treeViewDiscard();
