@@ -48,6 +48,7 @@ import {
 	getUserCountryAccountsWithValidatorRole,
 } from "~/db/queries/userCountryAccountsRepository";
 import { DisasterEventAttachmentRepository } from "~/db/queries/disasterEventAttachmentRepository";
+import { DisasterEventLinkRepository } from "~/db/queries/disasterEventLinkRepository";
 import { handleApprovalWorkflowService } from "~/backend.server/services/approvalWorkflowService";
 import { canEditDataCollectionRecord } from "~/frontend/user/roles";
 import { ContentRepeaterUploadFile } from "~/components/ContentRepeater/UploadFile";
@@ -664,6 +665,10 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 	const newAttachmentUploadsRaw = String(
 		formData.get("newAttachmentUploads") ?? "[]",
 	);
+	const hasDisasterEventLinksField = formData.has("disasterEventLinks");
+	const disasterEventLinksRaw = String(
+		formData.get("disasterEventLinks") ?? "[]",
+	);
 	let linkedDisasterRecordIds: string[] = [];
 	let linkedTriggeringDisasterEventIds: string[] = [];
 	let linkedTriggeredDisasterEventIds: string[] = [];
@@ -678,6 +683,10 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 		fileSize: number;
 		tempFilePath: string;
 		tenantPath?: string;
+	}> = [];
+	let disasterEventLinks: Array<{
+		url: string;
+		title: string | null;
 	}> = [];
 	try {
 		const parsed = JSON.parse(linkedDisasterRecordIdsRaw);
@@ -776,6 +785,37 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 			: [];
 	} catch {
 		newAttachmentUploads = [];
+	}
+	try {
+		const parsed = JSON.parse(disasterEventLinksRaw);
+		disasterEventLinks = Array.isArray(parsed)
+			? parsed
+					.map((value) => {
+						const rawUrl =
+							typeof value?.url === "string" ? value.url.trim() : "";
+						const rawTitle =
+							typeof value?.title === "string" ? value.title.trim() : "";
+						if (!rawUrl) {
+							return null;
+						}
+
+						try {
+							new URL(rawUrl);
+						} catch {
+							return null;
+						}
+
+						return {
+							url: rawUrl,
+							title: rawTitle.length > 0 ? rawTitle : null,
+						};
+					})
+					.filter((value): value is { url: string; title: string | null } =>
+						Boolean(value),
+					)
+			: [];
+	} catch {
+		disasterEventLinks = [];
 	}
 
 	return formSave({
@@ -1288,11 +1328,33 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 				}
 			};
 
+			const syncDisasterEventLinks = async (eventId: string) => {
+				if (!hasDisasterEventLinksField) {
+					return;
+				}
+
+				await DisasterEventLinkRepository.deleteByDisasterEventId(eventId, tx);
+
+				if (disasterEventLinks.length === 0) {
+					return;
+				}
+
+				await DisasterEventLinkRepository.createMany(
+					disasterEventLinks.map((link) => ({
+						disasterEventId: eventId,
+						url: link.url,
+						title: link.title,
+					})),
+					tx,
+				);
+			};
+
 			if (id) {
 				const returnValue = await disasterEventUpdate(ctx, tx, id, updatedData);
 
 				if (returnValue.ok === true) {
 					await syncDisasterEventAttachments(id);
+					await syncDisasterEventLinks(id);
 					await syncLinkedHazardousEvents(id);
 					const syncDisasterEventResult = await syncLinkedDisasterEvents(id);
 					if (!syncDisasterEventResult.ok) {
@@ -1315,6 +1377,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 
 				if (returnValue.ok === true) {
 					await syncDisasterEventAttachments(returnValue.id);
+					await syncDisasterEventLinks(returnValue.id);
 					await syncLinkedHazardousEvents(returnValue.id);
 					const syncDisasterEventResult = await syncLinkedDisasterEvents(
 						returnValue.id,
@@ -1375,6 +1438,7 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 			hazardousEventOptions: [],
 			linkedTriggeringHazardousEvents: [],
 			linkedTriggeredHazardousEvents: [],
+			disasterEventLinks: [],
 			disasterRecordOptions: [],
 			linkedDisasterRecords: [],
 			disasterEventOptions: [],
@@ -1421,6 +1485,7 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		linkedHazardousData,
 		recordingOrganization,
 		disasterEventAttachments,
+		disasterEventLinks,
 	] = await Promise.all([
 		getDivisionTreeData(countryAccountsId),
 		getDivisionGeoJSON(countryAccountsId),
@@ -1435,6 +1500,7 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		),
 		getRecordingOrganization(item.recordingOrganizationId),
 		DisasterEventAttachmentRepository.getByDisasterEventId(item.id),
+		DisasterEventLinkRepository.getByDisasterEventId(item.id),
 	]);
 
 	return {
@@ -1449,6 +1515,7 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 			linkedHazardousData.linkedTriggeringHazardousEvents,
 		linkedTriggeredHazardousEvents:
 			linkedHazardousData.linkedTriggeredHazardousEvents,
+		disasterEventLinks,
 		disasterRecordOptions: linkedData.disasterRecordOptions,
 		linkedDisasterRecords: linkedData.linkedDisasterRecords,
 		disasterEventOptions: linkedData.disasterEventOptions,
@@ -1497,6 +1564,7 @@ export default function FormScreen() {
 			hip={ld.hip}
 			disasterEvent={disasterEventForForm}
 			disasterEventAttachments={ld.disasterEventAttachments ?? []}
+			disasterEventLinks={ld.disasterEventLinks ?? []}
 			hazardousEventOptions={ld.hazardousEventOptions ?? []}
 			linkedTriggeringHazardousEvents={ld.linkedTriggeringHazardousEvents ?? []}
 			linkedTriggeredHazardousEvents={ld.linkedTriggeredHazardousEvents ?? []}

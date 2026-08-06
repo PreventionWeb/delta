@@ -38,6 +38,12 @@ type ReviewAttachmentItem = {
 	fileSize?: number;
 };
 
+type ReviewLinkItem = {
+	id: string;
+	url: string;
+	title: string;
+};
+
 function extensionFromName(fileName: string): string {
 	const segments = fileName.split(".");
 	if (segments.length < 2) return "";
@@ -94,6 +100,7 @@ type DisasterEventReviewStepProps = {
 	selectedDivisionItems: SelectedDivisionItem[];
 	reviewSpatialFootprintItems: string[];
 	reviewSpatialFootprintData: any[];
+	reviewLinks: ReviewLinkItem[];
 	reviewAttachments: ReviewAttachmentItem[];
 	triggeringHazardousEventTarget: LinkedEventOption[];
 	triggeredHazardousEventTarget: LinkedEventOption[];
@@ -470,6 +477,7 @@ export default function DisasterEventReviewStep({
 	selectedDivisionItems,
 	reviewSpatialFootprintItems,
 	reviewSpatialFootprintData,
+	reviewLinks,
 	reviewAttachments,
 	triggeringHazardousEventTarget,
 	triggeredHazardousEventTarget,
@@ -602,6 +610,42 @@ export default function DisasterEventReviewStep({
 					</>,
 					selectedDivisionItems.length > 0 ||
 						reviewSpatialFootprintItems.length > 0,
+				)}
+
+				{renderStep4SectionCard(
+					"Links",
+					"pi pi-link text-blue-600",
+					"No links selected",
+					reviewLinks.length > 0 ? (
+						<div className="space-y-3">
+							{reviewLinks.map((link) => (
+								<div
+									key={link.id}
+									className="rounded-md border border-slate-200 bg-white px-3 py-2"
+								>
+									<div className="flex items-center justify-between gap-3">
+										<div className="min-w-0">
+											<a
+												href={link.url}
+												target="_blank"
+												rel="noopener noreferrer"
+												className="truncate text-sm font-medium text-blue-700 hover:text-blue-800 hover:underline"
+												title={link.title || link.url}
+											>
+												{link.title || link.url}
+											</a>
+											<p className="text-xs text-slate-500">{link.url}</p>
+										</div>
+									</div>
+								</div>
+							))}
+						</div>
+					) : (
+						<p className="text-[14px] italic text-slate-400">
+							No links selected
+						</p>
+					),
+					true,
 				)}
 
 				{renderStep4SectionCard(

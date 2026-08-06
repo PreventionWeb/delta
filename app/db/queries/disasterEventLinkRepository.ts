@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { dr, Tx } from "~/db.server";
 import {
 	disasterEventLinkTable,
@@ -11,6 +11,19 @@ export const DisasterEventLinkRepository = {
 			.select()
 			.from(disasterEventLinkTable)
 			.where(inArray(disasterEventLinkTable.disasterEventId, disasterEventIds));
+	},
+
+	getByDisasterEventId: (disasterEventId: string, tx?: Tx) => {
+		return (tx ?? dr)
+			.select({
+				id: disasterEventLinkTable.id,
+				title: disasterEventLinkTable.title,
+				url: disasterEventLinkTable.url,
+				createdAt: disasterEventLinkTable.createdAt,
+			})
+			.from(disasterEventLinkTable)
+			.where(eq(disasterEventLinkTable.disasterEventId, disasterEventId))
+			.orderBy(desc(disasterEventLinkTable.createdAt));
 	},
 
 	createMany: (data: InsertDisasterEventLink[], tx?: Tx) => {

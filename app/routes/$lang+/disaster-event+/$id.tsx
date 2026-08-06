@@ -23,6 +23,7 @@ import { processApprovalStatusActionService } from "~/services/approvalStatusWor
 import { getUserIdFromSession } from "~/utils/session";
 import { getReturnAssigneeUsers } from "~/db/queries/userCountryAccountsRepository";
 import { DisasterEventAttachmentRepository } from "~/db/queries/disasterEventAttachmentRepository";
+import { DisasterEventLinkRepository } from "~/db/queries/disasterEventLinkRepository";
 
 export const loader = async (args: LoaderFunctionArgs) => {
 	const { request, params } = args;
@@ -49,6 +50,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
 		await DisasterEventAttachmentRepository.getByDisasterEventId(
 			result.item.id,
 		);
+	const disasterEventLinks =
+		await DisasterEventLinkRepository.getByDisasterEventId(result.item.id);
 
 	const returnAssignees =
 		userSession && countryAccountsId
@@ -67,6 +70,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
 			...result.item,
 			spatialFootprintsDataSource: [],
 			attachments: disasterEventAttachments,
+			links: disasterEventLinks,
 			returnAssignees,
 		},
 	};

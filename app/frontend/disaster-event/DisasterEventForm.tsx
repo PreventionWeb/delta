@@ -27,6 +27,10 @@ import { Toast } from "primereact/toast";
 import { ViewContext } from "~/frontend/context";
 import { copyTextToClipboardWithToast } from "~/frontend/utils/clipboard";
 import DisasterEventAttachment from "~/frontend/disaster-event/DisasterEventAttachment";
+import DisasterEventLink, {
+	type DisasterEventLinkItem,
+	type EditableDisasterEventLink,
+} from "~/frontend/disaster-event/DisasterEventLink";
 import DisasterEventReviewStep from "~/frontend/disaster-event/DisasterEventReviewStep";
 import {
 	SaveSubmitDialog,
@@ -304,6 +308,7 @@ type StepperValidationProps = {
 		fileSize: number;
 		createdAt: string | Date;
 	}>;
+	disasterEventLinks: DisasterEventLinkItem[];
 	hazardousEventOptions: LinkedEventOption[];
 	linkedTriggeringHazardousEvents: LinkedEventOption[];
 	linkedTriggeredHazardousEvents: LinkedEventOption[];
@@ -340,6 +345,7 @@ function StepperValidation({
 	ctx,
 	disasterEvent,
 	disasterEventAttachments,
+	disasterEventLinks: initialDisasterEventLinks,
 	hip,
 	hazardousEventOptions,
 	linkedTriggeringHazardousEvents,
@@ -443,6 +449,15 @@ function StepperValidation({
 	const [newAttachmentUploads, setNewAttachmentUploads] = useState<
 		NewAttachmentUpload[]
 	>([]);
+	const [disasterEventLinks, setDisasterEventLinks] = useState<
+		EditableDisasterEventLink[]
+	>(() =>
+		initialDisasterEventLinks.map((link) => ({
+			id: link.id,
+			url: link.url,
+			title: link.title ?? "",
+		})),
+	);
 
 	const removeDivisionSelection = (keyToRemove: string) => {
 		setSelectedDivisionItems((current) =>
@@ -1919,6 +1934,15 @@ function StepperValidation({
 
 		return [...keptExisting, ...pendingUploads];
 	}, [disasterEventAttachments, keptAttachmentIds, newAttachmentUploads]);
+	const reviewLinks = useMemo(
+		() =>
+			disasterEventLinks.map((link) => ({
+				id: link.id,
+				url: link.url,
+				title: link.title || link.url,
+			})),
+		[disasterEventLinks],
+	);
 	const formatReviewDateWithPrecision = (
 		state: DateWithPrecisionState,
 	): string => {
@@ -2728,6 +2752,16 @@ function StepperValidation({
 							name="newAttachmentUploads"
 							value={JSON.stringify(newAttachmentUploads)}
 						/>
+						<input
+							type="hidden"
+							name="disasterEventLinks"
+							value={JSON.stringify(
+								disasterEventLinks.map((link) => ({
+									url: link.url,
+									title: link.title || null,
+								})),
+							)}
+						/>
 						{hiddenFormValues.map((field) => (
 							<input
 								key={field.name}
@@ -3186,7 +3220,6 @@ function StepperValidation({
 															))}
 													</div>
 												</div>
-												<i className="pi pi-chevron-right pt-2 text-slate-400" />
 											</div>
 										</div>
 
@@ -3224,7 +3257,6 @@ function StepperValidation({
 														</span>
 													</div>
 												</div>
-												<i className="pi pi-chevron-right pt-2 text-slate-400" />
 											</div>
 											<div className="px-3 py-3 text-[13px] text-slate-600">
 												{mapCoordinateSpatialFootprintCount > 0
@@ -3232,6 +3264,11 @@ function StepperValidation({
 													: "No spatial footprint items added yet"}
 											</div>
 										</div>
+
+										<DisasterEventLink
+											initialLinks={disasterEventLinks}
+											onLinksChange={setDisasterEventLinks}
+										/>
 									</div>
 
 									<div
@@ -3905,6 +3942,7 @@ function StepperValidation({
 									selectedDivisionItems={selectedDivisionItems}
 									reviewSpatialFootprintItems={reviewSpatialFootprintItems}
 									reviewSpatialFootprintData={spatialFootprintValue}
+									reviewLinks={reviewLinks}
 									reviewAttachments={reviewAttachments}
 									triggeringHazardousEventTarget={
 										triggeringHazardousEventTarget

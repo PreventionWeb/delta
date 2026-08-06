@@ -1416,6 +1416,13 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 					: undefined,
 		}),
 	);
+	const reviewLinks = ((itemAny?.links as any[]) || []).map(
+		(link: any, index: number) => ({
+			id: String(link?.id || `link-${index}`),
+			url: String(link?.url || ""),
+			title: String(link?.title || ""),
+		}),
+	);
 
 	const responses = Array.from({ length: 5 }).flatMap((_, index) => {
 		const n = index + 1;
@@ -1657,6 +1664,7 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 				selectedDivisionItems={selectedDivisionItems}
 				reviewSpatialFootprintItems={reviewSpatialFootprintItems}
 				reviewSpatialFootprintData={(itemAny?.spatialFootprint as any[]) || []}
+				reviewLinks={reviewLinks}
 				reviewAttachments={reviewAttachments}
 				triggeringHazardousEventTarget={[]}
 				triggeredHazardousEventTarget={[]}
