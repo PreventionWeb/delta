@@ -1,5 +1,66 @@
 import { DContext } from "~/utils/dcontext";
 
+export function lossesTypeCategoryEnum(
+	ctx: DContext,
+	sectorIsAgriculture: boolean,
+) {
+	return [
+		{
+			key: "infrastructure_temporary",
+			label: ctx.t({
+				code: "disaster_records.losses.infrastructure_temporary",
+				msg: "Infrastructure- temporary for service/production continuity",
+			}),
+		},
+		...(sectorIsAgriculture
+			? [
+					{
+						key: "production_losses",
+						label: ctx.t({
+							code: "disaster_records.losses.production_losses",
+							msg: "Production losses",
+						}),
+					},
+				]
+			: []),
+		{
+			key: "production_service_delivery_and_availability",
+			label: ctx.t({
+				code: "disaster_records.losses.production_service_delivery_and_availability",
+				msg: "Production, Service delivery and availability of/access to goods and services",
+			}),
+		},
+		{
+			key: "governance_and_decision_making",
+			label: ctx.t({
+				code: "disaster_records.losses.governance_and_decision_making",
+				msg: "Governance and decision-making",
+			}),
+		},
+		{
+			key: "risk_and_vulnerabilities",
+			label: ctx.t({
+				code: "disaster_records.losses.risk_and_vulnerabilities",
+				msg: "Risk and vulnerabilities",
+			}),
+		},
+		{
+			key: "other_losses",
+			label: ctx.t({
+				code: "disaster_records.losses.other_losses",
+				msg: "Other losses",
+			}),
+		},
+		{
+			key: "employment_and_livelihoods_losses",
+			label: ctx.t({
+				code: "disaster_records.losses.employment_and_livelihoods_losses",
+				msg: "Employment and Livelihoods losses",
+			}),
+		},
+	];
+}
+
 export function typeEnumNotAgriculture(ctx: DContext) {
 	return [
 		// Infrastructure- temporary for service/production continuity

@@ -54,6 +54,7 @@ export const DamagesRepository = {
 				totalDamageAmount: damagesTable.totalDamageAmount,
 				totalRecovery: damagesTable.totalRecovery,
 				totalRepairReplacement: damagesTable.totalRepairReplacement,
+				currency: damagesTable.tdReplacementCostUnitCurrency,
 			})
 			.from(damagesTable)
 			.leftJoin(assetTable, eq(damagesTable.assetId, assetTable.id))
