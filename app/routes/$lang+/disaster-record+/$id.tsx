@@ -33,10 +33,13 @@ import { getReturnAssigneeUsers } from "~/db/queries/userCountryAccountsReposito
 import { queryHipEntity } from "~/backend.server/models/hip";
 import { DisasterRecordsGeomRepository } from "~/db/queries/disasterRecordsGeomRepository";
 import { DisasterRecordsDivisionRepository } from "~/db/queries/disasterRecordsDivisionRepository";
+import { DisruptionRepository } from "~/db/queries/disruptionRepository";
 import { DisruptionGeomRepository } from "~/db/queries/disruptionGeomRepository";
 import { DisruptionDivisionRepository } from "~/db/queries/disruptionDivisionRepository";
+import { LossesRepository } from "~/db/queries/lossesRepository";
 import { LossesGeomRepository } from "~/db/queries/lossesGeomRepository";
 import { LossesDivisionRepository } from "~/db/queries/lossesDivisionRepository";
+import { DamagesRepository } from "~/db/queries/damagesRepository";
 import { DamagesGeomRepository } from "~/db/queries/damagesGeomRepository";
 import { DamagesDivisionRepository } from "~/db/queries/damagesDivisionRepository";
 
@@ -86,6 +89,16 @@ export const loader = async (args: LoaderFunctionArgs) => {
 		DisasterRecordsDivisionRepository.getByDisasterRecordId(id),
 	]);
 	const [
+		disruptions,
+		losses,
+		damages,
+	] = await Promise.all([
+		DisruptionRepository.getByRecordId(id, ctx.lang),
+		LossesRepository.getByRecordId(id, ctx.lang),
+		DamagesRepository.getByRecordId(id, ctx.lang),
+	]);
+
+	const [
 		disruptionGeoms,
 		disruptionDivisions,
 		lossesGeoms,
@@ -121,6 +134,10 @@ export const loader = async (args: LoaderFunctionArgs) => {
 			kind: "disaster_record_division",
 			...row,
 		})),
+		...disruptions.map((row) => ({
+			kind: "disruption",
+			...row,
+		})),
 		...disruptionGeoms.map((row) => ({
 			kind: "disruption_geom",
 			...row,
@@ -129,12 +146,20 @@ export const loader = async (args: LoaderFunctionArgs) => {
 			kind: "disruption_division",
 			...row,
 		})),
+		...losses.map((row) => ({
+			kind: "losses",
+			...row,
+		})),
 		...lossesGeoms.map((row) => ({
 			kind: "losses_geom",
 			...row,
 		})),
 		...lossesDivisions.map((row) => ({
 			kind: "losses_division",
+			...row,
+		})),
+		...damages.map((row) => ({
+			kind: "damages",
 			...row,
 		})),
 		...damagesGeoms.map((row) => ({
@@ -347,7 +372,6 @@ export default function Screen() {
 												<tr>
 													<th
 														className="border border-gray-300 px-3 py-2"
-														colSpan={2}
 													/>
 													<th
 														className="border border-gray-300 px-3 py-2 text-center"
@@ -379,7 +403,6 @@ export default function Screen() {
 												</tr>
 												<tr>
 													{[
-														{ code: "common.id", msg: "ID" },
 														{ code: "sector_effects.sector", msg: "Sector" },
 														{ code: "sector_effects.damage", msg: "Damage" },
 														{
@@ -406,11 +429,8 @@ export default function Screen() {
 											</thead>
 											<tbody>
 												{Array.isArray(ld.recordsDisRecSectors) &&
-													ld.recordsDisRecSectors.map((item, index) => (
+													ld.recordsDisRecSectors.map((item, index) => (<>
 														<tr key={index} className="hover:bg-gray-50">
-															<td className="border border-gray-300 px-3 py-2 text-gray-500 font-mono text-xs">
-																{item.disRecSectorsId.slice(0, 8)}
-															</td>
 															<td className="border border-gray-300 px-3 py-2">
 																{item.sectorTreeDisplay}
 															</td>
@@ -512,7 +532,7 @@ export default function Screen() {
 																)}
 															</td>
 														</tr>
-													))}
+													</>))}
 											</tbody>
 										</table>
 									</div>
@@ -538,7 +558,6 @@ export default function Screen() {
 											<thead className="bg-gray-50 text-gray-700">
 												<tr>
 													{[
-														{ code: "common.id", msg: "ID" },
 														{ code: "common.category", msg: "Category" },
 														{ code: "common.description", msg: "Description" },
 													].map(({ code, msg }) => (
@@ -555,9 +574,6 @@ export default function Screen() {
 												{Array.isArray(ld.recordsNonecoLosses) &&
 													ld.recordsNonecoLosses.map((item, index) => (
 														<tr key={index} className="hover:bg-gray-50">
-															<td className="border border-gray-300 px-3 py-2 text-gray-500 font-mono text-xs">
-																{item.noneccoId.slice(0, 8)}
-															</td>
 															<td className="border border-gray-300 px-3 py-2">
 																{item.categoryTreeDisplay}
 															</td>
