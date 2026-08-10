@@ -101,9 +101,9 @@ export const loader = async (args: LoaderFunctionArgs) => {
 		losses,
 		damages,
 	] = await Promise.all([
-		DisruptionRepository.getByRecordId(id, ctx.lang),
-		LossesRepository.getByRecordId(id, ctx.lang),
-		DamagesRepository.getByRecordId(id, ctx.lang),
+		DisruptionRepository.getByRecordIdWithInfo(id, ctx.lang),
+		LossesRepository.getByRecordIdWithInfo(id, ctx.lang),
+		DamagesRepository.getByRecordIdWithInfo(id, ctx.lang),
 	]);
 
 	const [
@@ -320,7 +320,7 @@ export default function Screen() {
 		if (formattedNumber === "-") return "-";
 		if (!currencyCode) return formattedNumber;
 
-		return `${getCurrencySymbol(currencyCode)}${formattedNumber}`;
+		return `${getCurrencySymbol(currencyCode)} ${formattedNumber}`;
 	};
 
 	const renderMultilineText = (value: string | null | undefined) => {
@@ -618,59 +618,160 @@ export default function Screen() {
 																						{ctx.t({ code: "sector_effects.damage", msg: "Damage" })}
 																					</div>
 																					<table className="w-full border border-gray-200 text-xs">
-																					<thead className="bg-gray-100 text-gray-700">
-																						<tr>
-																							<th className="border border-gray-200 px-2 py-1 text-left">{ctx.t({ code: "assets.asset", msg: "Asset" })}</th>
-																							<th className="border border-gray-200 px-2 py-1 text-left">
-																								{ctx.t({
-																									code: "disaster_record.damages.total_damage_amount",
-																									msg: "Total number of assets affected (partially damaged + totally destroyed)",
-																								})}
-																							</th>
-																							<th className="border border-gray-200 px-2 py-1 text-left">
-																								{ctx.t(
-																									{
-																										code: "disaster_record.damages.total_recovery",
-																										msg: "Total recovery cost ({currency})",
-																									},
-																									{ currency: "" },
-																								)}
-																							</th>
-																							<th className="border border-gray-200 px-2 py-1 text-left">
-																								{ctx.t(
-																									{
-																										code: "disaster_record.damages.total_repair_replacement",
-																										msg: "Total damage in monetary terms (total repair + replacement cost) ({currency})",
-																									},
-																									{ currency: "" },
-																								)}
-																							</th>
-																						</tr>
-																					</thead>
-																					<tbody>
-																						{damages.map((rec: any) => (
-																							<tr key={`damages-${rec.id}`}>
-																								<td className="border border-gray-200 px-2 py-1">{rec.assetName || "-"}</td>
-																								<td className="border border-gray-200 px-2 py-1">
-																									
-																									{[formatLocalizedNumber(rec.totalDamageAmount), getLossesUnitLabel(rec.unit)]
-																										.filter((value) => value && value !== "-")
-																										.join(" ") || "-"}
-																								</td>
-																								<td className="border border-gray-200 px-2 py-1">
-																									{formatLocalizedCurrency(rec.totalRecovery, rec.currency)}
-																								</td>
-																								<td className="border border-gray-200 px-2 py-1">
-																									{formatLocalizedCurrency(
-																										rec.totalRepairReplacement,
-																										rec.currency,
-																									)}
-																								</td>
+																						<thead className="bg-gray-100 text-gray-700">
+																							<tr>
+																								<th rowSpan={2} className="border border-gray-200 px-2 py-1 text-left">{ctx.t({ code: "assets.asset", msg: "Asset" })}</th>
+																								<th colSpan={5} className="border border-gray-200 px-2 py-1 text-center">
+																									{ctx.t({ code: "disaster_records.damages.partially_damaged", msg: "Partially damaged" })}
+																								</th>
+																								<th colSpan={5} className="border border-gray-200 px-2 py-1 text-center">
+																									{ctx.t({ code: "disaster_records.damages.totally_destroyed", msg: "Totally destroyed" })}
+																								</th>
+																								<th colSpan={3} className="border border-gray-200 px-2 py-1 text-center">
+																									{ctx.t({ code: "common.total", msg: "Total" })}
+																								</th>
 																							</tr>
-																						))}
-																					</tbody>
-																				</table>
-																			</div>
+																							<tr>
+																								<th className="border border-gray-200 px-2 py-1 text-left">
+																									{ctx.t({ code: "disaster_record.damages.amount_of_units", msg: "Amount of units" })}
+																								</th>
+																								<th className="border border-gray-200 px-2 py-1 text-left">
+																									{ctx.t({ code: "disaster_record.damages.unit_repair_cost", msg: "Unit repair cost" })}
+																								</th>
+																								<th className="border border-gray-200 px-2 py-1 text-left">
+																									{ctx.t({ code: "disaster_record.damages.total_repair_cost", msg: "Total repair cost" })}
+																								</th>
+
+																								<th className="border border-gray-200 px-2 py-1 text-left">
+																									{ctx.t({ code: "disaster_record.damages.unit_recovery_cost", msg: "Unit recovery cost" })}
+																								</th>
+																								<th className="border border-gray-200 px-2 py-1 text-left">
+																									{ctx.t({ code: "disaster_record.damages.total_recovery_cost", msg: "Total recovery cost" })}
+																								</th>
+
+																								<th className="border border-gray-200 px-2 py-1 text-left">
+																									{ctx.t({ code: "disaster_record.damages.amount_of_units", msg: "Amount of units" })}
+																								</th>
+																								<th className="border border-gray-200 px-2 py-1 text-left">
+																									{ctx.t({ code: "disaster_record.damages.unit_repair_cost", msg: "Unit repair cost" })}
+																								</th>
+																								<th className="border border-gray-200 px-2 py-1 text-left">
+																									{ctx.t({ code: "disaster_record.damages.total_repair_cost", msg: "Total repair cost" })}
+																								</th>
+
+																								<th className="border border-gray-200 px-2 py-1 text-left">
+																									{ctx.t({ code: "disaster_record.damages.unit_recovery_cost", msg: "Unit recovery cost" })}
+																								</th>
+																								<th className="border border-gray-200 px-2 py-1 text-left">
+																									{ctx.t({ code: "disaster_record.damages.total_recovery_cost", msg: "Total recovery cost" })}
+																								</th>
+
+																								<th className="border border-gray-200 px-2 py-1 text-left">
+																									{ctx.t({
+																										code: "disaster_record.damages.total_damage_amount",
+																										msg: "Total number of assets affected (partially damaged + totally destroyed)",
+																									})}
+																								</th>
+																								<th className="border border-gray-200 px-2 py-1 text-left">
+																									{ctx.t(
+																										{
+																											code: "disaster_record.damages.total_recovery",
+																											msg: "Total recovery cost ({currency})",
+																										},
+																										{ currency: "" },
+																									)}
+																								</th>
+																								<th className="border border-gray-200 px-2 py-1 text-left">
+																									{ctx.t(
+																										{
+																											code: "disaster_record.damages.total_repair_replacement",
+																											msg: "Total damage in monetary terms (total repair + replacement cost) ({currency})",
+																										},
+																										{ currency: "" },
+																									)}
+																								</th>
+																							</tr>
+																						</thead>
+																						<tbody>
+																							{damages.map((rec: any) => (
+																								<tr key={`damages-${rec.id}`}>
+																									<td className="border border-gray-200 px-2 py-1">{rec.assetName || "-"}</td>
+
+																									<td className="border border-gray-200 px-2 py-1">
+																										{[formatLocalizedNumber(rec.pdDamageAmount), getLossesUnitLabel(rec.unit)]
+																											.filter((value) => value && value !== "-")
+																											.join(" ") || "-"}
+																									</td>
+																									<td className="border border-gray-200 px-2 py-1">
+																										{formatLocalizedCurrency(rec.pdRepairCostUnit, rec.pdRepairCostUnitCurrency)}
+																									</td>
+																									<td className="border border-gray-200 px-2 py-1">
+																										{formatLocalizedCurrency(
+																											rec.pdRepairCostTotal,
+																											rec.pdRepairCostUnitCurrency,
+																										)}
+																									</td>
+																									<td className="border border-gray-200 px-2 py-1">
+																										{formatLocalizedCurrency(
+																											rec.pdRecoveryCostUnit,
+																											rec.pdRecoveryCostUnitCurrency,
+																										)}
+																									</td>
+																									<td className="border border-gray-200 px-2 py-1">
+																										{formatLocalizedCurrency(
+																											rec.pdRecoveryCostTotal,
+																											rec.pdRecoveryCostUnitCurrency,
+																										)}
+																									</td>
+
+																									<td className="border border-gray-200 px-2 py-1">
+																										{[formatLocalizedNumber(rec.tdDamageAmount), getLossesUnitLabel(rec.unit)]
+																											.filter((value) => value && value !== "-")
+																											.join(" ") || "-"}
+																									</td>
+																									<td className="border border-gray-200 px-2 py-1">
+																										{formatLocalizedCurrency(rec.tdRepairCostUnit, rec.tdRepairCostUnitCurrency)}
+																									</td>
+																									<td className="border border-gray-200 px-2 py-1">
+																										{formatLocalizedCurrency(
+																											rec.tdRepairCostTotal,
+																											rec.tdRepairCostUnitCurrency,
+																										)}
+																									</td>
+																									<td className="border border-gray-200 px-2 py-1">
+																										{formatLocalizedCurrency(
+																											rec.tdRecoveryCostUnit,
+																											rec.tdRecoveryCostUnitCurrency,
+																										)}
+																									</td>
+																									<td className="border border-gray-200 px-2 py-1">
+																										{formatLocalizedCurrency(
+																											rec.tdRecoveryCostTotal,
+																											rec.tdRecoveryCostUnitCurrency,
+																										)}
+																									</td>
+
+																									
+																									<td className="border border-gray-200 px-2 py-1">
+																										{ rec.totalDamageAmount || "-" }
+																									</td>
+																									<td className="border border-gray-200 px-2 py-1">
+																										{formatLocalizedCurrency(
+																											rec.totalRecovery,
+																											rec.tdRecoveryCostUnitCurrency,
+																										)}
+																									</td>
+																									<td className="border border-gray-200 px-2 py-1">
+																										{formatLocalizedCurrency(
+																											rec.totalRepairReplacement,
+																											rec.tdRecoveryCostUnitCurrency,
+																										)}
+																									</td>
+																								</tr>
+																							))}
+																						</tbody>
+																					</table>
+																				</div>
 																			)}
 
 																			{losses.length > 0 && (
@@ -679,77 +780,77 @@ export default function Screen() {
 																						{ctx.t({ code: "sector_effects.losses", msg: "Losses" })}
 																					</div>
 																					<table className="w-full border border-gray-200 text-xs">
-																					<thead className="bg-gray-100 text-gray-700">
-																						<tr>
-																							<th rowSpan={2} className="border border-gray-200 px-2 py-1 text-left">{ctx.t({ code: "common.type", msg: "Type" })}</th>
-																							<th rowSpan={2} className="border border-gray-200 px-2 py-1 text-left">{ctx.t({ code: "disaster_records.losses.related_to", msg: "Related To" })}</th>
-																							<th rowSpan={2} className="border border-gray-200 px-2 py-1 text-left">{ctx.t({ code: "common.description", msg: "Description" })}</th>
-																							<th colSpan={3} className="border border-gray-200 px-2 py-1 text-center bg-gray-200">{ctx.t({ code: "disaster_records.public", msg: "Public" })}</th>
-																							<th colSpan={3} className="border border-gray-200 px-2 py-1 text-center bg-gray-300">{ctx.t({ code: "disaster_records.private", msg: "Private" })}</th>
-																						</tr>
-																						<tr>
-																							<th className="border border-gray-200 px-2 py-1 text-left bg-gray-200">Unit value</th>
-																							<th className="border border-gray-200 px-2 py-1 text-left bg-gray-200">Cost per unit</th>
-																							<th className="border border-gray-200 px-2 py-1 text-left bg-gray-200">Total cost</th>
-
-																							<th className="border border-gray-200 px-2 py-1 text-left bg-gray-300">Unit value</th>
-																							<th className="border border-gray-200 px-2 py-1 text-left bg-gray-300">Cost per unit</th>
-																							<th className="border border-gray-200 px-2 py-1 text-left bg-gray-300">Total cost</th>
-																						</tr>
-																					</thead>
-																					<tbody>
-																						{losses.map((rec: any) => (
-																							<tr key={`losses-${rec.id}`}>
-																								<td className="border border-gray-200 px-2 py-1">{getLossesTypeLabel(rec.type, rec.sectorIsAgriculture)}</td>
-																								<td className="border border-gray-200 px-2 py-1">
-																									{getLossesRelatedToLabel(
-																										rec.relatedTo,
-																										rec.type,
-																										rec.sectorIsAgriculture,
-																									)}
-																								</td>
-																								<td className="border border-gray-200 px-2 py-1">
-																									{renderMultilineText(rec.description)}
-																								</td>
-																								<td className="border border-gray-200 px-2 py-1">
-																									{[formatLocalizedNumber(rec.publicUnits), getLossesUnitLabel(rec.publicUnit)]
-																										.filter((value) => value && value !== "-")
-																										.join(" ") || "-"}
-																								</td>
-																								<td className="border border-gray-200 px-2 py-1">
-																									{formatLocalizedCurrency(
-																										rec.publicCostUnit,
-																										rec.publicCostUnitCurrency,
-																									)}
-																								</td>
-																								<td className="border border-gray-200 px-2 py-1">
-																									{formatLocalizedCurrency(
-																										rec.publicCostTotal,
-																										rec.publicCostUnitCurrency,
-																									)}
-																								</td>
-																								<td className="border border-gray-200 px-2 py-1">
-																									{[formatLocalizedNumber(rec.privateUnits), getLossesUnitLabel(rec.privateUnit)]
-																										.filter((value) => value && value !== "-")
-																										.join(" ") || "-"}
-																								</td>
-																								<td className="border border-gray-200 px-2 py-1">
-																									{formatLocalizedCurrency(
-																										rec.privateCostUnit,
-																										rec.privateCostUnitCurrency,
-																									)}
-																								</td>
-																								<td className="border border-gray-200 px-2 py-1">
-																									{formatLocalizedCurrency(
-																										rec.privateCostTotal,
-																										rec.privateCostUnitCurrency,
-																									)}
-																								</td>
+																						<thead className="bg-gray-100 text-gray-700">
+																							<tr>
+																								<th rowSpan={2} className="border border-gray-200 px-2 py-1 text-left">{ctx.t({ code: "common.type", msg: "Type" })}</th>
+																								<th rowSpan={2} className="border border-gray-200 px-2 py-1 text-left">{ctx.t({ code: "disaster_records.losses.related_to", msg: "Related To" })}</th>
+																								<th rowSpan={2} className="border border-gray-200 px-2 py-1 text-left">{ctx.t({ code: "common.description", msg: "Description" })}</th>
+																								<th colSpan={3} className="border border-gray-200 px-2 py-1 text-center bg-gray-200">{ctx.t({ code: "disaster_records.public", msg: "Public" })}</th>
+																								<th colSpan={3} className="border border-gray-200 px-2 py-1 text-center bg-gray-300">{ctx.t({ code: "disaster_records.private", msg: "Private" })}</th>
 																							</tr>
-																						))}
-																					</tbody>
-																				</table>
-																			</div>
+																							<tr>
+																								<th className="border border-gray-200 px-2 py-1 text-left bg-gray-200">{ctx.t({ code: "disaster_record.losses.unit_value", msg: "Unit value" })}</th>
+																								<th className="border border-gray-200 px-2 py-1 text-left bg-gray-200">{ctx.t({ code: "disaster_records.losses.cost_per_unit", msg: "Cost per unit" })}</th>
+																								<th className="border border-gray-200 px-2 py-1 text-left bg-gray-200">{ctx.t({ code: "disaster_records.losses.total_cost", msg: "Total cost" })}</th>
+
+																								<th className="border border-gray-200 px-2 py-1 text-left bg-gray-300">{ctx.t({ code: "disaster_record.losses.unit_value", msg: "Unit value" })}</th>
+																								<th className="border border-gray-200 px-2 py-1 text-left bg-gray-300">{ctx.t({ code: "disaster_records.losses.cost_per_unit", msg: "Cost per unit" })}</th>
+																								<th className="border border-gray-200 px-2 py-1 text-left bg-gray-300">{ctx.t({ code: "disaster_records.losses.total_cost", msg: "Total cost" })}</th>
+																							</tr>
+																						</thead>
+																						<tbody>
+																							{losses.map((rec: any) => (
+																								<tr key={`losses-${rec.id}`}>
+																									<td className="border border-gray-200 px-2 py-1">{getLossesTypeLabel(rec.type, rec.sectorIsAgriculture)}</td>
+																									<td className="border border-gray-200 px-2 py-1">
+																										{getLossesRelatedToLabel(
+																											rec.relatedTo,
+																											rec.type,
+																											rec.sectorIsAgriculture,
+																										)}
+																									</td>
+																									<td className="border border-gray-200 px-2 py-1">
+																										{renderMultilineText(rec.description)}
+																									</td>
+																									<td className="border border-gray-200 px-2 py-1">
+																										{[formatLocalizedNumber(rec.publicUnits), getLossesUnitLabel(rec.publicUnit)]
+																											.filter((value) => value && value !== "-")
+																											.join(" ") || "-"}
+																									</td>
+																									<td className="border border-gray-200 px-2 py-1">
+																										{formatLocalizedCurrency(
+																											rec.publicCostUnit,
+																											rec.publicCostUnitCurrency,
+																										)}
+																									</td>
+																									<td className="border border-gray-200 px-2 py-1">
+																										{formatLocalizedCurrency(
+																											rec.publicCostTotal,
+																											rec.publicCostUnitCurrency,
+																										)}
+																									</td>
+																									<td className="border border-gray-200 px-2 py-1">
+																										{[formatLocalizedNumber(rec.privateUnits), getLossesUnitLabel(rec.privateUnit)]
+																											.filter((value) => value && value !== "-")
+																											.join(" ") || "-"}
+																									</td>
+																									<td className="border border-gray-200 px-2 py-1">
+																										{formatLocalizedCurrency(
+																											rec.privateCostUnit,
+																											rec.privateCostUnitCurrency,
+																										)}
+																									</td>
+																									<td className="border border-gray-200 px-2 py-1">
+																										{formatLocalizedCurrency(
+																											rec.privateCostTotal,
+																											rec.privateCostUnitCurrency,
+																										)}
+																									</td>
+																								</tr>
+																							))}
+																						</tbody>
+																					</table>
+																				</div>
 																			)}
 
 																			{disruptions.length > 0 && (
@@ -758,32 +859,32 @@ export default function Screen() {
 																						{ctx.t({ code: "sector_effects.disruption", msg: "Disruption" })}
 																					</div>
 																					<table className="w-full border border-gray-200 text-xs">
-																					<thead className="bg-gray-100 text-gray-700">
-																						<tr>
-																							<th className="border border-gray-200 px-2 py-1 text-left">{ctx.t({ code: "disruption.duration_days", msg: "Duration (days)" })}</th>
-																							<th className="border border-gray-200 px-2 py-1 text-left">{ctx.t({ code: "disruption.duration_hours", msg: "Duration (hours)" })}</th>
-																							<th className="border border-gray-200 px-2 py-1 text-left">{ctx.t({ code: "disruption.users_affected", msg: "Users affected" })}</th>
-																							<th className="border border-gray-200 px-2 py-1 text-left">{ctx.t({ code: "disruption.people_affected", msg: "People affected" })}</th>
-																							<th className="border border-gray-200 px-2 py-1 text-left">{ctx.t({ code: "disruption.response_operation", msg: "Response operation" })}</th>
-																							<th className="border border-gray-200 px-2 py-1 text-left">{ctx.t({ code: "common.description", msg: "Description" })}</th>
-																							<th className="border border-gray-200 px-2 py-1 text-left">{ctx.t({ code: "sector_effects.cost", msg: "Cost" })}</th>
-																						</tr>
-																					</thead>
-																					<tbody>
-																						{disruptions.map((rec: any) => (
-																							<tr key={`disruption-${rec.id}`}>
-																								<td className="border border-gray-200 px-2 py-1">{rec.durationDays ?? "-"}</td>
-																								<td className="border border-gray-200 px-2 py-1">{rec.durationHours ?? "-"}</td>
-																								<td className="border border-gray-200 px-2 py-1">{formatLocalizedNumber(rec.usersAffected)}</td>
-																								<td className="border border-gray-200 px-2 py-1">{formatLocalizedNumber(rec.peopleAffected)}</td>
-																								<td className="border border-gray-200 px-2 py-1">{renderMultilineText(rec.responseOperation) || "-"}</td>
-																								<td className="border border-gray-200 px-2 py-1">{renderMultilineText(rec.comment) || "-"}</td>
-																								<td className="border border-gray-200 px-2 py-1">{formatLocalizedCurrency(rec.responseCost, rec.responseCurrency)}</td>
+																						<thead className="bg-gray-100 text-gray-700">
+																							<tr>
+																								<th className="border border-gray-200 px-2 py-1 text-left">{ctx.t({ code: "disruption.duration_days", msg: "Duration (days)" })}</th>
+																								<th className="border border-gray-200 px-2 py-1 text-left">{ctx.t({ code: "disruption.duration_hours", msg: "Duration (hours)" })}</th>
+																								<th className="border border-gray-200 px-2 py-1 text-left">{ctx.t({ code: "disruption.users_affected", msg: "Users affected" })}</th>
+																								<th className="border border-gray-200 px-2 py-1 text-left">{ctx.t({ code: "disruption.people_affected", msg: "People affected" })}</th>
+																								<th className="border border-gray-200 px-2 py-1 text-left">{ctx.t({ code: "disruption.response_operation", msg: "Response operation" })}</th>
+																								<th className="border border-gray-200 px-2 py-1 text-left">{ctx.t({ code: "common.description", msg: "Description" })}</th>
+																								<th className="border border-gray-200 px-2 py-1 text-left">{ctx.t({ code: "sector_effects.cost", msg: "Cost" })}</th>
 																							</tr>
-																						))}
-																					</tbody>
-																				</table>
-																			</div>
+																						</thead>
+																						<tbody>
+																							{disruptions.map((rec: any) => (
+																								<tr key={`disruption-${rec.id}`}>
+																									<td className="border border-gray-200 px-2 py-1">{rec.durationDays ?? "-"}</td>
+																									<td className="border border-gray-200 px-2 py-1">{rec.durationHours ?? "-"}</td>
+																									<td className="border border-gray-200 px-2 py-1">{formatLocalizedNumber(rec.usersAffected)}</td>
+																									<td className="border border-gray-200 px-2 py-1">{formatLocalizedNumber(rec.peopleAffected)}</td>
+																									<td className="border border-gray-200 px-2 py-1">{renderMultilineText(rec.responseOperation) || "-"}</td>
+																									<td className="border border-gray-200 px-2 py-1">{renderMultilineText(rec.comment) || "-"}</td>
+																									<td className="border border-gray-200 px-2 py-1">{formatLocalizedCurrency(rec.responseCost, rec.responseCurrency)}</td>
+																								</tr>
+																							))}
+																						</tbody>
+																					</table>
+																				</div>
 																			)}
 																		</div>
 																	);
