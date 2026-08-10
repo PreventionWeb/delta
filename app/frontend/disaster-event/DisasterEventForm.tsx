@@ -60,12 +60,25 @@ type AdditionalDetailMeta = {
 	officialWarningAffectedAreas?: string;
 };
 
+type ResponseAttachmentValue = {
+	id?: string;
+	title?: string;
+	fileKey?: string;
+	fileName: string;
+	fileType: string;
+	fileSize: number;
+	tempFilePath?: string;
+	tenantPath?: string;
+};
+
 type AdditionalDetailItem = {
 	id: string;
 	type: string;
 	date: string;
+	coverage?: string;
 	description: string;
 	meta?: AdditionalDetailMeta;
+	attachments?: ResponseAttachmentValue[];
 };
 
 type AdditionalDetailTypeOption = {
@@ -73,7 +86,6 @@ type AdditionalDetailTypeOption = {
 	label: string;
 };
 
-type EarlyActionFieldIndex = 1 | 2 | 3 | 4 | 5;
 type AssessmentFieldIndex = 1 | 2 | 3 | 4 | 5;
 
 type HazardPickerItem = {
@@ -160,11 +172,6 @@ export type DisasterEventFormOutletContext = {
 
 const requiredFieldOrder: Array<keyof Errors> = ["nameNational"];
 
-const responseTypeOptions: AdditionalDetailTypeOption[] = [
-	{ value: "early_action", label: "Early action" },
-	{ value: "response_operation", label: "Response operation" },
-];
-
 const assessmentTypeOptions: AdditionalDetailTypeOption[] = [
 	{
 		value: "rapid_preliminary_assessment",
@@ -219,6 +226,45 @@ function normalizeDetailTypeValue(value: string): string {
 	return legacyDetailTypeToKey[value] ?? value;
 }
 
+function extensionFromName(fileName: string): string {
+	const segments = fileName.split(".");
+	if (segments.length < 2) return "";
+	return segments[segments.length - 1].toLowerCase();
+}
+
+function formatFileSize(fileSize: number): string {
+	if (!Number.isFinite(fileSize) || fileSize <= 0) {
+		return "0 B";
+	}
+
+	const units = ["B", "KB", "MB", "GB"];
+	let unitIndex = 0;
+	let value = fileSize;
+
+	while (value >= 1024 && unitIndex < units.length - 1) {
+		value /= 1024;
+		unitIndex += 1;
+	}
+
+	const fixed =
+		value >= 10 || unitIndex === 0 ? value.toFixed(0) : value.toFixed(1);
+	return `${fixed} ${units[unitIndex]}`;
+}
+
+function getFileIconClass(fileName: string): string {
+	const ext = extensionFromName(fileName);
+
+	if (["pdf"].includes(ext)) return "pi pi-file-pdf";
+	if (["doc", "docx"].includes(ext)) return "pi pi-file-word";
+	if (["xls", "xlsx"].includes(ext)) return "pi pi-file-excel";
+	if (["ppt", "pptx"].includes(ext)) return "pi pi-file";
+	if (["jpg", "png", "gif", "webp"].includes(ext)) return "pi pi-image";
+	if (["mp3", "wav", "m4a"].includes(ext)) return "pi pi-volume-up";
+	if (["mp4", "mov"].includes(ext)) return "pi pi-video";
+
+	return "pi pi-file";
+}
+
 // const isValidEmail = (value: string) => /^\S+@\S+\.\S+$/.test(value);
 
 type StepperValidationProps = {
@@ -245,17 +291,6 @@ type StepperValidationProps = {
 		recordingInstitution?: string | null;
 		id?: string | null;
 		spatialFootprint?: unknown;
-		earlyActionDescription1?: string | null;
-		earlyActionDate1?: string | Date | null;
-		earlyActionDescription2?: string | null;
-		earlyActionDate2?: string | Date | null;
-		earlyActionDescription3?: string | null;
-		earlyActionDate3?: string | Date | null;
-		earlyActionDescription4?: string | null;
-		earlyActionDate4?: string | Date | null;
-		earlyActionDescription5?: string | null;
-		earlyActionDate5?: string | Date | null;
-		responseOperations?: string | null;
 		rapidOrPreliminaryAssessmentDescription1?: string | null;
 		rapidOrPreliminaryAssessmentDate1?: string | Date | null;
 		rapidOrPreliminaryAssessmentDescription2?: string | null;
@@ -308,6 +343,24 @@ type StepperValidationProps = {
 		fileSize: number;
 		createdAt: string | Date;
 	}>;
+	disasterEventResponses: Array<{
+		id: string;
+		responseType: string;
+		responseDate: string | Date | null;
+		coverage: string | null;
+		description: string | null;
+	}>;
+	disasterEventResponseAttachments: Array<{
+		id: string;
+		disasterEventResponseId: string;
+		title: string;
+		fileKey: string;
+		fileName: string;
+		fileType: string;
+		fileSize: number;
+		createdAt: string | Date;
+		updatedAt: string | Date | null;
+	}>;
 	disasterEventLinks: DisasterEventLinkItem[];
 	hazardousEventOptions: LinkedEventOption[];
 	linkedTriggeringHazardousEvents: LinkedEventOption[];
@@ -330,6 +383,10 @@ type StepperValidationProps = {
 		lastName: string;
 		email: string;
 	}>;
+	responseTypes: Array<{
+		id: string;
+		type: string;
+	}>;
 	serverFormErrors?: string[];
 };
 
@@ -345,6 +402,8 @@ function StepperValidation({
 	ctx,
 	disasterEvent,
 	disasterEventAttachments,
+	disasterEventResponses,
+	disasterEventResponseAttachments,
 	disasterEventLinks: initialDisasterEventLinks,
 	hip,
 	hazardousEventOptions,
@@ -358,6 +417,7 @@ function StepperValidation({
 	currentUserOrganization,
 	user,
 	usersWithValidatorRole,
+	responseTypes,
 	serverFormErrors = [],
 }: StepperValidationProps) {
 	const navigate = useNavigate();
@@ -983,50 +1043,56 @@ function StepperValidation({
 	};
 
 	const mapEarlyActionToResponses = (): AdditionalDetailItem[] => {
-		const indexes: EarlyActionFieldIndex[] = [1, 2, 3, 4, 5];
-		const responseOperationDescription = String(
-			disasterEvent?.responseOperations ?? "",
-		).trim();
+		const attachmentsByResponseId = new Map<
+			string,
+			ResponseAttachmentValue[]
+		>();
+		for (const attachment of disasterEventResponseAttachments) {
+			const existing =
+				attachmentsByResponseId.get(attachment.disasterEventResponseId) ?? [];
+			existing.push({
+				id: attachment.id,
+				title: attachment.title,
+				fileKey: attachment.fileKey,
+				fileName: attachment.fileName,
+				fileType: attachment.fileType,
+				fileSize: attachment.fileSize,
+			});
+			attachmentsByResponseId.set(attachment.disasterEventResponseId, existing);
+		}
 
-		const earlyActionItems = indexes.reduce<AdditionalDetailItem[]>(
-			(accumulator, index) => {
-				const descriptionRaw =
-					disasterEvent?.[`earlyActionDescription${index}` as const] ?? "";
-				const dateRaw =
-					disasterEvent?.[`earlyActionDate${index}` as const] ?? null;
+		return disasterEventResponses.reduce<AdditionalDetailItem[]>(
+			(accumulator, item, index) => {
+				const normalizedType = normalizeDetailTypeValue(item.responseType);
+				const coverageText = String(item.coverage ?? "").trim();
+				const descriptionText = String(item.description ?? "").trim();
+				const formattedDate = formatBackendDate(item.responseDate);
+				const attachments = item.id
+					? (attachmentsByResponseId.get(item.id) ?? [])
+					: [];
 
-				const descriptionText = String(descriptionRaw).trim();
-				const formattedDate = formatBackendDate(dateRaw);
-
-				if (!descriptionText && !formattedDate) {
+				if (
+					!coverageText &&
+					!descriptionText &&
+					!formattedDate &&
+					attachments.length === 0
+				) {
 					return accumulator;
 				}
 
 				accumulator.push({
-					id: `response-early-action-${index}`,
-					type: "early_action",
+					id: item.id || `response-${normalizedType}-${index}`,
+					type: normalizedType,
 					date: formattedDate,
+					coverage: coverageText,
 					description: descriptionText,
+					attachments,
 				});
 
 				return accumulator;
 			},
 			[],
 		);
-
-		if (!responseOperationDescription) {
-			return earlyActionItems;
-		}
-
-		return [
-			...earlyActionItems,
-			{
-				id: "response-operation-backend",
-				type: "response_operation",
-				date: "",
-				description: responseOperationDescription,
-			},
-		];
 	};
 
 	const mapAssessmentsToItems = (): AdditionalDetailItem[] => {
@@ -1153,13 +1219,14 @@ function StepperValidation({
 	const [declarations, setDeclarations] = useState<AdditionalDetailItem[]>(() =>
 		mapDeclarationsToItems(),
 	);
-	const responseCountByType = useMemo(() => {
-		return responses.reduce<Record<string, number>>((counts, item) => {
-			const key = normalizeDetailTypeValue(item.type);
-			counts[key] = (counts[key] ?? 0) + 1;
-			return counts;
-		}, {});
-	}, [responses]);
+	const responseTypeOptions = useMemo(
+		() =>
+			responseTypes.map((responseType) => ({
+				value: normalizeDetailTypeValue(responseType.type),
+				label: responseType.type,
+			})),
+		[responseTypes],
+	);
 	const assessmentCountByType = useMemo(() => {
 		return assessments.reduce<Record<string, number>>((counts, item) => {
 			const key = normalizeDetailTypeValue(item.type);
@@ -1215,24 +1282,40 @@ function StepperValidation({
 	const [detailForm, setDetailForm] = useState({
 		type: "",
 		dateValue: null as Date | null,
+		coverage: "",
 		description: "",
 		declarationStatus: "" as DeclarationStatus | "",
 		hadOfficialWarningOrWeatherAdvisory: false,
 		officialWarningAffectedAreas: "",
 	});
-	const isResponseOperationType =
-		detailDialogCategory === "response" &&
-		detailForm.type === "response_operation";
+	const [
+		detailResponseExistingAttachments,
+		setDetailResponseExistingAttachments,
+	] = useState<
+		Array<{
+			id: string;
+			fileName: string;
+			fileType: string;
+			fileSize: number;
+			fileKey: string;
+			title?: string;
+		}>
+	>([]);
+	const [detailResponseKeptAttachmentIds, setDetailResponseKeptAttachmentIds] =
+		useState<string[]>([]);
+	const [
+		detailResponseNewAttachmentUploads,
+		setDetailResponseNewAttachmentUploads,
+	] = useState<NewAttachmentUpload[]>([]);
+	const [responseAttachmentEditorKey, setResponseAttachmentEditorKey] =
+		useState(0);
 	const isDeclarationStatusType =
 		detailDialogCategory === "declaration" &&
 		detailForm.type === "disaster_declaration";
 	const isOfficialWarningType =
 		detailDialogCategory === "declaration" &&
 		detailForm.type === "official_warning";
-	const showDateField =
-		!isResponseOperationType &&
-		!isDeclarationStatusType &&
-		!isOfficialWarningType;
+	const showDateField = !isDeclarationStatusType && !isOfficialWarningType;
 	const hasOfficialWarningAreas =
 		detailForm.officialWarningAffectedAreas.trim().length > 0;
 	const passesOfficialWarningRule =
@@ -1245,8 +1328,12 @@ function StepperValidation({
 		: isOfficialWarningType
 			? detailForm.hadOfficialWarningOrWeatherAdvisory ||
 				hasOfficialWarningAreas
-			: detailForm.description.trim().length > 0 ||
-				detailForm.dateValue !== null;
+			: detailDialogCategory === "response"
+				? detailForm.coverage.trim().length > 0 ||
+					detailForm.description.trim().length > 0 ||
+					detailForm.dateValue !== null
+				: detailForm.description.trim().length > 0 ||
+					detailForm.dateValue !== null;
 	const canSaveDetail =
 		hasDetailType && hasDetailContent && passesOfficialWarningRule;
 	const [errors, setErrors] = useState<Errors>({});
@@ -1652,22 +1739,26 @@ function StepperValidation({
 			JSON.stringify(triggeredDisasterEventTarget.map((event) => event.id)),
 		);
 
-		const earlyActions = responses.filter(
-			(item) => normalizeDetailTypeValue(item.type) === "early_action",
-		);
-		for (let index = 0; index < 5; index++) {
-			const item = earlyActions[index];
-			pushValue(`earlyActionDescription${index + 1}`, item?.description ?? "");
-			pushValue(
-				`earlyActionDate${index + 1}`,
-				item?.date ? formatDateForSubmit(parseDetailDate(item.date)) : "",
-			);
-		}
-
-		const responseOperation = responses.find(
-			(item) => normalizeDetailTypeValue(item.type) === "response_operation",
-		);
-		pushValue("responseOperations", responseOperation?.description ?? "");
+		const responsePayload = responses.map((item) => ({
+			id: item.id,
+			type: normalizeDetailTypeValue(item.type),
+			responseDate: item.date
+				? formatDateForSubmit(parseDetailDate(item.date))
+				: "",
+			coverage: item.coverage ?? "",
+			description: item.description ?? "",
+			attachments: (item.attachments ?? []).map((attachment) => ({
+				id: attachment.id,
+				title: attachment.title,
+				fileKey: attachment.fileKey,
+				fileName: attachment.fileName,
+				fileType: attachment.fileType,
+				fileSize: attachment.fileSize,
+				tempFilePath: attachment.tempFilePath,
+				tenantPath: attachment.tenantPath,
+			})),
+		}));
+		pushValue("disasterEventResponses", JSON.stringify(responsePayload));
 
 		const assessmentConfigs = [
 			{
@@ -1765,8 +1856,6 @@ function StepperValidation({
 	]);
 
 	const maxDetailItems = 5;
-	const maxEarlyActionItems = 5;
-	const maxResponseOperationItems = 1;
 	const maxDisasterDeclarationItems = 1;
 	const maxDisasterDeclarationEffectsItems = 5;
 	const maxOfficialWarningItems = 1;
@@ -1778,7 +1867,7 @@ function StepperValidation({
 				...declarationTypeOptions,
 			].map((option) => [option.value, option.label]),
 		);
-	}, []);
+	}, [responseTypeOptions]);
 	const availableAssessmentTypeOptions = useMemo(
 		() =>
 			assessmentTypeOptions.filter(
@@ -1788,21 +1877,7 @@ function StepperValidation({
 	);
 	const detailTypeOptions = useMemo(() => {
 		if (detailDialogCategory === "response") {
-			return responseTypeOptions.filter((option) => {
-				if (option.value === detailForm.type) {
-					return true;
-				}
-				if (option.value === "early_action") {
-					return (responseCountByType.early_action ?? 0) < maxEarlyActionItems;
-				}
-				if (option.value === "response_operation") {
-					return (
-						(responseCountByType.response_operation ?? 0) <
-						maxResponseOperationItems
-					);
-				}
-				return true;
-			});
+			return responseTypeOptions;
 		}
 
 		if (detailDialogCategory === "assessment") {
@@ -1849,14 +1924,10 @@ function StepperValidation({
 		declarationCountByType,
 		maxDisasterDeclarationEffectsItems,
 		maxDisasterDeclarationItems,
-		maxEarlyActionItems,
 		maxOfficialWarningItems,
-		maxResponseOperationItems,
-		responseCountByType,
+		responseTypeOptions,
 	]);
-	const canAddAnyResponse =
-		(responseCountByType.early_action ?? 0) < maxEarlyActionItems ||
-		(responseCountByType.response_operation ?? 0) < maxResponseOperationItems;
+	const canAddAnyResponse = responseTypeOptions.length > 0;
 	const canAddAnyAssessment = assessmentTypeOptions.some(
 		(option) => (assessmentCountByType[option.value] ?? 0) < maxDetailItems,
 	);
@@ -1993,21 +2064,7 @@ function StepperValidation({
 
 		let defaultType = "";
 		if (category === "response") {
-			defaultType =
-				responseTypeOptions.find((option) => {
-					if (option.value === "early_action") {
-						return (
-							(responseCountByType.early_action ?? 0) < maxEarlyActionItems
-						);
-					}
-					if (option.value === "response_operation") {
-						return (
-							(responseCountByType.response_operation ?? 0) <
-							maxResponseOperationItems
-						);
-					}
-					return false;
-				})?.value ?? "";
+			defaultType = responseTypeOptions[0]?.value ?? "";
 		} else if (category === "assessment") {
 			defaultType = availableAssessmentTypeOptions[0]?.value ?? "";
 		} else if (category === "declaration") {
@@ -2043,11 +2100,18 @@ function StepperValidation({
 		setDetailForm({
 			type: defaultType,
 			dateValue: null,
+			coverage: "",
 			description: "",
 			declarationStatus: "",
 			hadOfficialWarningOrWeatherAdvisory: false,
 			officialWarningAffectedAreas: "",
 		});
+		if (category === "response") {
+			setDetailResponseExistingAttachments([]);
+			setDetailResponseKeptAttachmentIds([]);
+			setDetailResponseNewAttachmentUploads([]);
+			setResponseAttachmentEditorKey((value) => value + 1);
+		}
 		setDetailDialogVisible(true);
 	};
 
@@ -2061,12 +2125,11 @@ function StepperValidation({
 		setDetailForm({
 			type: normalizedType,
 			dateValue:
-				category === "response" && normalizedType === "response_operation"
+				category === "declaration" &&
+				normalizedType !== "disaster_declaration_effects"
 					? null
-					: category === "declaration" &&
-						  normalizedType !== "disaster_declaration_effects"
-						? null
-						: parseDetailDate(item.date),
+					: parseDetailDate(item.date),
+			coverage: category === "response" ? (item.coverage ?? "") : "",
 			description: item.description,
 			declarationStatus:
 				category === "declaration" && normalizedType === "disaster_declaration"
@@ -2081,6 +2144,52 @@ function StepperValidation({
 					? (item.meta?.officialWarningAffectedAreas ?? item.description)
 					: "",
 		});
+		if (category === "response") {
+			const existingAttachments = (item.attachments ?? []).filter(
+				(
+					attachment,
+				): attachment is ResponseAttachmentValue & {
+					id: string;
+					fileKey: string;
+				} =>
+					typeof attachment.id === "string" &&
+					typeof attachment.fileKey === "string" &&
+					attachment.fileKey.length > 0,
+			);
+			setDetailResponseExistingAttachments(
+				existingAttachments.map((attachment) => ({
+					id: attachment.id,
+					fileName: attachment.fileName,
+					fileType: attachment.fileType,
+					fileSize: attachment.fileSize,
+					fileKey: attachment.fileKey,
+					title: attachment.title,
+				})),
+			);
+			setDetailResponseKeptAttachmentIds(
+				existingAttachments.map((attachment) => attachment.id),
+			);
+			setDetailResponseNewAttachmentUploads(
+				(item.attachments ?? [])
+					.filter(
+						(
+							attachment,
+						): attachment is ResponseAttachmentValue & {
+							tempFilePath: string;
+						} =>
+							typeof attachment.tempFilePath === "string" &&
+							attachment.tempFilePath.length > 0,
+					)
+					.map((attachment) => ({
+						fileName: attachment.fileName,
+						fileType: attachment.fileType,
+						fileSize: attachment.fileSize,
+						tempFilePath: attachment.tempFilePath,
+						tenantPath: attachment.tenantPath,
+					})),
+			);
+			setResponseAttachmentEditorKey((value) => value + 1);
+		}
 		setDetailDialogVisible(true);
 	};
 
@@ -2090,6 +2199,7 @@ function StepperValidation({
 		}
 
 		const trimmedType = detailForm.type.trim();
+		const trimmedCoverage = detailForm.coverage.trim();
 		const trimmedDescription = detailForm.description.trim();
 
 		const targetCategory = detailDialogCategory;
@@ -2117,12 +2227,11 @@ function StepperValidation({
 			id: editingDetailId ?? `${targetCategory}-${Date.now()}`,
 			type: trimmedType,
 			date:
-				targetCategory === "response" && trimmedType === "response_operation"
+				targetCategory === "declaration" &&
+				trimmedType !== "disaster_declaration_effects"
 					? ""
-					: targetCategory === "declaration" &&
-						  trimmedType !== "disaster_declaration_effects"
-						? ""
-						: formatDetailDate(detailForm.dateValue),
+					: formatDetailDate(detailForm.dateValue),
+			coverage: targetCategory === "response" ? trimmedCoverage : undefined,
 			description:
 				targetCategory === "declaration" &&
 				trimmedType === "disaster_declaration"
@@ -2132,6 +2241,31 @@ function StepperValidation({
 						? detailForm.officialWarningAffectedAreas.trim()
 						: trimmedDescription,
 			meta: declarationMeta,
+			attachments:
+				targetCategory === "response"
+					? [
+							...detailResponseExistingAttachments
+								.filter((attachment) =>
+									detailResponseKeptAttachmentIds.includes(attachment.id),
+								)
+								.map((attachment) => ({
+									id: attachment.id,
+									title: attachment.title ?? attachment.fileName,
+									fileKey: attachment.fileKey,
+									fileName: attachment.fileName,
+									fileType: attachment.fileType,
+									fileSize: attachment.fileSize,
+								})),
+							...detailResponseNewAttachmentUploads.map((upload) => ({
+								title: upload.fileName,
+								fileName: upload.fileName,
+								fileType: upload.fileType,
+								fileSize: upload.fileSize,
+								tempFilePath: upload.tempFilePath,
+								tenantPath: upload.tenantPath,
+							})),
+						]
+					: undefined,
 		};
 
 		setTarget((prev) => {
@@ -2141,26 +2275,7 @@ function StepperValidation({
 				);
 			}
 
-			if (targetCategory === "response") {
-				if (nextItem.type === "early_action") {
-					const earlyActionCount = prev.filter(
-						(item) => normalizeDetailTypeValue(item.type) === "early_action",
-					).length;
-					if (earlyActionCount >= maxEarlyActionItems) {
-						return prev;
-					}
-				}
-
-				if (nextItem.type === "response_operation") {
-					const responseOperationCount = prev.filter(
-						(item) =>
-							normalizeDetailTypeValue(item.type) === "response_operation",
-					).length;
-					if (responseOperationCount >= maxResponseOperationItems) {
-						return prev;
-					}
-				}
-			} else if (targetCategory === "assessment") {
+			if (targetCategory === "assessment") {
 				const nextTypeCount = prev.filter(
 					(item) => normalizeDetailTypeValue(item.type) === nextItem.type,
 				).length;
@@ -2204,6 +2319,9 @@ function StepperValidation({
 		});
 
 		setDetailDialogVisible(false);
+		setDetailResponseExistingAttachments([]);
+		setDetailResponseKeptAttachmentIds([]);
+		setDetailResponseNewAttachmentUploads([]);
 	};
 
 	const deleteDetail = () => {
@@ -2219,6 +2337,9 @@ function StepperValidation({
 					: setDeclarations;
 		setTarget((prev) => prev.filter((item) => item.id !== editingDetailId));
 		setDetailDialogVisible(false);
+		setDetailResponseExistingAttachments([]);
+		setDetailResponseKeptAttachmentIds([]);
+		setDetailResponseNewAttachmentUploads([]);
 	};
 
 	const renderDetailCard = (
@@ -2240,7 +2361,10 @@ function StepperValidation({
 			<Card
 				key={item.id}
 				className="rounded-2xl border border-slate-200 shadow-none"
-				pt={{ body: { style: { padding: "14px 16px" } } }}
+				pt={{
+					root: { style: { boxShadow: "none" } },
+					body: { style: { padding: "14px 16px" } },
+				}}
 			>
 				<div className="flex items-start justify-between gap-3">
 					<div className="w-full">
@@ -2254,28 +2378,100 @@ function StepperValidation({
 								<span className="text-[12px] text-slate-500">{item.date}</span>
 							) : null}
 						</div>
-						<p className="mt-1 text-[14px] text-slate-500">
-							{descriptionValue
-								? (() => {
-										const lines = descriptionValue.split("\n");
-										return lines.map((line, index) => (
-											<span key={`${item.id}-line-${index}`}>
-												{line}
-												{index < lines.length - 1 ? <br /> : null}
-											</span>
-										));
-									})()
-								: "-"}
-						</p>
+						{category === "response" ? (
+							<div className="mt-2 space-y-1 text-[14px] text-slate-500">
+								{item.coverage?.trim() ? (
+									<p>
+										<span className="font-semibold text-slate-700">
+											Coverage:
+										</span>{" "}
+										{item.coverage.trim()}
+									</p>
+								) : null}
+								{item.description?.trim() ? (
+									<p>
+										<span className="font-semibold text-slate-700">
+											Description:
+										</span>{" "}
+										{item.description.trim()}
+									</p>
+								) : null}
+								{!item.coverage?.trim() && !item.description?.trim() ? (
+									<p>-</p>
+								) : null}
+							</div>
+						) : (
+							<p className="mt-1 text-[14px] text-slate-500">
+								{descriptionValue
+									? (() => {
+											const lines = descriptionValue.split("\n");
+											return lines.map((line, index) => (
+												<span key={`${item.id}-line-${index}`}>
+													{line}
+													{index < lines.length - 1 ? <br /> : null}
+												</span>
+											));
+										})()
+									: "-"}
+							</p>
+						)}
+						{category === "response" ? (
+							item.attachments && item.attachments.length > 0 ? (
+								<div className="mt-3 space-y-2">
+									<p className="text-[14px] font-semibold text-slate-700">
+										Attachments:
+									</p>
+									{item.attachments.map((attachment, index) => (
+										<div
+											key={
+												attachment.id ??
+												attachment.fileKey ??
+												`${item.id}-attachment-${index}`
+											}
+											className="rounded-md border border-slate-200 bg-white px-3 py-2"
+										>
+											<div className="flex min-w-0 items-center gap-3">
+												<i
+													className={`${getFileIconClass(attachment.fileName)} text-slate-500`}
+												/>
+												<div className="min-w-0">
+													<p className="truncate text-sm font-medium text-slate-800">
+														{attachment.fileName}
+													</p>
+													<p className="text-xs text-slate-500">
+														{`${formatFileSize(attachment.fileSize)}${attachment.fileType ? ` • ${attachment.fileType}` : ""}`}
+													</p>
+												</div>
+											</div>
+										</div>
+									))}
+								</div>
+							) : null
+						) : null}
 					</div>
-					<Button
-						type="button"
-						icon="pi pi-pencil"
-						text
-						rounded
-						aria-label="Edit"
-						onClick={() => openEditDetail(category, item)}
-					/>
+					<div className="flex items-center gap-1">
+						<Button
+							type="button"
+							icon="pi pi-pencil"
+							text
+							aria-label="Edit"
+							onClick={() => openEditDetail(category, item)}
+						/>
+						{category === "response" ? (
+							<Button
+								type="button"
+								icon="pi pi-trash"
+								text
+								severity="danger"
+								aria-label="Delete"
+								onClick={() =>
+									setResponses((prev) =>
+										prev.filter((responseItem) => responseItem.id !== item.id),
+									)
+								}
+							/>
+						) : null}
+					</div>
 				</div>
 			</Card>
 		);
@@ -2299,6 +2495,12 @@ function StepperValidation({
 					item.meta?.officialWarningAffectedAreas || "-"
 				}`,
 			].join("\n");
+		}
+
+		if (item.coverage?.trim()) {
+			return [`Coverage: ${item.coverage.trim()}`, item.description]
+				.filter((value) => value && value.trim().length > 0)
+				.join("\n");
 		}
 
 		return item.description;
@@ -3703,7 +3905,9 @@ function StepperValidation({
 								>
 									<div className="space-y-4">
 										<div>
-											<label className="mb-1 block">Type</label>
+											<label className="mb-1 block">
+												Type <span className="text-red-500">*</span>
+											</label>
 											<Dropdown
 												value={detailForm.type}
 												onChange={(event) => {
@@ -3712,14 +3916,10 @@ function StepperValidation({
 														...state,
 														type: selectedType,
 														dateValue:
-															detailDialogCategory === "response" &&
-															selectedType === "response_operation"
+															detailDialogCategory === "declaration" &&
+															selectedType !== "disaster_declaration_effects"
 																? null
-																: detailDialogCategory === "declaration" &&
-																	  selectedType !==
-																			"disaster_declaration_effects"
-																	? null
-																	: state.dateValue,
+																: state.dateValue,
 														declarationStatus:
 															selectedType === "disaster_declaration"
 																? state.declarationStatus
@@ -3738,7 +3938,10 @@ function StepperValidation({
 												optionLabel="label"
 												optionValue="value"
 												placeholder="Select type"
-												disabled={Boolean(editingDetailId)}
+												disabled={
+													Boolean(editingDetailId) &&
+													detailDialogCategory !== "response"
+												}
 												className="w-full"
 											/>
 										</div>
@@ -3839,6 +4042,23 @@ function StepperValidation({
 											</div>
 										) : null}
 
+										{detailDialogCategory === "response" ? (
+											<div>
+												<label className="mb-1 block">Coverage</label>
+												<InputText
+													value={detailForm.coverage}
+													onChange={(event) =>
+														setDetailForm((state) => ({
+															...state,
+															coverage: event.target.value,
+														}))
+													}
+													placeholder="Enter coverage"
+													className="w-full"
+												/>
+											</div>
+										) : null}
+
 										{!isDeclarationStatusType && !isOfficialWarningType ? (
 											<div>
 												<label className="mb-1 block">Description</label>
@@ -3857,9 +4077,35 @@ function StepperValidation({
 											</div>
 										) : null}
 
+										{detailDialogCategory === "response" ? (
+											<DisasterEventAttachment
+												key={`response-attachment-editor-${responseAttachmentEditorKey}`}
+												ctx={ctx}
+												initialAttachments={detailResponseExistingAttachments}
+												initialNewAttachmentUploads={
+													detailResponseNewAttachmentUploads
+												}
+												keptAttachmentIds={detailResponseKeptAttachmentIds}
+												onKeptAttachmentIdsChange={
+													setDetailResponseKeptAttachmentIds
+												}
+												onNewAttachmentUploadsChange={
+													setDetailResponseNewAttachmentUploads
+												}
+												titleText="Attachments"
+												titleClassName="mb-1 block"
+												uploadContainerClassName="mt-0"
+												showTitleIcon={false}
+												showSupportingText={false}
+												showChooseButton={false}
+												enableClickableUploadText
+											/>
+										) : null}
+
 										<div className="flex items-center justify-between gap-2 pt-2">
 											<div>
-												{editingDetailId ? (
+												{editingDetailId &&
+												detailDialogCategory !== "response" ? (
 													<Button
 														type="button"
 														label="Delete"

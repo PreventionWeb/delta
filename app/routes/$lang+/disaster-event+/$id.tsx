@@ -24,6 +24,8 @@ import { getUserIdFromSession } from "~/utils/session";
 import { getReturnAssigneeUsers } from "~/db/queries/userCountryAccountsRepository";
 import { DisasterEventAttachmentRepository } from "~/db/queries/disasterEventAttachmentRepository";
 import { DisasterEventLinkRepository } from "~/db/queries/disasterEventLinkRepository";
+import { DisasterEventResponseRepository } from "~/db/queries/disasterEventResponseRepository";
+import { DisasterEventResponseAttachmentRepository } from "~/db/queries/disasterEventResponseAttachmentRepository";
 
 export const loader = async (args: LoaderFunctionArgs) => {
 	const { request, params } = args;
@@ -50,6 +52,12 @@ export const loader = async (args: LoaderFunctionArgs) => {
 		await DisasterEventAttachmentRepository.getByDisasterEventId(
 			result.item.id,
 		);
+	const disasterEventResponses =
+		await DisasterEventResponseRepository.listByDisasterEventId(result.item.id);
+	const disasterEventResponseAttachments =
+		await DisasterEventResponseAttachmentRepository.listByDisasterEventId(
+			result.item.id,
+		);
 	const disasterEventLinks =
 		await DisasterEventLinkRepository.getByDisasterEventId(result.item.id);
 
@@ -70,6 +78,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
 			...result.item,
 			spatialFootprintsDataSource: [],
 			attachments: disasterEventAttachments,
+			responses: disasterEventResponses,
+			responseAttachments: disasterEventResponseAttachments,
 			links: disasterEventLinks,
 			returnAssignees,
 		},

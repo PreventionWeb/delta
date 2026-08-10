@@ -62,43 +62,6 @@ function repeatOtherIds(
 	return res as FormInputDef<DisasterEventFields>[];
 }
 
-function repeatEarlyActions(
-	ctx: DContext,
-	n: number,
-): FormInputDef<DisasterEventFields>[] {
-	let res = [];
-	for (let i = 0; i < n; i++) {
-		res.push(
-			{
-				key: `earlyActionDescription` + (i + 1),
-				label: ctx.t({
-					code: "common.description",
-					msg: "Description",
-				}),
-				type: "textarea",
-				uiRow: {
-					label:
-						ctx.t({
-							code: "disaster_event.early_action",
-							msg: "Early action",
-						}) + ` (${i + 1})`,
-				},
-				repeatable: { group: "earlyAction", index: i },
-			},
-			{
-				key: `earlyActionDate` + (i + 1),
-				label: ctx.t({
-					code: "common.date",
-					msg: "Date",
-				}),
-				type: "date",
-				repeatable: { group: "earlyAction", index: i },
-			},
-		);
-	}
-	return res as FormInputDef<DisasterEventFields>[];
-}
-
 function repeatDisasterDeclarations(
 	ctx: DContext,
 	n: number,
@@ -437,18 +400,7 @@ export function fieldsDefCommon(
 			type: "textarea",
 		},
 
-		...repeatEarlyActions(ctx, 5),
 		...repeatRapidOrPreliminaryAssesments(ctx, 5),
-
-		{
-			key: "responseOperations",
-			label: ctx.t({
-				code: "disaster_event.response_operations",
-				msg: "Response operations",
-			}),
-			type: "textarea",
-			uiRow: {},
-		},
 
 		...repeatPostDisasterAssesments(ctx, 5),
 		...repeatOtherAssesments(ctx, 5),
@@ -1424,8 +1376,77 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 			title: String(link?.title || ""),
 		}),
 	);
+	const responseAttachmentCountByResponseId = (
+		(itemAny?.responseAttachments as any[]) || []
+	)
+		.filter(
+			(attachment: any) =>
+				typeof attachment?.disasterEventResponseId === "string" &&
+				attachment.disasterEventResponseId.trim().length > 0,
+		)
+		.reduce<Record<string, number>>((counts, attachment: any) => {
+			const responseId = String(attachment.disasterEventResponseId);
+			counts[responseId] = (counts[responseId] ?? 0) + 1;
+			return counts;
+		}, {});
+	const responseAttachmentsByResponseId = (
+		(itemAny?.responseAttachments as any[]) || []
+	)
+		.filter(
+			(attachment: any) =>
+				typeof attachment?.disasterEventResponseId === "string" &&
+				attachment.disasterEventResponseId.trim().length > 0,
+		)
+		.reduce<Record<string, any[]>>(
+			(grouped, attachment: any, index: number) => {
+				const responseId = String(attachment.disasterEventResponseId);
+				const existing = grouped[responseId] ?? [];
+				existing.push({
+					id: String(attachment?.id || `${responseId}-attachment-${index}`),
+					title: String(
+						attachment?.title || attachment?.fileName || "Attachment",
+					),
+					fileKey: String(attachment?.fileKey || ""),
+					fileName: String(
+						attachment?.fileName || attachment?.name || "Attachment",
+					),
+					fileType: attachment?.fileType,
+					fileSize:
+						typeof attachment?.fileSize === "number" ? attachment.fileSize : 0,
+					href: ctx.url(
+						`${route}/file-viewer?name=${encodeURIComponent(
+							buildAttachmentViewerName(attachment),
+						)}`,
+					),
+				});
+				grouped[responseId] = existing;
+				return grouped;
+			},
+			{},
+		);
 
-	const responses = Array.from({ length: 5 }).flatMap((_, index) => {
+	const normalizedResponses = ((itemAny?.responses as any[]) || []).map(
+		(response: any, index: number) => {
+			const responseId = String(response?.id || `response-${index + 1}`);
+			const responseType = String(
+				response?.responseType ?? response?.type ?? "",
+			).trim();
+			const description = String(response?.description ?? "").trim();
+			const coverage = String(response?.coverage ?? "").trim();
+
+			return {
+				id: responseId,
+				type: responseType,
+				date: formatReviewDate(response?.responseDate),
+				coverage,
+				description,
+				attachmentCount: responseAttachmentCountByResponseId[responseId] ?? 0,
+				attachments: responseAttachmentsByResponseId[responseId] ?? [],
+			};
+		},
+	);
+
+	const legacyResponses = Array.from({ length: 5 }).flatMap((_, index) => {
 		const n = index + 1;
 		const description = itemAny?.[`earlyActionDescription${n}`];
 		if (!description || String(description).trim().length === 0) {
@@ -1444,13 +1465,16 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 		typeof itemAny?.responseOperationsDescription === "string" &&
 		itemAny.responseOperationsDescription.trim().length > 0
 	) {
-		responses.push({
+		legacyResponses.push({
 			id: "response-operation-1",
 			type: "response_operation",
 			date: "",
 			description: itemAny.responseOperationsDescription,
 		});
 	}
+
+	const responses =
+		normalizedResponses.length > 0 ? normalizedResponses : legacyResponses;
 
 	const assessments = [
 		...Array.from({ length: 5 }).flatMap((_, index) => {
@@ -1604,6 +1628,17 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 					? detail.meta.officialWarningAffectedAreas
 					: "";
 			return affectedAreas ? `${warningValue}\n${affectedAreas}` : warningValue;
+		}
+		if (
+			typeof detail?.coverage === "string" &&
+			detail.coverage.trim().length > 0
+		) {
+			return [
+				`Coverage: ${detail.coverage.trim()}`,
+				typeof detail?.description === "string" ? detail.description : "",
+			]
+				.filter((value) => value.trim().length > 0)
+				.join("\n");
 		}
 		return detail?.description || "";
 	};

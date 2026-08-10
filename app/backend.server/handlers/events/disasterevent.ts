@@ -1,6 +1,8 @@
 import { disasterRecordsTable } from "~/drizzle/schema/disasterRecordsTable";
+import { disasterEventResponseTable } from "~/drizzle/schema/disasterEventResponseTable";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
+import { responseTypeTable } from "~/drizzle/schema/responseTypeTable";
 
 import { authLoaderIsPublic } from "~/utils/auth";
 
@@ -222,11 +224,6 @@ export async function disasterEventsLoader(args: disasterEventLoaderArgs) {
 									disasterEventTable.officialWarningAffectedAreas,
 									searchIlike,
 								),
-								ilike(disasterEventTable.earlyActionDescription1, searchIlike),
-								ilike(disasterEventTable.earlyActionDescription2, searchIlike),
-								ilike(disasterEventTable.earlyActionDescription3, searchIlike),
-								ilike(disasterEventTable.earlyActionDescription4, searchIlike),
-								ilike(disasterEventTable.earlyActionDescription5, searchIlike),
 								ilike(
 									disasterEventTable.rapidOrPreliminaryAssessmentDescription1,
 									searchIlike,
@@ -247,7 +244,18 @@ export async function disasterEventsLoader(args: disasterEventLoaderArgs) {
 									disasterEventTable.rapidOrPreliminaryAssessmentDescription5,
 									searchIlike,
 								),
-								ilike(disasterEventTable.responseOperations, searchIlike),
+								sql`EXISTS (
+									SELECT 1
+									FROM ${disasterEventResponseTable} der
+									INNER JOIN ${responseTypeTable} rt
+										ON rt.id = der.response_type_id
+									WHERE der.disaster_event_id = ${disasterEventTable.id}
+									AND (
+										COALESCE(der.description, '') ILIKE ${searchIlike}
+										OR COALESCE(der.coverage, '') ILIKE ${searchIlike}
+										OR rt.type ILIKE ${searchIlike}
+									)
+								)`,
 								ilike(
 									disasterEventTable.postDisasterAssessmentDescription1,
 									searchIlike,
@@ -306,11 +314,14 @@ export async function disasterEventsLoader(args: disasterEventLoaderArgs) {
 	);
 
 	// in case of data viewer role, force the filter on approvalStatus to validated and published
-	if (userRole === 'data-viewer') {
-		condition = and(condition, or(
-			eq(disasterEventTable.approvalStatus, "validated"),
-			eq(disasterEventTable.approvalStatus, "published")
-		));
+	if (userRole === "data-viewer") {
+		condition = and(
+			condition,
+			or(
+				eq(disasterEventTable.approvalStatus, "validated"),
+				eq(disasterEventTable.approvalStatus, "published"),
+			),
+		);
 	}
 
 	const count = await dr.$count(disasterEventTable, condition);

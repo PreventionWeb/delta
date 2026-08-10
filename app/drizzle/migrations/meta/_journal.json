@@ -267,6 +267,13 @@
       "when": 1785395601635,
       "tag": "20260730071321_remove_spatial_footprint_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1786334181876,
+      "tag": "20260810035621_migrate_disaster_event_response_to_new_tables",
+      "breakpoints": true
     }
   ]
 }

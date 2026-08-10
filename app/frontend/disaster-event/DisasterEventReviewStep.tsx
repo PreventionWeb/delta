@@ -21,12 +21,26 @@ type AdditionalDetailMeta = {
 	officialWarningAffectedAreas?: string;
 };
 
+type ResponseAttachmentValue = {
+	id?: string;
+	title?: string;
+	fileKey?: string;
+	fileName: string;
+	fileType: string;
+	fileSize: number;
+	tempFilePath?: string;
+	tenantPath?: string;
+};
+
 type AdditionalDetailItem = {
 	id: string;
 	type: string;
 	date: string;
+	coverage?: string;
 	description: string;
 	meta?: AdditionalDetailMeta;
+	attachmentCount?: number;
+	attachments?: ResponseAttachmentValue[];
 };
 
 type ReviewAttachmentItem = {
@@ -426,7 +440,25 @@ const renderStep4DetailRow = (
 					<span className="text-[12px] text-slate-500">{item.date}</span>
 				) : null}
 			</div>
-			{descriptionValue ? (
+			{category === "response" ? (
+				<div className="space-y-1 text-[14px] text-slate-500">
+					{item.coverage?.trim() ? (
+						<p>
+							<span className="font-semibold text-slate-700">Coverage:</span>{" "}
+							{item.coverage.trim()}
+						</p>
+					) : null}
+					{item.description?.trim() ? (
+						<p>
+							<span className="font-semibold text-slate-700">Description:</span>{" "}
+							{item.description.trim()}
+						</p>
+					) : null}
+					{!item.coverage?.trim() && !item.description?.trim() ? (
+						<p>-</p>
+					) : null}
+				</div>
+			) : descriptionValue ? (
 				<p className="text-[14px] text-slate-500">
 					{descriptionValue.split(/\r?\n/).map((line, index, lines) => (
 						<span key={`${item.id}-review-line-${index}`}>
@@ -435,6 +467,59 @@ const renderStep4DetailRow = (
 						</span>
 					))}
 				</p>
+			) : null}
+			{category === "response" ? (
+				<div className="space-y-2">
+					{item.attachments && item.attachments.length > 0 ? (
+						<div className="space-y-2">
+							{item.attachments.map((attachment, index) => {
+								const href = (attachment as { href?: string }).href;
+								return (
+									<div
+										key={
+											attachment.id ??
+											attachment.fileKey ??
+											`${item.id}-attachment-${index}`
+										}
+										className="rounded-md border border-slate-200 bg-white px-3 py-2"
+									>
+										<div className="flex items-center justify-between gap-3">
+											<div className="flex min-w-0 items-center gap-3">
+												<i
+													className={`${getFileIconClass(attachment.fileName)} text-slate-500`}
+												/>
+												<div className="min-w-0">
+													{href ? (
+														<a
+															href={href}
+															target="_blank"
+															rel="noopener noreferrer"
+															className="truncate text-sm font-medium text-blue-700 hover:text-blue-800 hover:underline"
+															title={attachment.fileName}
+														>
+															{attachment.fileName}
+														</a>
+													) : (
+														<p className="truncate text-sm font-medium text-slate-800">
+															{attachment.fileName}
+														</p>
+													)}
+													<p className="text-xs text-slate-500">
+														{`${formatFileSize(attachment.fileSize ?? 0)}${
+															attachment.fileType
+																? ` • ${attachment.fileType}`
+																: ""
+														}`}
+													</p>
+												</div>
+											</div>
+										</div>
+									</div>
+								);
+							})}
+						</div>
+					) : null}
+				</div>
 			) : null}
 		</div>
 	);

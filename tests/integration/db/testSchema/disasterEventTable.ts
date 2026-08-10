@@ -93,18 +93,6 @@ export const disasterEventTable = pgTable(
 		),
 		officialWarningAffectedAreas: zeroText("official_warning_affected_areas"),
 
-		// multiple early actions fields
-		earlyActionDescription1: zeroText("early_action_description1"),
-		earlyActionDate1: timestamp("early_action_date1"),
-		earlyActionDescription2: zeroText("early_action_description2"),
-		earlyActionDate2: timestamp("early_action_date2"),
-		earlyActionDescription3: zeroText("early_action_description3"),
-		earlyActionDate3: timestamp("early_action_date3"),
-		earlyActionDescription4: zeroText("early_action_description4"),
-		earlyActionDate4: timestamp("early_action_date4"),
-		earlyActionDescription5: zeroText("early_action_description5"),
-		earlyActionDate5: timestamp("early_action_date5"),
-
 		// multiple rapid or preliminary assessments
 		rapidOrPreliminaryAssessmentDescription1: text(
 			"rapid_or_preliminary_assesment_description1",
@@ -136,8 +124,6 @@ export const disasterEventTable = pgTable(
 		rapidOrPreliminaryAssessmentDate5: timestamp(
 			"rapid_or_preliminary_assessment_date5",
 		),
-
-		responseOperations: zeroText("response_oprations"),
 
 		// multiple post disaster assessments
 		postDisasterAssessmentDescription1: text(

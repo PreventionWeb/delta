@@ -116,9 +116,9 @@ export function contentPickerConfig(ctx: DContext) {
 			where: [
 				// Define search filters
 				or(
-					eq(disasterEventTable.approvalStatus, "published"),	
+					eq(disasterEventTable.approvalStatus, "published"),
 					eq(disasterEventTable.approvalStatus, "validated"),
-				)
+				),
 			],
 			whereIlike: [
 				{
@@ -177,31 +177,6 @@ export function contentPickerConfig(ctx: DContext) {
 
 				{
 					column: disasterEventTable.officialWarningAffectedAreas,
-					placeholder: "[safeSearchPattern]",
-				},
-				{
-					column: disasterEventTable.earlyActionDescription1,
-					placeholder: "[safeSearchPattern]",
-				},
-				{
-					column: disasterEventTable.earlyActionDescription2,
-					placeholder: "[safeSearchPattern]",
-				},
-				{
-					column: disasterEventTable.earlyActionDescription3,
-					placeholder: "[safeSearchPattern]",
-				},
-				{
-					column: disasterEventTable.earlyActionDescription4,
-					placeholder: "[safeSearchPattern]",
-				},
-				{
-					column: disasterEventTable.earlyActionDescription5,
-					placeholder: "[safeSearchPattern]",
-				},
-
-				{
-					column: disasterEventTable.responseOperations,
 					placeholder: "[safeSearchPattern]",
 				},
 

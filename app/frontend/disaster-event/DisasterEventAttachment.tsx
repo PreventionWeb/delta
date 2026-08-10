@@ -33,6 +33,14 @@ type DisasterEventAttachmentProps = {
 			tenantPath?: string;
 		}>,
 	) => void;
+	titleText?: string;
+	titleClassName?: string;
+	uploadContainerClassName?: string;
+	showTitleIcon?: boolean;
+	showSupportingText?: boolean;
+	supportingText?: string;
+	showChooseButton?: boolean;
+	enableClickableUploadText?: boolean;
 };
 
 type AttachmentErrorCode =
@@ -98,7 +106,8 @@ function formatFileSize(fileSize: number): string {
 		unitIndex += 1;
 	}
 
-	const fixed = value >= 10 || unitIndex === 0 ? value.toFixed(0) : value.toFixed(1);
+	const fixed =
+		value >= 10 || unitIndex === 0 ? value.toFixed(0) : value.toFixed(1);
 	return `${fixed} ${units[unitIndex]}`;
 }
 
@@ -118,10 +127,15 @@ function getFileIconClass(fileName: string): string {
 
 function isAllowedType(fileName: string): boolean {
 	const ext = extensionFromName(fileName);
-	return ACCEPTED_EXTENSIONS.includes(ext as (typeof ACCEPTED_EXTENSIONS)[number]);
+	return ACCEPTED_EXTENSIONS.includes(
+		ext as (typeof ACCEPTED_EXTENSIONS)[number],
+	);
 }
 
-function assignValidation(rows: AttachmentRow[], ctx: ViewContext): AttachmentRow[] {
+function assignValidation(
+	rows: AttachmentRow[],
+	ctx: ViewContext,
+): AttachmentRow[] {
 	let validated: AttachmentRow[] = rows.map((row): AttachmentRow => {
 		if (!isAllowedType(row.file.name)) {
 			return {
@@ -218,7 +232,10 @@ function buildRestoredRows(
 	}>,
 	ctx: ViewContext,
 ): AttachmentRow[] {
-	return assignValidation(uploads.map((upload) => buildRestoredRow(upload)), ctx);
+	return assignValidation(
+		uploads.map((upload) => buildRestoredRow(upload)),
+		ctx,
+	);
 }
 
 export default function DisasterEventAttachment({
@@ -228,14 +245,25 @@ export default function DisasterEventAttachment({
 	keptAttachmentIds,
 	onKeptAttachmentIdsChange,
 	onNewAttachmentUploadsChange,
+	titleText,
+	titleClassName,
+	uploadContainerClassName,
+	showTitleIcon = true,
+	showSupportingText = true,
+	supportingText,
+	showChooseButton = true,
+	enableClickableUploadText = false,
 }: DisasterEventAttachmentProps) {
 	const [rows, setRows] = useState<AttachmentRow[]>(() =>
 		buildRestoredRows(initialNewAttachmentUploads, ctx),
 	);
 	const [existingRows, setExistingRows] = useState(
-		initialAttachments.filter((attachment) => keptAttachmentIds.includes(attachment.id)),
+		initialAttachments.filter((attachment) =>
+			keptAttachmentIds.includes(attachment.id),
+		),
 	);
 	const fileUploadRef = useRef<FileUpload | null>(null);
+	const fileUploadContainerRef = useRef<HTMLDivElement | null>(null);
 	const totalExistingAttachmentSize = existingRows.reduce(
 		(sum, row) => sum + row.fileSize,
 		0,
@@ -269,6 +297,33 @@ export default function DisasterEventAttachment({
 		[ctx],
 	);
 
+	const resolvedTitleText =
+		titleText ??
+		ctx.t({
+			code: "attachments",
+			msg: "Attachments",
+		});
+
+	const resolvedTitleClassName =
+		titleClassName ??
+		"text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]";
+
+	const resolvedUploadContainerClassName = uploadContainerClassName ?? "mt-4";
+
+	const resolvedSupportingText =
+		supportingText ??
+		ctx.t({
+			code: "upload_supporting_documents",
+			msg: "Upload supporting documents for this disaster event.",
+		});
+
+	const openFilePicker = () => {
+		const fileInput = fileUploadContainerRef.current?.querySelector(
+			'input[type="file"]',
+		) as HTMLInputElement | null;
+		fileInput?.click();
+	};
+
 	const onSelect = (event: FileUploadSelectEvent) => {
 		const selectedFiles = (event.files || []) as File[];
 		if (selectedFiles.length === 0) return;
@@ -288,10 +343,10 @@ export default function DisasterEventAttachment({
 			return validatedRows.map((row) =>
 				row.errorCode
 					? {
-						...row,
-						uploadStatus: "failed",
-						uploadError: row.errorMessage,
-					}
+							...row,
+							uploadStatus: "failed",
+							uploadError: row.errorMessage,
+						}
 					: row,
 			);
 		});
@@ -340,9 +395,9 @@ export default function DisasterEventAttachment({
 						error instanceof Error
 							? error.message
 							: ctx.t({
-								code: "content_repeater.file_upload_error",
-								msg: "An error occurred while processing the file upload.",
-							});
+									code: "content_repeater.file_upload_error",
+									msg: "An error occurred while processing the file upload.",
+								});
 
 					setRows((currentRows) =>
 						currentRows.map((row) => {
@@ -365,7 +420,10 @@ export default function DisasterEventAttachment({
 
 	const removeRow = (rowId: string) => {
 		setRows((currentRows) =>
-			assignValidation(currentRows.filter((row) => row.id !== rowId), ctx),
+			assignValidation(
+				currentRows.filter((row) => row.id !== rowId),
+				ctx,
+			),
 		);
 	};
 
@@ -402,22 +460,19 @@ export default function DisasterEventAttachment({
 	return (
 		<div className="col-span-12 mb-4">
 			<div className="flex items-center gap-2">
-				<i className="pi pi-file text-blue-500" />
-				<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
-					{ctx.t({
-						code: "attachments",
-						msg: "Attachments",
-					})}
-				</h2>
+				{showTitleIcon ? <i className="pi pi-file text-blue-500" /> : null}
+				<h2 className={resolvedTitleClassName}>{resolvedTitleText}</h2>
 			</div>
-			<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
-				{ctx.t({
-					code: "upload_supporting_documents",
-					msg: "Upload supporting documents for this disaster event.",
-				})}
-			</p>
+			{showSupportingText ? (
+				<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
+					{resolvedSupportingText}
+				</p>
+			) : null}
 
-			<div className="mt-4">
+			<div
+				className={resolvedUploadContainerClassName}
+				ref={fileUploadContainerRef}
+			>
 				<FileUpload
 					ref={fileUploadRef}
 					name="disasterEventAttachments"
@@ -440,7 +495,13 @@ export default function DisasterEventAttachment({
 						<div
 							className={`${options.className} flex items-start justify-between gap-4`}
 						>
-							{options.chooseButton}
+							{showChooseButton ? (
+								options.chooseButton
+							) : (
+								<div className="sr-only" aria-hidden>
+									{options.chooseButton}
+								</div>
+							)}
 							<div className="ms-auto w-full max-w-64">
 								<div className="mb-1 flex items-center justify-end gap-3 text-xs text-slate-500">
 									<span>
@@ -464,17 +525,26 @@ export default function DisasterEventAttachment({
 					emptyTemplate={
 						<div className="py-6 text-center text-slate-600">
 							<p className="text-sm font-medium">
-								{ctx.t({
-									code: "disaster_event.attachments.cta",
-									msg: "Drag and drop or click to upload",
-								})}
+								{enableClickableUploadText ? (
+									<>
+										<button
+											type="button"
+											onClick={openFilePicker}
+											className="cursor-pointer text-blue-600 underline underline-offset-2 hover:text-blue-700"
+										>
+											Click to upload
+										</button>
+										<span> or drag and drop</span>
+									</>
+								) : (
+									ctx.t({
+										code: "disaster_event.attachments.cta",
+										msg: "Click to upload or drag and drop",
+									})
+								)}
 							</p>
-							<p className="mt-2 text-xs text-slate-500">
-								{acceptedTypesText}
-							</p>
-							<p className="mt-1 text-xs text-slate-500">
-								{sizeLimitsText}
-							</p>
+							<p className="mt-2 text-xs text-slate-500">{acceptedTypesText}</p>
+							<p className="mt-1 text-xs text-slate-500">{sizeLimitsText}</p>
 						</div>
 					}
 				/>
@@ -496,8 +566,9 @@ export default function DisasterEventAttachment({
 										{attachment.fileName}
 									</p>
 									<p className="text-xs text-slate-500">
-										{`${formatFileSize(attachment.fileSize)}${attachment.fileType ? ` • ${attachment.fileType}` : ""
-											}`}
+										{`${formatFileSize(attachment.fileSize)}${
+											attachment.fileType ? ` • ${attachment.fileType}` : ""
+										}`}
 									</p>
 								</div>
 							</div>
@@ -523,7 +594,9 @@ export default function DisasterEventAttachment({
 					>
 						<div className="flex items-center justify-between gap-3">
 							<div className="flex min-w-0 items-center gap-3">
-								<i className={`${getFileIconClass(row.file.name)} text-slate-500`} />
+								<i
+									className={`${getFileIconClass(row.file.name)} text-slate-500`}
+								/>
 								<div className="min-w-0">
 									<p className="truncate text-sm font-medium text-slate-800">
 										{row.file.name}

@@ -49,6 +49,9 @@ import {
 } from "~/db/queries/userCountryAccountsRepository";
 import { DisasterEventAttachmentRepository } from "~/db/queries/disasterEventAttachmentRepository";
 import { DisasterEventLinkRepository } from "~/db/queries/disasterEventLinkRepository";
+import { DisasterEventResponseAttachmentRepository } from "~/db/queries/disasterEventResponseAttachmentRepository";
+import { DisasterEventResponseRepository } from "~/db/queries/disasterEventResponseRepository";
+import { ResponseTypeRepository } from "~/db/queries/responseTypeRepository";
 import { handleApprovalWorkflowService } from "~/backend.server/services/approvalWorkflowService";
 import { canEditDataCollectionRecord } from "~/frontend/user/roles";
 import { ContentRepeaterUploadFile } from "~/components/ContentRepeater/UploadFile";
@@ -112,6 +115,46 @@ type SelectedDivisionPayload = {
 	key: string;
 	label: string;
 };
+
+type DisasterEventResponsePayload = {
+	id?: string;
+	type: string;
+	responseDate?: string;
+	coverage?: string;
+	description?: string;
+	attachments?: Array<{
+		id?: string;
+		title?: string;
+		fileKey?: string;
+		fileName: string;
+		fileType: string;
+		fileSize: number;
+		tempFilePath?: string;
+		tenantPath?: string;
+	}>;
+};
+
+function normalizeResponseTypeKey(value: string): string {
+	return value
+		.trim()
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "_")
+		.replace(/^_+|_+$/g, "");
+}
+
+function parseResponseDateFromSubmit(value: string | undefined): Date | null {
+	const trimmed = (value ?? "").trim();
+	if (!trimmed) {
+		return null;
+	}
+
+	const parsed = new Date(`${trimmed}T00:00:00.000Z`);
+	if (Number.isNaN(parsed.getTime())) {
+		return null;
+	}
+
+	return parsed;
+}
 
 async function buildGeographicLevelSpatialFootprint(
 	tx: Parameters<Parameters<typeof formSave>[0]["save"]>[0],
@@ -669,6 +712,9 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 	const disasterEventLinksRaw = String(
 		formData.get("disasterEventLinks") ?? "[]",
 	);
+	const disasterEventResponsesRaw = String(
+		formData.get("disasterEventResponses") ?? "[]",
+	);
 	let linkedDisasterRecordIds: string[] = [];
 	let linkedTriggeringDisasterEventIds: string[] = [];
 	let linkedTriggeredDisasterEventIds: string[] = [];
@@ -688,6 +734,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 		url: string;
 		title: string | null;
 	}> = [];
+	let disasterEventResponses: DisasterEventResponsePayload[] = [];
 	try {
 		const parsed = JSON.parse(linkedDisasterRecordIdsRaw);
 		linkedDisasterRecordIds = Array.isArray(parsed)
@@ -816,6 +863,18 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 			: [];
 	} catch {
 		disasterEventLinks = [];
+	}
+	try {
+		const parsed = JSON.parse(disasterEventResponsesRaw);
+		disasterEventResponses = Array.isArray(parsed)
+			? parsed.filter(
+					(value): value is DisasterEventResponsePayload =>
+						typeof value?.type === "string" &&
+						typeof value?.description === "string",
+				)
+			: [];
+	} catch {
+		disasterEventResponses = [];
 	}
 
 	return formSave({
@@ -1349,10 +1408,185 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 				);
 			};
 
+			const syncDisasterEventResponses = async (eventId: string) => {
+				const responseTypes = await ResponseTypeRepository.listAll(tx);
+				const existingResponses =
+					await DisasterEventResponseRepository.listByDisasterEventId(
+						eventId,
+						tx,
+					);
+				const existingResponseIds = existingResponses.map((row) => row.id);
+				const existingAttachments =
+					await DisasterEventResponseAttachmentRepository.listByDisasterEventId(
+						eventId,
+						tx,
+					);
+				const keptExistingFileKeys = new Set<string>();
+
+				await DisasterEventResponseRepository.deleteByDisasterEventId(
+					eventId,
+					tx,
+				);
+				if (existingResponseIds.length > 0) {
+					await DisasterEventResponseAttachmentRepository.deleteByDisasterEventResponseIds(
+						existingResponseIds,
+						tx,
+					);
+				}
+
+				for (const item of disasterEventResponses) {
+					const submittedType = String(item.type ?? "").trim();
+					const matchedResponseType = responseTypes.find((responseType) => {
+						if (responseType.type === submittedType) {
+							return true;
+						}
+
+						return (
+							normalizeResponseTypeKey(responseType.type) === submittedType
+						);
+					});
+					const responseTypeId = matchedResponseType?.id;
+					if (!responseTypeId) {
+						continue;
+					}
+
+					const description = String(item.description ?? "").trim();
+					const coverage = String(item.coverage ?? "").trim();
+					const responseDate = parseResponseDateFromSubmit(item.responseDate);
+					const attachments = Array.isArray(item.attachments)
+						? item.attachments
+						: [];
+					if (
+						!description &&
+						!coverage &&
+						!responseDate &&
+						attachments.length === 0
+					) {
+						continue;
+					}
+
+					const createdResponse =
+						await DisasterEventResponseRepository.createOne(
+							{
+								disasterEventId: eventId,
+								responseTypeId,
+								responseDate,
+								coverage: coverage || null,
+								description: description || null,
+							},
+							tx,
+						);
+					if (!createdResponse) {
+						continue;
+					}
+
+					const existingAttachmentPayloads = attachments.filter(
+						(attachment) =>
+							typeof attachment.fileKey === "string" &&
+							attachment.fileKey.trim().length > 0 &&
+							(!attachment.tempFilePath ||
+								attachment.tempFilePath.trim().length === 0),
+					);
+					for (const existingAttachment of existingAttachmentPayloads) {
+						keptExistingFileKeys.add(String(existingAttachment.fileKey));
+					}
+
+					const newAttachmentPayloads = attachments.filter(
+						(attachment) =>
+							typeof attachment.tempFilePath === "string" &&
+							attachment.tempFilePath.trim().length > 0,
+					);
+
+					let movedNewItems: Array<{
+						file?: { name?: string; content_type?: string };
+					}> = [];
+					if (newAttachmentPayloads.length > 0) {
+						const savePath = `/uploads/disaster-event/${eventId}/responses/${createdResponse.id}`;
+						movedNewItems = ContentRepeaterUploadFile.save(
+							newAttachmentPayloads.map((upload) => ({
+								file: {
+									name: upload.tempFilePath,
+									content_type: upload.fileType,
+									tenantPath: upload.tenantPath,
+								},
+							})),
+							TEMP_UPLOAD_PATH,
+							savePath,
+							undefined,
+							countryAccountsId,
+						);
+					}
+
+					const attachmentRows = [
+						...existingAttachmentPayloads.map((attachment) => ({
+							disasterEventResponseId: createdResponse.id,
+							title: String(
+								attachment.title ?? attachment.fileName ?? "",
+							).trim(),
+							fileKey: String(attachment.fileKey ?? ""),
+							fileName: String(attachment.fileName ?? ""),
+							fileType: String(attachment.fileType ?? ""),
+							fileSize: Number(attachment.fileSize ?? 0),
+						})),
+						...movedNewItems.map((item, index) => {
+							const source = newAttachmentPayloads[index];
+							return {
+								disasterEventResponseId: createdResponse.id,
+								title: String(source?.title ?? source?.fileName ?? "").trim(),
+								fileKey: String(item?.file?.name ?? ""),
+								fileName: String(source?.fileName ?? ""),
+								fileType:
+									String(source?.fileType ?? "") ||
+									String(item?.file?.content_type ?? ""),
+								fileSize: Number(source?.fileSize ?? 0),
+							};
+						}),
+					].filter(
+						(row) =>
+							row.fileKey.length > 0 &&
+							row.fileName.length > 0 &&
+							row.title.length > 0,
+					);
+
+					if (attachmentRows.length > 0) {
+						await DisasterEventResponseAttachmentRepository.createMany(
+							attachmentRows,
+							tx,
+						);
+					}
+				}
+
+				const orphanedAttachments = existingAttachments.filter(
+					(attachment) =>
+						keptExistingFileKeys.has(String(attachment.fileKey)) === false,
+				);
+				if (orphanedAttachments.length > 0) {
+					ContentRepeaterUploadFile.delete(
+						orphanedAttachments.map((attachment) => ({
+							file: {
+								name: attachment.fileKey,
+							},
+						})),
+						undefined,
+						countryAccountsId,
+					);
+					ContentRepeaterUploadFile.deleteEmptyParentDirectoriesForFiles(
+						orphanedAttachments.map((attachment) => ({
+							file: {
+								name: attachment.fileKey,
+							},
+						})),
+						undefined,
+						countryAccountsId,
+					);
+				}
+			};
+
 			if (id) {
 				const returnValue = await disasterEventUpdate(ctx, tx, id, updatedData);
 
 				if (returnValue.ok === true) {
+					await syncDisasterEventResponses(id);
 					await syncDisasterEventAttachments(id);
 					await syncDisasterEventLinks(id);
 					await syncLinkedHazardousEvents(id);
@@ -1376,6 +1610,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 				});
 
 				if (returnValue.ok === true) {
+					await syncDisasterEventResponses(returnValue.id);
 					await syncDisasterEventAttachments(returnValue.id);
 					await syncDisasterEventLinks(returnValue.id);
 					await syncLinkedHazardousEvents(returnValue.id);
@@ -1419,14 +1654,21 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 
 	// Handle 'new' case without DB query
 	if (params.id === "new") {
-		const [treeData, divisionGeoJSON, hip, user, currentUserOrganization] =
-			await Promise.all([
-				getDivisionTreeData(countryAccountsId),
-				getDivisionGeoJSON(countryAccountsId),
-				dataForHazardPicker(ctx),
-				authLoaderGetUserForFrontend(loaderArgs),
-				getCurrentUserOrganization(userId, countryAccountsId),
-			]);
+		const [
+			treeData,
+			divisionGeoJSON,
+			hip,
+			user,
+			currentUserOrganization,
+			responseTypes,
+		] = await Promise.all([
+			getDivisionTreeData(countryAccountsId),
+			getDivisionGeoJSON(countryAccountsId),
+			dataForHazardPicker(ctx),
+			authLoaderGetUserForFrontend(loaderArgs),
+			getCurrentUserOrganization(userId, countryAccountsId),
+			ResponseTypeRepository.listAll(),
+		]);
 
 		return {
 			item: null, // No existing item for new disaster event
@@ -1435,6 +1677,8 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 			ctryIso3,
 			divisionGeoJSON: divisionGeoJSON || [],
 			disasterEventAttachments: [],
+			disasterEventResponses: [],
+			disasterEventResponseAttachments: [],
 			hazardousEventOptions: [],
 			linkedTriggeringHazardousEvents: [],
 			linkedTriggeredHazardousEvents: [],
@@ -1444,6 +1688,7 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 			disasterEventOptions: [],
 			linkedTriggeringDisasterEvents: [],
 			linkedTriggeredDisasterEvents: [],
+			responseTypes,
 			user,
 			currentUserOrganization: currentUserOrganization?.organization ?? null,
 			usersWithValidatorRole,
@@ -1485,7 +1730,10 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		linkedHazardousData,
 		recordingOrganization,
 		disasterEventAttachments,
+		disasterEventResponses,
+		disasterEventResponseAttachments,
 		disasterEventLinks,
+		responseTypes,
 	] = await Promise.all([
 		getDivisionTreeData(countryAccountsId),
 		getDivisionGeoJSON(countryAccountsId),
@@ -1500,7 +1748,10 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		),
 		getRecordingOrganization(item.recordingOrganizationId),
 		DisasterEventAttachmentRepository.getByDisasterEventId(item.id),
+		DisasterEventResponseRepository.listByDisasterEventId(item.id),
+		DisasterEventResponseAttachmentRepository.listByDisasterEventId(item.id),
 		DisasterEventLinkRepository.getByDisasterEventId(item.id),
+		ResponseTypeRepository.listAll(),
 	]);
 
 	return {
@@ -1510,6 +1761,8 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		ctryIso3,
 		divisionGeoJSON: divisionGeoJSON || [],
 		disasterEventAttachments,
+		disasterEventResponses,
+		disasterEventResponseAttachments,
 		hazardousEventOptions: linkedHazardousData.hazardousEventOptions,
 		linkedTriggeringHazardousEvents:
 			linkedHazardousData.linkedTriggeringHazardousEvents,
@@ -1518,6 +1771,7 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		disasterEventLinks,
 		disasterRecordOptions: linkedData.disasterRecordOptions,
 		linkedDisasterRecords: linkedData.linkedDisasterRecords,
+		responseTypes,
 		disasterEventOptions: linkedData.disasterEventOptions,
 		linkedTriggeringDisasterEvents: linkedData.linkedTriggeringDisasterEvents,
 		linkedTriggeredDisasterEvents: linkedData.linkedTriggeredDisasterEvents,
@@ -1564,6 +1818,10 @@ export default function FormScreen() {
 			hip={ld.hip}
 			disasterEvent={disasterEventForForm}
 			disasterEventAttachments={ld.disasterEventAttachments ?? []}
+			disasterEventResponses={ld.disasterEventResponses ?? []}
+			disasterEventResponseAttachments={
+				ld.disasterEventResponseAttachments ?? []
+			}
 			disasterEventLinks={ld.disasterEventLinks ?? []}
 			hazardousEventOptions={ld.hazardousEventOptions ?? []}
 			linkedTriggeringHazardousEvents={ld.linkedTriggeringHazardousEvents ?? []}
@@ -1573,6 +1831,7 @@ export default function FormScreen() {
 			linkedTriggeredDisasterEvents={ld.linkedTriggeredDisasterEvents ?? []}
 			disasterRecordOptions={ld.disasterRecordOptions ?? []}
 			linkedDisasterRecords={ld.linkedDisasterRecords ?? []}
+			responseTypes={ld.responseTypes ?? []}
 			currentUserOrganization={ld.currentUserOrganization ?? null}
 			user={ld.user}
 			usersWithValidatorRole={ld.usersWithValidatorRole ?? []}
