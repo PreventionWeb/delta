@@ -1,6 +1,7 @@
 import { eq, inArray, sql } from "drizzle-orm";
 import { dr, Tx } from "~/db.server";
 import { lossesTable, InsertLosses, sectorTable } from "~/drizzle/schema";
+import { sectorTreeDisplayNameSql } from "~/db/queries/sector";
 
 export const LossesRepository = {
 	delete: (id: string, tx?: Tx) => {
@@ -12,7 +13,7 @@ export const LossesRepository = {
 			.delete(lossesTable)
 			.where(eq(lossesTable.recordId, recordId));
 	},
-	getByRecordId: (recordId: string, lang: string, tx?: Tx) => {
+	getByRecordIdWithInfo: (recordId: string, lang: string, tx?: Tx) => {
 		return (tx ?? dr)
 			.select({
 				id: lossesTable.id,
@@ -50,33 +51,16 @@ export const LossesRepository = {
 				costTotal: sql<number | null>`COALESCE(${lossesTable.publicCostTotal}, 0) + COALESCE(${lossesTable.privateCostTotal}, 0)`.as("costTotal"),
 
 				
-				sectorTreeDisplayName: sql<string>`(
-					WITH RECURSIVE ParentCTE AS (
-						SELECT
-							s.id,
-							dts_jsonb_localized(s.name, ${lang}) AS name,
-							s.parent_id,
-							dts_jsonb_localized(s.name, ${lang}) AS full_path
-						FROM sector s
-						WHERE s.id = ${lossesTable.sectorId}
-
-						UNION ALL
-
-						SELECT
-							parent.id,
-							dts_jsonb_localized(parent.name, ${lang}) AS name,
-							parent.parent_id,
-							dts_jsonb_localized(parent.name, ${lang}) || ' > ' || p.full_path AS full_path
-						FROM sector parent
-						INNER JOIN ParentCTE p ON parent.id = p.parent_id
-					)
-					SELECT full_path
-					FROM ParentCTE
-					WHERE parent_id IS NULL
-				)`.as("sectorTreeDisplayName"),
+				sectorTreeDisplayName: sectorTreeDisplayNameSql(lossesTable.sectorId, lang).as("sectorTreeDisplayName"),
 			})
 			.from(lossesTable)
 			.leftJoin(sectorTable, eq(lossesTable.sectorId, sectorTable.id))
+			.where(eq(lossesTable.recordId, recordId));
+	},
+	getByRecordId: (recordId: string, tx?: Tx) => {
+		return (tx ?? dr)
+			.select()
+			.from(lossesTable)
 			.where(eq(lossesTable.recordId, recordId));
 	},
 	getByRecordIds: (recordIds: string[], tx?: Tx) => {
