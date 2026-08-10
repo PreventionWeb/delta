@@ -97,6 +97,15 @@ function getFileIconClass(fileName: string): string {
 	return "pi pi-file";
 }
 
+function renderMultilineText(value: string, keyPrefix: string) {
+	return value.split(/\r?\n/).map((line, index, lines) => (
+		<span key={`${keyPrefix}-line-${index}`}>
+			{line}
+			{index < lines.length - 1 ? <br /> : null}
+		</span>
+	));
+}
+
 type DisasterEventReviewStepProps = {
 	form: {
 		nameNational: string;
@@ -451,7 +460,10 @@ const renderStep4DetailRow = (
 					{item.description?.trim() ? (
 						<p>
 							<span className="font-semibold text-slate-700">Description:</span>{" "}
-							{item.description.trim()}
+							{renderMultilineText(
+								item.description.trim(),
+								`${item.id}-response-description`,
+							)}
 						</p>
 					) : null}
 					{!item.coverage?.trim() && !item.description?.trim() ? (
@@ -472,6 +484,9 @@ const renderStep4DetailRow = (
 				<div className="space-y-2">
 					{item.attachments && item.attachments.length > 0 ? (
 						<div className="space-y-2">
+							<p className="text-[14px] font-semibold text-slate-700">
+								Attachments:
+							</p>
 							{item.attachments.map((attachment, index) => {
 								const href = (attachment as { href?: string }).href;
 								return (

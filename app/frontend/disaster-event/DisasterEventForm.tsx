@@ -2393,7 +2393,10 @@ function StepperValidation({
 										<span className="font-semibold text-slate-700">
 											Description:
 										</span>{" "}
-										{item.description.trim()}
+										{renderMultilineText(
+											item.description.trim(),
+											`${item.id}-response-description`,
+										)}
 									</p>
 								) : null}
 								{!item.coverage?.trim() && !item.description?.trim() ? (
@@ -2504,6 +2507,15 @@ function StepperValidation({
 		}
 
 		return item.description;
+	}
+
+	function renderMultilineText(value: string, keyPrefix: string) {
+		return value.split(/\r?\n/).map((line, index, lines) => (
+			<span key={`${keyPrefix}-line-${index}`}>
+				{line}
+				{index < lines.length - 1 ? <br /> : null}
+			</span>
+		));
 	}
 
 	const triggeringHazardousEventItemTemplate = (
