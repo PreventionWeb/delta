@@ -753,10 +753,7 @@ export default function Screen() {
 
 																									
 																									<td className="border border-gray-200 px-2 py-1">
-																										{formatLocalizedCurrency(
-																											rec.totalDamageAmount,
-																											rec.tdRecoveryCostUnitCurrency,
-																										)}
+																										{ rec.totalDamageAmount || "-" }
 																									</td>
 																									<td className="border border-gray-200 px-2 py-1">
 																										{formatLocalizedCurrency(
