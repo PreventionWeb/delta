@@ -54,6 +54,6 @@ export default defineConfig({
 		exclude: ["nestjs-i18n"],
 	},
 	server: {
-		allowedHosts: ['.ddev.site', '.undrr.org', '.deltaresilience.org'],
-	}
+		allowedHosts: [".ddev.site", ".undrr.org", ".deltaresilience.org"],
+	},
 });
