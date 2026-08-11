@@ -123,15 +123,15 @@ WHERE
     COALESCE(BTRIM (dcl.effects), '') <> ''
     OR dcl.declaration_date IS NOT NULL;
 
--- ALTER TABLE disaster_event
--- DROP COLUMN IF EXISTS disaster_declaration,
--- DROP COLUMN IF EXISTS disaster_declaration_type_and_effect1,
--- DROP COLUMN IF EXISTS disaster_declaration_date1,
--- DROP COLUMN IF EXISTS disaster_declaration_type_and_effect2,
--- DROP COLUMN IF EXISTS disaster_declaration_date2,
--- DROP COLUMN IF EXISTS disaster_declaration_type_and_effect3,
--- DROP COLUMN IF EXISTS disaster_declaration_date3,
--- DROP COLUMN IF EXISTS disaster_declaration_type_and_effect4,
--- DROP COLUMN IF EXISTS disaster_declaration_date4,
--- DROP COLUMN IF EXISTS disaster_declaration_type_and_effect5,
--- DROP COLUMN IF EXISTS disaster_declaration_date5;
+ALTER TABLE disaster_event
+DROP COLUMN IF EXISTS disaster_declaration,
+DROP COLUMN IF EXISTS disaster_declaration_type_and_effect1,
+DROP COLUMN IF EXISTS disaster_declaration_date1,
+DROP COLUMN IF EXISTS disaster_declaration_type_and_effect2,
+DROP COLUMN IF EXISTS disaster_declaration_date2,
+DROP COLUMN IF EXISTS disaster_declaration_type_and_effect3,
+DROP COLUMN IF EXISTS disaster_declaration_date3,
+DROP COLUMN IF EXISTS disaster_declaration_type_and_effect4,
+DROP COLUMN IF EXISTS disaster_declaration_date4,
+DROP COLUMN IF EXISTS disaster_declaration_type_and_effect5,
+DROP COLUMN IF EXISTS disaster_declaration_date5;
