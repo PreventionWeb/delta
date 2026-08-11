@@ -3493,6 +3493,8 @@ function StepperValidation({
 										keptAttachmentIds={keptAttachmentIds}
 										onKeptAttachmentIdsChange={setKeptAttachmentIds}
 										onNewAttachmentUploadsChange={setNewAttachmentUploads}
+										showChooseButton={false}
+										enableClickableUploadText
 									/>
 								</div>
 
