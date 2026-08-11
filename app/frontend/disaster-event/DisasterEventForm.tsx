@@ -52,12 +52,16 @@ type LinkedEventOption = {
 
 type AdditionalDetailCategory = "response" | "assessment" | "declaration";
 
-type DeclarationStatus = "unknown" | "yes" | "no";
+type DeclarationStatusOption = {
+	id: string;
+	status: string;
+	description: string | null;
+};
 
 type AdditionalDetailMeta = {
-	declarationStatus?: DeclarationStatus;
-	hadOfficialWarningOrWeatherAdvisory?: boolean;
-	officialWarningAffectedAreas?: string;
+	declarationStatusId?: string;
+	declarationStatus?: string;
+	issuingOrganization?: string;
 };
 
 type ResponseAttachmentValue = {
@@ -184,21 +188,6 @@ const assessmentTypeOptions: AdditionalDetailTypeOption[] = [
 	{ value: "other_assessment", label: "Other assessment" },
 ];
 
-const declarationTypeOptions: AdditionalDetailTypeOption[] = [
-	{ value: "disaster_declaration", label: "Disaster declaration" },
-	{
-		value: "disaster_declaration_effects",
-		label: "Disaster declaration effects",
-	},
-	{ value: "official_warning", label: "Official Warning" },
-];
-
-const declarationStatusOptions: AdditionalDetailTypeOption[] = [
-	{ value: "unknown", label: "Unknown" },
-	{ value: "yes", label: "Yes" },
-	{ value: "no", label: "No" },
-];
-
 const datePrecisionOptions = [
 	{ value: "yyyy-mm-dd", label: "Full date" },
 	{ value: "yyyy-mm", label: "Year and month" },
@@ -321,17 +310,6 @@ type StepperValidationProps = {
 		otherAssessmentDate4?: string | Date | null;
 		otherAssessmentDescription5?: string | null;
 		otherAssessmentDate5?: string | Date | null;
-		disasterDeclaration?: DeclarationStatus | null;
-		disasterDeclarationTypeAndEffect1?: string | null;
-		disasterDeclarationDate1?: string | Date | null;
-		disasterDeclarationTypeAndEffect2?: string | null;
-		disasterDeclarationDate2?: string | Date | null;
-		disasterDeclarationTypeAndEffect3?: string | null;
-		disasterDeclarationDate3?: string | Date | null;
-		disasterDeclarationTypeAndEffect4?: string | null;
-		disasterDeclarationDate4?: string | Date | null;
-		disasterDeclarationTypeAndEffect5?: string | null;
-		disasterDeclarationDate5?: string | Date | null;
 		hadOfficialWarningOrWeatherAdvisory?: boolean | null;
 		officialWarningAffectedAreas?: string | null;
 	} | null;
@@ -353,6 +331,28 @@ type StepperValidationProps = {
 	disasterEventResponseAttachments: Array<{
 		id: string;
 		disasterEventResponseId: string;
+		title: string;
+		fileKey: string;
+		fileName: string;
+		fileType: string;
+		fileSize: number;
+		createdAt: string | Date;
+		updatedAt: string | Date | null;
+	}>;
+	disasterEventDeclarations: Array<{
+		id: string;
+		type: string | null;
+		effects: string | null;
+		declarationDate: string | Date | null;
+		issuingOrganization: string | null;
+		coverage: string | null;
+		declarationStatusId: string | null;
+		declarationStatus: string | null;
+		declarationStatusDescription: string | null;
+	}>;
+	disasterEventDeclarationAttachments: Array<{
+		id: string;
+		disasterEventDeclarationId: string;
 		title: string;
 		fileKey: string;
 		fileName: string;
@@ -387,6 +387,7 @@ type StepperValidationProps = {
 		id: string;
 		type: string;
 	}>;
+	declarationStatuses: DeclarationStatusOption[];
 	serverFormErrors?: string[];
 };
 
@@ -404,6 +405,8 @@ function StepperValidation({
 	disasterEventAttachments,
 	disasterEventResponses,
 	disasterEventResponseAttachments,
+	disasterEventDeclarations,
+	disasterEventDeclarationAttachments,
 	disasterEventLinks: initialDisasterEventLinks,
 	hip,
 	hazardousEventOptions,
@@ -418,6 +421,7 @@ function StepperValidation({
 	user,
 	usersWithValidatorRole,
 	responseTypes,
+	declarationStatuses,
 	serverFormErrors = [],
 }: StepperValidationProps) {
 	const navigate = useNavigate();
@@ -1148,66 +1152,72 @@ function StepperValidation({
 	};
 
 	const mapDeclarationsToItems = (): AdditionalDetailItem[] => {
-		const declarationItems: AdditionalDetailItem[] = [];
-		const declarationStatus = disasterEvent?.disasterDeclaration;
-
-		if (
-			declarationStatus &&
-			["unknown", "yes", "no"].includes(declarationStatus)
-		) {
-			declarationItems.push({
-				id: "declaration-status",
-				type: "disaster_declaration",
-				date: "",
-				description: "",
-				meta: {
-					declarationStatus,
-				},
+		const attachmentsByDeclarationId = new Map<
+			string,
+			ResponseAttachmentValue[]
+		>();
+		for (const attachment of disasterEventDeclarationAttachments) {
+			const existing =
+				attachmentsByDeclarationId.get(attachment.disasterEventDeclarationId) ??
+				[];
+			existing.push({
+				id: attachment.id,
+				title: attachment.title,
+				fileKey: attachment.fileKey,
+				fileName: attachment.fileName,
+				fileType: attachment.fileType,
+				fileSize: attachment.fileSize,
 			});
-		}
-
-		const effectIndexes: AssessmentFieldIndex[] = [1, 2, 3, 4, 5];
-		for (const index of effectIndexes) {
-			const descriptionText = String(
-				disasterEvent?.[`disasterDeclarationTypeAndEffect${index}` as const] ??
-					"",
-			).trim();
-			const formattedDate = formatBackendDate(
-				disasterEvent?.[`disasterDeclarationDate${index}` as const] ?? null,
+			attachmentsByDeclarationId.set(
+				attachment.disasterEventDeclarationId,
+				existing,
 			);
-
-			if (!descriptionText && !formattedDate) {
-				continue;
-			}
-
-			declarationItems.push({
-				id: `declaration-effects-${index}`,
-				type: "disaster_declaration_effects",
-				date: formattedDate,
-				description: descriptionText,
-			});
 		}
 
-		const warningFlag = Boolean(
-			disasterEvent?.hadOfficialWarningOrWeatherAdvisory,
+		return disasterEventDeclarations.reduce<AdditionalDetailItem[]>(
+			(accumulator, item, index) => {
+				const type = String(item.type ?? "").trim() || "Declaration";
+				const effects = String(item.effects ?? "").trim();
+				const coverage = String(item.coverage ?? "").trim();
+				const issuingOrganization = String(
+					item.issuingOrganization ?? "",
+				).trim();
+				const declarationStatus = String(item.declarationStatus ?? "").trim();
+				const formattedDate = formatBackendDate(item.declarationDate);
+				const attachments = item.id
+					? (attachmentsByDeclarationId.get(item.id) ?? [])
+					: [];
+
+				if (
+					!type &&
+					!effects &&
+					!coverage &&
+					!issuingOrganization &&
+					!declarationStatus &&
+					!formattedDate &&
+					attachments.length === 0
+				) {
+					return accumulator;
+				}
+
+				accumulator.push({
+					id: item.id || `declaration-${index}`,
+					type,
+					date: formattedDate,
+					coverage,
+					description: effects,
+					meta: {
+						declarationStatusId: item.declarationStatusId || undefined,
+						declarationStatus: declarationStatus || undefined,
+						issuingOrganization: issuingOrganization || undefined,
+					},
+					attachments,
+				});
+
+				return accumulator;
+			},
+			[],
 		);
-		const warningAreas = String(
-			disasterEvent?.officialWarningAffectedAreas ?? "",
-		).trim();
-		if (warningFlag || warningAreas) {
-			declarationItems.push({
-				id: "declaration-official-warning",
-				type: "official_warning",
-				date: "",
-				description: warningAreas,
-				meta: {
-					hadOfficialWarningOrWeatherAdvisory: warningFlag,
-					officialWarningAffectedAreas: warningAreas,
-				},
-			});
-		}
-
-		return declarationItems;
 	};
 
 	const [responses, setResponses] = useState<AdditionalDetailItem[]>(() =>
@@ -1234,13 +1244,14 @@ function StepperValidation({
 			return counts;
 		}, {});
 	}, [assessments]);
-	const declarationCountByType = useMemo(() => {
-		return declarations.reduce<Record<string, number>>((counts, item) => {
-			const key = normalizeDetailTypeValue(item.type);
-			counts[key] = (counts[key] ?? 0) + 1;
-			return counts;
-		}, {});
-	}, [declarations]);
+	const declarationStatusOptions = useMemo(
+		() =>
+			declarationStatuses.map((status) => ({
+				value: status.id,
+				label: status.status,
+			})),
+		[declarationStatuses],
+	);
 
 	const parseDetailDate = (value: string): Date | null => {
 		const match = /^([0-3]\d)\/([0-1]\d)\/(\d{4})$/.exec(value.trim());
@@ -1284,9 +1295,8 @@ function StepperValidation({
 		dateValue: null as Date | null,
 		coverage: "",
 		description: "",
-		declarationStatus: "" as DeclarationStatus | "",
-		hadOfficialWarningOrWeatherAdvisory: false,
-		officialWarningAffectedAreas: "",
+		declarationStatusId: "",
+		issuingOrganization: "",
 	});
 	const [
 		detailResponseExistingAttachments,
@@ -1309,33 +1319,58 @@ function StepperValidation({
 	] = useState<NewAttachmentUpload[]>([]);
 	const [responseAttachmentEditorKey, setResponseAttachmentEditorKey] =
 		useState(0);
-	const isDeclarationStatusType =
-		detailDialogCategory === "declaration" &&
-		detailForm.type === "disaster_declaration";
-	const isOfficialWarningType =
-		detailDialogCategory === "declaration" &&
-		detailForm.type === "official_warning";
-	const showDateField = !isDeclarationStatusType && !isOfficialWarningType;
-	const hasOfficialWarningAreas =
-		detailForm.officialWarningAffectedAreas.trim().length > 0;
-	const passesOfficialWarningRule =
-		!isOfficialWarningType ||
-		!detailForm.hadOfficialWarningOrWeatherAdvisory ||
-		hasOfficialWarningAreas;
+	const [
+		detailDeclarationExistingAttachments,
+		setDetailDeclarationExistingAttachments,
+	] = useState<
+		Array<{
+			id: string;
+			fileName: string;
+			fileType: string;
+			fileSize: number;
+			fileKey: string;
+			title?: string;
+		}>
+	>([]);
+	const [
+		detailDeclarationKeptAttachmentIds,
+		setDetailDeclarationKeptAttachmentIds,
+	] = useState<string[]>([]);
+	const [
+		detailDeclarationNewAttachmentUploads,
+		setDetailDeclarationNewAttachmentUploads,
+	] = useState<NewAttachmentUpload[]>([]);
+	const [declarationAttachmentEditorKey, setDeclarationAttachmentEditorKey] =
+		useState(0);
+	const selectedDeclarationStatusDescription = useMemo(() => {
+		if (!detailForm.declarationStatusId) {
+			return "";
+		}
+
+		return (
+			declarationStatuses.find(
+				(status) => status.id === detailForm.declarationStatusId,
+			)?.description ?? ""
+		);
+	}, [declarationStatuses, detailForm.declarationStatusId]);
+	const showDateField = true;
 	const hasDetailType = detailForm.type.trim().length > 0;
-	const hasDetailContent = isDeclarationStatusType
-		? detailForm.declarationStatus !== ""
-		: isOfficialWarningType
-			? detailForm.hadOfficialWarningOrWeatherAdvisory ||
-				hasOfficialWarningAreas
-			: detailDialogCategory === "response"
-				? detailForm.coverage.trim().length > 0 ||
-					detailForm.description.trim().length > 0 ||
-					detailForm.dateValue !== null
+	const declarationHasRequiredFields = detailForm.dateValue !== null;
+	const hasDetailContent =
+		detailDialogCategory === "response"
+			? detailForm.coverage.trim().length > 0 ||
+				detailForm.description.trim().length > 0 ||
+				detailForm.dateValue !== null ||
+				detailResponseExistingAttachments.length > 0 ||
+				detailResponseNewAttachmentUploads.length > 0
+			: detailDialogCategory === "declaration"
+				? declarationHasRequiredFields
 				: detailForm.description.trim().length > 0 ||
 					detailForm.dateValue !== null;
 	const canSaveDetail =
-		hasDetailType && hasDetailContent && passesOfficialWarningRule;
+		detailDialogCategory === "declaration"
+			? declarationHasRequiredFields
+			: hasDetailType && hasDetailContent;
 	const [errors, setErrors] = useState<Errors>({});
 	const [visibleModalSubmit, setVisibleModalSubmit] = useState<boolean>(false);
 	const [visibleExitModal, setVisibleExitModal] = useState<boolean>(false);
@@ -1795,43 +1830,29 @@ function StepperValidation({
 			}
 		}
 
-		const declarationStatusItem = declarations.find(
-			(item) => normalizeDetailTypeValue(item.type) === "disaster_declaration",
-		);
-		pushValue(
-			"disasterDeclaration",
-			declarationStatusItem?.meta?.declarationStatus ?? "unknown",
-		);
-
-		const declarationEffects = declarations.filter(
-			(item) =>
-				normalizeDetailTypeValue(item.type) === "disaster_declaration_effects",
-		);
-		for (let index = 0; index < 5; index++) {
-			const item = declarationEffects[index];
-			pushValue(
-				`disasterDeclarationTypeAndEffect${index + 1}`,
-				item?.description ?? "",
-			);
-			pushValue(
-				`disasterDeclarationDate${index + 1}`,
-				item?.date ? formatDateForSubmit(parseDetailDate(item.date)) : "",
-			);
-		}
-
-		const officialWarning = declarations.find(
-			(item) => normalizeDetailTypeValue(item.type) === "official_warning",
-		);
-		pushValue(
-			"hadOfficialWarningOrWeatherAdvisory",
-			officialWarning?.meta?.hadOfficialWarningOrWeatherAdvisory
-				? "true"
-				: "off",
-		);
-		pushValue(
-			"officialWarningAffectedAreas",
-			officialWarning?.meta?.officialWarningAffectedAreas ?? "",
-		);
+		const declarationPayload = declarations.map((item) => ({
+			id: item.id,
+			type: item.type || "",
+			declarationDate: item.date
+				? formatDateForSubmit(parseDetailDate(item.date))
+				: "",
+			coverage: item.coverage ?? "",
+			effects: item.description ?? "",
+			issuingOrganization: item.meta?.issuingOrganization ?? "",
+			declarationStatusId: item.meta?.declarationStatusId ?? "",
+			declarationStatus: item.meta?.declarationStatus ?? "",
+			attachments: (item.attachments ?? []).map((attachment) => ({
+				id: attachment.id,
+				title: attachment.title,
+				fileKey: attachment.fileKey,
+				fileName: attachment.fileName,
+				fileType: attachment.fileType,
+				fileSize: attachment.fileSize,
+				tempFilePath: attachment.tempFilePath,
+				tenantPath: attachment.tenantPath,
+			})),
+		}));
+		pushValue("disasterEventDeclarations", JSON.stringify(declarationPayload));
 
 		return values;
 	}, [
@@ -1856,16 +1877,12 @@ function StepperValidation({
 	]);
 
 	const maxDetailItems = 5;
-	const maxDisasterDeclarationItems = 1;
-	const maxDisasterDeclarationEffectsItems = 5;
-	const maxOfficialWarningItems = 1;
 	const detailTypeLabelByValue = useMemo(() => {
 		return new Map(
-			[
-				...responseTypeOptions,
-				...assessmentTypeOptions,
-				...declarationTypeOptions,
-			].map((option) => [option.value, option.label]),
+			[...responseTypeOptions, ...assessmentTypeOptions].map((option) => [
+				option.value,
+				option.label,
+			]),
 		);
 	}, [responseTypeOptions]);
 	const availableAssessmentTypeOptions = useMemo(
@@ -1889,54 +1906,18 @@ function StepperValidation({
 			);
 		}
 
-		return declarationTypeOptions.filter((option) => {
-			if (option.value === detailForm.type) {
-				return true;
-			}
-
-			if (option.value === "disaster_declaration") {
-				return (
-					(declarationCountByType.disaster_declaration ?? 0) <
-					maxDisasterDeclarationItems
-				);
-			}
-
-			if (option.value === "disaster_declaration_effects") {
-				return (
-					(declarationCountByType.disaster_declaration_effects ?? 0) <
-					maxDisasterDeclarationEffectsItems
-				);
-			}
-
-			if (option.value === "official_warning") {
-				return (
-					(declarationCountByType.official_warning ?? 0) <
-					maxOfficialWarningItems
-				);
-			}
-
-			return true;
-		});
+		return [];
 	}, [
 		availableAssessmentTypeOptions,
 		detailDialogCategory,
 		detailForm.type,
-		declarationCountByType,
-		maxDisasterDeclarationEffectsItems,
-		maxDisasterDeclarationItems,
-		maxOfficialWarningItems,
 		responseTypeOptions,
 	]);
 	const canAddAnyResponse = responseTypeOptions.length > 0;
 	const canAddAnyAssessment = assessmentTypeOptions.some(
 		(option) => (assessmentCountByType[option.value] ?? 0) < maxDetailItems,
 	);
-	const canAddAnyDeclaration =
-		(declarationCountByType.disaster_declaration ?? 0) <
-			maxDisasterDeclarationItems ||
-		(declarationCountByType.disaster_declaration_effects ?? 0) <
-			maxDisasterDeclarationEffectsItems ||
-		(declarationCountByType.official_warning ?? 0) < maxOfficialWarningItems;
+	const canAddAnyDeclaration = true;
 	const reviewSpatialFootprintItems = useMemo(
 		() =>
 			spatialFootprintValue
@@ -2067,32 +2048,6 @@ function StepperValidation({
 			defaultType = responseTypeOptions[0]?.value ?? "";
 		} else if (category === "assessment") {
 			defaultType = availableAssessmentTypeOptions[0]?.value ?? "";
-		} else if (category === "declaration") {
-			defaultType =
-				declarationTypeOptions.find((option) => {
-					if (option.value === "disaster_declaration") {
-						return (
-							(declarationCountByType.disaster_declaration ?? 0) <
-							maxDisasterDeclarationItems
-						);
-					}
-
-					if (option.value === "disaster_declaration_effects") {
-						return (
-							(declarationCountByType.disaster_declaration_effects ?? 0) <
-							maxDisasterDeclarationEffectsItems
-						);
-					}
-
-					if (option.value === "official_warning") {
-						return (
-							(declarationCountByType.official_warning ?? 0) <
-							maxOfficialWarningItems
-						);
-					}
-
-					return false;
-				})?.value ?? "";
 		}
 
 		setDetailDialogCategory(category);
@@ -2102,15 +2057,19 @@ function StepperValidation({
 			dateValue: null,
 			coverage: "",
 			description: "",
-			declarationStatus: "",
-			hadOfficialWarningOrWeatherAdvisory: false,
-			officialWarningAffectedAreas: "",
+			declarationStatusId: "",
+			issuingOrganization: "",
 		});
 		if (category === "response") {
 			setDetailResponseExistingAttachments([]);
 			setDetailResponseKeptAttachmentIds([]);
 			setDetailResponseNewAttachmentUploads([]);
 			setResponseAttachmentEditorKey((value) => value + 1);
+		} else if (category === "declaration") {
+			setDetailDeclarationExistingAttachments([]);
+			setDetailDeclarationKeptAttachmentIds([]);
+			setDetailDeclarationNewAttachmentUploads([]);
+			setDeclarationAttachmentEditorKey((value) => value + 1);
 		}
 		setDetailDialogVisible(true);
 	};
@@ -2124,24 +2083,19 @@ function StepperValidation({
 		const normalizedType = normalizeDetailTypeValue(item.type);
 		setDetailForm({
 			type: normalizedType,
-			dateValue:
-				category === "declaration" &&
-				normalizedType !== "disaster_declaration_effects"
-					? null
-					: parseDetailDate(item.date),
-			coverage: category === "response" ? (item.coverage ?? "") : "",
-			description: item.description,
-			declarationStatus:
-				category === "declaration" && normalizedType === "disaster_declaration"
-					? (item.meta?.declarationStatus ?? "")
+			dateValue: parseDetailDate(item.date),
+			coverage:
+				category === "response" || category === "declaration"
+					? (item.coverage ?? "")
 					: "",
-			hadOfficialWarningOrWeatherAdvisory:
-				category === "declaration" && normalizedType === "official_warning"
-					? Boolean(item.meta?.hadOfficialWarningOrWeatherAdvisory)
-					: false,
-			officialWarningAffectedAreas:
-				category === "declaration" && normalizedType === "official_warning"
-					? (item.meta?.officialWarningAffectedAreas ?? item.description)
+			description: item.description,
+			declarationStatusId:
+				category === "declaration"
+					? (item.meta?.declarationStatusId ?? "")
+					: "",
+			issuingOrganization:
+				category === "declaration"
+					? (item.meta?.issuingOrganization ?? "")
 					: "",
 		});
 		if (category === "response") {
@@ -2189,6 +2143,51 @@ function StepperValidation({
 					})),
 			);
 			setResponseAttachmentEditorKey((value) => value + 1);
+		} else if (category === "declaration") {
+			const existingAttachments = (item.attachments ?? []).filter(
+				(
+					attachment,
+				): attachment is ResponseAttachmentValue & {
+					id: string;
+					fileKey: string;
+				} =>
+					typeof attachment.id === "string" &&
+					typeof attachment.fileKey === "string" &&
+					attachment.fileKey.length > 0,
+			);
+			setDetailDeclarationExistingAttachments(
+				existingAttachments.map((attachment) => ({
+					id: attachment.id,
+					fileName: attachment.fileName,
+					fileType: attachment.fileType,
+					fileSize: attachment.fileSize,
+					fileKey: attachment.fileKey,
+					title: attachment.title,
+				})),
+			);
+			setDetailDeclarationKeptAttachmentIds(
+				existingAttachments.map((attachment) => attachment.id),
+			);
+			setDetailDeclarationNewAttachmentUploads(
+				(item.attachments ?? [])
+					.filter(
+						(
+							attachment,
+						): attachment is ResponseAttachmentValue & {
+							tempFilePath: string;
+						} =>
+							typeof attachment.tempFilePath === "string" &&
+							attachment.tempFilePath.length > 0,
+					)
+					.map((attachment) => ({
+						fileName: attachment.fileName,
+						fileType: attachment.fileType,
+						fileSize: attachment.fileSize,
+						tempFilePath: attachment.tempFilePath,
+						tenantPath: attachment.tenantPath,
+					})),
+			);
+			setDeclarationAttachmentEditorKey((value) => value + 1);
 		}
 		setDetailDialogVisible(true);
 	};
@@ -2212,34 +2211,27 @@ function StepperValidation({
 		const declarationMeta: AdditionalDetailMeta | undefined =
 			targetCategory === "declaration"
 				? {
-						declarationStatus: isDeclarationStatusType
-							? (detailForm.declarationStatus as DeclarationStatus)
-							: undefined,
-						hadOfficialWarningOrWeatherAdvisory: isOfficialWarningType
-							? detailForm.hadOfficialWarningOrWeatherAdvisory
-							: undefined,
-						officialWarningAffectedAreas: isOfficialWarningType
-							? detailForm.officialWarningAffectedAreas.trim()
-							: undefined,
+						declarationStatusId: detailForm.declarationStatusId || undefined,
+						declarationStatus:
+							declarationStatusOptions.find(
+								(option) => option.value === detailForm.declarationStatusId,
+							)?.label ?? undefined,
+						issuingOrganization:
+							detailForm.issuingOrganization.trim() || undefined,
 					}
 				: undefined;
 		const nextItem: AdditionalDetailItem = {
 			id: editingDetailId ?? `${targetCategory}-${Date.now()}`,
-			type: trimmedType,
-			date:
-				targetCategory === "declaration" &&
-				trimmedType !== "disaster_declaration_effects"
-					? ""
-					: formatDetailDate(detailForm.dateValue),
-			coverage: targetCategory === "response" ? trimmedCoverage : undefined,
-			description:
-				targetCategory === "declaration" &&
-				trimmedType === "disaster_declaration"
-					? ""
-					: targetCategory === "declaration" &&
-						  trimmedType === "official_warning"
-						? detailForm.officialWarningAffectedAreas.trim()
-						: trimmedDescription,
+			type:
+				targetCategory === "declaration"
+					? trimmedType || "Declaration"
+					: trimmedType,
+			date: formatDetailDate(detailForm.dateValue),
+			coverage:
+				targetCategory === "response" || targetCategory === "declaration"
+					? trimmedCoverage
+					: undefined,
+			description: trimmedDescription,
 			meta: declarationMeta,
 			attachments:
 				targetCategory === "response"
@@ -2265,7 +2257,30 @@ function StepperValidation({
 								tenantPath: upload.tenantPath,
 							})),
 						]
-					: undefined,
+					: targetCategory === "declaration"
+						? [
+								...detailDeclarationExistingAttachments
+									.filter((attachment) =>
+										detailDeclarationKeptAttachmentIds.includes(attachment.id),
+									)
+									.map((attachment) => ({
+										id: attachment.id,
+										title: attachment.title ?? attachment.fileName,
+										fileKey: attachment.fileKey,
+										fileName: attachment.fileName,
+										fileType: attachment.fileType,
+										fileSize: attachment.fileSize,
+									})),
+								...detailDeclarationNewAttachmentUploads.map((upload) => ({
+									title: upload.fileName,
+									fileName: upload.fileName,
+									fileType: upload.fileType,
+									fileSize: upload.fileSize,
+									tempFilePath: upload.tempFilePath,
+									tenantPath: upload.tenantPath,
+								})),
+							]
+						: undefined,
 		};
 
 		setTarget((prev) => {
@@ -2282,37 +2297,6 @@ function StepperValidation({
 				if (nextTypeCount >= maxDetailItems) {
 					return prev;
 				}
-			} else {
-				if (nextItem.type === "disaster_declaration") {
-					const nextTypeCount = prev.filter(
-						(item) =>
-							normalizeDetailTypeValue(item.type) === "disaster_declaration",
-					).length;
-					if (nextTypeCount >= maxDisasterDeclarationItems) {
-						return prev;
-					}
-				}
-
-				if (nextItem.type === "disaster_declaration_effects") {
-					const nextTypeCount = prev.filter(
-						(item) =>
-							normalizeDetailTypeValue(item.type) ===
-							"disaster_declaration_effects",
-					).length;
-					if (nextTypeCount >= maxDisasterDeclarationEffectsItems) {
-						return prev;
-					}
-				}
-
-				if (nextItem.type === "official_warning") {
-					const nextTypeCount = prev.filter(
-						(item) =>
-							normalizeDetailTypeValue(item.type) === "official_warning",
-					).length;
-					if (nextTypeCount >= maxOfficialWarningItems) {
-						return prev;
-					}
-				}
 			}
 
 			return [...prev, nextItem];
@@ -2322,6 +2306,9 @@ function StepperValidation({
 		setDetailResponseExistingAttachments([]);
 		setDetailResponseKeptAttachmentIds([]);
 		setDetailResponseNewAttachmentUploads([]);
+		setDetailDeclarationExistingAttachments([]);
+		setDetailDeclarationKeptAttachmentIds([]);
+		setDetailDeclarationNewAttachmentUploads([]);
 	};
 
 	const deleteDetail = () => {
@@ -2340,6 +2327,9 @@ function StepperValidation({
 		setDetailResponseExistingAttachments([]);
 		setDetailResponseKeptAttachmentIds([]);
 		setDetailResponseNewAttachmentUploads([]);
+		setDetailDeclarationExistingAttachments([]);
+		setDetailDeclarationKeptAttachmentIds([]);
+		setDetailDeclarationNewAttachmentUploads([]);
 	};
 
 	const renderDetailCard = (
@@ -2378,8 +2368,25 @@ function StepperValidation({
 								<span className="text-[12px] text-slate-500">{item.date}</span>
 							) : null}
 						</div>
-						{category === "response" ? (
+						{category === "response" || category === "declaration" ? (
 							<div className="mt-2 space-y-1 text-[14px] text-slate-500">
+								{category === "declaration" && item.meta?.declarationStatus ? (
+									<p>
+										<span className="font-semibold text-slate-700">
+											Status:
+										</span>{" "}
+										{item.meta.declarationStatus}
+									</p>
+								) : null}
+								{category === "declaration" &&
+								item.meta?.issuingOrganization?.trim() ? (
+									<p>
+										<span className="font-semibold text-slate-700">
+											Issuing Organization:
+										</span>{" "}
+										{item.meta.issuingOrganization.trim()}
+									</p>
+								) : null}
 								{item.coverage?.trim() ? (
 									<p>
 										<span className="font-semibold text-slate-700">
@@ -2391,11 +2398,11 @@ function StepperValidation({
 								{item.description?.trim() ? (
 									<p>
 										<span className="font-semibold text-slate-700">
-											Description:
+											{category === "declaration" ? "Effects:" : "Description:"}
 										</span>{" "}
 										{renderMultilineText(
 											item.description.trim(),
-											`${item.id}-response-description`,
+											`${item.id}-detail-description`,
 										)}
 									</p>
 								) : null}
@@ -2418,7 +2425,7 @@ function StepperValidation({
 									: "-"}
 							</p>
 						)}
-						{category === "response" ? (
+						{category === "response" || category === "declaration" ? (
 							item.attachments && item.attachments.length > 0 ? (
 								<div className="mt-3 space-y-2">
 									<p className="text-[14px] font-semibold text-slate-700">
@@ -2460,7 +2467,7 @@ function StepperValidation({
 							aria-label="Edit"
 							onClick={() => openEditDetail(category, item)}
 						/>
-						{category === "response" ? (
+						{category === "response" || category === "declaration" ? (
 							<Button
 								type="button"
 								icon="pi pi-trash"
@@ -2468,9 +2475,17 @@ function StepperValidation({
 								severity="danger"
 								aria-label="Delete"
 								onClick={() =>
-									setResponses((prev) =>
-										prev.filter((responseItem) => responseItem.id !== item.id),
-									)
+									category === "response"
+										? setResponses((prev) =>
+												prev.filter(
+													(responseItem) => responseItem.id !== item.id,
+												),
+											)
+										: setDeclarations((prev) =>
+												prev.filter(
+													(declarationItem) => declarationItem.id !== item.id,
+												),
+											)
 								}
 							/>
 						) : null}
@@ -2481,25 +2496,6 @@ function StepperValidation({
 	};
 
 	function getDetailDescriptionValue(item: AdditionalDetailItem): string {
-		if (item.type === "disaster_declaration") {
-			return `Disaster declaration: ${
-				declarationStatusOptions.find(
-					(option) => option.value === item.meta?.declarationStatus,
-				)?.label ?? "-"
-			}`;
-		}
-
-		if (item.type === "official_warning") {
-			return [
-				`Was there an officially issued warning and/or weather advisory?: ${
-					item.meta?.hadOfficialWarningOrWeatherAdvisory ? "Yes" : "No"
-				}`,
-				`Which affected areas were covered by the warning?: ${
-					item.meta?.officialWarningAffectedAreas || "-"
-				}`,
-			].join("\n");
-		}
-
 		if (item.coverage?.trim()) {
 			return [`Coverage: ${item.coverage.trim()}`, item.description]
 				.filter((value) => value && value.trim().length > 0)
@@ -3918,49 +3914,54 @@ function StepperValidation({
 									<div className="space-y-4">
 										<div>
 											<label className="mb-1 block">
-												Type <span className="text-red-500">*</span>
+												Type
+												{detailDialogCategory === "declaration" ? null : (
+													<span className="text-red-500">*</span>
+												)}
 											</label>
-											<Dropdown
-												value={detailForm.type}
-												onChange={(event) => {
-													const selectedType = String(event.value ?? "");
-													setDetailForm((state) => ({
-														...state,
-														type: selectedType,
-														dateValue:
-															detailDialogCategory === "declaration" &&
-															selectedType !== "disaster_declaration_effects"
-																? null
-																: state.dateValue,
-														declarationStatus:
-															selectedType === "disaster_declaration"
-																? state.declarationStatus
-																: "",
-														hadOfficialWarningOrWeatherAdvisory:
-															selectedType === "official_warning"
-																? state.hadOfficialWarningOrWeatherAdvisory
-																: false,
-														officialWarningAffectedAreas:
-															selectedType === "official_warning"
-																? state.officialWarningAffectedAreas
-																: "",
-													}));
-												}}
-												options={detailTypeOptions}
-												optionLabel="label"
-												optionValue="value"
-												placeholder="Select type"
-												disabled={
-													Boolean(editingDetailId) &&
-													detailDialogCategory !== "response"
-												}
-												className="w-full"
-											/>
+											{detailDialogCategory === "declaration" ? (
+												<InputText
+													value={detailForm.type}
+													onChange={(event) =>
+														setDetailForm((state) => ({
+															...state,
+															type: event.target.value,
+														}))
+													}
+													placeholder="Enter type"
+													className="w-full"
+												/>
+											) : (
+												<Dropdown
+													value={detailForm.type}
+													onChange={(event) => {
+														const selectedType = String(event.value ?? "");
+														setDetailForm((state) => ({
+															...state,
+															type: selectedType,
+														}));
+													}}
+													options={detailTypeOptions}
+													optionLabel="label"
+													optionValue="value"
+													placeholder="Select type"
+													disabled={
+														Boolean(editingDetailId) &&
+														detailDialogCategory !== "response"
+													}
+													className="w-full"
+												/>
+											)}
 										</div>
 
 										{showDateField ? (
 											<div>
-												<label className="mb-1 block">Date</label>
+												<label className="mb-1 block">
+													Date
+													{detailDialogCategory === "declaration" ? (
+														<span className="text-red-500">*</span>
+													) : null}
+												</label>
 												<Calendar
 													value={detailForm.dateValue}
 													onChange={(event) =>
@@ -3980,81 +3981,34 @@ function StepperValidation({
 											</div>
 										) : null}
 
-										{isDeclarationStatusType ? (
+										{detailDialogCategory === "declaration" ? (
 											<div>
-												<label className="mb-1 block">
-													Disaster declaration status
-												</label>
+												<label className="mb-1 block">Status</label>
 												<Dropdown
-													value={detailForm.declarationStatus}
+													value={detailForm.declarationStatusId}
 													onChange={(event) =>
 														setDetailForm((state) => ({
 															...state,
-															declarationStatus: String(event.value ?? "") as
-																| DeclarationStatus
-																| "",
+															declarationStatusId: String(event.value ?? ""),
 														}))
 													}
 													options={declarationStatusOptions}
 													optionLabel="label"
 													optionValue="value"
-													placeholder="Select declaration status"
+													placeholder="Select status"
+													showClear
 													className="w-full"
 												/>
+												{selectedDeclarationStatusDescription ? (
+													<small className="mt-1 block text-gray-600">
+														{selectedDeclarationStatusDescription}
+													</small>
+												) : null}
 											</div>
 										) : null}
 
-										{isOfficialWarningType ? (
-											<div className="space-y-3">
-												<label className="flex items-center gap-2 text-sm text-slate-700">
-													<input
-														type="checkbox"
-														checked={
-															detailForm.hadOfficialWarningOrWeatherAdvisory
-														}
-														onChange={(event) =>
-															setDetailForm((state) => ({
-																...state,
-																hadOfficialWarningOrWeatherAdvisory:
-																	event.target.checked,
-															}))
-														}
-													/>
-													<span>
-														Was there an officially issued warning and/or
-														weather advisory?
-													</span>
-												</label>
-
-												<div>
-													<label className="mb-1 block">
-														Which affected areas were covered by the warning?
-													</label>
-													<InputTextarea
-														value={detailForm.officialWarningAffectedAreas}
-														onChange={(event) =>
-															setDetailForm((state) => ({
-																...state,
-																officialWarningAffectedAreas:
-																	event.target.value,
-															}))
-														}
-														rows={3}
-														placeholder="Enter affected areas"
-														className="w-full"
-													/>
-													{detailForm.hadOfficialWarningOrWeatherAdvisory &&
-													!hasOfficialWarningAreas ? (
-														<p className="mt-1 text-xs text-red-600">
-															Affected areas are required when warning/advisory
-															is checked.
-														</p>
-													) : null}
-												</div>
-											</div>
-										) : null}
-
-										{detailDialogCategory === "response" ? (
+										{detailDialogCategory === "response" ||
+										detailDialogCategory === "declaration" ? (
 											<div>
 												<label className="mb-1 block">Coverage</label>
 												<InputText
@@ -4071,9 +4025,32 @@ function StepperValidation({
 											</div>
 										) : null}
 
-										{!isDeclarationStatusType && !isOfficialWarningType ? (
+										{detailDialogCategory === "declaration" ? (
 											<div>
-												<label className="mb-1 block">Description</label>
+												<label className="mb-1 block">
+													Issuing Organization
+												</label>
+												<InputText
+													value={detailForm.issuingOrganization}
+													onChange={(event) =>
+														setDetailForm((state) => ({
+															...state,
+															issuingOrganization: event.target.value,
+														}))
+													}
+													placeholder="Enter issuing organization"
+													className="w-full"
+												/>
+											</div>
+										) : null}
+
+										{true ? (
+											<div>
+												<label className="mb-1 block">
+													{detailDialogCategory === "declaration"
+														? "Effects"
+														: "Description"}
+												</label>
 												<InputTextarea
 													value={detailForm.description}
 													onChange={(event) =>
@@ -4114,10 +4091,37 @@ function StepperValidation({
 											/>
 										) : null}
 
+										{detailDialogCategory === "declaration" ? (
+											<DisasterEventAttachment
+												key={`declaration-attachment-editor-${declarationAttachmentEditorKey}`}
+												ctx={ctx}
+												initialAttachments={
+													detailDeclarationExistingAttachments
+												}
+												initialNewAttachmentUploads={
+													detailDeclarationNewAttachmentUploads
+												}
+												keptAttachmentIds={detailDeclarationKeptAttachmentIds}
+												onKeptAttachmentIdsChange={
+													setDetailDeclarationKeptAttachmentIds
+												}
+												onNewAttachmentUploadsChange={
+													setDetailDeclarationNewAttachmentUploads
+												}
+												titleText="Attachments"
+												titleClassName="mb-1 block"
+												uploadContainerClassName="mt-0"
+												showTitleIcon={false}
+												showSupportingText={false}
+												showChooseButton={false}
+												enableClickableUploadText
+											/>
+										) : null}
+
 										<div className="flex items-center justify-between gap-2 pt-2">
 											<div>
 												{editingDetailId &&
-												detailDialogCategory !== "response" ? (
+												detailDialogCategory === "assessment" ? (
 													<Button
 														type="button"
 														label="Delete"

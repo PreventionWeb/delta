@@ -274,6 +274,13 @@
       "when": 1786334181876,
       "tag": "20260810035621_migrate_disaster_event_response_to_new_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1786419746071,
+      "tag": "20260811034226_migrate_disaster_event_declaration_to_new_tables",
+      "breakpoints": true
     }
   ]
 }

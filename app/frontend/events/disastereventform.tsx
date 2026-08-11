@@ -62,45 +62,6 @@ function repeatOtherIds(
 	return res as FormInputDef<DisasterEventFields>[];
 }
 
-function repeatDisasterDeclarations(
-	ctx: DContext,
-	n: number,
-): FormInputDef<DisasterEventFields>[] {
-	let res = [];
-	for (let i = 0; i < n; i++) {
-		let j = i + 1;
-		res.push(
-			{
-				key: "disasterDeclarationTypeAndEffect" + j,
-				label: ctx.t({
-					code: "disaster_event.disaster_declaration_type_and_effect",
-					desc: "Label for type and effect field in disaster declaration",
-					msg: "Type and Effect",
-				}),
-				type: "textarea",
-				uiRow: {
-					label:
-						ctx.t({
-							code: "disaster_event.disaster_declaration",
-							msg: "Disaster declaration",
-						}) + ` (${j})`,
-				},
-				repeatable: { group: "disasterDeclaration", index: i },
-			},
-			{
-				key: "disasterDeclarationDate" + j,
-				label: ctx.t({
-					code: "common.date",
-					msg: "Date",
-				}),
-				type: "date",
-				repeatable: { group: "disasterDeclaration", index: i },
-			},
-		);
-	}
-	return res as FormInputDef<DisasterEventFields>[];
-}
-
 function repeatRapidOrPreliminaryAssesments(
 	ctx: DContext,
 	n: number,
@@ -332,48 +293,6 @@ export function fieldsDefCommon(
 			type: "number",
 			uiRow: {},
 		},
-		{
-			// field definition
-			key: "disasterDeclaration",
-			label: ctx.t({
-				code: "disaster_event.disaster_declaration",
-				msg: "Disaster declaration",
-			}),
-			type: "enum",
-			required: true,
-			enumData: [
-				{
-					key: "unknown",
-					label: ctx.t({
-						code: "common.unknown",
-						msg: "Unknown",
-					}),
-				},
-				{
-					key: "yes",
-					label: ctx.t({
-						code: "common.yes",
-						desc: "Yes (true)",
-						msg: "Yes",
-					}),
-				},
-				{
-					key: "no",
-					label: ctx.t({
-						code: "common.no",
-						desc: "No (false)",
-						msg: "No",
-					}),
-				},
-			],
-			uiRow: {
-				label: ctx.t({
-					code: "disaster_event.disaster_declaration",
-					msg: "Disaster declaration",
-				}),
-			},
-		},
-		...repeatDisasterDeclarations(ctx, 5),
 		{
 			key: "hadOfficialWarningOrWeatherAdvisory",
 			label: ctx.t({
@@ -1424,6 +1343,54 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 			},
 			{},
 		);
+	const declarationAttachmentCountByDeclarationId = (
+		(itemAny?.declarationAttachments as any[]) || []
+	)
+		.filter(
+			(attachment: any) =>
+				typeof attachment?.disasterEventDeclarationId === "string" &&
+				attachment.disasterEventDeclarationId.trim().length > 0,
+		)
+		.reduce<Record<string, number>>((counts, attachment: any) => {
+			const declarationId = String(attachment.disasterEventDeclarationId);
+			counts[declarationId] = (counts[declarationId] ?? 0) + 1;
+			return counts;
+		}, {});
+	const declarationAttachmentsByDeclarationId = (
+		(itemAny?.declarationAttachments as any[]) || []
+	)
+		.filter(
+			(attachment: any) =>
+				typeof attachment?.disasterEventDeclarationId === "string" &&
+				attachment.disasterEventDeclarationId.trim().length > 0,
+		)
+		.reduce<Record<string, any[]>>(
+			(grouped, attachment: any, index: number) => {
+				const declarationId = String(attachment.disasterEventDeclarationId);
+				const existing = grouped[declarationId] ?? [];
+				existing.push({
+					id: String(attachment?.id || `${declarationId}-attachment-${index}`),
+					title: String(
+						attachment?.title || attachment?.fileName || "Attachment",
+					),
+					fileKey: String(attachment?.fileKey || ""),
+					fileName: String(
+						attachment?.fileName || attachment?.name || "Attachment",
+					),
+					fileType: attachment?.fileType,
+					fileSize:
+						typeof attachment?.fileSize === "number" ? attachment.fileSize : 0,
+					href: ctx.url(
+						`${route}/file-viewer?name=${encodeURIComponent(
+							buildAttachmentViewerName(attachment),
+						)}`,
+					),
+				});
+				grouped[declarationId] = existing;
+				return grouped;
+			},
+			{},
+		);
 
 	const normalizedResponses = ((itemAny?.responses as any[]) || []).map(
 		(response: any, index: number) => {
@@ -1527,15 +1494,46 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 		}),
 	];
 
-	const declarations: {
+	const normalizedDeclarations = ((itemAny?.declarations as any[]) || []).map(
+		(declaration: any, index: number) => {
+			const declarationId = String(
+				declaration?.id || `declaration-${index + 1}`,
+			);
+			const declarationType = String(declaration?.type ?? "").trim();
+			const effects = String(declaration?.effects ?? "").trim();
+			const coverage = String(declaration?.coverage ?? "").trim();
+			const declarationStatus = String(
+				declaration?.declarationStatus ?? "",
+			).trim();
+			const issuingOrganization = String(
+				declaration?.issuingOrganization ?? "",
+			).trim();
+
+			return {
+				id: declarationId,
+				type: declarationType || "Declaration",
+				date: formatReviewDate(declaration?.declarationDate),
+				coverage,
+				description: effects,
+				meta: {
+					declarationStatusId: declaration?.declarationStatusId ?? undefined,
+					declarationStatus: declarationStatus || undefined,
+					issuingOrganization: issuingOrganization || undefined,
+				},
+				attachmentCount:
+					declarationAttachmentCountByDeclarationId[declarationId] ?? 0,
+				attachments: declarationAttachmentsByDeclarationId[declarationId] ?? [],
+			};
+		},
+	);
+
+	const legacyDeclarations: {
 		id: string;
 		type: string;
 		date: string;
 		description: string;
 		meta?: {
-			declarationStatus?: "unknown" | "yes" | "no";
-			hadOfficialWarningOrWeatherAdvisory?: boolean;
-			officialWarningAffectedAreas?: string;
+			declarationStatus?: string;
 		};
 	}[] = [
 		...Array.from({ length: 5 }).flatMap((_, index) => {
@@ -1555,7 +1553,7 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 		}),
 	];
 	if (typeof itemAny?.disasterDeclaration === "string") {
-		declarations.push({
+		legacyDeclarations.push({
 			id: "declaration-status-1",
 			type: "disaster_declaration",
 			date: "",
@@ -1565,23 +1563,10 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 			},
 		});
 	}
-	if (
-		typeof itemAny?.officialWarningAffectedAreas === "string" &&
-		itemAny.officialWarningAffectedAreas.trim().length > 0
-	) {
-		declarations.push({
-			id: "declaration-official-warning-1",
-			type: "official_warning",
-			date: "",
-			description: itemAny.officialWarningAffectedAreas,
-			meta: {
-				hadOfficialWarningOrWeatherAdvisory: Boolean(
-					itemAny.hadOfficialWarningOrWeatherAdvisory,
-				),
-				officialWarningAffectedAreas: itemAny.officialWarningAffectedAreas,
-			},
-		});
-	}
+	const declarations =
+		normalizedDeclarations.length > 0
+			? normalizedDeclarations
+			: legacyDeclarations;
 
 	const getDetailTypeLabel = (value: string) => {
 		switch (value) {
@@ -1608,26 +1593,7 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 
 	const getDetailDescriptionValue = (detail: any): string => {
 		if (detail?.type === "disaster_declaration") {
-			const status = detail?.meta?.declarationStatus;
-			if (status === "yes") {
-				return "Yes";
-			}
-			if (status === "no") {
-				return "No";
-			}
-			if (status === "unknown") {
-				return "Unknown";
-			}
-			return "";
-		}
-		if (detail?.type === "official_warning") {
-			const hadWarning = detail?.meta?.hadOfficialWarningOrWeatherAdvisory;
-			const warningValue = hadWarning ? "Yes" : "No";
-			const affectedAreas =
-				typeof detail?.meta?.officialWarningAffectedAreas === "string"
-					? detail.meta.officialWarningAffectedAreas
-					: "";
-			return affectedAreas ? `${warningValue}\n${affectedAreas}` : warningValue;
+			return detail?.meta?.declarationStatus || "";
 		}
 		if (
 			typeof detail?.coverage === "string" &&

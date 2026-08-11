@@ -146,27 +146,6 @@ export function contentPickerConfig(ctx: DContext) {
 				},
 
 				{
-					column: disasterEventTable.disasterDeclarationTypeAndEffect1,
-					placeholder: "[safeSearchPattern]",
-				},
-				{
-					column: disasterEventTable.disasterDeclarationTypeAndEffect2,
-					placeholder: "[safeSearchPattern]",
-				},
-				{
-					column: disasterEventTable.disasterDeclarationTypeAndEffect3,
-					placeholder: "[safeSearchPattern]",
-				},
-				{
-					column: disasterEventTable.disasterDeclarationTypeAndEffect4,
-					placeholder: "[safeSearchPattern]",
-				},
-				{
-					column: disasterEventTable.disasterDeclarationTypeAndEffect5,
-					placeholder: "[safeSearchPattern]",
-				},
-
-				{
 					column: disasterEventTable.officialWarningAffectedAreas,
 					placeholder: "[safeSearchPattern]",
 				},

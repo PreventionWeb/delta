@@ -1,4 +1,6 @@
 import { disasterRecordsTable } from "~/drizzle/schema/disasterRecordsTable";
+import { declarationStatusTable } from "~/drizzle/schema/declarationStatusTable";
+import { disasterEventDeclarationTable } from "~/drizzle/schema/disasterEventDeclarationTable";
 import { disasterEventResponseTable } from "~/drizzle/schema/disasterEventResponseTable";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
@@ -200,26 +202,20 @@ export async function disasterEventsLoader(args: disasterEventLoaderArgs) {
 								ilike(disasterEventTable.endDate, searchIlike),
 								ilike(disasterEventTable.startDateLocal, searchIlike),
 								ilike(disasterEventTable.endDateLocal, searchIlike),
-								ilike(
-									disasterEventTable.disasterDeclarationTypeAndEffect1,
-									searchIlike,
-								),
-								ilike(
-									disasterEventTable.disasterDeclarationTypeAndEffect2,
-									searchIlike,
-								),
-								ilike(
-									disasterEventTable.disasterDeclarationTypeAndEffect3,
-									searchIlike,
-								),
-								ilike(
-									disasterEventTable.disasterDeclarationTypeAndEffect4,
-									searchIlike,
-								),
-								ilike(
-									disasterEventTable.disasterDeclarationTypeAndEffect5,
-									searchIlike,
-								),
+								sql`EXISTS (
+									SELECT 1
+									FROM ${disasterEventDeclarationTable} ded
+									LEFT JOIN ${declarationStatusTable} ds
+										ON ds.id = ded.declaration_status_id
+									WHERE ded.disaster_event_id = ${disasterEventTable.id}
+									AND (
+										COALESCE(ded.type, '') ILIKE ${searchIlike}
+										OR COALESCE(ded.effects, '') ILIKE ${searchIlike}
+										OR COALESCE(ded.coverage, '') ILIKE ${searchIlike}
+										OR COALESCE(ded.issuing_organization, '') ILIKE ${searchIlike}
+										OR COALESCE(ds.status, '') ILIKE ${searchIlike}
+									)
+								)`,
 								ilike(
 									disasterEventTable.officialWarningAffectedAreas,
 									searchIlike,

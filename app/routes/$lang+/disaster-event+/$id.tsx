@@ -23,6 +23,8 @@ import { processApprovalStatusActionService } from "~/services/approvalStatusWor
 import { getUserIdFromSession } from "~/utils/session";
 import { getReturnAssigneeUsers } from "~/db/queries/userCountryAccountsRepository";
 import { DisasterEventAttachmentRepository } from "~/db/queries/disasterEventAttachmentRepository";
+import { DisasterEventDeclarationAttachmentRepository } from "~/db/queries/disasterEventDeclarationAttachmentRepository";
+import { DisasterEventDeclarationRepository } from "~/db/queries/disasterEventDeclarationRepository";
 import { DisasterEventLinkRepository } from "~/db/queries/disasterEventLinkRepository";
 import { DisasterEventResponseRepository } from "~/db/queries/disasterEventResponseRepository";
 import { DisasterEventResponseAttachmentRepository } from "~/db/queries/disasterEventResponseAttachmentRepository";
@@ -58,6 +60,14 @@ export const loader = async (args: LoaderFunctionArgs) => {
 		await DisasterEventResponseAttachmentRepository.listByDisasterEventId(
 			result.item.id,
 		);
+	const disasterEventDeclarations =
+		await DisasterEventDeclarationRepository.listByDisasterEventId(
+			result.item.id,
+		);
+	const disasterEventDeclarationAttachments =
+		await DisasterEventDeclarationAttachmentRepository.listByDisasterEventId(
+			result.item.id,
+		);
 	const disasterEventLinks =
 		await DisasterEventLinkRepository.getByDisasterEventId(result.item.id);
 
@@ -80,6 +90,8 @@ export const loader = async (args: LoaderFunctionArgs) => {
 			attachments: disasterEventAttachments,
 			responses: disasterEventResponses,
 			responseAttachments: disasterEventResponseAttachments,
+			declarations: disasterEventDeclarations,
+			declarationAttachments: disasterEventDeclarationAttachments,
 			links: disasterEventLinks,
 			returnAssignees,
 		},

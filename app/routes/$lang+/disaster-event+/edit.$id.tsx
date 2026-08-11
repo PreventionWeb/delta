@@ -47,7 +47,10 @@ import {
 	getUserCountryAccountsWithAdminRole,
 	getUserCountryAccountsWithValidatorRole,
 } from "~/db/queries/userCountryAccountsRepository";
+import { DeclarationStatusRepository } from "~/db/queries/declarationStatusRepository";
 import { DisasterEventAttachmentRepository } from "~/db/queries/disasterEventAttachmentRepository";
+import { DisasterEventDeclarationAttachmentRepository } from "~/db/queries/disasterEventDeclarationAttachmentRepository";
+import { DisasterEventDeclarationRepository } from "~/db/queries/disasterEventDeclarationRepository";
 import { DisasterEventLinkRepository } from "~/db/queries/disasterEventLinkRepository";
 import { DisasterEventResponseAttachmentRepository } from "~/db/queries/disasterEventResponseAttachmentRepository";
 import { DisasterEventResponseRepository } from "~/db/queries/disasterEventResponseRepository";
@@ -134,6 +137,27 @@ type DisasterEventResponsePayload = {
 	}>;
 };
 
+type DisasterEventDeclarationPayload = {
+	id?: string;
+	type?: string;
+	declarationDate?: string;
+	coverage?: string;
+	effects?: string;
+	issuingOrganization?: string;
+	declarationStatusId?: string;
+	declarationStatus?: string;
+	attachments?: Array<{
+		id?: string;
+		title?: string;
+		fileKey?: string;
+		fileName: string;
+		fileType: string;
+		fileSize: number;
+		tempFilePath?: string;
+		tenantPath?: string;
+	}>;
+};
+
 function normalizeResponseTypeKey(value: string): string {
 	return value
 		.trim()
@@ -143,6 +167,22 @@ function normalizeResponseTypeKey(value: string): string {
 }
 
 function parseResponseDateFromSubmit(value: string | undefined): Date | null {
+	const trimmed = (value ?? "").trim();
+	if (!trimmed) {
+		return null;
+	}
+
+	const parsed = new Date(`${trimmed}T00:00:00.000Z`);
+	if (Number.isNaN(parsed.getTime())) {
+		return null;
+	}
+
+	return parsed;
+}
+
+function parseDeclarationDateFromSubmit(
+	value: string | undefined,
+): Date | null {
 	const trimmed = (value ?? "").trim();
 	if (!trimmed) {
 		return null;
@@ -715,6 +755,9 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 	const disasterEventResponsesRaw = String(
 		formData.get("disasterEventResponses") ?? "[]",
 	);
+	const disasterEventDeclarationsRaw = String(
+		formData.get("disasterEventDeclarations") ?? "[]",
+	);
 	let linkedDisasterRecordIds: string[] = [];
 	let linkedTriggeringDisasterEventIds: string[] = [];
 	let linkedTriggeredDisasterEventIds: string[] = [];
@@ -735,6 +778,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 		title: string | null;
 	}> = [];
 	let disasterEventResponses: DisasterEventResponsePayload[] = [];
+	let disasterEventDeclarations: DisasterEventDeclarationPayload[] = [];
 	try {
 		const parsed = JSON.parse(linkedDisasterRecordIdsRaw);
 		linkedDisasterRecordIds = Array.isArray(parsed)
@@ -875,6 +919,17 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 			: [];
 	} catch {
 		disasterEventResponses = [];
+	}
+	try {
+		const parsed = JSON.parse(disasterEventDeclarationsRaw);
+		disasterEventDeclarations = Array.isArray(parsed)
+			? parsed.filter(
+					(value): value is DisasterEventDeclarationPayload =>
+						typeof value === "object" && value !== null,
+				)
+			: [];
+	} catch {
+		disasterEventDeclarations = [];
 	}
 
 	return formSave({
@@ -1582,10 +1637,203 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 				}
 			};
 
+			const syncDisasterEventDeclarations = async (eventId: string) => {
+				const declarationStatuses =
+					await DeclarationStatusRepository.listAll(tx);
+				const declarationStatusById = new Map(
+					declarationStatuses.map((row) => [row.id, row]),
+				);
+				const declarationStatusByName = new Map(
+					declarationStatuses.map((row) => [row.status, row]),
+				);
+
+				const existingDeclarations =
+					await DisasterEventDeclarationRepository.listByDisasterEventId(
+						eventId,
+						tx,
+					);
+				const existingDeclarationIds = existingDeclarations.map(
+					(row) => row.id,
+				);
+				const existingAttachments =
+					await DisasterEventDeclarationAttachmentRepository.listByDisasterEventId(
+						eventId,
+						tx,
+					);
+				const keptExistingFileKeys = new Set<string>();
+
+				await DisasterEventDeclarationRepository.deleteByDisasterEventId(
+					eventId,
+					tx,
+				);
+				if (existingDeclarationIds.length > 0) {
+					await DisasterEventDeclarationAttachmentRepository.deleteByDisasterEventDeclarationIds(
+						existingDeclarationIds,
+						tx,
+					);
+				}
+
+				for (const item of disasterEventDeclarations) {
+					const type = String(item.type ?? "").trim();
+					const effects = String(item.effects ?? "").trim();
+					const coverage = String(item.coverage ?? "").trim();
+					const issuingOrganization = String(
+						item.issuingOrganization ?? "",
+					).trim();
+					const declarationDate = parseDeclarationDateFromSubmit(
+						item.declarationDate,
+					);
+					const attachments = Array.isArray(item.attachments)
+						? item.attachments
+						: [];
+
+					const declarationStatusIdRaw = String(
+						item.declarationStatusId ?? "",
+					).trim();
+					const declarationStatusNameRaw = String(
+						item.declarationStatus ?? "",
+					).trim();
+					const matchedStatus =
+						declarationStatusById.get(declarationStatusIdRaw) ??
+						declarationStatusByName.get(declarationStatusNameRaw);
+					const declarationStatusId = matchedStatus?.id ?? null;
+
+					if (
+						!type &&
+						!effects &&
+						!coverage &&
+						!issuingOrganization &&
+						!declarationDate &&
+						!declarationStatusId &&
+						attachments.length === 0
+					) {
+						continue;
+					}
+
+					const createdDeclaration =
+						await DisasterEventDeclarationRepository.createOne(
+							{
+								disasterEventId: eventId,
+								type: type || null,
+								effects: effects || null,
+								declarationDate,
+								issuingOrganization: issuingOrganization || null,
+								coverage: coverage || null,
+								declarationStatusId,
+							},
+							tx,
+						);
+					if (!createdDeclaration) {
+						continue;
+					}
+
+					const existingAttachmentPayloads = attachments.filter(
+						(attachment) =>
+							typeof attachment.fileKey === "string" &&
+							attachment.fileKey.trim().length > 0 &&
+							(!attachment.tempFilePath ||
+								attachment.tempFilePath.trim().length === 0),
+					);
+					for (const existingAttachment of existingAttachmentPayloads) {
+						keptExistingFileKeys.add(String(existingAttachment.fileKey));
+					}
+
+					const newAttachmentPayloads = attachments.filter(
+						(attachment) =>
+							typeof attachment.tempFilePath === "string" &&
+							attachment.tempFilePath.trim().length > 0,
+					);
+
+					let movedNewItems: Array<{
+						file?: { name?: string; content_type?: string };
+					}> = [];
+					if (newAttachmentPayloads.length > 0) {
+						const savePath = `/uploads/disaster-event/${eventId}/declarations/${createdDeclaration.id}`;
+						movedNewItems = ContentRepeaterUploadFile.save(
+							newAttachmentPayloads.map((upload) => ({
+								file: {
+									name: upload.tempFilePath,
+									content_type: upload.fileType,
+									tenantPath: upload.tenantPath,
+								},
+							})),
+							TEMP_UPLOAD_PATH,
+							savePath,
+							undefined,
+							countryAccountsId,
+						);
+					}
+
+					const attachmentRows = [
+						...existingAttachmentPayloads.map((attachment) => ({
+							disasterEventDeclarationId: createdDeclaration.id,
+							title: String(
+								attachment.title ?? attachment.fileName ?? "",
+							).trim(),
+							fileKey: String(attachment.fileKey ?? ""),
+							fileName: String(attachment.fileName ?? ""),
+							fileType: String(attachment.fileType ?? ""),
+							fileSize: Number(attachment.fileSize ?? 0),
+						})),
+						...movedNewItems.map((item, index) => {
+							const source = newAttachmentPayloads[index];
+							return {
+								disasterEventDeclarationId: createdDeclaration.id,
+								title: String(source?.title ?? source?.fileName ?? "").trim(),
+								fileKey: String(item?.file?.name ?? ""),
+								fileName: String(source?.fileName ?? ""),
+								fileType:
+									String(source?.fileType ?? "") ||
+									String(item?.file?.content_type ?? ""),
+								fileSize: Number(source?.fileSize ?? 0),
+							};
+						}),
+					].filter(
+						(row) =>
+							row.fileKey.length > 0 &&
+							row.fileName.length > 0 &&
+							row.title.length > 0,
+					);
+
+					if (attachmentRows.length > 0) {
+						await DisasterEventDeclarationAttachmentRepository.createMany(
+							attachmentRows,
+							tx,
+						);
+					}
+				}
+
+				const orphanedAttachments = existingAttachments.filter(
+					(attachment) =>
+						keptExistingFileKeys.has(String(attachment.fileKey)) === false,
+				);
+				if (orphanedAttachments.length > 0) {
+					ContentRepeaterUploadFile.delete(
+						orphanedAttachments.map((attachment) => ({
+							file: {
+								name: attachment.fileKey,
+							},
+						})),
+						undefined,
+						countryAccountsId,
+					);
+					ContentRepeaterUploadFile.deleteEmptyParentDirectoriesForFiles(
+						orphanedAttachments.map((attachment) => ({
+							file: {
+								name: attachment.fileKey,
+							},
+						})),
+						undefined,
+						countryAccountsId,
+					);
+				}
+			};
+
 			if (id) {
 				const returnValue = await disasterEventUpdate(ctx, tx, id, updatedData);
 
 				if (returnValue.ok === true) {
+					await syncDisasterEventDeclarations(id);
 					await syncDisasterEventResponses(id);
 					await syncDisasterEventAttachments(id);
 					await syncDisasterEventLinks(id);
@@ -1610,6 +1858,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 				});
 
 				if (returnValue.ok === true) {
+					await syncDisasterEventDeclarations(returnValue.id);
 					await syncDisasterEventResponses(returnValue.id);
 					await syncDisasterEventAttachments(returnValue.id);
 					await syncDisasterEventLinks(returnValue.id);
@@ -1661,6 +1910,7 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 			user,
 			currentUserOrganization,
 			responseTypes,
+			declarationStatuses,
 		] = await Promise.all([
 			getDivisionTreeData(countryAccountsId),
 			getDivisionGeoJSON(countryAccountsId),
@@ -1668,6 +1918,7 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 			authLoaderGetUserForFrontend(loaderArgs),
 			getCurrentUserOrganization(userId, countryAccountsId),
 			ResponseTypeRepository.listAll(),
+			DeclarationStatusRepository.listAll(),
 		]);
 
 		return {
@@ -1679,6 +1930,8 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 			disasterEventAttachments: [],
 			disasterEventResponses: [],
 			disasterEventResponseAttachments: [],
+			disasterEventDeclarations: [],
+			disasterEventDeclarationAttachments: [],
 			hazardousEventOptions: [],
 			linkedTriggeringHazardousEvents: [],
 			linkedTriggeredHazardousEvents: [],
@@ -1689,6 +1942,7 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 			linkedTriggeringDisasterEvents: [],
 			linkedTriggeredDisasterEvents: [],
 			responseTypes,
+			declarationStatuses,
 			user,
 			currentUserOrganization: currentUserOrganization?.organization ?? null,
 			usersWithValidatorRole,
@@ -1732,8 +1986,11 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		disasterEventAttachments,
 		disasterEventResponses,
 		disasterEventResponseAttachments,
+		disasterEventDeclarations,
+		disasterEventDeclarationAttachments,
 		disasterEventLinks,
 		responseTypes,
+		declarationStatuses,
 	] = await Promise.all([
 		getDivisionTreeData(countryAccountsId),
 		getDivisionGeoJSON(countryAccountsId),
@@ -1750,8 +2007,11 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		DisasterEventAttachmentRepository.getByDisasterEventId(item.id),
 		DisasterEventResponseRepository.listByDisasterEventId(item.id),
 		DisasterEventResponseAttachmentRepository.listByDisasterEventId(item.id),
+		DisasterEventDeclarationRepository.listByDisasterEventId(item.id),
+		DisasterEventDeclarationAttachmentRepository.listByDisasterEventId(item.id),
 		DisasterEventLinkRepository.getByDisasterEventId(item.id),
 		ResponseTypeRepository.listAll(),
+		DeclarationStatusRepository.listAll(),
 	]);
 
 	return {
@@ -1763,6 +2023,8 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		disasterEventAttachments,
 		disasterEventResponses,
 		disasterEventResponseAttachments,
+		disasterEventDeclarations,
+		disasterEventDeclarationAttachments,
 		hazardousEventOptions: linkedHazardousData.hazardousEventOptions,
 		linkedTriggeringHazardousEvents:
 			linkedHazardousData.linkedTriggeringHazardousEvents,
@@ -1772,6 +2034,7 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		disasterRecordOptions: linkedData.disasterRecordOptions,
 		linkedDisasterRecords: linkedData.linkedDisasterRecords,
 		responseTypes,
+		declarationStatuses,
 		disasterEventOptions: linkedData.disasterEventOptions,
 		linkedTriggeringDisasterEvents: linkedData.linkedTriggeringDisasterEvents,
 		linkedTriggeredDisasterEvents: linkedData.linkedTriggeredDisasterEvents,
@@ -1822,6 +2085,10 @@ export default function FormScreen() {
 			disasterEventResponseAttachments={
 				ld.disasterEventResponseAttachments ?? []
 			}
+			disasterEventDeclarations={ld.disasterEventDeclarations ?? []}
+			disasterEventDeclarationAttachments={
+				ld.disasterEventDeclarationAttachments ?? []
+			}
 			disasterEventLinks={ld.disasterEventLinks ?? []}
 			hazardousEventOptions={ld.hazardousEventOptions ?? []}
 			linkedTriggeringHazardousEvents={ld.linkedTriggeringHazardousEvents ?? []}
@@ -1832,6 +2099,7 @@ export default function FormScreen() {
 			disasterRecordOptions={ld.disasterRecordOptions ?? []}
 			linkedDisasterRecords={ld.linkedDisasterRecords ?? []}
 			responseTypes={ld.responseTypes ?? []}
+			declarationStatuses={ld.declarationStatuses ?? []}
 			currentUserOrganization={ld.currentUserOrganization ?? null}
 			user={ld.user}
 			usersWithValidatorRole={ld.usersWithValidatorRole ?? []}

@@ -16,9 +16,9 @@ type SelectedDivisionItem = {
 };
 
 type AdditionalDetailMeta = {
-	declarationStatus?: "unknown" | "yes" | "no";
-	hadOfficialWarningOrWeatherAdvisory?: boolean;
-	officialWarningAffectedAreas?: string;
+	declarationStatusId?: string;
+	declarationStatus?: string;
+	issuingOrganization?: string;
 };
 
 type ResponseAttachmentValue = {
@@ -449,8 +449,23 @@ const renderStep4DetailRow = (
 					<span className="text-[12px] text-slate-500">{item.date}</span>
 				) : null}
 			</div>
-			{category === "response" ? (
+			{category === "response" || category === "declaration" ? (
 				<div className="space-y-1 text-[14px] text-slate-500">
+					{category === "declaration" && item.meta?.declarationStatus ? (
+						<p>
+							<span className="font-semibold text-slate-700">Status:</span>{" "}
+							{item.meta.declarationStatus}
+						</p>
+					) : null}
+					{category === "declaration" &&
+					item.meta?.issuingOrganization?.trim() ? (
+						<p>
+							<span className="font-semibold text-slate-700">
+								Issuing Organization:
+							</span>{" "}
+							{item.meta.issuingOrganization.trim()}
+						</p>
+					) : null}
 					{item.coverage?.trim() ? (
 						<p>
 							<span className="font-semibold text-slate-700">Coverage:</span>{" "}
@@ -459,10 +474,12 @@ const renderStep4DetailRow = (
 					) : null}
 					{item.description?.trim() ? (
 						<p>
-							<span className="font-semibold text-slate-700">Description:</span>{" "}
+							<span className="font-semibold text-slate-700">
+								{category === "declaration" ? "Effects:" : "Description:"}
+							</span>{" "}
 							{renderMultilineText(
 								item.description.trim(),
-								`${item.id}-response-description`,
+								`${item.id}-detail-description`,
 							)}
 						</p>
 					) : null}
@@ -480,7 +497,7 @@ const renderStep4DetailRow = (
 					))}
 				</p>
 			) : null}
-			{category === "response" ? (
+			{category === "response" || category === "declaration" ? (
 				<div className="space-y-2">
 					{item.attachments && item.attachments.length > 0 ? (
 						<div className="space-y-2">

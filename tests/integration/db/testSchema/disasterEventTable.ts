@@ -61,32 +61,6 @@ export const disasterEventTable = pgTable(
 		startDateLocal: text("start_date_local"),
 		endDateLocal: text("end_date_local"),
 		durationDays: ourBigint("duration_days"),
-		disasterDeclaration: text("disaster_declaration", {
-			enum: ["yes", "no", "unknown"],
-		})
-			.notNull()
-			.default("unknown"),
-		// multiple disaster declartions
-		disasterDeclarationTypeAndEffect1: zeroText(
-			"disaster_declaration_type_and_effect1",
-		),
-		disasterDeclarationDate1: timestamp("disaster_declaration_date1"),
-		disasterDeclarationTypeAndEffect2: zeroText(
-			"disaster_declaration_type_and_effect2",
-		),
-		disasterDeclarationDate2: timestamp("disaster_declaration_date2"),
-		disasterDeclarationTypeAndEffect3: zeroText(
-			"disaster_declaration_type_and_effect3",
-		),
-		disasterDeclarationDate3: timestamp("disaster_declaration_date3"),
-		disasterDeclarationTypeAndEffect4: zeroText(
-			"disaster_declaration_type_and_effect4",
-		),
-		disasterDeclarationDate4: timestamp("disaster_declaration_date4"),
-		disasterDeclarationTypeAndEffect5: zeroText(
-			"disaster_declaration_type_and_effect5",
-		),
-		disasterDeclarationDate5: timestamp("disaster_declaration_date5"),
 
 		hadOfficialWarningOrWeatherAdvisory: zeroBool(
 			"had_official_warning_or_weather_advisory",
