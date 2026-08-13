@@ -1443,56 +1443,70 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 	const responses =
 		normalizedResponses.length > 0 ? normalizedResponses : legacyResponses;
 
-	const assessments = [
-		...Array.from({ length: 5 }).flatMap((_, index) => {
-			const n = index + 1;
-			const description =
-				itemAny?.[`rapidOrPreliminaryAssessmentDescription${n}`];
-			if (!description || String(description).trim().length === 0) {
-				return [];
+	const assessmentAttachmentsByAssessmentId = (
+		(itemAny?.assessmentAttachments as any[]) || []
+	).reduce(
+		(accumulator, attachment: any) => {
+			const assessmentId = String(attachment?.disasterEventAssessmentId || "");
+			if (!assessmentId) {
+				return accumulator;
 			}
-			return [
-				{
-					id: `assessment-rapid-${n}`,
-					type: "rapid_preliminary_assessment",
-					date: formatReviewDate(
-						itemAny?.[`rapidOrPreliminaryAssessmentDate${n}`],
-					),
-					description: String(description),
-				},
-			];
-		}),
-		...Array.from({ length: 5 }).flatMap((_, index) => {
-			const n = index + 1;
-			const description = itemAny?.[`postDisasterAssessmentDescription${n}`];
-			if (!description || String(description).trim().length === 0) {
-				return [];
+			const existing = accumulator[assessmentId] || [];
+			existing.push({
+				id: String(attachment?.id || ""),
+				title: String(attachment?.title || attachment?.fileName || ""),
+				fileName: String(attachment?.fileName || ""),
+				fileKey: String(attachment?.fileKey || ""),
+				fileType: String(attachment?.fileType || ""),
+				fileSize: Number(attachment?.fileSize || 0),
+			});
+			accumulator[assessmentId] = existing;
+			return accumulator;
+		},
+		{} as Record<string, any[]>,
+	);
+
+	const assessmentSectorsByAssessmentId = (
+		(itemAny?.assessmentSectors as any[]) || []
+	).reduce(
+		(accumulator, link: any) => {
+			const assessmentId = String(link?.disasterEventAssessmentId || "");
+			const sectorId = String(link?.sectorId || "");
+			if (!assessmentId || !sectorId) {
+				return accumulator;
 			}
-			return [
-				{
-					id: `assessment-post-${n}`,
-					type: "post_disaster_assessment",
-					date: formatReviewDate(itemAny?.[`postDisasterAssessmentDate${n}`]),
-					description: String(description),
-				},
-			];
-		}),
-		...Array.from({ length: 5 }).flatMap((_, index) => {
-			const n = index + 1;
-			const description = itemAny?.[`otherAssessmentDescription${n}`];
-			if (!description || String(description).trim().length === 0) {
-				return [];
-			}
-			return [
-				{
-					id: `assessment-other-${n}`,
-					type: "other_assessment",
-					date: formatReviewDate(itemAny?.[`otherAssessmentDate${n}`]),
-					description: String(description),
-				},
-			];
-		}),
-	];
+			const existing = accumulator[assessmentId] || [];
+			existing.push(sectorId);
+			accumulator[assessmentId] = existing;
+			return accumulator;
+		},
+		{} as Record<string, string[]>,
+	);
+
+	const assessments = ((itemAny?.assessments as any[]) || []).map(
+		(assessment: any, index: number) => {
+			const assessmentId = String(assessment?.id || `assessment-${index + 1}`);
+			const coverage = String(assessment?.coverage ?? "").trim();
+			const description = String(assessment?.description ?? "").trim();
+			const otherSectors = String(assessment?.otherSectors ?? "").trim();
+			const sectorIds = assessmentSectorsByAssessmentId[assessmentId] || [];
+
+			const descriptionParts = [
+				sectorIds.length > 0 ? `Sectors: ${sectorIds.join(", ")}` : "",
+				otherSectors ? `Other sectors: ${otherSectors}` : "",
+				description,
+			].filter((value) => value.trim().length > 0);
+
+			return {
+				id: assessmentId,
+				type: String(assessment?.assessmentType || "Assessment"),
+				date: formatReviewDate(assessment?.assessmentDate),
+				coverage,
+				description: descriptionParts.join("\n"),
+				attachments: assessmentAttachmentsByAssessmentId[assessmentId] || [],
+			};
+		},
+	);
 
 	const normalizedDeclarations = ((itemAny?.declarations as any[]) || []).map(
 		(declaration: any, index: number) => {

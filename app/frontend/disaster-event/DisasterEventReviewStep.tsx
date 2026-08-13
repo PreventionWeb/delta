@@ -19,6 +19,9 @@ type AdditionalDetailMeta = {
 	declarationStatusId?: string;
 	declarationStatus?: string;
 	issuingOrganization?: string;
+	assessmentTypeId?: string;
+	otherSectors?: string;
+	sectorIds?: string[];
 };
 
 type ResponseAttachmentValue = {
@@ -449,7 +452,9 @@ const renderStep4DetailRow = (
 					<span className="text-[12px] text-slate-500">{item.date}</span>
 				) : null}
 			</div>
-			{category === "response" || category === "declaration" ? (
+			{category === "response" ||
+			category === "declaration" ||
+			category === "assessment" ? (
 				<div className="space-y-1 text-[14px] text-slate-500">
 					{category === "declaration" && item.meta?.declarationStatus ? (
 						<p>
@@ -472,6 +477,21 @@ const renderStep4DetailRow = (
 							{item.coverage.trim()}
 						</p>
 					) : null}
+					{category === "assessment" &&
+					(item.meta?.sectorIds ?? []).length > 0 ? (
+						<p>
+							<span className="font-semibold text-slate-700">Sectors:</span>{" "}
+							{(item.meta?.sectorIds ?? []).join(", ")}
+						</p>
+					) : null}
+					{category === "assessment" && item.meta?.otherSectors?.trim() ? (
+						<p>
+							<span className="font-semibold text-slate-700">
+								Other sectors:
+							</span>{" "}
+							{item.meta.otherSectors.trim()}
+						</p>
+					) : null}
 					{item.description?.trim() ? (
 						<p>
 							<span className="font-semibold text-slate-700">
@@ -483,7 +503,10 @@ const renderStep4DetailRow = (
 							)}
 						</p>
 					) : null}
-					{!item.coverage?.trim() && !item.description?.trim() ? (
+					{!item.coverage?.trim() &&
+					(item.meta?.sectorIds ?? []).length === 0 &&
+					!(item.meta?.otherSectors ?? "").trim() &&
+					!item.description?.trim() ? (
 						<p>-</p>
 					) : null}
 				</div>
@@ -497,7 +520,9 @@ const renderStep4DetailRow = (
 					))}
 				</p>
 			) : null}
-			{category === "response" || category === "declaration" ? (
+			{category === "response" ||
+			category === "declaration" ||
+			category === "assessment" ? (
 				<div className="space-y-2">
 					{item.attachments && item.attachments.length > 0 ? (
 						<div className="space-y-2">

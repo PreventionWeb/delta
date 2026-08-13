@@ -24,6 +24,7 @@ import { Calendar } from "primereact/calendar";
 import { Dropdown } from "primereact/dropdown";
 import { InputTextarea } from "primereact/inputtextarea";
 import { Toast } from "primereact/toast";
+import { TreeSelect } from "primereact/treeselect";
 import { ViewContext } from "~/frontend/context";
 import { copyTextToClipboardWithToast } from "~/frontend/utils/clipboard";
 import DisasterEventAttachment from "~/frontend/disaster-event/DisasterEventAttachment";
@@ -62,6 +63,9 @@ type AdditionalDetailMeta = {
 	declarationStatusId?: string;
 	declarationStatus?: string;
 	issuingOrganization?: string;
+	assessmentTypeId?: string;
+	otherSectors?: string;
+	sectorIds?: string[];
 };
 
 type ResponseAttachmentValue = {
@@ -175,6 +179,107 @@ export type DisasterEventFormOutletContext = {
 };
 
 const requiredFieldOrder: Array<keyof Errors> = ["nameNational"];
+
+export function buildAssessmentSectorTree(
+	sectors: Array<{ id: string; parentId: string | null; name: string }>,
+) {
+	const map = new Map<string, any>();
+	const rootNodes: any[] = [];
+
+	for (const sector of sectors) {
+		map.set(sector.id, {
+			key: sector.id,
+			label: sector.name,
+			data: { ...sector },
+			children: [],
+		});
+	}
+
+	for (const sector of sectors) {
+		const node = map.get(sector.id);
+		if (!node) {
+			continue;
+		}
+
+		if (sector.parentId && map.has(sector.parentId)) {
+			map.get(sector.parentId).children.push(node);
+		} else {
+			rootNodes.push(node);
+		}
+	}
+
+	return rootNodes.sort((a, b) => a.label.localeCompare(b.label));
+}
+
+export function filterParentOnlySectorIds(
+	sectors: Array<{ id: string; parentId: string | null }>,
+	selectedIds: string[],
+): string[] {
+	const sectorParentMap = new Map(
+		sectors.map((sector) => [sector.id, sector.parentId]),
+	);
+	const selected = new Set(
+		selectedIds.map((value) => value.trim()).filter(Boolean),
+	);
+	const result: string[] = [];
+
+	for (const sectorId of selected) {
+		let parentId = sectorParentMap.get(sectorId) ?? null;
+		let hasSelectedAncestor = false;
+		while (parentId) {
+			if (selected.has(parentId)) {
+				hasSelectedAncestor = true;
+				break;
+			}
+			parentId = sectorParentMap.get(parentId) ?? null;
+		}
+
+		if (!hasSelectedAncestor) {
+			result.push(sectorId);
+		}
+	}
+
+	return result;
+}
+
+export type TreeSelectSelectionKeys = Record<
+	string,
+	{ checked?: boolean; partialChecked?: boolean }
+>;
+
+export function buildTreeSelectSelectionKeys(
+	sectors: Array<{ id: string; parentId: string | null }>,
+	selectedIds: string[],
+): TreeSelectSelectionKeys {
+	const sectorParentMap = new Map(
+		sectors.map((sector) => [sector.id, sector.parentId]),
+	);
+	const selected = new Set(
+		selectedIds.map((value) => value.trim()).filter(Boolean),
+	);
+	const selectionKeys: TreeSelectSelectionKeys = {};
+
+	for (const sectorId of selected) {
+		selectionKeys[sectorId] = { checked: true };
+	}
+
+	for (const sectorId of selected) {
+		let parentId = sectorParentMap.get(sectorId) ?? null;
+
+		while (parentId) {
+			if (!selected.has(parentId)) {
+				selectionKeys[parentId] = {
+					...(selectionKeys[parentId] ?? {}),
+					partialChecked: true,
+				};
+			}
+
+			parentId = sectorParentMap.get(parentId) ?? null;
+		}
+	}
+
+	return selectionKeys;
+}
 
 const assessmentTypeOptions: AdditionalDetailTypeOption[] = [
 	{
@@ -339,6 +444,30 @@ type StepperValidationProps = {
 		createdAt: string | Date;
 		updatedAt: string | Date | null;
 	}>;
+	disasterEventAssessments: Array<{
+		id: string;
+		assessmentType: string;
+		assessmentTypeId?: string | null;
+		assessmentDate: string | Date | null;
+		coverage: string | null;
+		description: string | null;
+		otherSectors: string | null;
+	}>;
+	disasterEventAssessmentAttachments: Array<{
+		id: string;
+		disasterEventAssessmentId: string;
+		title: string;
+		fileKey: string;
+		fileName: string;
+		fileType: string;
+		fileSize: number;
+		createdAt: string | Date;
+		updatedAt: string | Date | null;
+	}>;
+	disasterEventAssessmentSectors: Array<{
+		disasterEventAssessmentId: string;
+		sectorId: string;
+	}>;
 	disasterEventDeclarations: Array<{
 		id: string;
 		type: string | null;
@@ -387,6 +516,15 @@ type StepperValidationProps = {
 		id: string;
 		type: string;
 	}>;
+	assessmentTypes: Array<{
+		id: string;
+		type: string;
+	}>;
+	sectorOptions: Array<{
+		id: string;
+		parentId: string | null;
+		name: string;
+	}>;
 	declarationStatuses: DeclarationStatusOption[];
 	serverFormErrors?: string[];
 };
@@ -405,6 +543,9 @@ function StepperValidation({
 	disasterEventAttachments,
 	disasterEventResponses,
 	disasterEventResponseAttachments,
+	disasterEventAssessments,
+	disasterEventAssessmentAttachments,
+	disasterEventAssessmentSectors,
 	disasterEventDeclarations,
 	disasterEventDeclarationAttachments,
 	disasterEventLinks: initialDisasterEventLinks,
@@ -421,6 +562,8 @@ function StepperValidation({
 	user,
 	usersWithValidatorRole,
 	responseTypes,
+	assessmentTypes,
+	sectorOptions,
 	declarationStatuses,
 	serverFormErrors = [],
 }: StepperValidationProps) {
@@ -1100,6 +1243,90 @@ function StepperValidation({
 	};
 
 	const mapAssessmentsToItems = (): AdditionalDetailItem[] => {
+		const assessmentAttachmentsById = new Map<
+			string,
+			ResponseAttachmentValue[]
+		>();
+		for (const attachment of disasterEventAssessmentAttachments) {
+			const existing =
+				assessmentAttachmentsById.get(attachment.disasterEventAssessmentId) ??
+				[];
+			existing.push({
+				id: attachment.id,
+				title: attachment.title,
+				fileKey: attachment.fileKey,
+				fileName: attachment.fileName,
+				fileType: attachment.fileType,
+				fileSize: attachment.fileSize,
+			});
+			assessmentAttachmentsById.set(
+				attachment.disasterEventAssessmentId,
+				existing,
+			);
+		}
+
+		const assessmentSectorsById = new Map<string, string[]>();
+		for (const link of disasterEventAssessmentSectors) {
+			const assessmentId = String(link.disasterEventAssessmentId ?? "");
+			if (!assessmentId) {
+				continue;
+			}
+			const existing = assessmentSectorsById.get(assessmentId) ?? [];
+			existing.push(String(link.sectorId ?? ""));
+			assessmentSectorsById.set(assessmentId, existing.filter(Boolean));
+		}
+
+		if (disasterEventAssessments.length > 0) {
+			return disasterEventAssessments.reduce<AdditionalDetailItem[]>(
+				(accumulator, item, index) => {
+					const normalizedType = normalizeDetailTypeValue(item.assessmentType);
+					const coverageText = String(item.coverage ?? "").trim();
+					const descriptionText = String(item.description ?? "").trim();
+					const formattedDate = formatBackendDate(item.assessmentDate);
+					const otherSectors = String(item.otherSectors ?? "").trim();
+					const attachments = item.id
+						? (assessmentAttachmentsById.get(item.id) ?? [])
+						: [];
+					const sectorIds = item.id
+						? (assessmentSectorsById.get(item.id) ?? [])
+						: [];
+
+					if (
+						!coverageText &&
+						!descriptionText &&
+						!formattedDate &&
+						!otherSectors &&
+						attachments.length === 0 &&
+						sectorIds.length === 0
+					) {
+						return accumulator;
+					}
+
+					accumulator.push({
+						id: item.id || `assessment-${normalizedType}-${index}`,
+						type: normalizedType,
+						date: formattedDate,
+						coverage: coverageText,
+						description: descriptionText,
+						meta: {
+							assessmentTypeId:
+								item.assessmentTypeId ??
+								assessmentTypes.find(
+									(type) =>
+										normalizeDetailTypeValue(type.type) === normalizedType,
+								)?.id,
+							otherSectors: otherSectors || undefined,
+							sectorIds: sectorIds.filter(Boolean),
+						},
+						attachments,
+					});
+
+					return accumulator;
+				},
+				[],
+			);
+		}
+
 		const indexes: AssessmentFieldIndex[] = [1, 2, 3, 4, 5];
 		const configs = [
 			{
@@ -1127,7 +1354,6 @@ function StepperValidation({
 						"";
 					const dateRaw =
 						disasterEvent?.[`${config.datePrefix}${index}` as const] ?? null;
-
 					const descriptionText = String(descriptionRaw).trim();
 					const formattedDate = formatBackendDate(dateRaw);
 
@@ -1252,7 +1478,30 @@ function StepperValidation({
 			})),
 		[declarationStatuses],
 	);
-
+	const assessmentSectorTreeOptions = useMemo(
+		() => buildAssessmentSectorTree(sectorOptions),
+		[sectorOptions],
+	);
+	const assessmentSectorLabelById = useMemo(
+		() => new Map(sectorOptions.map((sector) => [sector.id, sector.name])),
+		[sectorOptions],
+	);
+	const normalizeTreeSelectValue = (value: unknown): string[] => {
+		if (Array.isArray(value)) {
+			return value.filter((item): item is string => typeof item === "string");
+		}
+		if (value && typeof value === "object") {
+			return Object.entries(value as Record<string, unknown>)
+				.filter(([, selected]) => {
+					if (!selected || typeof selected !== "object") {
+						return Boolean(selected);
+					}
+					return Boolean((selected as { checked?: boolean }).checked);
+				})
+				.map(([key]) => key);
+		}
+		return [];
+	};
 	const parseDetailDate = (value: string): Date | null => {
 		const match = /^([0-3]\d)\/([0-1]\d)\/(\d{4})$/.exec(value.trim());
 		if (!match) {
@@ -1297,7 +1546,47 @@ function StepperValidation({
 		description: "",
 		declarationStatusId: "",
 		issuingOrganization: "",
+		assessmentOtherSectors: "",
 	});
+	const [
+		detailAssessmentSelectedSectorIds,
+		setDetailAssessmentSelectedSectorIds,
+	] = useState<string[]>([]);
+	const [
+		detailAssessmentSelectedSectorKeys,
+		setDetailAssessmentSelectedSectorKeys,
+	] = useState<TreeSelectSelectionKeys>({});
+	const detailAssessmentDisplaySectorIds = useMemo(
+		() =>
+			filterParentOnlySectorIds(
+				sectorOptions,
+				detailAssessmentSelectedSectorIds,
+			),
+		[detailAssessmentSelectedSectorIds, sectorOptions],
+	);
+	const [
+		detailAssessmentExistingAttachments,
+		setDetailAssessmentExistingAttachments,
+	] = useState<
+		Array<{
+			id: string;
+			fileName: string;
+			fileType: string;
+			fileSize: number;
+			fileKey: string;
+			title?: string;
+		}>
+	>([]);
+	const [
+		detailAssessmentKeptAttachmentIds,
+		setDetailAssessmentKeptAttachmentIds,
+	] = useState<string[]>([]);
+	const [
+		detailAssessmentNewAttachmentUploads,
+		setDetailAssessmentNewAttachmentUploads,
+	] = useState<NewAttachmentUpload[]>([]);
+	const [assessmentAttachmentEditorKey, setAssessmentAttachmentEditorKey] =
+		useState(0);
 	const [
 		detailResponseExistingAttachments,
 		setDetailResponseExistingAttachments,
@@ -1370,7 +1659,9 @@ function StepperValidation({
 	const canSaveDetail =
 		detailDialogCategory === "declaration"
 			? declarationHasRequiredFields
-			: hasDetailType && hasDetailContent;
+			: detailDialogCategory === "assessment"
+				? hasDetailType
+				: hasDetailType && hasDetailContent;
 	const [errors, setErrors] = useState<Errors>({});
 	const [visibleModalSubmit, setVisibleModalSubmit] = useState<boolean>(false);
 	const [visibleExitModal, setVisibleExitModal] = useState<boolean>(false);
@@ -1795,6 +2086,37 @@ function StepperValidation({
 		}));
 		pushValue("disasterEventResponses", JSON.stringify(responsePayload));
 
+		const assessmentPayload = assessments.map((item) => ({
+			id: item.id,
+			type: normalizeDetailTypeValue(item.type),
+			assessmentTypeId:
+				item.meta?.assessmentTypeId ??
+				assessmentTypes.find(
+					(type) =>
+						normalizeDetailTypeValue(type.type) ===
+						normalizeDetailTypeValue(item.type),
+				)?.id ??
+				"",
+			assessmentDate: item.date
+				? formatDateForSubmit(parseDetailDate(item.date))
+				: "",
+			coverage: item.coverage ?? "",
+			description: item.description ?? "",
+			otherSectors: item.meta?.otherSectors ?? "",
+			sectorIds: item.meta?.sectorIds ?? [],
+			attachments: (item.attachments ?? []).map((attachment) => ({
+				id: attachment.id,
+				title: attachment.title,
+				fileKey: attachment.fileKey,
+				fileName: attachment.fileName,
+				fileType: attachment.fileType,
+				fileSize: attachment.fileSize,
+				tempFilePath: attachment.tempFilePath,
+				tenantPath: attachment.tenantPath,
+			})),
+		}));
+		pushValue("disasterEventAssessments", JSON.stringify(assessmentPayload));
+
 		const assessmentConfigs = [
 			{
 				type: "rapid_preliminary_assessment",
@@ -1874,6 +2196,7 @@ function StepperValidation({
 		endTime,
 		selectedDivisionItems,
 		spatialFootprintValue,
+		assessmentTypes,
 	]);
 
 	const maxDetailItems = 5;
@@ -2059,7 +2382,14 @@ function StepperValidation({
 			description: "",
 			declarationStatusId: "",
 			issuingOrganization: "",
+			assessmentOtherSectors: "",
 		});
+		setDetailAssessmentSelectedSectorIds([]);
+		setDetailAssessmentSelectedSectorKeys({});
+		setDetailAssessmentExistingAttachments([]);
+		setDetailAssessmentKeptAttachmentIds([]);
+		setDetailAssessmentNewAttachmentUploads([]);
+		setAssessmentAttachmentEditorKey((value) => value + 1);
 		if (category === "response") {
 			setDetailResponseExistingAttachments([]);
 			setDetailResponseKeptAttachmentIds([]);
@@ -2097,7 +2427,66 @@ function StepperValidation({
 				category === "declaration"
 					? (item.meta?.issuingOrganization ?? "")
 					: "",
+			assessmentOtherSectors:
+				category === "assessment" ? (item.meta?.otherSectors ?? "") : "",
 		});
+		setDetailAssessmentSelectedSectorIds(
+			category === "assessment" ? (item.meta?.sectorIds ?? []) : [],
+		);
+		setDetailAssessmentSelectedSectorKeys(
+			category === "assessment"
+				? buildTreeSelectSelectionKeys(
+						sectorOptions,
+						item.meta?.sectorIds ?? [],
+					)
+				: {},
+		);
+		if (category === "assessment") {
+			const existingAttachments = (item.attachments ?? []).filter(
+				(
+					attachment,
+				): attachment is ResponseAttachmentValue & {
+					id: string;
+					fileKey: string;
+				} =>
+					typeof attachment.id === "string" &&
+					typeof attachment.fileKey === "string" &&
+					attachment.fileKey.length > 0,
+			);
+			setDetailAssessmentExistingAttachments(
+				existingAttachments.map((attachment) => ({
+					id: attachment.id,
+					fileName: attachment.fileName,
+					fileType: attachment.fileType,
+					fileSize: attachment.fileSize,
+					fileKey: attachment.fileKey,
+					title: attachment.title,
+				})),
+			);
+			setDetailAssessmentKeptAttachmentIds(
+				existingAttachments.map((attachment) => attachment.id),
+			);
+			setDetailAssessmentNewAttachmentUploads(
+				(item.attachments ?? [])
+					.filter(
+						(
+							attachment,
+						): attachment is ResponseAttachmentValue & {
+							tempFilePath: string;
+						} =>
+							typeof attachment.tempFilePath === "string" &&
+							attachment.tempFilePath.length > 0,
+					)
+					.map((attachment) => ({
+						fileName: attachment.fileName,
+						fileType: attachment.fileType,
+						fileSize: attachment.fileSize,
+						tempFilePath: attachment.tempFilePath,
+						tenantPath: attachment.tenantPath,
+					})),
+			);
+			setAssessmentAttachmentEditorKey((value) => value + 1);
+		}
 		if (category === "response") {
 			const existingAttachments = (item.attachments ?? []).filter(
 				(
@@ -2220,6 +2609,22 @@ function StepperValidation({
 							detailForm.issuingOrganization.trim() || undefined,
 					}
 				: undefined;
+		const assessmentMeta: AdditionalDetailMeta | undefined =
+			targetCategory === "assessment"
+				? {
+						assessmentTypeId:
+							assessmentTypes.find(
+								(type) =>
+									normalizeDetailTypeValue(type.type) ===
+									normalizeDetailTypeValue(trimmedType),
+							)?.id ?? undefined,
+						otherSectors: detailForm.assessmentOtherSectors.trim() || undefined,
+						sectorIds: filterParentOnlySectorIds(
+							sectorOptions,
+							detailAssessmentSelectedSectorIds,
+						),
+					}
+				: undefined;
 		const nextItem: AdditionalDetailItem = {
 			id: editingDetailId ?? `${targetCategory}-${Date.now()}`,
 			type:
@@ -2232,7 +2637,7 @@ function StepperValidation({
 					? trimmedCoverage
 					: undefined,
 			description: trimmedDescription,
-			meta: declarationMeta,
+			meta: targetCategory === "assessment" ? assessmentMeta : declarationMeta,
 			attachments:
 				targetCategory === "response"
 					? [
@@ -2257,11 +2662,11 @@ function StepperValidation({
 								tenantPath: upload.tenantPath,
 							})),
 						]
-					: targetCategory === "declaration"
+					: targetCategory === "assessment"
 						? [
-								...detailDeclarationExistingAttachments
+								...detailAssessmentExistingAttachments
 									.filter((attachment) =>
-										detailDeclarationKeptAttachmentIds.includes(attachment.id),
+										detailAssessmentKeptAttachmentIds.includes(attachment.id),
 									)
 									.map((attachment) => ({
 										id: attachment.id,
@@ -2271,7 +2676,7 @@ function StepperValidation({
 										fileType: attachment.fileType,
 										fileSize: attachment.fileSize,
 									})),
-								...detailDeclarationNewAttachmentUploads.map((upload) => ({
+								...detailAssessmentNewAttachmentUploads.map((upload) => ({
 									title: upload.fileName,
 									fileName: upload.fileName,
 									fileType: upload.fileType,
@@ -2280,7 +2685,32 @@ function StepperValidation({
 									tenantPath: upload.tenantPath,
 								})),
 							]
-						: undefined,
+						: targetCategory === "declaration"
+							? [
+									...detailDeclarationExistingAttachments
+										.filter((attachment) =>
+											detailDeclarationKeptAttachmentIds.includes(
+												attachment.id,
+											),
+										)
+										.map((attachment) => ({
+											id: attachment.id,
+											title: attachment.title ?? attachment.fileName,
+											fileKey: attachment.fileKey,
+											fileName: attachment.fileName,
+											fileType: attachment.fileType,
+											fileSize: attachment.fileSize,
+										})),
+									...detailDeclarationNewAttachmentUploads.map((upload) => ({
+										title: upload.fileName,
+										fileName: upload.fileName,
+										fileType: upload.fileType,
+										fileSize: upload.fileSize,
+										tempFilePath: upload.tempFilePath,
+										tenantPath: upload.tenantPath,
+									})),
+								]
+							: undefined,
 		};
 
 		setTarget((prev) => {
@@ -2303,27 +2733,10 @@ function StepperValidation({
 		});
 
 		setDetailDialogVisible(false);
-		setDetailResponseExistingAttachments([]);
-		setDetailResponseKeptAttachmentIds([]);
-		setDetailResponseNewAttachmentUploads([]);
-		setDetailDeclarationExistingAttachments([]);
-		setDetailDeclarationKeptAttachmentIds([]);
-		setDetailDeclarationNewAttachmentUploads([]);
-	};
-
-	const deleteDetail = () => {
-		if (!editingDetailId) {
-			return;
-		}
-
-		const setTarget =
-			detailDialogCategory === "response"
-				? setResponses
-				: detailDialogCategory === "assessment"
-					? setAssessments
-					: setDeclarations;
-		setTarget((prev) => prev.filter((item) => item.id !== editingDetailId));
-		setDetailDialogVisible(false);
+		setDetailAssessmentExistingAttachments([]);
+		setDetailAssessmentKeptAttachmentIds([]);
+		setDetailAssessmentNewAttachmentUploads([]);
+		setDetailAssessmentSelectedSectorKeys({});
 		setDetailResponseExistingAttachments([]);
 		setDetailResponseKeptAttachmentIds([]);
 		setDetailResponseNewAttachmentUploads([]);
@@ -2346,7 +2759,15 @@ function StepperValidation({
 			detailTypeLabelByValue.get(normalizeDetailTypeValue(item.type)) ??
 			item.type;
 		const descriptionValue = getDetailDescriptionValue(item);
-
+		const assessmentSectorNames =
+			category === "assessment"
+				? (item.meta?.sectorIds ?? [])
+						.map(
+							(sectorId) =>
+								sectorOptions.find((option) => option.id === sectorId)?.name,
+						)
+						.filter((name): name is string => Boolean(name))
+				: [];
 		return (
 			<Card
 				key={item.id}
@@ -2410,6 +2831,50 @@ function StepperValidation({
 									<p>-</p>
 								) : null}
 							</div>
+						) : category === "assessment" ? (
+							<div className="mt-2 space-y-1 text-[14px] text-slate-500">
+								{item.coverage?.trim() ? (
+									<p>
+										<span className="font-semibold text-slate-700">
+											Coverage:
+										</span>{" "}
+										{item.coverage.trim()}
+									</p>
+								) : null}
+								{item.description?.trim() ? (
+									<p>
+										<span className="font-semibold text-slate-700">
+											Description:
+										</span>{" "}
+										{renderMultilineText(
+											item.description.trim(),
+											`${item.id}-assessment-description`,
+										)}
+									</p>
+								) : null}
+								{item.meta?.otherSectors?.trim() ? (
+									<p>
+										<span className="font-semibold text-slate-700">
+											Other sectors:
+										</span>{" "}
+										{item.meta.otherSectors.trim()}
+									</p>
+								) : null}
+								{assessmentSectorNames.length > 0 ? (
+									<p>
+										<span className="font-semibold text-slate-700">
+											Sectors:
+										</span>{" "}
+										{assessmentSectorNames.join(", ")}
+									</p>
+								) : null}
+								{!item.coverage?.trim() &&
+								!item.description?.trim() &&
+								!item.meta?.otherSectors?.trim() &&
+								assessmentSectorNames.length === 0 ? (
+									<p>-</p>
+								) : null}
+							</div>
 						) : (
 							<p className="mt-1 text-[14px] text-slate-500">
 								{descriptionValue
@@ -2425,7 +2890,9 @@ function StepperValidation({
 									: "-"}
 							</p>
 						)}
-						{category === "response" || category === "declaration" ? (
+						{category === "response" ||
+						category === "assessment" ||
+						category === "declaration" ? (
 							item.attachments && item.attachments.length > 0 ? (
 								<div className="mt-3 space-y-2">
 									<p className="text-[14px] font-semibold text-slate-700">
@@ -2467,7 +2934,9 @@ function StepperValidation({
 							aria-label="Edit"
 							onClick={() => openEditDetail(category, item)}
 						/>
-						{category === "response" || category === "declaration" ? (
+						{category === "response" ||
+						category === "assessment" ||
+						category === "declaration" ? (
 							<Button
 								type="button"
 								icon="pi pi-trash"
@@ -2481,11 +2950,17 @@ function StepperValidation({
 													(responseItem) => responseItem.id !== item.id,
 												),
 											)
-										: setDeclarations((prev) =>
-												prev.filter(
-													(declarationItem) => declarationItem.id !== item.id,
-												),
-											)
+										: category === "assessment"
+											? setAssessments((prev) =>
+													prev.filter(
+														(assessmentItem) => assessmentItem.id !== item.id,
+													),
+												)
+											: setDeclarations((prev) =>
+													prev.filter(
+														(declarationItem) => declarationItem.id !== item.id,
+													),
+												)
 								}
 							/>
 						) : null}
@@ -3947,10 +4422,6 @@ function StepperValidation({
 													optionLabel="label"
 													optionValue="value"
 													placeholder="Select type"
-													disabled={
-														Boolean(editingDetailId) &&
-														detailDialogCategory !== "response"
-													}
 													className="w-full"
 												/>
 											)}
@@ -4068,6 +4539,109 @@ function StepperValidation({
 											</div>
 										) : null}
 
+										{detailDialogCategory === "assessment" ? (
+											<div>
+												<label className="mb-1 block">Sectors</label>
+												<TreeSelect
+													value={detailAssessmentSelectedSectorKeys}
+													options={assessmentSectorTreeOptions}
+													valueTemplate={() => {
+														if (detailAssessmentDisplaySectorIds.length === 0) {
+															return "Select sectors";
+														}
+
+														return (
+															<>
+																{detailAssessmentDisplaySectorIds.map(
+																	(sectorId, index) => {
+																		const label =
+																			assessmentSectorLabelById.get(sectorId);
+																		if (!label) {
+																			return null;
+																		}
+
+																		return (
+																			<div
+																				key={`${sectorId}-${index}`}
+																				className="p-treeselect-token"
+																			>
+																				<span className="p-treeselect-token-label">
+																					{label}
+																				</span>
+																			</div>
+																		);
+																	},
+																)}
+															</>
+														);
+													}}
+													onChange={(event) => {
+														const nextSelectedIds = normalizeTreeSelectValue(
+															event.value,
+														);
+														setDetailAssessmentSelectedSectorKeys(
+															buildTreeSelectSelectionKeys(
+																sectorOptions,
+																nextSelectedIds,
+															),
+														);
+														setDetailAssessmentSelectedSectorIds(
+															nextSelectedIds,
+														);
+													}}
+													selectionMode="checkbox"
+													filter
+													showClear
+													display="chip"
+													placeholder="Select sectors"
+													className="w-full"
+													panelClassName="max-h-[22rem]"
+												/>
+											</div>
+										) : null}
+
+										{detailDialogCategory === "assessment" ? (
+											<div>
+												<label className="mb-1 block">Other sectors</label>
+												<InputText
+													value={detailForm.assessmentOtherSectors}
+													onChange={(event) =>
+														setDetailForm((state) => ({
+															...state,
+															assessmentOtherSectors: event.target.value,
+														}))
+													}
+													placeholder="Enter other sectors"
+													className="w-full"
+												/>
+											</div>
+										) : null}
+
+										{detailDialogCategory === "assessment" ? (
+											<DisasterEventAttachment
+												key={`assessment-attachment-editor-${assessmentAttachmentEditorKey}`}
+												ctx={ctx}
+												initialAttachments={detailAssessmentExistingAttachments}
+												initialNewAttachmentUploads={
+													detailAssessmentNewAttachmentUploads
+												}
+												keptAttachmentIds={detailAssessmentKeptAttachmentIds}
+												onKeptAttachmentIdsChange={
+													setDetailAssessmentKeptAttachmentIds
+												}
+												onNewAttachmentUploadsChange={
+													setDetailAssessmentNewAttachmentUploads
+												}
+												titleText="Attachments"
+												titleClassName="mb-1 block"
+												uploadContainerClassName="mt-0"
+												showTitleIcon={false}
+												showSupportingText={false}
+												showChooseButton={false}
+												enableClickableUploadText
+											/>
+										) : null}
+
 										{detailDialogCategory === "response" ? (
 											<DisasterEventAttachment
 												key={`response-attachment-editor-${responseAttachmentEditorKey}`}
@@ -4120,19 +4694,7 @@ function StepperValidation({
 											/>
 										) : null}
 
-										<div className="flex items-center justify-between gap-2 pt-2">
-											<div>
-												{editingDetailId &&
-												detailDialogCategory === "assessment" ? (
-													<Button
-														type="button"
-														label="Delete"
-														severity="danger"
-														outlined
-														onClick={deleteDetail}
-													/>
-												) : null}
-											</div>
+										<div className="flex items-center justify-end gap-2 pt-2">
 											<div className="flex gap-2">
 												<Button
 													type="button"

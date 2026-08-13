@@ -48,7 +48,11 @@ import {
 	getUserCountryAccountsWithValidatorRole,
 } from "~/db/queries/userCountryAccountsRepository";
 import { DeclarationStatusRepository } from "~/db/queries/declarationStatusRepository";
+import { AssessmentTypeRepository } from "~/db/queries/assessmentTypeRepository";
 import { DisasterEventAttachmentRepository } from "~/db/queries/disasterEventAttachmentRepository";
+import { DisasterEventAssessmentAttachmentRepository } from "~/db/queries/disasterEventAssessmentAttachmentRepository";
+import { DisasterEventAssessmentRepository } from "~/db/queries/disasterEventAssessmentRepository";
+import { DisasterEventAssessmentSectorRepository } from "~/db/queries/disasterEventAssessmentSectorRepository";
 import { DisasterEventDeclarationAttachmentRepository } from "~/db/queries/disasterEventDeclarationAttachmentRepository";
 import { DisasterEventDeclarationRepository } from "~/db/queries/disasterEventDeclarationRepository";
 import { DisasterEventLinkRepository } from "~/db/queries/disasterEventLinkRepository";
@@ -59,6 +63,7 @@ import { handleApprovalWorkflowService } from "~/backend.server/services/approva
 import { canEditDataCollectionRecord } from "~/frontend/user/roles";
 import { ContentRepeaterUploadFile } from "~/components/ContentRepeater/UploadFile";
 import { TEMP_UPLOAD_PATH } from "~/utils/paths";
+import { sectorTable } from "~/drizzle/schema/sectorTable";
 
 export const handle = {
 	hideMainNavigation: true,
@@ -114,6 +119,21 @@ async function getDivisionTreeData(countryAccountsId: string) {
 	]);
 }
 
+async function getSectorOptions(lang: string): Promise<SectorOption[]> {
+	const rows = await dr
+		.select({
+			id: sectorTable.id,
+			parentId: sectorTable.parentId,
+			name: sql<string>`dts_jsonb_localized(${sectorTable.name}, ${lang})`.as(
+				"name",
+			),
+		})
+		.from(sectorTable)
+		.orderBy(sql`name`);
+
+	return rows;
+}
+
 type SelectedDivisionPayload = {
 	key: string;
 	label: string;
@@ -158,6 +178,33 @@ type DisasterEventDeclarationPayload = {
 	}>;
 };
 
+type DisasterEventAssessmentPayload = {
+	id?: string;
+	type?: string;
+	assessmentTypeId?: string;
+	assessmentDate?: string;
+	coverage?: string;
+	description?: string;
+	otherSectors?: string;
+	sectorIds?: string[];
+	attachments?: Array<{
+		id?: string;
+		title?: string;
+		fileKey?: string;
+		fileName: string;
+		fileType: string;
+		fileSize: number;
+		tempFilePath?: string;
+		tenantPath?: string;
+	}>;
+};
+
+type SectorOption = {
+	id: string;
+	parentId: string | null;
+	name: string;
+};
+
 function normalizeResponseTypeKey(value: string): string {
 	return value
 		.trim()
@@ -183,6 +230,20 @@ function parseResponseDateFromSubmit(value: string | undefined): Date | null {
 function parseDeclarationDateFromSubmit(
 	value: string | undefined,
 ): Date | null {
+	const trimmed = (value ?? "").trim();
+	if (!trimmed) {
+		return null;
+	}
+
+	const parsed = new Date(`${trimmed}T00:00:00.000Z`);
+	if (Number.isNaN(parsed.getTime())) {
+		return null;
+	}
+
+	return parsed;
+}
+
+function parseAssessmentDateFromSubmit(value: string | undefined): Date | null {
 	const trimmed = (value ?? "").trim();
 	if (!trimmed) {
 		return null;
@@ -755,6 +816,9 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 	const disasterEventResponsesRaw = String(
 		formData.get("disasterEventResponses") ?? "[]",
 	);
+	const disasterEventAssessmentsRaw = String(
+		formData.get("disasterEventAssessments") ?? "[]",
+	);
 	const disasterEventDeclarationsRaw = String(
 		formData.get("disasterEventDeclarations") ?? "[]",
 	);
@@ -778,6 +842,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 		title: string | null;
 	}> = [];
 	let disasterEventResponses: DisasterEventResponsePayload[] = [];
+	let disasterEventAssessments: DisasterEventAssessmentPayload[] = [];
 	let disasterEventDeclarations: DisasterEventDeclarationPayload[] = [];
 	try {
 		const parsed = JSON.parse(linkedDisasterRecordIdsRaw);
@@ -919,6 +984,17 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 			: [];
 	} catch {
 		disasterEventResponses = [];
+	}
+	try {
+		const parsed = JSON.parse(disasterEventAssessmentsRaw);
+		disasterEventAssessments = Array.isArray(parsed)
+			? parsed.filter(
+					(value): value is DisasterEventAssessmentPayload =>
+						typeof value === "object" && value !== null,
+				)
+			: [];
+	} catch {
+		disasterEventAssessments = [];
 	}
 	try {
 		const parsed = JSON.parse(disasterEventDeclarationsRaw);
@@ -1637,6 +1713,244 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 				}
 			};
 
+			const syncDisasterEventAssessments = async (eventId: string) => {
+				const assessmentTypes = await AssessmentTypeRepository.listAll(tx);
+				const assessmentTypeById = new Map(
+					assessmentTypes.map((row) => [row.id, row]),
+				);
+				const assessmentTypeByName = new Map(
+					assessmentTypes.map((row) => [row.type, row]),
+				);
+
+				const existingAssessments =
+					await DisasterEventAssessmentRepository.listByDisasterEventId(
+						eventId,
+						tx,
+					);
+				const existingAssessmentIds = existingAssessments.map((row) => row.id);
+				const existingAttachments =
+					await DisasterEventAssessmentAttachmentRepository.listByDisasterEventId(
+						eventId,
+						tx,
+					);
+				const keptExistingFileKeys = new Set<string>();
+
+				await DisasterEventAssessmentRepository.deleteByDisasterEventId(
+					eventId,
+					tx,
+				);
+				if (existingAssessmentIds.length > 0) {
+					await DisasterEventAssessmentSectorRepository.deleteByDisasterEventAssessmentIds(
+						existingAssessmentIds,
+						tx,
+					);
+					await DisasterEventAssessmentAttachmentRepository.deleteByDisasterEventAssessmentIds(
+						existingAssessmentIds,
+						tx,
+					);
+				}
+
+				const sectorRows = await tx
+					.select({ id: sectorTable.id, parentId: sectorTable.parentId })
+					.from(sectorTable);
+				const sectorParentMap = new Map(
+					sectorRows.map((row) => [row.id, row.parentId]),
+				);
+
+				const filterParentOnlySectorIds = (sectorIds: string[]) => {
+					const selected = new Set(
+						sectorIds
+							.map((value) => value.trim())
+							.filter((value) => value.length > 0),
+					);
+					const result: string[] = [];
+
+					for (const sectorId of selected) {
+						let parentId = sectorParentMap.get(sectorId) ?? null;
+						let hasSelectedAncestor = false;
+						while (parentId) {
+							if (selected.has(parentId)) {
+								hasSelectedAncestor = true;
+								break;
+							}
+							parentId = sectorParentMap.get(parentId) ?? null;
+						}
+
+						if (!hasSelectedAncestor) {
+							result.push(sectorId);
+						}
+					}
+
+					return result;
+				};
+
+				for (const item of disasterEventAssessments) {
+					const submittedType = String(item.type ?? "").trim();
+					const submittedTypeId = String(item.assessmentTypeId ?? "").trim();
+					const matchedAssessmentType =
+						assessmentTypeById.get(submittedTypeId) ??
+						assessmentTypeByName.get(submittedType);
+					const assessmentTypeId = matchedAssessmentType?.id;
+					if (!assessmentTypeId) {
+						continue;
+					}
+
+					const description = String(item.description ?? "").trim();
+					const coverage = String(item.coverage ?? "").trim();
+					const otherSectors = String(item.otherSectors ?? "").trim();
+					const assessmentDate = parseAssessmentDateFromSubmit(
+						item.assessmentDate,
+					);
+					const attachments = Array.isArray(item.attachments)
+						? item.attachments
+						: [];
+					const sectorIds = Array.isArray(item.sectorIds)
+						? filterParentOnlySectorIds(
+								item.sectorIds.filter(
+									(value): value is string => typeof value === "string",
+								),
+							)
+						: [];
+
+					if (
+						!description &&
+						!coverage &&
+						!otherSectors &&
+						!assessmentDate &&
+						attachments.length === 0 &&
+						sectorIds.length === 0
+					) {
+						continue;
+					}
+
+					const createdAssessment =
+						await DisasterEventAssessmentRepository.createOne(
+							{
+								disasterEventId: eventId,
+								assessmentTypeId,
+								coverage: coverage || null,
+								assessmentDate,
+								description: description || null,
+								otherSectors: otherSectors || null,
+							},
+							tx,
+						);
+					if (!createdAssessment) {
+						continue;
+					}
+
+					if (sectorIds.length > 0) {
+						await DisasterEventAssessmentSectorRepository.createMany(
+							sectorIds.map((sectorId) => ({
+								disasterEventAssessmentId: createdAssessment.id,
+								sectorId,
+							})),
+							tx,
+						);
+					}
+
+					const existingAttachmentPayloads = attachments.filter(
+						(attachment) =>
+							typeof attachment.fileKey === "string" &&
+							attachment.fileKey.trim().length > 0 &&
+							(!attachment.tempFilePath ||
+								attachment.tempFilePath.trim().length === 0),
+					);
+					for (const existingAttachment of existingAttachmentPayloads) {
+						keptExistingFileKeys.add(String(existingAttachment.fileKey));
+					}
+
+					const newAttachmentPayloads = attachments.filter(
+						(attachment) =>
+							typeof attachment.tempFilePath === "string" &&
+							attachment.tempFilePath.trim().length > 0,
+					);
+
+					let movedNewItems: Array<{
+						file?: { name?: string; content_type?: string };
+					}> = [];
+					if (newAttachmentPayloads.length > 0) {
+						const savePath = `/uploads/disaster-event/${eventId}/assessments/${createdAssessment.id}`;
+						movedNewItems = ContentRepeaterUploadFile.save(
+							newAttachmentPayloads.map((upload) => ({
+								file: {
+									name: upload.tempFilePath,
+									content_type: upload.fileType,
+									tenantPath: upload.tenantPath,
+								},
+							})),
+							TEMP_UPLOAD_PATH,
+							savePath,
+							undefined,
+							countryAccountsId,
+						);
+					}
+
+					const attachmentRows = [
+						...existingAttachmentPayloads.map((attachment) => ({
+							disasterEventAssessmentId: createdAssessment.id,
+							title: String(
+								attachment.title ?? attachment.fileName ?? "",
+							).trim(),
+							fileKey: String(attachment.fileKey ?? ""),
+							fileName: String(attachment.fileName ?? ""),
+							fileType: String(attachment.fileType ?? ""),
+							fileSize: Number(attachment.fileSize ?? 0),
+						})),
+						...movedNewItems.map((item, index) => {
+							const source = newAttachmentPayloads[index];
+							return {
+								disasterEventAssessmentId: createdAssessment.id,
+								title: String(source?.title ?? source?.fileName ?? "").trim(),
+								fileKey: String(item?.file?.name ?? ""),
+								fileName: String(source?.fileName ?? ""),
+								fileType:
+									String(source?.fileType ?? "") ||
+									String(item?.file?.content_type ?? ""),
+								fileSize: Number(source?.fileSize ?? 0),
+							};
+						}),
+					].filter(
+						(row) =>
+							row.fileKey.length > 0 &&
+							row.fileName.length > 0 &&
+							row.title.length > 0,
+					);
+
+					if (attachmentRows.length > 0) {
+						await DisasterEventAssessmentAttachmentRepository.createMany(
+							attachmentRows,
+							tx,
+						);
+					}
+				}
+
+				const orphanedAttachments = existingAttachments.filter(
+					(attachment) =>
+						keptExistingFileKeys.has(String(attachment.fileKey)) === false,
+				);
+				if (orphanedAttachments.length > 0) {
+					ContentRepeaterUploadFile.delete(
+						orphanedAttachments.map((attachment) => ({
+							file: {
+								name: attachment.fileKey,
+							},
+						})),
+						undefined,
+						countryAccountsId,
+					);
+					ContentRepeaterUploadFile.deleteEmptyParentDirectoriesForFiles(
+						orphanedAttachments.map((attachment) => ({
+							file: {
+								name: attachment.fileKey,
+							},
+						})),
+						undefined,
+						countryAccountsId,
+					);
+				}
+			};
+
 			const syncDisasterEventDeclarations = async (eventId: string) => {
 				const declarationStatuses =
 					await DeclarationStatusRepository.listAll(tx);
@@ -1835,6 +2149,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 				if (returnValue.ok === true) {
 					await syncDisasterEventDeclarations(id);
 					await syncDisasterEventResponses(id);
+					await syncDisasterEventAssessments(id);
 					await syncDisasterEventAttachments(id);
 					await syncDisasterEventLinks(id);
 					await syncLinkedHazardousEvents(id);
@@ -1860,6 +2175,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 				if (returnValue.ok === true) {
 					await syncDisasterEventDeclarations(returnValue.id);
 					await syncDisasterEventResponses(returnValue.id);
+					await syncDisasterEventAssessments(returnValue.id);
 					await syncDisasterEventAttachments(returnValue.id);
 					await syncDisasterEventLinks(returnValue.id);
 					await syncLinkedHazardousEvents(returnValue.id);
@@ -1910,7 +2226,9 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 			user,
 			currentUserOrganization,
 			responseTypes,
+			assessmentTypes,
 			declarationStatuses,
+			sectorOptions,
 		] = await Promise.all([
 			getDivisionTreeData(countryAccountsId),
 			getDivisionGeoJSON(countryAccountsId),
@@ -1918,7 +2236,9 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 			authLoaderGetUserForFrontend(loaderArgs),
 			getCurrentUserOrganization(userId, countryAccountsId),
 			ResponseTypeRepository.listAll(),
+			AssessmentTypeRepository.listAll(),
 			DeclarationStatusRepository.listAll(),
+			getSectorOptions(ctx.lang),
 		]);
 
 		return {
@@ -1932,6 +2252,9 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 			disasterEventResponseAttachments: [],
 			disasterEventDeclarations: [],
 			disasterEventDeclarationAttachments: [],
+			disasterEventAssessments: [],
+			disasterEventAssessmentAttachments: [],
+			disasterEventAssessmentSectors: [],
 			hazardousEventOptions: [],
 			linkedTriggeringHazardousEvents: [],
 			linkedTriggeredHazardousEvents: [],
@@ -1942,7 +2265,9 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 			linkedTriggeringDisasterEvents: [],
 			linkedTriggeredDisasterEvents: [],
 			responseTypes,
+			assessmentTypes,
 			declarationStatuses,
+			sectorOptions,
 			user,
 			currentUserOrganization: currentUserOrganization?.organization ?? null,
 			usersWithValidatorRole,
@@ -1986,11 +2311,15 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		disasterEventAttachments,
 		disasterEventResponses,
 		disasterEventResponseAttachments,
+		disasterEventAssessments,
+		disasterEventAssessmentAttachments,
 		disasterEventDeclarations,
 		disasterEventDeclarationAttachments,
 		disasterEventLinks,
 		responseTypes,
+		assessmentTypes,
 		declarationStatuses,
+		sectorOptions,
 	] = await Promise.all([
 		getDivisionTreeData(countryAccountsId),
 		getDivisionGeoJSON(countryAccountsId),
@@ -2007,12 +2336,21 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		DisasterEventAttachmentRepository.getByDisasterEventId(item.id),
 		DisasterEventResponseRepository.listByDisasterEventId(item.id),
 		DisasterEventResponseAttachmentRepository.listByDisasterEventId(item.id),
+		DisasterEventAssessmentRepository.listByDisasterEventId(item.id),
+		DisasterEventAssessmentAttachmentRepository.listByDisasterEventId(item.id),
 		DisasterEventDeclarationRepository.listByDisasterEventId(item.id),
 		DisasterEventDeclarationAttachmentRepository.listByDisasterEventId(item.id),
 		DisasterEventLinkRepository.getByDisasterEventId(item.id),
 		ResponseTypeRepository.listAll(),
+		AssessmentTypeRepository.listAll(),
 		DeclarationStatusRepository.listAll(),
+		getSectorOptions(ctx.lang),
 	]);
+
+	const disasterEventAssessmentSectors =
+		await DisasterEventAssessmentSectorRepository.listByDisasterEventAssessmentIds(
+			disasterEventAssessments.map((assessment) => assessment.id),
+		);
 
 	return {
 		item,
@@ -2023,6 +2361,9 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		disasterEventAttachments,
 		disasterEventResponses,
 		disasterEventResponseAttachments,
+		disasterEventAssessments,
+		disasterEventAssessmentAttachments,
+		disasterEventAssessmentSectors,
 		disasterEventDeclarations,
 		disasterEventDeclarationAttachments,
 		hazardousEventOptions: linkedHazardousData.hazardousEventOptions,
@@ -2034,7 +2375,9 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		disasterRecordOptions: linkedData.disasterRecordOptions,
 		linkedDisasterRecords: linkedData.linkedDisasterRecords,
 		responseTypes,
+		assessmentTypes,
 		declarationStatuses,
+		sectorOptions,
 		disasterEventOptions: linkedData.disasterEventOptions,
 		linkedTriggeringDisasterEvents: linkedData.linkedTriggeringDisasterEvents,
 		linkedTriggeredDisasterEvents: linkedData.linkedTriggeredDisasterEvents,
@@ -2085,6 +2428,11 @@ export default function FormScreen() {
 			disasterEventResponseAttachments={
 				ld.disasterEventResponseAttachments ?? []
 			}
+			disasterEventAssessments={ld.disasterEventAssessments ?? []}
+			disasterEventAssessmentAttachments={
+				ld.disasterEventAssessmentAttachments ?? []
+			}
+			disasterEventAssessmentSectors={ld.disasterEventAssessmentSectors ?? []}
 			disasterEventDeclarations={ld.disasterEventDeclarations ?? []}
 			disasterEventDeclarationAttachments={
 				ld.disasterEventDeclarationAttachments ?? []
@@ -2099,7 +2447,9 @@ export default function FormScreen() {
 			disasterRecordOptions={ld.disasterRecordOptions ?? []}
 			linkedDisasterRecords={ld.linkedDisasterRecords ?? []}
 			responseTypes={ld.responseTypes ?? []}
+			assessmentTypes={ld.assessmentTypes ?? []}
 			declarationStatuses={ld.declarationStatuses ?? []}
+			sectorOptions={ld.sectorOptions ?? []}
 			currentUserOrganization={ld.currentUserOrganization ?? null}
 			user={ld.user}
 			usersWithValidatorRole={ld.usersWithValidatorRole ?? []}

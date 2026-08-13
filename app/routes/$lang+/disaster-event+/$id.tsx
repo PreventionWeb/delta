@@ -24,6 +24,9 @@ import { getUserIdFromSession } from "~/utils/session";
 import { getReturnAssigneeUsers } from "~/db/queries/userCountryAccountsRepository";
 import { DisasterEventAttachmentRepository } from "~/db/queries/disasterEventAttachmentRepository";
 import { DisasterEventDeclarationAttachmentRepository } from "~/db/queries/disasterEventDeclarationAttachmentRepository";
+import { DisasterEventAssessmentAttachmentRepository } from "~/db/queries/disasterEventAssessmentAttachmentRepository";
+import { DisasterEventAssessmentRepository } from "~/db/queries/disasterEventAssessmentRepository";
+import { DisasterEventAssessmentSectorRepository } from "~/db/queries/disasterEventAssessmentSectorRepository";
 import { DisasterEventDeclarationRepository } from "~/db/queries/disasterEventDeclarationRepository";
 import { DisasterEventLinkRepository } from "~/db/queries/disasterEventLinkRepository";
 import { DisasterEventResponseRepository } from "~/db/queries/disasterEventResponseRepository";
@@ -64,6 +67,18 @@ export const loader = async (args: LoaderFunctionArgs) => {
 		await DisasterEventDeclarationRepository.listByDisasterEventId(
 			result.item.id,
 		);
+	const disasterEventAssessments =
+		await DisasterEventAssessmentRepository.listByDisasterEventId(
+			result.item.id,
+		);
+	const disasterEventAssessmentAttachments =
+		await DisasterEventAssessmentAttachmentRepository.listByDisasterEventId(
+			result.item.id,
+		);
+	const disasterEventAssessmentSectors =
+		await DisasterEventAssessmentSectorRepository.listByDisasterEventAssessmentIds(
+			disasterEventAssessments.map((assessment) => assessment.id),
+		);
 	const disasterEventDeclarationAttachments =
 		await DisasterEventDeclarationAttachmentRepository.listByDisasterEventId(
 			result.item.id,
@@ -90,6 +105,9 @@ export const loader = async (args: LoaderFunctionArgs) => {
 			attachments: disasterEventAttachments,
 			responses: disasterEventResponses,
 			responseAttachments: disasterEventResponseAttachments,
+			assessments: disasterEventAssessments,
+			assessmentAttachments: disasterEventAssessmentAttachments,
+			assessmentSectors: disasterEventAssessmentSectors,
 			declarations: disasterEventDeclarations,
 			declarationAttachments: disasterEventDeclarationAttachments,
 			links: disasterEventLinks,
