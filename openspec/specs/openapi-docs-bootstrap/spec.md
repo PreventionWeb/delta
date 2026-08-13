@@ -1,8 +1,11 @@
 # openapi-docs-bootstrap Specification
 
 ## Purpose
+
 TBD - created by archiving change notices-rest-controller. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: /api/v2/docs serves an interactive Swagger UI; /api/v2/docs-json serves the raw OpenAPI document
 
 The NestJS HTTP application bootstrap (`app/init.server.tsx`'s `bootstrapHttpServer()`) SHALL
@@ -57,14 +60,17 @@ explicit `@ApiOkResponse`/`@ApiCreatedResponse` naming its response schema, and 
 `@ApiCookieAuth()`, paired with `DocumentBuilder.addCookieAuth()`.
 
 #### Scenario: Path parameter is documented
+
 - **WHEN** `paths["/notices/{id}"].get.parameters` is inspected
 - **THEN** it includes an `id` entry, `in: "path"`, UUID-formatted
 
 #### Scenario: Success response schema is documented, not empty
+
 - **WHEN** `paths["/notices"].post.responses["201"]` is inspected
 - **THEN** it has a non-empty schema reflecting the notice shape (`title`/`body`/`locale`, etc.)
 
 #### Scenario: Authentication requirement is documented
+
 - **WHEN** any `NoticesController` operation is inspected
 - **THEN** it lists a `security` requirement referencing the cookie auth scheme
 
@@ -84,14 +90,17 @@ Decision 19) should be verified empirically, not assumed to still produce a `400
 operation the way content-locale resolution used to. Description-only — no typed schema.
 
 #### Scenario: Every operation documents its 401 response
+
 - **WHEN** any `NoticesController` operation's `responses` is inspected
 - **THEN** it includes a `401` entry
 
 #### Scenario: getById/update/remove document their 404 response
+
 - **WHEN** `paths["/notices/{id}"].get/put/delete.responses` is inspected
 - **THEN** each includes a `404` entry
 
 #### Scenario: create/update document their 422 response
+
 - **WHEN** `paths["/notices"].post.responses` and `paths["/notices/{id}"].put.responses` are
   inspected
 - **THEN** each includes a `422` entry
@@ -103,6 +112,6 @@ no query parameters at all. `GET /notices` SHALL document both as optional query
 `@ApiQuery`.
 
 #### Scenario: page and pageSize are documented as optional query parameters
+
 - **WHEN** `paths["/notices"].get.parameters` is inspected
 - **THEN** it includes `page` and `pageSize` entries, both `in: "query"`, both not required
-
