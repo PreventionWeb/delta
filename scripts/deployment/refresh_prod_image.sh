@@ -7,7 +7,7 @@ PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 # -----------------------
 # Config (override via env)
 # -----------------------
-IMAGE="${IMAGE:-ghcr.io/preventionweb/delta-country:dev-latest}"
+IMAGE="${IMAGE:-ghcr.io/preventionweb/delta-country:prod-latest}"
 APP_SERVICE="${APP_SERVICE:-app}"
 DB_SERVICE="${DB_SERVICE:-db}"
 DB_NAME="${DB_NAME:-}"
