@@ -1,7 +1,7 @@
 services:
   app:
-    container_name: delta-dev-app
-    image: ghcr.io/preventionweb/delta-country:dev-latest
+    container_name: delta-prod-app
+    image: ghcr.io/preventionweb/delta-country:prod-latest
     depends_on:
       db:
         condition: service_healthy
@@ -24,7 +24,7 @@ services:
     restart: on-failure
 
   db:
-    container_name: delta-dev-db
+    container_name: delta-prod-db
     image: postgis/postgis:17-3.5
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
