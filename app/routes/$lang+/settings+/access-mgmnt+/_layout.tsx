@@ -47,8 +47,8 @@ export const loader = authLoaderWithPerm("ViewUsers", async (loaderArgs) => {
 	const pagination = paginationQueryFromURL(request, []);
 
 	const items = await getUserCountryAccountsWithUserByCountryAccountsId(
-		pagination.query.skip,
-		pagination.query.take,
+		pagination.viewData.page,
+		pagination.viewData.pageSize,
 		countryAccountsId,
 	);
 
