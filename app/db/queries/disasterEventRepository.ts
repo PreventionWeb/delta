@@ -6,6 +6,7 @@ import {
 	organizationTable,
 } from "~/drizzle/schema";
 import { DisasterRecordsRepository } from "~/db/queries/disasterRecordsRepository";
+import { OrganizationRepository } from "./organizationRepository";
 
 export const DisasterEventRepository = {
 	deleteById: (id: string, tx?: Tx) => {
@@ -150,10 +151,20 @@ export const DisasterEventRepository = {
 			),
 		);
 
+		const linkedRecordingOrganization = await Promise.all(
+			items.map((item) =>
+				item.recordingOrganizationId
+					? OrganizationRepository.getById(item.recordingOrganizationId, db)
+					: null,
+			),
+		);
+
 		const itemsWithDisasterRecordsCounts = items.map((item, index) => ({
 			...item,
 			linkedRecordsCount: linkedRecordsCounts[index],
+			linkedRecordingOrganization: linkedRecordingOrganization[index],
 		}));
+
 
 		return {
 			items: itemsWithDisasterRecordsCounts,

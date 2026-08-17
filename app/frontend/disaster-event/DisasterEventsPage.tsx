@@ -887,7 +887,8 @@ export default function DisasterEventsPage({
 							bodyClassName="min-w-[14rem] px-2 py-3 border-b border-gray-200 !text-start"
 						/>
 						<Column
-							field="recordingInstitution"
+							field="linkedRecordingOrganization.name"
+							body={(row) => row.linkedRecordingOrganization?.name ?? ""}
 							header={ctx.t({
 								code: "disaster_event.recording_organization",
 								msg: "Recording organization",
