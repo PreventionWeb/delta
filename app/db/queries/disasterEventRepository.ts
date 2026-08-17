@@ -38,6 +38,20 @@ export const DisasterEventRepository = {
 			.from(disasterEventTable)
 			.where(eq(disasterEventTable.countryAccountsId, countryAccountsId));
 	},
+	existsByIdAndCountryAccountsId: async (
+		id: string,
+		countryAccountsId: string,
+		tx?: Tx,
+	) => {
+		const row = await (tx ?? dr).query.disasterEventTable.findFirst({
+			columns: { id: true },
+			where: and(
+				eq(disasterEventTable.id, id),
+				eq(disasterEventTable.countryAccountsId, countryAccountsId),
+			),
+		});
+		return Boolean(row);
+	},
 	getByCountryAccountsIdPaginated: async (
 		countryAccountsId: string,
 		page?: number,

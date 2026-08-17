@@ -76,4 +76,21 @@ export const DisasterEventAssessmentSectorRepository = {
 				),
 			);
 	},
+	deleteByDisasterEventAssessmentIdAndSectorId: (
+		disasterEventAssessmentId: string,
+		sectorId: string,
+		tx?: Tx,
+	) => {
+		return (tx ?? dr)
+			.delete(disasterEventAssessmentSectorTable)
+			.where(
+				eq(
+					disasterEventAssessmentSectorTable.disasterEventAssessmentId,
+					disasterEventAssessmentId,
+				),
+			)
+			.where(
+				eq(disasterEventAssessmentSectorTable.sectorId, sectorId),
+			);
+	},
 };

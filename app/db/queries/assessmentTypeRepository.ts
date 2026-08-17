@@ -19,6 +19,11 @@ export const AssessmentTypeRepository = {
 			.from(assessmentTypeTable)
 			.orderBy(asc(assessmentTypeTable.type));
 	},
+	getById: (id: string, tx?: Tx) => {
+		return (tx ?? dr).query.assessmentTypeTable.findFirst({
+			where: eq(assessmentTypeTable.id, id),
+		});
+	},
 	getByType: (type: string, tx?: Tx) => {
 		return (tx ?? dr).query.assessmentTypeTable.findFirst({
 			where: eq(assessmentTypeTable.type, type),
