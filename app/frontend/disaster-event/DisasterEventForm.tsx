@@ -3242,6 +3242,7 @@ function StepperValidation({
 	const hazardTypeObservedTooltipRef = useRef<Tooltip>(null);
 	const hazardClusterObservedTooltipRef = useRef<Tooltip>(null);
 	const specificHazardObservedTooltipRef = useRef<Tooltip>(null);
+	const otherSectorsTooltipRef = useRef<Tooltip>(null);
 
 	function shortUuid(value: string) {
 		if (!value) return "-";
@@ -3274,6 +3275,7 @@ function StepperValidation({
 			hazardTypeObservedTooltipRef.current?.updateTargetEvents();
 			hazardClusterObservedTooltipRef.current?.updateTargetEvents();
 			specificHazardObservedTooltipRef.current?.updateTargetEvents();
+			otherSectorsTooltipRef.current?.updateTargetEvents();
 		});
 
 		const timeoutId = window.setTimeout(() => {
@@ -3281,6 +3283,7 @@ function StepperValidation({
 			hazardTypeObservedTooltipRef.current?.updateTargetEvents();
 			hazardClusterObservedTooltipRef.current?.updateTargetEvents();
 			specificHazardObservedTooltipRef.current?.updateTargetEvents();
+			otherSectorsTooltipRef.current?.updateTargetEvents();
 		}, 150);
 
 		return () => {
@@ -3288,6 +3291,25 @@ function StepperValidation({
 			window.clearTimeout(timeoutId);
 		};
 	}, [activeStep]);
+
+	useEffect(() => {
+		if (!detailDialogVisible || detailDialogCategory !== "assessment") {
+			return;
+		}
+
+		const animationFrameId = requestAnimationFrame(() => {
+			otherSectorsTooltipRef.current?.updateTargetEvents();
+		});
+
+		const timeoutId = window.setTimeout(() => {
+			otherSectorsTooltipRef.current?.updateTargetEvents();
+		}, 150);
+
+		return () => {
+			cancelAnimationFrame(animationFrameId);
+			window.clearTimeout(timeoutId);
+		};
+	}, [detailDialogVisible, detailDialogCategory]);
 
 	return (
 		<>
@@ -3518,6 +3540,12 @@ function StepperValidation({
 							ref={specificHazardObservedTooltipRef}
 							target=".specific-hazard-observed-tooltip"
 							content="The specific observed hazard"
+						/>
+						<Tooltip
+							key={`other-sectors-tooltip-${activeStep}`}
+							ref={otherSectorsTooltipRef}
+							target=".other-sectors-tooltip"
+							content="Type a sector name not available in the dropdown above, e.g., Waste management, Humanitarian assistance."
 						/>
 						<Stepper
 							className="status-stepper"
@@ -4602,7 +4630,13 @@ function StepperValidation({
 
 										{detailDialogCategory === "assessment" ? (
 											<div>
-												<label className="mb-1 block">Other sectors</label>
+												<label className="mb-1 flex items-center gap-1">
+													<span>Other sectors</span>
+													<i
+														className="other-sectors-tooltip pi pi-info-circle text-xs text-slate-400"
+														aria-label="Other sectors help"
+													/>
+												</label>
 												<InputText
 													value={detailForm.assessmentOtherSectors}
 													onChange={(event) =>
