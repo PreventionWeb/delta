@@ -16,9 +16,8 @@ describe("normalizeAssessmentSectorPayload", () => {
 	});
 
 	it("accepts a list of sector ids from an object", () => {
-		expect(normalizeAssessmentSectorPayload({ sectorIds: ["a", "b"] })).toEqual([
-			"a",
-			"b",
-		]);
+		expect(normalizeAssessmentSectorPayload({ sectorIds: ["a", "b"] })).toEqual(
+			["a", "b"],
+		);
 	});
 });

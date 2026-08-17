@@ -59,7 +59,9 @@ export const action = async (args: ActionFunctionArgs) => {
 			throw new Response("file is required", { status: 400 });
 		}
 
-		const created = [] as Array<Awaited<ReturnType<typeof createAssessmentAttachment>>>;
+		const created = [] as Array<
+			Awaited<ReturnType<typeof createAssessmentAttachment>>
+		>;
 		for (const uploadedFile of uploadedFiles) {
 			const payload = await uploadAssessmentAttachmentFile({
 				countryAccountsId,

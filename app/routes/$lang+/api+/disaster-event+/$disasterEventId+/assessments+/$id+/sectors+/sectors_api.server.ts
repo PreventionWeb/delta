@@ -6,7 +6,9 @@ export type AssessmentSectorInput =
 	| { sectorId?: string | null; sectorIds?: Array<string | null> | null }
 	| Array<string | null>;
 
-export function normalizeAssessmentSectorPayload(payload: AssessmentSectorInput): string[] {
+export function normalizeAssessmentSectorPayload(
+	payload: AssessmentSectorInput,
+): string[] {
 	const values: string[] = [];
 
 	if (Array.isArray(payload)) {
@@ -114,9 +116,10 @@ export async function removeAssessmentSector(args: {
 		throw new Response("sectorId is required", { status: 400 });
 	}
 
-	const existing = await DisasterEventAssessmentSectorRepository.listByDisasterEventAssessmentId(
-		args.assessmentId,
-	);
+	const existing =
+		await DisasterEventAssessmentSectorRepository.listByDisasterEventAssessmentId(
+			args.assessmentId,
+		);
 	const hasSector = existing.some((row) => row.sectorId === args.sectorId);
 	if (!hasSector) {
 		throw new Response("Sector not found", { status: 404 });

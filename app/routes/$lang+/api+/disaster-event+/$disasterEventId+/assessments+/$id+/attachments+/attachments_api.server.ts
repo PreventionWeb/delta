@@ -102,7 +102,9 @@ export async function uploadAssessmentAttachmentFile(args: {
 	}
 
 	const ext = path.extname(safeOriginalName).toLowerCase();
-	const baseName = path.basename(safeOriginalName, ext).replace(/[^A-Za-z0-9._-]/g, "_");
+	const baseName = path
+		.basename(safeOriginalName, ext)
+		.replace(/[^A-Za-z0-9._-]/g, "_");
 	const storedName = `${randomUUID()}__${baseName}${ext}`;
 	const destDir = buildAssessmentAttachmentDir(args);
 	fs.mkdirSync(destDir, { recursive: true });
@@ -249,5 +251,7 @@ export async function deleteAssessmentAttachment(args: {
 	}
 
 	deletePhysicalFileByKey(existing.fileKey);
-	await DisasterEventAssessmentAttachmentRepository.deleteById(args.attachmentId);
+	await DisasterEventAssessmentAttachmentRepository.deleteById(
+		args.attachmentId,
+	);
 }

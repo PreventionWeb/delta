@@ -89,8 +89,6 @@ export const DisasterEventAssessmentSectorRepository = {
 					disasterEventAssessmentId,
 				),
 			)
-			.where(
-				eq(disasterEventAssessmentSectorTable.sectorId, sectorId),
-			);
+			.where(eq(disasterEventAssessmentSectorTable.sectorId, sectorId));
 	},
 };

@@ -93,9 +93,7 @@ function normalizeSectorIds(sectorIds: unknown): string[] {
 	);
 }
 
-function normalizeAttachments(
-	attachments: unknown,
-): NormalizedAttachment[] {
+function normalizeAttachments(attachments: unknown): NormalizedAttachment[] {
 	if (!Array.isArray(attachments)) {
 		return [];
 	}
@@ -219,10 +217,11 @@ export async function getAssessmentForTenantById(args: {
 	countryAccountsId: string;
 	id: string;
 }) {
-	const row = await DisasterEventAssessmentRepository.getByIdAndCountryAccountsId(
-		args.id,
-		args.countryAccountsId,
-	);
+	const row =
+		await DisasterEventAssessmentRepository.getByIdAndCountryAccountsId(
+			args.id,
+			args.countryAccountsId,
+		);
 	if (!row) {
 		return null;
 	}
@@ -270,33 +269,33 @@ export async function createAssessmentForTenant(args: {
 				},
 				tx,
 			);
-		if (!assessment) {
-			throw new Response("Failed to create assessment", { status: 500 });
-		}
+			if (!assessment) {
+				throw new Response("Failed to create assessment", { status: 500 });
+			}
 
-		if (sectorIds.length > 0) {
-			await DisasterEventAssessmentSectorRepository.createMany(
-				sectorIds.map((sectorId) => ({
-					disasterEventAssessmentId: assessment.id,
-					sectorId,
-				})),
-				tx,
-			);
-		}
+			if (sectorIds.length > 0) {
+				await DisasterEventAssessmentSectorRepository.createMany(
+					sectorIds.map((sectorId) => ({
+						disasterEventAssessmentId: assessment.id,
+						sectorId,
+					})),
+					tx,
+				);
+			}
 
-		if (attachments.length > 0) {
-			await DisasterEventAssessmentAttachmentRepository.createMany(
-				attachments.map((attachment) => ({
-					disasterEventAssessmentId: assessment.id,
-					title: attachment.title,
-					fileKey: attachment.fileKey,
-					fileName: attachment.fileName,
-					fileType: attachment.fileType,
-					fileSize: Number(attachment.fileSize ?? 0),
-				})),
-				tx,
-			);
-		}
+			if (attachments.length > 0) {
+				await DisasterEventAssessmentAttachmentRepository.createMany(
+					attachments.map((attachment) => ({
+						disasterEventAssessmentId: assessment.id,
+						title: attachment.title,
+						fileKey: attachment.fileKey,
+						fileName: attachment.fileName,
+						fileType: attachment.fileType,
+						fileSize: Number(attachment.fileSize ?? 0),
+					})),
+					tx,
+				);
+			}
 
 			return assessment.id;
 		},

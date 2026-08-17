@@ -27,7 +27,9 @@ function getParams(params: LoaderFunctionArgs["params"]) {
 }
 
 export const loader = authLoaderApi(async (args: LoaderFunctionArgs) => {
-	const { disasterEventId, assessmentId, attachmentId } = getParams(args.params);
+	const { disasterEventId, assessmentId, attachmentId } = getParams(
+		args.params,
+	);
 	const apiKey = await apiAuth(args.request);
 	const countryAccountsId = apiKey.countryAccountsId;
 	if (!countryAccountsId) {
@@ -47,7 +49,9 @@ export const loader = authLoaderApi(async (args: LoaderFunctionArgs) => {
 });
 
 export const action = async (args: ActionFunctionArgs) => {
-	const { disasterEventId, assessmentId, attachmentId } = getParams(args.params);
+	const { disasterEventId, assessmentId, attachmentId } = getParams(
+		args.params,
+	);
 	const apiKey = await apiAuth(args.request);
 	const countryAccountsId = apiKey.countryAccountsId;
 	if (!countryAccountsId) {

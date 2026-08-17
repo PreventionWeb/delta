@@ -1,6 +1,10 @@
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { dr, Tx } from "~/db.server";
-import { disasterEventTable, InsertDisasterEvent, organizationTable } from "~/drizzle/schema";
+import {
+	disasterEventTable,
+	InsertDisasterEvent,
+	organizationTable,
+} from "~/drizzle/schema";
 import { DisasterRecordsRepository } from "~/db/queries/disasterRecordsRepository";
 
 export const DisasterEventRepository = {
@@ -134,9 +138,7 @@ export const DisasterEventRepository = {
 		const [items, countResult] = await Promise.all([
 			db.query.disasterEventTable.findMany({
 				where: whereClause,
-				orderBy: [
-					desc(disasterEventTable.updatedAt),
-				],
+				orderBy: [desc(disasterEventTable.updatedAt)],
 				...(offset !== undefined && { limit: pageSize, offset }),
 			}),
 			db.$count(disasterEventTable, whereClause),

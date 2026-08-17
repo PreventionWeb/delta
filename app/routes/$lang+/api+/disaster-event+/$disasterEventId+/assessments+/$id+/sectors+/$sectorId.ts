@@ -45,9 +45,12 @@ export const loader = authLoaderApi(async (args: LoaderFunctionArgs) => {
 
 export const action = async (args: ActionFunctionArgs) => {
 	if (args.request.method !== "DELETE") {
-		throw new Response("Method Not Allowed: Only DELETE requests are supported", {
-			status: 405,
-		});
+		throw new Response(
+			"Method Not Allowed: Only DELETE requests are supported",
+			{
+				status: 405,
+			},
+		);
 	}
 
 	const { disasterEventId, assessmentId, sectorId } = getParams(args.params);
