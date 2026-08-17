@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { dr, Tx } from "~/db.server";
 import {
 	disasterEventAssessmentSectorTable,
@@ -84,11 +84,13 @@ export const DisasterEventAssessmentSectorRepository = {
 		return (tx ?? dr)
 			.delete(disasterEventAssessmentSectorTable)
 			.where(
-				eq(
-					disasterEventAssessmentSectorTable.disasterEventAssessmentId,
-					disasterEventAssessmentId,
+				and(
+					eq(
+						disasterEventAssessmentSectorTable.disasterEventAssessmentId,
+						disasterEventAssessmentId,
+					),
+					eq(disasterEventAssessmentSectorTable.sectorId, sectorId),
 				),
-			)
-			.where(eq(disasterEventAssessmentSectorTable.sectorId, sectorId));
+			);
 	},
 };
