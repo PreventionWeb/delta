@@ -4611,7 +4611,7 @@ function StepperValidation({
 															assessmentOtherSectors: event.target.value,
 														}))
 													}
-													placeholder="Enter other sectors"
+													placeholder="Enter other sectors (if not listed)"
 													className="w-full"
 												/>
 											</div>
