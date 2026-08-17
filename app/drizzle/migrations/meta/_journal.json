@@ -288,6 +288,13 @@
       "when": 1786594106691,
       "tag": "20260813040826_migrate_disaster_event_assessment_to_new_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1786948175892,
+      "tag": "20260817062935_drop_attachments_column_from_disaster_event_table",
+      "breakpoints": true
     }
   ]
 }
