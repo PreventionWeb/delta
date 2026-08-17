@@ -1,6 +1,10 @@
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { dr, Tx } from "~/db.server";
-import { disasterEventTable, InsertDisasterEvent, organizationTable } from "~/drizzle/schema";
+import {
+	disasterEventTable,
+	InsertDisasterEvent,
+	organizationTable,
+} from "~/drizzle/schema";
 import { DisasterRecordsRepository } from "~/db/queries/disasterRecordsRepository";
 import { OrganizationRepository } from "./organizationRepository";
 
@@ -38,6 +42,20 @@ export const DisasterEventRepository = {
 			.select()
 			.from(disasterEventTable)
 			.where(eq(disasterEventTable.countryAccountsId, countryAccountsId));
+	},
+	existsByIdAndCountryAccountsId: async (
+		id: string,
+		countryAccountsId: string,
+		tx?: Tx,
+	) => {
+		const row = await (tx ?? dr).query.disasterEventTable.findFirst({
+			columns: { id: true },
+			where: and(
+				eq(disasterEventTable.id, id),
+				eq(disasterEventTable.countryAccountsId, countryAccountsId),
+			),
+		});
+		return Boolean(row);
 	},
 	getByCountryAccountsIdPaginated: async (
 		countryAccountsId: string,
@@ -121,9 +139,7 @@ export const DisasterEventRepository = {
 		const [items, countResult] = await Promise.all([
 			db.query.disasterEventTable.findMany({
 				where: whereClause,
-				orderBy: [
-					desc(disasterEventTable.updatedAt),
-				],
+				orderBy: [desc(disasterEventTable.updatedAt)],
 				...(offset !== undefined && { limit: pageSize, offset }),
 			}),
 			db.$count(disasterEventTable, whereClause),
