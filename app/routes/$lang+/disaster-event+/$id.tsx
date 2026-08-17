@@ -96,11 +96,13 @@ export const loader = async (args: LoaderFunctionArgs) => {
 					await dr
 						.select({
 							id: sectorTable.id,
-							name: sql<string>`dts_jsonb_localized(${sectorTable.name}, ${params.lang ?? "en"})`.as("name"),
+							name: sql<string>`dts_jsonb_localized(${sectorTable.name}, ${params.lang ?? "en"})`.as(
+								"name",
+							),
 						})
 						.from(sectorTable)
 						.where(inArray(sectorTable.id, sectorIds))
-					).map((row) => [row.id, row.name]),
+				).map((row) => [row.id, row.name]),
 	);
 	const disasterEventDeclarationAttachments =
 		await DisasterEventDeclarationAttachmentRepository.listByDisasterEventId(

@@ -444,9 +444,7 @@ const renderStep4DetailRow = (
 	const assessmentSectorNames =
 		category === "assessment"
 			? (item.meta?.sectorIds ?? [])
-					.map(
-						(sectorId) => sectorNameById?.get(sectorId) ?? sectorId,
-					)
+					.map((sectorId) => sectorNameById?.get(sectorId) ?? sectorId)
 					.filter(Boolean)
 			: [];
 

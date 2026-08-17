@@ -4781,7 +4781,9 @@ function StepperValidation({
 									assessments={assessments}
 									declarations={declarations}
 									sectorNameById={
-										new Map(sectorOptions.map((sector) => [sector.id, sector.name]))
+										new Map(
+											sectorOptions.map((sector) => [sector.id, sector.name]),
+										)
 									}
 									getDetailTypeLabel={getDetailTypeLabel}
 									getDetailDescriptionValue={getDetailDescriptionValue}

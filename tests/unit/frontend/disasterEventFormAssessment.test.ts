@@ -75,10 +75,12 @@ describe("disaster event assessment sector helpers", () => {
 			["uuid-shelter", "Shelter"],
 		]);
 
-		expect(resolveAssessmentSectorNames(["uuid-shelter", "uuid-health", "missing"], names)).toEqual([
-			"Shelter",
-			"Health",
-		]);
+		expect(
+			resolveAssessmentSectorNames(
+				["uuid-shelter", "uuid-health", "missing"],
+				names,
+			),
+		).toEqual(["Shelter", "Health"]);
 	});
 
 	it("keeps assessment descriptions separate from sector labels", () => {
@@ -90,15 +92,18 @@ describe("disaster event assessment sector helpers", () => {
 			description: "Needs mapping completed after the flood.",
 			otherSectors: "Water and sanitation",
 		};
-		const sectorNamesById = new Map<string, string>([
-			["sector-1", "Health"],
-		]);
+		const sectorNamesById = new Map<string, string>([["sector-1", "Health"]]);
 		const sectorIds = ["sector-1"];
-		const sectorNames = resolveAssessmentSectorNames(sectorIds, sectorNamesById);
+		const sectorNames = resolveAssessmentSectorNames(
+			sectorIds,
+			sectorNamesById,
+		);
 
 		expect(item.description).toBe("Needs mapping completed after the flood.");
 		expect(item.description).not.toContain("Sectors:\nHealth");
-		expect(item.description).not.toContain("Other sectors:\nWater and sanitation");
+		expect(item.description).not.toContain(
+			"Other sectors:\nWater and sanitation",
+		);
 		expect(sectorNames).toEqual(["Health"]);
 	});
 });

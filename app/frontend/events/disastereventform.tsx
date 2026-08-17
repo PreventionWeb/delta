@@ -1504,7 +1504,9 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 	);
 
 	const sectorNamesById = new Map<string, string>(
-		Object.entries((itemAny?.assessmentSectorNamesById as Record<string, string>) ?? {}),
+		Object.entries(
+			(itemAny?.assessmentSectorNamesById as Record<string, string>) ?? {},
+		),
 	);
 
 	const assessments = ((itemAny?.assessments as any[]) || []).map(
@@ -1514,11 +1516,14 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 			const description = String(assessment?.description ?? "").trim();
 			const otherSectors = String(assessment?.otherSectors ?? "").trim();
 			const sectorIds = assessmentSectorsByAssessmentId[assessmentId] || [];
-			const sectorNames = resolveAssessmentSectorNames(sectorIds, sectorNamesById);
+			const sectorNames = resolveAssessmentSectorNames(
+				sectorIds,
+				sectorNamesById,
+			);
 
-			const descriptionParts = [
-				description,
-			].filter((value) => value.trim().length > 0);
+			const descriptionParts = [description].filter(
+				(value) => value.trim().length > 0,
+			);
 
 			return {
 				id: assessmentId,
