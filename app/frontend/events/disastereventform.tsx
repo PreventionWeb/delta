@@ -1546,11 +1546,21 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 				reviewSpatialFootprintData={(itemAny?.spatialFootprint as any[]) || []}
 				reviewLinks={reviewLinks}
 				reviewAttachments={reviewAttachments}
-				triggeringHazardousEventTarget={[]}
-				triggeredHazardousEventTarget={[]}
-				triggeringDisasterEventTarget={[]}
-				triggeredDisasterEventTarget={[]}
-				linkedDisasterRecordTarget={[]}
+				triggeringHazardousEventTarget={
+					(itemAny?.linkedTriggeringHazardousEvents as any[]) || []
+				}
+				triggeredHazardousEventTarget={
+					(itemAny?.linkedTriggeredHazardousEvents as any[]) || []
+				}
+				triggeringDisasterEventTarget={
+					(itemAny?.linkedTriggeringDisasterEvents as any[]) || []
+				}
+				triggeredDisasterEventTarget={
+					(itemAny?.linkedTriggeredDisasterEvents as any[]) || []
+				}
+				linkedDisasterRecordTarget={
+					(itemAny?.linkedDisasterRecords as any[]) || []
+				}
 				responses={responses}
 				assessments={assessments}
 				declarations={declarations}

@@ -32,8 +32,354 @@ import { DisasterEventLinkRepository } from "~/db/queries/disasterEventLinkRepos
 import { DisasterEventResponseRepository } from "~/db/queries/disasterEventResponseRepository";
 import { DisasterEventResponseAttachmentRepository } from "~/db/queries/disasterEventResponseAttachmentRepository";
 import { dr } from "~/db.server";
+import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
+import { disasterRecordsTable } from "~/drizzle/schema/disasterRecordsTable";
+import { eventCausalityTable } from "~/drizzle/schema/eventCausalityTable";
+import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
+import { hazardousEventDivisionTable } from "~/drizzle/schema/hazardousEventDivisionTable";
+import { divisionTable } from "~/drizzle/schema/divisionTable";
 import { sectorTable } from "~/drizzle/schema/sectorTable";
-import { inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
+
+function localizedName(
+	name: Record<string, string> | null | undefined,
+	lang: string,
+) {
+	if (!name) {
+		return "";
+	}
+
+	return String(name[lang] || name.en || Object.values(name)[0] || "").trim();
+}
+
+function parseYmd(value: string | null | undefined) {
+	if (!value) {
+		return null;
+	}
+
+	const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+	if (!match) {
+		return null;
+	}
+
+	const year = Number(match[1]);
+	const month = Number(match[2]);
+	const day = Number(match[3]);
+
+	if (!Number.isInteger(year) || month < 1 || month > 12 || day < 1 || day > 31) {
+		return null;
+	}
+
+	return { year, month, day };
+}
+
+function toUtcDate(parts: { year: number; month: number; day: number }) {
+	return new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
+}
+
+function formatEventDateRange(
+	startDate: string | null | undefined,
+	endDate: string | null | undefined,
+	lang: string,
+) {
+	const start = parseYmd(startDate);
+	const end = parseYmd(endDate);
+	const formatter = new Intl.DateTimeFormat(lang || "en", {
+		day: "numeric",
+		month: "short",
+		year: "numeric",
+		timeZone: "UTC",
+	});
+
+	if (start && end) {
+		const startUtc = toUtcDate(start);
+		const endUtc = toUtcDate(end);
+
+		if (typeof formatter.formatRange === "function") {
+			return formatter.formatRange(startUtc, endUtc);
+		}
+
+		return `${formatter.format(startUtc)} - ${formatter.format(endUtc)}`;
+	}
+
+	if (start) {
+		return formatter.format(toUtcDate(start));
+	}
+
+	if (end) {
+		return formatter.format(toUtcDate(end));
+	}
+
+	return [startDate, endDate]
+		.map((value) => value?.trim())
+		.filter(Boolean)
+		.join(" - ");
+}
+
+function formatDisasterEventLabel(
+	event: {
+		id: string;
+		nameNational: string | null;
+		nameGlobalOrRegional: string | null;
+		hipHazard: { code: string | null; name: Record<string, string> | null } | null;
+		hipCluster: { name: Record<string, string> | null } | null;
+		hipType: { name: Record<string, string> | null } | null;
+	},
+	lang: string,
+) {
+	const displayName =
+		event.nameNational?.trim() ||
+		event.nameGlobalOrRegional?.trim() ||
+		`DE: ${event.id.slice(0, 8)}`;
+	const hazardName = localizedName(event.hipHazard?.name, lang);
+	const clusterName = localizedName(event.hipCluster?.name, lang);
+	const typeName = localizedName(event.hipType?.name, lang);
+	const hipLabel = hazardName
+		? event.hipHazard?.code
+			? `H: ${hazardName} (${event.hipHazard.code})`
+			: `H: ${hazardName}`
+		: clusterName
+			? `C: ${clusterName}`
+			: typeName
+				? `T: ${typeName}`
+				: "";
+
+	return {
+		id: event.id,
+		name: displayName,
+		code: event.id,
+		hip: hipLabel,
+	};
+}
+
+function formatDisasterRecordLabel(
+	record: {
+		id: string;
+		hipHazard: { name: Record<string, string> | null; code: string | null } | null;
+		hipCluster: { name: Record<string, string> | null } | null;
+		hipType: { name: Record<string, string> | null } | null;
+	},
+	lang: string,
+) {
+	const hazardName = localizedName(record.hipHazard?.name, lang);
+	const clusterName = localizedName(record.hipCluster?.name, lang);
+	const typeName = localizedName(record.hipType?.name, lang);
+	const hipLabel = hazardName
+		? record.hipHazard?.code
+			? `H: ${hazardName} (${record.hipHazard.code})`
+			: `H: ${hazardName}`
+		: clusterName
+			? `C: ${clusterName}`
+			: typeName
+				? `T: ${typeName}`
+				: "";
+
+	return {
+		id: record.id,
+		name: `UUID: ${record.id.slice(0, 8)}`,
+		code: record.id,
+		hip: hipLabel,
+	};
+}
+
+async function getLinkedViewData(args: {
+	itemId: string;
+	countryAccountsId: string;
+	lang: string;
+}) {
+	const { itemId, countryAccountsId, lang } = args;
+
+	const [triggeringHeLinks, triggeredHeLinks, triggeringDeLinks, triggeredDeLinks] =
+		await Promise.all([
+			dr
+				.select({ linkedId: eventCausalityTable.triggeringHazardousEventId })
+				.from(eventCausalityTable)
+				.where(
+					and(
+						eq(eventCausalityTable.triggeringEntityType, "HE"),
+						eq(eventCausalityTable.triggeredEntityType, "DE"),
+						eq(eventCausalityTable.triggeredDisasterEventId, itemId),
+					),
+				),
+			dr
+				.select({ linkedId: eventCausalityTable.triggeredHazardousEventId })
+				.from(eventCausalityTable)
+				.where(
+					and(
+						eq(eventCausalityTable.triggeringEntityType, "DE"),
+						eq(eventCausalityTable.triggeredEntityType, "HE"),
+						eq(eventCausalityTable.triggeringDisasterEventId, itemId),
+					),
+				),
+			dr
+				.select({ linkedId: eventCausalityTable.triggeringDisasterEventId })
+				.from(eventCausalityTable)
+				.where(
+					and(
+						eq(eventCausalityTable.triggeringEntityType, "DE"),
+						eq(eventCausalityTable.triggeredEntityType, "DE"),
+						eq(eventCausalityTable.triggeredDisasterEventId, itemId),
+					),
+				),
+			dr
+				.select({ linkedId: eventCausalityTable.triggeredDisasterEventId })
+				.from(eventCausalityTable)
+				.where(
+					and(
+						eq(eventCausalityTable.triggeringEntityType, "DE"),
+						eq(eventCausalityTable.triggeredEntityType, "DE"),
+						eq(eventCausalityTable.triggeringDisasterEventId, itemId),
+					),
+				),
+		]);
+
+	const hazardousEventIds = Array.from(
+		new Set(
+			[...triggeringHeLinks, ...triggeredHeLinks]
+				.map((row) => row.linkedId)
+				.filter((id): id is string => Boolean(id)),
+		),
+	);
+
+	const disasterEventIds = Array.from(
+		new Set(
+			[...triggeringDeLinks, ...triggeredDeLinks]
+				.map((row) => row.linkedId)
+				.filter((id): id is string => Boolean(id)),
+		),
+	);
+
+	const [hazardousEvents, linkedDisasterEvents, linkedDisasterRecords] =
+		await Promise.all([
+			hazardousEventIds.length
+				? dr.query.hazardousEventTable.findMany({
+						columns: {
+							id: true,
+							description: true,
+							startDate: true,
+							endDate: true,
+						},
+						with: {
+							hipHazard: { columns: { name: true, code: true } },
+							hipCluster: { columns: { name: true } },
+							hipType: { columns: { name: true } },
+						},
+						where: and(
+							eq(hazardousEventTable.countryAccountsId, countryAccountsId),
+							inArray(hazardousEventTable.id, hazardousEventIds),
+						),
+					})
+				: [],
+			disasterEventIds.length
+				? dr.query.disasterEventTable.findMany({
+						columns: {
+							id: true,
+							nameNational: true,
+							nameGlobalOrRegional: true,
+						},
+						with: {
+							hipHazard: { columns: { name: true, code: true } },
+							hipCluster: { columns: { name: true } },
+							hipType: { columns: { name: true } },
+						},
+						where: and(
+							eq(disasterEventTable.countryAccountsId, countryAccountsId),
+							inArray(disasterEventTable.id, disasterEventIds),
+						),
+					})
+				: [],
+			dr.query.disasterRecordsTable.findMany({
+				columns: { id: true, disasterEventId: true },
+				with: {
+					hipHazard: { columns: { name: true, code: true } },
+					hipCluster: { columns: { name: true } },
+					hipType: { columns: { name: true } },
+				},
+				where: and(
+					eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
+					eq(disasterRecordsTable.disasterEventId, itemId),
+				),
+				orderBy: [desc(disasterRecordsTable.updatedAt)],
+			}),
+		]);
+
+	const divisionRows = hazardousEventIds.length
+		? await dr
+				.select({
+					hazardousEventId: hazardousEventDivisionTable.hazardousEventId,
+					divisionName: divisionTable.name,
+				})
+				.from(hazardousEventDivisionTable)
+				.innerJoin(
+					divisionTable,
+					eq(hazardousEventDivisionTable.divisionId, divisionTable.id),
+				)
+				.where(
+					and(
+						inArray(
+							hazardousEventDivisionTable.hazardousEventId,
+							hazardousEventIds,
+						),
+						eq(divisionTable.countryAccountsId, countryAccountsId),
+					),
+				)
+		: [];
+
+	const divisionNamesByHazardousEventId = new Map<string, string[]>();
+	for (const row of divisionRows) {
+		const name = localizedName(row.divisionName, lang);
+		if (!name) {
+			continue;
+		}
+
+		const current = divisionNamesByHazardousEventId.get(row.hazardousEventId) || [];
+		current.push(name);
+		divisionNamesByHazardousEventId.set(row.hazardousEventId, current);
+	}
+
+	const hazardousById = new Map(
+		hazardousEvents.map((event) => {
+			const hazardName = localizedName(event.hipHazard?.name, lang);
+			const clusterName = localizedName(event.hipCluster?.name, lang);
+			const typeName = localizedName(event.hipType?.name, lang);
+
+			return [
+				event.id,
+				{
+					id: event.id,
+					name: hazardName || clusterName || typeName,
+					code: event.id,
+					dateLabel: formatEventDateRange(event.startDate, event.endDate, lang),
+					divisionNamesLabel: (
+						divisionNamesByHazardousEventId.get(event.id) || []
+					).join(", "),
+				},
+			] as const;
+		}),
+	);
+
+	const disasterById = new Map(
+		linkedDisasterEvents.map((event) => [event.id, formatDisasterEventLabel(event, lang)]),
+	);
+
+	return {
+		linkedTriggeringHazardousEvents: triggeringHeLinks
+			.map((row) => (row.linkedId ? hazardousById.get(row.linkedId) : null))
+			.filter((value): value is NonNullable<typeof value> => Boolean(value)),
+		linkedTriggeredHazardousEvents: triggeredHeLinks
+			.map((row) => (row.linkedId ? hazardousById.get(row.linkedId) : null))
+			.filter((value): value is NonNullable<typeof value> => Boolean(value)),
+		linkedTriggeringDisasterEvents: triggeringDeLinks
+			.map((row) => (row.linkedId ? disasterById.get(row.linkedId) : null))
+			.filter((value): value is NonNullable<typeof value> => Boolean(value)),
+		linkedTriggeredDisasterEvents: triggeredDeLinks
+			.map((row) => (row.linkedId ? disasterById.get(row.linkedId) : null))
+			.filter((value): value is NonNullable<typeof value> => Boolean(value)),
+		linkedDisasterRecords: linkedDisasterRecords.map((record) =>
+			formatDisasterRecordLabel(record, lang),
+		),
+	};
+}
 
 export const loader = async (args: LoaderFunctionArgs) => {
 	const { request, params } = args;
@@ -121,6 +467,13 @@ export const loader = async (args: LoaderFunctionArgs) => {
 				)
 			: [];
 
+	const lang = typeof params.lang === "string" && params.lang ? params.lang : "en";
+	const linkedViewData = await getLinkedViewData({
+		itemId: result.item.id,
+		countryAccountsId,
+		lang,
+	});
+
 	return {
 		...result,
 
@@ -138,6 +491,15 @@ export const loader = async (args: LoaderFunctionArgs) => {
 			declarationAttachments: disasterEventDeclarationAttachments,
 			links: disasterEventLinks,
 			returnAssignees,
+			linkedTriggeringHazardousEvents:
+				linkedViewData.linkedTriggeringHazardousEvents,
+			linkedTriggeredHazardousEvents:
+				linkedViewData.linkedTriggeredHazardousEvents,
+			linkedTriggeringDisasterEvents:
+				linkedViewData.linkedTriggeringDisasterEvents,
+			linkedTriggeredDisasterEvents:
+				linkedViewData.linkedTriggeredDisasterEvents,
+			linkedDisasterRecords: linkedViewData.linkedDisasterRecords,
 		},
 	};
 };

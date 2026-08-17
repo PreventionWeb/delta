@@ -33,6 +33,7 @@ import DisasterEventLink, {
 	type EditableDisasterEventLink,
 } from "~/frontend/disaster-event/DisasterEventLink";
 import DisasterEventReviewStep from "~/frontend/disaster-event/DisasterEventReviewStep";
+import LinkedHazardousEventCard from "~/frontend/disaster-event/LinkedHazardousEventCard";
 import {
 	SaveSubmitDialog,
 	type SaveAction,
@@ -49,6 +50,8 @@ type LinkedEventOption = {
 	name: string;
 	code: string;
 	hip?: string;
+	dateLabel?: string;
+	divisionNamesLabel?: string;
 };
 
 type AdditionalDetailCategory = "response" | "assessment" | "declaration";
@@ -2998,29 +3001,24 @@ function StepperValidation({
 
 		return (
 			<div className={wrapperClass}>
-				<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
-					<div className="flex w-full items-start justify-between gap-4">
-						<div>
-							<p className="text-[14px] font-semibold text-slate-700">
-								{item.name}
-							</p>
-							<p>UUID: {item.code.substring(0, 8)}</p>
-						</div>
-					</div>
-					<Button
-						type="button"
-						icon="pi pi-times"
-						text
-						rounded
-						className="h-6 w-6 p-0 text-slate-400 hover:text-slate-700"
-						aria-label={`Remove ${item.name}`}
-						onClick={() =>
-							setTriggeringHazardousEventTarget((previous) =>
-								previous.filter((record) => record.id !== item.id),
-							)
-						}
-					/>
-				</div>
+				<LinkedHazardousEventCard
+					item={item}
+					trailing={
+						<Button
+							type="button"
+							icon="pi pi-times"
+							text
+							rounded
+							className="h-6 w-6 p-0 text-slate-400 hover:text-slate-700"
+							aria-label={`Remove ${item.name}`}
+							onClick={() =>
+								setTriggeringHazardousEventTarget((previous) =>
+									previous.filter((record) => record.id !== item.id),
+								)
+							}
+						/>
+					}
+				/>
 			</div>
 		);
 	};
@@ -3034,29 +3032,24 @@ function StepperValidation({
 
 		return (
 			<div className={wrapperClass}>
-				<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
-					<div className="flex w-full items-start justify-between gap-4">
-						<div>
-							<p className="text-[14px] font-semibold text-slate-700">
-								{item.name}
-							</p>
-							<p>UUID: {item.code.substring(0, 8)}</p>
-						</div>
-					</div>
-					<Button
-						type="button"
-						icon="pi pi-times"
-						text
-						rounded
-						className="h-6 w-6 p-0 text-slate-400 hover:text-slate-700"
-						aria-label={`Remove ${item.name}`}
-						onClick={() =>
-							setTriggeredHazardousEventTarget((previous) =>
-								previous.filter((record) => record.id !== item.id),
-							)
-						}
-					/>
-				</div>
+				<LinkedHazardousEventCard
+					item={item}
+					trailing={
+						<Button
+							type="button"
+							icon="pi pi-times"
+							text
+							rounded
+							className="h-6 w-6 p-0 text-slate-400 hover:text-slate-700"
+							aria-label={`Remove ${item.name}`}
+							onClick={() =>
+								setTriggeredHazardousEventTarget((previous) =>
+									previous.filter((record) => record.id !== item.id),
+								)
+							}
+						/>
+					}
+				/>
 			</div>
 		);
 	};

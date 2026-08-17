@@ -2,12 +2,15 @@ import { useEffect, useMemo, useRef } from "react";
 import { Button } from "primereact/button";
 import { Card } from "primereact/card";
 import { DataView } from "primereact/dataview";
+import LinkedHazardousEventCard from "~/frontend/disaster-event/LinkedHazardousEventCard";
 
 type LinkedEventOption = {
 	id: string;
 	name: string;
 	code: string;
 	hip?: string;
+	dateLabel?: string;
+	divisionNamesLabel?: string;
 };
 
 type SelectedDivisionItem = {
@@ -597,7 +600,9 @@ const linkedEventItemTemplate = (
 	layout?: "list" | "grid",
 ) => {
 	const wrapperClass =
-		layout === "grid" ? "linked-disaster-record-grid-item" : "w-full";
+		layout === "grid"
+			? "linked-disaster-record-grid-item mb-2 last:mb-0"
+			: "w-full mb-2 last:mb-0";
 
 	return (
 		<div className={wrapperClass}>
@@ -615,6 +620,22 @@ const linkedEventItemTemplate = (
 					</div>
 				</div>
 			</div>
+		</div>
+	);
+};
+
+const linkedHazardousEventItemTemplate = (
+	item: LinkedEventOption,
+	layout?: "list" | "grid",
+) => {
+	const wrapperClass =
+		layout === "grid"
+			? "linked-disaster-record-grid-item mb-2 last:mb-0"
+			: "w-full mb-2 last:mb-0";
+
+	return (
+		<div className={wrapperClass}>
+			<LinkedHazardousEventCard item={item} />
 		</div>
 	);
 };
@@ -868,7 +889,7 @@ export default function DisasterEventReviewStep({
 									<DataView
 										className="linked-disaster-event-grid"
 										value={triggeringHazardousEventTarget}
-										itemTemplate={linkedEventItemTemplate}
+										itemTemplate={linkedHazardousEventItemTemplate}
 										emptyMessage="No linked triggering (causal) hazardous events"
 										layout="grid"
 									/>
@@ -882,7 +903,7 @@ export default function DisasterEventReviewStep({
 									<DataView
 										className="linked-disaster-event-grid"
 										value={triggeredHazardousEventTarget}
-										itemTemplate={linkedEventItemTemplate}
+										itemTemplate={linkedHazardousEventItemTemplate}
 										emptyMessage="No linked triggered (subsequent) hazardous events"
 										layout="grid"
 									/>
