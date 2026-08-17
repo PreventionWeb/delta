@@ -1,6 +1,6 @@
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { dr, Tx } from "~/db.server";
-import { disasterEventTable, InsertDisasterEvent } from "~/drizzle/schema";
+import { disasterEventTable, InsertDisasterEvent, organizationTable } from "~/drizzle/schema";
 import { DisasterRecordsRepository } from "~/db/queries/disasterRecordsRepository";
 
 export const DisasterEventRepository = {
@@ -81,10 +81,12 @@ export const DisasterEventRepository = {
 					)
 				: undefined,
 			recordingOrganization
-				? ilike(
-						disasterEventTable.recordingInstitution,
-						`%${recordingOrganization}%`,
-					)
+				? sql`EXISTS (
+						SELECT 1 FROM ${organizationTable}
+						WHERE "organization"."id" = ${disasterEventTable.recordingOrganizationId}
+							AND "organization"."country_accounts_id" = ${disasterEventTable.countryAccountsId}
+							AND "organization"."name" ILIKE ${`%${recordingOrganization}%`}
+					)`
 				: undefined,
 			recordStatus
 				? eq(disasterEventTable.approvalStatus, recordStatus as any)

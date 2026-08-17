@@ -7,6 +7,8 @@ services:
         condition: service_healthy
     volumes:
       - ./uploads:/delta/uploads
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     ports:
       - "3000:3000"
     environment:
