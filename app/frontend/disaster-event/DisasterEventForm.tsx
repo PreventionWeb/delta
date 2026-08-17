@@ -2777,8 +2777,8 @@ function StepperValidation({
 					body: { style: { padding: "14px 16px" } },
 				}}
 			>
-				<div className="flex items-start justify-between gap-3">
-					<div className="w-full">
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+					<div className="w-full min-w-0">
 						<div className="flex items-center gap-3">
 							<span
 								className={`rounded-full px-2 py-1 text-[11px] font-semibold ${badgeClass}`}
@@ -2926,7 +2926,7 @@ function StepperValidation({
 							) : null
 						) : null}
 					</div>
-					<div className="flex items-center gap-1">
+					<div className="flex items-center gap-1 self-end sm:self-auto sm:shrink-0">
 						<Button
 							type="button"
 							icon="pi pi-pencil"
