@@ -4780,6 +4780,9 @@ function StepperValidation({
 									responses={responses}
 									assessments={assessments}
 									declarations={declarations}
+									sectorNameById={
+										new Map(sectorOptions.map((sector) => [sector.id, sector.name]))
+									}
 									getDetailTypeLabel={getDetailTypeLabel}
 									getDetailDescriptionValue={getDetailDescriptionValue}
 									onCancel={openExitConfirmModal}

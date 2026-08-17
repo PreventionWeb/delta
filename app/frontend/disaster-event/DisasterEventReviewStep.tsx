@@ -136,6 +136,7 @@ type DisasterEventReviewStepProps = {
 	responses: AdditionalDetailItem[];
 	assessments: AdditionalDetailItem[];
 	declarations: AdditionalDetailItem[];
+	sectorNameById?: Map<string, string>;
 	getDetailTypeLabel: (value: string) => string;
 	getDetailDescriptionValue: (item: AdditionalDetailItem) => string;
 	showHeader?: boolean;
@@ -430,6 +431,7 @@ const renderStep4DetailRow = (
 	item: AdditionalDetailItem,
 	getDetailTypeLabel: (value: string) => string,
 	getDetailDescriptionValue: (item: AdditionalDetailItem) => string,
+	sectorNameById?: Map<string, string>,
 ) => {
 	const badgeClass =
 		category === "response"
@@ -439,6 +441,14 @@ const renderStep4DetailRow = (
 				: "bg-amber-100 text-amber-700";
 	const typeLabel = getDetailTypeLabel(item.type);
 	const descriptionValue = getDetailDescriptionValue(item);
+	const assessmentSectorNames =
+		category === "assessment"
+			? (item.meta?.sectorIds ?? [])
+					.map(
+						(sectorId) => sectorNameById?.get(sectorId) ?? sectorId,
+					)
+					.filter(Boolean)
+			: [];
 
 	return (
 		<div key={item.id} className="space-y-2">
@@ -477,11 +487,13 @@ const renderStep4DetailRow = (
 							{item.coverage.trim()}
 						</p>
 					) : null}
-					{category === "assessment" &&
-					(item.meta?.sectorIds ?? []).length > 0 ? (
+					{category === "assessment" && assessmentSectorNames.length > 0 ? (
 						<p>
-							<span className="font-semibold text-slate-700">Sectors:</span>{" "}
-							{(item.meta?.sectorIds ?? []).join(", ")}
+							<span className="font-semibold text-slate-700">Sectors:</span>
+							{renderMultilineText(
+								assessmentSectorNames.join("\n"),
+								`${item.id}-assessment-sectors`,
+							)}
 						</p>
 					) : null}
 					{category === "assessment" && item.meta?.otherSectors?.trim() ? (
@@ -629,6 +641,7 @@ export default function DisasterEventReviewStep({
 	responses,
 	assessments,
 	declarations,
+	sectorNameById,
 	getDetailTypeLabel,
 	getDetailDescriptionValue,
 	showHeader = true,
@@ -938,6 +951,7 @@ export default function DisasterEventReviewStep({
 							item,
 							getDetailTypeLabel,
 							getDetailDescriptionValue,
+							sectorNameById,
 						),
 					),
 					responses.length > 0,
@@ -953,6 +967,7 @@ export default function DisasterEventReviewStep({
 							item,
 							getDetailTypeLabel,
 							getDetailDescriptionValue,
+							sectorNameById,
 						),
 					),
 					assessments.length > 0,
@@ -968,6 +983,7 @@ export default function DisasterEventReviewStep({
 							item,
 							getDetailTypeLabel,
 							getDetailDescriptionValue,
+							sectorNameById,
 						),
 					),
 					declarations.length > 0,

@@ -4,6 +4,7 @@ import {
 	buildTreeSelectSelectionKeys,
 	filterParentOnlySectorIds,
 } from "~/frontend/disaster-event/DisasterEventForm";
+import { resolveAssessmentSectorNames } from "~/frontend/events/disastereventform";
 
 describe("disaster event assessment sector helpers", () => {
 	it("builds a tree with nested sectors", () => {
@@ -66,5 +67,38 @@ describe("disaster event assessment sector helpers", () => {
 			"child-1": { partialChecked: true },
 			"root-1": { partialChecked: true },
 		});
+	});
+
+	it("resolves assessment sector ids to display names", () => {
+		const names = new Map<string, string>([
+			["uuid-health", "Health"],
+			["uuid-shelter", "Shelter"],
+		]);
+
+		expect(resolveAssessmentSectorNames(["uuid-shelter", "uuid-health", "missing"], names)).toEqual([
+			"Shelter",
+			"Health",
+		]);
+	});
+
+	it("keeps assessment descriptions separate from sector labels", () => {
+		const item = {
+			id: "assessment-1",
+			assessmentType: "Post-disaster assessment",
+			assessmentDate: "2024-06-02",
+			coverage: "National",
+			description: "Needs mapping completed after the flood.",
+			otherSectors: "Water and sanitation",
+		};
+		const sectorNamesById = new Map<string, string>([
+			["sector-1", "Health"],
+		]);
+		const sectorIds = ["sector-1"];
+		const sectorNames = resolveAssessmentSectorNames(sectorIds, sectorNamesById);
+
+		expect(item.description).toBe("Needs mapping completed after the flood.");
+		expect(item.description).not.toContain("Sectors:\nHealth");
+		expect(item.description).not.toContain("Other sectors:\nWater and sanitation");
+		expect(sectorNames).toEqual(["Health"]);
 	});
 });

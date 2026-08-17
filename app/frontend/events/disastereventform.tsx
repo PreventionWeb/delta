@@ -41,6 +41,21 @@ import DisasterEventReviewStep from "~/frontend/disaster-event/DisasterEventRevi
 
 export const route = "/disaster-event";
 
+export function resolveAssessmentSectorNames(
+	sectorIds: string[],
+	sectorNamesById: Map<string, string>,
+): string[] {
+	const seen = new Set<string>();
+	return sectorIds.flatMap((sectorId) => {
+		const name = sectorNamesById.get(sectorId);
+		if (!name || seen.has(name)) {
+			return [];
+		}
+		seen.add(name);
+		return [name];
+	});
+}
+
 function repeatOtherIds(
 	ctx: DContext,
 	n: number,
@@ -1459,6 +1474,11 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 				fileKey: String(attachment?.fileKey || ""),
 				fileType: String(attachment?.fileType || ""),
 				fileSize: Number(attachment?.fileSize || 0),
+				href: ctx.url(
+					`${route}/file-viewer?name=${encodeURIComponent(
+						buildAttachmentViewerName(attachment),
+					)}`,
+				),
 			});
 			accumulator[assessmentId] = existing;
 			return accumulator;
@@ -1483,6 +1503,10 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 		{} as Record<string, string[]>,
 	);
 
+	const sectorNamesById = new Map<string, string>(
+		Object.entries((itemAny?.assessmentSectorNamesById as Record<string, string>) ?? {}),
+	);
+
 	const assessments = ((itemAny?.assessments as any[]) || []).map(
 		(assessment: any, index: number) => {
 			const assessmentId = String(assessment?.id || `assessment-${index + 1}`);
@@ -1490,10 +1514,9 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 			const description = String(assessment?.description ?? "").trim();
 			const otherSectors = String(assessment?.otherSectors ?? "").trim();
 			const sectorIds = assessmentSectorsByAssessmentId[assessmentId] || [];
+			const sectorNames = resolveAssessmentSectorNames(sectorIds, sectorNamesById);
 
 			const descriptionParts = [
-				sectorIds.length > 0 ? `Sectors: ${sectorIds.join(", ")}` : "",
-				otherSectors ? `Other sectors: ${otherSectors}` : "",
 				description,
 			].filter((value) => value.trim().length > 0);
 
@@ -1503,6 +1526,10 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 				date: formatReviewDate(assessment?.assessmentDate),
 				coverage,
 				description: descriptionParts.join("\n"),
+				meta: {
+					sectorIds: sectorNames,
+					otherSectors: otherSectors || undefined,
+				},
 				attachments: assessmentAttachmentsByAssessmentId[assessmentId] || [],
 			};
 		},

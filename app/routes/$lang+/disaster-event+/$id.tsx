@@ -31,6 +31,9 @@ import { DisasterEventDeclarationRepository } from "~/db/queries/disasterEventDe
 import { DisasterEventLinkRepository } from "~/db/queries/disasterEventLinkRepository";
 import { DisasterEventResponseRepository } from "~/db/queries/disasterEventResponseRepository";
 import { DisasterEventResponseAttachmentRepository } from "~/db/queries/disasterEventResponseAttachmentRepository";
+import { dr } from "~/db.server";
+import { sectorTable } from "~/drizzle/schema/sectorTable";
+import { inArray, sql } from "drizzle-orm";
 
 export const loader = async (args: LoaderFunctionArgs) => {
 	const { request, params } = args;
@@ -79,6 +82,26 @@ export const loader = async (args: LoaderFunctionArgs) => {
 		await DisasterEventAssessmentSectorRepository.listByDisasterEventAssessmentIds(
 			disasterEventAssessments.map((assessment) => assessment.id),
 		);
+	const sectorIds = [
+		...new Set(
+			disasterEventAssessmentSectors
+				.map((link) => String(link.sectorId ?? "").trim())
+				.filter(Boolean),
+		),
+	];
+	const assessmentSectorNamesById = Object.fromEntries(
+		sectorIds.length === 0
+			? []
+			: (
+					await dr
+						.select({
+							id: sectorTable.id,
+							name: sql<string>`dts_jsonb_localized(${sectorTable.name}, ${params.lang ?? "en"})`.as("name"),
+						})
+						.from(sectorTable)
+						.where(inArray(sectorTable.id, sectorIds))
+					).map((row) => [row.id, row.name]),
+	);
 	const disasterEventDeclarationAttachments =
 		await DisasterEventDeclarationAttachmentRepository.listByDisasterEventId(
 			result.item.id,
@@ -108,6 +131,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
 			assessments: disasterEventAssessments,
 			assessmentAttachments: disasterEventAssessmentAttachments,
 			assessmentSectors: disasterEventAssessmentSectors,
+			assessmentSectorNamesById,
 			declarations: disasterEventDeclarations,
 			declarationAttachments: disasterEventDeclarationAttachments,
 			links: disasterEventLinks,
