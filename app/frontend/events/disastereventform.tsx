@@ -77,121 +77,6 @@ function repeatOtherIds(
 	return res as FormInputDef<DisasterEventFields>[];
 }
 
-function repeatRapidOrPreliminaryAssesments(
-	ctx: DContext,
-	n: number,
-): FormInputDef<DisasterEventFields>[] {
-	let res = [];
-	for (let i = 0; i < n; i++) {
-		let j = i + 1;
-
-		res.push(
-			{
-				key: "rapidOrPreliminaryAssessmentDescription" + j,
-				label: ctx.t({
-					code: "common.description",
-					msg: "Description",
-				}),
-				type: "textarea",
-				uiRow: {
-					label:
-						ctx.t({
-							code: "disaster_event.rapid_preliminary_assessment",
-							msg: "Rapid/Preliminary assessment",
-						}) + ` (${j})`,
-				},
-				repeatable: { group: "rapidOrPreliminaryAssessment", index: i },
-			},
-			{
-				key: "rapidOrPreliminaryAssessmentDate" + j,
-				label: ctx.t({
-					code: "common.date",
-					msg: "Date",
-				}),
-				type: "date",
-				repeatable: { group: "rapidOrPreliminaryAssessment", index: i },
-			},
-		);
-	}
-	return res as FormInputDef<DisasterEventFields>[];
-}
-
-function repeatPostDisasterAssesments(
-	ctx: DContext,
-	n: number,
-): FormInputDef<DisasterEventFields>[] {
-	let res = [];
-	for (let i = 0; i < n; i++) {
-		let j = i + 1;
-		res.push(
-			{
-				key: "postDisasterAssessmentDescription" + j,
-				label: ctx.t({
-					code: "common.description",
-					msg: "Description",
-				}),
-				type: "textarea",
-				uiRow: {
-					label:
-						ctx.t({
-							code: "disaster_event.post_disaster_assessment",
-							msg: "Post‑disaster assessment",
-						}) + ` (${j})`,
-				},
-				repeatable: { group: "postDisasterAssessment", index: i },
-			},
-			{
-				key: "postDisasterAssessmentDate" + j,
-				label: ctx.t({
-					code: "common.date",
-					msg: "Date",
-				}),
-				type: "date",
-				repeatable: { group: "postDisasterAssessment", index: i },
-			},
-		);
-	}
-	return res as FormInputDef<DisasterEventFields>[];
-}
-
-function repeatOtherAssesments(
-	ctx: DContext,
-	n: number,
-): FormInputDef<DisasterEventFields>[] {
-	let res = [];
-	for (let i = 0; i < n; i++) {
-		let j = i + 1;
-		res.push(
-			{
-				key: "otherAssessmentDescription" + j,
-				label: ctx.t({
-					code: "common.description",
-					msg: "Description",
-				}),
-				type: "textarea",
-				uiRow: {
-					label:
-						ctx.t({
-							code: "disaster_event.other_assessment",
-							msg: "Other assessment",
-						}) + ` (${j})`,
-				},
-				repeatable: { group: "otherAssessment", index: i },
-			},
-			{
-				key: "otherAssessmentDate" + j,
-				label: ctx.t({
-					code: "common.date",
-					msg: "Date",
-				}),
-				type: "date",
-				repeatable: { group: "otherAssessment", index: i },
-			},
-		);
-	}
-	return res as FormInputDef<DisasterEventFields>[];
-}
-
 export function fieldsDefCommon(
 	ctx: DContext,
 ): FormInputDef<DisasterEventFields>[] {
@@ -333,11 +218,6 @@ export function fieldsDefCommon(
 			}),
 			type: "textarea",
 		},
-
-		...repeatRapidOrPreliminaryAssesments(ctx, 5),
-
-		...repeatPostDisasterAssesments(ctx, 5),
-		...repeatOtherAssesments(ctx, 5),
 
 		{
 			key: "dataSource",
@@ -1428,21 +1308,12 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 		},
 	);
 
-	const legacyResponses = Array.from({ length: 5 }).flatMap((_, index) => {
-		const n = index + 1;
-		const description = itemAny?.[`earlyActionDescription${n}`];
-		if (!description || String(description).trim().length === 0) {
-			return [];
-		}
-		return [
-			{
-				id: `response-early-action-${n}`,
-				type: "early_action",
-				date: formatReviewDate(itemAny?.[`earlyActionDate${n}`]),
-				description: String(description),
-			},
-		];
-	});
+	const legacyResponses: {
+		id: string;
+		type: string;
+		date: string;
+		description: string;
+	}[] = [];
 	if (
 		typeof itemAny?.responseOperationsDescription === "string" &&
 		itemAny.responseOperationsDescription.trim().length > 0
@@ -1573,46 +1444,7 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 		},
 	);
 
-	const legacyDeclarations: {
-		id: string;
-		type: string;
-		date: string;
-		description: string;
-		meta?: {
-			declarationStatus?: string;
-		};
-	}[] = [
-		...Array.from({ length: 5 }).flatMap((_, index) => {
-			const n = index + 1;
-			const description = itemAny?.[`disasterDeclarationTypeAndEffect${n}`];
-			if (!description || String(description).trim().length === 0) {
-				return [];
-			}
-			return [
-				{
-					id: `declaration-effect-${n}`,
-					type: "disaster_declaration_effects",
-					date: formatReviewDate(itemAny?.[`disasterDeclarationDate${n}`]),
-					description: String(description),
-				},
-			];
-		}),
-	];
-	if (typeof itemAny?.disasterDeclaration === "string") {
-		legacyDeclarations.push({
-			id: "declaration-status-1",
-			type: "disaster_declaration",
-			date: "",
-			description: "",
-			meta: {
-				declarationStatus: itemAny.disasterDeclaration,
-			},
-		});
-	}
-	const declarations =
-		normalizedDeclarations.length > 0
-			? normalizedDeclarations
-			: legacyDeclarations;
+	const declarations = normalizedDeclarations;
 
 	const getDetailTypeLabel = (value: string) => {
 		switch (value) {
