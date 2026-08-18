@@ -24,6 +24,11 @@ export const DeclarationStatusRepository = {
 			where: eq(declarationStatusTable.status, status),
 		});
 	},
+	getById: (id: string, tx?: Tx) => {
+		return (tx ?? dr).query.declarationStatusTable.findFirst({
+			where: eq(declarationStatusTable.id, id),
+		});
+	},
 	getByStatuses: (statuses: string[], tx?: Tx) => {
 		if (statuses.length === 0) {
 			return Promise.resolve([] as SelectDeclarationStatus[]);

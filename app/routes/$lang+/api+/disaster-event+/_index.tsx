@@ -14,6 +14,55 @@ export const loader = authLoaderApiDocs(async (requestArgs) => {
 
 	docs += `
 
+	## Declarations Resource
+	/en/api/disaster-event/{disasterEventId}/declarations
+
+	- POST /en/api/disaster-event/{disasterEventId}/declarations
+		Create declaration. Preferred input is multipart/form-data:
+		- type, effects, declarationDate, issuingOrganization, coverage
+		- declarationStatusId or declarationStatus
+		- one or more file/files/files[] fields for uploaded attachments
+
+		When files are uploaded, the server automatically stores each file and creates attachment metadata. You do not need to send title, fileKey, fileName, fileType, or fileSize manually.
+
+		Legacy JSON payload is still accepted for metadata-only operations, but for true uploads use multipart/form-data.
+
+	- GET /en/api/disaster-event/{disasterEventId}/declarations
+		List all declarations for the authenticated tenant.
+
+	- GET /en/api/disaster-event/{disasterEventId}/declarations/<id>
+		Read one declaration.
+
+	- PUT /en/api/disaster-event/{disasterEventId}/declarations/<id>
+		Update one declaration. If attachments are provided, they replace existing values.
+
+	- DELETE /en/api/disaster-event/{disasterEventId}/declarations/<id>
+		Delete one declaration.
+
+	### Declaration Attachments Subresource
+	/en/api/disaster-event/{disasterEventId}/declarations/<id>/attachments
+
+	- POST /en/api/disaster-event/{disasterEventId}/declarations/<id>/attachments
+		Add one attachment per request using multipart/form-data.
+		Preferred key: file
+		The server generates the file metadata automatically.
+		For multiple attachments, repeat the request as needed.
+
+	- GET /en/api/disaster-event/{disasterEventId}/declarations/<id>/attachments
+		List attachments for one declaration.
+
+	- GET /en/api/disaster-event/{disasterEventId}/declarations/<id>/attachments/<attachmentId>
+		Read one attachment.
+
+	- PUT /en/api/disaster-event/{disasterEventId}/declarations/<id>/attachments/<attachmentId>
+		Replace/update one attachment using multipart/form-data.
+		Required: file
+		The server replaces the stored file and regenerates the attachment metadata.
+
+	- DELETE /en/api/disaster-event/{disasterEventId}/declarations/<id>/attachments/<attachmentId>
+		Delete one attachment.
+
+
 	## Responses Resource
 	/en/api/disaster-event/{disasterEventId}/responses
 
