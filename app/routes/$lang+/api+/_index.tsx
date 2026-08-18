@@ -92,15 +92,7 @@ export default function Screen() {
 					<h3 className="text-base font-semibold text-slate-900">
 						Other internal APIs and WIP
 					</h3>
-					<ul className="mt-4 grid gap-2 sm:grid-cols-2">
-						<li>
-							<a
-								href={ctx.url("/api/analytics")}
-								className="inline-flex rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-200 hover:text-sky-800"
-							>
-								Analytics
-							</a>
-						</li>
+					<ul className="mt-4 grid gap-2 sm:grid-cols-1">
 						<li>
 							<a
 								href={ctx.url("/api/qrcode")}
