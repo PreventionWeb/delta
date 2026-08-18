@@ -32,6 +32,7 @@ import { and, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { dr } from "~/db.server";
 import { divisionTable } from "~/drizzle/schema/divisionTable";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
+import { disasterEventDivisionTable } from "~/drizzle/schema/disasterEventDivisionTable";
 import { disasterRecordsTable } from "~/drizzle/schema/disasterRecordsTable";
 import { eventCausalityTable } from "~/drizzle/schema/eventCausalityTable";
 import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
@@ -427,6 +428,8 @@ function formatDisasterEventDisplayName(
 		id: string;
 		nameNational: string | null;
 		nameGlobalOrRegional: string | null;
+		startDate: string | null;
+		endDate: string | null;
 		hipHazard: {
 			name: Record<string, string> | null;
 			code: string | null;
@@ -439,6 +442,7 @@ function formatDisasterEventDisplayName(
 		} | null;
 	},
 	lang: string,
+	divisionNames: string[],
 ) {
 	const displayName =
 		event.nameNational?.trim() ||
@@ -462,6 +466,8 @@ function formatDisasterEventDisplayName(
 		name: displayName,
 		code: `${event.id}`,
 		hip: hipLabel,
+		dateLabel: formatEventDateRange(event.startDate, event.endDate, lang),
+		divisionNamesLabel: divisionNames.join(", "),
 	};
 }
 
@@ -770,6 +776,8 @@ async function getLinkedDisasterData(
 			id: true,
 			nameNational: true,
 			nameGlobalOrRegional: true,
+			startDate: true,
+			endDate: true,
 		},
 		with: {
 			hipHazard: {
@@ -793,9 +801,47 @@ async function getLinkedDisasterData(
 		orderBy: [desc(disasterEventTable.updatedAt)],
 	});
 
+	const disasterEventIds = disasterEvents.map((event) => event.id);
+	const disasterDivisionRows = disasterEventIds.length
+		? await dr
+				.select({
+					disasterEventId: disasterEventDivisionTable.disasterEventId,
+					divisionName: divisionTable.name,
+				})
+				.from(disasterEventDivisionTable)
+				.innerJoin(
+					divisionTable,
+					eq(disasterEventDivisionTable.divisionId, divisionTable.id),
+				)
+				.where(
+					and(
+						inArray(disasterEventDivisionTable.disasterEventId, disasterEventIds),
+						eq(divisionTable.countryAccountsId, countryAccountsId),
+					),
+				)
+		: [];
+
+	const divisionNamesByDisasterEventId = new Map<string, string[]>();
+	for (const row of disasterDivisionRows) {
+		const localizedName = localizedHipName(row.divisionName, lang);
+		if (!localizedName) {
+			continue;
+		}
+
+		const current = divisionNamesByDisasterEventId.get(row.disasterEventId) || [];
+		current.push(localizedName);
+		divisionNamesByDisasterEventId.set(row.disasterEventId, current);
+	}
+
 	const disasterEventOptions = disasterEvents
 		.filter((event) => event.id !== itemId)
-		.map((event) => formatDisasterEventDisplayName(event, lang));
+		.map((event) =>
+			formatDisasterEventDisplayName(
+				event,
+				lang,
+				divisionNamesByDisasterEventId.get(event.id) || [],
+			),
+		);
 
 	const disasterEventOptionsById = new Map(
 		disasterEventOptions.map((event) => [event.id, event]),

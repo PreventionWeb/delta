@@ -34,6 +34,7 @@ import DisasterEventLink, {
 } from "~/frontend/disaster-event/DisasterEventLink";
 import DisasterEventReviewStep from "~/frontend/disaster-event/DisasterEventReviewStep";
 import LinkedHazardousEventCard from "~/frontend/disaster-event/LinkedHazardousEventCard";
+import LinkedDisasterEventCard from "~/frontend/disaster-event/LinkedDisasterEventCard";
 import {
 	SaveSubmitDialog,
 	type SaveAction,
@@ -3107,31 +3108,24 @@ function StepperValidation({
 
 		return (
 			<div className={wrapperClass}>
-				<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
-					<div className="flex w-full items-start justify-between gap-4">
-						<div>
-							<p className="text-[14px] font-semibold text-slate-700">
-								{item.name}
-							</p>
-							{item.hip ? (
-								<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
-							) : null}
-						</div>
-					</div>
-					<Button
-						type="button"
-						icon="pi pi-times"
-						text
-						rounded
-						className="h-6 w-6 p-0 text-slate-400 hover:text-slate-700"
-						aria-label={`Remove ${item.name}`}
-						onClick={() =>
-							setTriggeringDisasterEventTarget((previous) =>
-								previous.filter((record) => record.id !== item.id),
-							)
-						}
-					/>
-				</div>
+				<LinkedDisasterEventCard
+					item={item}
+					trailing={
+						<Button
+							type="button"
+							icon="pi pi-times"
+							text
+							rounded
+							className="h-6 w-6 p-0 text-slate-400 hover:text-slate-700"
+							aria-label={`Remove ${item.name}`}
+							onClick={() =>
+								setTriggeringDisasterEventTarget((previous) =>
+									previous.filter((record) => record.id !== item.id),
+								)
+							}
+						/>
+					}
+				/>
 			</div>
 		);
 	};
@@ -3145,31 +3139,24 @@ function StepperValidation({
 
 		return (
 			<div className={wrapperClass}>
-				<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
-					<div className="flex w-full items-start justify-between gap-4">
-						<div>
-							<p className="text-[14px] font-semibold text-slate-700">
-								{item.name}
-							</p>
-							{item.hip ? (
-								<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
-							) : null}
-						</div>
-					</div>
-					<Button
-						type="button"
-						icon="pi pi-times"
-						text
-						rounded
-						className="h-6 w-6 p-0 text-slate-400 hover:text-slate-700"
-						aria-label={`Remove ${item.name}`}
-						onClick={() =>
-							setTriggeredDisasterEventTarget((previous) =>
-								previous.filter((record) => record.id !== item.id),
-							)
-						}
-					/>
-				</div>
+				<LinkedDisasterEventCard
+					item={item}
+					trailing={
+						<Button
+							type="button"
+							icon="pi pi-times"
+							text
+							rounded
+							className="h-6 w-6 p-0 text-slate-400 hover:text-slate-700"
+							aria-label={`Remove ${item.name}`}
+							onClick={() =>
+								setTriggeredDisasterEventTarget((previous) =>
+									previous.filter((record) => record.id !== item.id),
+								)
+							}
+						/>
+					}
+				/>
 			</div>
 		);
 	};

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-type LinkedHazardousEventCardItem = {
+type LinkedDisasterEventCardItem = {
 	id: string;
 	name: string;
 	code: string;
@@ -9,8 +9,8 @@ type LinkedHazardousEventCardItem = {
 	divisionNamesLabel?: string;
 };
 
-type LinkedHazardousEventCardProps = {
-	item: LinkedHazardousEventCardItem;
+type LinkedDisasterEventCardProps = {
+	item: LinkedDisasterEventCardItem;
 	leading?: ReactNode;
 	trailing?: ReactNode;
 	className?: string;
@@ -19,7 +19,7 @@ type LinkedHazardousEventCardProps = {
 	showDivision?: boolean;
 };
 
-export default function LinkedHazardousEventCard({
+export default function LinkedDisasterEventCard({
 	item,
 	leading,
 	trailing,
@@ -27,7 +27,7 @@ export default function LinkedHazardousEventCard({
 	showHip = true,
 	showDate = true,
 	showDivision = true,
-}: LinkedHazardousEventCardProps) {
+}: LinkedDisasterEventCardProps) {
 	return (
 		<div
 			className={`flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3 ${className}`.trim()}

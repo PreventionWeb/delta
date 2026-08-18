@@ -1,9 +1,10 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { dr, Tx } from "~/db.server";
 import {
 	hazardousEventDivisionTable,
 	InsertHazardousEventDivision,
 } from "~/drizzle/schema";
+import { divisionTable } from "~/drizzle/schema/divisionTable";
 
 export const HazardousEventDivisionRepository = {
 	getByHazardousEventId: (hazardousEventId: string, tx?: Tx) => {
@@ -22,6 +23,35 @@ export const HazardousEventDivisionRepository = {
 				inArray(
 					hazardousEventDivisionTable.hazardousEventId,
 					hazardousEventIds,
+				),
+			);
+	},
+	getDivisionNamesByHazardousEventIds: async (
+		countryAccountsId: string,
+		hazardousEventIds: string[],
+		tx?: Tx,
+	) => {
+		if (hazardousEventIds.length === 0) {
+			return [];
+		}
+
+		return (tx ?? dr)
+			.select({
+				hazardousEventId: hazardousEventDivisionTable.hazardousEventId,
+				divisionName: divisionTable.name,
+			})
+			.from(hazardousEventDivisionTable)
+			.innerJoin(
+				divisionTable,
+				eq(hazardousEventDivisionTable.divisionId, divisionTable.id),
+			)
+			.where(
+				and(
+					inArray(
+						hazardousEventDivisionTable.hazardousEventId,
+						hazardousEventIds,
+					),
+					eq(divisionTable.countryAccountsId, countryAccountsId),
 				),
 			);
 	},

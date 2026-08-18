@@ -32,6 +32,7 @@ import { DisasterEventLinkRepository } from "~/db/queries/disasterEventLinkRepos
 import { DisasterEventResponseRepository } from "~/db/queries/disasterEventResponseRepository";
 import { DisasterEventResponseAttachmentRepository } from "~/db/queries/disasterEventResponseAttachmentRepository";
 import { dr } from "~/db.server";
+import { disasterEventDivisionTable } from "~/drizzle/schema/disasterEventDivisionTable";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import { disasterRecordsTable } from "~/drizzle/schema/disasterRecordsTable";
 import { eventCausalityTable } from "~/drizzle/schema/eventCausalityTable";
@@ -121,11 +122,14 @@ function formatDisasterEventLabel(
 		id: string;
 		nameNational: string | null;
 		nameGlobalOrRegional: string | null;
+		startDate: string | null;
+		endDate: string | null;
 		hipHazard: { code: string | null; name: Record<string, string> | null } | null;
 		hipCluster: { name: Record<string, string> | null } | null;
 		hipType: { name: Record<string, string> | null } | null;
 	},
 	lang: string,
+	divisionNames: string[],
 ) {
 	const displayName =
 		event.nameNational?.trim() ||
@@ -149,6 +153,8 @@ function formatDisasterEventLabel(
 		name: displayName,
 		code: event.id,
 		hip: hipLabel,
+		dateLabel: formatEventDateRange(event.startDate, event.endDate, lang),
+		divisionNamesLabel: divisionNames.join(", "),
 	};
 }
 
@@ -276,6 +282,8 @@ async function getLinkedViewData(args: {
 							id: true,
 							nameNational: true,
 							nameGlobalOrRegional: true,
+							startDate: true,
+							endDate: true,
 						},
 						with: {
 							hipHazard: { columns: { name: true, code: true } },
@@ -325,6 +333,25 @@ async function getLinkedViewData(args: {
 				)
 		: [];
 
+	const disasterDivisionRows = disasterEventIds.length
+		? await dr
+				.select({
+					disasterEventId: disasterEventDivisionTable.disasterEventId,
+					divisionName: divisionTable.name,
+				})
+				.from(disasterEventDivisionTable)
+				.innerJoin(
+					divisionTable,
+					eq(disasterEventDivisionTable.divisionId, divisionTable.id),
+				)
+				.where(
+					and(
+						inArray(disasterEventDivisionTable.disasterEventId, disasterEventIds),
+						eq(divisionTable.countryAccountsId, countryAccountsId),
+					),
+				)
+		: [];
+
 	const divisionNamesByHazardousEventId = new Map<string, string[]>();
 	for (const row of divisionRows) {
 		const name = localizedName(row.divisionName, lang);
@@ -335,6 +362,18 @@ async function getLinkedViewData(args: {
 		const current = divisionNamesByHazardousEventId.get(row.hazardousEventId) || [];
 		current.push(name);
 		divisionNamesByHazardousEventId.set(row.hazardousEventId, current);
+	}
+
+	const divisionNamesByDisasterEventId = new Map<string, string[]>();
+	for (const row of disasterDivisionRows) {
+		const name = localizedName(row.divisionName, lang);
+		if (!name) {
+			continue;
+		}
+
+		const current = divisionNamesByDisasterEventId.get(row.disasterEventId) || [];
+		current.push(name);
+		divisionNamesByDisasterEventId.set(row.disasterEventId, current);
 	}
 
 	const hazardousById = new Map(
@@ -359,7 +398,14 @@ async function getLinkedViewData(args: {
 	);
 
 	const disasterById = new Map(
-		linkedDisasterEvents.map((event) => [event.id, formatDisasterEventLabel(event, lang)]),
+		linkedDisasterEvents.map((event) => [
+			event.id,
+			formatDisasterEventLabel(
+				event,
+				lang,
+				divisionNamesByDisasterEventId.get(event.id) || [],
+			),
+		]),
 	);
 
 	return {

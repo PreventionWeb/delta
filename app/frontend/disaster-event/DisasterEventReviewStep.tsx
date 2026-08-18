@@ -3,6 +3,7 @@ import { Button } from "primereact/button";
 import { Card } from "primereact/card";
 import { DataView } from "primereact/dataview";
 import LinkedHazardousEventCard from "~/frontend/disaster-event/LinkedHazardousEventCard";
+import LinkedDisasterEventCard from "~/frontend/disaster-event/LinkedDisasterEventCard";
 
 type LinkedEventOption = {
 	id: string;
@@ -606,20 +607,7 @@ const linkedEventItemTemplate = (
 
 	return (
 		<div className={wrapperClass}>
-			<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
-				<div className="flex w-full items-start justify-between gap-4">
-					<div>
-						<p className="text-[14px] font-semibold text-slate-700">
-							{item.name}
-						</p>
-						{item.hip ? (
-							<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
-						) : item.code ? (
-							<p>{item.code}</p>
-						) : null}
-					</div>
-				</div>
-			</div>
+			<LinkedDisasterEventCard item={item} />
 		</div>
 	);
 };
