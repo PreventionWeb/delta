@@ -3,7 +3,7 @@ import { Button } from "primereact/button";
 import { Card } from "primereact/card";
 import { DataView } from "primereact/dataview";
 import LinkedHazardousEventCard from "~/frontend/disaster-event/LinkedHazardousEventCard";
-import LinkedDisasterEventCard from "~/frontend/disaster-event/LinkedDisasterEventCard";
+import LinkedDisasterRecordCard from "~/frontend/disaster-event/LinkedDisasterRecordCard";
 
 type LinkedEventOption = {
 	id: string;
@@ -607,7 +607,7 @@ const linkedEventItemTemplate = (
 
 	return (
 		<div className={wrapperClass}>
-			<LinkedDisasterEventCard item={item} />
+			<LinkedDisasterRecordCard item={item} />
 		</div>
 	);
 };

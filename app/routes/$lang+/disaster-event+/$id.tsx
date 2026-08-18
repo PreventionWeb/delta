@@ -35,6 +35,7 @@ import { dr } from "~/db.server";
 import { disasterEventDivisionTable } from "~/drizzle/schema/disasterEventDivisionTable";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import { disasterRecordsTable } from "~/drizzle/schema/disasterRecordsTable";
+import { disasterRecordsDivisionTable } from "~/drizzle/schema/disasterRecordsDivisionTable";
 import { eventCausalityTable } from "~/drizzle/schema/eventCausalityTable";
 import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
 import { hazardousEventDivisionTable } from "~/drizzle/schema/hazardousEventDivisionTable";
@@ -161,11 +162,14 @@ function formatDisasterEventLabel(
 function formatDisasterRecordLabel(
 	record: {
 		id: string;
+			startDate: string | null;
+			endDate: string | null;
 		hipHazard: { name: Record<string, string> | null; code: string | null } | null;
 		hipCluster: { name: Record<string, string> | null } | null;
 		hipType: { name: Record<string, string> | null } | null;
 	},
 	lang: string,
+		divisionNames: string[],
 ) {
 	const hazardName = localizedName(record.hipHazard?.name, lang);
 	const clusterName = localizedName(record.hipCluster?.name, lang);
@@ -185,6 +189,8 @@ function formatDisasterRecordLabel(
 		name: `UUID: ${record.id.slice(0, 8)}`,
 		code: record.id,
 		hip: hipLabel,
+		dateLabel: formatEventDateRange(record.startDate, record.endDate, lang),
+		divisionNamesLabel: divisionNames.join(", "),
 	};
 }
 
@@ -297,7 +303,12 @@ async function getLinkedViewData(args: {
 					})
 				: [],
 			dr.query.disasterRecordsTable.findMany({
-				columns: { id: true, disasterEventId: true },
+				columns: {
+					id: true,
+					disasterEventId: true,
+					startDate: true,
+					endDate: true,
+				},
 				with: {
 					hipHazard: { columns: { name: true, code: true } },
 					hipCluster: { columns: { name: true } },
@@ -351,6 +362,40 @@ async function getLinkedViewData(args: {
 					),
 				)
 		: [];
+
+	const disasterRecordIds = linkedDisasterRecords
+		.map((record) => record.id)
+		.filter((id): id is string => Boolean(id));
+	const disasterRecordDivisionRows = disasterRecordIds.length
+		? await dr
+			.select({
+				disasterRecordId: disasterRecordsDivisionTable.disasterRecordId,
+				divisionName: divisionTable.name,
+			})
+			.from(disasterRecordsDivisionTable)
+			.innerJoin(
+				divisionTable,
+				eq(disasterRecordsDivisionTable.divisionId, divisionTable.id),
+			)
+			.where(
+				and(
+					inArray(disasterRecordsDivisionTable.disasterRecordId, disasterRecordIds),
+					eq(divisionTable.countryAccountsId, countryAccountsId),
+				),
+			)
+		: [];
+
+	const disasterRecordDivisionNamesByRecordId = new Map<string, string[]>();
+	for (const row of disasterRecordDivisionRows) {
+		const name = localizedName(row.divisionName, lang);
+		if (!name) {
+			continue;
+		}
+
+		const current = disasterRecordDivisionNamesByRecordId.get(row.disasterRecordId) || [];
+		current.push(name);
+		disasterRecordDivisionNamesByRecordId.set(row.disasterRecordId, current);
+	}
 
 	const divisionNamesByHazardousEventId = new Map<string, string[]>();
 	for (const row of divisionRows) {
@@ -422,7 +467,11 @@ async function getLinkedViewData(args: {
 			.map((row) => (row.linkedId ? disasterById.get(row.linkedId) : null))
 			.filter((value): value is NonNullable<typeof value> => Boolean(value)),
 		linkedDisasterRecords: linkedDisasterRecords.map((record) =>
-			formatDisasterRecordLabel(record, lang),
+			formatDisasterRecordLabel(
+				record,
+				lang,
+				disasterRecordDivisionNamesByRecordId.get(record.id) || [],
+			),
 		),
 	};
 }
