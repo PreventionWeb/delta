@@ -7,6 +7,11 @@ import {
 } from "~/drizzle/schema";
 
 export const ResponseTypeRepository = {
+	getById: (id: string, tx?: Tx) => {
+		return (tx ?? dr).query.responseTypeTable.findFirst({
+			where: eq(responseTypeTable.id, id),
+		});
+	},
 	createMany: async (data: InsertResponseType[], tx?: Tx) => {
 		if (data.length === 0) {
 			return [] as SelectResponseType[];

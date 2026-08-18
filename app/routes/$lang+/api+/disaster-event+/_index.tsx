@@ -14,6 +14,55 @@ export const loader = authLoaderApiDocs(async (requestArgs) => {
 
 	docs += `
 
+	## Responses Resource
+	/en/api/disaster-event/{disasterEventId}/responses
+
+	- POST /en/api/disaster-event/{disasterEventId}/responses
+		Create response. Preferred input is multipart/form-data:
+		- responseTypeId or responseType (required)
+		- coverage, responseDate, description
+		- one or more file/files/files[] fields for uploaded attachments
+
+		When files are uploaded, the server automatically stores each file and creates attachment metadata. You do not need to send title, fileKey, fileName, fileType, or fileSize manually.
+
+		Legacy JSON payload is still accepted for metadata-only operations, but for true uploads use multipart/form-data.
+
+	- GET /en/api/disaster-event/{disasterEventId}/responses
+		List all responses for the authenticated tenant.
+
+	- GET /en/api/disaster-event/{disasterEventId}/responses/<id>
+		Read one response.
+
+	- PUT /en/api/disaster-event/{disasterEventId}/responses/<id>
+		Update one response. If attachments are provided, they replace existing values.
+
+	- DELETE /en/api/disaster-event/{disasterEventId}/responses/<id>
+		Delete one response.
+
+	### Response Attachments Subresource
+	/en/api/disaster-event/{disasterEventId}/responses/<id>/attachments
+
+	- POST /en/api/disaster-event/{disasterEventId}/responses/<id>/attachments
+		Add one attachment per request using multipart/form-data.
+		Preferred key: file
+		The server generates the file metadata automatically.
+		For multiple attachments, repeat the request as needed.
+
+	- GET /en/api/disaster-event/{disasterEventId}/responses/<id>/attachments
+		List attachments for one response.
+
+	- GET /en/api/disaster-event/{disasterEventId}/responses/<id>/attachments/<attachmentId>
+		Read one attachment.
+
+	- PUT /en/api/disaster-event/{disasterEventId}/responses/<id>/attachments/<attachmentId>
+		Replace/update one attachment using multipart/form-data.
+		Required: file
+		The server replaces the stored file and regenerates the attachment metadata.
+
+	- DELETE /en/api/disaster-event/{disasterEventId}/responses/<id>/attachments/<attachmentId>
+		Delete one attachment.
+
+
 ## Assessments Resource
 /en/api/disaster-event/{disasterEventId}/assessments
 
