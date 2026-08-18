@@ -114,11 +114,7 @@ export const DisasterEventResponseRepository = {
 			where: eq(disasterEventResponseTable.id, id),
 		});
 	},
-	getByIdAndDisasterEventId: (
-		id: string,
-		disasterEventId: string,
-		tx?: Tx,
-	) => {
+	getByIdAndDisasterEventId: (id: string, disasterEventId: string, tx?: Tx) => {
 		return (tx ?? dr).query.disasterEventResponseTable.findFirst({
 			where: and(
 				eq(disasterEventResponseTable.id, id),

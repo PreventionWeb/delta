@@ -1,8 +1,6 @@
 import { ResponseTypeRepository } from "~/db/queries/responseTypeRepository";
 import { DisasterEventRepository } from "~/db/queries/disasterEventRepository";
-import {
-	DisasterEventResponseAttachmentRepository,
-} from "~/db/queries/disasterEventResponseAttachmentRepository";
+import { DisasterEventResponseAttachmentRepository } from "~/db/queries/disasterEventResponseAttachmentRepository";
 import {
 	DisasterEventResponseListItem,
 	DisasterEventResponseRepository,
@@ -207,7 +205,9 @@ export function normalizeResponsePayload(payload: ResponsePayload) {
 	};
 }
 
-export function normalizeResponseAttachmentPayload(payload: ResponseAttachmentInput) {
+export function normalizeResponseAttachmentPayload(
+	payload: ResponseAttachmentInput,
+) {
 	const title = String(payload?.title ?? payload?.fileName ?? "").trim();
 	const fileKey = String(payload?.fileKey ?? "").trim();
 	const fileName = String(payload?.fileName ?? "").trim();
@@ -347,7 +347,9 @@ export async function updateResponseForTenant(args: {
 	const responseTypeId =
 		(await resolveResponseTypeId(args.payload)) ?? existing.responseTypeId;
 	const hasAttachments = Array.isArray(args.payload.attachments);
-	const attachments = hasAttachments ? normalizeAttachments(args.payload.attachments) : [];
+	const attachments = hasAttachments
+		? normalizeAttachments(args.payload.attachments)
+		: [];
 
 	await DisasterEventResponseRepository.withTransaction(async (tx) => {
 		await DisasterEventResponseRepository.updateById(

@@ -87,10 +87,7 @@ export const DisasterEventResponseAttachmentRepository = {
 			),
 		});
 	},
-	createOne: async (
-		data: InsertDisasterEventResponseAttachment,
-		tx?: Tx,
-	) => {
+	createOne: async (data: InsertDisasterEventResponseAttachment, tx?: Tx) => {
 		const rows = await (tx ?? dr)
 			.insert(disasterEventResponseAttachmentTable)
 			.values(data)
