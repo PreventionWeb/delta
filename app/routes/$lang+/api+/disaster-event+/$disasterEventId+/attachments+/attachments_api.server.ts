@@ -155,7 +155,9 @@ async function ensureDisasterEventScope(args: {
 	}
 }
 
-function sumAttachmentBytes(attachments: Array<{ fileSize: number | null | undefined }>) {
+function sumAttachmentBytes(
+	attachments: Array<{ fileSize: number | null | undefined }>,
+) {
 	return attachments.reduce(
 		(total, attachment) => total + Number(attachment.fileSize ?? 0),
 		0,
@@ -174,7 +176,9 @@ async function assertTotalAttachmentLimit(args: {
 	});
 
 	const scopedExisting = args.excludeAttachmentId
-		? existing.filter((attachment) => attachment.id !== args.excludeAttachmentId)
+		? existing.filter(
+				(attachment) => attachment.id !== args.excludeAttachmentId,
+			)
 		: existing;
 
 	const existingBytes = sumAttachmentBytes(scopedExisting);

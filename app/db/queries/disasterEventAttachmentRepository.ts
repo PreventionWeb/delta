@@ -51,10 +51,7 @@ export const DisasterEventAttachmentRepository = {
 			.findFirst({
 				where: and(
 					eq(disasterEventAttachmentTable.id, id),
-					eq(
-						disasterEventAttachmentTable.disasterEventId,
-						disasterEventId,
-					),
+					eq(disasterEventAttachmentTable.disasterEventId, disasterEventId),
 				),
 			})
 			.then((row) => row ?? null);
