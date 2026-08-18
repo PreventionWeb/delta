@@ -38,6 +38,9 @@ export default function Screen() {
 				{ label: "HIPS", href: "/api/hips" },
 				{ label: "Geographic division", href: "/api/division" },
 				{ label: "Sector", href: "/api/sector" },
+				{ label: "Assessment type", href: "/api/assessment-type" },
+				{ label: "Declaration status", href: "/api/declaration-status" },
+				{ label: "Response type", href: "/api/response-type" },
 			],
 		},
 	];
