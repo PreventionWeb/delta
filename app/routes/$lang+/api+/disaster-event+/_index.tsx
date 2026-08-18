@@ -14,6 +14,29 @@ export const loader = authLoaderApiDocs(async (requestArgs) => {
 
 	docs += `
 
+	## Disaster Event Attachments Subresource
+	/en/api/disaster-event/{disasterEventId}/attachments
+
+	- POST /en/api/disaster-event/{disasterEventId}/attachments
+		Add one or more direct disaster-event attachments.
+		Preferred input is multipart/form-data:
+		- file, files, or files[]
+
+		The server stores files and creates attachment metadata automatically.
+
+	- GET /en/api/disaster-event/{disasterEventId}/attachments
+		List direct attachments for one disaster event.
+
+	- GET /en/api/disaster-event/{disasterEventId}/attachments/<attachmentId>
+		Read one direct attachment.
+
+	- PUT /en/api/disaster-event/{disasterEventId}/attachments/<attachmentId>
+		Replace/update one direct attachment.
+		Preferred input is multipart/form-data with key: file.
+
+	- DELETE /en/api/disaster-event/{disasterEventId}/attachments/<attachmentId>
+		Delete one direct attachment.
+
 	## Declarations Resource
 	/en/api/disaster-event/{disasterEventId}/declarations
 
