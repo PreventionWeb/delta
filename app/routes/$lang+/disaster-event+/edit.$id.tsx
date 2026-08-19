@@ -33,6 +33,7 @@ import { dr } from "~/db.server";
 import { divisionTable } from "~/drizzle/schema/divisionTable";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import { disasterEventDivisionTable } from "~/drizzle/schema/disasterEventDivisionTable";
+import { disasterRecordsDivisionTable } from "~/drizzle/schema/disasterRecordsDivisionTable";
 import { disasterRecordsTable } from "~/drizzle/schema/disasterRecordsTable";
 import { eventCausalityTable } from "~/drizzle/schema/eventCausalityTable";
 import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
@@ -66,6 +67,11 @@ import { canEditDataCollectionRecord } from "~/frontend/user/roles";
 import { ContentRepeaterUploadFile } from "~/components/ContentRepeater/UploadFile";
 import { TEMP_UPLOAD_PATH } from "~/utils/paths";
 import { sectorTable } from "~/drizzle/schema/sectorTable";
+import {
+	buildHipLabel,
+	formatEventDateRange,
+	localizedHipName,
+} from "~/backend.server/services/disaster-event/linkedOptionFormatters";
 
 export const handle = {
 	hideMainNavigation: true,
@@ -451,15 +457,12 @@ function formatDisasterEventDisplayName(
 	const hazardName = localizedHipName(event.hipHazard?.name, lang);
 	const clusterName = localizedHipName(event.hipCluster?.name, lang);
 	const typeName = localizedHipName(event.hipType?.name, lang);
-	const hipLabel = hazardName
-		? event.hipHazard?.code
-			? `H: ${hazardName} (${event.hipHazard.code})`
-			: `H: ${hazardName}`
-		: clusterName
-			? `C: ${clusterName}`
-			: typeName
-				? `T: ${typeName}`
-				: "";
+	const hipLabel = buildHipLabel({
+		hazardName,
+		clusterName,
+		typeName,
+		hazardCode: event.hipHazard?.code,
+	});
 
 	return {
 		id: event.id,
@@ -469,17 +472,6 @@ function formatDisasterEventDisplayName(
 		dateLabel: formatEventDateRange(event.startDate, event.endDate, lang),
 		divisionNamesLabel: divisionNames.join(", "),
 	};
-}
-
-function localizedHipName(
-	name: Record<string, string> | null | undefined,
-	lang: string,
-) {
-	if (!name) {
-		return "";
-	}
-
-	return String(name[lang] || name.en || Object.values(name)[0] || "").trim();
 }
 
 function formatHazardousEventDisplayName(
@@ -524,74 +516,11 @@ function formatHazardousEventDisplayName(
 	};
 }
 
-function parseYmd(value: string | null | undefined) {
-	if (!value) {
-		return null;
-	}
-
-	const trimmed = value.trim();
-	const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-	if (!match) {
-		return null;
-	}
-
-	const year = Number(match[1]);
-	const month = Number(match[2]);
-	const day = Number(match[3]);
-
-	if (!Number.isInteger(year) || month < 1 || month > 12 || day < 1 || day > 31) {
-		return null;
-	}
-
-	return { year, month, day };
-}
-
-function toUtcDate(parts: { year: number; month: number; day: number }) {
-	return new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
-}
-
-function formatEventDateRange(
-	startDate: string | null | undefined,
-	endDate: string | null | undefined,
-	lang: string,
-) {
-	const start = parseYmd(startDate);
-	const end = parseYmd(endDate);
-	const formatter = new Intl.DateTimeFormat(lang || "en", {
-		day: "numeric",
-		month: "short",
-		year: "numeric",
-		timeZone: "UTC",
-	});
-
-	if (start && end) {
-		const startUtc = toUtcDate(start);
-		const endUtc = toUtcDate(end);
-
-		if (typeof formatter.formatRange === "function") {
-			return formatter.formatRange(startUtc, endUtc);
-		}
-
-		return `${formatter.format(startUtc)} - ${formatter.format(endUtc)}`;
-	}
-
-	if (start) {
-		return formatter.format(toUtcDate(start));
-	}
-
-	if (end) {
-		return formatter.format(toUtcDate(end));
-	}
-
-	return [startDate, endDate]
-		.map((value) => value?.trim())
-		.filter(Boolean)
-		.join(" - ");
-}
-
 function formatDisasterRecordDisplayName(
 	record: {
 		id: string;
+		startDate: string | null;
+		endDate: string | null;
 		hipHazard: {
 			name: Record<string, string> | null;
 			code: string | null;
@@ -604,25 +533,25 @@ function formatDisasterRecordDisplayName(
 		} | null;
 	},
 	lang: string,
+	divisionNames: string[],
 ) {
 	const hazardName = localizedHipName(record.hipHazard?.name, lang);
 	const clusterName = localizedHipName(record.hipCluster?.name, lang);
 	const typeName = localizedHipName(record.hipType?.name, lang);
-	const hipLabel = hazardName
-		? record.hipHazard?.code
-			? `H: ${hazardName} (${record.hipHazard.code})`
-			: `H: ${hazardName}`
-		: clusterName
-			? `C: ${clusterName}`
-			: typeName
-				? `T: ${typeName}`
-				: "";
+	const hipLabel = buildHipLabel({
+		hazardName,
+		clusterName,
+		typeName,
+		hazardCode: record.hipHazard?.code,
+	});
 
 	return {
 		id: record.id,
 		name: `UUID: ${record.id.slice(0, 8)}`,
 		code: record.id,
 		hip: hipLabel,
+		dateLabel: formatEventDateRange(record.startDate, record.endDate, lang),
+		divisionNamesLabel: divisionNames.join(", "),
 	};
 }
 
@@ -889,6 +818,8 @@ async function getLinkedDisasterData(
 		columns: {
 			id: true,
 			disasterEventId: true,
+			startDate: true,
+			endDate: true,
 		},
 		with: {
 			hipHazard: {
@@ -912,13 +843,58 @@ async function getLinkedDisasterData(
 		orderBy: [desc(disasterRecordsTable.updatedAt)],
 	});
 
+	const disasterRecordIds = disasterRecords.map((record) => record.id);
+	const disasterRecordDivisionRows = disasterRecordIds.length
+		? await dr
+				.select({
+					disasterRecordId: disasterRecordsDivisionTable.disasterRecordId,
+					divisionName: divisionTable.name,
+				})
+				.from(disasterRecordsDivisionTable)
+				.innerJoin(
+					divisionTable,
+					eq(disasterRecordsDivisionTable.divisionId, divisionTable.id),
+				)
+				.where(
+					and(
+						inArray(
+							disasterRecordsDivisionTable.disasterRecordId,
+							disasterRecordIds,
+						),
+						eq(divisionTable.countryAccountsId, countryAccountsId),
+					),
+				)
+		: [];
+
+	const divisionNamesByDisasterRecordId = new Map<string, string[]>();
+	for (const row of disasterRecordDivisionRows) {
+		const localizedName = localizedHipName(row.divisionName, lang);
+		if (!localizedName) {
+			continue;
+		}
+
+		const current = divisionNamesByDisasterRecordId.get(row.disasterRecordId) || [];
+		current.push(localizedName);
+		divisionNamesByDisasterRecordId.set(row.disasterRecordId, current);
+	}
+
 	const disasterRecordOptions = disasterRecords.map((record) =>
-		formatDisasterRecordDisplayName(record, lang),
+		formatDisasterRecordDisplayName(
+			record,
+			lang,
+			divisionNamesByDisasterRecordId.get(record.id) || [],
+		),
 	);
 
 	const linkedDisasterRecords = disasterRecords
 		.filter((record) => record.disasterEventId === itemId)
-		.map((record) => formatDisasterRecordDisplayName(record, lang));
+		.map((record) =>
+			formatDisasterRecordDisplayName(
+				record,
+				lang,
+				divisionNamesByDisasterRecordId.get(record.id) || [],
+			),
+		);
 
 	return {
 		disasterEventOptions,

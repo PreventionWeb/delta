@@ -659,6 +659,30 @@ export default function DisasterEventReviewStep({
 }: DisasterEventReviewStepProps) {
 	return (
 		<>
+			<style>{`
+				.linked-disaster-records-grid .p-dataview-content .p-grid {
+					display: grid;
+					grid-template-columns: repeat(1, minmax(0, 1fr));
+					gap: 0.75rem;
+					margin: 0;
+				}
+
+				@media (min-width: 768px) {
+					.linked-disaster-records-grid .p-dataview-content .p-grid {
+						grid-template-columns: repeat(2, minmax(0, 1fr));
+					}
+				}
+
+				@media (min-width: 1280px) {
+					.linked-disaster-records-grid .p-dataview-content .p-grid {
+						grid-template-columns: repeat(3, minmax(0, 1fr));
+					}
+				}
+
+				.linked-disaster-record-grid-item {
+					min-width: 0;
+				}
+			`}</style>
 			<div className="space-y-5">
 				{showHeader ? (
 					<div>
