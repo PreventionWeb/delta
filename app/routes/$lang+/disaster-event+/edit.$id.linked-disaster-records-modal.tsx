@@ -249,7 +249,7 @@ export default function LinkedDisasterRecordsModalRoute() {
 					<InputText
 						value={searchTerm}
 						onChange={(event) => setSearchTerm(event.target.value)}
-						placeholder="Search by UUID..."
+						placeholder="Search by Hazard classification, date (yyyy-mm-dd), geographic level or UUID..."
 						className="w-full pr-10"
 					/>
 				</div>
