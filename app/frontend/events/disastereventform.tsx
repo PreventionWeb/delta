@@ -234,14 +234,6 @@ export function fieldsDefCommon(
 			},
 		},
 		{
-			key: "recordingInstitution",
-			label: ctx.t({
-				code: "disaster_event.recording_institution",
-				msg: "Recording institution",
-			}),
-			type: "text",
-		},
-		{
 			key: "effectsTotalUsd",
 			label: ctx.t({
 				code: "disaster_event.effects_total_usd",
@@ -1528,7 +1520,7 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 					glide: itemAny?.glide || "",
 					id: itemAny?.id || "",
 					recordingOrganizationName:
-						itemAny?.recordingInstitution || itemAny?.recordOriginator || "",
+						itemAny?.recordOriginator || "",
 				}}
 				selectedHazardTypeName={hipName(itemAny?.hipType)}
 				selectedHazardClusterName={hipName(itemAny?.hipCluster)}

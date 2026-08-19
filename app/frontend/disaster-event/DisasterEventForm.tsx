@@ -386,7 +386,6 @@ type StepperValidationProps = {
 		disasterEventId?: string | null;
 		recordingOrganizationId?: string | null;
 		recordingOrganizationName?: string | null;
-		recordingInstitution?: string | null;
 		id?: string | null;
 		spatialFootprint?: unknown;
 		rapidOrPreliminaryAssessmentDescription1?: string | null;
@@ -2034,7 +2033,7 @@ function StepperValidation({
 		pushValue("nationalDisasterId", form.nationalDisasterId);
 		pushValue("glide", form.glide);
 		pushValue("recordingOrganizationId", form.recordingOrganizationId);
-		pushValue("recordingInstitution", form.recordingOrganizationName);
+		pushValue("recordingOrganizationName", form.recordingOrganizationName);
 		pushValue("hipTypeId", selectedHipTypeId);
 		pushValue("hipClusterId", selectedHipClusterId);
 		pushValue("hipHazardId", selectedHipHazardId);

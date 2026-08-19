@@ -67,7 +67,6 @@ export const disasterEventTable = pgTable(
 		officialWarningAffectedAreas: zeroText("official_warning_affected_areas"),
 
 		dataSource: zeroText("data_source"),
-		recordingInstitution: zeroText("recording_institution"),
 		effectsTotalUsd: ourMoney("effects_total_usd"),
 		nonEconomicLosses: zeroText("non_economic_losses"),
 		damagesSubtotalLocalCurrency: ourMoney("damages_subtotal_local_currency"),

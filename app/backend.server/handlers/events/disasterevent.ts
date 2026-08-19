@@ -5,6 +5,7 @@ import { disasterEventAssessmentTable } from "~/drizzle/schema/disasterEventAsse
 import { disasterEventResponseTable } from "~/drizzle/schema/disasterEventResponseTable";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
+import { organizationTable } from "~/drizzle/schema/organizationTable";
 import { responseTypeTable } from "~/drizzle/schema/responseTypeTable";
 import { assessmentTypeTable } from "~/drizzle/schema/assessmentTypeTable";
 
@@ -50,7 +51,7 @@ export async function disasterEventsLoader(args: disasterEventLoaderArgs) {
 
 		// New filter parameters
 		disasterEventName?: string;
-		recordingInstitution?: string;
+		recordingOrganization?: string;
 		fromDate?: string;
 		toDate?: string;
 		recordStatus?: string;
@@ -63,7 +64,8 @@ export async function disasterEventsLoader(args: disasterEventLoaderArgs) {
 
 		// New filters
 		disasterEventName: url.searchParams.get("disasterEventName") || "",
-		recordingInstitution: url.searchParams.get("recordingInstitution") || "",
+		recordingOrganization:
+			url.searchParams.get("recordingOrganization") || "",
 		fromDate: url.searchParams.get("fromDate") || "",
 		toDate: url.searchParams.get("toDate") || "",
 		recordStatus: url.searchParams.get("recordStatus") || "",
@@ -86,7 +88,7 @@ export async function disasterEventsLoader(args: disasterEventLoaderArgs) {
 
 	let searchIlike = "%" + filters.search + "%";
 	let disasterEventNameIlike = "%" + filters.disasterEventName + "%";
-	let recordingInstitutionIlike = "%" + filters.recordingInstitution + "%";
+	let recordingOrganizationIlike = "%" + filters.recordingOrganization + "%";
 
 	const countryAccountsId = await getCountryAccountsIdFromSession(request);
 	let instanceName = "DELTA Resilience";
@@ -109,8 +111,13 @@ export async function disasterEventsLoader(args: disasterEventLoaderArgs) {
 					sql`${disasterEventTable.nameGlobalOrRegional}::text ILIKE ${disasterEventNameIlike}`,
 				)
 			: undefined,
-		filters.recordingInstitution
-			? sql`${disasterEventTable.recordingInstitution}::text ILIKE ${recordingInstitutionIlike}`
+		filters.recordingOrganization
+			? sql`EXISTS (
+					SELECT 1 FROM ${organizationTable}
+					WHERE ${organizationTable.id} = ${disasterEventTable.recordingOrganizationId}
+						AND ${organizationTable.countryAccountsId} = ${disasterEventTable.countryAccountsId}
+						AND ${organizationTable.name} ILIKE ${recordingOrganizationIlike}
+				)`
 			: undefined,
 		filters.recordStatus
 			? sql`${disasterEventTable.approvalStatus}::text ILIKE ${filters.recordStatus}`
@@ -248,7 +255,12 @@ export async function disasterEventsLoader(args: disasterEventLoaderArgs) {
 									)
 								)`,
 								ilike(disasterEventTable.dataSource, searchIlike),
-								ilike(disasterEventTable.recordingInstitution, searchIlike),
+								sql`EXISTS (
+									SELECT 1 FROM ${organizationTable}
+									WHERE ${organizationTable.id} = ${disasterEventTable.recordingOrganizationId}
+										AND ${organizationTable.countryAccountsId} = ${disasterEventTable.countryAccountsId}
+										AND ${organizationTable.name} ILIKE ${searchIlike}
+								)`,
 								ilike(disasterEventTable.nonEconomicLosses, searchIlike),
 								ilike(
 									disasterEventTable.responseOperationsDescription,
