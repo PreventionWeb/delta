@@ -49,6 +49,23 @@ export const DisasterRecordsRepository = {
 			eq(disasterRecordsTable.disasterEventId, disasterEventId),
 		);
 	},
+	getIdsByDisasterEventIdAndCountryAccountsId: async (
+		disasterEventId: string,
+		countryAccountsId: string,
+		tx?: Tx,
+	): Promise<string[]> => {
+		const rows = await (tx ?? dr)
+			.select({ id: disasterRecordsTable.id })
+			.from(disasterRecordsTable)
+			.where(
+				and(
+					eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
+					eq(disasterRecordsTable.disasterEventId, disasterEventId),
+				),
+			);
+
+		return rows.map((row) => row.id).filter((id): id is string => Boolean(id));
+	},
 	unlinkByDisasterEventIdAndCountryAccountsId: (
 		disasterEventId: string,
 		countryAccountsId: string,
