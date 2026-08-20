@@ -1,0 +1,25 @@
+id: compose-hazardous-event-policy
+type: policy
+description: A data collector creates or updates a hazardous event's core fields, including its HIP classification and start/end dates.
+businessGoal: hazardous events carry internally consistent hazard classification and a coherent timeline
+context: country-office
+actor: data-collector
+activatedBy: [hazardous.event.save.requested]
+emits: compose.hazardous.event
+processes: [hazardous-events]
+
+preconditions:
+  - id: hip-hierarchy-consistent
+    description: >
+      If any HIP level is set, it must agree with the hierarchy (shared
+      getRequiredAndSetToNullHipFields helper — same rule used by
+      disaster-record's compose-disaster-record-policy)
+    reads: [hazardous.event.hip.hazard, hazardous.event.hip.cluster, hazardous.event.hip.type]
+
+  - id: start-end-date-ordered
+    description: If either date is set, both must be set, and start must not be after end
+    reads: [hazardous.event.start.date, hazardous.event.end.date]
+
+  - id: collector-judges-data-accurate
+    description: The collector's judgment that the event's data accurately reflects reality
+    reads: [hazardous.event.fields]

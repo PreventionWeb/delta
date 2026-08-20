@@ -1,0 +1,18 @@
+id: set-human-effects-category-presence-policy
+type: policy
+description: >
+  A data collector records, per human-effects category and metric, one of
+  three states: reported present, reported absent, or not yet assessed —
+  a tri-state presence flag distinct from the disaggregated entry data
+  itself.
+businessGoal: it is always distinguishable whether a zero effect was actually assessed and found to be zero, or simply never assessed
+context: country-office
+actor: data-collector
+activatedBy: [human.effects.category.presence.save.requested]
+emits: set.human.effects.category.presence
+processes: [disaster-record]
+
+preconditions:
+  - id: metric-keys-valid
+    description: Every key being set must correspond to a real, non-custom metric for this human-effects table
+    reads: [human.effects.category.presence.fields]

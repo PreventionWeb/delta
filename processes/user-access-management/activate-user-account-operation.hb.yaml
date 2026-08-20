@@ -1,0 +1,39 @@
+id: activate-user-account-operation
+type: operation
+description: Set the invitee's name and password, mark their email verified, and welcome them.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [activate.user.account]
+processes: [user-access-management]
+
+constraints:
+  - id: invite-code-valid
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [user.invite.code]
+
+  - id: invite-not-expired
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [user.invite.expiry]
+
+  - id: name-provided
+    description: First and last name must be provided
+    reads: [accept.invite.first.name, accept.invite.last.name]
+
+unconditionalOutcome:
+  kind: user.account.activated
+  description: The account is fully activated and ready to log in
+  effects:
+    - point: user.password
+      description: Set to the hash of the chosen password
+    - point: user.first.name
+      description: Set from the submitted name
+    - point: user.last.name
+      description: Set from the submitted name
+    - point: user.email.verified
+      description: Set to true
+    - point: user.invite.code
+      description: Cleared
+    - point: welcome.email.sent
+      description: Set to true once the welcome email is dispatched
+
+conditionalOutcomes: []

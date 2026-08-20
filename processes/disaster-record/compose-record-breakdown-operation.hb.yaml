@@ -1,0 +1,40 @@
+id: compose-record-breakdown-operation
+type: operation
+description: >
+  Persist the breakdown entry. Only damages and disruption entries trigger
+  the disaster event cost recalculation (repair/replacement come from
+  damages, rehabilitation from disruption); losses and non-economic-losses
+  entries do not feed that rollup at all.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [compose.record.breakdown.entry]
+processes: [disaster-record]
+
+constraints:
+  - id: amounts-non-negative
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [record.breakdown.entry.fields]
+
+unconditionalOutcome:
+  kind: record.breakdown.entry.composed
+  description: The breakdown entry exists with valid, non-negative figures
+  effects:
+    - point: record.breakdown.entry.exists
+      description: Created, or its fields updated
+
+conditionalOutcomes:
+  - condition:
+      description: The entry is a damages row
+      reads: [record.breakdown.entry.type]
+    outcome:
+      kind: damages.saved
+      description: A damages entry changed, which the disaster event cost rollup listens for
+      effects: []
+
+  - condition:
+      description: The entry is a disruption row
+      reads: [record.breakdown.entry.type]
+    outcome:
+      kind: disruption.saved
+      description: A disruption entry changed, which the disaster event cost rollup listens for
+      effects: []

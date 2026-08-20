@@ -1,0 +1,26 @@
+id: compose-human-effects-entry-policy
+type: policy
+description: >
+  A data collector enters disaggregated human-effects data (deaths,
+  injured, missing, affected, or displaced) for a disaster record, broken
+  down by dimensions like sex, age, disability, and poverty line, plus any
+  tenant-defined custom dimensions.
+businessGoal: disaggregated human-effects data is internally consistent and never contradicts the declared totals
+context: country-office
+actor: data-collector
+activatedBy: [human.effects.entry.save.requested]
+emits: compose.human.effects.entry
+processes: [disaster-record]
+
+preconditions:
+  - id: row-has-dimension-data
+    description: A row must carry at least one non-zero dimension value unless it is the dedicated totals row
+    reads: [human.effects.entry.fields]
+
+  - id: no-duplicate-dimension-combination
+    description: No two rows may share the exact same combination of dimension values
+    reads: [human.effects.entry.fields]
+
+  - id: collector-judges-entries-ready
+    description: The collector's judgment that this disaggregated breakdown reflects reality
+    reads: [human.effects.entry.fields]

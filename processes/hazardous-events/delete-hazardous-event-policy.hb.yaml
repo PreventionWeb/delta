@@ -1,0 +1,18 @@
+id: delete-hazardous-event-policy
+type: policy
+description: A data collector decides to permanently remove a hazardous event.
+businessGoal: obsolete or mistaken hazardous events can be removed, without silently breaking events that depend on them
+context: country-office
+actor: data-collector
+activatedBy: [hazardous.event.deletion.requested]
+emits: delete.hazardous.event
+processes: [hazardous-events]
+
+preconditions:
+  - id: event-exists
+    description: The target hazardous event must exist in this tenant
+    reads: [hazardous.event.exists]
+
+  - id: collector-confirms-deletion
+    description: The collector's explicit intent to permanently delete this event
+    reads: [hazardous.event.exists]

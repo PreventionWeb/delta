@@ -1,0 +1,35 @@
+id: csv-upsert-operation
+type: operation
+description: >
+  For each row, look up an existing record by apiImportId — update it if
+  found, otherwise create a new one — all in one database transaction.
+  Entirely atomic — same all-or-nothing rollback behavior as
+  csv-create-operation.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [upsert.csv.records]
+processes: [csv-bulk-import]
+
+constraints:
+  - id: file-well-formed
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [import.file.rows]
+
+  - id: every-row-has-import-id
+    description: Every row must include a non-empty apiImportId
+    reads: [import.file.rows]
+
+  - id: every-row-valid
+    description: Every row must pass the entity's fieldsDef validation and its create()/update() call must succeed — a single failing row fails the whole import
+    reads: [import.file.rows]
+
+unconditionalOutcome:
+  kind: csv.records.upserted
+  description: Each row's record is created or updated, matched by apiImportId
+  effects:
+    - point: entity.records.exists
+      description: A new record is created for rows whose apiImportId has no existing match
+    - point: entity.fields
+      description: Updated on the existing record for rows whose apiImportId matches one
+
+conditionalOutcomes: []

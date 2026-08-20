@@ -1,0 +1,22 @@
+id: delete-asset-policy
+type: policy
+description: A data collector decides to permanently remove a custom asset.
+businessGoal: obsolete or mistaken custom assets can be removed, without breaking damages entries that already reference them
+context: country-office
+actor: data-collector
+activatedBy: [asset.deletion.requested]
+emits: delete.asset
+processes: [asset-management]
+
+preconditions:
+  - id: not-built-in
+    description: The target asset must not be a built-in (shared reference data) asset
+    reads: [asset.is.built.in]
+
+  - id: asset-in-same-tenant
+    description: The asset must belong to the collector's own country account
+    reads: [asset.country.account]
+
+  - id: collector-confirms-deletion
+    description: The collector's explicit intent to permanently delete this asset
+    reads: [asset.exists]

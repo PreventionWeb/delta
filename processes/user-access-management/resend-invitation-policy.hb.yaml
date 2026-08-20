@@ -1,0 +1,18 @@
+id: resend-invitation-policy
+type: policy
+description: An admin manually nudges a pending invitee by resending their invite email with a fresh expiry.
+businessGoal: pending invitees whose link may have gone stale get another chance without the admin re-entering their details
+context: country-office
+actor: admin
+activatedBy: [resend.invitation.requested]
+emits: resend.invitation
+processes: [user-access-management]
+
+preconditions:
+  - id: member-exists
+    description: The target user must be a member of this country account
+    reads: [member.exists]
+
+  - id: invitee-not-yet-verified
+    description: The invitee must not have already activated their account
+    reads: [user.email.verified]

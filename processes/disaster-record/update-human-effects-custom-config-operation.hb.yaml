@@ -1,0 +1,28 @@
+id: update-human-effects-custom-config-operation
+type: operation
+description: >
+  Persist the new custom-column configuration, scanned tenant-wide against
+  every disaster record's human-effects data before allowing removal of a
+  column or an enum value.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [update.human.effects.custom.config]
+processes: [disaster-record]
+
+constraints:
+  - id: no-column-removed-while-in-use
+    description: A custom column cannot be removed if any disaster record in the tenant has data in it
+    reads: [human.effects.custom.config.used.columns]
+
+  - id: no-enum-value-removed-while-in-use
+    description: An enum value cannot be removed from a retained column if any disaster record in the tenant has that value recorded
+    reads: [human.effects.custom.config.used.values]
+
+unconditionalOutcome:
+  kind: human.effects.custom.config.updated
+  description: The tenant's custom disaggregation configuration reflects the submitted columns and enum values
+  effects:
+    - point: human.effects.custom.config.exists
+      description: Updated for the whole country account
+
+conditionalOutcomes: []

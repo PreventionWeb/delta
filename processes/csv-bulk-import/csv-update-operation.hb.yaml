@@ -1,0 +1,32 @@
+id: csv-update-operation
+type: operation
+description: >
+  Validate and apply every row's changes to the record it references by id,
+  in one database transaction. Entirely atomic — same all-or-nothing
+  rollback behavior as csv-create-operation.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [update.csv.records]
+processes: [csv-bulk-import]
+
+constraints:
+  - id: file-well-formed
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [import.file.rows]
+
+  - id: every-row-has-id
+    description: Every row must include the id of the record it updates
+    reads: [import.file.rows]
+
+  - id: every-row-valid
+    description: Every row must pass the entity's fieldsDef validation and its update() call must succeed — a single failing row fails the whole import
+    reads: [import.file.rows]
+
+unconditionalOutcome:
+  kind: csv.records.updated
+  description: The referenced record is updated per CSV row
+  effects:
+    - point: entity.fields
+      description: Updated on the existing record identified by each row's id
+
+conditionalOutcomes: []

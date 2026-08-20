@@ -1,0 +1,27 @@
+id: resend-invitation-operation
+type: operation
+description: Refresh the invite's expiry and resend the invite email using the existing invite code.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [resend.invitation]
+processes: [user-access-management]
+
+constraints:
+  - id: invitee-not-yet-verified
+    description: Re-checked at execution time — resending to an already-activated account is rejected ("Account activated")
+    reads: [user.email.verified]
+
+  - id: invite-code-exists
+    description: The user must already have an invite code to resend
+    reads: [user.invite.code]
+
+unconditionalOutcome:
+  kind: invitation.resent
+  description: The invite email is sent again with a refreshed expiry
+  effects:
+    - point: user.invite.sent
+      description: Set to now
+    - point: user.invite.expiry
+      description: Set to 14 days from now
+
+conditionalOutcomes: []

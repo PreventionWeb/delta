@@ -1,0 +1,29 @@
+id: validate-decision-policy
+type: policy
+description: >
+  A data validator (or admin) reviews a record awaiting validation and judges
+  the data correct enough to mark it validated (not yet published). Actor is
+  modeled as data-validator; admin can perform the same decision in code.
+businessGoal: only correct, review-ready data is marked validated
+context: country-office
+actor: data-validator
+activatedBy: [validators.assigned]
+emits: validate.record
+processes: [data-validation-workflow]
+
+preconditions:
+  - id: actor-holds-validate-permission
+    description: >
+      INTENDED RULE, NOT YET ENFORCED IN CODE: the acting user must hold the
+      ValidateData permission. Today the route only checks the generic
+      EditData permission, so any data-collector could technically trigger
+      this action server-side.
+    reads: [actor.permissions]
+
+  - id: record-awaiting-validation
+    description: The record must currently be waiting-for-validation
+    reads: [record.approval.status]
+
+  - id: data-judged-correct
+    description: The validator's judgment that the submitted data is accurate and complete
+    reads: [record.fields]

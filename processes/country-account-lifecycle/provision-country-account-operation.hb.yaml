@@ -1,0 +1,53 @@
+id: provision-country-account-operation
+type: operation
+description: >
+  Create the country account and its instance settings, link the designated
+  admin (creating them if new), and email them — same new/existing/expired
+  branching as invite-user-operation, scoped here to the primary admin.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [provision.country.account]
+processes: [country-account-lifecycle]
+
+constraints:
+  - id: country-selected
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [country.exists]
+
+  - id: no-duplicate-official-account
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [country.account.exists.for.type]
+
+unconditionalOutcome:
+  kind: country.account.provisioned
+  description: The country account, its instance settings, and its primary admin link are created
+  effects:
+    - point: country.account.exists
+      description: Set to true — the country account row is created with the chosen type and status
+    - point: instance.settings.exists
+      description: Set to true — instance system settings (ISO3, currency) are created for this account
+    - point: member.exists
+      description: The admin email is linked to this account with role "admin" and is_primary_admin true
+
+conditionalOutcomes:
+  - condition:
+      description: No user record existed for the admin email before provisioning
+      reads: [user.exists]
+    outcome:
+      kind: primary_admin.user.created
+      description: A new, unverified user record is created and an invite-setup email is sent
+      effects:
+        - point: user.exists
+          description: Set to true
+        - point: user.invite.code
+          description: Generated
+        - point: user.invite.expiry
+          description: Set to 14 days from now
+
+  - condition:
+      description: A user record already existed for the admin email and it is already email-verified
+      reads: [user.email.verified]
+    outcome:
+      kind: primary_admin.notified
+      description: A plain notice email is sent instead of an invite-setup email (no invite code involved)
+      effects: []

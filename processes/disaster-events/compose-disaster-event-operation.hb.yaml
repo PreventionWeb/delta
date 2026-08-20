@@ -1,0 +1,37 @@
+id: compose-disaster-event-operation
+type: operation
+description: >
+  Persist the disaster event's fields and sync its causal links. Unlike
+  hazardous-event linking, the disaster-event-to-hazardous-event causal
+  links (either direction) are synced with no cycle check at all; only
+  disaster-event-to-disaster-event causal links get a recursive
+  ancestor/descendant cycle check (both directions), and there is no
+  temporal-order check on any of these links, unlike hazardous events.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [compose.disaster.event]
+processes: [disaster-events]
+
+constraints:
+  - id: hazardous-event-in-same-tenant
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [disaster.event.hazardous.event.country.account]
+
+  - id: no-cycle-in-disaster-causality
+    description: The new/updated disaster-event-to-disaster-event causal links must not create a cycle, checked in both the triggering and triggered directions
+    reads: [disaster.event.causality.graph]
+
+unconditionalOutcome:
+  kind: disaster.event.composed
+  description: The disaster event exists with its fields and causal/record links synced
+  effects:
+    - point: disaster.event.exists
+      description: Created, or its fields updated
+    - point: disaster.event.causality.exists
+      description: Triggering/triggered links to other disaster events are synced to match the submitted selection
+    - point: disaster.event.linked.to.hazardous.event
+      description: Triggering/triggered links to hazardous events are synced to match the submitted selection — read by hazardous-events' delete-hazardous-event-operation as its dependent-check
+    - point: disaster.record.linked.to.disaster.event
+      description: Disaster records are linked or unlinked to match the submitted selection
+
+conditionalOutcomes: []

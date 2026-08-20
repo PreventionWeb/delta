@@ -1,0 +1,18 @@
+id: delete-disaster-event-policy
+type: policy
+description: A data collector decides to permanently remove a disaster event.
+businessGoal: obsolete or mistaken disaster events can be removed, and their disaster records freed to be re-linked elsewhere
+context: country-office
+actor: data-collector
+activatedBy: [disaster.event.deletion.requested]
+emits: delete.disaster.event
+processes: [disaster-events]
+
+preconditions:
+  - id: event-exists
+    description: The target disaster event must exist in this tenant
+    reads: [disaster.event.exists]
+
+  - id: collector-confirms-deletion
+    description: The collector's explicit intent to permanently delete this event
+    reads: [disaster.event.exists]

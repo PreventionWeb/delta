@@ -1,0 +1,43 @@
+id: compose-disaster-record-operation
+type: operation
+description: >
+  Persist the disaster record's fields. Only on update — never on create,
+  since a brand-new record has no breakdown data yet — this also triggers
+  the disaster event cost rollup, because re-linking a record to a
+  different (or no) disaster event changes which records' costs get
+  aggregated.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [compose.disaster.record]
+processes: [disaster-record]
+
+constraints:
+  - id: hip-hierarchy-consistent
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [disaster.record.hip.hazard, disaster.record.hip.cluster, disaster.record.hip.type]
+
+  - id: start-end-date-ordered
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [disaster.record.start.date, disaster.record.end.date]
+
+  - id: disaster-event-in-same-tenant
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [disaster.record.disaster.event.country.account]
+
+unconditionalOutcome:
+  kind: disaster.record.composed
+  description: The disaster record exists with consistent classification, timeline, and tenant-scoped links
+  effects:
+    - point: disaster.record.exists
+      description: Created, or its fields updated
+    - point: disaster.record.linked.to.disaster.event
+      description: Set to the specified disaster event, or cleared
+
+conditionalOutcomes:
+  - condition:
+      description: This save is an update to an existing record, not a first-time creation
+      reads: [disaster.record.exists]
+    outcome:
+      kind: disaster.record.saved
+      description: An existing disaster record changed, which the disaster event cost rollup listens for
+      effects: []

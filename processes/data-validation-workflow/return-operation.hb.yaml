@@ -1,0 +1,48 @@
+id: return-operation
+type: operation
+description: >
+  Send the record back to needs-revision, record the reason, clear
+  assignments, and notify the originally assigned validators/collector
+  (rather than only the submitter, as reject-operation does).
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [return.record]
+processes: [data-validation-workflow]
+
+constraints:
+  - id: actor-holds-validate-permission
+    description: >
+      INTENDED RULE, NOT YET ENFORCED IN CODE: same gap noted on
+      validate-operation.
+    reads: [actor.permissions]
+
+  - id: record-status-is-waiting-for-validation
+    description: The record must still be waiting-for-validation when the operation runs
+    reads: [record.approval.status]
+
+  - id: rejection-message-non-empty
+    description: A non-empty rejection message must be provided — the DB insert requires it
+    reads: [validation.rejection.message]
+
+unconditionalOutcome:
+  kind: record.returned_for_revision
+  description: The record is sent back to needs-revision and the original assignees are notified
+  effects:
+    - point: record.approval.status
+      description: Set to "needs-revision"
+    - point: record.validated.by
+      description: Cleared
+    - point: record.validated.at
+      description: Cleared
+    - point: record.published.by
+      description: Cleared
+    - point: record.published.at
+      description: Cleared
+    - point: validation.rejection.recorded
+      description: A rejection row is stored with the message and rejecting user id
+    - point: validation.assignment.exists
+      description: Cleared — assignment rows for this entity are deleted
+    - point: assignee.notification.sent
+      description: Set to true once the return email is sent to the originally assigned validators/collector (best-effort)
+
+conditionalOutcomes: []

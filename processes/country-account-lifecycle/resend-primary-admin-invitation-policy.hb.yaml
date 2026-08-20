@@ -1,0 +1,19 @@
+id: resend-primary-admin-invitation-policy
+type: policy
+description: >
+  A super_admin manually nudges a country account's primary admin by
+  resending their invite (or a login notice if already verified) — mirrors
+  CountryAccountService.resendInvitation. Distinct from
+  resend-invitation-policy in user-access-management: different actor
+  (super_admin vs admin) and context (platform-operations vs country-office).
+businessGoal: a stalled tenant onboarding (primary admin never activated) can be nudged without recreating the account
+context: platform-operations
+actor: super-admin
+activatedBy: [primary.admin.invitation.resend.requested]
+emits: resend.primary.admin.invitation
+processes: [country-account-lifecycle]
+
+preconditions:
+  - id: account-and-admin-exist
+    description: The country account and its primary admin user must exist
+    reads: [country.account.exists, member.exists]

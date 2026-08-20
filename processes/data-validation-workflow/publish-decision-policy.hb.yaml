@@ -1,0 +1,27 @@
+id: publish-decision-policy
+type: policy
+description: >
+  A data validator (or admin) reviews a record awaiting validation and judges
+  it ready to publish directly (skipping a separate "validated" step — in
+  code, publish also stamps validated.by/at with the publisher's id).
+businessGoal: reviewed, correct data becomes publicly visible
+context: country-office
+actor: data-validator
+activatedBy: [validators.assigned]
+emits: publish.record
+processes: [data-validation-workflow]
+
+preconditions:
+  - id: actor-holds-validate-permission
+    description: >
+      INTENDED RULE, NOT YET ENFORCED IN CODE: same gap noted on
+      validate-decision-policy.
+    reads: [actor.permissions]
+
+  - id: record-awaiting-validation
+    description: The record must currently be waiting-for-validation
+    reads: [record.approval.status]
+
+  - id: data-judged-ready-to-publish
+    description: The validator's judgment that the data is accurate, complete, and ready for public visibility
+    reads: [record.fields]

@@ -1,0 +1,33 @@
+id: delete-disaster-event-operation
+type: operation
+description: >
+  Delete the event and its validation history. Unlike hazardous-event
+  deletion, this does not check for or block on dependents: disaster
+  records that referenced this event are unlinked (their
+  disasterEventId is cleared) rather than the deletion being refused.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [delete.disaster.event]
+processes: [disaster-events]
+
+constraints:
+  - id: event-exists
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [disaster.event.exists]
+
+unconditionalOutcome:
+  kind: disaster.event.deleted
+  description: The event and its validation history are permanently removed
+  effects:
+    - point: disaster.event.exists
+      description: Set to false
+    - point: disaster.record.linked.to.disaster.event
+      description: Any disaster record that referenced this event has the link cleared, not deleted
+    - point: disaster.event.causality.exists
+      description: This event's causal links to other disaster/hazardous events are deleted
+    - point: validation.assignment.exists
+      description: Cleared for this entity
+    - point: validation.rejection.recorded
+      description: Cleared for this entity
+
+conditionalOutcomes: []

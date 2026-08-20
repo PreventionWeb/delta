@@ -1,0 +1,40 @@
+id: delete-disaster-record-operation
+type: operation
+description: >
+  Delete the record and, unlike disaster-event deletion, fully cascade:
+  all non-economic losses, damages, losses, disruptions, sector relations,
+  and human-effects data (entries, category presence, custom config usage)
+  for this record are deleted before the record itself, all in one
+  transaction. There is no dependent-blocking here because nothing else
+  references a disaster record — it sits at the bottom of the ownership
+  chain.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [delete.disaster.record]
+processes: [disaster-record]
+
+constraints:
+  - id: record-exists
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [disaster.record.exists]
+
+unconditionalOutcome:
+  kind: disaster.record.deleted
+  description: The record and all of its dependent breakdown and human-effects data are permanently removed
+  effects:
+    - point: disaster.record.exists
+      description: Set to false
+    - point: record.breakdown.entry.exists
+      description: All damages, losses, disruption, and non-economic-losses rows for this record are deleted
+    - point: sector.relation.exists
+      description: All sector relations for this record are deleted
+    - point: human.effects.entry.exists
+      description: All disaggregated human-effects rows for this record are deleted
+    - point: human.effects.category.presence.exists
+      description: Cleared for this record
+    - point: validation.assignment.exists
+      description: Cleared for this entity
+    - point: validation.rejection.recorded
+      description: Cleared for this entity
+
+conditionalOutcomes: []

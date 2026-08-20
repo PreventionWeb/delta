@@ -1,0 +1,29 @@
+id: csv-create-operation
+type: operation
+description: >
+  Validate and create every row as a new record, in one database
+  transaction. Entirely atomic — code processes rows sequentially and the
+  first row that fails validation or save aborts and rolls back the whole
+  file; no partial import.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [create.csv.records]
+processes: [csv-bulk-import]
+
+constraints:
+  - id: file-well-formed
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [import.file.rows]
+
+  - id: every-row-valid
+    description: Every row must pass the entity's fieldsDef validation and its create() call must succeed — a single failing row fails the whole import
+    reads: [import.file.rows]
+
+unconditionalOutcome:
+  kind: csv.records.created
+  description: One new record is created per CSV row
+  effects:
+    - point: entity.records.exists
+      description: A new record (with a generated id) is created for each row
+
+conditionalOutcomes: []

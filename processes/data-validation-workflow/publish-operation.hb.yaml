@@ -1,0 +1,39 @@
+id: publish-operation
+type: operation
+description: Mark the record published, clear its validator assignments, and notify the submitter.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [publish.record]
+processes: [data-validation-workflow]
+
+constraints:
+  - id: actor-holds-validate-permission
+    description: >
+      INTENDED RULE, NOT YET ENFORCED IN CODE: same gap noted on
+      validate-operation.
+    reads: [actor.permissions]
+
+  - id: record-status-is-waiting-for-validation
+    description: The record must still be waiting-for-validation when the operation runs
+    reads: [record.approval.status]
+
+unconditionalOutcome:
+  kind: record.published
+  description: The record is marked published and becomes publicly accessible
+  effects:
+    - point: record.approval.status
+      description: Set to "published"
+    - point: record.validated.by
+      description: Also set to the publishing user's id (code stamps validated.by/at on publish, not just published.by/at)
+    - point: record.validated.at
+      description: Set to now
+    - point: record.published.by
+      description: Set to the publishing user's id
+    - point: record.published.at
+      description: Set to now
+    - point: validation.assignment.exists
+      description: Cleared — assignment rows for this entity are deleted
+    - point: submitter.notification.sent
+      description: Set to true once the status-change email is sent to the original submitter (best-effort)
+
+conditionalOutcomes: []

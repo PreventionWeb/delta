@@ -1,0 +1,31 @@
+id: update-member-operation
+type: operation
+description: Apply the new role and/or organization to the member's country-account link.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [update.member.role]
+processes: [user-access-management]
+
+constraints:
+  - id: member-exists
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [member.exists]
+
+  - id: not-primary-admin
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [member.primary.admin]
+
+  - id: role-selected
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [member.update.role]
+
+unconditionalOutcome:
+  kind: member.updated
+  description: The member's role and/or organization are updated
+  effects:
+    - point: member.role
+      description: Set to the new role
+    - point: member.organization
+      description: Set to the new organization
+
+conditionalOutcomes: []

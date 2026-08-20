@@ -1,0 +1,21 @@
+id: compose-disaster-event-policy
+type: policy
+description: >
+  A data collector creates or edits a disaster event, optionally linking it
+  to a triggering hazardous event, other disaster events (causal chain), and
+  disaster records.
+businessGoal: disaster events accurately represent their real-world causal relationships without forming an inconsistent graph
+context: country-office
+actor: data-collector
+activatedBy: [disaster.event.save.requested]
+emits: compose.disaster.event
+processes: [disaster-events]
+
+preconditions:
+  - id: hazardous-event-in-same-tenant
+    description: If a triggering hazardous event is specified, it must belong to the same country account
+    reads: [disaster.event.hazardous.event.country.account]
+
+  - id: collector-judges-record-ready
+    description: The collector's judgment that the event's fields and links reflect reality
+    reads: [disaster.event.fields]

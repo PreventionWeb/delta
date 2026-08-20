@@ -1,0 +1,26 @@
+id: clone-country-account-policy
+type: policy
+description: >
+  A super_admin duplicates a fictional country account into a new training
+  copy, for building demo/training instances without touching real official
+  data — mirrors CountryAccountService.clone, which refuses non-fictional
+  sources.
+businessGoal: training instances can be spun up from a known-good fictional dataset, never from real official country data
+context: platform-operations
+actor: super-admin
+activatedBy: [country.account.clone.requested]
+emits: clone.country.account
+processes: [country-account-lifecycle]
+
+preconditions:
+  - id: source-account-exists
+    description: The source country account must exist
+    reads: [country.account.exists]
+
+  - id: source-is-fictional
+    description: The source account's country must be of the fictional type — only fictional accounts may be cloned
+    reads: [country.type]
+
+  - id: description-provided
+    description: A short description for the new account must be provided
+    reads: [account.short.description]

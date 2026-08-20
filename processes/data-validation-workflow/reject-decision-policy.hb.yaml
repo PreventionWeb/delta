@@ -1,0 +1,27 @@
+id: reject-decision-policy
+type: policy
+description: >
+  A data validator (or admin) reviews a record awaiting validation and judges
+  it not yet acceptable, sending it back to the submitter with a rejection
+  comment. Maps to the "submit-reject" action in code.
+businessGoal: incorrect or incomplete data is sent back for correction, with a reason
+context: country-office
+actor: data-validator
+activatedBy: [validators.assigned]
+emits: reject.record
+processes: [data-validation-workflow]
+
+preconditions:
+  - id: actor-holds-validate-permission
+    description: >
+      INTENDED RULE, NOT YET ENFORCED IN CODE: same gap noted on
+      validate-decision-policy.
+    reads: [actor.permissions]
+
+  - id: record-awaiting-validation
+    description: The record must currently be waiting-for-validation
+    reads: [record.approval.status]
+
+  - id: rejection-reason-identified
+    description: The validator has identified what is wrong with the data, to be recorded as a rejection message
+    reads: [validation.rejection.message]

@@ -1,0 +1,34 @@
+id: delete-asset-operation
+type: operation
+description: >
+  Delete the asset. Unlike hazardous-event deletion's separately-modeled
+  dependent checks, here there is only one dependency guard — any damages
+  entry still referencing this asset — and it is caught reactively via a
+  foreign-key violation on the damages table, surfaced as a graceful error
+  rather than propagated as an exception.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [delete.asset]
+processes: [asset-management]
+
+constraints:
+  - id: not-built-in
+    description: Re-checked at execution time — same rule as the paired policy, enforced as a defensive throw
+    reads: [asset.is.built.in]
+
+  - id: asset-in-same-tenant
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [asset.country.account]
+
+  - id: no-dependent-damages-entries
+    description: No damages entry may still reference this asset — caught via a foreign-key violation on the damages table, not pre-checked
+    reads: [damages.entry.linked.to.asset]
+
+unconditionalOutcome:
+  kind: asset.deleted
+  description: The custom asset is permanently removed
+  effects:
+    - point: asset.exists
+      description: Set to false
+
+conditionalOutcomes: []

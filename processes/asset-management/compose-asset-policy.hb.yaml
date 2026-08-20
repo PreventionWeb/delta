@@ -1,0 +1,18 @@
+id: compose-asset-policy
+type: policy
+description: A data collector creates or edits a custom asset (name, category, national ID, notes, sector links) used to classify damages entries.
+businessGoal: tenants can define their own assets for damage classification, without ever mutating the shared built-in reference set
+context: country-office
+actor: data-collector
+activatedBy: [asset.save.requested]
+emits: compose.asset
+processes: [asset-management]
+
+preconditions:
+  - id: not-built-in
+    description: The target asset must not be a built-in (shared reference data) asset
+    reads: [asset.is.built.in]
+
+  - id: name-and-sector-provided
+    description: A name and at least one sector must be provided
+    reads: [asset.fields]

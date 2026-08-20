@@ -1,0 +1,212 @@
+contexts:
+  - type: institutional
+    id: platform-operations
+    description: >
+      UNDRR's global operations team that provisions and manages DELTA
+      country accounts (tenants) across the whole platform
+    kind: role-authority
+
+  - type: institutional
+    id: country-office
+    description: >
+      A country account's national office — where data collectors, data
+      validators, and admins manage disaster and hazardous event data for
+      their country/tenant
+    kind: role-authority
+
+  - type: software
+    id: delta-platform
+    description: >
+      DELTA Resilience — the core disaster tracking platform (React Router +
+      Express + PostgreSQL/PostGIS). Persists records, enforces role/status
+      permission rules, and drives status transitions.
+    boundary: internal
+
+  - type: software
+    id: notification-service
+    description: Email notification delivery (SMTP or file transport in dev)
+    boundary: external
+
+actors:
+  - type: human
+    id: data-collector
+    role: Data Collector
+    description: Adds, edits, imports, and submits disaster data for validation
+
+  - type: human
+    id: data-validator
+    role: Data Validator
+    description: Reviews submitted data and validates, rejects, or publishes it
+
+  - type: human
+    id: admin
+    role: Admin
+    description: >
+      Manages users, organizations, and country settings; can also validate
+      and publish data within their country account
+
+  - type: human
+    id: super-admin
+    role: Super Admin
+    description: >
+      Global, cross-tenant role — manages country account lifecycle
+      (create/activate/deactivate/clone/delete). No per-country data
+      permissions, by design, for data sovereignty.
+
+  - type: machine
+    id: delta-platform-engine
+    description: >
+      Deterministic backend logic in delta-platform — validates constraints,
+      persists status transitions, records timestamps/actor ids
+
+processes:
+  - id: data-validation-workflow
+    description: >
+      A data collector submits a hazardous event, disaster event, or disaster
+      record for validation; assigned validators review it and either send it
+      back for revision, validate it, or publish it
+    startsWith: [record.saved]
+    endsWith: [record.published, record.needs_revision, record.returned_for_revision]
+
+  - id: user-access-management
+    description: >
+      An admin invites, updates the role/org of, removes, and resends
+      invitations to members of their country account; an invitee activates
+      their own account via the invite link
+    startsWith:
+      [
+        invite.requested,
+        accept.invite.requested,
+        update.member.requested,
+        remove.member.requested,
+        resend.invitation.requested,
+      ]
+    endsWith:
+      [
+        invitation.sent,
+        user.account.activated,
+        member.updated,
+        member.removed,
+        invitation.resent,
+      ]
+
+  - id: country-account-lifecycle
+    description: >
+      A super_admin provisions, (de)activates, clones, and deletes country
+      accounts (tenants), and can resend a country account's primary admin
+      invitation
+    startsWith:
+      [
+        country.account.provisioning.requested,
+        country.account.status.change.requested,
+        country.account.clone.requested,
+        country.account.deletion.requested,
+        primary.admin.invitation.resend.requested,
+      ]
+    endsWith:
+      [
+        country.account.provisioned,
+        country.account.status.updated,
+        country.account.cloned,
+        country.account.deleted,
+        primary.admin.invitation.resent,
+      ]
+
+  - id: csv-bulk-import
+    description: >
+      A data collector bulk-creates, bulk-updates, or bulk-upserts records of
+      any entity type (disaster records, hazardous/disaster events,
+      organizations, etc.) via CSV, using the shared fieldsDef pattern.
+      Excludes CSV export, which is a pure read with no decision to model.
+    startsWith: [csv.import.requested]
+    endsWith: [csv.records.created, csv.records.updated, csv.records.upserted]
+
+  - id: hazardous-events
+    description: >
+      Everything owned by the Hazardous Event entity: a data collector
+      composes an event (HIP hierarchy consistency, date ordering), links
+      one hazardous event as caused by another (cycle detection, temporal
+      order, tenant isolation), and deletion is blocked while other events
+      still depend on this one.
+    startsWith:
+      [
+        hazardous.event.save.requested,
+        hazardous.event.parent.link.requested,
+        hazardous.event.deletion.requested,
+      ]
+    endsWith: [hazardous.event.composed, hazardous.event.parent.linked, hazardous.event.deleted]
+
+  - id: disaster-events
+    description: >
+      Everything owned by the Disaster Event entity: a data collector
+      composes an event (cross-tenant guard on the linked hazardous event;
+      unlike hazardous events, no temporal-order check, but it does enforce
+      cycle detection on disaster-event-to-disaster-event causality links
+      in both directions), deletes an event (unlike hazardous-event
+      deletion, this does not block on dependents — it permissively unlinks
+      any disaster records that referenced it), and its financial totals
+      are automatically recalculated whenever damages/disruption/sector-
+      relation/disaster-record data changes (fully automated, no human
+      judgment).
+    startsWith:
+      [
+        disaster.event.save.requested,
+        disaster.event.deletion.requested,
+        damages.saved,
+        disruption.saved,
+        sector.relation.saved,
+        disaster.record.saved,
+      ]
+    endsWith:
+      [
+        disaster.event.composed,
+        disaster.event.deleted,
+        disaster.event.costs.recalculated,
+      ]
+
+  - id: disaster-record
+    description: >
+      Everything owned by the Disaster Record entity: composing and
+      deleting a record, its financial breakdown tables (damages, losses,
+      disruptions, non-economic losses, sector relations), and its human
+      effects (disaggregated entries, category presence, custom
+      disaggregation config).
+    startsWith:
+      [
+        disaster.record.save.requested,
+        disaster.record.deletion.requested,
+        record.breakdown.entry.save.requested,
+        sector.relation.save.requested,
+        human.effects.entry.save.requested,
+        human.effects.category.presence.save.requested,
+        human.effects.custom.config.save.requested,
+      ]
+    endsWith:
+      [
+        disaster.record.composed,
+        disaster.record.deleted,
+        record.breakdown.entry.composed,
+        sector.relation.composed,
+        human.effects.entry.composed,
+        human.effects.category.presence.set,
+        human.effects.custom.config.updated,
+      ]
+
+  - id: asset-management
+    description: >
+      A data collector manages custom (non-built-in) assets referenced by
+      damages entries, gated by the same generic EditData permission as
+      other data entry (not an admin-only action, despite assets being
+      shared reference data). Built-in assets (shared reference data) are
+      immutable — create/update/delete all throw if isBuiltIn is true.
+    startsWith: [asset.save.requested, asset.deletion.requested]
+    endsWith: [asset.composed, asset.deleted]
+
+  - id: geography-division-bulk-import
+    description: >
+      An admin bulk-imports administrative divisions from a ZIP (CSV +
+      per-division GeoJSON files), processed hierarchically (parents before
+      children) with per-row success/failure reporting — structurally
+      different from csv-bulk-import's all-or-nothing transaction.
+    startsWith: [division.zip.import.requested]
+    endsWith: [division.zip.import.completed]

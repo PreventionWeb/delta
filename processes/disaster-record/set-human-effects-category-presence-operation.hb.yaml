@@ -1,0 +1,21 @@
+id: set-human-effects-category-presence-operation
+type: operation
+description: Upsert the tri-state (true/false/null) presence flags for this record's human-effects categories.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [set.human.effects.category.presence]
+processes: [disaster-record]
+
+constraints:
+  - id: metric-keys-valid
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [human.effects.category.presence.fields]
+
+unconditionalOutcome:
+  kind: human.effects.category.presence.set
+  description: The record's category presence flags reflect the submitted tri-state values
+  effects:
+    - point: human.effects.category.presence.exists
+      description: Created, or its flags updated
+
+conditionalOutcomes: []

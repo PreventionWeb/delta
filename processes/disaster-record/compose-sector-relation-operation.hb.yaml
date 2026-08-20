@@ -1,0 +1,36 @@
+id: compose-sector-relation-operation
+type: operation
+description: >
+  Persist the sector-disaster-record relation. This is the third trigger
+  (alongside damages and disruption) for the disaster event cost rollup,
+  since damageRecoveryCost here is the first-choice source for recovery
+  cost, ahead of summing the linked damages rows.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [compose.sector.relation]
+processes: [disaster-record]
+
+constraints:
+  - id: at-least-one-impact-type
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [sector.relation.fields]
+
+  - id: cost-currency-pairing-valid
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [sector.relation.fields]
+
+unconditionalOutcome:
+  kind: sector.relation.composed
+  description: The sector relation exists with a consistent impact-type and cost/currency selection
+  effects:
+    - point: sector.relation.exists
+      description: Created, or its fields updated
+
+conditionalOutcomes:
+  - condition:
+      description: The disaster record this sector relation belongs to is linked to a disaster event
+      reads: [disaster.record.linked.to.disaster.event]
+    outcome:
+      kind: sector.relation.saved
+      description: A sector relation changed, which the disaster event cost rollup listens for
+      effects: []

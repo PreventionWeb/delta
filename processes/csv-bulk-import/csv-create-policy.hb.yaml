@@ -1,0 +1,20 @@
+id: csv-create-policy
+type: policy
+description: >
+  A data collector uploads a CSV of brand-new records for any entity type
+  (via the shared fieldsDef pattern) and chooses "create" mode.
+businessGoal: bulk data entry doesn't require re-keying records one by one through the form UI
+context: country-office
+actor: data-collector
+activatedBy: [csv.import.requested]
+emits: create.csv.records
+processes: [csv-bulk-import]
+
+preconditions:
+  - id: file-well-formed
+    description: The file must have a header row and at least one data row
+    reads: [import.file.rows]
+
+  - id: mode-is-create
+    description: The collector chose "create" mode
+    reads: [import.mode]

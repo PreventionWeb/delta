@@ -1,0 +1,34 @@
+id: compose-human-effects-entry-operation
+type: operation
+description: >
+  Persist the disaggregated rows. A per-metric subtotal check compares the
+  sum of each dimension group against the declared category total: if a
+  group's subtotal is set to zero, it's flagged as a warning (no total set
+  yet); if a subtotal exceeds a non-zero declared total, it's flagged as an
+  error.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [compose.human.effects.entry]
+processes: [disaster-record]
+
+constraints:
+  - id: row-has-dimension-data
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [human.effects.entry.fields]
+
+  - id: no-duplicate-dimension-combination
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [human.effects.entry.fields]
+
+  - id: subtotal-not-exceeding-declared-total
+    description: No dimension group's summed metric may exceed that metric's declared category total
+    reads: [human.effects.entry.fields, human.effects.category.presence.exists]
+
+unconditionalOutcome:
+  kind: human.effects.entry.composed
+  description: The disaggregated human-effects rows exist, consistent with each other and with the declared totals
+  effects:
+    - point: human.effects.entry.exists
+      description: Created, updated, or deleted to match the submitted rows
+
+conditionalOutcomes: []

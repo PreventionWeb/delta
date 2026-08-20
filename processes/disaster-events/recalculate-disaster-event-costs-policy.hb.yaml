@@ -1,0 +1,17 @@
+id: recalculate-disaster-event-costs-policy
+type: policy
+description: >
+  Whenever damages, disruption, sector-relation, or disaster-record data is
+  saved, check whether the affected disaster record is linked to a disaster
+  event — fully automated, no human judgment involved.
+businessGoal: a disaster event's financial totals always reflect the current state of its linked records' damages, losses, and disruption data
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [damages.saved, disruption.saved, sector.relation.saved, disaster.record.saved]
+emits: recalculate.disaster.event.costs
+processes: [disaster-events]
+
+preconditions:
+  - id: record-linked-to-disaster-event
+    description: The saved disaster record must currently be linked to a disaster event — unlinked records have nothing to recalculate
+    reads: [disaster.record.linked.to.disaster.event]

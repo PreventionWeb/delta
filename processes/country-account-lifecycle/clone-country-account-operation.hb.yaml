@@ -1,0 +1,48 @@
+id: clone-country-account-operation
+type: operation
+description: >
+  Deep-copy the source country account's data into a brand-new training
+  account, remapping every foreign key to the new ids. In code this spans
+  ~25 repositories (instance settings, organizations, memberships, reference
+  data, hazardous/disaster events with spatial footprints, disaster records
+  with human-effects/losses/damages, validation assignments/rejections, and
+  attachment files on disk) — grouped here into representative effects
+  rather than one line per table.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [clone.country.account]
+processes: [country-account-lifecycle]
+
+constraints:
+  - id: source-account-exists
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [country.account.exists]
+
+  - id: source-is-fictional
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [country.type]
+
+unconditionalOutcome:
+  kind: country.account.cloned
+  description: A new training country account exists as a full copy of the source
+  effects:
+    - point: country.account.exists
+      description: A new account is created, type forced to "training", same country and status as the source
+    - point: instance.settings.exists
+      description: Source instance settings are copied to the new account
+    - point: reference.data.copied
+      description: Organizations, divisions, assets, and API keys (with freshly generated secrets) are copied
+    - point: member.exists
+      description: All user-country-account memberships are copied, remapped to the new account and organizations
+    - point: disaster.data.copied
+      description: >
+        Hazardous events, disaster events (with relationships and
+        attachments), and disaster records (with spatial footprints,
+        human-effects breakdowns, losses, damages, and sector links) are
+        deep-copied with new ids
+    - point: validation.workflow.state.copied
+      description: Any in-flight validation assignments and past rejections on the copied entities are copied
+    - point: attachment.files.copied
+      description: Referenced attachment files on disk are duplicated into the new tenant's upload directory
+
+conditionalOutcomes: []

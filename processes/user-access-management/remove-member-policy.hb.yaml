@@ -1,0 +1,22 @@
+id: remove-member-policy
+type: policy
+description: An admin decides to revoke a member's access to the country account.
+businessGoal: access is removed once it's no longer warranted
+context: country-office
+actor: admin
+activatedBy: [remove.member.requested]
+emits: remove.member
+processes: [user-access-management]
+
+preconditions:
+  - id: member-exists
+    description: The target user must be a member of this country account
+    reads: [member.exists]
+
+  - id: not-primary-admin
+    description: The primary admin cannot be removed this way
+    reads: [member.primary.admin]
+
+  - id: admin-judges-removal-appropriate
+    description: The admin's judgment that this member should no longer have access
+    reads: [member.profile]

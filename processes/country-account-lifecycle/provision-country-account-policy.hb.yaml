@@ -1,0 +1,29 @@
+id: provision-country-account-policy
+type: policy
+description: >
+  A super_admin sets up a new country account (tenant) for a country,
+  choosing its instance type (official/training) and designating a primary
+  admin by email — mirrors CountryAccountService.create.
+businessGoal: a new tenant is only created for a validated country, with a reachable primary admin, and without duplicating an official account
+context: platform-operations
+actor: super-admin
+activatedBy: [country.account.provisioning.requested]
+emits: provision.country.account
+processes: [country-account-lifecycle]
+
+preconditions:
+  - id: country-selected
+    description: A valid, existing country must be selected
+    reads: [country.exists]
+
+  - id: no-duplicate-official-account
+    description: An official-type account must not already exist for this country
+    reads: [country.account.exists.for.type]
+
+  - id: admin-email-and-description-valid
+    description: A well-formed admin email, a short description, and a valid currency must be provided
+    reads: [account.admin.email, account.short.description, account.currency]
+
+  - id: account-type-valid
+    description: The instance type must be either official or training
+    reads: [account.type]

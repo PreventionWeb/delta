@@ -1,0 +1,23 @@
+id: update-country-account-status-policy
+type: policy
+description: >
+  A super_admin activates or deactivates a country account. Modeled as one
+  decision because CountryAccountService.updateStatus takes an arbitrary
+  status value through a single code path, even though activate/deactivate
+  are gated by two distinct permissions (activate_country_account /
+  deactivate_country_account) in the roles model.
+businessGoal: a country account's availability reflects a deliberate super_admin decision
+context: platform-operations
+actor: super-admin
+activatedBy: [country.account.status.change.requested]
+emits: update.country.account.status
+processes: [country-account-lifecycle]
+
+preconditions:
+  - id: account-exists
+    description: The target country account must exist
+    reads: [country.account.exists]
+
+  - id: status-and-description-valid
+    description: The new status must be a recognized value and a short description must be provided
+    reads: [account.status, account.short.description]

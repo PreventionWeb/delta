@@ -1,0 +1,25 @@
+id: link-hazardous-event-parent-policy
+type: policy
+description: >
+  A data collector asserts that one hazardous event was caused by another,
+  setting the "parent" (cause) link — mirrors the parent-handling branch of
+  hazardousEventCreate/Update.
+businessGoal: causal chains between hazardous events reflect the collector's real-world knowledge, without forming an inconsistent graph
+context: country-office
+actor: data-collector
+activatedBy: [hazardous.event.parent.link.requested]
+emits: link.hazardous.event.parent
+processes: [hazardous-events]
+
+preconditions:
+  - id: parent-not-self
+    description: An event cannot be set as its own cause
+    reads: [hazardous.event.id, hazardous.event.parent.id]
+
+  - id: parent-in-same-tenant
+    description: The parent event must belong to the same country account
+    reads: [hazardous.event.parent.country.account]
+
+  - id: collector-judges-causal-link
+    description: The collector's judgment that this causal relationship reflects reality
+    reads: [hazardous.event.fields]

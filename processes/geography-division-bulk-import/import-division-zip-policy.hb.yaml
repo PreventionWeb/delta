@@ -1,0 +1,17 @@
+id: import-division-zip-policy
+type: policy
+description: >
+  An admin uploads a ZIP file (a CSV of division rows plus per-division
+  GeoJSON files) to bulk-load the country's administrative division
+  hierarchy.
+businessGoal: a tenant's full division hierarchy can be loaded in one operation, with per-division success/failure visible rather than an all-or-nothing outcome
+context: country-office
+actor: admin
+activatedBy: [division.zip.import.requested]
+emits: import.division.zip
+processes: [geography-division-bulk-import]
+
+preconditions:
+  - id: file-provided
+    description: A ZIP file must be attached to the request
+    reads: [division.zip.import.file]

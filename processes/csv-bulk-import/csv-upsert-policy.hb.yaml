@@ -1,0 +1,22 @@
+id: csv-upsert-policy
+type: policy
+description: >
+  A data collector (often via an external system reconciling data)
+  uploads a CSV keyed by an external apiImportId and chooses "upsert" mode —
+  each row either creates a new record or updates the one it already
+  matches.
+businessGoal: periodic external syncs can push data without needing to know DELTA's internal record ids
+context: country-office
+actor: data-collector
+activatedBy: [csv.import.requested]
+emits: upsert.csv.records
+processes: [csv-bulk-import]
+
+preconditions:
+  - id: file-well-formed
+    description: The file must have a header row and at least one data row
+    reads: [import.file.rows]
+
+  - id: mode-is-upsert
+    description: The collector chose "upsert" mode
+    reads: [import.mode]

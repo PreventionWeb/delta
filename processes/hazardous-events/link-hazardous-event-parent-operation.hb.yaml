@@ -1,0 +1,38 @@
+id: link-hazardous-event-parent-operation
+type: operation
+description: >
+  Validate the proposed cause link against the whole causality graph and
+  persist it. checkForCycle walks the graph with a recursive query (capped
+  at depth 10); validateTemporalCausality requires the parent to start
+  before or at the same time as the child, but only when both events have a
+  start date set — an undated event never blocks the link.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [link.hazardous.event.parent]
+processes: [hazardous-events]
+
+constraints:
+  - id: parent-not-self
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [hazardous.event.id, hazardous.event.parent.id]
+
+  - id: parent-in-same-tenant
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [hazardous.event.parent.country.account]
+
+  - id: no-cycle-created
+    description: The new link must not create a cycle anywhere in the causality graph, direct or through an existing chain
+    reads: [event.relationship.graph]
+
+  - id: temporal-order-valid
+    description: If both events have a start date, the parent's must not be after the child's
+    reads: [hazardous.event.start.date]
+
+unconditionalOutcome:
+  kind: hazardous.event.parent.linked
+  description: The causal link is recorded
+  effects:
+    - point: event.relationship.exists
+      description: A "caused_by" relationship row links the child event to its parent (replacing any prior parent link)
+
+conditionalOutcomes: []

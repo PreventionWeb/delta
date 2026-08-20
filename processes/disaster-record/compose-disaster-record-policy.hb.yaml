@@ -1,0 +1,26 @@
+id: compose-disaster-record-policy
+type: policy
+description: A data collector creates or edits a disaster record, optionally linking it to a disaster event.
+businessGoal: disaster records carry an internally consistent hazard classification, timeline, and tenant-scoped links
+context: country-office
+actor: data-collector
+activatedBy: [disaster.record.save.requested]
+emits: compose.disaster.record
+processes: [disaster-record]
+
+preconditions:
+  - id: hip-hierarchy-consistent
+    description: If any HIP field is being set, all three (hazard/cluster/type) must be provided together and match the same hierarchy
+    reads: [disaster.record.hip.hazard, disaster.record.hip.cluster, disaster.record.hip.type]
+
+  - id: start-end-date-ordered
+    description: If either date is being set, both must be provided and start must not be after end
+    reads: [disaster.record.start.date, disaster.record.end.date]
+
+  - id: disaster-event-in-same-tenant
+    description: If a disaster event is specified, it must belong to the same country account
+    reads: [disaster.record.disaster.event.country.account]
+
+  - id: collector-judges-record-ready
+    description: The collector's judgment that the record's fields reflect reality
+    reads: [disaster.record.fields]

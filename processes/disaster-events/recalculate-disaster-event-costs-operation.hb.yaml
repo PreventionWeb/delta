@@ -1,0 +1,29 @@
+id: recalculate-disaster-event-costs-operation
+type: operation
+description: >
+  Sum repair, replacement, rehabilitation, and recovery costs across all
+  disaster records linked to the disaster event, and persist the totals.
+  Recovery cost uses a two-level fallback per sector/record pair: the
+  sector relation's explicit override if set, otherwise the sum of the
+  matching damages rows.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [recalculate.disaster.event.costs]
+processes: [disaster-events]
+
+constraints: []
+
+unconditionalOutcome:
+  kind: disaster.event.costs.recalculated
+  description: The disaster event's calculated cost fields reflect the current linked data
+  effects:
+    - point: disaster.event.repair.cost
+      description: Set to the sum of pdRepairCostTotal across all linked disaster records' damages
+    - point: disaster.event.replacement.cost
+      description: Set to the sum of tdReplacementCostTotal across all linked disaster records' damages
+    - point: disaster.event.rehabilitation.cost
+      description: Set to the sum of responseCost across all linked disaster records' disruptions
+    - point: disaster.event.recovery.cost
+      description: Set per sector/record pair to the sector relation's override, or the summed damages recovery cost otherwise
+
+conditionalOutcomes: []

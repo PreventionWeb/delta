@@ -1,0 +1,57 @@
+id: invite-user-operation
+type: operation
+description: >
+  Link the invitee to the country account with the chosen role, and send the
+  appropriate email — a setup link for anyone not yet email-verified, or a
+  plain notice for someone who already has a verified account elsewhere in
+  DELTA.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [create.invitation]
+processes: [user-access-management]
+
+constraints:
+  - id: no-blocking-active-invite-or-membership
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [member.exists, user.email.verified, user.invite.expiry]
+
+  - id: country-account-exists
+    description: The target country account must exist
+    reads: [country.account.exists]
+
+unconditionalOutcome:
+  kind: invitation.sent
+  description: The invitee is linked to the country account and an email is dispatched
+  effects:
+    - point: member.exists
+      description: Created (or refreshed) linking this user to the country account with the chosen role/organization, isPrimaryAdmin false
+    - point: user.invite.code
+      description: Generated for a brand-new user, or reused if one already exists and is unverified
+    - point: user.invite.expiry
+      description: Set to 14 days from now
+    - point: user.invite.sent
+      description: Set to now
+
+conditionalOutcomes:
+  - condition:
+      description: No user record existed for this email before this invitation
+      reads: [user.exists]
+    outcome:
+      kind: user.account.created
+      description: A new, unverified user record is created to hold the invitation
+      effects:
+        - point: user.exists
+          description: Set to true
+        - point: user.email.verified
+          description: Set to false
+
+  - condition:
+      description: A user record already existed for this email and it is already email-verified (active elsewhere in DELTA)
+      reads: [user.email.verified]
+    outcome:
+      kind: existing.verified.user.notified
+      description: >
+        No invite-setup email is sent — instead a plain notice that they've
+        been granted access to a new country account, with a login link
+        (no invite code involved)
+      effects: []

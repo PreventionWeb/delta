@@ -1,0 +1,27 @@
+id: collector-readiness-policy
+type: policy
+description: >
+  A data collector, having saved a draft or needs-revision record, judges it
+  ready for review and chooses which validators to send it to. This is the
+  human judgment step preceding the deterministic assignment operation —
+  captured in code as the "submit-validation" tempAction on the record's
+  save form.
+businessGoal: only records the collector believes are ready get sent for validation, and always with at least one named validator
+context: country-office
+actor: data-collector
+activatedBy: [record.saved]
+emits: assign.validators
+processes: [data-validation-workflow]
+
+preconditions:
+  - id: record-status-submittable
+    description: The record must currently be in draft or needs-revision status
+    reads: [record.approval.status]
+
+  - id: data-collector-judges-complete
+    description: The collector's judgment that the entered data is complete and accurate enough for review
+    reads: [record.fields]
+
+  - id: validators-selected
+    description: The collector has chosen at least one validator user id to review the record
+    reads: [validation.validator.ids]

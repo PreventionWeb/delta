@@ -1,0 +1,18 @@
+id: delete-disaster-record-policy
+type: policy
+description: A data collector decides to permanently remove a disaster record.
+businessGoal: obsolete or mistaken disaster records can be removed along with all their dependent breakdown and human-effects data
+context: country-office
+actor: data-collector
+activatedBy: [disaster.record.deletion.requested]
+emits: delete.disaster.record
+processes: [disaster-record]
+
+preconditions:
+  - id: record-exists
+    description: The target disaster record must exist in this tenant
+    reads: [disaster.record.exists]
+
+  - id: collector-confirms-deletion
+    description: The collector's explicit intent to permanently delete this record and everything under it
+    reads: [disaster.record.exists]

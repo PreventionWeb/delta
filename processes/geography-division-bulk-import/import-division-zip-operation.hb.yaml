@@ -1,0 +1,43 @@
+id: import-division-zip-operation
+type: operation
+description: >
+  Extract the CSV and GeoJSON files, validate the whole-file structure,
+  then process divisions level-by-level (roots first, then children,
+  built via BFS with a 100-level safety cap) so parents always exist in
+  the database before their children are inserted. Unlike csv-bulk-import,
+  a single bad division (missing/invalid GeoJSON, unreadable file) only
+  fails that one row — the rest of the ZIP still imports. Divisions left
+  unprocessed after level-building (e.g. from a reference cycle) are
+  logged but not surfaced as a distinct outcome.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [import.division.zip]
+processes: [geography-division-bulk-import]
+
+constraints:
+  - id: csv-headers-valid
+    description: The CSV must contain id, parent, geodata, and national_id columns, plus at least one language column
+    reads: [division.zip.import.file]
+
+  - id: english-language-column-present
+    description: The CSV must contain an "en" language column — the only mandatory language
+    reads: [division.zip.import.file]
+
+  - id: root-divisions-exist
+    description: At least one division row must have an empty parent field
+    reads: [division.zip.import.file]
+
+  - id: no-orphaned-parent-references
+    description: Every non-root division's parent field must reference another division id present in the same file
+    reads: [division.zip.import.file]
+
+unconditionalOutcome:
+  kind: division.zip.import.completed
+  description: Each division in the file was independently created, updated, or recorded as failed
+  effects:
+    - point: division.exists
+      description: Created (new import id) or updated (existing import id), per division row that passed its own validation
+    - point: division.import.result
+      description: Records, per division id, whether it succeeded (and whether inserted or updated) or the specific error that failed it
+
+conditionalOutcomes: []

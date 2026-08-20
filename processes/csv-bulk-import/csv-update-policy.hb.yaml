@@ -1,0 +1,20 @@
+id: csv-update-policy
+type: policy
+description: >
+  A data collector uploads a CSV of corrections to existing records (each
+  row referencing a record by its internal id) and chooses "update" mode.
+businessGoal: bulk corrections don't require re-editing records one by one through the form UI
+context: country-office
+actor: data-collector
+activatedBy: [csv.import.requested]
+emits: update.csv.records
+processes: [csv-bulk-import]
+
+preconditions:
+  - id: file-well-formed
+    description: The file must have a header row and at least one data row
+    reads: [import.file.rows]
+
+  - id: mode-is-update
+    description: The collector chose "update" mode
+    reads: [import.mode]

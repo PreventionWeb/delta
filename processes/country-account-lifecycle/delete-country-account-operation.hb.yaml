@@ -1,0 +1,34 @@
+id: delete-country-account-operation
+type: operation
+description: >
+  Cascade-delete all of the country account's data across ~20 tables (human
+  effects, disruptions, losses, damages, validation assignments/rejections,
+  disaster records/events, hazardous events, assets, API keys, audit logs,
+  divisions, non-primary-admin memberships, organizations) then the account
+  itself, and remove its tenant upload directory from disk.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [delete.country.account]
+processes: [country-account-lifecycle]
+
+constraints:
+  - id: account-exists
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [country.account.exists]
+
+unconditionalOutcome:
+  kind: country.account.deleted
+  description: The country account and all of its data are permanently removed
+  effects:
+    - point: disaster.data.deleted
+      description: Disaster records, disaster events, hazardous events, and all their child data (human effects, losses, damages, disruptions, validation assignments/rejections, attachments) are deleted
+    - point: reference.data.deleted
+      description: Assets, API keys, audit logs, divisions, and organizations for this account are deleted
+    - point: member.exists
+      description: All non-primary-admin memberships for this account are deleted
+    - point: country.account.exists
+      description: Set to false — the country account row is deleted
+    - point: attachment.files.deleted
+      description: The tenant's upload directory is removed from disk (best-effort — failures are logged, not thrown)
+
+conditionalOutcomes: []

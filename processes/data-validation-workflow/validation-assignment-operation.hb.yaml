@@ -1,0 +1,37 @@
+id: validation-assignment-operation
+type: operation
+description: >
+  Assign the selected validators to the record, lock it into the review
+  queue, and notify the assigned validators by email (best-effort — a
+  notification failure is logged but does not fail the operation, per
+  processValidationAssignmentWorkflow in code).
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [assign.validators]
+processes: [data-validation-workflow]
+
+constraints:
+  - id: record-status-submittable
+    description: The record must still be in draft or needs-revision status
+    reads: [record.approval.status]
+
+  - id: validators-selected
+    description: At least one validator user id must be provided
+    reads: [validation.validator.ids]
+
+unconditionalOutcome:
+  kind: validators.assigned
+  description: Validators are assigned and the record is locked for review
+  effects:
+    - point: validation.assignment.exists
+      description: An assignment row is created per selected validator, linking them to this entity
+    - point: record.approval.status
+      description: Set to "waiting-for-validation"
+    - point: record.submitted.by
+      description: Set to the submitting data collector's user id
+    - point: record.submitted.at
+      description: Set to now
+    - point: validator.notification.sent
+      description: Set to true once the assigned-validators email is sent (failure is swallowed, not a constraint)
+
+conditionalOutcomes: []

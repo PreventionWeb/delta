@@ -1,0 +1,18 @@
+id: update-human-effects-custom-config-policy
+type: policy
+description: >
+  An admin edits the tenant-wide custom disaggregation columns (and their
+  enum values) available for human-effects data entry. Unlike every other
+  decision in this process, this operates across the whole country account,
+  not a single disaster record.
+businessGoal: tenants can tailor human-effects disaggregation to local needs, without corrupting or orphaning existing disaggregated data
+context: country-office
+actor: admin
+activatedBy: [human.effects.custom.config.save.requested]
+emits: update.human.effects.custom.config
+processes: [disaster-record]
+
+preconditions:
+  - id: admin-judges-config-change-needed
+    description: The admin's judgment that the tenant's custom disaggregation columns should change
+    reads: [human.effects.custom.config.fields]

@@ -1,0 +1,35 @@
+id: validate-operation
+type: operation
+description: Mark the record validated, clear its validator assignments, and notify the submitter.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [validate.record]
+processes: [data-validation-workflow]
+
+constraints:
+  - id: actor-holds-validate-permission
+    description: >
+      INTENDED RULE, NOT YET ENFORCED IN CODE: same gap as the paired policy —
+      no server-side check today beyond generic EditData.
+    reads: [actor.permissions]
+
+  - id: record-status-is-waiting-for-validation
+    description: The record must still be waiting-for-validation when the operation runs
+    reads: [record.approval.status]
+
+unconditionalOutcome:
+  kind: record.validated
+  description: The record is marked validated
+  effects:
+    - point: record.approval.status
+      description: Set to "validated"
+    - point: record.validated.by
+      description: Set to the validating user's id
+    - point: record.validated.at
+      description: Set to now
+    - point: validation.assignment.exists
+      description: Cleared — assignment rows for this entity are deleted
+    - point: submitter.notification.sent
+      description: Set to true once the status-change email is sent to the original submitter (best-effort)
+
+conditionalOutcomes: []

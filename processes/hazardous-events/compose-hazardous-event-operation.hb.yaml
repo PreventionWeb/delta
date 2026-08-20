@@ -1,0 +1,25 @@
+id: compose-hazardous-event-operation
+type: operation
+description: Persist the hazardous event's fields.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [compose.hazardous.event]
+processes: [hazardous-events]
+
+constraints:
+  - id: hip-hierarchy-consistent
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [hazardous.event.hip.hazard, hazardous.event.hip.cluster, hazardous.event.hip.type]
+
+  - id: start-end-date-ordered
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [hazardous.event.start.date, hazardous.event.end.date]
+
+unconditionalOutcome:
+  kind: hazardous.event.composed
+  description: The hazardous event exists with consistent classification and timeline
+  effects:
+    - point: hazardous.event.exists
+      description: Created, or its fields updated
+
+conditionalOutcomes: []

@@ -1,0 +1,25 @@
+id: remove-member-operation
+type: operation
+description: Remove the member's link to this country account, revoking their access.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [remove.member]
+processes: [user-access-management]
+
+constraints:
+  - id: member-exists
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [member.exists]
+
+  - id: not-primary-admin
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [member.primary.admin]
+
+unconditionalOutcome:
+  kind: member.removed
+  description: The user-country-account link is deleted
+  effects:
+    - point: member.exists
+      description: Set to false — the link row is deleted
+
+conditionalOutcomes: []

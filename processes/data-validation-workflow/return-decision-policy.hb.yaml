@@ -1,0 +1,28 @@
+id: return-decision-policy
+type: policy
+description: >
+  A data validator (or admin) reviews a record awaiting validation and
+  returns it to the originally assigned validators/collector for revision
+  (distinct from reject: notifies the assignees rather than the submitter).
+  Maps to the "submit-return" action in code.
+businessGoal: data needing joint rework is routed back to the people already assigned to it, with a reason
+context: country-office
+actor: data-validator
+activatedBy: [validators.assigned]
+emits: return.record
+processes: [data-validation-workflow]
+
+preconditions:
+  - id: actor-holds-validate-permission
+    description: >
+      INTENDED RULE, NOT YET ENFORCED IN CODE: same gap noted on
+      validate-decision-policy.
+    reads: [actor.permissions]
+
+  - id: record-awaiting-validation
+    description: The record must currently be waiting-for-validation
+    reads: [record.approval.status]
+
+  - id: rejection-reason-identified
+    description: The validator has identified what needs rework, to be recorded as a rejection message
+    reads: [validation.rejection.message]

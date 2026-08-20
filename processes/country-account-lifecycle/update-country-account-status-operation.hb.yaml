@@ -1,0 +1,27 @@
+id: update-country-account-status-operation
+type: operation
+description: Apply the new status and description to the country account.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [update.country.account.status]
+processes: [country-account-lifecycle]
+
+constraints:
+  - id: account-exists
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [country.account.exists]
+
+  - id: status-and-description-valid
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [account.status, account.short.description]
+
+unconditionalOutcome:
+  kind: country.account.status.updated
+  description: The country account's status and description are updated
+  effects:
+    - point: country.account.status
+      description: Set to the new status
+    - point: country.account.short.description
+      description: Set to the new description
+
+conditionalOutcomes: []

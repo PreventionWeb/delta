@@ -1,0 +1,26 @@
+id: accept-invitation-policy
+type: policy
+description: >
+  The invitee follows their invite link and submits a name and password to
+  activate their account. Modeled as a machine-checked gate (deterministic
+  code/expiry validation), not a human institutional judgment — matches
+  acceptInvite() in code, which is pure validation with no discretionary call.
+businessGoal: only holders of a valid, unexpired invite link can activate an account
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [accept.invite.requested]
+emits: activate.user.account
+processes: [user-access-management]
+
+preconditions:
+  - id: invite-code-valid
+    description: The submitted invite code must match a known, pending invite
+    reads: [user.invite.code]
+
+  - id: invite-not-expired
+    description: The invite must not have passed its expiry timestamp
+    reads: [user.invite.expiry]
+
+  - id: password-meets-policy
+    description: The chosen password must satisfy the password policy
+    reads: [accept.invite.password]

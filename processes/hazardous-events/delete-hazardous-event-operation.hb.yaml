@@ -1,0 +1,41 @@
+id: delete-hazardous-event-operation
+type: operation
+description: >
+  Delete the event and its validation history. In code, the two dependency
+  guards are enforced two different ways: linked disaster events are
+  pre-checked explicitly with a clear error; events that this one is the
+  parent (cause) of are only caught reactively via a foreign-key violation
+  (23503) on the relationship table — same kind of rule, inconsistent
+  enforcement style, worth reconciling in a refactor.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [delete.hazardous.event]
+processes: [hazardous-events]
+
+constraints:
+  - id: event-exists
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [hazardous.event.exists]
+
+  - id: no-dependent-disaster-events
+    description: No disaster event may still reference this hazardous event
+    reads: [disaster.event.linked.to.hazardous.event]
+
+  - id: no-dependent-child-events
+    description: No other hazardous event may still list this one as its cause
+    reads: [event.relationship.graph]
+
+unconditionalOutcome:
+  kind: hazardous.event.deleted
+  description: The event and its validation history are permanently removed
+  effects:
+    - point: hazardous.event.exists
+      description: Set to false
+    - point: event.relationship.exists
+      description: This event's own "caused_by" link (as a child) is deleted
+    - point: validation.assignment.exists
+      description: Cleared for this entity
+    - point: validation.rejection.recorded
+      description: Cleared for this entity
+
+conditionalOutcomes: []

@@ -1,0 +1,23 @@
+id: delete-country-account-policy
+type: policy
+description: >
+  A super_admin permanently deletes a country account and all of its data.
+  NOTE: unlike clone, deleteInstance carries no "must be fictional/training"
+  guard in code — an official account with real production data can be
+  deleted the same way as a training one, gated only by the
+  DeleteCountryAccount permission.
+businessGoal: unwanted or decommissioned tenants and all their data can be permanently removed
+context: platform-operations
+actor: super-admin
+activatedBy: [country.account.deletion.requested]
+emits: delete.country.account
+processes: [country-account-lifecycle]
+
+preconditions:
+  - id: account-exists
+    description: The target country account must exist
+    reads: [country.account.exists]
+
+  - id: admin-confirms-irreversible-deletion
+    description: The super_admin's explicit judgment that this permanent, cascading deletion is intended
+    reads: [country.account.exists]

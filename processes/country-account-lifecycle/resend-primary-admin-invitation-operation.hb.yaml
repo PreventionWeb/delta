@@ -1,0 +1,30 @@
+id: resend-primary-admin-invitation-operation
+type: operation
+description: >
+  Send the primary admin a fresh invite-setup email (refreshing the expiry)
+  if unverified, or a plain login notice if already verified.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [resend.primary.admin.invitation]
+processes: [country-account-lifecycle]
+
+constraints:
+  - id: account-and-admin-exist
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [country.account.exists, member.exists]
+
+unconditionalOutcome:
+  kind: primary_admin.invitation.resent
+  description: A notification email is sent to the primary admin
+  effects: []
+
+conditionalOutcomes:
+  - condition:
+      description: The primary admin has not yet verified their email
+      reads: [user.email.verified]
+    outcome:
+      kind: primary_admin.reinvited
+      description: A fresh invite-setup email is sent with a refreshed expiry
+      effects:
+        - point: user.invite.expiry
+          description: Set to 14 days from now

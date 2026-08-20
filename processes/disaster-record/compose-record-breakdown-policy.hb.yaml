@@ -1,0 +1,23 @@
+id: compose-record-breakdown-policy
+type: policy
+description: >
+  A data collector enters a financial breakdown entry for a disaster
+  record — damages, losses, disruption, or non-economic losses. All four
+  entry types share the same shape of decision: numeric fields must be
+  non-negative, and for losses, agriculture/non-agriculture cost fields are
+  mutually exclusive based on the sectorIsAgriculture flag.
+businessGoal: a disaster record's financial and disruption impact is captured accurately, without invalid negative figures
+context: country-office
+actor: data-collector
+activatedBy: [record.breakdown.entry.save.requested]
+emits: compose.record.breakdown.entry
+processes: [disaster-record]
+
+preconditions:
+  - id: amounts-non-negative
+    description: All monetary and unit fields must be zero or positive
+    reads: [record.breakdown.entry.fields]
+
+  - id: collector-judges-entry-ready
+    description: The collector's judgment that this breakdown entry reflects reality
+    reads: [record.breakdown.entry.fields]

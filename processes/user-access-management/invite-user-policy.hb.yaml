@@ -1,0 +1,34 @@
+id: invite-user-policy
+type: policy
+description: >
+  An admin invites someone to their country account by email, choosing a role
+  and organization. Covers the same judgment whether the person is brand new
+  to DELTA, already exists but isn't yet a member of this country account, or
+  had a prior invite that lapsed — AccessManagementService.inviteUser
+  branches on all three in code.
+businessGoal: only deliberately chosen people, with a deliberately chosen role, gain access to the country account
+context: country-office
+actor: admin
+activatedBy: [invite.requested]
+emits: create.invitation
+processes: [user-access-management]
+
+preconditions:
+  - id: email-valid
+    description: The invitee's email must be a well-formed address
+    reads: [invite.email]
+
+  - id: not-self-invite
+    description: An admin cannot invite themselves
+    reads: [invite.email, actor.email]
+
+  - id: role-selected
+    description: A role must be chosen for the invitee
+    reads: [invite.role]
+
+  - id: no-blocking-active-invite-or-membership
+    description: >
+      The email must not already be a verified member of this country
+      account, nor have an unexpired pending invite to it (an expired,
+      unverified invite is not blocking — it can be re-sent)
+    reads: [member.exists, user.email.verified, user.invite.expiry]

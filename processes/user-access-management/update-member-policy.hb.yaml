@@ -1,0 +1,26 @@
+id: update-member-policy
+type: policy
+description: An admin decides to change a member's role and/or organization within the country account.
+businessGoal: a member's access level stays current with their actual responsibilities
+context: country-office
+actor: admin
+activatedBy: [update.member.requested]
+emits: update.member.role
+processes: [user-access-management]
+
+preconditions:
+  - id: member-exists
+    description: The target user must already be a member of this country account
+    reads: [member.exists]
+
+  - id: not-primary-admin
+    description: The primary admin's account data cannot be edited this way
+    reads: [member.primary.admin]
+
+  - id: role-selected
+    description: A role must be chosen
+    reads: [member.update.role]
+
+  - id: admin-judges-change-appropriate
+    description: The admin's judgment that the new role/organization fits this member's actual responsibilities
+    reads: [member.profile]

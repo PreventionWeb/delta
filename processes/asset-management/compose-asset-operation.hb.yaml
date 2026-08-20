@@ -1,0 +1,25 @@
+id: compose-asset-operation
+type: operation
+description: >
+  Persist the asset's custom fields. The model layer re-checks isBuiltIn as
+  a defensive throw (not a graceful error) even though the route already
+  blocks built-in assets at the loader/action level — belt-and-suspenders
+  enforcement of the same rule.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [compose.asset]
+processes: [asset-management]
+
+constraints:
+  - id: not-built-in
+    description: Re-checked at execution time — same rule as the paired policy, enforced as a defensive throw rather than a graceful failure
+    reads: [asset.is.built.in]
+
+unconditionalOutcome:
+  kind: asset.composed
+  description: The custom asset exists with the submitted name, category, national ID, notes, and sector links
+  effects:
+    - point: asset.exists
+      description: Created, or its fields updated
+
+conditionalOutcomes: []

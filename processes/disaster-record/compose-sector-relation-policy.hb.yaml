@@ -1,0 +1,25 @@
+id: compose-sector-relation-policy
+type: policy
+description: >
+  A data collector links a sector to a disaster record, recording whether
+  that sector experienced damage, disruption, and/or losses (with an
+  optional cost override for damage and its recovery).
+businessGoal: a disaster record's sector-level impact is captured with internally consistent cost/currency pairing
+context: country-office
+actor: data-collector
+activatedBy: [sector.relation.save.requested]
+emits: compose.sector.relation
+processes: [disaster-record]
+
+preconditions:
+  - id: at-least-one-impact-type
+    description: At least one of damage, disruption, or losses must be selected for this sector
+    reads: [sector.relation.fields]
+
+  - id: cost-currency-pairing-valid
+    description: Whenever a cost field is set (or explicitly cleared), its paired currency field must be set (or cleared) consistently, and vice versa
+    reads: [sector.relation.fields]
+
+  - id: collector-judges-relation-ready
+    description: The collector's judgment that this sector-impact assessment reflects reality
+    reads: [sector.relation.fields]
