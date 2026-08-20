@@ -3547,7 +3547,7 @@
     {
         "id": "disaster_records.disruption.duration_days_must_be_gte_zero",
         "description": "File: app/backend.server/models/disruption.ts:153",
-        "translation": "Durata (ditë) duhet të jetë \u003e= 0"
+        "translation": "Durata (ditë) duhet të jetë >= 0"
     },
     {
         "id": "disaster_records.disruption.duration_hours",
@@ -3557,7 +3557,7 @@
     {
         "id": "disaster_records.disruption.duration_hours_must_be_gte_zero",
         "description": "File: app/backend.server/models/disruption.ts:160",
-        "translation": "Durata (orë) duhet të jetë \u003e= 0"
+        "translation": "Durata (orë) duhet të jetë >= 0"
     },
     {
         "id": "disaster_records.disruption.number_of_people_affected",
@@ -3577,7 +3577,7 @@
     {
         "id": "disaster_records.disruption.response_cost_must_be_gte_zero",
         "description": "File: app/backend.server/models/disruption.ts:174",
-        "translation": "Kostoja e përgjigjes duhet të jetë \u003e= 0"
+        "translation": "Kostoja e përgjigjes duhet të jetë >= 0"
     },
     {
         "id": "disaster_records.disruption.response_currency",
@@ -3862,7 +3862,7 @@
     {
         "id": "email.validation_workflow.body_needs_revision_html",
         "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:276",
-        "translation": "I dashur {submitterName},\n{recordTypeData}-ja juaj është kthyer për rishikim.\nKomente: {rejectionComments}\n\u003ca href=\"{recordUrl}\"\u003eShiko dhe redakto regjistrin"
+        "translation": "I dashur {submitterName},\n{recordTypeData}-ja juaj është kthyer për rishikim.\nKomente: {rejectionComments}\n<a href=\"{recordUrl}\">Shiko dhe redakto regjistrin"
     },
     {
         "id": "email.validation_workflow.body_needs_revision_text",
@@ -3872,7 +3872,7 @@
     {
         "id": "email.validation_workflow.body_published_html",
         "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:230",
-        "translation": "I dashur {submitterName},\n{recordTypeData}-ja juaj është publikuar dhe tani është e disponueshme publikisht.\n\u003ca href=\"{recordUrl}\"\u003eShiko regjistrimin"
+        "translation": "I dashur {submitterName},\n{recordTypeData}-ja juaj është publikuar dhe tani është e disponueshme publikisht.\n<a href=\"{recordUrl}\">Shiko regjistrimin"
     },
     {
         "id": "email.validation_workflow.body_published_text",
@@ -3882,7 +3882,7 @@
     {
         "id": "email.validation_workflow.body_validated_html",
         "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:330",
-        "translation": "I dashur {submitterName},\n{recordTypeData} juaj është verifikuar.\n\u003ca href=\"{recordUrl}\"\u003eShiko regjistrimin"
+        "translation": "I dashur {submitterName},\n{recordTypeData} juaj është verifikuar.\n<a href=\"{recordUrl}\">Shiko regjistrimin"
     },
     {
         "id": "email.validation_workflow.body_validated_text",
@@ -4727,7 +4727,7 @@
     {
         "id": "human_effects.error.subtotal_larger_than_total",
         "description": "The subtotal for a group exceeds the overall total. {group} is the group name(s), {column} is the metric name, {value} is the group total, {totalValue} is the overall total. File: app/frontend/editabletable/validate.ts:273",
-        "translation": "Totali për grupin ({group}), kolona \"{column}\" tejkalon totalin e përgjithshëm {value} \u003e {totalValue}"
+        "translation": "Totali për grupin ({group}), kolona \"{column}\" tejkalon totalin e përgjithshëm {value} > {totalValue}"
     },
     {
         "id": "human_effects.error.subtotal_larger_than_total_row",
@@ -5975,7 +5975,7 @@
     {
         "id": "user_forgot_password.reset_password_email_html",
         "description": "HTML version of the reset password email. File: app/utils/emailUtil.ts:30",
-        "translation": "Është bërë një kërkesë për rivendosjen e fjalëkalimit tuaj. Nëse nuk e keni bërë ju këtë kërkesë, thjesht injoroni këtë email.\nKlikoni lidhjen më poshtë për të rivendosur fjalëkalimin tuaj:\n\u003ca href=\"{resetURL}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\"\u003e\nRiestablisimi i fjalëkalimit\n\n\nKy lidhje do të skadojë pas 1 ore."
+        "translation": "Është bërë një kërkesë për rivendosjen e fjalëkalimit tuaj. Nëse nuk e keni bërë ju këtë kërkesë, thjesht injoroni këtë email.\nKlikoni lidhjen më poshtë për të rivendosur fjalëkalimin tuaj:\n<a href=\"{resetURL}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\">\nRiestablisimi i fjalëkalimit\n\n\nKy lidhje do të skadojë pas 1 ore."
     },
     {
         "id": "user_forgot_password.reset_password_email_text",
@@ -5990,7 +5990,7 @@
     {
         "id": "user_invite.admin_email_html",
         "description": "File: app/backend.server/models/user/invite.ts:198",
-        "translation": "Jeni ftuar të bashkoheni me sistemin DELTA Resilience {siteName} si \n përdorues {role} për instancën e vendit {countryName} {countryAccountType}.\n\nKlikoni në lidhjen më poshtë për të krijuar llogarinë tuaj.\n\u003ca href=\"{inviteURL}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\"\u003e\nHidhni llogarinë\n\n\n \u003ca href=\"{inviteURL}\"\u003e {inviteURL} "
+        "translation": "Jeni ftuar të bashkoheni me sistemin DELTA Resilience {siteName} si \n përdorues {role} për instancën e vendit {countryName} {countryAccountType}.\n\nKlikoni në lidhjen më poshtë për të krijuar llogarinë tuaj.\n<a href=\"{inviteURL}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\">\nHidhni llogarinë\n\n\n <a href=\"{inviteURL}\"> {inviteURL} "
     },
     {
         "id": "user_invite.admin_email_text",
@@ -6000,7 +6000,7 @@
     {
         "id": "user_invite.existing_email_html",
         "description": "File: app/utils/emailUtil.ts:193",
-        "translation": "Jeni ftuar të bashkoheni në sistemin DELTA Resilience {siteName} si \n përdorues {role} për instancën e vendit {countryName} {countryAccountType}.\n\nKlikoni në lidhjen më poshtë për t'u kyçur në llogarinë tuaj.\n\u003ca href=\"{rootUrl}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\"\u003e\nHyni\n\n\n \u003ca href=\"{rootUrl}\"\u003e {rootUrl} "
+        "translation": "Jeni ftuar të bashkoheni në sistemin DELTA Resilience {siteName} si \n përdorues {role} për instancën e vendit {countryName} {countryAccountType}.\n\nKlikoni në lidhjen më poshtë për t'u kyçur në llogarinë tuaj.\n<a href=\"{rootUrl}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\">\nHyni\n\n\n <a href=\"{rootUrl}\"> {rootUrl} "
     },
     {
         "id": "user_invite.existing_email_text",
@@ -6010,7 +6010,7 @@
     {
         "id": "user_invite.new_email_html",
         "description": "File: app/utils/emailUtil.ts:130",
-        "translation": "Jeni ftuar të bashkoheni në sistemin DELTA Resilience {siteName} si \n përdorues {role} për instancën e vendit {countryName} {countryAccountType}.\n\nKlikoni në lidhjen më poshtë për të krijuar llogarinë tuaj.\n\u003ca href=\"{inviteURL}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\"\u003e\nHidhni llogarinë\n\n\n \u003ca href=\"{inviteURL}\"\u003e {inviteURL} "
+        "translation": "Jeni ftuar të bashkoheni në sistemin DELTA Resilience {siteName} si \n përdorues {role} për instancën e vendit {countryName} {countryAccountType}.\n\nKlikoni në lidhjen më poshtë për të krijuar llogarinë tuaj.\n<a href=\"{inviteURL}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\">\nHidhni llogarinë\n\n\n <a href=\"{inviteURL}\"> {inviteURL} "
     },
     {
         "id": "user_invite.new_email_subject",
@@ -6025,7 +6025,7 @@
     {
         "id": "user_invite.welcome_email_html",
         "description": "File: app/utils/emailUtil.ts:66",
-        "translation": "I dashur {firstName} {lastName},\n\nMirësevini në sistemin DELTA Resilience {siteName}. Llogaria juaj e përdoruesit është krijuar me sukses.\n\nKlikoni lidhjen më poshtë për të hyrë në llogarinë tuaj.\n\u003ca href=\"{accessAccountURL}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\"\u003e\nHyrje në llogari\n\n"
+        "translation": "I dashur {firstName} {lastName},\n\nMirësevini në sistemin DELTA Resilience {siteName}. Llogaria juaj e përdoruesit është krijuar me sukses.\n\nKlikoni lidhjen më poshtë për të hyrë në llogarinë tuaj.\n<a href=\"{accessAccountURL}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\">\nHyrje në llogari\n\n"
     },
     {
         "id": "user_invite.welcome_email_subject",
