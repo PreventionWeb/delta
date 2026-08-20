@@ -1513,6 +1513,7 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 			})}
 		>
 			<DisasterEventReviewStep
+				ctx={ctx}
 				form={{
 					nameNational: itemAny?.nameNational || "",
 					nameGlobalOrRegional: itemAny?.nameGlobalOrRegional || "",

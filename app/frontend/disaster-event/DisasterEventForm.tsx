@@ -4764,8 +4764,9 @@ function StepperValidation({
 									},
 								}}
 							>
-								<DisasterEventReviewStep
-									form={form}
+							<DisasterEventReviewStep
+								ctx={ctx}
+								form={form}
 									selectedHazardTypeName={selectedHazardTypeName}
 									selectedHazardClusterName={selectedHazardClusterName}
 									selectedSpecificHazardName={selectedSpecificHazardName}

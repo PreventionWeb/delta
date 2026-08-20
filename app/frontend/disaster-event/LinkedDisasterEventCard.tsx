@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ViewContext } from "~/frontend/context";
 
 type LinkedDisasterEventCardItem = {
 	id: string;
@@ -28,6 +29,8 @@ export default function LinkedDisasterEventCard({
 	showDate = true,
 	showDivision = true,
 }: LinkedDisasterEventCardProps) {
+	const ctx = new ViewContext();
+
 	return (
 		<div
 			className={`flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3 ${className}`.trim()}
@@ -36,13 +39,25 @@ export default function LinkedDisasterEventCard({
 				{leading ? <div>{leading}</div> : null}
 				<div>
 					<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
-					<p>UUID: {item.code.substring(0, 8)}</p>
+					<p>
+						{ctx.t({ code: "common.uuid", msg: "UUID" })}: {item.code.substring(0, 8)}
+					</p>
 					{showHip && item.hip ? (
 						<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
 					) : null}
-					{showDate ? <p>Date: {item.dateLabel || "-"}</p> : null}
+					{showDate ? (
+						<p>
+							{ctx.t({ code: "common.date", msg: "Date" })}: {item.dateLabel || "-"}
+						</p>
+					) : null}
 					{showDivision ? (
-						<p>Geographic level: {item.divisionNamesLabel || "-"}</p>
+						<p>
+							{ctx.t({
+								code: "spatial_footprint.geographic_level",
+								msg: "Geographic level",
+							})}
+							: {item.divisionNamesLabel || "-"}
+						</p>
 					) : null}
 				</div>
 			</div>

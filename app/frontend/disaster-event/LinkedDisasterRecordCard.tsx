@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ViewContext } from "~/frontend/context";
 
 type LinkedDisasterRecordCardItem = {
 	id: string;
@@ -28,6 +29,8 @@ export default function LinkedDisasterRecordCard({
 	showDate = true,
 	showDivision = true,
 }: LinkedDisasterRecordCardProps) {
+	const ctx = new ViewContext();
+
 	return (
 		<div
 			className={`flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3 ${className}`.trim()}
@@ -39,9 +42,19 @@ export default function LinkedDisasterRecordCard({
 					{showHip && item.hip ? (
 						<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
 					) : null}
-					{showDate ? <p>Date: {item.dateLabel || "-"}</p> : null}
+					{showDate ? (
+						<p>
+							{ctx.t({ code: "common.date", msg: "Date" })}: {item.dateLabel || "-"}
+						</p>
+					) : null}
 					{showDivision ? (
-						<p>Geographic level: {item.divisionNamesLabel || "-"}</p>
+						<p>
+							{ctx.t({
+								code: "spatial_footprint.geographic_level",
+								msg: "Geographic level",
+							})}
+							: {item.divisionNamesLabel || "-"}
+						</p>
 					) : null}
 				</div>
 			</div>
