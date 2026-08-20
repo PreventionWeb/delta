@@ -39,6 +39,7 @@
 	"private": true,
 	"dependencies": {
 		"@floating-ui/dom": "^1.7.5",
+		"@internationalized/date": "^3.12.3",
 		"@mjackson/file-storage": "^0.7.0",
 		"@mjackson/form-data-parser": "^0.9.1",
 		"@nestjs/common": "^11.1.27",

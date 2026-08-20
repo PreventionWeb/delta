@@ -133,7 +133,7 @@ unrelated map/upload internals" is far bigger than a spike. Verified by direct i
 | `HazardousEventFilters`                                    | No                           | **Reuse as-is** (stretch: rebuild `Select`/date inputs in RAC if time permits)                           | Already non-PrimeReact; low priority, optional stretch only                                                                     |
 | `Pagination` (`pagination/view.tsx`)                       | No                           | **Reuse as-is**                                                                                          | Already non-PrimeReact, purely presentational                                                                                   |
 | `ListLegend`                                               | No                           | **Reuse as-is**                                                                                          | Static, non-PrimeReact                                                                                                          |
-| `DataCollectionActionLinks`                                | No                           | **Superseded — see the revised note below the table.** Originally: reuse as-is, not exercised.           | Originally already non-PrimeReact and out of scope; now in scope, but not via this real component — see below                  |
+| `DataCollectionActionLinks`                                | No                           | **Superseded — see the revised note below the table.** Originally: reuse as-is, not exercised.           | Originally already non-PrimeReact and out of scope; now in scope, but not via this real component — see below                   |
 | `MainContainer` (layout wrapper)                           | No                           | **Reuse as-is**                                                                                          | Shared app chrome, not a component-library concern                                                                              |
 | `HazardEventHeader` (`EventCounter.tsx`)                   | No                           | **Reuse as-is**                                                                                          | Not a component-library concern                                                                                                 |
 | `DataMainLinks` "Add new event" button (`data_screen.tsx`) | Yes (`primereact/button`)    | **Do not import `DataMainLinks`** — hand-roll the single "Add new event" link with a RAC `Button`/`Link` | Importing `DataMainLinks` would silently reintroduce PrimeReact into an otherwise-clean comparison; trivial to replace directly |
@@ -156,7 +156,7 @@ of Y" recorded as a known, intentional deviation.
 this POC entirely. The `approvedRecordsArePublic` constraint that made the prior compromise
 necessary hasn't changed — the true anonymous 4-column view still isn't reachable in this
 environment — but rather than keep reasoning about a view this POC can never load and compare
-against, the team decided the reachable authenticated view *is* the comparison target, so the POC
+against, the team decided the reachable authenticated view _is_ the comparison target, so the POC
 should simply always render it in full: hazard type, record status (dot + rebuilt `Tooltip`),
 UUID, created, updated, and **Actions**, plus the "Showing X of Y hazardous event(s)" summary text
 — none of it gated on `isPublic`. This turns 2.6's comparison into an apples-to-apples check
@@ -361,6 +361,7 @@ thing without needing a JSON-schema layer for a disposable spike.
   re-render identically. Without this, expanding the fixture to 25+ rows makes the pagination
   control clickable but still inert — task 2.7 covers this loader change explicitly for that
   reason; flag it to the human reviewer as scope the loader didn't need before this amendment.
+
 - **Hazard classification options** (`hazardPickerData.ts`) — replaces `dataForHazardPicker`
   (`app/backend.server/models/hip_hazard_picker.ts`), which returns
   `HipDataForHazardPicker { types: Type[]; clusters: Cluster[]; hazards: Hazard[] }` where `Type`
@@ -438,9 +439,9 @@ existing-route changes, nothing to roll back in production behavior.
 - Does this Tailwind v4 setup style React Aria's `data-*` state attributes with plain arbitrary
   variants, or does it need `tailwindcss-react-aria-components`? (Decision 7 — verify first,
   before building components.)
-**Resolved (no longer open):** whether a stubbed/mocked submit action is an acceptable downgrade
-from reusing the real save path — resolved by explicit user decision; see Decision 6 (revised).
-Submit is fully mocked, not a time-boxed fallback.
+  **Resolved (no longer open):** whether a stubbed/mocked submit action is an acceptable downgrade
+  from reusing the real save path — resolved by explicit user decision; see Decision 6 (revised).
+  Submit is fully mocked, not a time-boxed fallback.
 
 **Resolved (no longer open):** whether the optional "authenticated list view" stretch item
 (rebuilding `DataMainLinks`'s button and the actions column) should be attempted at all, or
@@ -448,3 +449,70 @@ whether the public-list-only path was sufficient signal — resolved by explicit
 reviewing screenshots: it is no longer optional. The POC list page always renders the full
 authenticated-equivalent column set (including Actions and "Showing X of Y") rather than treating
 it as a stretch item; see Decision 3 (revised).
+
+## Recommendation (task 4.3 — the actual deliverable of this spike)
+
+**PROCEED** with React Aria Components + Tailwind as PrimeReact's replacement for the real
+Hazardous Event Clean Architecture migration, with the caveats below tracked as follow-up planning
+items rather than blockers.
+
+### Why proceed
+
+- **The single most important proof point succeeded with full parity, not "abandon."**
+  `SaveSubmitDialog` — the most complex PrimeReact widget cluster in the app (`Dialog`, `Checkbox`,
+  `MultiSelect`) — was fully reproduced with a genuine RAC `ComboBox` (`selectionMode="multiple"`),
+  including the real validator-required-for-submit-for-validation rule (verified that `isDisabled`
+  actually blocks `onPress`, not just a visual affordance). This was explicitly flagged in Decision
+  3 as the finding that would matter most; it came back positive.
+- **Tailwind v4 supports RAC's interaction states with zero extra dependency** — plain arbitrary
+  `data-[hovered]:`/`data-[focus-visible]:` variants work out of the box (task 1.2); no need for
+  `tailwindcss-react-aria-components`.
+- **The list page reached near-total visual parity** against production's authenticated view —
+  same columns, "Showing X of Y" text, working pagination, and a mocked Actions column with
+  correctly-scoped per-row Edit visibility — after two rounds of live-review correction (container
+  padding, DOM order, icon sizing). The corrections themselves are informative: matching legacy
+  `dts-*` CSS by inspection alone was consistently less reliable than reading the actual CSS rule
+  and measuring real bounding boxes — the real migration should budget for this kind of iterative,
+  measured verification rather than assuming visual inspection catches everything.
+- **The stepper restructuring, cascading hazard picker, per-step validation gating, and reused
+  shared widgets (`SpatialFootprintFormView`, `AttachmentsFormView`) all integrated cleanly** into
+  a React Aria–driven controlled-state model, including the native-validation trap Decision 4
+  anticipated (a `required` field hidden on an inactive step blocking submission) — never
+  materialized because the mount-only-active-step design prevented it by construction.
+
+### Caveats to plan for in the real migration (not blockers)
+
+1. **`HazardPicker`'s real UX (popup window + `postMessage`) was stubbed, not reproduced.** The
+   real migration needs its own design decision for this — an inline combobox is a reasonable
+   default given how this POC handled it, but that's a UX call for the team, not something this
+   spike resolved for them.
+2. **`DateField` only supports full `yyyy-mm-dd` precision.** Production's `date_optional_precision`
+   type (partial `yyyy`/`yyyy-mm` entry) isn't reproduced by RAC's `DateField` out of the box —
+   needs a custom solution (e.g. a segmented field with optional trailing segments) in the real
+   migration.
+3. **Shared multi-domain components (`SaveSubmitDialog.tsx`, `ContentRepeater`) need a migration
+   ordering decision.** This POC deliberately built a POC-local one-off `SaveSubmitDialog` copy and
+   left `ContentRepeater` untouched, specifically to preserve isolation — the real migration doesn't
+   get that luxury. Since both are shared across Hazardous Event, disaster-event, and
+   disaster-record, migrating one domain at a time means either duplicating the rebuilt component
+   per-domain (as this POC did) or migrating the shared component once and updating every domain
+   that imports it in the same change. Worth deciding before the real migration starts, not
+   discovering mid-flight.
+4. **Two unrelated pre-existing bugs were surfaced and should be filed separately** (not artifacts
+   of this migration, found only because this spike exercised real code paths closely):
+   - `ContentRepeater` gives its root `<div>` and its hidden `<textarea>` the same
+     `id="attachments"` — a latent duplicate-id bug independent of any component-library choice.
+   - A user with zero `user_country_accounts` rows hits an infinite login-redirect loop in
+     production's real login flow (found while verifying the create route's auth boundary).
+5. **Minor, low-cost cosmetic gaps** noted during the styling comparison: the native `<select>`
+   chevron vs. RAC `Select`'s trigger glyph, and `hazardousEventStatus` rendered as a `RadioGroup`
+   in the POC vs. a native `<select>` in production — both explicitly permitted deviations per
+   Decision 3, not defects, but worth a design pass during the real migration for visual
+   consistency across the app rather than per-field ad hoc choices.
+
+### Downstream
+
+This recommendation is the required input `_docs/refactoring-plan/design-system-unification-roadmap.md`
+was waiting on (it currently assumes PrimeReact stays). Updating that roadmap around this
+proceed-with-caveats outcome is explicitly out of scope for this change (per task 4.3) and should
+be its own follow-up.

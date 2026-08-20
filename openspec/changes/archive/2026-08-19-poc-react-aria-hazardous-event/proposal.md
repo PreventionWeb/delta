@@ -24,7 +24,7 @@ stays and needs to be reworked around whatever this POC concludes.
     design.md for the full per-component PrimeReact inventory).
   - A React Aria + Tailwind rebuild of the Hazardous Event **create** page, restructured into a
     multi-step stepper (minimum 3 steps, business-requested), with component styling (buttons,
-    inputs, colors, spacing) matching today's look — the stepper *flow* itself is an intentional
+    inputs, colors, spacing) matching today's look — the stepper _flow_ itself is an intentional
     structural change, not something required to match today's single-page form layout.
 - No production route, nav, or `app/domains/*` Clean Architecture work — this is a
   presentation-layer-only, throwaway spike. The existing production Hazardous Event pages are not
@@ -37,6 +37,7 @@ stays and needs to be reworked around whatever this POC concludes.
 ## Capabilities
 
 ### New Capabilities
+
 - `poc-react-aria-hazardous-event-list`: an isolated, unlinked route that renders the Hazardous
   Event list using React Aria Components + Tailwind, visually matching the current PrimeReact list
   page.
@@ -45,6 +46,7 @@ stays and needs to be reworked around whatever this POC concludes.
   component styling matching the current form.
 
 ### Modified Capabilities
+
 (none — no existing spec-level behavior changes; production Hazardous Event routes and their
 specs, if any, are untouched)
 
@@ -66,7 +68,7 @@ specs, if any, are untouched)
 - **No live DB reads or writes occur anywhere in the POC's page rendering or submit flow.** The
   one exception is auth/session verification (`requireUser`, `getCountryAccountsIdFromSession`,
   `hasPermission`), which is unchanged and does hit the DB/session store exactly as production
-  does — see design.md Decision 2. Everything the pages *display* (list rows, hazard
+  does — see design.md Decision 2. Everything the pages _display_ (list rows, hazard
   classification options, validator list, division geojson) is static, hand-authored JSON fixture
   data shaped like the real responses, not a live query result. The create page's submit action
   is also fully mocked: no real row is written via `hazardousEventCreate`, and no approval-workflow
@@ -85,7 +87,7 @@ specs, if any, are untouched)
   production auth behavior. Flagged as security-relevant only in the sense that the create route
   must not accidentally end up under `_public+`. This auth sequence is unaffected by the
   data-mocking decision below: `authActionWithPerm` still runs its real permission check before the
-  action body executes; only what the action body does *after* auth passes (assemble-and-simulate
+  action body executes; only what the action body does _after_ auth passes (assemble-and-simulate
   instead of `hazardousEventCreate`) is mocked — see design.md Decision 6.
 - **Test approach**: none required for this spike (see design.md — this is a disposable UI
   evaluation, not production code). Manual visual comparison against the live production pages is
