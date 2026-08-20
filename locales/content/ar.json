@@ -1825,31 +1825,31 @@
     },
     {
         "id": "hip_cluster.name.1046.dead59",
-        "translation": "الأمراض المرتبطة بالحشرات"
+        "translation": "الأمراض المرتبطة بالحشرات (Insect-related Diseases)"
     },
     {
         "id": "hip_cluster.name.1052.642858",
-        "translation": "أمراض النباتات"
+        "translation": "أمراض النباتات (Plant Diseases)"
     },
     {
         "id": "hip_cluster.name.1053.705ab2",
-        "translation": "الأمراض المعدية"
+        "translation": "الأمراض المعدية (Infectious Diseases)"
     },
     {
         "id": "hip_cluster.name.1054.75b3d4",
-        "translation": "الأمراض المعدية الحيوانية"
+        "translation": "الأمراض المعدية الحيوانية (Animal Infectiuos Diseases)"
     },
     {
         "id": "hip_cluster.name.1056.3e6ed4",
-        "translation": "الغازات السامة"
+        "translation": "الغازات السامة (Toxic Gases)"
     },
     {
         "id": "hip_cluster.name.1057.8abb82",
-        "translation": "المعادن الثقيلة والعناصر النزرة"
+        "translation": "المعادن الثقيلة والعناصر النادرة (Heavy Metals & Trace Elements)"
     },
     {
         "id": "hip_cluster.name.1058.8de84f",
-        "translation": "المخاطر الكيميائية في الغذاء والأعلاف"
+        "translation": "المخاطر الكيميائية في الغذاء والأعلاف (Chemical Hazards in Food & Feed)"
     },
     {
         "id": "hip_cluster.name.1060.346cde",
@@ -1857,367 +1857,367 @@
     },
     {
         "id": "hip_cluster.name.1061.bdd672",
-        "translation": "المواد المسرطنة"
+        "translation": "المواد المسرطنة (Carcinogens)"
     },
     {
         "id": "hip_cluster.name.1063.697a96",
-        "translation": "المخاطر الكيميائية والسموم الأخرى"
+        "translation": "المخاطر الكيميائية والسموم الأخرى (Other Chemical Hazards & Toxins)"
     },
     {
         "id": "hip_cluster.name.1065.e6f90a",
-        "translation": "التدهور البيئي"
+        "translation": "التدهور البيئي (Environmental Degradation)"
     },
     {
         "id": "hip_cluster.name.1067.e670a7",
-        "translation": "فضائي"
+        "translation": "فضائي (Extraterrestrial)"
     },
     {
         "id": "hip_cluster.name.1068.60d7d6",
-        "translation": "الزلازل"
+        "translation": "الزلزالي (Seismic)"
     },
     {
         "id": "hip_cluster.name.1069.2d441f",
-        "translation": "بركانية"
+        "translation": "بركانية (Volcanic)"
     },
     {
         "id": "hip_cluster.name.1070.6a65db",
-        "translation": "مخاطر جغرافية أخرى"
+        "translation": "أخطار جغرافية أخرى (Other Geohazard)"
     },
     {
         "id": "hip_cluster.name.1071.a2a046",
-        "translation": "متعلق بالحمل الحراري"
+        "translation": "متعلق بالحمل الحراري (Convective-related)"
     },
     {
         "id": "hip_cluster.name.1072.948a65",
-        "translation": "متعلق بالمياه"
+        "translation": "متعلق بالمياه (Water-related)"
     },
     {
         "id": "hip_cluster.name.1073.cf8fd2",
-        "translation": "متعلق بالجسيمات"
+        "translation": "متعلق بالجسيمات (Particle-related)"
     },
     {
         "id": "hip_cluster.name.1074.78910b",
-        "translation": "ذات صلة بالبحار"
+        "translation": "أخطار متعلقة بالبيئة البحرية (Marine-related)"
     },
     {
         "id": "hip_cluster.name.1076.08b804",
-        "translation": "متعلق بالترسيب"
+        "translation": "متعلق بالهطول (Precipitation-related)"
     },
     {
         "id": "hip_cluster.name.1077.daf46b",
-        "translation": "متعلق بدرجة الحرارة"
+        "translation": "متعلق بدرجة الحرارة(Temperature-related)"
     },
     {
         "id": "hip_cluster.name.1078.995e8f",
-        "translation": "أرضي"
+        "translation": "أرضي (Terrestrial)"
     },
     {
         "id": "hip_cluster.name.1079.d3d0d3",
-        "translation": "متعلق بالرياح والضغط"
+        "translation": "متعلق بالرياح والضغط (Wind &Pressure-related)"
     },
     {
         "id": "hip_cluster.name.1080.014659",
-        "translation": "تعارض/صراع"
+        "translation": "النزاع (Conflict)"
     },
     {
         "id": "hip_cluster.name.1081.93011a",
-        "translation": "ما بعد الصراع"
+        "translation": "ما بعد النزاع (Post-Conflict)"
     },
     {
         "id": "hip_cluster.name.1082.37c95e",
-        "translation": "السلوكيات"
+        "translation": "السلوكي (Behavioural)"
     },
     {
         "id": "hip_cluster.name.1083.b39b73",
-        "translation": "اقتصادية"
+        "translation": "اقتصادية (Economic)"
     },
     {
         "id": "hip_cluster.name.1084.669c42",
-        "translation": "إشعاع"
+        "translation": "إشعاع (Radiation)"
     },
     {
         "id": "hip_cluster.name.1086.a0a284",
-        "translation": "فشل البناء/الفشل الإنشائي"
+        "translation": "‌فشل البناء/الفشل الإنشائي (Construction/Structural Failure)"
     },
     {
         "id": "hip_cluster.name.1088.d4e33e",
-        "translation": "المخاطر السيبرانية"
+        "translation": "الأخطار السيبرانية (Cyber Hazards)"
     },
     {
         "id": "hip_cluster.name.1089.9f4c68",
-        "translation": "الفشل الصناعي"
+        "translation": "الفشل الصناعي (Industrial Failure)"
     },
     {
         "id": "hip_cluster.name.1090.f734f9",
-        "translation": "نفايات"
+        "translation": "نفايات (Waste)"
     },
     {
         "id": "hip_cluster.name.1093.0b0d6d",
-        "translation": "حوادث النقل والمواصلات"
+        "translation": "حوادث النقل والمواصلات (Transportation Accidents)"
     },
     {
         "id": "hip_cluster.name.1742.07f10d",
-        "translation": "انهيار أرضي"
+        "translation": "انهيار أرضي (Ground Failure)"
     },
     {
         "id": "hip_cluster.name.1743.4f8aad",
-        "translation": "مخاطر بيولوجية أخرى"
+        "translation": "مخاطر بيولوجية أخرى(Other Biological Hazards)"
     },
     {
         "id": "hip_cluster.name.1833.42b1d2",
-        "translation": "طقس الفضاء"
+        "translation": "طقس الفضاء (Space Weather)"
     },
     {
         "id": "hip_cluster.name.1843.9d9225",
-        "translation": "الغازات الخانقة"
+        "translation": "الغازات الخانقة (Asphyxiant Gases)"
     },
     {
         "id": "hip_cluster.name.1844.f35d4e",
-        "translation": "الأمراض المعدية المحددة التي تثير قلق الصحة العامة"
+        "translation": "أمراض معدية محددة تشكل تهديد للصحة العامة (Specific Infectious Diseases of Public Health Concern)"
     },
     {
         "id": "hip_hazard.name.78385.08c97e",
-        "translation": "تكاثر الطحالب الضارة"
+        "translation": "تكاثر الطحالب الضارة (Harmful Algal Blooms)"
     },
     {
         "id": "hip_hazard.name.78386.10ac22",
-        "translation": "تفشي الآفات الحشرية"
+        "translation": "تفشي الآفات الحشرية (Insect Pest Infestations)"
     },
     {
         "id": "hip_hazard.name.78387.4d39db",
-        "translation": "تصاعد الجراد"
+        "translation": "تفشي الجراد (Locust upsurge)"
     },
     {
         "id": "hip_hazard.name.78389.423bb8",
-        "translation": "الأنواع الغازية، بما في ذلك الأعشاب الضارة"
+        "translation": "الأنواع الغازية، بما في ذلك الأعشاب الضارة (Invasive Species, Including Weeds)"
     },
     {
         "id": "hip_hazard.name.78390.36a92b",
-        "translation": "لدغات الثعابين"
+        "translation": "لدغات الثعابين (Snakebite envenoming)"
     },
     {
         "id": "hip_hazard.name.78391.fadafd",
-        "translation": "الصراع بين الإنسان والحياة البرية"
+        "translation": "الصراع بين الإنسان والحياة البرية (Human-Wildlife Conflict)"
     },
     {
         "id": "hip_hazard.name.78392.4048cd",
-        "translation": "العوامل البيولوجية"
+        "translation": "العوامل البيولوجية(Biological Agents)"
     },
     {
         "id": "hip_hazard.name.78393.1d7b98",
-        "translation": "مجموعة الانتحار العنقودية"
+        "translation": "تجمع حالات الانتحار (Suicide Cluster)"
     },
     {
         "id": "hip_hazard.name.78394.18cbad",
-        "translation": "مقاومة مضادات الميكروبات"
+        "translation": "مقاومة مضادات الميكروبات (Antimicrobial Resistance)"
     },
     {
         "id": "hip_hazard.name.78396.33e139",
-        "translation": "أمراض النباتات البكتيرية"
+        "translation": "أمراض النباتات البكتيرية(Bacterial Plant Disease)"
     },
     {
         "id": "hip_hazard.name.78397.b0f3e4",
-        "translation": "أمراض النباتات الفطرية"
+        "translation": "أمراض النباتات الفطرية (Fungal Plant Disease)"
     },
     {
         "id": "hip_hazard.name.78398.559840",
-        "translation": "تفشي أمراض النباتات الفيروسية والفيتوبلازما والفيروسات الفيروسية"
+        "translation": "تفشي أمراض النباتات الفيروسية والفيتوبلازما والفيرويد (Viral, Phytoplasma and Viroid Plant Disease Outbreaks)"
     },
     {
         "id": "hip_hazard.name.78399.578f1c",
-        "translation": "الجمرة الخبيثة"
+        "translation": "الجمرة الخبيثة (Anthrax)"
     },
     {
         "id": "hip_hazard.name.78400.a1eba5",
-        "translation": "الأمراض المنقولة جواً"
+        "translation": "الأمراض المنقولة بالهواء (Airborne Diseases)"
     },
     {
         "id": "hip_hazard.name.78401.76395d",
-        "translation": "الفيروسات المنقولة بالدم"
+        "translation": "الفيروسات المنقولة بالدم (Bloodborne Viruses)"
     },
     {
         "id": "hip_hazard.name.78402.9b0d9a",
-        "translation": "الأمراض المنقولة عن طريق المياه"
+        "translation": "الأمراض المنقولة بالمياه (Waterborne Diseases)"
     },
     {
         "id": "hip_hazard.name.78403.db3a24",
-        "translation": "الأمراض المنقولة بالغذاء"
+        "translation": "الأمراض المنقولة بالغذاء (Foodborne Diseases)"
     },
     {
         "id": "hip_hazard.name.78404.981096",
-        "translation": "العدوى المنقولة جنسيًا"
+        "translation": "العدوى المنقولة جنسيًا (Sexually Transmitted Infections)"
     },
     {
         "id": "hip_hazard.name.78405.b6f944",
-        "translation": "أمراض المناطق الاستوائية المهملة"
+        "translation": "أمراض المناطق الاستوائية المهملة (Neglected Tropical Diseases)"
     },
     {
         "id": "hip_hazard.name.78406.c7a910",
-        "translation": "الأمراض التي يمكن الوقاية منها باللقاح"
+        "translation": "الأمراض التي يمكن الوقاية منها باللقاحات (Vaccine-Preventable Diseases)"
     },
     {
         "id": "hip_hazard.name.78407.76756a",
-        "translation": "الأمراض المنقولة بالنواقل (VBD)"
+        "translation": "الأمراض المنقولة بالنواقل (VBD- Vector-borne diseases )"
     },
     {
         "id": "hip_hazard.name.78408.d14227",
-        "translation": "الحميات النزفية الفيروسية"
+        "translation": "الحميات النزفية الفيروسية (Viral Haemorrhagic Fevers)"
     },
     {
         "id": "hip_hazard.name.78410.f3baab",
-        "translation": "الأمراض الحيوانية المعدية (غير الحيوانية المنشأ)"
+        "translation": "الأمراض الحيوانية المعدية (غير الحيوانية المنشأ) (Infectious Animal Diseases (Not Zoonoses))"
     },
     {
         "id": "hip_hazard.name.78411.c1bb15",
-        "translation": "الأمراض الحيوانية المنشأ"
+        "translation": "الأمراض الحيوانية المنشأ (Zoonotic Diseases)"
     },
     {
         "id": "hip_hazard.name.78412.b5fca9",
-        "translation": "أمراض الإسهال"
+        "translation": "أمراض الإسهال (Diarrhoeal Diseases)"
     },
     {
         "id": "hip_hazard.name.78413.16c6c2",
-        "translation": "أمراض البريون"
+        "translation": "أمراض البريون (Prion Diseases)"
     },
     {
         "id": "hip_hazard.name.78414.84cd3b",
-        "translation": "الالتهاب الكبدي الوبائي ب"
+        "translation": "الالتهاب الكبدي الوبائي ب (Hepatitis B)"
     },
     {
         "id": "hip_hazard.name.78415.0a1134",
-        "translation": "الالتهاب الكبدي الوبائي سي"
+        "translation": "الالتهاب الكبدي الوبائي سي (Hepatitis C)"
     },
     {
         "id": "hip_hazard.name.78416.42f92f",
-        "translation": "فيروس نقص المناعة البشرية والإيدز"
+        "translation": "فيروس نقص المناعة البشرية والإيدز (HIV and AIDS)"
     },
     {
         "id": "hip_hazard.name.78417.faa95a",
-        "translation": "كوفيد-19 (سارس-كوف-2)"
+        "translation": "كوفيد-19 (COVID-19 - SARS-CoV-2)"
     },
     {
         "id": "hip_hazard.name.78418.ef2461",
-        "translation": "الكوليرا"
+        "translation": "الكوليرا (Cholera)"
     },
     {
         "id": "hip_hazard.name.78419.d6056e",
-        "translation": "الكريبتوسبوريديوم"
+        "translation": "الكريبتوسبوريديوم (Cryptosporidium)"
     },
     {
         "id": "hip_hazard.name.78420.429682",
-        "translation": "حمى الباراتيفويد"
+        "translation": "حمى الباراتيفويد (Paratyphoid fever)"
     },
     {
         "id": "hip_hazard.name.78421.6d7564",
-        "translation": "حمى التيفوئيد"
+        "translation": "حمى التيفوئيد Typhoid Fever"
     },
     {
         "id": "hip_hazard.name.78422.9dfaf1",
-        "translation": "الالتهاب الكبدي الوبائي أ"
+        "translation": "الالتهاب الكبدي الوبائي أ (Hepatitis A)"
     },
     {
         "id": "hip_hazard.name.78423.f2428f",
-        "translation": "الإشريكية القولونية الإشريكية القولونية (STEC)"
+        "translation": "الإشريكية القولونية (Escherichia Coli (STEC))"
     },
     {
         "id": "hip_hazard.name.78424.1d32d1",
-        "translation": "داء الليستريات"
+        "translation": "داء الليستريات (Listeriosis)"
     },
     {
         "id": "hip_hazard.name.78425.6ff8bb",
-        "translation": "داء الشيغيلات"
+        "translation": "داء الشيغيلات (Shigellosis)"
     },
     {
         "id": "hip_hazard.name.78426.b67189",
-        "translation": "إنفلونزا الطيور"
+        "translation": "إنفلونزا الطيور (Avian Influenza)"
     },
     {
         "id": "hip_hazard.name.78427.0e391c",
-        "translation": "الإنفلونزا الوبائية (البشرية)"
+        "translation": "جائحة الأنفلونزا (البشرية))Pandemic Influenza (Human))"
     },
     {
         "id": "hip_hazard.name.78428.ba0801",
-        "translation": "الإنفلونزا الموسمية"
+        "translation": "الإنفلونزا الموسمية (Seasonal Influenza)"
     },
     {
         "id": "hip_hazard.name.78429.05d162",
-        "translation": "داء الكيسات المذنبة"
+        "translation": "داء الكيسات المذنبة (Cysticercosis)"
     },
     {
         "id": "hip_hazard.name.78430.e7cf2b",
-        "translation": "داء البريميات"
+        "translation": "داء اللويبات (Leptospirosis)"
     },
     {
         "id": "hip_hazard.name.78431.78f021",
-        "translation": "الطاعون"
+        "translation": "الطاعون (Plague)"
     },
     {
         "id": "hip_hazard.name.78432.c163cc",
-        "translation": "الجذام"
+        "translation": "الجذام (Leprosy)"
     },
     {
         "id": "hip_hazard.name.78433.c2359e",
-        "translation": "شيكونغونيا"
+        "translation": "شيكونغونيا (Chikungunya)"
     },
     {
         "id": "hip_hazard.name.78434.91e266",
-        "translation": "فيروس زيكا"
+        "translation": "فيروس زيكا (Zika Virus)"
     },
     {
         "id": "hip_hazard.name.78435.ce2dbb",
-        "translation": "الدفتيريا"
+        "translation": "الدفتيريا (Diphtheria)"
     },
     {
         "id": "hip_hazard.name.78436.9fcd14",
-        "translation": "الحصبة"
+        "translation": "الحصبة (Measles)"
     },
     {
         "id": "hip_hazard.name.78437.d2b561",
-        "translation": "التهاب السحايا بالمكورات السحائية"
+        "translation": "داء المكورات السحائية (Meningococcal Meningitis)"
     },
     {
         "id": "hip_hazard.name.78438.c93014",
-        "translation": "السعال الديكي (بشري)"
+        "translation": "السعال الديكي (بشري) (Pertussis)"
     },
     {
         "id": "hip_hazard.name.78439.5311ac",
-        "translation": "شلل الأطفال"
+        "translation": "شلل الأطفال (Polio)"
     },
     {
         "id": "hip_hazard.name.78440.794e09",
-        "translation": "الجدري"
+        "translation": "الجدري (Smallpox)"
     },
     {
         "id": "hip_hazard.name.78441.19a7ea",
-        "translation": "الحماق والهربس النطاقي"
+        "translation": "الحماق والهربس النطاقي (Varicella and herpes zoster)"
     },
     {
         "id": "hip_hazard.name.78442.898eaf",
-        "translation": "الحمى الصفراء"
+        "translation": "الحمى الصفراء (Yellow Fever)"
     },
     {
         "id": "hip_hazard.name.78443.5e4987",
-        "translation": "حمى الضنك"
+        "translation": "حمى الضنك (Dengue)"
     },
     {
         "id": "hip_hazard.name.78444.fca403",
-        "translation": "الملاريا"
+        "translation": "الملاريا (Malaria)"
     },
     {
         "id": "hip_hazard.name.78445.e17a94",
-        "translation": "حمى القرم-الكونغو النزفية"
+        "translation": "حمى القرم-الكونغو النزفية (Crimean-Congo Haemorrhagic Fever)"
     },
     {
         "id": "hip_hazard.name.78446.b8fde5",
-        "translation": "الإيبولا"
+        "translation": "الإيبولا (Ebola)"
     },
     {
         "id": "hip_hazard.name.78447.c9de66",
-        "translation": "حمى لاسا"
+        "translation": "حمى لاسا (Lassa Fever)"
     },
     {
         "id": "hip_hazard.name.78448.4ad1f6",
-        "translation": "السل"
+        "translation": "السل (Tuberculosis)"
     },
     {
         "id": "hip_hazard.name.78449.619343",
@@ -2225,23 +2225,23 @@
     },
     {
         "id": "hip_hazard.name.78450.493ad2",
-        "translation": "مبوكس"
+        "translation": "ام-بوكس Mpox"
     },
     {
         "id": "hip_hazard.name.78451.e1eedb",
-        "translation": "داء الكلب"
+        "translation": "داء الكلب (Rabies)"
     },
     {
         "id": "hip_hazard.name.78452.726211",
-        "translation": "المتلازمة التنفسية الحادة الوخيمة (سارس)"
+        "translation": "المتلازمة التنفسية الحادة الوخيمة (SARS)"
     },
     {
         "id": "hip_hazard.name.78453.d1c99c",
-        "translation": "فيروس الروتا"
+        "translation": "فيروس الروتا (Rotavirus)"
     },
     {
         "id": "hip_hazard.name.78455.30a8d3",
-        "translation": "داء البروسيلات"
+        "translation": "داء البروسيلات (Brucellosis)"
     },
     {
         "id": "hip_hazard.name.78456.60f5b5",
@@ -2253,883 +2253,883 @@
     },
     {
         "id": "hip_hazard.name.78458.e10525",
-        "translation": "مرض الحمى القلاعية"
+        "translation": "مرض الحمى القلاعية (Foot-and-mouth disease)"
     },
     {
         "id": "hip_hazard.name.78459.89ba60",
-        "translation": "مرض الجلد المتكتل"
+        "translation": "مرض الجلد العُقدي (Lumpy Skin Disease)"
     },
     {
         "id": "hip_hazard.name.78460.4b4962",
-        "translation": "الدودة اللولبية العالمية الجديدة (NWS)"
+        "translation": "الدودة اللولبية العالمية الجديدة (New World Screwworm)"
     },
     {
         "id": "hip_hazard.name.78461.5bf7e8",
-        "translation": "مرض نيوكاسل"
+        "translation": "مرض نيوكاسل (Newcastle Disease)"
     },
     {
         "id": "hip_hazard.name.78462.09ee5b",
-        "translation": "طاعون المجترات الصغيرة"
+        "translation": "طاعون المجترات الصغيرة (Peste Des Petits Ruminants)"
     },
     {
         "id": "hip_hazard.name.78463.f2b58f",
-        "translation": "حمى كيو"
+        "translation": "حمى كيو (Q Fever)"
     },
     {
         "id": "hip_hazard.name.78464.ce557e",
-        "translation": "حمى الوادي المتصدع"
+        "translation": "حمى الوادي المتصدع (Rift Valley Fever)"
     },
     {
         "id": "hip_hazard.name.78466.b53bb4",
-        "translation": "حمى غرب النيل"
+        "translation": "حمى غرب النيل (West Nile Fever)"
     },
     {
         "id": "hip_hazard.name.78467.d817f1",
-        "translation": "داء المثقبيات"
+        "translation": "داء المثقبيات (Trypanosomiasis)"
     },
     {
         "id": "hip_hazard.name.78468.78487b",
-        "translation": "حمى الخنازير الأفريقية"
+        "translation": "حمى الخنازير الأفريقية (African Swine Fever)"
     },
     {
         "id": "hip_hazard.name.78469.87e63d",
-        "translation": "حمى الخنازير الكلاسيكية"
+        "translation": "حمى الخنازير الكلاسيكية (Classical Swine Fever)"
     },
     {
         "id": "hip_hazard.name.78470.711426",
-        "translation": "الطاعون البقري"
+        "translation": "الطاعون البقري (Rinderpest)"
     },
     {
         "id": "hip_hazard.name.78471.e289a3",
-        "translation": "مرض الروبيان (البكتيري) - نخر البنكرياس الكبدي الحاد"
+        "translation": "مرض الروبيان (البكتيري) - نخر البنكرياس الكبدي الحاد (Shrimp disease (bacterial) - Acute Hepatic Pancreatic Necrosis)"
     },
     {
         "id": "hip_hazard.name.78472.b62b66",
-        "translation": "تربية الأحياء المائية لمرض المحار"
+        "translation": "مرض المحار (Oyster Disease Aquaculture)"
     },
     {
         "id": "hip_hazard.name.78473.68c201",
-        "translation": "الأمونيا"
+        "translation": "الأمونيا (Ammonia)"
     },
     {
         "id": "hip_hazard.name.78474.c2b51f",
-        "translation": "أول أكسيد الكربون"
+        "translation": "أول أكسيد الكربون (Carbon Monoxide)"
     },
     {
         "id": "hip_hazard.name.78476.384544",
-        "translation": "الكلور"
+        "translation": "الكلور (Chlorine)"
     },
     {
         "id": "hip_hazard.name.78477.f16a05",
-        "translation": "الزرنيخ"
+        "translation": "الزرنيخ (Arsenic)"
     },
     {
         "id": "hip_hazard.name.78478.37684c",
-        "translation": "الكادميوم"
+        "translation": "الكادميوم (Cadmium)"
     },
     {
         "id": "hip_hazard.name.78479.645978",
-        "translation": "الرصاص"
+        "translation": "الرصاص (Lead)"
     },
     {
         "id": "hip_hazard.name.78480.6a7367",
-        "translation": "الزئبق"
+        "translation": "الزئبق (Mercury)"
     },
     {
         "id": "hip_hazard.name.78481.b85bfd",
-        "translation": "مستويات الملوثات في الأغذية والأعلاف"
+        "translation": "مستويات الملوثات في الأغذية والأعلاف (Levels of Contaminants in Food and Feed)"
     },
     {
         "id": "hip_hazard.name.78482.317281",
-        "translation": "المبيدات الحشرية"
+        "translation": "المبيدات الحشرية (Pesticides)"
     },
     {
         "id": "hip_hazard.name.78487.b11a15",
-        "translation": "الديوكسينات والمواد الشبيهة بالديوكسينات"
+        "translation": "الديوكسينات والمواد الشبيهة بالديوكسينات (Dioxins and Dioxin-like Substances)"
     },
     {
         "id": "hip_hazard.name.78488.679e37",
-        "translation": "اللدائن الدقيقة"
+        "translation": "اللدائن الدقيقة (Microplastics)"
     },
     {
         "id": "hip_hazard.name.78490.735a4f",
-        "translation": "البنزين والهيدروكربونات"
+        "translation": "البنزين والهيدروكربونات (Benzene and Hydrocarbons)"
     },
     {
         "id": "hip_hazard.name.78491.b1283a",
-        "translation": "عوامل الحرب الكيميائية"
+        "translation": "عوامل الحرب الكيميائية (Chemical Warfare Agents)"
     },
     {
         "id": "hip_hazard.name.78492.6b210e",
-        "translation": "الأسبستوس"
+        "translation": "الأسبستوس (Asbestos)"
     },
     {
         "id": "hip_hazard.name.78493.abc701",
-        "translation": "الأفلاتوكسينات الأفلاتوكسينية"
+        "translation": "الأفلاتوكسينات (Aflatoxins)"
     },
     {
         "id": "hip_hazard.name.78494.ac7c5c",
-        "translation": "الإفراط في تناول الفلورايد واليود/اليود أو عدم كفايتهما"
+        "translation": "الإفراط في تناول الفلورايد واليود أو عدم كفايتهما (Fluoride & Iodine/Iodide Excess of Inadequate intake)"
     },
     {
         "id": "hip_hazard.name.78495.a090ce",
-        "translation": "الميثانول"
+        "translation": "الميثانول (Methanol)"
     },
     {
         "id": "hip_hazard.name.78496.c923f1",
-        "translation": "المنتجات الطبية الرديئة والمغشوشة"
+        "translation": "المنتجات الطبية الرديئة والمغشوشة (Substandard and Falsified Medical Products)"
     },
     {
         "id": "hip_hazard.name.78497.c3ce65",
-        "translation": "السموم البحرية"
+        "translation": "السموم البحرية (Marine Toxins)"
     },
     {
         "id": "hip_hazard.name.78498.4c9927",
-        "translation": "تلوث الهواء المنزلي"
+        "translation": "تلوث الهواء المنزلي (Household Air Pollution)"
     },
     {
         "id": "hip_hazard.name.78499.41f04e",
-        "translation": "تلوث الهواء (المصدر الثابت)"
+        "translation": "تلوث الهواء (المصدر الثابت) (Air Pollution/Point Source)"
     },
     {
         "id": "hip_hazard.name.78500.6ebd02",
-        "translation": "تلوث الهواء المحيط (الخارجي)"
+        "translation": "تلوث الهواء المحيط (الخارجي) (Ambient Air Pollution)"
     },
     {
         "id": "hip_hazard.name.78501.c779b2",
-        "translation": "تدهور الأراضي"
+        "translation": "تدهور الأراضي (Land Degradation)"
     },
     {
         "id": "hip_hazard.name.78502.232189",
-        "translation": "تدهور التربة"
+        "translation": "تدهور التربة (Soil Degradation)"
     },
     {
         "id": "hip_hazard.name.78503.cec364",
-        "translation": "الجريان السطحي/التلوث من مصادر غير متناهية الصغر/التلوث من مصادر غير متناهية الصغر"
+        "translation": "الجريان السطحي/التلوث من مصادر غيرمحددة (Nonpoint Source Pollution- Runoff)"
     },
     {
         "id": "hip_hazard.name.78504.bc9260",
-        "translation": "الملوحة \u0026 مالح \u0026؛ الصوديوم"
+        "translation": "الملوحة و الصودية (Salinity and Sodicity)"
     },
     {
         "id": "hip_hazard.name.78505.1261e4",
-        "translation": "فقدان التنوع البيولوجي"
+        "translation": "فقدان التنوع البيولوجي (Biodiversity Loss)"
     },
     {
         "id": "hip_hazard.name.78506.189f2c",
-        "translation": "تدهور الغابات والهبوط في الغابات"
+        "translation": "تدهور الغابات (Forest Declines and Diebacks)"
     },
     {
         "id": "hip_hazard.name.78507.21c618",
-        "translation": "اضطرابات الغابات"
+        "translation": "اضطرابات الغابات (Forest Disturbances)"
     },
     {
         "id": "hip_hazard.name.78508.1eb0b6",
-        "translation": "التصحر"
+        "translation": "التصحر (Desertification)"
     },
     {
         "id": "hip_hazard.name.78509.bc4ace",
-        "translation": "فقدان أشجار المنغروف"
+        "translation": "فقدان أشجار المنغروف (Loss of Mangroves)"
     },
     {
         "id": "hip_hazard.name.78510.a5cd70",
-        "translation": "فقدان/تدهور الأراضي الرطبة"
+        "translation": "فقدان/تدهور الأراضي الرطبة (Wetland Loss/Degradation)"
     },
     {
         "id": "hip_hazard.name.78511.454df0",
-        "translation": "تبييض المرجان"
+        "translation": "ابيضاض المرجان (Coral Bleaching)"
     },
     {
         "id": "hip_hazard.name.78512.c4458e",
-        "translation": "التربة الضاغطة"
+        "translation": "التربة الضاغطة (Compressive Soils)"
     },
     {
         "id": "hip_hazard.name.78513.fb5e0d",
-        "translation": "تآكل التربة"
+        "translation": "تآكل التربة (Soil Erosion)"
     },
     {
         "id": "hip_hazard.name.78514.e1df72",
-        "translation": "التآكل والتراكم الساحلي"
+        "translation": "التآكل والتراكم الساحلي (Coastal Erosion and Accretion)"
     },
     {
         "id": "hip_hazard.name.78515.107fbd",
-        "translation": "فقدان الجليد الدائم"
+        "translation": "فقدان الجليد الدائم (Permafrost Loss)"
     },
     {
         "id": "hip_hazard.name.78516.aa44c2",
-        "translation": "تعدين الرمال"
+        "translation": "تعدين الرمال (Sand Mining)"
     },
     {
         "id": "hip_hazard.name.78517.c744d4",
-        "translation": "ارتفاع مستوى سطح البحر"
+        "translation": "ارتفاع مستوى سطح البحر (Sea Level Rise)"
     },
     {
         "id": "hip_hazard.name.78518.8a9327",
-        "translation": "التشبع بالمغذيات"
+        "translation": "التشبع بالمغذيات (Eutrophication)"
     },
     {
         "id": "hip_hazard.name.78519.6304fd",
-        "translation": "إزالة الغابات"
+        "translation": "إزالة الغابات (Deforestation)"
     },
     {
         "id": "hip_hazard.name.78520.fb9c1b",
-        "translation": "الأنواع الغازية للغابات"
+        "translation": "الأنواع الغازية للغابات (Forest Invasive Species)"
     },
     {
         "id": "hip_hazard.name.78521.a2173a",
-        "translation": "حرائق الغابات"
+        "translation": "حرائق الغابات (Wildfires)"
     },
     {
         "id": "hip_hazard.name.78522.e14929",
-        "translation": "انفجار الهواء"
+        "translation": "انفجار الهواء (Airburst)"
     },
     {
         "id": "hip_hazard.name.78523.4b96c9",
-        "translation": "الاضطراب المغناطيسي الأرضي"
+        "translation": "الاضطراب المغناطيسي الأرضي (Geomagnetic Disturbance)"
     },
     {
         "id": "hip_hazard.name.78524.f4f747",
-        "translation": "الأشعة فوق البنفسجية"
+        "translation": "الأشعة فوق البنفسجية (Ultraviolet Radiation)"
     },
     {
         "id": "hip_hazard.name.78525.e98f3d",
-        "translation": "تأثير النيزك"
+        "translation": "تأثير النيزك (Meteorite Impact)"
     },
     {
         "id": "hip_hazard.name.78526.42c3c9",
-        "translation": "اضطرابات الغلاف الأيوني"
+        "translation": "اضطرابات الغلاف الأيوني (Ionospheric Disturbances)"
     },
     {
         "id": "hip_hazard.name.78527.548efe",
-        "translation": "التوهجات الشمسية"
+        "translation": "التوهجات الشمسية (Solar Flares)"
     },
     {
         "id": "hip_hazard.name.78528.7d5ab9",
-        "translation": "جسيمات الطاقة الشمسية"
+        "translation": "جسيمات الطاقة الشمسية (Solar Energetic Particles)"
     },
     {
         "id": "hip_hazard.name.78529.7f9afd",
-        "translation": "أخطار الفضاء/حوادث الفضاء"
+        "translation": "أخطار/حوادث الفضاء (Space Hazard / Accident)"
     },
     {
         "id": "hip_hazard.name.78530.5ece84",
-        "translation": "جسم قريب من الأرض"
+        "translation": "جسم قريب من الأرض (Near-Earth Object)"
     },
     {
         "id": "hip_hazard.name.78531.7f6587",
-        "translation": "الزلزال"
+        "translation": "الزلزال (Earthquake)"
     },
     {
         "id": "hip_hazard.name.78539.839451",
-        "translation": "تدفقات الحمم البركانية والقباب"
+        "translation": "تدفقات الحمم البركانية والقباب (Lava Flows and Domes)"
     },
     {
         "id": "hip_hazard.name.78540.2425fa",
-        "translation": "سقوط الرماد/الحمم البركانية (بما في ذلك المقذوفات البركانية)"
+        "translation": "سقوط الرماد/الحمم البركانية (بما في ذلك المقذوفات البركانية) (Ash/Tephra Fall)"
     },
     {
         "id": "hip_hazard.name.78542.2490b3",
-        "translation": "تيار كثافة الحمم البركانية"
+        "translation": "التيار الكثيف الحممي (Pyroclastic Density Current)"
     },
     {
         "id": "hip_hazard.name.78543.bb7e23",
-        "translation": "لاهارز"
+        "translation": "تدفقات اللاهار (Lahars)"
     },
     {
         "id": "hip_hazard.name.78546.293e4d",
-        "translation": "الغازات البركانية والهباء الجوي"
+        "translation": "الغازات البركانية والهباء الجوي (Volcanic Gases & Aerosols)"
     },
     {
         "id": "hip_hazard.name.78552.3ebf67",
-        "translation": "التسييل"
+        "translation": "التميع \\تميع التربة (Liquefaction)"
     },
     {
         "id": "hip_hazard.name.78553.f20b1c",
-        "translation": "التمزق السطحي والتشقق السطحي"
+        "translation": "التمزق والتشقق السطحي(Surface Rupture and Fissuring)"
     },
     {
         "id": "hip_hazard.name.78554.16aca9",
-        "translation": "الهبوط والارتفاع"
+        "translation": "الهبوط والارتفاع الأرضي (Subsidence and Uplift)"
     },
     {
         "id": "hip_hazard.name.78555.6c7ecc",
-        "translation": "الهبوط والانكماش"
+        "translation": "الهبوط والانكماش (Shrink-Swell Subsidence)"
     },
     {
         "id": "hip_hazard.name.78556.af62ea",
-        "translation": "البالوعة"
+        "translation": "البالوعة/ الحفرة الانهدامية (Sinkhole)"
     },
     {
         "id": "hip_hazard.name.78557.8a849a",
-        "translation": "الغازات الأرضية (الميثان، النتروجين، إلخ)"
+        "translation": "الغازات الأرضية (الميثان، إلخ) (Ground Gases (CH4, Rn, etc.))"
     },
     {
         "id": "hip_hazard.name.78558.79a309",
-        "translation": "تآكل الأنهار وتراكمها"
+        "translation": "تآكل الأنهار وتراكمها (River Erosion and Accretion)"
     },
     {
         "id": "hip_hazard.name.78559.1548e4",
-        "translation": "زحف الرمال"
+        "translation": "زحف الرمال (Sand Encroachment)"
     },
     {
         "id": "hip_hazard.name.78561.05b461",
-        "translation": "حركة كتلة الجاذبية تحت الماء (\"الانهيار الأرضي\")"
+        "translation": "حركة كتلة الجاذبية تحت الماء (\"الانهيار الأرضي\") (Submarine Gravitational Mass Movement (‘Landslide’))"
     },
     {
         "id": "hip_hazard.name.78562.fa3b85",
-        "translation": "سقوط الصخور والحطام والتراب"
+        "translation": "سقوط الصخور والحطام والتراب (Rock, debris and earth falls)"
     },
     {
         "id": "hip_hazard.name.78563.c74c73",
-        "translation": "انتشار الصخور والحطام والتراب (بما في ذلك زحف المناظر الطبيعية)"
+        "translation": "انتشار الصخور والحطام والتراب (بما في ذلك زحف المناظر الطبيعية) (Rock, debris and earth spreads (including landscape creep))"
     },
     {
         "id": "hip_hazard.name.78566.817078",
-        "translation": "داونبست-هبوط ريحي"
+        "translation": "الهبة الهوائية الهابطة (Downburst)"
     },
     {
         "id": "hip_hazard.name.78567.fdf4e0",
-        "translation": "البرق (العاصفة الكهربائية)"
+        "translation": "البرق (العاصفة الكهربائية) (Lightning (Electrical Storm))"
     },
     {
         "id": "hip_hazard.name.78568.31a9be",
-        "translation": "عاصفة رعدية"
+        "translation": "عاصفة رعدية (Thunderstorm)"
     },
     {
         "id": "hip_hazard.name.78569.43e00b",
-        "translation": "الفيضانات الساحلية"
+        "translation": "الفيضانات الساحلية (Coastal Flooding)"
     },
     {
         "id": "hip_hazard.name.78570.abce31",
-        "translation": "الفيضانات المستنقعية (الساحلية)"
+        "translation": "الفيضانات المستنقعية (الساحلية) (Estuarine (Coastal) Flooding)"
     },
     {
         "id": "hip_hazard.name.78571.b2a27d",
-        "translation": "فيضانات مفاجئة"
+        "translation": "الفيضان المفاجئ (Flash Flooding)"
     },
     {
         "id": "hip_hazard.name.78572.ab6049",
-        "translation": "الفيضانات الفيضانات الطوفانية (النهرية)"
+        "translation": "الفيضانات (النهرية) Fluvial (Riverine) Flooding"
     },
     {
         "id": "hip_hazard.name.78573.23dd4e",
-        "translation": "فيضان المياه الجوفية"
+        "translation": "فيضان المياه الجوفية (Groundwater Flooding)"
     },
     {
         "id": "hip_hazard.name.78574.1b39e9",
-        "translation": "فيضانات المربى الجليدي بما في ذلك الحطام"
+        "translation": "فيضانات الانسداد الجليدي شاملة للحطام (Ice-Jam Flooding Including Debris)"
     },
     {
         "id": "hip_hazard.name.78575.cf6839",
-        "translation": "فيضان (تصريف) البرك (الصرف)"
+        "translation": "فيضان برك الصرف (Ponding (Drainage) Flooding)"
     },
     {
         "id": "hip_hazard.name.78576.2c991c",
-        "translation": "فيضانات ذوبان الثلوج"
+        "translation": "فيضانات ذوبان الثلوج (Snowmelt Flooding)"
     },
     {
         "id": "hip_hazard.name.78577.e07e25",
-        "translation": "فيضان المياه السطحية"
+        "translation": "فيضان المياه السطحية (Surface Water Flooding)"
     },
     {
         "id": "hip_hazard.name.78578.fa886b",
-        "translation": "فيضانات فيضانات البحيرات الجليدية"
+        "translation": "فيضانات البحيرات الجليدية (Glacial Lake Outburst Flooding)"
     },
     {
         "id": "hip_hazard.name.78579.0c08a6",
-        "translation": "الكربون الأسود"
+        "translation": "الكربون الأسود (Black Carbon)"
     },
     {
         "id": "hip_hazard.name.78580.cbe414",
-        "translation": "عاصفة ترابية أو عاصفة رملية"
+        "translation": "عاصفة ترابية أو رملية (Dust storm or Sandstorm)"
     },
     {
         "id": "hip_hazard.name.78581.14394e",
-        "translation": "الضباب"
+        "translation": "الضباب (Fog)"
     },
     {
         "id": "hip_hazard.name.78582.577ad4",
-        "translation": "شبورة"
+        "translation": "ضباب دخاني (Haze)"
     },
     {
         "id": "hip_hazard.name.78584.a39527",
-        "translation": "ضباب الرمال"
+        "translation": "ضباب الرمال (Sand haze)"
     },
     {
         "id": "hip_hazard.name.78585.29b52b",
-        "translation": "دخان"
+        "translation": "دخان (Smoke)"
     },
     {
         "id": "hip_hazard.name.78586.c3edec",
-        "translation": "تحمض المحيطات"
+        "translation": "تحمُّض المحيطات (Ocean Acidification)"
     },
     {
         "id": "hip_hazard.name.78587.76746d",
-        "translation": "موجة غير اعتيادية مدمرة"
+        "translation": "موجة عاتية مدمرة (Rogue Wave)"
     },
     {
         "id": "hip_hazard.name.78588.fbc942",
-        "translation": "تسرب المياه المالحة"
+        "translation": "تسرب المياه المالحة (Saltwater Intrusion)"
     },
     {
         "id": "hip_hazard.name.78589.094d60",
-        "translation": "جليد البحر (الجبال الجليدية)"
+        "translation": "جليد البحر (الجبال الجليدية) (Sea Ice (Icebergs))"
     },
     {
         "id": "hip_hazard.name.78590.2db1f0",
-        "translation": "تدفق الجليد"
+        "translation": "التدفق الجليدي (Ice Flow)"
     },
     {
         "id": "hip_hazard.name.78591.928f39",
-        "translation": "سيش"
+        "translation": "سيش (Seiche)"
     },
     {
         "id": "hip_hazard.name.78592.3cbc4f",
-        "translation": "اندفاع العاصفة"
+        "translation": "عرام العاصفة (Storm Surge)"
     },
     {
         "id": "hip_hazard.name.78593.f7b359",
-        "translation": "المد والجزر العاصف"
+        "translation": "المد والجزر العاصف (Storm Tides)"
     },
     {
         "id": "hip_hazard.name.78594.fd94aa",
-        "translation": "تسونامي"
+        "translation": "تسونامي (Tsunami)"
     },
     {
         "id": "hip_hazard.name.78595.547349",
-        "translation": "منخفض جوي أو إعصار (منطقة الضغط المنخفض)"
+        "translation": "منخفض جوي أو إعصار (منطقة الضغط المنخفض) (Depression or Cyclone (Low Pressure Area))"
     },
     {
         "id": "hip_hazard.name.78596.7f6b7c",
-        "translation": "إعصار خارج المدار"
+        "translation": "الاعصار الخارج المداري (Extra-tropical Cyclone)"
     },
     {
         "id": "hip_hazard.name.78597.3f0ddd",
-        "translation": "إعصار شبه مداري"
+        "translation": "إعصار شبه مداري (Sub-Tropical Cyclone)"
     },
     {
         "id": "hip_hazard.name.78598.f6e3a8",
-        "translation": "المطر الحمضي"
+        "translation": "المطر الحمضي (Acid Rain)"
     },
     {
         "id": "hip_hazard.name.78599.4e00ad",
-        "translation": "عاصفة ثلجية"
+        "translation": "عاصفة /زوبعة ثلجية (Blizzard)"
     },
     {
         "id": "hip_hazard.name.78600.5d1c2f",
-        "translation": "الجفاف"
+        "translation": "الجفاف (Drought)"
     },
     {
         "id": "hip_hazard.name.78601.f5cc00",
-        "translation": "حائل"
+        "translation": "البَرَّد (Hail)"
     },
     {
         "id": "hip_hazard.name.78603.4f946d",
-        "translation": "الثلج"
+        "translation": "الثلج (Snow)"
     },
     {
         "id": "hip_hazard.name.78604.2977f3",
-        "translation": "العاصفة الثلجية"
+        "translation": "العاصفة الثلجية (Snow Storm)"
     },
     {
         "id": "hip_hazard.name.78605.6b69c5",
-        "translation": "الموجة الباردة"
+        "translation": "الموجة الباردة (Cold Wave)"
     },
     {
         "id": "hip_hazard.name.78606.d9f6bb",
-        "translation": "كارثة الجليد القاتل"
+        "translation": "الدزود (Dzud)"
     },
     {
         "id": "hip_hazard.name.78607.509b10",
-        "translation": "التجميد"
+        "translation": "الصقيع (Freeze)"
     },
     {
         "id": "hip_hazard.name.78608.1452af",
-        "translation": "الصقيع (هوار فروست)"
+        "translation": "الصقيع (الصقيع الأبيض) (Frost (Hoar Frost))"
     },
     {
         "id": "hip_hazard.name.78609.aab2cb",
-        "translation": "أمطار متجمدة (عاصفة ثلجية)"
+        "translation": "أمطار متجمدة (عاصفة ثلجية) (Freezing Rain (Ice storm))"
     },
     {
         "id": "hip_hazard.name.78610.4a988f",
-        "translation": "التزجيج"
+        "translation": "الجليد الزجاجي (Glaze)"
     },
     {
         "id": "hip_hazard.name.78611.254f07",
-        "translation": "الصقيع الأرضي"
+        "translation": "الصقيع الأرضي (Ground Frost)"
     },
     {
         "id": "hip_hazard.name.78612.9ea6b1",
-        "translation": "الموجة الحارة"
+        "translation": "الموجة الحارة (Heatwave)"
     },
     {
         "id": "hip_hazard.name.78613.33cdcc",
-        "translation": "الثلج (بما في ذلك الثلج)"
+        "translation": "التَجَلُّد (بما في ذلك الجليد) (Icing (Including Ice))"
     },
     {
         "id": "hip_hazard.name.78614.5f1a9c",
-        "translation": "ذوبان الجليد"
+        "translation": "ذوبان الجليد(Thaw)"
     },
     {
         "id": "hip_hazard.name.78615.93ccf4",
-        "translation": "الانهيار الجليدي"
+        "translation": "الانهيار الجليدي (Avalanche)"
     },
     {
         "id": "hip_hazard.name.78618.046c11",
-        "translation": "القانون"
+        "translation": "الدريشو (Derecho)"
     },
     {
         "id": "hip_hazard.name.78619.6cd374",
-        "translation": "غيل (غيل قوي)"
+        "translation": "عاصفة رياح شديدة (Gale (Strong Gale))"
     },
     {
         "id": "hip_hazard.name.78620.9b31aa",
-        "translation": "زوبعة هوائية"
+        "translation": "زوبعة هوائية (Squall)"
     },
     {
         "id": "hip_hazard.name.78622.d11603",
-        "translation": "الإعصار المداري"
+        "translation": "الإعصار المداري (Tropical Cyclone)"
     },
     {
         "id": "hip_hazard.name.78624.3582d9",
-        "translation": "إعصار"
+        "translation": "إعصار (Tornado)"
     },
     {
         "id": "hip_hazard.name.78625.d15134",
-        "translation": "الرياح"
+        "translation": "الرياح (Wind)"
     },
     {
         "id": "hip_hazard.name.78626.d22c27",
-        "translation": "النزاع المسلح الدولي (IAC)"
+        "translation": "النزاع المسلح الدولي (International Armed Conflict)"
     },
     {
         "id": "hip_hazard.name.78627.c4b2f1",
-        "translation": "النزاعات المسلحة غير الدولية (NIAC)"
+        "translation": "النزاعات المسلحة غير الدولية (Non International Armed conflict)"
     },
     {
         "id": "hip_hazard.name.78628.675959",
-        "translation": "الاضطرابات المدنية"
+        "translation": "الاضطرابات المدنية (Civil Unrest)"
     },
     {
         "id": "hip_hazard.name.78629.ee6b3e",
-        "translation": "الذخائر المتفجرة"
+        "translation": "الذخائر المتفجرة (Explosive Ordnance)"
     },
     {
         "id": "hip_hazard.name.78630.33bef7",
-        "translation": "التدهور البيئي الناجم عن النزاعات"
+        "translation": "التدهور البيئي الناجم عن النزاعات (Environmental Degradation from Conflict)"
     },
     {
         "id": "hip_hazard.name.78631.16d186",
-        "translation": "العنف"
+        "translation": "العنف (Violence)"
     },
     {
         "id": "hip_hazard.name.78632.7857df",
-        "translation": "التدافع أو السحق (بشري)"
+        "translation": "التدافع أو السحق (بشري) (Stampede or Crushing (Human))"
     },
     {
         "id": "hip_hazard.name.78633.bc7e9d",
-        "translation": "الصدمة المالية"
+        "translation": "الصدمة المالية (Financial shock)"
     },
     {
         "id": "hip_hazard.name.78634.089350",
-        "translation": "النفايات المشعة"
+        "translation": "النفايات المشعة (Radioactive Waste)"
     },
     {
         "id": "hip_hazard.name.78635.2fa2ec",
-        "translation": "العوامل المشعة والمواد المشعة؛ المواد"
+        "translation": "العوامل والمواد المشعة (Radioactive Agents &Materials)"
     },
     {
         "id": "hip_hazard.name.78637.3eda4c",
-        "translation": "الوكلاء النوويون"
+        "translation": "عوامل نووية (Nuclear Agents)"
     },
     {
         "id": "hip_hazard.name.78638.324946",
-        "translation": "العوامل المتفجرة"
+        "translation": "المواد المتفجرة (Explosive agents)"
     },
     {
         "id": "hip_hazard.name.78639.aa2636",
-        "translation": "انهيار المبنى"
+        "translation": "انهيار المباني (Building Collapse)"
     },
     {
         "id": "hip_hazard.name.78640.cb8caa",
-        "translation": "البناء، المباني الشاهقة، الكسوة"
+        "translation": "البناء، المباني الشاهقة، الكسوة (Building, highrise, cladding)"
     },
     {
         "id": "hip_hazard.name.78641.a68a34",
-        "translation": "الفشل الهيكلي"
+        "translation": "انهيار المنشئات (Structural Failure)"
     },
     {
         "id": "hip_hazard.name.78642.af68c5",
-        "translation": "تعطل الجسر"
+        "translation": "انهيار الجسور (Bridge Failure)"
     },
     {
         "id": "hip_hazard.name.78643.881313",
-        "translation": "فشل السد"
+        "translation": "انهيار السدود (Dam Failure)"
     },
     {
         "id": "hip_hazard.name.78644.10b94a",
-        "translation": "فشل سلسلة التوريد"
+        "translation": "فشل سلسلة التوريد (Supply Chain Failure)"
     },
     {
         "id": "hip_hazard.name.78645.6d06da",
-        "translation": "فشل البنية التحتية الحرجة"
+        "translation": "فشل البنية التحتية الحيوية (Critical Infrastructure Failure)"
     },
     {
         "id": "hip_hazard.name.78646.821973",
-        "translation": "تعطل محطة نووية"
+        "translation": "تعطل محطة نووية (Nuclear Plant Failure)"
     },
     {
         "id": "hip_hazard.name.78647.d4770d",
-        "translation": "تعطل التيار الكهربائي/ أو انقطاعه"
+        "translation": "تعطل أو انقطاع التيار الكهربائي (Power Outage/ or Blackout)"
     },
     {
         "id": "hip_hazard.name.78648.623698",
-        "translation": "فشل الاتصالات السلكية واللاسلكية في حالات الطوارئ"
+        "translation": "فشل الاتصالات في حالات الطوارئ (Emergency Telecommunications Failure)"
     },
     {
         "id": "hip_hazard.name.78649.84c409",
-        "translation": "فشل إمدادات المياه"
+        "translation": "انقطاع إمدادات المياه (Water Supply Failure)"
     },
     {
         "id": "hip_hazard.name.78650.95e7ea",
-        "translation": "أعطال الراديو والاتصالات السلكية واللاسلكية الأخرى"
+        "translation": "أعطال الراديو والاتصالات الأخرى (Radio and Other Telecommunication Failures)"
     },
     {
         "id": "hip_hazard.name.78653.518a3b",
-        "translation": "البرمجيات الخبيثة"
+        "translation": "البرمجيات الخبيثة (Malware)"
     },
     {
         "id": "hip_hazard.name.78654.6c1a2f",
-        "translation": "اختراق البيانات \u0026 أمب؛ اختراق معلومات تحديد الهوية الشخصية"
+        "translation": "اختراق البيانات و معلومات تحديد الهوية الشخصية (Data &PII Breach)"
     },
     {
         "id": "hip_hazard.name.78659.d29fe0",
-        "translation": "التنمر عبر الإنترنت"
+        "translation": "التنمر عبر الإنترنت (Cyberbullying)"
     },
     {
         "id": "hip_hazard.name.78660.a46953",
-        "translation": "كارثة تكنولوجية ناتجة عن خطر طبيعي"
+        "translation": "كارثة تكنولوجية بسبب أخطار طبيعية (Natech)"
     },
     {
         "id": "hip_hazard.name.78661.b7bc98",
-        "translation": "التلوث"
+        "translation": "التلوث (Pollution)"
     },
     {
         "id": "hip_hazard.name.78662.ca6482",
-        "translation": "الانفجار"
+        "translation": "الانفجار (Explosion)"
     },
     {
         "id": "hip_hazard.name.78663.559529",
-        "translation": "التسريبات والانسكابات"
+        "translation": "التسريبات والانسكابات (Leaks and Spills)"
     },
     {
         "id": "hip_hazard.name.78664.a965b5",
-        "translation": "تلوث التربة"
+        "translation": "تلوث التربة (Soil Pollution)"
     },
     {
         "id": "hip_hazard.name.78665.c141fa",
-        "translation": "حريق"
+        "translation": "حريق (Fire)"
     },
     {
         "id": "hip_hazard.name.78666.caa741",
-        "translation": "مخاطر التعدين"
+        "translation": "أخطار التعدين (Mining Hazards)"
     },
     {
         "id": "hip_hazard.name.78667.d05dce",
-        "translation": "مخاطر السلامة المرتبطة بالنفط والغاز"
+        "translation": "أخطار السلامة المرتبطة بالنفط والغاز (Safety Hazards Associated with Oil and Gas)"
     },
     {
         "id": "hip_hazard.name.78668.af2869",
-        "translation": "نفايات الكوارث والنزاعات"
+        "translation": "نفايات الكوارث والنزاعات (Disaster and Conflict Waste)"
     },
     {
         "id": "hip_hazard.name.78669.5374f9",
-        "translation": "النفايات الصلبة"
+        "translation": "النفايات الصلبة(Solid Waste)"
     },
     {
         "id": "hip_hazard.name.78670.b33dde",
-        "translation": "مياه الصرف الصحي"
+        "translation": "المياه العادمة (Wastewater)"
     },
     {
         "id": "hip_hazard.name.78671.2ede5c",
-        "translation": "النفايات الخطرة"
+        "translation": "النفايات الخطرة (Hazardous Waste)"
     },
     {
         "id": "hip_hazard.name.78672.964d79",
-        "translation": "نفايات البلاستيك"
+        "translation": "النفايات البلاستيكية (Plastic Waste)"
     },
     {
         "id": "hip_hazard.name.78673.20420a",
-        "translation": "النفايات الإلكترونية (النفايات الإلكترونية)"
+        "translation": "النفايات الإلكترونية (Electronic/E-Waste)"
     },
     {
         "id": "hip_hazard.name.78674.d4f9d1",
-        "translation": "نفايات الرعاية الصحية"
+        "translation": "نفايات الرعاية الصحية (Health-care Waste)"
     },
     {
         "id": "hip_hazard.name.78675.0d188a",
-        "translation": "طمر النفايات"
+        "translation": "طمر النفايات (Landfilling)"
     },
     {
         "id": "hip_hazard.name.78676.1f159c",
-        "translation": "المخلفات"
+        "translation": "مخلفات المناجم (Tailings)"
     },
     {
         "id": "hip_hazard.name.78677.9a4a6f",
-        "translation": "بحيرات معالجة النفايات"
+        "translation": "برك معالجة النفايات (Waste Treatment Lagoons)"
     },
     {
         "id": "hip_hazard.name.78678.2b44aa",
-        "translation": "الحطام البحري"
+        "translation": "الحطام البحري (Marine Debris)"
     },
     {
         "id": "hip_hazard.name.78679.a26743",
-        "translation": "فيضانات المجاري والصرف الصحي"
+        "translation": "فيضانات المجاري والصرف الصحي (Drain and Sewer Flooding)"
     },
     {
         "id": "hip_hazard.name.78680.4272a9",
-        "translation": "فيضان الخزان"
+        "translation": "فيضان الخزان (Reservoir Flooding)"
     },
     {
         "id": "hip_hazard.name.78681.5a6947",
-        "translation": "حادث النقل الجوي"
+        "translation": "حادث النقل الجوي (Air Transportation Accident)"
     },
     {
         "id": "hip_hazard.name.78682.79efc4",
-        "translation": "حادث النقل بالطرق المائية الداخلية حادث النقل بالطرق المائية الداخلية"
+        "translation": "حادث النقل بالطرق المائية الداخلية (Inland Water Ways Transportation Accident)"
     },
     {
         "id": "hip_hazard.name.78683.a6a61c",
-        "translation": "حادث بحري"
+        "translation": "حادث بحري (Maritime Accident)"
     },
     {
         "id": "hip_hazard.name.78684.f75831",
-        "translation": "حادث سكة حديد"
+        "translation": "حادث سكة حديد (Rail Accident)"
     },
     {
         "id": "hip_hazard.name.78685.16f493",
-        "translation": "حادث سير على الطريق"
+        "translation": "حادث سير على الطريق (Road Traffic Accident)"
     },
     {
         "id": "hip_hazard.name.94015.4fe83a",
-        "translation": "المؤثرات الأفيونية والمؤثرات العقلية الأخرى"
+        "translation": "المواد الأفيونية و المؤثرات العقلية الأخرى (Opioids and Other Psychoactive Substances)"
     },
     {
         "id": "hip_hazard.name.94093.71dbac",
-        "translation": "حركة كتلة الجاذبية (\"الانهيار الأرضي\")"
+        "translation": "حركة كتلة الجاذبية (\"الانهيار الأرضي\") (Gravitational Mass Movement (‘Landslide’))"
     },
     {
         "id": "hip_hazard.name.94337.425b67",
-        "translation": "المعادن الثقيلة والعناصر النزرة الأخرى"
+        "translation": "المعادن الثقيلة والعناصر النزرة الأخرى (Heavy Metals and Other Trace Elements)"
     },
     {
         "id": "hip_hazard.name.94360.3e6ed4",
-        "translation": "الغازات السامة"
+        "translation": "الغازات السامة (Toxic Gases)"
     },
     {
         "id": "hip_hazard.name.94366.29a145",
-        "translation": "الغازات الخانقة"
+        "translation": "الغازات الخانقة (Asphyxiant ​​Gases)"
     },
     {
         "id": "hip_hazard.name.94367.536541",
-        "translation": "الملوثات العضوية الثابتة"
+        "translation": "الملوثات العضوية الثابتة (Persistent Organic Pollutants)"
     },
     {
         "id": "hip_hazard.name.94370.7bece4",
-        "translation": "المواد البيرفلوروالكيل البيرفلوروالكيلية والمتعددة الفلوروالكيلية"
+        "translation": "المواد الألكيل البيرفلورية والبولي فلورية (Perfluoroalkyl and Polyfluoroalkyl Substances)"
     },
     {
         "id": "hip_hazard.name.94397.acc9c0",
-        "translation": "المواد المسببة للتآكل"
+        "translation": "المواد المسببة للتآكل (Corrosive Substances)"
     },
     {
         "id": "hip_hazard.name.94400.dbf592",
-        "translation": "نترات الأمونيوم"
+        "translation": "نترات الأمونيوم (Ammonium Nitr​​ate)"
     },
     {
         "id": "hip_hazard.name.94403.25382f",
-        "translation": "تدفقات الحطام والتراب (الطين) والانهيارات الصخرية"
+        "translation": "الحطام والتراب (الطين) والانهيارات الصخرية (Debris and earth (mud)flows and rock avalanches)"
     },
     {
         "id": "hip_hazard.name.94404.2d95d3",
-        "translation": "الانزلاق الصخري والحطام والتراب (الطين)"
+        "translation": "الانزلاق الصخري والحطام والتراب (الطين) (Rock, debris and earth (mud) slide)"
     },
     {
         "id": "hip_hazard.name.94405.f36e5a",
-        "translation": "انهيارات الصخور والحطام والتراب"
+        "translation": "انهيارات الصخور والحطام والتراب (Rock, debris and earth topples)"
     },
     {
         "id": "hip_hazard.name.94464.a6d20a",
-        "translation": "أمطار"
+        "translation": "أمطار (Rain)"
     },
     {
         "id": "hip_hazard.name.94492.86468f",
-        "translation": "الفيضانات"
+        "translation": "الفيضانات (Flooding)"
     },
     {
         "id": "hip_hazard.name.94514.2387b4",
-        "translation": "الموجة الحارة البحرية"
+        "translation": "الموجة الحارة البحرية (Marine Heatwave)"
     },
     {
         "id": "hip_hazard.name.94574.136540",
-        "translation": "الحطام الفضائي"
+        "translation": "الحطام الفضائي (Space Debris)"
     },
     {
         "id": "hip_hazard.name.94603.57ad5d",
-        "translation": "التهديدات المستمرة المتقدمة"
+        "translation": "التهديدات المستمرة المتقدمة (Advanced Persistent Threat)"
     },
     {
         "id": "hip_hazard.name.94604.ce5389",
-        "translation": "الحرمان من الخدمة"
+        "translation": "حجب الخدمة (Denial of Service)"
     },
     {
         "id": "hip_hazard.name.94606.1db46c",
-        "translation": "هجوم سلسلة التوريد"
+        "translation": "هجوم سلسلة التوريد (Supply Chain Attack)"
     },
     {
         "id": "hip_hazard.name.94607.488b92",
-        "translation": "الهندسة الاجتماعية - التصيد الاحتيالي"
+        "translation": "الهندسة الاجتماعية - التصيد الاحتيالي (Social Engineering - Phishing)"
     },
     {
         "id": "hip_hazard.name.94770.63665c",
-        "translation": "تعطل النفق"
+        "translation": "انهيار النفق (Tunnel Failure)"
     },
     {
         "id": "hip_hazard.name.95166.b5ab4b",
-        "translation": "مرض فيروس ماربورغ"
+        "translation": "فيروس ماربورغ (Marburg virus disease)"
     },
     {
         "id": "hip_type.name.1037.eeb094",
-        "translation": "البيولوجية"
+        "translation": "البيولوجية (Biological)"
     },
     {
         "id": "hip_type.name.1038.3e5ffd",
-        "translation": "المواد الكيميائية"
+        "translation": "الكيميائي (Chemical)"
     },
     {
         "id": "hip_type.name.1039.84e85e",
-        "translation": "البيئة"
+        "translation": "البيئي (Environmental)"
     },
     {
         "id": "hip_type.name.1040.e670a7",
-        "translation": "فضائي"
+        "translation": "فضائي (Extraterrestrial)"
     },
     {
         "id": "hip_type.name.1041.148abd",
-        "translation": "جيولوجي"
+        "translation": "جيولوجي (Geological)"
     },
     {
         "id": "hip_type.name.1042.c80712",
-        "translation": "الأرصاد الجوية والهيدرولوجية"
+        "translation": "الأرصاد الجوية والهيدرولوجية (Meteorological and Hydrological)"
     },
     {
         "id": "hip_type.name.1043.4ab983",
-        "translation": "مجتمعي"
+        "translation": "مجتمعي (Societal)"
     },
     {
         "id": "hip_type.name.1044.48fce8",
-        "translation": "التكنولوجية"
+        "translation": "التكنولوجية (Technological)"
     },
     {
         "id": "sector.name.0a921aa4-1d16-43ad-8dd1-29c92294bd5e.bba770",
@@ -3289,7 +3289,7 @@
     },
     {
         "id": "sector.name.04b9f8b5-bed9-4dc4-9e43-48232a6c3bfa.1dfe4a",
-        "translation": "صحة واحدة"
+        "translation": "الصحة الواحدة"
     },
     {
         "id": "sector.name.4bda4671-3f59-4d0a-be9f-e067c4868aba.26c817",
@@ -3589,7 +3589,7 @@
     },
     {
         "id": "sector.name.049c8680-fe1d-4e3c-ac1e-7dfdda7a2bd8.89e2e9",
-        "translation": "خدمات التزويد بالخدمات"
+        "translation": "الخدمات التموينية"
     },
     {
         "id": "sector.name.52d0089f-d097-457d-82f9-a693561974f6.2f3da4",
