@@ -9,7 +9,6 @@ import { HumanEffectsTable } from "~/frontend/human_effects/defs";
 import { eqArr } from "~/utils/array";
 import { ViewContext } from "../../context";
 import { Toast } from "primereact/toast";
-import { LangLink } from "~/utils/link";
 import { TableActions } from "./actions";
 import { TableCategoryPresence } from "./category_presence";
 import { TableContent } from "./table_content";
@@ -411,16 +410,6 @@ function TableClient(props: TableProps) {
 						reSort={reSort}
 					/>
 					<TableLegend ctx={ctx} />
-					<LangLink
-						lang={ctx.lang}
-						to="/settings/human-effects-dsg"
-						className="text-[#00afae] hover:text-blue-800 underline mb-4 inline-block"
-					>
-						{ctx.t({
-							code: "human_effects.configure_disaggregations",
-							msg: "Configure disaggregations",
-						})}
-					</LangLink>
 				</>
 			)}
 		</div>
