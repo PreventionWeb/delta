@@ -409,6 +409,13 @@ export default function RegularMenuBar({
                             command: () => navigate(ctx.url("/settings/assets")),
                             template: itemRenderer,
                         },
+                        {
+                            label: ctx.t({ code: "nav.human_effects", msg: "Human effects" }),
+                            description: "Manage disaggregations",
+                            icon: "pi pi-user",
+                            command: () => navigate(ctx.url("/settings/human-effects-dsg")),
+                            template: itemRenderer,
+                        },
                     ],
                 },
             ]

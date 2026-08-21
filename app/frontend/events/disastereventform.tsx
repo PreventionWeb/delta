@@ -41,6 +41,21 @@ import DisasterEventReviewStep from "~/frontend/disaster-event/DisasterEventRevi
 
 export const route = "/disaster-event";
 
+export function resolveAssessmentSectorNames(
+	sectorIds: string[],
+	sectorNamesById: Map<string, string>,
+): string[] {
+	const seen = new Set<string>();
+	return sectorIds.flatMap((sectorId) => {
+		const name = sectorNamesById.get(sectorId);
+		if (!name || seen.has(name)) {
+			return [];
+		}
+		seen.add(name);
+		return [name];
+	});
+}
+
 function repeatOtherIds(
 	ctx: DContext,
 	n: number,
@@ -58,121 +73,6 @@ function repeatOtherIds(
 			uiRow: i == 0 ? {} : undefined,
 			repeatable: { group: "otherId", index: i },
 		});
-	}
-	return res as FormInputDef<DisasterEventFields>[];
-}
-
-function repeatRapidOrPreliminaryAssesments(
-	ctx: DContext,
-	n: number,
-): FormInputDef<DisasterEventFields>[] {
-	let res = [];
-	for (let i = 0; i < n; i++) {
-		let j = i + 1;
-
-		res.push(
-			{
-				key: "rapidOrPreliminaryAssessmentDescription" + j,
-				label: ctx.t({
-					code: "common.description",
-					msg: "Description",
-				}),
-				type: "textarea",
-				uiRow: {
-					label:
-						ctx.t({
-							code: "disaster_event.rapid_preliminary_assessment",
-							msg: "Rapid/Preliminary assessment",
-						}) + ` (${j})`,
-				},
-				repeatable: { group: "rapidOrPreliminaryAssessment", index: i },
-			},
-			{
-				key: "rapidOrPreliminaryAssessmentDate" + j,
-				label: ctx.t({
-					code: "common.date",
-					msg: "Date",
-				}),
-				type: "date",
-				repeatable: { group: "rapidOrPreliminaryAssessment", index: i },
-			},
-		);
-	}
-	return res as FormInputDef<DisasterEventFields>[];
-}
-
-function repeatPostDisasterAssesments(
-	ctx: DContext,
-	n: number,
-): FormInputDef<DisasterEventFields>[] {
-	let res = [];
-	for (let i = 0; i < n; i++) {
-		let j = i + 1;
-		res.push(
-			{
-				key: "postDisasterAssessmentDescription" + j,
-				label: ctx.t({
-					code: "common.description",
-					msg: "Description",
-				}),
-				type: "textarea",
-				uiRow: {
-					label:
-						ctx.t({
-							code: "disaster_event.post_disaster_assessment",
-							msg: "Post‑disaster assessment",
-						}) + ` (${j})`,
-				},
-				repeatable: { group: "postDisasterAssessment", index: i },
-			},
-			{
-				key: "postDisasterAssessmentDate" + j,
-				label: ctx.t({
-					code: "common.date",
-					msg: "Date",
-				}),
-				type: "date",
-				repeatable: { group: "postDisasterAssessment", index: i },
-			},
-		);
-	}
-	return res as FormInputDef<DisasterEventFields>[];
-}
-
-function repeatOtherAssesments(
-	ctx: DContext,
-	n: number,
-): FormInputDef<DisasterEventFields>[] {
-	let res = [];
-	for (let i = 0; i < n; i++) {
-		let j = i + 1;
-		res.push(
-			{
-				key: "otherAssessmentDescription" + j,
-				label: ctx.t({
-					code: "common.description",
-					msg: "Description",
-				}),
-				type: "textarea",
-				uiRow: {
-					label:
-						ctx.t({
-							code: "disaster_event.other_assessment",
-							msg: "Other assessment",
-						}) + ` (${j})`,
-				},
-				repeatable: { group: "otherAssessment", index: i },
-			},
-			{
-				key: "otherAssessmentDate" + j,
-				label: ctx.t({
-					code: "common.date",
-					msg: "Date",
-				}),
-				type: "date",
-				repeatable: { group: "otherAssessment", index: i },
-			},
-		);
 	}
 	return res as FormInputDef<DisasterEventFields>[];
 }
@@ -319,11 +219,6 @@ export function fieldsDefCommon(
 			type: "textarea",
 		},
 
-		...repeatRapidOrPreliminaryAssesments(ctx, 5),
-
-		...repeatPostDisasterAssesments(ctx, 5),
-		...repeatOtherAssesments(ctx, 5),
-
 		{
 			key: "dataSource",
 			label: ctx.t({
@@ -337,14 +232,6 @@ export function fieldsDefCommon(
 					msg: "Data source",
 				}),
 			},
-		},
-		{
-			key: "recordingInstitution",
-			label: ctx.t({
-				code: "disaster_event.recording_institution",
-				msg: "Recording institution",
-			}),
-			type: "text",
 		},
 		{
 			key: "effectsTotalUsd",
@@ -1181,7 +1068,16 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 			typeof timeValue === "string" && timeValue.trim().length > 0
 				? timeValue.trim().slice(0, 5)
 				: "-";
-		return `${dateText} at ${timeText}`;
+		return ctx.t(
+			{
+				code: "disaster_event.review.date_at_time",
+				msg: "{date} at {time}",
+			},
+			{
+				date: dateText,
+				time: timeText,
+			},
+		);
 	};
 	const hipName = (value: any): string => {
 		if (!value) {
@@ -1228,7 +1124,16 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 		})
 		.map((entry, index) => {
 			const title = typeof entry?.title === "string" ? entry.title.trim() : "";
-			return title || `Spatial footprint ${index + 1}`;
+			return (
+				title ||
+				ctx.t(
+					{
+						code: "disaster_event.review.spatial_footprint_index",
+						msg: "Spatial footprint {index}",
+					},
+					{ index: index + 1 },
+				)
+			);
 		});
 	const buildAttachmentViewerName = (attachment: any): string => {
 		const eventId = String(itemAny?.id || "").trim();
@@ -1413,21 +1318,12 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 		},
 	);
 
-	const legacyResponses = Array.from({ length: 5 }).flatMap((_, index) => {
-		const n = index + 1;
-		const description = itemAny?.[`earlyActionDescription${n}`];
-		if (!description || String(description).trim().length === 0) {
-			return [];
-		}
-		return [
-			{
-				id: `response-early-action-${n}`,
-				type: "early_action",
-				date: formatReviewDate(itemAny?.[`earlyActionDate${n}`]),
-				description: String(description),
-			},
-		];
-	});
+	const legacyResponses: {
+		id: string;
+		type: string;
+		date: string;
+		description: string;
+	}[] = [];
 	if (
 		typeof itemAny?.responseOperationsDescription === "string" &&
 		itemAny.responseOperationsDescription.trim().length > 0
@@ -1443,56 +1339,93 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 	const responses =
 		normalizedResponses.length > 0 ? normalizedResponses : legacyResponses;
 
-	const assessments = [
-		...Array.from({ length: 5 }).flatMap((_, index) => {
-			const n = index + 1;
-			const description =
-				itemAny?.[`rapidOrPreliminaryAssessmentDescription${n}`];
-			if (!description || String(description).trim().length === 0) {
-				return [];
+	const assessmentAttachmentsByAssessmentId = (
+		(itemAny?.assessmentAttachments as any[]) || []
+	).reduce(
+		(accumulator, attachment: any) => {
+			const assessmentId = String(attachment?.disasterEventAssessmentId || "");
+			if (!assessmentId) {
+				return accumulator;
 			}
-			return [
-				{
-					id: `assessment-rapid-${n}`,
-					type: "rapid_preliminary_assessment",
-					date: formatReviewDate(
-						itemAny?.[`rapidOrPreliminaryAssessmentDate${n}`],
-					),
-					description: String(description),
-				},
-			];
-		}),
-		...Array.from({ length: 5 }).flatMap((_, index) => {
-			const n = index + 1;
-			const description = itemAny?.[`postDisasterAssessmentDescription${n}`];
-			if (!description || String(description).trim().length === 0) {
-				return [];
+			const existing = accumulator[assessmentId] || [];
+			existing.push({
+				id: String(attachment?.id || ""),
+				title: String(attachment?.title || attachment?.fileName || ""),
+				fileName: String(attachment?.fileName || ""),
+				fileKey: String(attachment?.fileKey || ""),
+				fileType: String(attachment?.fileType || ""),
+				fileSize: Number(attachment?.fileSize || 0),
+				href: ctx.url(
+					`${route}/file-viewer?name=${encodeURIComponent(
+						buildAttachmentViewerName(attachment),
+					)}`,
+				),
+			});
+			accumulator[assessmentId] = existing;
+			return accumulator;
+		},
+		{} as Record<string, any[]>,
+	);
+
+	const assessmentSectorsByAssessmentId = (
+		(itemAny?.assessmentSectors as any[]) || []
+	).reduce(
+		(accumulator, link: any) => {
+			const assessmentId = String(link?.disasterEventAssessmentId || "");
+			const sectorId = String(link?.sectorId || "");
+			if (!assessmentId || !sectorId) {
+				return accumulator;
 			}
-			return [
-				{
-					id: `assessment-post-${n}`,
-					type: "post_disaster_assessment",
-					date: formatReviewDate(itemAny?.[`postDisasterAssessmentDate${n}`]),
-					description: String(description),
+			const existing = accumulator[assessmentId] || [];
+			existing.push(sectorId);
+			accumulator[assessmentId] = existing;
+			return accumulator;
+		},
+		{} as Record<string, string[]>,
+	);
+
+	const sectorNamesById = new Map<string, string>(
+		Object.entries(
+			(itemAny?.assessmentSectorNamesById as Record<string, string>) ?? {},
+		),
+	);
+
+	const assessments = ((itemAny?.assessments as any[]) || []).map(
+		(assessment: any, index: number) => {
+			const assessmentId = String(assessment?.id || `assessment-${index + 1}`);
+			const coverage = String(assessment?.coverage ?? "").trim();
+			const description = String(assessment?.description ?? "").trim();
+			const otherSectors = String(assessment?.otherSectors ?? "").trim();
+			const sectorIds = assessmentSectorsByAssessmentId[assessmentId] || [];
+			const sectorNames = resolveAssessmentSectorNames(
+				sectorIds,
+				sectorNamesById,
+			);
+
+			const descriptionParts = [description].filter(
+				(value) => value.trim().length > 0,
+			);
+
+			return {
+				id: assessmentId,
+				type: String(
+					assessment?.assessmentType ||
+						ctx.t({
+							code: "disaster_event.review.assessment",
+							msg: "Assessment",
+						}),
+				),
+				date: formatReviewDate(assessment?.assessmentDate),
+				coverage,
+				description: descriptionParts.join("\n"),
+				meta: {
+					sectorIds: sectorNames,
+					otherSectors: otherSectors || undefined,
 				},
-			];
-		}),
-		...Array.from({ length: 5 }).flatMap((_, index) => {
-			const n = index + 1;
-			const description = itemAny?.[`otherAssessmentDescription${n}`];
-			if (!description || String(description).trim().length === 0) {
-				return [];
-			}
-			return [
-				{
-					id: `assessment-other-${n}`,
-					type: "other_assessment",
-					date: formatReviewDate(itemAny?.[`otherAssessmentDate${n}`]),
-					description: String(description),
-				},
-			];
-		}),
-	];
+				attachments: assessmentAttachmentsByAssessmentId[assessmentId] || [],
+			};
+		},
+	);
 
 	const normalizedDeclarations = ((itemAny?.declarations as any[]) || []).map(
 		(declaration: any, index: number) => {
@@ -1511,7 +1444,12 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 
 			return {
 				id: declarationId,
-				type: declarationType || "Declaration",
+				type:
+					declarationType ||
+					ctx.t({
+						code: "disaster_event.review.declaration",
+						msg: "Declaration",
+					}),
 				date: formatReviewDate(declaration?.declarationDate),
 				coverage,
 				description: effects,
@@ -1527,65 +1465,50 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 		},
 	);
 
-	const legacyDeclarations: {
-		id: string;
-		type: string;
-		date: string;
-		description: string;
-		meta?: {
-			declarationStatus?: string;
-		};
-	}[] = [
-		...Array.from({ length: 5 }).flatMap((_, index) => {
-			const n = index + 1;
-			const description = itemAny?.[`disasterDeclarationTypeAndEffect${n}`];
-			if (!description || String(description).trim().length === 0) {
-				return [];
-			}
-			return [
-				{
-					id: `declaration-effect-${n}`,
-					type: "disaster_declaration_effects",
-					date: formatReviewDate(itemAny?.[`disasterDeclarationDate${n}`]),
-					description: String(description),
-				},
-			];
-		}),
-	];
-	if (typeof itemAny?.disasterDeclaration === "string") {
-		legacyDeclarations.push({
-			id: "declaration-status-1",
-			type: "disaster_declaration",
-			date: "",
-			description: "",
-			meta: {
-				declarationStatus: itemAny.disasterDeclaration,
-			},
-		});
-	}
-	const declarations =
-		normalizedDeclarations.length > 0
-			? normalizedDeclarations
-			: legacyDeclarations;
+	const declarations = normalizedDeclarations;
 
 	const getDetailTypeLabel = (value: string) => {
 		switch (value) {
 			case "early_action":
-				return "Early action";
+				return ctx.t({
+					code: "disaster_event.early_action",
+					msg: "Early action",
+				});
 			case "response_operation":
-				return "Response operation";
+				return ctx.t({
+					code: "disaster_event.review.response_operation",
+					msg: "Response operation",
+				});
 			case "rapid_preliminary_assessment":
-				return "Rapid/Preliminary assessment";
+				return ctx.t({
+					code: "disaster_event.rapid_preliminary_assessment",
+					msg: "Rapid/Preliminary assessment",
+				});
 			case "post_disaster_assessment":
-				return "Post-disaster assessment";
+				return ctx.t({
+					code: "disaster_event.post_disaster_assessment",
+					msg: "Post-disaster assessment",
+				});
 			case "other_assessment":
-				return "Other assessment";
+				return ctx.t({
+					code: "disaster_event.other_assessment",
+					msg: "Other assessment",
+				});
 			case "disaster_declaration":
-				return "Disaster declaration";
+				return ctx.t({
+					code: "disaster_event.disaster_declaration",
+					msg: "Disaster declaration",
+				});
 			case "disaster_declaration_effects":
-				return "Disaster declaration effects";
+				return ctx.t({
+					code: "disaster_event.review.disaster_declaration_effects",
+					msg: "Disaster declaration effects",
+				});
 			case "official_warning":
-				return "Official warning";
+				return ctx.t({
+					code: "common.official_warning",
+					msg: "Official Warning",
+				});
 			default:
 				return value;
 		}
@@ -1600,7 +1523,10 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 			detail.coverage.trim().length > 0
 		) {
 			return [
-				`Coverage: ${detail.coverage.trim()}`,
+				`${ctx.t({
+					code: "disaster_event.review.coverage",
+					msg: "Coverage",
+				})}: ${detail.coverage.trim()}`,
 				typeof detail?.description === "string" ? detail.description : "",
 			]
 				.filter((value) => value.trim().length > 0)
@@ -1643,6 +1569,7 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 			})}
 		>
 			<DisasterEventReviewStep
+				ctx={ctx}
 				form={{
 					nameNational: itemAny?.nameNational || "",
 					nameGlobalOrRegional: itemAny?.nameGlobalOrRegional || "",
@@ -1650,7 +1577,7 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 					glide: itemAny?.glide || "",
 					id: itemAny?.id || "",
 					recordingOrganizationName:
-						itemAny?.recordingInstitution || itemAny?.recordOriginator || "",
+						itemAny?.recordOriginator || "",
 				}}
 				selectedHazardTypeName={hipName(itemAny?.hipType)}
 				selectedHazardClusterName={hipName(itemAny?.hipCluster)}
@@ -1668,11 +1595,21 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 				reviewSpatialFootprintData={(itemAny?.spatialFootprint as any[]) || []}
 				reviewLinks={reviewLinks}
 				reviewAttachments={reviewAttachments}
-				triggeringHazardousEventTarget={[]}
-				triggeredHazardousEventTarget={[]}
-				triggeringDisasterEventTarget={[]}
-				triggeredDisasterEventTarget={[]}
-				linkedDisasterRecordTarget={[]}
+				triggeringHazardousEventTarget={
+					(itemAny?.linkedTriggeringHazardousEvents as any[]) || []
+				}
+				triggeredHazardousEventTarget={
+					(itemAny?.linkedTriggeredHazardousEvents as any[]) || []
+				}
+				triggeringDisasterEventTarget={
+					(itemAny?.linkedTriggeringDisasterEvents as any[]) || []
+				}
+				triggeredDisasterEventTarget={
+					(itemAny?.linkedTriggeredDisasterEvents as any[]) || []
+				}
+				linkedDisasterRecordTarget={
+					(itemAny?.linkedDisasterRecords as any[]) || []
+				}
 				responses={responses}
 				assessments={assessments}
 				declarations={declarations}

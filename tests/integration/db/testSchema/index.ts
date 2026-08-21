@@ -1,5 +1,6 @@
 export * from "./affectedTable";
 export * from "./apiKeyTable";
+export * from "./assessmentTypeTable";
 export * from "./assetTable";
 export * from "./auditLogsTable";
 export * from "./categoriesTable";
@@ -9,6 +10,9 @@ export * from "./damagesTable";
 export * from "./declarationStatusTable";
 export * from "./deathsTable";
 export * from "./disasterEventAttachmentTable";
+export * from "./disasterEventAssessmentAttachmentTable";
+export * from "./disasterEventAssessmentSectorTable";
+export * from "./disasterEventAssessmentTable";
 export * from "./disasterEventDeclarationAttachmentTable";
 export * from "./disasterEventDeclarationTable";
 export * from "./disasterEventResponseAttachmentTable";

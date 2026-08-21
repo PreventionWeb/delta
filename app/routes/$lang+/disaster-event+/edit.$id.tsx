@@ -28,13 +28,11 @@ import {
 	getUserIdFromSession,
 	getUserRoleFromSession,
 } from "~/utils/session";
-import { and, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { dr } from "~/db.server";
 import { divisionTable } from "~/drizzle/schema/divisionTable";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
-import { disasterRecordsTable } from "~/drizzle/schema/disasterRecordsTable";
 import { eventCausalityTable } from "~/drizzle/schema/eventCausalityTable";
-import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
 import { organizationTable } from "~/drizzle/schema/organizationTable";
 import { userCountryAccountsTable } from "~/drizzle/schema/userCountryAccountsTable";
 import { buildTree } from "~/components/TreeView";
@@ -48,17 +46,28 @@ import {
 	getUserCountryAccountsWithValidatorRole,
 } from "~/db/queries/userCountryAccountsRepository";
 import { DeclarationStatusRepository } from "~/db/queries/declarationStatusRepository";
+import { AssessmentTypeRepository } from "~/db/queries/assessmentTypeRepository";
 import { DisasterEventAttachmentRepository } from "~/db/queries/disasterEventAttachmentRepository";
+import { DisasterEventAssessmentAttachmentRepository } from "~/db/queries/disasterEventAssessmentAttachmentRepository";
+import { DisasterEventAssessmentRepository } from "~/db/queries/disasterEventAssessmentRepository";
+import { DisasterEventAssessmentSectorRepository } from "~/db/queries/disasterEventAssessmentSectorRepository";
 import { DisasterEventDeclarationAttachmentRepository } from "~/db/queries/disasterEventDeclarationAttachmentRepository";
 import { DisasterEventDeclarationRepository } from "~/db/queries/disasterEventDeclarationRepository";
 import { DisasterEventLinkRepository } from "~/db/queries/disasterEventLinkRepository";
 import { DisasterEventResponseAttachmentRepository } from "~/db/queries/disasterEventResponseAttachmentRepository";
 import { DisasterEventResponseRepository } from "~/db/queries/disasterEventResponseRepository";
+import { EventCausalityRepository } from "~/db/queries/eventCausalityRepository";
+import { DisasterRecordsRepository } from "~/db/queries/disasterRecordsRepository";
 import { ResponseTypeRepository } from "~/db/queries/responseTypeRepository";
+import {
+	getLinkedDisasterData as loadLinkedDisasterData,
+	getLinkedHazardousData as loadLinkedHazardousData,
+} from "~/backend.server/services/disaster-event/linkedDisasterData";
 import { handleApprovalWorkflowService } from "~/backend.server/services/approvalWorkflowService";
 import { canEditDataCollectionRecord } from "~/frontend/user/roles";
 import { ContentRepeaterUploadFile } from "~/components/ContentRepeater/UploadFile";
 import { TEMP_UPLOAD_PATH } from "~/utils/paths";
+import { sectorTable } from "~/drizzle/schema/sectorTable";
 
 export const handle = {
 	hideMainNavigation: true,
@@ -114,6 +123,21 @@ async function getDivisionTreeData(countryAccountsId: string) {
 	]);
 }
 
+async function getSectorOptions(lang: string): Promise<SectorOption[]> {
+	const rows = await dr
+		.select({
+			id: sectorTable.id,
+			parentId: sectorTable.parentId,
+			name: sql<string>`dts_jsonb_localized(${sectorTable.name}, ${lang})`.as(
+				"name",
+			),
+		})
+		.from(sectorTable)
+		.orderBy(sql`name`);
+
+	return rows;
+}
+
 type SelectedDivisionPayload = {
 	key: string;
 	label: string;
@@ -158,6 +182,33 @@ type DisasterEventDeclarationPayload = {
 	}>;
 };
 
+type DisasterEventAssessmentPayload = {
+	id?: string;
+	type?: string;
+	assessmentTypeId?: string;
+	assessmentDate?: string;
+	coverage?: string;
+	description?: string;
+	otherSectors?: string;
+	sectorIds?: string[];
+	attachments?: Array<{
+		id?: string;
+		title?: string;
+		fileKey?: string;
+		fileName: string;
+		fileType: string;
+		fileSize: number;
+		tempFilePath?: string;
+		tenantPath?: string;
+	}>;
+};
+
+type SectorOption = {
+	id: string;
+	parentId: string | null;
+	name: string;
+};
+
 function normalizeResponseTypeKey(value: string): string {
 	return value
 		.trim()
@@ -183,6 +234,20 @@ function parseResponseDateFromSubmit(value: string | undefined): Date | null {
 function parseDeclarationDateFromSubmit(
 	value: string | undefined,
 ): Date | null {
+	const trimmed = (value ?? "").trim();
+	if (!trimmed) {
+		return null;
+	}
+
+	const parsed = new Date(`${trimmed}T00:00:00.000Z`);
+	if (Number.isNaN(parsed.getTime())) {
+		return null;
+	}
+
+	return parsed;
+}
+
+function parseAssessmentDateFromSubmit(value: string | undefined): Date | null {
 	const trimmed = (value ?? "").trim();
 	if (!trimmed) {
 		return null;
@@ -360,356 +425,6 @@ async function getRecordingOrganization(
 	});
 }
 
-function formatDisasterEventDisplayName(
-	event: {
-		id: string;
-		nameNational: string | null;
-		nameGlobalOrRegional: string | null;
-		hipHazard: {
-			name: Record<string, string> | null;
-			code: string | null;
-		} | null;
-		hipCluster: {
-			name: Record<string, string> | null;
-		} | null;
-		hipType: {
-			name: Record<string, string> | null;
-		} | null;
-	},
-	lang: string,
-) {
-	const displayName =
-		event.nameNational?.trim() ||
-		event.nameGlobalOrRegional?.trim() ||
-		`DE: ${event.id.slice(0, 8)}`;
-	const hazardName = localizedHipName(event.hipHazard?.name, lang);
-	const clusterName = localizedHipName(event.hipCluster?.name, lang);
-	const typeName = localizedHipName(event.hipType?.name, lang);
-	const hipLabel = hazardName
-		? event.hipHazard?.code
-			? `H: ${hazardName} (${event.hipHazard.code})`
-			: `H: ${hazardName}`
-		: clusterName
-			? `C: ${clusterName}`
-			: typeName
-				? `T: ${typeName}`
-				: "";
-
-	return {
-		id: event.id,
-		name: displayName,
-		code: `${event.id}`,
-		hip: hipLabel,
-	};
-}
-
-function localizedHipName(
-	name: Record<string, string> | null | undefined,
-	lang: string,
-) {
-	if (!name) {
-		return "";
-	}
-
-	return String(name[lang] || name.en || Object.values(name)[0] || "").trim();
-}
-
-function formatHazardousEventDisplayName(
-	event: {
-		id: string;
-		description: string | null;
-		hipHazard: {
-			code: string | null;
-			name: Record<string, string> | null;
-		} | null;
-		hipCluster: {
-			name: Record<string, string> | null;
-		} | null;
-		hipType: {
-			name: Record<string, string> | null;
-		} | null;
-	},
-	lang: string,
-) {
-	const hazardName = localizedHipName(event.hipHazard?.name, lang);
-	const clusterName = localizedHipName(event.hipCluster?.name, lang);
-	const typeName = localizedHipName(event.hipType?.name, lang);
-
-	const displayName = hazardName
-		? event.hipHazard?.code
-			? `${hazardName} (${event.hipHazard.code})`
-			: hazardName
-		: clusterName ||
-			typeName ||
-			event.description?.trim() ||
-			`HE: ${event.id.slice(0, 8)}`;
-
-	return {
-		id: event.id,
-		name: displayName,
-		code: event.id,
-	};
-}
-
-function formatDisasterRecordDisplayName(
-	record: {
-		id: string;
-		hipHazard: {
-			name: Record<string, string> | null;
-			code: string | null;
-		} | null;
-		hipCluster: {
-			name: Record<string, string> | null;
-		} | null;
-		hipType: {
-			name: Record<string, string> | null;
-		} | null;
-	},
-	lang: string,
-) {
-	const hazardName = localizedHipName(record.hipHazard?.name, lang);
-	const clusterName = localizedHipName(record.hipCluster?.name, lang);
-	const typeName = localizedHipName(record.hipType?.name, lang);
-	const hipLabel = hazardName
-		? record.hipHazard?.code
-			? `H: ${hazardName} (${record.hipHazard.code})`
-			: `H: ${hazardName}`
-		: clusterName
-			? `C: ${clusterName}`
-			: typeName
-				? `T: ${typeName}`
-				: "";
-
-	return {
-		id: record.id,
-		name: `UUID: ${record.id.slice(0, 8)}`,
-		code: record.id,
-		hip: hipLabel,
-	};
-}
-
-async function getLinkedHazardousData(
-	countryAccountsId: string,
-	lang: string,
-	itemId: string,
-	selectedHazardousEventId?: string | null,
-) {
-	const hazardousEvents = await dr.query.hazardousEventTable.findMany({
-		columns: {
-			id: true,
-			description: true,
-		},
-		with: {
-			hipHazard: {
-				columns: {
-					code: true,
-					name: true,
-				},
-			},
-			hipCluster: {
-				columns: {
-					name: true,
-				},
-			},
-			hipType: {
-				columns: {
-					name: true,
-				},
-			},
-		},
-		where: eq(hazardousEventTable.countryAccountsId, countryAccountsId),
-		orderBy: [desc(hazardousEventTable.updatedAt)],
-	});
-
-	const hazardousEventOptions = hazardousEvents.map((event) =>
-		formatHazardousEventDisplayName(event, lang),
-	);
-	const triggeringLinks = await dr
-		.select({
-			linkedId: eventCausalityTable.triggeringHazardousEventId,
-		})
-		.from(eventCausalityTable)
-		.where(
-			and(
-				eq(eventCausalityTable.triggeringEntityType, "HE"),
-				eq(eventCausalityTable.triggeredEntityType, "DE"),
-				eq(eventCausalityTable.triggeredDisasterEventId, itemId),
-			),
-		);
-
-	const triggeredLinks = await dr
-		.select({
-			linkedId: eventCausalityTable.triggeredHazardousEventId,
-		})
-		.from(eventCausalityTable)
-		.where(
-			and(
-				eq(eventCausalityTable.triggeringEntityType, "DE"),
-				eq(eventCausalityTable.triggeredEntityType, "HE"),
-				eq(eventCausalityTable.triggeringDisasterEventId, itemId),
-			),
-		);
-
-	const linkedTriggeringHazardousEvents = triggeringLinks
-		.map((row) =>
-			hazardousEventOptions.find((event) => event.id === row.linkedId),
-		)
-		.filter((event): event is (typeof hazardousEventOptions)[number] =>
-			Boolean(event),
-		);
-
-	const linkedTriggeredHazardousEvents = triggeredLinks
-		.map((row) =>
-			hazardousEventOptions.find((event) => event.id === row.linkedId),
-		)
-		.filter((event): event is (typeof hazardousEventOptions)[number] =>
-			Boolean(event),
-		);
-
-	if (selectedHazardousEventId) {
-		const legacyLinked = hazardousEventOptions.find(
-			(event) => event.id === selectedHazardousEventId,
-		);
-		if (
-			legacyLinked &&
-			!linkedTriggeredHazardousEvents.some(
-				(event) => event.id === legacyLinked.id,
-			)
-		) {
-			linkedTriggeredHazardousEvents.unshift(legacyLinked);
-		}
-	}
-
-	return {
-		hazardousEventOptions,
-		linkedTriggeringHazardousEvents,
-		linkedTriggeredHazardousEvents,
-	};
-}
-
-async function getLinkedDisasterData(
-	countryAccountsId: string,
-	itemId: string,
-	lang: string,
-) {
-	const disasterEvents = await dr.query.disasterEventTable.findMany({
-		columns: {
-			id: true,
-			nameNational: true,
-			nameGlobalOrRegional: true,
-		},
-		with: {
-			hipHazard: {
-				columns: {
-					code: true,
-					name: true,
-				},
-			},
-			hipCluster: {
-				columns: {
-					name: true,
-				},
-			},
-			hipType: {
-				columns: {
-					name: true,
-				},
-			},
-		},
-		where: eq(disasterEventTable.countryAccountsId, countryAccountsId),
-		orderBy: [desc(disasterEventTable.updatedAt)],
-	});
-
-	const disasterEventOptions = disasterEvents
-		.filter((event) => event.id !== itemId)
-		.map((event) => formatDisasterEventDisplayName(event, lang));
-
-	const disasterEventOptionsById = new Map(
-		disasterEventOptions.map((event) => [event.id, event]),
-	);
-
-	const triggeringLinks = await dr
-		.select({
-			linkedId: eventCausalityTable.triggeringDisasterEventId,
-		})
-		.from(eventCausalityTable)
-		.where(
-			and(
-				eq(eventCausalityTable.triggeringEntityType, "DE"),
-				eq(eventCausalityTable.triggeredEntityType, "DE"),
-				eq(eventCausalityTable.triggeredDisasterEventId, itemId),
-			),
-		);
-
-	const triggeredLinks = await dr
-		.select({
-			linkedId: eventCausalityTable.triggeredDisasterEventId,
-		})
-		.from(eventCausalityTable)
-		.where(
-			and(
-				eq(eventCausalityTable.triggeringEntityType, "DE"),
-				eq(eventCausalityTable.triggeredEntityType, "DE"),
-				eq(eventCausalityTable.triggeringDisasterEventId, itemId),
-			),
-		);
-
-	const linkedTriggeringDisasterEvents = triggeringLinks
-		.map((row) =>
-			row.linkedId ? disasterEventOptionsById.get(row.linkedId) : null,
-		)
-		.filter((event): event is NonNullable<typeof event> => Boolean(event));
-
-	const linkedTriggeredDisasterEvents = triggeredLinks
-		.map((row) =>
-			row.linkedId ? disasterEventOptionsById.get(row.linkedId) : null,
-		)
-		.filter((event): event is NonNullable<typeof event> => Boolean(event));
-
-	const disasterRecords = await dr.query.disasterRecordsTable.findMany({
-		columns: {
-			id: true,
-			disasterEventId: true,
-		},
-		with: {
-			hipHazard: {
-				columns: {
-					name: true,
-					code: true,
-				},
-			},
-			hipCluster: {
-				columns: {
-					name: true,
-				},
-			},
-			hipType: {
-				columns: {
-					name: true,
-				},
-			},
-		},
-		where: eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
-		orderBy: [desc(disasterRecordsTable.updatedAt)],
-	});
-
-	const disasterRecordOptions = disasterRecords.map((record) =>
-		formatDisasterRecordDisplayName(record, lang),
-	);
-
-	const linkedDisasterRecords = disasterRecords
-		.filter((record) => record.disasterEventId === itemId)
-		.map((record) => formatDisasterRecordDisplayName(record, lang));
-
-	return {
-		disasterEventOptions,
-		linkedTriggeringDisasterEvents,
-		linkedTriggeredDisasterEvents,
-		disasterRecordOptions,
-		linkedDisasterRecords,
-	};
-}
-
 export const action = authActionWithPerm("EditData", async (actionArgs) => {
 	const { request } = actionArgs;
 	const cloned = request.clone();
@@ -755,6 +470,9 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 	const disasterEventResponsesRaw = String(
 		formData.get("disasterEventResponses") ?? "[]",
 	);
+	const disasterEventAssessmentsRaw = String(
+		formData.get("disasterEventAssessments") ?? "[]",
+	);
 	const disasterEventDeclarationsRaw = String(
 		formData.get("disasterEventDeclarations") ?? "[]",
 	);
@@ -778,6 +496,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 		title: string | null;
 	}> = [];
 	let disasterEventResponses: DisasterEventResponsePayload[] = [];
+	let disasterEventAssessments: DisasterEventAssessmentPayload[] = [];
 	let disasterEventDeclarations: DisasterEventDeclarationPayload[] = [];
 	try {
 		const parsed = JSON.parse(linkedDisasterRecordIdsRaw);
@@ -921,6 +640,17 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 		disasterEventResponses = [];
 	}
 	try {
+		const parsed = JSON.parse(disasterEventAssessmentsRaw);
+		disasterEventAssessments = Array.isArray(parsed)
+			? parsed.filter(
+					(value): value is DisasterEventAssessmentPayload =>
+						typeof value === "object" && value !== null,
+				)
+			: [];
+	} catch {
+		disasterEventAssessments = [];
+	}
+	try {
 		const parsed = JSON.parse(disasterEventDeclarationsRaw);
 		disasterEventDeclarations = Array.isArray(parsed)
 			? parsed.filter(
@@ -962,6 +692,34 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 				);
 				const selectedTriggeredIds = new Set(
 					linkedTriggeredDisasterEventIds.filter((id) => id !== eventId),
+				);
+
+				const { currentTriggeringRows, currentTriggeredRows } =
+					await EventCausalityRepository.listCurrentDisasterEventLinks(
+						eventId,
+						tx,
+					);
+
+				const currentTriggeringIds = new Set(
+					currentTriggeringRows
+						.map((row) => row.linkedId)
+						.filter((id): id is string => Boolean(id)),
+				);
+				const currentTriggeredIds = new Set(
+					currentTriggeredRows
+						.map((row) => row.linkedId)
+						.filter((id): id is string => Boolean(id)),
+				);
+
+				const descendantIds = await EventCausalityRepository.getDescendantDisasterEventIds(
+					eventId,
+					countryAccountsId,
+					tx,
+				);
+				const ancestorIds = await EventCausalityRepository.getAncestorDisasterEventIds(
+					eventId,
+					countryAccountsId,
+					tx,
 				);
 
 				const formatConflictSummary = async (ids: string[]) => {
@@ -1023,81 +781,6 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 					};
 				};
 
-				const currentTriggeringRows = await tx
-					.select({
-						id: eventCausalityTable.id,
-						linkedId: eventCausalityTable.triggeringDisasterEventId,
-					})
-					.from(eventCausalityTable)
-					.where(
-						and(
-							eq(eventCausalityTable.triggeringEntityType, "DE"),
-							eq(eventCausalityTable.triggeredEntityType, "DE"),
-							eq(eventCausalityTable.triggeredDisasterEventId, eventId),
-						),
-					);
-
-				const currentTriggeredRows = await tx
-					.select({
-						id: eventCausalityTable.id,
-						linkedId: eventCausalityTable.triggeredDisasterEventId,
-					})
-					.from(eventCausalityTable)
-					.where(
-						and(
-							eq(eventCausalityTable.triggeringEntityType, "DE"),
-							eq(eventCausalityTable.triggeredEntityType, "DE"),
-							eq(eventCausalityTable.triggeringDisasterEventId, eventId),
-						),
-					);
-
-				const currentTriggeringIds = new Set(
-					currentTriggeringRows
-						.map((row) => row.linkedId)
-						.filter((id): id is string => Boolean(id)),
-				);
-				const currentTriggeredIds = new Set(
-					currentTriggeredRows
-						.map((row) => row.linkedId)
-						.filter((id): id is string => Boolean(id)),
-				);
-
-				const descendantsResult = await tx.execute(sql`
-					WITH RECURSIVE descendants AS (
-						SELECT ${eventCausalityTable.triggeredDisasterEventId} AS id
-						FROM ${eventCausalityTable}
-						INNER JOIN ${disasterEventTable}
-							ON ${disasterEventTable.id} = ${eventCausalityTable.triggeredDisasterEventId}
-						WHERE
-							${eventCausalityTable.triggeringEntityType} = 'DE'
-							AND ${eventCausalityTable.triggeredEntityType} = 'DE'
-							AND ${eventCausalityTable.triggeringDisasterEventId} = ${eventId}
-							AND ${disasterEventTable.countryAccountsId} = ${countryAccountsId}
-
-						UNION
-
-						SELECT ${eventCausalityTable.triggeredDisasterEventId} AS id
-						FROM ${eventCausalityTable}
-						INNER JOIN descendants
-							ON ${eventCausalityTable.triggeringDisasterEventId} = descendants.id
-						INNER JOIN ${disasterEventTable}
-							ON ${disasterEventTable.id} = ${eventCausalityTable.triggeredDisasterEventId}
-						WHERE
-							${eventCausalityTable.triggeringEntityType} = 'DE'
-							AND ${eventCausalityTable.triggeredEntityType} = 'DE'
-							AND ${disasterEventTable.countryAccountsId} = ${countryAccountsId}
-					)
-					SELECT DISTINCT id
-					FROM descendants
-					WHERE id IS NOT NULL
-				`);
-
-				const descendantIds = new Set(
-					descendantsResult.rows
-						.map((row) => String((row as { id?: string | null }).id || ""))
-						.filter(Boolean),
-				);
-
 				const invalidTriggeringIds = Array.from(selectedTriggeringIds).filter(
 					(linkedEventId) =>
 						linkedEventId === eventId || descendantIds.has(linkedEventId),
@@ -1109,42 +792,6 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 						invalidTriggeringIds,
 					);
 				}
-
-				const ancestorsResult = await tx.execute(sql`
-					WITH RECURSIVE ancestors AS (
-						SELECT ${eventCausalityTable.triggeringDisasterEventId} AS id
-						FROM ${eventCausalityTable}
-						INNER JOIN ${disasterEventTable}
-							ON ${disasterEventTable.id} = ${eventCausalityTable.triggeringDisasterEventId}
-						WHERE
-							${eventCausalityTable.triggeringEntityType} = 'DE'
-							AND ${eventCausalityTable.triggeredEntityType} = 'DE'
-							AND ${eventCausalityTable.triggeredDisasterEventId} = ${eventId}
-							AND ${disasterEventTable.countryAccountsId} = ${countryAccountsId}
-
-						UNION
-
-						SELECT ${eventCausalityTable.triggeringDisasterEventId} AS id
-						FROM ${eventCausalityTable}
-						INNER JOIN ancestors
-							ON ${eventCausalityTable.triggeredDisasterEventId} = ancestors.id
-						INNER JOIN ${disasterEventTable}
-							ON ${disasterEventTable.id} = ${eventCausalityTable.triggeringDisasterEventId}
-						WHERE
-							${eventCausalityTable.triggeringEntityType} = 'DE'
-							AND ${eventCausalityTable.triggeredEntityType} = 'DE'
-							AND ${disasterEventTable.countryAccountsId} = ${countryAccountsId}
-					)
-					SELECT DISTINCT id
-					FROM ancestors
-					WHERE id IS NOT NULL
-				`);
-
-				const ancestorIds = new Set(
-					ancestorsResult.rows
-						.map((row) => String((row as { id?: string | null }).id || ""))
-						.filter(Boolean),
-				);
 
 				const invalidTriggeredIds = Array.from(selectedTriggeredIds).filter(
 					(linkedEventId) =>
@@ -1160,26 +807,26 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 
 				for (const row of currentTriggeringRows) {
 					if (row.linkedId && !selectedTriggeringIds.has(row.linkedId)) {
-						await tx
-							.delete(eventCausalityTable)
-							.where(eq(eventCausalityTable.id, row.id));
+						await EventCausalityRepository.deleteById(row.id, tx);
 					}
 				}
 
 				for (const row of currentTriggeredRows) {
 					if (row.linkedId && !selectedTriggeredIds.has(row.linkedId)) {
-						await tx
-							.delete(eventCausalityTable)
-							.where(eq(eventCausalityTable.id, row.id));
+						await EventCausalityRepository.deleteById(row.id, tx);
 					}
 				}
+
+				const newEventCausalityRows: Array<
+					Parameters<typeof EventCausalityRepository.createMany>[0][number]
+				> = [];
 
 				for (const linkedEventId of selectedTriggeringIds) {
 					if (currentTriggeringIds.has(linkedEventId)) {
 						continue;
 					}
 
-					await tx.insert(eventCausalityTable).values({
+					newEventCausalityRows.push({
 						triggeringEntityType: "DE",
 						triggeringDisasterEventId: linkedEventId,
 						triggeredEntityType: "DE",
@@ -1192,7 +839,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 						continue;
 					}
 
-					await tx.insert(eventCausalityTable).values({
+					newEventCausalityRows.push({
 						triggeringEntityType: "DE",
 						triggeringDisasterEventId: eventId,
 						triggeredEntityType: "DE",
@@ -1200,22 +847,18 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 					});
 				}
 
+				if (newEventCausalityRows.length > 0) {
+					await EventCausalityRepository.createMany(newEventCausalityRows, tx);
+				}
+
 				return { ok: true as const };
 			};
 			const syncLinkedDisasterRecords = async (eventId: string) => {
 				const selectedIds = new Set(linkedDisasterRecordIds);
-				const recordsLinkedToCurrentEvent = await tx
-					.select({ id: disasterRecordsTable.id })
-					.from(disasterRecordsTable)
-					.where(
-						and(
-							eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
-							eq(disasterRecordsTable.disasterEventId, eventId),
-						),
-					);
-
-				const currentLinkedIds = new Set(
-					recordsLinkedToCurrentEvent.map((record) => record.id),
+				const currentLinkedIds = await DisasterRecordsRepository.getIdsByDisasterEventIdAndCountryAccountsId(
+					eventId,
+					countryAccountsId,
+					tx,
 				);
 
 				for (const linkedRecordId of linkedDisasterRecordIds) {
@@ -1302,26 +945,26 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 
 				for (const row of currentTriggeringRows) {
 					if (row.linkedId && !selectedTriggeringIds.has(row.linkedId)) {
-						await tx
-							.delete(eventCausalityTable)
-							.where(eq(eventCausalityTable.id, row.id));
+						await EventCausalityRepository.deleteById(row.id, tx);
 					}
 				}
 
 				for (const row of currentTriggeredRows) {
 					if (row.linkedId && !selectedTriggeredIds.has(row.linkedId)) {
-						await tx
-							.delete(eventCausalityTable)
-							.where(eq(eventCausalityTable.id, row.id));
+						await EventCausalityRepository.deleteById(row.id, tx);
 					}
 				}
+
+				const newEventCausalityRows: Array<
+					Parameters<typeof EventCausalityRepository.createMany>[0][number]
+				> = [];
 
 				for (const linkedHazardousEventId of selectedTriggeringIds) {
 					if (currentTriggeringIds.has(linkedHazardousEventId)) {
 						continue;
 					}
 
-					await tx.insert(eventCausalityTable).values({
+					newEventCausalityRows.push({
 						triggeringEntityType: "HE",
 						triggeringHazardousEventId: linkedHazardousEventId,
 						triggeredEntityType: "DE",
@@ -1334,12 +977,16 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 						continue;
 					}
 
-					await tx.insert(eventCausalityTable).values({
+					newEventCausalityRows.push({
 						triggeringEntityType: "DE",
 						triggeringDisasterEventId: eventId,
 						triggeredEntityType: "HE",
 						triggeredHazardousEventId: linkedHazardousEventId,
 					});
+				}
+
+				if (newEventCausalityRows.length > 0) {
+					await EventCausalityRepository.createMany(newEventCausalityRows, tx);
 				}
 			};
 
@@ -1637,6 +1284,244 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 				}
 			};
 
+			const syncDisasterEventAssessments = async (eventId: string) => {
+				const assessmentTypes = await AssessmentTypeRepository.listAll(tx);
+				const assessmentTypeById = new Map(
+					assessmentTypes.map((row) => [row.id, row]),
+				);
+				const assessmentTypeByName = new Map(
+					assessmentTypes.map((row) => [row.type, row]),
+				);
+
+				const existingAssessments =
+					await DisasterEventAssessmentRepository.listByDisasterEventId(
+						eventId,
+						tx,
+					);
+				const existingAssessmentIds = existingAssessments.map((row) => row.id);
+				const existingAttachments =
+					await DisasterEventAssessmentAttachmentRepository.listByDisasterEventId(
+						eventId,
+						tx,
+					);
+				const keptExistingFileKeys = new Set<string>();
+
+				await DisasterEventAssessmentRepository.deleteByDisasterEventId(
+					eventId,
+					tx,
+				);
+				if (existingAssessmentIds.length > 0) {
+					await DisasterEventAssessmentSectorRepository.deleteByDisasterEventAssessmentIds(
+						existingAssessmentIds,
+						tx,
+					);
+					await DisasterEventAssessmentAttachmentRepository.deleteByDisasterEventAssessmentIds(
+						existingAssessmentIds,
+						tx,
+					);
+				}
+
+				const sectorRows = await tx
+					.select({ id: sectorTable.id, parentId: sectorTable.parentId })
+					.from(sectorTable);
+				const sectorParentMap = new Map(
+					sectorRows.map((row) => [row.id, row.parentId]),
+				);
+
+				const filterParentOnlySectorIds = (sectorIds: string[]) => {
+					const selected = new Set(
+						sectorIds
+							.map((value) => value.trim())
+							.filter((value) => value.length > 0),
+					);
+					const result: string[] = [];
+
+					for (const sectorId of selected) {
+						let parentId = sectorParentMap.get(sectorId) ?? null;
+						let hasSelectedAncestor = false;
+						while (parentId) {
+							if (selected.has(parentId)) {
+								hasSelectedAncestor = true;
+								break;
+							}
+							parentId = sectorParentMap.get(parentId) ?? null;
+						}
+
+						if (!hasSelectedAncestor) {
+							result.push(sectorId);
+						}
+					}
+
+					return result;
+				};
+
+				for (const item of disasterEventAssessments) {
+					const submittedType = String(item.type ?? "").trim();
+					const submittedTypeId = String(item.assessmentTypeId ?? "").trim();
+					const matchedAssessmentType =
+						assessmentTypeById.get(submittedTypeId) ??
+						assessmentTypeByName.get(submittedType);
+					const assessmentTypeId = matchedAssessmentType?.id;
+					if (!assessmentTypeId) {
+						continue;
+					}
+
+					const description = String(item.description ?? "").trim();
+					const coverage = String(item.coverage ?? "").trim();
+					const otherSectors = String(item.otherSectors ?? "").trim();
+					const assessmentDate = parseAssessmentDateFromSubmit(
+						item.assessmentDate,
+					);
+					const attachments = Array.isArray(item.attachments)
+						? item.attachments
+						: [];
+					const sectorIds = Array.isArray(item.sectorIds)
+						? filterParentOnlySectorIds(
+								item.sectorIds.filter(
+									(value): value is string => typeof value === "string",
+								),
+							)
+						: [];
+
+					if (
+						!description &&
+						!coverage &&
+						!otherSectors &&
+						!assessmentDate &&
+						attachments.length === 0 &&
+						sectorIds.length === 0
+					) {
+						continue;
+					}
+
+					const createdAssessment =
+						await DisasterEventAssessmentRepository.createOne(
+							{
+								disasterEventId: eventId,
+								assessmentTypeId,
+								coverage: coverage || null,
+								assessmentDate,
+								description: description || null,
+								otherSectors: otherSectors || null,
+							},
+							tx,
+						);
+					if (!createdAssessment) {
+						continue;
+					}
+
+					if (sectorIds.length > 0) {
+						await DisasterEventAssessmentSectorRepository.createMany(
+							sectorIds.map((sectorId) => ({
+								disasterEventAssessmentId: createdAssessment.id,
+								sectorId,
+							})),
+							tx,
+						);
+					}
+
+					const existingAttachmentPayloads = attachments.filter(
+						(attachment) =>
+							typeof attachment.fileKey === "string" &&
+							attachment.fileKey.trim().length > 0 &&
+							(!attachment.tempFilePath ||
+								attachment.tempFilePath.trim().length === 0),
+					);
+					for (const existingAttachment of existingAttachmentPayloads) {
+						keptExistingFileKeys.add(String(existingAttachment.fileKey));
+					}
+
+					const newAttachmentPayloads = attachments.filter(
+						(attachment) =>
+							typeof attachment.tempFilePath === "string" &&
+							attachment.tempFilePath.trim().length > 0,
+					);
+
+					let movedNewItems: Array<{
+						file?: { name?: string; content_type?: string };
+					}> = [];
+					if (newAttachmentPayloads.length > 0) {
+						const savePath = `/uploads/disaster-event/${eventId}/assessments/${createdAssessment.id}`;
+						movedNewItems = ContentRepeaterUploadFile.save(
+							newAttachmentPayloads.map((upload) => ({
+								file: {
+									name: upload.tempFilePath,
+									content_type: upload.fileType,
+									tenantPath: upload.tenantPath,
+								},
+							})),
+							TEMP_UPLOAD_PATH,
+							savePath,
+							undefined,
+							countryAccountsId,
+						);
+					}
+
+					const attachmentRows = [
+						...existingAttachmentPayloads.map((attachment) => ({
+							disasterEventAssessmentId: createdAssessment.id,
+							title: String(
+								attachment.title ?? attachment.fileName ?? "",
+							).trim(),
+							fileKey: String(attachment.fileKey ?? ""),
+							fileName: String(attachment.fileName ?? ""),
+							fileType: String(attachment.fileType ?? ""),
+							fileSize: Number(attachment.fileSize ?? 0),
+						})),
+						...movedNewItems.map((item, index) => {
+							const source = newAttachmentPayloads[index];
+							return {
+								disasterEventAssessmentId: createdAssessment.id,
+								title: String(source?.title ?? source?.fileName ?? "").trim(),
+								fileKey: String(item?.file?.name ?? ""),
+								fileName: String(source?.fileName ?? ""),
+								fileType:
+									String(source?.fileType ?? "") ||
+									String(item?.file?.content_type ?? ""),
+								fileSize: Number(source?.fileSize ?? 0),
+							};
+						}),
+					].filter(
+						(row) =>
+							row.fileKey.length > 0 &&
+							row.fileName.length > 0 &&
+							row.title.length > 0,
+					);
+
+					if (attachmentRows.length > 0) {
+						await DisasterEventAssessmentAttachmentRepository.createMany(
+							attachmentRows,
+							tx,
+						);
+					}
+				}
+
+				const orphanedAttachments = existingAttachments.filter(
+					(attachment) =>
+						keptExistingFileKeys.has(String(attachment.fileKey)) === false,
+				);
+				if (orphanedAttachments.length > 0) {
+					ContentRepeaterUploadFile.delete(
+						orphanedAttachments.map((attachment) => ({
+							file: {
+								name: attachment.fileKey,
+							},
+						})),
+						undefined,
+						countryAccountsId,
+					);
+					ContentRepeaterUploadFile.deleteEmptyParentDirectoriesForFiles(
+						orphanedAttachments.map((attachment) => ({
+							file: {
+								name: attachment.fileKey,
+							},
+						})),
+						undefined,
+						countryAccountsId,
+					);
+				}
+			};
+
 			const syncDisasterEventDeclarations = async (eventId: string) => {
 				const declarationStatuses =
 					await DeclarationStatusRepository.listAll(tx);
@@ -1835,6 +1720,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 				if (returnValue.ok === true) {
 					await syncDisasterEventDeclarations(id);
 					await syncDisasterEventResponses(id);
+					await syncDisasterEventAssessments(id);
 					await syncDisasterEventAttachments(id);
 					await syncDisasterEventLinks(id);
 					await syncLinkedHazardousEvents(id);
@@ -1860,6 +1746,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 				if (returnValue.ok === true) {
 					await syncDisasterEventDeclarations(returnValue.id);
 					await syncDisasterEventResponses(returnValue.id);
+					await syncDisasterEventAssessments(returnValue.id);
 					await syncDisasterEventAttachments(returnValue.id);
 					await syncDisasterEventLinks(returnValue.id);
 					await syncLinkedHazardousEvents(returnValue.id);
@@ -1910,7 +1797,9 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 			user,
 			currentUserOrganization,
 			responseTypes,
+			assessmentTypes,
 			declarationStatuses,
+			sectorOptions,
 		] = await Promise.all([
 			getDivisionTreeData(countryAccountsId),
 			getDivisionGeoJSON(countryAccountsId),
@@ -1918,7 +1807,9 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 			authLoaderGetUserForFrontend(loaderArgs),
 			getCurrentUserOrganization(userId, countryAccountsId),
 			ResponseTypeRepository.listAll(),
+			AssessmentTypeRepository.listAll(),
 			DeclarationStatusRepository.listAll(),
+			getSectorOptions(ctx.lang),
 		]);
 
 		return {
@@ -1932,6 +1823,9 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 			disasterEventResponseAttachments: [],
 			disasterEventDeclarations: [],
 			disasterEventDeclarationAttachments: [],
+			disasterEventAssessments: [],
+			disasterEventAssessmentAttachments: [],
+			disasterEventAssessmentSectors: [],
 			hazardousEventOptions: [],
 			linkedTriggeringHazardousEvents: [],
 			linkedTriggeredHazardousEvents: [],
@@ -1942,7 +1836,9 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 			linkedTriggeringDisasterEvents: [],
 			linkedTriggeredDisasterEvents: [],
 			responseTypes,
+			assessmentTypes,
 			declarationStatuses,
+			sectorOptions,
 			user,
 			currentUserOrganization: currentUserOrganization?.organization ?? null,
 			usersWithValidatorRole,
@@ -1986,18 +1882,22 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		disasterEventAttachments,
 		disasterEventResponses,
 		disasterEventResponseAttachments,
+		disasterEventAssessments,
+		disasterEventAssessmentAttachments,
 		disasterEventDeclarations,
 		disasterEventDeclarationAttachments,
 		disasterEventLinks,
 		responseTypes,
+		assessmentTypes,
 		declarationStatuses,
+		sectorOptions,
 	] = await Promise.all([
 		getDivisionTreeData(countryAccountsId),
 		getDivisionGeoJSON(countryAccountsId),
 		dataForHazardPicker(ctx),
 		authLoaderGetUserForFrontend(loaderArgs),
-		getLinkedDisasterData(countryAccountsId, item.id, ctx.lang),
-		getLinkedHazardousData(
+		loadLinkedDisasterData(countryAccountsId, item.id, ctx.lang),
+		loadLinkedHazardousData(
 			countryAccountsId,
 			ctx.lang,
 			item.id,
@@ -2007,12 +1907,21 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		DisasterEventAttachmentRepository.getByDisasterEventId(item.id),
 		DisasterEventResponseRepository.listByDisasterEventId(item.id),
 		DisasterEventResponseAttachmentRepository.listByDisasterEventId(item.id),
+		DisasterEventAssessmentRepository.listByDisasterEventId(item.id),
+		DisasterEventAssessmentAttachmentRepository.listByDisasterEventId(item.id),
 		DisasterEventDeclarationRepository.listByDisasterEventId(item.id),
 		DisasterEventDeclarationAttachmentRepository.listByDisasterEventId(item.id),
 		DisasterEventLinkRepository.getByDisasterEventId(item.id),
 		ResponseTypeRepository.listAll(),
+		AssessmentTypeRepository.listAll(),
 		DeclarationStatusRepository.listAll(),
+		getSectorOptions(ctx.lang),
 	]);
+
+	const disasterEventAssessmentSectors =
+		await DisasterEventAssessmentSectorRepository.listByDisasterEventAssessmentIds(
+			disasterEventAssessments.map((assessment) => assessment.id),
+		);
 
 	return {
 		item,
@@ -2023,6 +1932,9 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		disasterEventAttachments,
 		disasterEventResponses,
 		disasterEventResponseAttachments,
+		disasterEventAssessments,
+		disasterEventAssessmentAttachments,
+		disasterEventAssessmentSectors,
 		disasterEventDeclarations,
 		disasterEventDeclarationAttachments,
 		hazardousEventOptions: linkedHazardousData.hazardousEventOptions,
@@ -2034,7 +1946,9 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		disasterRecordOptions: linkedData.disasterRecordOptions,
 		linkedDisasterRecords: linkedData.linkedDisasterRecords,
 		responseTypes,
+		assessmentTypes,
 		declarationStatuses,
+		sectorOptions,
 		disasterEventOptions: linkedData.disasterEventOptions,
 		linkedTriggeringDisasterEvents: linkedData.linkedTriggeringDisasterEvents,
 		linkedTriggeredDisasterEvents: linkedData.linkedTriggeredDisasterEvents,
@@ -2085,6 +1999,11 @@ export default function FormScreen() {
 			disasterEventResponseAttachments={
 				ld.disasterEventResponseAttachments ?? []
 			}
+			disasterEventAssessments={ld.disasterEventAssessments ?? []}
+			disasterEventAssessmentAttachments={
+				ld.disasterEventAssessmentAttachments ?? []
+			}
+			disasterEventAssessmentSectors={ld.disasterEventAssessmentSectors ?? []}
 			disasterEventDeclarations={ld.disasterEventDeclarations ?? []}
 			disasterEventDeclarationAttachments={
 				ld.disasterEventDeclarationAttachments ?? []
@@ -2099,7 +2018,9 @@ export default function FormScreen() {
 			disasterRecordOptions={ld.disasterRecordOptions ?? []}
 			linkedDisasterRecords={ld.linkedDisasterRecords ?? []}
 			responseTypes={ld.responseTypes ?? []}
+			assessmentTypes={ld.assessmentTypes ?? []}
 			declarationStatuses={ld.declarationStatuses ?? []}
+			sectorOptions={ld.sectorOptions ?? []}
 			currentUserOrganization={ld.currentUserOrganization ?? null}
 			user={ld.user}
 			usersWithValidatorRole={ld.usersWithValidatorRole ?? []}

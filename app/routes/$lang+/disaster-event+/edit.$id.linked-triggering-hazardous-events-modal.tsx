@@ -9,139 +9,17 @@ import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { Checkbox } from "primereact/checkbox";
 import { DataView } from "primereact/dataview";
-import { and, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
-import { dr } from "~/db.server";
-import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
+import { queryLinkedHazardousEventOptions } from "~/backend.server/services/disaster-event/linkedHazardousEventOptions";
+import LinkedHazardousEventCard from "~/frontend/disaster-event/LinkedHazardousEventCard";
 import type { DisasterEventFormOutletContext } from "~/frontend/disaster-event/DisasterEventForm";
 import { authActionWithPerm, authLoaderWithPerm } from "~/utils/auth";
 import { getCountryAccountsIdFromSession } from "~/utils/session";
 
 type LinkedEventItem =
-	DisasterEventFormOutletContext["hazardousEventOptions"][number];
-
-function localizedHipName(
-	name: Record<string, string> | null | undefined,
-	lang: string,
-) {
-	if (!name) {
-		return "";
-	}
-
-	return String(name[lang] || name.en || Object.values(name)[0] || "").trim();
-}
-
-function formatHazardousEventOption(
-	event: {
-		id: string;
-		description: string | null;
-		hipHazard: {
-			name: Record<string, string> | null;
-			code: string | null;
-		} | null;
-		hipCluster: {
-			name: Record<string, string> | null;
-		} | null;
-		hipType: {
-			name: Record<string, string> | null;
-		} | null;
-	},
-	lang: string,
-) {
-	const hazardName = localizedHipName(event.hipHazard?.name, lang);
-	const clusterName = localizedHipName(event.hipCluster?.name, lang);
-	const typeName = localizedHipName(event.hipType?.name, lang);
-	const displayName =
-		hazardName ||
-		clusterName ||
-		typeName;
-
-	return {
-		id: event.id,
-		name: displayName,
-		code: event.id,
+	DisasterEventFormOutletContext["hazardousEventOptions"][number] & {
+		dateLabel?: string;
+		divisionNamesLabel?: string;
 	};
-}
-
-async function queryHazardousEventOptions(
-	countryAccountsId: string,
-	lang: string,
-	currentHazardousIds: string[],
-	keyword?: string,
-) {
-	const normalizedKeyword = keyword?.trim();
-	const shouldSearch = Boolean(normalizedKeyword);
-	const searchTerm = normalizedKeyword ? `%${normalizedKeyword}%` : "";
-
-	const hazardousEvents = await dr.query.hazardousEventTable.findMany({
-		columns: {
-			id: true,
-			description: true,
-		},
-		with: {
-			hipHazard: {
-				columns: {
-					name: true,
-					code: true,
-				},
-			},
-			hipCluster: {
-				columns: {
-					name: true,
-				},
-			},
-			hipType: {
-				columns: {
-					name: true,
-				},
-			},
-		},
-		where: shouldSearch
-			? and(
-				eq(hazardousEventTable.countryAccountsId, countryAccountsId),
-				currentHazardousIds.length > 0
-					? ne(hazardousEventTable.id, currentHazardousIds[0] as string)
-					: undefined,
-				or(
-					ilike(hazardousEventTable.description, searchTerm),
-					sql`exists (
-						select 1
-						from hip_hazard hh
-						where hh.id = ${hazardousEventTable.hipHazardId}
-						and cast(hh.name as text) ilike ${searchTerm}
-					)`,
-					sql`exists (
-						select 1
-						from hip_cluster hc
-						where hc.id = ${hazardousEventTable.hipClusterId}
-						and cast(hc.name as text) ilike ${searchTerm}
-					)`,
-					sql`exists (
-						select 1
-						from hip_class ht
-						where ht.id = ${hazardousEventTable.hipTypeId}
-						and cast(ht.name as text) ilike ${searchTerm}
-					)`,
-					sql`cast(${hazardousEventTable.id} as text) ilike ${searchTerm}`,
-					sql`cast(${hazardousEventTable.startDate} as text) ilike ${searchTerm}`,
-					sql`cast(${hazardousEventTable.endDate} as text) ilike ${searchTerm}`,
-					sql`cast(${hazardousEventTable.approvalStatus} as text) ilike ${searchTerm}`,
-				),
-			)
-			: and(
-				eq(hazardousEventTable.countryAccountsId, countryAccountsId),
-				currentHazardousIds.length > 0
-					? ne(hazardousEventTable.id, currentHazardousIds[0] as string)
-					: undefined,
-			),
-		orderBy: [desc(hazardousEventTable.updatedAt)],
-		limit: shouldSearch ? 500 : 200,
-	});
-
-	const blocked = new Set(currentHazardousIds);
-	return hazardousEvents
-		.map((event) => formatHazardousEventOption(event, lang))
-		.filter((event) => !blocked.has(event.id));
-}
 
 export const loader = authLoaderWithPerm("EditData", async ({ request, params }) => {
 	const countryAccountsId = await getCountryAccountsIdFromSession(request);
@@ -150,7 +28,7 @@ export const loader = authLoaderWithPerm("EditData", async ({ request, params })
 	}
 
 	const lang = typeof params.lang === "string" && params.lang ? params.lang : "en";
-	const hazardousEventOptions = await queryHazardousEventOptions(
+	const hazardousEventOptions = await queryLinkedHazardousEventOptions(
 		countryAccountsId,
 		lang,
 		[],
@@ -184,7 +62,7 @@ export const action = authActionWithPerm("EditData", async ({ request, params })
 		blockedHazardousIds = [];
 	}
 
-	const hazardousEventOptions = await queryHazardousEventOptions(
+	const hazardousEventOptions = await queryLinkedHazardousEventOptions(
 		countryAccountsId,
 		lang,
 		blockedHazardousIds,
@@ -347,42 +225,36 @@ export default function LinkedTriggeringHazardousEventsModalRoute() {
 	};
 
 	const renderAvailableItem = (item: LinkedEventItem) => (
-		<div className="mb-2 flex items-start rounded-lg border border-slate-200 px-4 py-3 last:mb-0">
-			<div className="flex w-full items-start gap-3">
-				<Checkbox
-					inputId={`linked-triggering-hazardous-available-${item.id}`}
-					checked={selectedAvailableIds.includes(item.id)}
-					onChange={(event) =>
-						toggleAvailable(item.id, Boolean(event.checked))
-					}
-				/>
-				<div>
-					<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
-					<p>UUID: {item.code.substring(0, 8)}</p>
-					{item.hip ? (
-						<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
-					) : null}
-				</div>
-			</div>
+		<div className="mb-2 last:mb-0">
+			<LinkedHazardousEventCard
+				item={item}
+				className="w-full"
+				leading={
+					<Checkbox
+						inputId={`linked-triggering-hazardous-available-${item.id}`}
+						checked={selectedAvailableIds.includes(item.id)}
+						onChange={(event) =>
+							toggleAvailable(item.id, Boolean(event.checked))
+						}
+					/>
+				}
+			/>
 		</div>
 	);
 
 	const renderLinkedItem = (item: LinkedEventItem) => (
-		<div className="mb-2 flex items-start rounded-lg border border-slate-200 px-4 py-3 last:mb-0">
-			<div className="flex w-full items-start gap-3">
-				<Checkbox
-					inputId={`linked-triggering-hazardous-selected-${item.id}`}
-					checked={selectedLinkedIds.includes(item.id)}
-					onChange={(event) => toggleLinked(item.id, Boolean(event.checked))}
-				/>
-				<div>
-					<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
-					<p>UUID: {item.code.substring(0, 8)}</p>
-					{item.hip ? (
-						<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
-					) : null}
-				</div>
-			</div>
+		<div className="mb-2 last:mb-0">
+			<LinkedHazardousEventCard
+				item={item}
+				className="w-full"
+				leading={
+					<Checkbox
+						inputId={`linked-triggering-hazardous-selected-${item.id}`}
+						checked={selectedLinkedIds.includes(item.id)}
+						onChange={(event) => toggleLinked(item.id, Boolean(event.checked))}
+					/>
+				}
+			/>
 		</div>
 	);
 
@@ -425,7 +297,7 @@ export default function LinkedTriggeringHazardousEventsModalRoute() {
 					<InputText
 						value={searchTerm}
 						onChange={(event) => setSearchTerm(event.target.value)}
-						placeholder="Search by HIP name or UUID..."
+						placeholder="Search by Hazard classification, date (yyyy-mm-dd), geographic level or UUID..."
 						className="w-full pr-10"
 					/>
 				</div>

@@ -7316,5 +7316,960 @@
         "id": "notices.updated_at",
         "description": "File: app/domains/notices/presentation/NoticeListPage.tsx:52",
         "translation": "最后更新时间"
+    },
+    {
+        "id": "admin.clone_country_account_timeout",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/clone.$id.tsx:60",
+        "translation": "此次克隆耗时过长。请重试，或克隆一个较小的数据集。"
+    },
+    {
+        "id": "admin.currency_lock_notice",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/edit.$id.tsx:321",
+        "translation": "货币在设置完成后即被锁定，仅在支持货币转换时方可更改。"
+    },
+    {
+        "id": "admin.select_currency",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/new.tsx:329",
+        "translation": "选择货币"
+    },
+    {
+        "id": "common.cannot_save_record",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3694",
+        "translation": "无法保存此记录"
+    },
+    {
+        "id": "common.choose_file",
+        "description": "File: app/components/ContentRepeater/index.tsx:2766",
+        "translation": "选择文件"
+    },
+    {
+        "id": "common.no_users_available",
+        "description": "File: app/frontend/components/data-collection/View.tsx:337",
+        "translation": "没有可分配的用户。"
+    },
+    {
+        "id": "common.notify",
+        "description": "File: app/frontend/components/data-collection/View.tsx:311",
+        "translation": "通知"
+    },
+    {
+        "id": "common.opening",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4179",
+        "translation": "正在加载..."
+    },
+    {
+        "id": "common.return",
+        "description": "File: app/frontend/components/data-collection/View.tsx:231",
+        "translation": "返回"
+    },
+    {
+        "id": "common.return_with_comments_description_to_user",
+        "description": "File: app/frontend/components/data-collection/View.tsx:278",
+        "translation": "该文件将被退回，并附有修改建议，请修改后重新提交审批。"
+    },
+    {
+        "id": "common.select_users",
+        "description": "File: app/frontend/components/data-collection/View.tsx:325",
+        "translation": "选择用户"
+    },
+    {
+        "id": "common.total",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:241",
+        "translation": "合计"
+    },
+    {
+        "id": "common.upload_zip",
+        "description": "File: app/routes/$lang+/settings+/geography+/_layout.tsx:564",
+        "translation": "上传 ZIP 文件"
+    },
+    {
+        "id": "copied",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3434",
+        "translation": "已复制"
+    },
+    {
+        "id": "could_not_copy_to_clipboard",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3443",
+        "translation": "无法复制到剪贴板"
+    },
+    {
+        "id": "disaster_event.attachments.error.file_too_large",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:155",
+        "translation": "文件大小超过 10 MB。"
+    },
+    {
+        "id": "disaster_event.attachments.error.total_size_exceeded",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:189",
+        "translation": "附件总大小超过 10 MB。"
+    },
+    {
+        "id": "disaster_event.attachments.error.unsupported_type",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:144",
+        "translation": "不支持的文件类型。"
+    },
+    {
+        "id": "disaster_event.attachments.total_size",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:508",
+        "translation": "总大小"
+    },
+    {
+        "id": "disaster_event.cycle_conflicts",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.tsx:764",
+        "translation": "相互冲突的事件："
+    },
+    {
+        "id": "disaster_event.form.add_affected_areas",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4183",
+        "translation": "添加受影响区域"
+    },
+    {
+        "id": "disaster_event.form.add_assessment",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4779",
+        "translation": "添加评估"
+    },
+    {
+        "id": "disaster_event.form.add_declaration",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4830",
+        "translation": "添加声明"
+    },
+    {
+        "id": "disaster_event.form.add_response",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4728",
+        "translation": "添加回复"
+    },
+    {
+        "id": "disaster_event.form.additional_details",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4681",
+        "translation": "更多详情"
+    },
+    {
+        "id": "disaster_event.form.additional_details_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4700",
+        "translation": "与此次灾害事件相关的文件回复、评估及官方声明。"
+    },
+    {
+        "id": "disaster_event.form.assessments_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4770",
+        "translation": "文件需求评估与评价"
+    },
+    {
+        "id": "disaster_event.form.copy_uuid",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3926",
+        "translation": "复制灾难事件 UUID"
+    },
+    {
+        "id": "disaster_event.form.date_format_label",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:976",
+        "translation": "{label} 格式"
+    },
+    {
+        "id": "disaster_event.form.declarations_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4821",
+        "translation": "记录官方紧急状态声明"
+    },
+    {
+        "id": "disaster_event.form.define_spatial_footprint",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4261",
+        "translation": "定义空间占地面积"
+    },
+    {
+        "id": "disaster_event.form.enter_coverage",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4993",
+        "translation": "输入承保范围"
+    },
+    {
+        "id": "disaster_event.form.enter_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5049",
+        "translation": "输入描述"
+    },
+    {
+        "id": "disaster_event.form.enter_issuing_organization",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5018",
+        "translation": "输入签发机构"
+    },
+    {
+        "id": "disaster_event.form.enter_other_sectors",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5152",
+        "translation": "请输入其他行业（如未列出）"
+    },
+    {
+        "id": "disaster_event.form.enter_type",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4887",
+        "translation": "输入类型"
+    },
+    {
+        "id": "disaster_event.form.event_basics",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3781",
+        "translation": "活动基础知识"
+    },
+    {
+        "id": "disaster_event.form.event_basics_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3787",
+        "translation": "关于此次灾害事件的一般信息。"
+    },
+    {
+        "id": "disaster_event.form.geographic_level_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4169",
+        "translation": "请选择发生灾害事件的行政区域。"
+    },
+    {
+        "id": "disaster_event.form.hazard_and_timing",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3965",
+        "translation": "风险与时机"
+    },
+    {
+        "id": "disaster_event.form.hazard_and_timing_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3971",
+        "translation": "关于观测到的危险及其发生时间的详细信息。"
+    },
+    {
+        "id": "disaster_event.form.hazard_cluster_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4023",
+        "translation": "风险集群（观测值）"
+    },
+    {
+        "id": "disaster_event.form.hazard_type_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3984",
+        "translation": "危险类型（观察到的）"
+    },
+    {
+        "id": "disaster_event.form.linked_disaster_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4482",
+        "translation": "相关灾害事件"
+    },
+    {
+        "id": "disaster_event.form.linked_disaster_events_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4488",
+        "translation": "将这一灾难事件与其原因或后果联系起来。"
+    },
+    {
+        "id": "disaster_event.form.linked_disaster_records_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4599",
+        "translation": "将此次灾害事件与相关的灾害记录关联起来。"
+    },
+    {
+        "id": "disaster_event.form.linked_events_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4363",
+        "translation": "定义该事件与其他系统记录之间的关系。"
+    },
+    {
+        "id": "disaster_event.form.linked_hazardous_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4371",
+        "translation": "相关危险事件"
+    },
+    {
+        "id": "disaster_event.form.linked_hazardous_events_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4377",
+        "translation": "将此次灾害事件与相关危险事件建立关联。"
+    },
+    {
+        "id": "disaster_event.form.loading_affected_areas_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4196",
+        "translation": "正在加载受影响区域选择器"
+    },
+    {
+        "id": "disaster_event.form.loading_linked_disaster_records_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4623",
+        "translation": "正在加载关联的灾害记录选择器"
+    },
+    {
+        "id": "disaster_event.form.loading_linked_triggered_events_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4568",
+        "translation": "正在加载关联的触发事件选择器"
+    },
+    {
+        "id": "disaster_event.form.loading_linked_triggered_hazardous_events_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4457",
+        "translation": "正在加载关联的危险事件触发选择器"
+    },
+    {
+        "id": "disaster_event.form.loading_linked_triggering_events_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4521",
+        "translation": "正在加载关联触发事件选择器"
+    },
+    {
+        "id": "disaster_event.form.loading_linked_triggering_hazardous_events_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4410",
+        "translation": "正在加载关联的危险事件触发选择器"
+    },
+    {
+        "id": "disaster_event.form.loading_spatial_footprint_editor",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4274",
+        "translation": "正在加载空间占地面积编辑器"
+    },
+    {
+        "id": "disaster_event.form.manage_linked_disaster_records",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4610",
+        "translation": "管理关联的灾害记录"
+    },
+    {
+        "id": "disaster_event.form.manage_linked_triggered_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4444",
+        "translation": "管理关联的触发事件"
+    },
+    {
+        "id": "disaster_event.form.manage_linked_triggering_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4397",
+        "translation": "管理关联的触发事件"
+    },
+    {
+        "id": "disaster_event.form.name_global_other",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3829",
+        "translation": "灾害名称——其他（全球性或区域性）"
+    },
+    {
+        "id": "disaster_event.form.no_spatial_footprint_items",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4292",
+        "translation": "尚未添加任何占用空间的项目"
+    },
+    {
+        "id": "disaster_event.form.other_sectors_help",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5138",
+        "translation": "其他行业的帮助"
+    },
+    {
+        "id": "disaster_event.form.placeholder.add_event_id",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3860",
+        "translation": "添加事件 ID"
+    },
+    {
+        "id": "disaster_event.form.placeholder.add_event_name",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3838",
+        "translation": "添加活动名称"
+    },
+    {
+        "id": "disaster_event.form.placeholder.add_glide_number",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3888",
+        "translation": "添加 GLIDE 编号"
+    },
+    {
+        "id": "disaster_event.form.placeholder.name_national",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3810",
+        "translation": "例如，飓风“米奇”"
+    },
+    {
+        "id": "disaster_event.form.placeholder.yyyy",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1146",
+        "translation": "年，年，年"
+    },
+    {
+        "id": "disaster_event.form.placeholder.yyyy_mm",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1109",
+        "translation": "年-月"
+    },
+    {
+        "id": "disaster_event.form.placeholder.yyyy_mm_dd",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1062",
+        "translation": "年-月-日"
+    },
+    {
+        "id": "disaster_event.form.remove_named",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3189",
+        "translation": "删除 {name}"
+    },
+    {
+        "id": "disaster_event.form.responses_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4719",
+        "translation": "跟踪早期行动和响应行动"
+    },
+    {
+        "id": "disaster_event.form.select_format",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1002",
+        "translation": "选择格式"
+    },
+    {
+        "id": "disaster_event.form.select_hazard_cluster",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4041",
+        "translation": "选择风险类别"
+    },
+    {
+        "id": "disaster_event.form.select_hazard_type",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4002",
+        "translation": "选择危险类型"
+    },
+    {
+        "id": "disaster_event.form.select_sectors",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5068",
+        "translation": "选择行业"
+    },
+    {
+        "id": "disaster_event.form.select_status",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4961",
+        "translation": "选择状态"
+    },
+    {
+        "id": "disaster_event.form.select_type",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4906",
+        "translation": "选择类型"
+    },
+    {
+        "id": "disaster_event.form.spatial_footprint_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4247",
+        "translation": "使用交互式地图坐标或手动输入，界定受影响的具体地理区域。"
+    },
+    {
+        "id": "disaster_event.form.spatial_footprint_items_added",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4285",
+        "translation": "已添加 {count} 个空间占用项目"
+    },
+    {
+        "id": "disaster_event.form.spatial_footprint_numbered",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2414",
+        "translation": "空间占地面积 {count}"
+    },
+    {
+        "id": "disaster_event.form.spatial_information",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4142",
+        "translation": "灾害事件的空间信息"
+    },
+    {
+        "id": "disaster_event.form.spatial_information_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4148",
+        "translation": "请指出发生该灾害事件的地理区域。"
+    },
+    {
+        "id": "disaster_event.form.specific_hazard_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4062",
+        "translation": "特定危害（已观察到）"
+    },
+    {
+        "id": "disaster_event.form.tooltip.glide_number",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3711",
+        "translation": "用于在国际灾害风险系统中交叉引用此事件的全球唯一标识符"
+    },
+    {
+        "id": "disaster_event.form.tooltip.hazard_cluster_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3729",
+        "translation": "观察到的风险聚集现象"
+    },
+    {
+        "id": "disaster_event.form.tooltip.hazard_type_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3720",
+        "translation": "在完全确认之前观察到的危害类型"
+    },
+    {
+        "id": "disaster_event.form.tooltip.other_sectors",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3747",
+        "translation": "请输入上述下拉菜单中未列出的行业名称，例如：废物管理、人道主义援助。"
+    },
+    {
+        "id": "disaster_event.form.tooltip.specific_hazard_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3738",
+        "translation": "观察到的具体危害"
+    },
+    {
+        "id": "disaster_event.form.validation.end_date_before_start_date",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2011",
+        "translation": "结束日期不能早于开始日期"
+    },
+    {
+        "id": "disaster_event.form.validation.end_time_before_start_time",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2021",
+        "translation": "结束时间不能早于开始时间"
+    },
+    {
+        "id": "disaster_event.form.validation.end_time_requires_full_end_date",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1988",
+        "translation": "结束时间必须填写完整的结束日期（YYYY-MM-DD）"
+    },
+    {
+        "id": "disaster_event.form.validation.is_invalid",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:909",
+        "translation": "{label} 无效"
+    },
+    {
+        "id": "disaster_event.form.validation.month_invalid",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:873",
+        "translation": "{label} 个月无效"
+    },
+    {
+        "id": "disaster_event.form.validation.national_name_required",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1952",
+        "translation": "必须填写（国家）灾害名称"
+    },
+    {
+        "id": "disaster_event.form.validation.requires_complete_date",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:890",
+        "translation": "{label} 需要填写完整的日期"
+    },
+    {
+        "id": "disaster_event.form.validation.requires_year_and_month",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:862",
+        "translation": "{label} 需要同时填写年和月"
+    },
+    {
+        "id": "disaster_event.form.validation.start_date_required_when_end_date_has_value",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1995",
+        "translation": "当结束日期有值时，必须填写开始日期"
+    },
+    {
+        "id": "disaster_event.form.validation.start_time_requires_full_start_date",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1978",
+        "translation": "开始时间需要填写完整的开始日期（YYYY-MM-DD）"
+    },
+    {
+        "id": "disaster_event.form.validation.year_must_be_4_digits",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:849",
+        "translation": "{label} 年必须为 4 位数"
+    },
+    {
+        "id": "disaster_event.invalid_hazardous_event_reference",
+        "description": "File: app/backend.server/models/event.ts:1989",
+        "translation": "此实例的危险事件引用无效"
+    },
+    {
+        "id": "disaster_event.review.assessment",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1793",
+        "translation": "评估"
+    },
+    {
+        "id": "disaster_event.review.assessments",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1770",
+        "translation": "评估"
+    },
+    {
+        "id": "disaster_event.review.basic_information",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3767",
+        "translation": "基本信息"
+    },
+    {
+        "id": "disaster_event.review.coverage",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3152",
+        "translation": "报道范围"
+    },
+    {
+        "id": "disaster_event.review.date_at_time",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2497",
+        "translation": "{date} 到 {time}"
+    },
+    {
+        "id": "disaster_event.review.declaration",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1440",
+        "translation": "声明"
+    },
+    {
+        "id": "disaster_event.review.disaster_declaration_effects",
+        "description": "File: app/frontend/events/disastereventform.tsx:1503",
+        "translation": "灾难声明的影响"
+    },
+    {
+        "id": "disaster_event.review.hazard_details",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:796",
+        "translation": "危险详情"
+    },
+    {
+        "id": "disaster_event.review.issuing_organization",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5005",
+        "translation": "签发机构"
+    },
+    {
+        "id": "disaster_event.review.linked_disaster_records",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4593",
+        "translation": "关联的灾害记录"
+    },
+    {
+        "id": "disaster_event.review.linked_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4344",
+        "translation": "相关活动"
+    },
+    {
+        "id": "disaster_event.review.links",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:901",
+        "translation": "链接"
+    },
+    {
+        "id": "disaster_event.review.location",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:830",
+        "translation": "位置"
+    },
+    {
+        "id": "disaster_event.review.map",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:391",
+        "translation": "地图"
+    },
+    {
+        "id": "disaster_event.review.no_assessments",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4799",
+        "translation": "尚未记录任何评估"
+    },
+    {
+        "id": "disaster_event.review.no_attachments_selected",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:945",
+        "translation": "未选择任何附件"
+    },
+    {
+        "id": "disaster_event.review.no_declarations",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4850",
+        "translation": "尚未记录任何声明"
+    },
+    {
+        "id": "disaster_event.review.no_geographic_levels",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:860",
+        "translation": "未选择地理层级"
+    },
+    {
+        "id": "disaster_event.review.no_linked_disaster_records",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:1109",
+        "translation": "尚未关联任何灾害记录"
+    },
+    {
+        "id": "disaster_event.review.no_linked_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:1007",
+        "translation": "尚未选择相关的危险或灾害事件"
+    },
+    {
+        "id": "disaster_event.review.no_linked_records",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4638",
+        "translation": "没有相关记录"
+    },
+    {
+        "id": "disaster_event.review.no_links_selected",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:903",
+        "translation": "未选择任何链接"
+    },
+    {
+        "id": "disaster_event.review.no_location_details",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:835",
+        "translation": "没有位置信息"
+    },
+    {
+        "id": "disaster_event.review.no_responses",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4748",
+        "translation": "尚未记录任何回复"
+    },
+    {
+        "id": "disaster_event.review.no_spatial_data",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:883",
+        "translation": "未定义空间数据"
+    },
+    {
+        "id": "disaster_event.review.no_triggered_disaster_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4581",
+        "translation": "未触发相关（后续）灾难事件"
+    },
+    {
+        "id": "disaster_event.review.no_triggered_hazardous_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4470",
+        "translation": "未触发任何相关的（后续）危险事件"
+    },
+    {
+        "id": "disaster_event.review.no_triggering_disaster_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4534",
+        "translation": "没有相关的（因果）灾难事件"
+    },
+    {
+        "id": "disaster_event.review.no_triggering_hazardous_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4423",
+        "translation": "未发现相关的（因果性）危险事件"
+    },
+    {
+        "id": "disaster_event.review.official_declarations",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1775",
+        "translation": "官方声明"
+    },
+    {
+        "id": "disaster_event.review.other_sectors",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5131",
+        "translation": "其他行业"
+    },
+    {
+        "id": "disaster_event.review.response_operation",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1788",
+        "translation": "响应操作"
+    },
+    {
+        "id": "disaster_event.review.responses",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1765",
+        "translation": "回复"
+    },
+    {
+        "id": "disaster_event.review.review_and_save",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5303",
+        "translation": "查看并保存"
+    },
+    {
+        "id": "disaster_event.review.spatial_footprint_index",
+        "description": "File: app/frontend/events/disastereventform.tsx:1129",
+        "translation": "空间占地面积 {index}"
+    },
+    {
+        "id": "disaster_event.review.triggered_disaster_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4544",
+        "translation": "由……引发的（后续）灾害事件"
+    },
+    {
+        "id": "disaster_event.review.triggered_hazardous_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4433",
+        "translation": "由此引发的（后续）危险事件"
+    },
+    {
+        "id": "disaster_event.review.triggering_disaster_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4497",
+        "translation": "引发（因果性）灾害事件"
+    },
+    {
+        "id": "disaster_event.review.triggering_hazardous_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4386",
+        "translation": "引发（因果性）危险事件"
+    },
+    {
+        "id": "disaster_event.review.verify_before_saving",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:725",
+        "translation": "保存前请核对信息。"
+    },
+    {
+        "id": "disaster_events.back_to_list",
+        "description": "File: app/frontend/events/disastereventform.tsx:1555",
+        "translation": "返回“灾害事件”页面"
+    },
+    {
+        "id": "disaster_record.damages.total_repair_cost",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:252",
+        "translation": "维修总费用"
+    },
+    {
+        "id": "disaster_record.damages.unit_repair_cost",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:249",
+        "translation": "单件维修成本"
+    },
+    {
+        "id": "disaster_record.losses.unit_value",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:364",
+        "translation": "单位价值"
+    },
+    {
+        "id": "disruption.duration_days",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:419",
+        "translation": "持续时间（天）"
+    },
+    {
+        "id": "disruption.duration_hours",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:420",
+        "translation": "持续时间（小时）"
+    },
+    {
+        "id": "disruption.people_affected",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:422",
+        "translation": "受影响的人"
+    },
+    {
+        "id": "disruption.response_operation",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:423",
+        "translation": "响应操作"
+    },
+    {
+        "id": "disruption.users_affected",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:421",
+        "translation": "受影响的用户"
+    },
+    {
+        "id": "email.assigned_validators.body_html",
+        "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:117",
+        "translation": "\u003cp\u003e亲爱的 {validatorName}，\u003c/p\u003e\n\u003cp\u003e有一项新的 {recordType} 正在等待您的处理。点击下方链接查看该活动。\u003c/p\u003e\n\u003cp\u003e活动名称：{recordEventName} \u003cbr /\u003e活动日期：{recordDate} \u003cbr /\u003e提交人：{recordSubmitterName}\u003c/p\u003e\n\u003cp\u003e\u003ca href=\"{recordUrl}\"\u003e查看活动\u003c/a\u003e\u003c/p\u003e"
+    },
+    {
+        "id": "email.assigned_validators.body_text",
+        "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:137",
+        "translation": "亲爱的 {validatorName}，\n\n有一项新的 {recordType} 正在等待您的处理。点击下方链接查看该活动。\n\n活动名称：{recordEventName}\n活动日期：{recordDate}\n提交人：{recordSubmitterName}\n\n查看活动：{recordUrl}"
+    },
+    {
+        "id": "email.assigned_validators.subject",
+        "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:49",
+        "translation": "事件验证"
+    },
+    {
+        "id": "email.assignees_notification.body_returned_html",
+        "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:504",
+        "translation": "\u003cp\u003e亲爱的 {assigneeName},\u003c/p\u003e\n\u003cp\u003e一份 {recordType} 已被退回待修订。\u003c/p\u003e\n\u003cp\u003e退回人：{recordSubmitterName}\u003c/p\u003e\n\u003cp\u003e备注：{rejectionMessage}\u003c/p\u003e\n\u003cp\u003e\u003ca href=\"{recordUrl}\"\u003e查看\u003c/a\u003e\u003c/p\u003e"
+    },
+    {
+        "id": "email.assignees_notification.body_returned_text",
+        "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:524",
+        "translation": "尊敬的 {assigneeName}：\n\n一份 {recordType} 已被退回待修改。\n\n退回人：{recordSubmitterName}\n\n备注：{rejectionMessage}\n\n查看：{recordUrl}"
+    },
+    {
+        "id": "email.assignees_notification.subject_returned",
+        "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:467",
+        "translation": "退回的记录 - 需要采取行动"
+    },
+    {
+        "id": "end_time",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:962",
+        "translation": "结束时间"
+    },
+    {
+        "id": "failed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3442",
+        "translation": "失败"
+    },
+    {
+        "id": "geographies.add_division",
+        "description": "File: app/routes/$lang+/settings+/geography+/new.tsx:338",
+        "translation": "添加除法"
+    },
+    {
+        "id": "geographies.add_division_subtitle",
+        "description": "File: app/routes/$lang+/settings+/geography+/new.tsx:354",
+        "translation": "创建一个新的行政区划。"
+    },
+    {
+        "id": "geographies.cannot_delete_division_linked_children",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:56",
+        "translation": "一个或多个子分区与现有的地理空间记录相关联。"
+    },
+    {
+        "id": "geographies.cannot_delete_linked_division",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:49",
+        "translation": "该分区与现有的地理空间记录相关联，无法删除。"
+    },
+    {
+        "id": "geographies.cannot_delete_parent_division",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:40",
+        "translation": "该部门下设子部门。请先删除或移动子部门。"
+    },
+    {
+        "id": "geographies.delete_division_confirmation",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:287",
+        "translation": "这些数据删除后无法恢复。"
+    },
+    {
+        "id": "geographies.delete_division_title",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:106",
+        "translation": "删除部门"
+    },
+    {
+        "id": "geographies.division_deleted_successfully",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:223",
+        "translation": "已成功删除该部门。"
+    },
+    {
+        "id": "geographies.download_geometry",
+        "description": "File: app/routes/$lang+/settings+/geography+/edit.$id.tsx:463",
+        "translation": "下载几何图形"
+    },
+    {
+        "id": "geographies.failed_delete_division",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:180",
+        "translation": "由于存在相关数据，无法删除此部门。请先删除关联或下级部门。"
+    },
+    {
+        "id": "geographies.upload_geometry",
+        "description": "File: app/routes/$lang+/settings+/geography+/edit.$id.tsx:489",
+        "translation": "上传几何体"
+    },
+    {
+        "id": "geographies.upload_geometry_hint",
+        "description": "File: app/routes/$lang+/settings+/geography+/edit.$id.tsx:502",
+        "translation": "只有当该分区尚未有几何图形时，才可上传几何图形。"
+    },
+    {
+        "id": "human_effects.error.subtotal_larger_than_total_unset",
+        "description": "No total has been set for this metric. {group} is the group name(s), {column} is the metric name. File: app/frontend/editabletable/validate.ts:272",
+        "translation": "组 ({group}) 的“{column}”列未设置总和"
+    },
+    {
+        "id": "nav.human_effects",
+        "description": "File: app/components/RegularMenuBar.tsx:413",
+        "translation": "对人类的影响"
+    },
+    {
+        "id": "no_disaster_events_found",
+        "description": "File: app/frontend/disaster-event/DisasterEventsPage.tsx:856",
+        "translation": "未找到任何灾害事件"
+    },
+    {
+        "id": "of",
+        "description": "File: app/frontend/disaster-event/DisasterEventsPage.tsx:979",
+        "translation": "的"
+    },
+    {
+        "id": "recovery_cost.sector",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:124",
+        "translation": "回收成本"
+    },
+    {
+        "id": "rows_per_page",
+        "description": "File: app/frontend/disaster-event/DisasterEventsPage.tsx:973",
+        "translation": "每页显示行数"
+    },
+    {
+        "id": "spatial_footprint.define_specific_geographic_area",
+        "description": "Help text for spatial footprint section File: app/frontend/spatialFootprintFormView2.tsx:61",
+        "translation": "使用交互式地图坐标或手动输入，定义受影响的具体地理区域。"
+    },
+    {
+        "id": "start_time",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:961",
+        "translation": "开始时间"
+    },
+    {
+        "id": "time_placeholder_24h",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:963",
+        "translation": "时间（24小时制，例如 14:30）"
+    },
+    {
+        "id": "unit.centimeters",
+        "description": "File: app/frontend/unit_picker.tsx:164",
+        "translation": "厘米 (cm)"
+    },
+    {
+        "id": "unit.feet",
+        "description": "File: app/frontend/unit_picker.tsx:172",
+        "translation": "英尺 (ft)"
+    },
+    {
+        "id": "unit.kilometers",
+        "description": "File: app/frontend/unit_picker.tsx:160",
+        "translation": "公里 (km)"
+    },
+    {
+        "id": "unit.length",
+        "description": "File: app/frontend/unit_picker.tsx:76",
+        "translation": "长度"
+    },
+    {
+        "id": "unit.meters",
+        "description": "File: app/frontend/unit_picker.tsx:156",
+        "translation": "米 (m)"
+    },
+    {
+        "id": "unit.miles",
+        "description": "File: app/frontend/unit_picker.tsx:180",
+        "translation": "英里 (mi)"
+    },
+    {
+        "id": "unit.millimeters",
+        "description": "File: app/frontend/unit_picker.tsx:168",
+        "translation": "毫米 (mm)"
+    },
+    {
+        "id": "unit.nautical_miles",
+        "description": "File: app/frontend/unit_picker.tsx:184",
+        "translation": "海里 (NM)"
+    },
+    {
+        "id": "unit.yards",
+        "description": "File: app/frontend/unit_picker.tsx:176",
+        "translation": "码（yd）"
+    },
+    {
+        "id": "user.permission.delete_disaster_event.label",
+        "description": "File: app/frontend/user/roles.ts:165",
+        "translation": "删除灾害事件"
+    },
+    {
+        "id": "user.permission.disaster_event_list.label",
+        "description": "File: app/frontend/user/roles.ts:157",
+        "translation": "灾害事件列表"
+    },
+    {
+        "id": "user.permission.edit_disaster_event.label",
+        "description": "File: app/frontend/user/roles.ts:173",
+        "translation": "编辑灾难事件"
+    },
+    {
+        "id": "uuid_copied_to_clipboard",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3435",
+        "translation": "UUID {shortUuid}… 已复制到剪贴板"
     }
 ]

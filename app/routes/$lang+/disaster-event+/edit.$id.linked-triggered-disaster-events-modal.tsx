@@ -9,132 +9,21 @@ import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { Checkbox } from "primereact/checkbox";
 import { DataView } from "primereact/dataview";
-import { and, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { dr } from "~/db.server";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import { eventCausalityTable } from "~/drizzle/schema/eventCausalityTable";
+import { queryLinkedDisasterEventOptions } from "~/backend.server/services/disaster-event/linkedDisasterEventOptions";
+import LinkedDisasterEventCard from "~/frontend/disaster-event/LinkedDisasterEventCard";
 import type { DisasterEventFormOutletContext } from "~/frontend/disaster-event/DisasterEventForm";
 import { authActionWithPerm, authLoaderWithPerm } from "~/utils/auth";
 import { getCountryAccountsIdFromSession } from "~/utils/session";
 
-type LinkedEventItem = DisasterEventFormOutletContext["disasterEventOptions"][number];
-
-function localizedHipName(
-	name: Record<string, string> | null | undefined,
-	lang: string,
-) {
-	if (!name) {
-		return "";
-	}
-
-	return String(name[lang] || name.en || Object.values(name)[0] || "").trim();
-}
-
-function formatDisasterEventOption(
-	event: {
-		id: string;
-		nameNational: string | null;
-		nameGlobalOrRegional: string | null;
-		hipHazard: {
-			name: Record<string, string> | null;
-			code: string | null;
-		} | null;
-		hipCluster: {
-			name: Record<string, string> | null;
-		} | null;
-		hipType: {
-			name: Record<string, string> | null;
-		} | null;
-	},
-	lang: string,
-) {
-	const displayName =
-		event.nameNational?.trim() ||
-		event.nameGlobalOrRegional?.trim() ||
-		`DE: ${event.id.slice(0, 8)}`;
-	const hazardName = localizedHipName(event.hipHazard?.name, lang);
-	const clusterName = localizedHipName(event.hipCluster?.name, lang);
-	const typeName = localizedHipName(event.hipType?.name, lang);
-	let hipLabel = "";
-	if (hazardName) {
-		hipLabel = event.hipHazard?.code
-			? `H: ${hazardName} (${event.hipHazard.code})`
-			: `H: ${hazardName}`;
-	} else if (clusterName) {
-		hipLabel = `C: ${clusterName}`;
-	} else if (typeName) {
-		hipLabel = `T: ${typeName}`;
-	}
-
-	return {
-		id: event.id,
-		name: displayName,
-		code: event.id,
-		hip: hipLabel,
+type LinkedEventItem =
+	DisasterEventFormOutletContext["disasterEventOptions"][number] & {
+		dateLabel?: string;
+		divisionNamesLabel?: string;
 	};
-}
-
-async function queryDisasterEventOptions(
-	countryAccountsId: string,
-	currentItemId: string | undefined,
-	lang: string,
-	keyword?: string,
-) {
-	const normalizedKeyword = keyword?.trim();
-	const shouldSearch = Boolean(normalizedKeyword);
-	const searchTerm = normalizedKeyword ? `%${normalizedKeyword}%` : "";
-
-	const disasterEvents = await dr.query.disasterEventTable.findMany({
-		columns: {
-			id: true,
-			nameNational: true,
-			nameGlobalOrRegional: true,
-		},
-		with: {
-			hipHazard: {
-				columns: {
-					name: true,
-					code: true,
-				},
-			},
-			hipCluster: {
-				columns: {
-					name: true,
-				},
-			},
-			hipType: {
-				columns: {
-					name: true,
-				},
-			},
-		},
-		where: shouldSearch
-			? and(
-				eq(disasterEventTable.countryAccountsId, countryAccountsId),
-				currentItemId
-					? ne(disasterEventTable.id, currentItemId)
-					: undefined,
-				or(
-					ilike(disasterEventTable.nameNational, searchTerm),
-					ilike(disasterEventTable.nameGlobalOrRegional, searchTerm),
-					ilike(disasterEventTable.nationalDisasterId, searchTerm),
-					ilike(disasterEventTable.glide, searchTerm),
-					sql`cast(${disasterEventTable.id} as text) ilike ${searchTerm}`,
-					sql`cast(${disasterEventTable.startDate} as text) ilike ${searchTerm}`,
-					sql`cast(${disasterEventTable.endDate} as text) ilike ${searchTerm}`,
-					sql`cast(${disasterEventTable.approvalStatus} as text) ilike ${searchTerm}`,
-				),
-			)
-			: and(
-				eq(disasterEventTable.countryAccountsId, countryAccountsId),
-				currentItemId ? ne(disasterEventTable.id, currentItemId) : undefined,
-			),
-		orderBy: [desc(disasterEventTable.updatedAt)],
-		limit: shouldSearch ? 500 : 200,
-	});
-
-	return disasterEvents.map((event) => formatDisasterEventOption(event, lang));
-}
 
 async function queryAncestorDisasterEventIds(
 	countryAccountsId: string,
@@ -196,7 +85,7 @@ export const loader = authLoaderWithPerm("EditData", async ({ request, params })
 	const currentItemId = rawItemId && rawItemId !== "new" ? rawItemId : undefined;
 	const lang = typeof params.lang === "string" && params.lang ? params.lang : "en";
 
-	const disasterEventOptions = await queryDisasterEventOptions(
+	const disasterEventOptions = await queryLinkedDisasterEventOptions(
 		countryAccountsId,
 		currentItemId,
 		lang,
@@ -223,7 +112,7 @@ export const action = authActionWithPerm("EditData", async ({ request, params })
 
 	const formData = await request.formData();
 	const keyword = String(formData.get("keyword") ?? "").trim();
-	const disasterEventOptions = await queryDisasterEventOptions(
+	const disasterEventOptions = await queryLinkedDisasterEventOptions(
 		countryAccountsId,
 		currentItemId,
 		lang,
@@ -387,40 +276,36 @@ export default function LinkedTriggeredDisasterEventsModalRoute() {
 	};
 
 	const renderAvailableItem = (item: LinkedEventItem) => (
-		<div className="mb-2 flex items-start rounded-lg border border-slate-200 px-4 py-3 last:mb-0">
-			<div className="flex w-full items-start gap-3">
-				<Checkbox
-					inputId={`linked-triggered-available-${item.id}`}
-					checked={selectedAvailableIds.includes(item.id)}
-					onChange={(event) =>
-						toggleAvailable(item.id, Boolean(event.checked))
-					}
-				/>
-				<div>
-					<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
-					{item.hip ? (
-						<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
-					) : null}
-				</div>
-			</div>
+		<div className="mb-2 last:mb-0">
+			<LinkedDisasterEventCard
+				item={item}
+				className="w-full"
+				leading={
+					<Checkbox
+						inputId={`linked-triggered-available-${item.id}`}
+						checked={selectedAvailableIds.includes(item.id)}
+						onChange={(event) =>
+							toggleAvailable(item.id, Boolean(event.checked))
+						}
+					/>
+				}
+			/>
 		</div>
 	);
 
 	const renderLinkedItem = (item: LinkedEventItem) => (
-		<div className="mb-2 flex items-start rounded-lg border border-slate-200 px-4 py-3 last:mb-0">
-			<div className="flex w-full items-start gap-3">
-				<Checkbox
-					inputId={`linked-triggered-selected-${item.id}`}
-					checked={selectedLinkedIds.includes(item.id)}
-					onChange={(event) => toggleLinked(item.id, Boolean(event.checked))}
-				/>
-				<div>
-					<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
-					{item.hip ? (
-						<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
-					) : null}
-				</div>
-			</div>
+		<div className="mb-2 last:mb-0">
+			<LinkedDisasterEventCard
+				item={item}
+				className="w-full"
+				leading={
+					<Checkbox
+						inputId={`linked-triggered-selected-${item.id}`}
+						checked={selectedLinkedIds.includes(item.id)}
+						onChange={(event) => toggleLinked(item.id, Boolean(event.checked))}
+					/>
+				}
+			/>
 		</div>
 	);
 
@@ -462,7 +347,7 @@ export default function LinkedTriggeredDisasterEventsModalRoute() {
 					<InputText
 						value={searchTerm}
 						onChange={(event) => setSearchTerm(event.target.value)}
-						placeholder="Search by name or UUID..."
+						placeholder="Search by name, hazard classification, date (yyyy-mm-dd), geographic level or UUID..."
 						className="w-full pr-10"
 					/>
 				</div>

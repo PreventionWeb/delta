@@ -14,7 +14,7 @@ CREATE TABLE
         effects text,
         declaration_date timestamp
         with
-            time zone NOT NULL,
+            time zone,
             issuing_organization text,
             coverage text,
             declaration_status_id uuid REFERENCES declaration_status (id)

@@ -281,6 +281,34 @@
       "when": 1786419746071,
       "tag": "20260811034226_migrate_disaster_event_declaration_to_new_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1786594106691,
+      "tag": "20260813040826_migrate_disaster_event_assessment_to_new_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1786948175892,
+      "tag": "20260817062935_drop_attachments_column_from_disaster_event_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1786968000000,
+      "tag": "20260817120000_migrate_recording_institution_to_organization",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1787139000000,
+      "tag": "20260819113000_drop_disaster_event_recording_institution",
+      "breakpoints": true
     }
   ]
 }

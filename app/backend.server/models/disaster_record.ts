@@ -557,6 +557,10 @@ export async function disasterRecordsUpdate(
 	}
 
 	let id = idStr;
+	const shouldSyncSpatialFootprint = Object.prototype.hasOwnProperty.call(
+		fields,
+		"spatialFootprint",
+	);
 	const spatialFootprintValue = (fields as any).spatialFootprint;
 	const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
 		fields as any;
@@ -573,7 +577,9 @@ export async function disasterRecordsUpdate(
 			),
 		);
 
-	await syncDisasterRecordSpatialFootprint(tx, id, spatialFootprintValue);
+	if (shouldSyncSpatialFootprint) {
+		await syncDisasterRecordSpatialFootprint(tx, id, spatialFootprintValue);
+	}
 
 	await updateTotalsUsingDisasterRecordId(tx, idStr);
 

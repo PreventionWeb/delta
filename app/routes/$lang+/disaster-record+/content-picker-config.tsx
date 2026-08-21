@@ -156,8 +156,13 @@ export function contentPickerConfig(ctx: DContext) {
 				},
 
 				{
-					column: disasterEventTable.recordingInstitution,
-					placeholder: "[safeSearchPattern]",
+					sql: (query: string) =>
+						sql`EXISTS (
+							SELECT 1 FROM organization o
+							WHERE o.id = ${disasterEventTable.recordingOrganizationId}
+								AND o.country_accounts_id = ${disasterEventTable.countryAccountsId}
+								AND o.name ILIKE ${query}
+						)`,
 				},
 
 				{

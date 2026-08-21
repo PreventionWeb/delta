@@ -2,12 +2,17 @@ import { useEffect, useMemo, useRef } from "react";
 import { Button } from "primereact/button";
 import { Card } from "primereact/card";
 import { DataView } from "primereact/dataview";
+import LinkedHazardousEventCard from "~/frontend/disaster-event/LinkedHazardousEventCard";
+import LinkedDisasterRecordCard from "~/frontend/disaster-event/LinkedDisasterRecordCard";
+import { ViewContext } from "~/frontend/context";
 
 type LinkedEventOption = {
 	id: string;
 	name: string;
 	code: string;
 	hip?: string;
+	dateLabel?: string;
+	divisionNamesLabel?: string;
 };
 
 type SelectedDivisionItem = {
@@ -19,6 +24,9 @@ type AdditionalDetailMeta = {
 	declarationStatusId?: string;
 	declarationStatus?: string;
 	issuingOrganization?: string;
+	assessmentTypeId?: string;
+	otherSectors?: string;
+	sectorIds?: string[];
 };
 
 type ResponseAttachmentValue = {
@@ -107,6 +115,7 @@ function renderMultilineText(value: string, keyPrefix: string) {
 }
 
 type DisasterEventReviewStepProps = {
+	ctx: ViewContext;
 	form: {
 		nameNational: string;
 		nameGlobalOrRegional: string;
@@ -133,6 +142,7 @@ type DisasterEventReviewStepProps = {
 	responses: AdditionalDetailItem[];
 	assessments: AdditionalDetailItem[];
 	declarations: AdditionalDetailItem[];
+	sectorNameById?: Map<string, string>;
 	getDetailTypeLabel: (value: string) => string;
 	getDetailDescriptionValue: (item: AdditionalDetailItem) => string;
 	showHeader?: boolean;
@@ -217,8 +227,10 @@ function levelRank(value: unknown): number {
 }
 
 function ReviewLocationMap({
+	ctx,
 	spatialFootprintData,
 }: {
+	ctx: ViewContext;
 	spatialFootprintData: any[];
 }) {
 	const mapContainerRef = useRef<HTMLDivElement | null>(null);
@@ -376,7 +388,10 @@ function ReviewLocationMap({
 	return (
 		<div className="space-y-2">
 			<p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-				Map
+				{ctx.t({
+					code: "disaster_event.review.map",
+					msg: "Map",
+				})}
 			</p>
 			<div
 				ref={mapContainerRef}
@@ -423,10 +438,12 @@ const renderStep4SectionCard = (
 );
 
 const renderStep4DetailRow = (
+	ctx: ViewContext,
 	category: "response" | "assessment" | "declaration",
 	item: AdditionalDetailItem,
 	getDetailTypeLabel: (value: string) => string,
 	getDetailDescriptionValue: (item: AdditionalDetailItem) => string,
+	sectorNameById?: Map<string, string>,
 ) => {
 	const badgeClass =
 		category === "response"
@@ -436,6 +453,12 @@ const renderStep4DetailRow = (
 				: "bg-amber-100 text-amber-700";
 	const typeLabel = getDetailTypeLabel(item.type);
 	const descriptionValue = getDetailDescriptionValue(item);
+	const assessmentSectorNames =
+		category === "assessment"
+			? (item.meta?.sectorIds ?? [])
+					.map((sectorId) => sectorNameById?.get(sectorId) ?? sectorId)
+					.filter(Boolean)
+			: [];
 
 	return (
 		<div key={item.id} className="space-y-2">
@@ -449,11 +472,15 @@ const renderStep4DetailRow = (
 					<span className="text-[12px] text-slate-500">{item.date}</span>
 				) : null}
 			</div>
-			{category === "response" || category === "declaration" ? (
+			{category === "response" ||
+			category === "declaration" ||
+			category === "assessment" ? (
 				<div className="space-y-1 text-[14px] text-slate-500">
 					{category === "declaration" && item.meta?.declarationStatus ? (
 						<p>
-							<span className="font-semibold text-slate-700">Status:</span>{" "}
+							<span className="font-semibold text-slate-700">
+								{ctx.t({ code: "common.status", msg: "Status" })}:
+							</span>{" "}
 							{item.meta.declarationStatus}
 						</p>
 					) : null}
@@ -461,21 +488,56 @@ const renderStep4DetailRow = (
 					item.meta?.issuingOrganization?.trim() ? (
 						<p>
 							<span className="font-semibold text-slate-700">
-								Issuing Organization:
+								{ctx.t({
+									code: "disaster_event.review.issuing_organization",
+									msg: "Issuing organization",
+								})}
+								:
 							</span>{" "}
 							{item.meta.issuingOrganization.trim()}
 						</p>
 					) : null}
 					{item.coverage?.trim() ? (
 						<p>
-							<span className="font-semibold text-slate-700">Coverage:</span>{" "}
+							<span className="font-semibold text-slate-700">
+								{ctx.t({
+									code: "disaster_event.review.coverage",
+									msg: "Coverage",
+								})}
+								:
+							</span>{" "}
 							{item.coverage.trim()}
+						</p>
+					) : null}
+					{category === "assessment" && assessmentSectorNames.length > 0 ? (
+						<p>
+							<span className="font-semibold text-slate-700">
+								{ctx.t({ code: "common.sectors", msg: "Sectors" })}:
+							</span>
+							{renderMultilineText(
+								assessmentSectorNames.join("\n"),
+								`${item.id}-assessment-sectors`,
+							)}
+						</p>
+					) : null}
+					{category === "assessment" && item.meta?.otherSectors?.trim() ? (
+						<p>
+							<span className="font-semibold text-slate-700">
+								{ctx.t({
+									code: "disaster_event.review.other_sectors",
+									msg: "Other sectors",
+								})}
+								:
+							</span>{" "}
+							{item.meta.otherSectors.trim()}
 						</p>
 					) : null}
 					{item.description?.trim() ? (
 						<p>
 							<span className="font-semibold text-slate-700">
-								{category === "declaration" ? "Effects:" : "Description:"}
+								{category === "declaration"
+									? `${ctx.t({ code: "disaster_event.effects", msg: "Effects" })}:`
+									: `${ctx.t({ code: "common.description", msg: "Description" })}:`}
 							</span>{" "}
 							{renderMultilineText(
 								item.description.trim(),
@@ -483,7 +545,10 @@ const renderStep4DetailRow = (
 							)}
 						</p>
 					) : null}
-					{!item.coverage?.trim() && !item.description?.trim() ? (
+					{!item.coverage?.trim() &&
+					(item.meta?.sectorIds ?? []).length === 0 &&
+					!(item.meta?.otherSectors ?? "").trim() &&
+					!item.description?.trim() ? (
 						<p>-</p>
 					) : null}
 				</div>
@@ -497,12 +562,14 @@ const renderStep4DetailRow = (
 					))}
 				</p>
 			) : null}
-			{category === "response" || category === "declaration" ? (
+			{category === "response" ||
+			category === "declaration" ||
+			category === "assessment" ? (
 				<div className="space-y-2">
 					{item.attachments && item.attachments.length > 0 ? (
 						<div className="space-y-2">
 							<p className="text-[14px] font-semibold text-slate-700">
-								Attachments:
+								{ctx.t({ code: "common.attachments", msg: "Attachments" })}:
 							</p>
 							{item.attachments.map((attachment, index) => {
 								const href = (attachment as { href?: string }).href;
@@ -562,29 +629,35 @@ const linkedEventItemTemplate = (
 	layout?: "list" | "grid",
 ) => {
 	const wrapperClass =
-		layout === "grid" ? "linked-disaster-record-grid-item" : "w-full";
+		layout === "grid"
+			? "linked-disaster-record-grid-item mb-2 last:mb-0"
+			: "w-full mb-2 last:mb-0";
 
 	return (
 		<div className={wrapperClass}>
-			<div className="flex items-start justify-between rounded-lg border border-slate-200 px-4 py-3">
-				<div className="flex w-full items-start justify-between gap-4">
-					<div>
-						<p className="text-[14px] font-semibold text-slate-700">
-							{item.name}
-						</p>
-						{item.hip ? (
-							<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
-						) : item.code ? (
-							<p>{item.code}</p>
-						) : null}
-					</div>
-				</div>
-			</div>
+			<LinkedDisasterRecordCard item={item} />
+		</div>
+	);
+};
+
+const linkedHazardousEventItemTemplate = (
+	item: LinkedEventOption,
+	layout?: "list" | "grid",
+) => {
+	const wrapperClass =
+		layout === "grid"
+			? "linked-disaster-record-grid-item mb-2 last:mb-0"
+			: "w-full mb-2 last:mb-0";
+
+	return (
+		<div className={wrapperClass}>
+			<LinkedHazardousEventCard item={item} />
 		</div>
 	);
 };
 
 export default function DisasterEventReviewStep({
+	ctx,
 	form,
 	selectedHazardTypeName,
 	selectedHazardClusterName,
@@ -604,6 +677,7 @@ export default function DisasterEventReviewStep({
 	responses,
 	assessments,
 	declarations,
+	sectorNameById,
 	getDetailTypeLabel,
 	getDetailDescriptionValue,
 	showHeader = true,
@@ -614,14 +688,44 @@ export default function DisasterEventReviewStep({
 }: DisasterEventReviewStepProps) {
 	return (
 		<>
+			<style>{`
+				.linked-disaster-records-grid .p-dataview-content .p-grid {
+					display: grid;
+					grid-template-columns: repeat(1, minmax(0, 1fr));
+					gap: 0.75rem;
+					margin: 0;
+				}
+
+				@media (min-width: 768px) {
+					.linked-disaster-records-grid .p-dataview-content .p-grid {
+						grid-template-columns: repeat(2, minmax(0, 1fr));
+					}
+				}
+
+				@media (min-width: 1280px) {
+					.linked-disaster-records-grid .p-dataview-content .p-grid {
+						grid-template-columns: repeat(3, minmax(0, 1fr));
+					}
+				}
+
+				.linked-disaster-record-grid-item {
+					min-width: 0;
+				}
+			`}</style>
 			<div className="space-y-5">
 				{showHeader ? (
 					<div>
 						<h3 className="text-[18px] leading-[24px] font-semibold text-slate-800">
-							Review and save
+							{ctx.t({
+								code: "disaster_event.review.review_and_save",
+								msg: "Review and save",
+							})}
 						</h3>
 						<p className="mt-1 text-[14px] leading-[22px] text-slate-500">
-							Verify the information before saving.
+							{ctx.t({
+								code: "disaster_event.review.verify_before_saving",
+								msg: "Verify the information before saving.",
+							})}
 						</p>
 					</div>
 				) : null}
@@ -634,20 +738,47 @@ export default function DisasterEventReviewStep({
 						<div className="flex items-center gap-2 text-slate-800">
 							<i className="pi pi-info-circle text-blue-600" />
 							<h4 className="text-[16px] leading-[16px] font-semibold">
-								Basic information
+								{ctx.t({
+									code: "disaster_event.review.basic_information",
+									msg: "Basic information",
+								})}
 							</h4>
 						</div>
 						<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-							{renderReviewItem("Disaster name - national", form.nameNational)}
 							{renderReviewItem(
-								"Disaster name - global/regional",
+								ctx.t({
+									code: "disaster_event.national_name",
+									msg: "National name",
+								}),
+								form.nameNational,
+							)}
+							{renderReviewItem(
+								ctx.t({
+									code: "disaster_event.global_regional_name",
+									msg: "Global/regional name",
+								}),
 								form.nameGlobalOrRegional,
 							)}
-							{renderReviewItem("National event ID", form.nationalDisasterId)}
-							{renderReviewItem("GLIDE number", form.glide)}
-							{renderReviewItem("Disaster event UUID", form.id)}
 							{renderReviewItem(
-								"Recording organisation",
+								ctx.t({
+									code: "disaster_event.national_disaster_id",
+									msg: "National disaster ID",
+								}),
+								form.nationalDisasterId,
+							)}
+							{renderReviewItem(
+								ctx.t({ code: "disaster_event.glide_number", msg: "GLIDE number" }),
+								form.glide,
+							)}
+							{renderReviewItem(
+								ctx.t({ code: "disaster_event.uuid", msg: "Disaster event UUID" }),
+								form.id,
+							)}
+							{renderReviewItem(
+								ctx.t({
+									code: "disaster_event.recording_organization",
+									msg: "Recording organization",
+								}),
 								form.recordingOrganizationName,
 							)}
 						</div>
@@ -662,29 +793,56 @@ export default function DisasterEventReviewStep({
 						<div className="flex items-center gap-2 text-slate-800">
 							<i className="pi pi-map-marker text-blue-600" />
 							<h4 className="text-[16px] leading-[16px] font-semibold">
-								Hazard details
+								{ctx.t({
+									code: "disaster_event.review.hazard_details",
+									msg: "Hazard details",
+								})}
 							</h4>
 						</div>
 						<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-							{renderReviewItem("Hazard type", selectedHazardTypeName)}
-							{renderReviewItem("Hazard cluster", selectedHazardClusterName)}
-							{renderReviewItem("Specific hazard", selectedSpecificHazardName)}
+							{renderReviewItem(
+								ctx.t({ code: "hip.hazard_type", msg: "Hazard type" }),
+								selectedHazardTypeName,
+							)}
+							{renderReviewItem(
+								ctx.t({ code: "hip.hazard_cluster", msg: "Hazard cluster" }),
+								selectedHazardClusterName,
+							)}
+							{renderReviewItem(
+								ctx.t({ code: "hip.specific_hazard", msg: "Specific hazard" }),
+								selectedSpecificHazardName,
+							)}
 						</div>
 						<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-							{renderReviewItem("Start", startTimingValue)}
-							{renderReviewItem("End", endTimingValue)}
+							{renderReviewItem(
+								ctx.t({ code: "analysis.start", msg: "Start" }),
+								startTimingValue,
+							)}
+							{renderReviewItem(
+								ctx.t({ code: "analysis.end", msg: "End" }),
+								endTimingValue,
+							)}
 						</div>
 					</div>
 				</Card>
 
 				{renderStep4SectionCard(
-					"Location",
+					ctx.t({
+						code: "disaster_event.review.location",
+						msg: "Location",
+					}),
 					"pi pi-map-marker text-blue-600",
-					"No location details available",
+					ctx.t({
+						code: "disaster_event.review.no_location_details",
+						msg: "No location details available",
+					}),
 					<>
 						<div className="space-y-2">
 							<p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-								Geographic levels
+								{ctx.t({
+									code: "spatial_footprint.geographic_levels",
+									msg: "Geographic levels",
+								})}
 							</p>
 							{selectedDivisionItems.length > 0 ? (
 								<div className="flex flex-wrap gap-2">
@@ -699,14 +857,20 @@ export default function DisasterEventReviewStep({
 								</div>
 							) : (
 								<p className="text-[14px] italic text-slate-400">
-									No geographic levels selected
+									{ctx.t({
+										code: "disaster_event.review.no_geographic_levels",
+										msg: "No geographic levels selected",
+									})}
 								</p>
 							)}
 						</div>
 
 						<div className="space-y-2">
 							<p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-								Spatial footprint
+								{ctx.t({
+									code: "common.spatial_footprint",
+									msg: "Spatial footprint",
+								})}
 							</p>
 							{reviewSpatialFootprintItems.length > 0 ? (
 								<ul className="list-disc pl-5 text-[14px] text-slate-500">
@@ -716,12 +880,16 @@ export default function DisasterEventReviewStep({
 								</ul>
 							) : (
 								<p className="text-[14px] italic text-slate-400">
-									No spatial data defined
+									{ctx.t({
+										code: "disaster_event.review.no_spatial_data",
+										msg: "No spatial data defined",
+									})}
 								</p>
 							)}
 						</div>
 
 						<ReviewLocationMap
+							ctx={ctx}
 							spatialFootprintData={reviewSpatialFootprintData}
 						/>
 					</>,
@@ -730,9 +898,12 @@ export default function DisasterEventReviewStep({
 				)}
 
 				{renderStep4SectionCard(
-					"Links",
+					ctx.t({ code: "disaster_event.review.links", msg: "Links" }),
 					"pi pi-link text-blue-600",
-					"No links selected",
+					ctx.t({
+						code: "disaster_event.review.no_links_selected",
+						msg: "No links selected",
+					}),
 					reviewLinks.length > 0 ? (
 						<div className="space-y-3">
 							{reviewLinks.map((link) => (
@@ -759,16 +930,22 @@ export default function DisasterEventReviewStep({
 						</div>
 					) : (
 						<p className="text-[14px] italic text-slate-400">
-							No links selected
+							{ctx.t({
+								code: "disaster_event.review.no_links_selected",
+								msg: "No links selected",
+							})}
 						</p>
 					),
 					true,
 				)}
 
 				{renderStep4SectionCard(
-					"Attachments",
+					ctx.t({ code: "common.attachments", msg: "Attachments" }),
 					"pi pi-paperclip text-blue-600",
-					"No attachments selected",
+					ctx.t({
+						code: "disaster_event.review.no_attachments_selected",
+						msg: "No attachments selected",
+					}),
 					reviewAttachments.length > 0 ? (
 						<div className="space-y-3">
 							{reviewAttachments.map((attachment) => (
@@ -812,28 +989,43 @@ export default function DisasterEventReviewStep({
 						</div>
 					) : (
 						<p className="text-[14px] italic text-slate-400">
-							No attachments selected
+							{ctx.t({
+								code: "disaster_event.review.no_attachments_selected",
+								msg: "No attachments selected",
+							})}
 						</p>
 					),
 					true,
 				)}
 
 				{renderStep4SectionCard(
-					"Linked events",
+					ctx.t({
+						code: "disaster_event.review.linked_events",
+						msg: "Linked events",
+					}),
 					"pi pi-link text-blue-600",
-					"No linked hazardous or disaster events selected yet",
+					ctx.t({
+						code: "disaster_event.review.no_linked_events",
+						msg: "No linked hazardous or disaster events selected yet",
+					}),
 					<>
 						<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 							<div className="rounded-xl border border-slate-200 bg-white p-4">
 								<div className="space-y-3">
 									<p className="text-[14px] font-semibold text-slate-700">
-										Triggering (causal) hazardous events
+										{ctx.t({
+											code: "disaster_event.review.triggering_hazardous_events",
+											msg: "Triggering (causal) hazardous events",
+										})}
 									</p>
 									<DataView
 										className="linked-disaster-event-grid"
 										value={triggeringHazardousEventTarget}
-										itemTemplate={linkedEventItemTemplate}
-										emptyMessage="No linked triggering (causal) hazardous events"
+										itemTemplate={linkedHazardousEventItemTemplate}
+										emptyMessage={ctx.t({
+											code: "disaster_event.review.no_triggering_hazardous_events",
+											msg: "No linked triggering (causal) hazardous events",
+										})}
 										layout="grid"
 									/>
 								</div>
@@ -841,13 +1033,19 @@ export default function DisasterEventReviewStep({
 							<div className="rounded-xl border border-slate-200 bg-white p-4">
 								<div className="space-y-3">
 									<p className="text-[14px] font-semibold text-slate-700">
-										Triggered (subsequent) hazardous events
+										{ctx.t({
+											code: "disaster_event.review.triggered_hazardous_events",
+											msg: "Triggered (subsequent) hazardous events",
+										})}
 									</p>
 									<DataView
 										className="linked-disaster-event-grid"
 										value={triggeredHazardousEventTarget}
-										itemTemplate={linkedEventItemTemplate}
-										emptyMessage="No linked triggered (subsequent) hazardous events"
+										itemTemplate={linkedHazardousEventItemTemplate}
+										emptyMessage={ctx.t({
+											code: "disaster_event.review.no_triggered_hazardous_events",
+											msg: "No linked triggered (subsequent) hazardous events",
+										})}
 										layout="grid"
 									/>
 								</div>
@@ -857,13 +1055,19 @@ export default function DisasterEventReviewStep({
 							<div className="rounded-xl border border-slate-200 bg-white p-4">
 								<div className="space-y-3">
 									<p className="text-[14px] font-semibold text-slate-700">
-										Triggering (causal) disaster events
+										{ctx.t({
+											code: "disaster_event.review.triggering_disaster_events",
+											msg: "Triggering (causal) disaster events",
+										})}
 									</p>
 									<DataView
 										className="linked-disaster-event-grid"
 										value={triggeringDisasterEventTarget}
 										itemTemplate={linkedEventItemTemplate}
-										emptyMessage="No linked triggering (causal) disaster events"
+										emptyMessage={ctx.t({
+											code: "disaster_event.review.no_triggering_disaster_events",
+											msg: "No linked triggering (causal) disaster events",
+										})}
 										layout="grid"
 									/>
 								</div>
@@ -871,13 +1075,19 @@ export default function DisasterEventReviewStep({
 							<div className="rounded-xl border border-slate-200 bg-white p-4">
 								<div className="space-y-3">
 									<p className="text-[14px] font-semibold text-slate-700">
-										Triggered (subsequent) disaster events
+										{ctx.t({
+											code: "disaster_event.review.triggered_disaster_events",
+											msg: "Triggered (subsequent) disaster events",
+										})}
 									</p>
 									<DataView
 										className="linked-disaster-event-grid"
 										value={triggeredDisasterEventTarget}
 										itemTemplate={linkedEventItemTemplate}
-										emptyMessage="No linked triggered (subsequent) disaster events"
+										emptyMessage={ctx.t({
+											code: "disaster_event.review.no_triggered_disaster_events",
+											msg: "No linked triggered (subsequent) disaster events",
+										})}
 										layout="grid"
 									/>
 								</div>
@@ -891,9 +1101,15 @@ export default function DisasterEventReviewStep({
 				)}
 
 				{renderStep4SectionCard(
-					"Linked disaster records",
+					ctx.t({
+						code: "disaster_event.review.linked_disaster_records",
+						msg: "Linked disaster records",
+					}),
 					"pi pi-file text-blue-600",
-					"No disaster records linked yet",
+					ctx.t({
+						code: "disaster_event.review.no_linked_disaster_records",
+						msg: "No disaster records linked yet",
+					}),
 					<DataView
 						className="linked-disaster-records-grid"
 						value={linkedDisasterRecordTarget}
@@ -904,45 +1120,69 @@ export default function DisasterEventReviewStep({
 				)}
 
 				{renderStep4SectionCard(
-					"Responses",
+					ctx.t({
+						code: "disaster_event.review.responses",
+						msg: "Responses",
+					}),
 					"pi pi-file-edit text-blue-600",
-					"No responses recorded yet",
+					ctx.t({
+						code: "disaster_event.review.no_responses",
+						msg: "No responses recorded yet",
+					}),
 					responses.map((item) =>
 						renderStep4DetailRow(
+							ctx,
 							"response",
 							item,
 							getDetailTypeLabel,
 							getDetailDescriptionValue,
+							sectorNameById,
 						),
 					),
 					responses.length > 0,
 				)}
 
 				{renderStep4SectionCard(
-					"Assessments",
+					ctx.t({
+						code: "disaster_event.review.assessments",
+						msg: "Assessments",
+					}),
 					"pi pi-clipboard text-violet-600",
-					"No assessments recorded yet",
+					ctx.t({
+						code: "disaster_event.review.no_assessments",
+						msg: "No assessments recorded yet",
+					}),
 					assessments.map((item) =>
 						renderStep4DetailRow(
+							ctx,
 							"assessment",
 							item,
 							getDetailTypeLabel,
 							getDetailDescriptionValue,
+							sectorNameById,
 						),
 					),
 					assessments.length > 0,
 				)}
 
 				{renderStep4SectionCard(
-					"Official declarations",
+					ctx.t({
+						code: "disaster_event.review.official_declarations",
+						msg: "Official declarations",
+					}),
 					"pi pi-send text-amber-600",
-					"No declarations recorded yet",
+					ctx.t({
+						code: "disaster_event.review.no_declarations",
+						msg: "No declarations recorded yet",
+					}),
 					declarations.map((item) =>
 						renderStep4DetailRow(
+							ctx,
 							"declaration",
 							item,
 							getDetailTypeLabel,
 							getDetailDescriptionValue,
+							sectorNameById,
 						),
 					),
 					declarations.length > 0,
@@ -954,11 +1194,16 @@ export default function DisasterEventReviewStep({
 					<div className="col-span-12 mt-30 mb-6 h-[2px] w-full bg-slate-200" />
 
 					<div className="flex items-center justify-between w-full">
-						<Button type="button" label="Cancel" outlined onClick={onCancel} />
+						<Button
+							type="button"
+							label={ctx.t({ code: "common.cancel", msg: "Cancel" })}
+							outlined
+							onClick={onCancel}
+						/>
 						<div className="flex gap-2">
 							<Button
 								type="button"
-								label="Back"
+								label={ctx.t({ code: "common.back", msg: "Back" })}
 								outlined
 								icon="pi pi-chevron-left"
 								iconPos="left"
@@ -966,7 +1211,10 @@ export default function DisasterEventReviewStep({
 							/>
 							<Button
 								type="button"
-								label="Send for validation"
+								label={ctx.t({
+									code: "common.submit_for_validation",
+									msg: "Submit for validation",
+								})}
 								icon="pi pi-send"
 								iconPos="right"
 								onClick={onSendForValidation}

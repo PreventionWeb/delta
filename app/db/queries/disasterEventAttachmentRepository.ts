@@ -3,6 +3,7 @@ import { dr, Tx } from "~/db.server";
 import {
 	disasterEventAttachmentTable,
 	InsertDisasterEventAttachment,
+	SelectDisasterEventAttachment,
 } from "~/drizzle/schema";
 
 export const DisasterEventAttachmentRepository = {
@@ -32,6 +33,46 @@ export const DisasterEventAttachmentRepository = {
 
 	createMany: (data: InsertDisasterEventAttachment[], tx?: Tx) => {
 		return (tx ?? dr).insert(disasterEventAttachmentTable).values(data);
+	},
+	createOne: async (data: InsertDisasterEventAttachment, tx?: Tx) => {
+		const rows = await (tx ?? dr)
+			.insert(disasterEventAttachmentTable)
+			.values(data)
+			.returning();
+
+		return rows[0] ?? null;
+	},
+	getByIdAndDisasterEventId: (
+		id: string,
+		disasterEventId: string,
+		tx?: Tx,
+	): Promise<SelectDisasterEventAttachment | null> => {
+		return (tx ?? dr).query.disasterEventAttachmentTable
+			.findFirst({
+				where: and(
+					eq(disasterEventAttachmentTable.id, id),
+					eq(disasterEventAttachmentTable.disasterEventId, disasterEventId),
+				),
+			})
+			.then((row) => row ?? null);
+	},
+	updateById: async (
+		id: string,
+		data: Partial<InsertDisasterEventAttachment>,
+		tx?: Tx,
+	) => {
+		const rows = await (tx ?? dr)
+			.update(disasterEventAttachmentTable)
+			.set(data)
+			.where(eq(disasterEventAttachmentTable.id, id))
+			.returning();
+
+		return rows[0] ?? null;
+	},
+	deleteById: (id: string, tx?: Tx) => {
+		return (tx ?? dr)
+			.delete(disasterEventAttachmentTable)
+			.where(eq(disasterEventAttachmentTable.id, id));
 	},
 
 	deleteByDisasterEventIds: (disasterEventIds: string[], tx?: Tx) => {

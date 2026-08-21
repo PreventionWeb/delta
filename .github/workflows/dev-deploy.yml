@@ -90,6 +90,7 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{
               "event": "deploy",
+              "environment": "${{ github.event.inputs.environment }}",
               "repo": "${{ github.repository }}",
               "branch": "${{ github.ref_name }}",
               "sha": "${{ github.sha }}",

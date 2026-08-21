@@ -4,7 +4,6 @@ import {
 	uuid,
 	AnyPgColumn,
 	text,
-	timestamp,
 	jsonb,
 	unique,
 	index,
@@ -77,74 +76,7 @@ export const disasterEventTable = pgTable(
 		),
 		officialWarningAffectedAreas: zeroText("official_warning_affected_areas"),
 
-		// multiple rapid or preliminary assessments
-		rapidOrPreliminaryAssessmentDescription1: text(
-			"rapid_or_preliminary_assesment_description1",
-		),
-		rapidOrPreliminaryAssessmentDate1: timestamp(
-			"rapid_or_preliminary_assessment_date1",
-		),
-		rapidOrPreliminaryAssessmentDescription2: text(
-			"rapid_or_preliminary_assesment_description2",
-		),
-		rapidOrPreliminaryAssessmentDate2: timestamp(
-			"rapid_or_preliminary_assessment_date2",
-		),
-		rapidOrPreliminaryAssessmentDescription3: text(
-			"rapid_or_preliminary_assesment_description3",
-		),
-		rapidOrPreliminaryAssessmentDate3: timestamp(
-			"rapid_or_preliminary_assessment_date3",
-		),
-		rapidOrPreliminaryAssessmentDescription4: text(
-			"rapid_or_preliminary_assesment_description4",
-		),
-		rapidOrPreliminaryAssessmentDate4: timestamp(
-			"rapid_or_preliminary_assessment_date4",
-		),
-		rapidOrPreliminaryAssessmentDescription5: text(
-			"rapid_or_preliminary_assesment_description5",
-		),
-		rapidOrPreliminaryAssessmentDate5: timestamp(
-			"rapid_or_preliminary_assessment_date5",
-		),
-
-		// multiple post disaster assessments
-		postDisasterAssessmentDescription1: text(
-			"post_disaster_assessment_description1",
-		),
-		postDisasterAssessmentDate1: timestamp("post_disaster_assessment_date1"),
-		postDisasterAssessmentDescription2: text(
-			"post_disaster_assessment_description2",
-		),
-		postDisasterAssessmentDate2: timestamp("post_disaster_assessment_date2"),
-		postDisasterAssessmentDescription3: text(
-			"post_disaster_assessment_description3",
-		),
-		postDisasterAssessmentDate3: timestamp("post_disaster_assessment_date3"),
-		postDisasterAssessmentDescription4: text(
-			"post_disaster_assessment_description4",
-		),
-		postDisasterAssessmentDate4: timestamp("post_disaster_assessment_date4"),
-		postDisasterAssessmentDescription5: text(
-			"post_disaster_assessment_description5",
-		),
-		postDisasterAssessmentDate5: timestamp("post_disaster_assessment_date5"),
-
-		// multiple other assessments
-		otherAssessmentDescription1: text("other_assessment_description1"),
-		otherAssessmentDate1: timestamp("other_assessment_date1"),
-		otherAssessmentDescription2: text("other_assessment_description2"),
-		otherAssessmentDate2: timestamp("other_assessment_date2"),
-		otherAssessmentDescription3: text("other_assessment_description3"),
-		otherAssessmentDate3: timestamp("other_assessment_date3"),
-		otherAssessmentDescription4: text("other_assessment_description4"),
-		otherAssessmentDate4: timestamp("other_assessment_date4"),
-		otherAssessmentDescription5: text("other_assessment_description5"),
-		otherAssessmentDate5: timestamp("other_assessment_date5"),
-
 		dataSource: zeroText("data_source"),
-		recordingInstitution: zeroText("recording_institution"),
 		effectsTotalUsd: ourMoney("effects_total_usd"),
 		nonEconomicLosses: zeroText("non_economic_losses"),
 		damagesSubtotalLocalCurrency: ourMoney("damages_subtotal_local_currency"),

@@ -7316,5 +7316,960 @@
         "id": "notices.updated_at",
         "description": "File: app/domains/notices/presentation/NoticeListPage.tsx:52",
         "translation": "Последнее обновление"
+    },
+    {
+        "id": "admin.clone_country_account_timeout",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/clone.$id.tsx:60",
+        "translation": "В данном случае клонирование заняло слишком много времени. Пожалуйста, попробуйте ещё раз или клонируйте набор данных меньшего объёма."
+    },
+    {
+        "id": "admin.currency_lock_notice",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/edit.$id.tsx:321",
+        "translation": "Валюта фиксируется после настройки и может быть изменена только при наличии возможности конвертации валюты."
+    },
+    {
+        "id": "admin.select_currency",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/new.tsx:329",
+        "translation": "Выберите валюту"
+    },
+    {
+        "id": "common.cannot_save_record",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3694",
+        "translation": "Не удалось сохранить эту запись"
+    },
+    {
+        "id": "common.choose_file",
+        "description": "File: app/components/ContentRepeater/index.tsx:2766",
+        "translation": "Выберите файл"
+    },
+    {
+        "id": "common.no_users_available",
+        "description": "File: app/frontend/components/data-collection/View.tsx:337",
+        "translation": "Пользователей, которых можно назначить, нет."
+    },
+    {
+        "id": "common.notify",
+        "description": "File: app/frontend/components/data-collection/View.tsx:311",
+        "translation": "Уведомить"
+    },
+    {
+        "id": "common.opening",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4179",
+        "translation": "Открытие..."
+    },
+    {
+        "id": "common.return",
+        "description": "File: app/frontend/components/data-collection/View.tsx:231",
+        "translation": "Вернуться"
+    },
+    {
+        "id": "common.return_with_comments_description_to_user",
+        "description": "File: app/frontend/components/data-collection/View.tsx:278",
+        "translation": "Это будет возвращено с замечанием о необходимости внести изменения и повторно подать на утверждение."
+    },
+    {
+        "id": "common.select_users",
+        "description": "File: app/frontend/components/data-collection/View.tsx:325",
+        "translation": "Выбрать пользователей"
+    },
+    {
+        "id": "common.total",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:241",
+        "translation": "Итого"
+    },
+    {
+        "id": "common.upload_zip",
+        "description": "File: app/routes/$lang+/settings+/geography+/_layout.tsx:564",
+        "translation": "Загрузить ZIP-файл"
+    },
+    {
+        "id": "copied",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3434",
+        "translation": "Скопировано"
+    },
+    {
+        "id": "could_not_copy_to_clipboard",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3443",
+        "translation": "Не удалось скопировать в буфер обмена"
+    },
+    {
+        "id": "disaster_event.attachments.error.file_too_large",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:155",
+        "translation": "Размер файла превышает 10 МБ."
+    },
+    {
+        "id": "disaster_event.attachments.error.total_size_exceeded",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:189",
+        "translation": "Общий размер вложений превышает 10 МБ."
+    },
+    {
+        "id": "disaster_event.attachments.error.unsupported_type",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:144",
+        "translation": "Неподдерживаемый тип файла."
+    },
+    {
+        "id": "disaster_event.attachments.total_size",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:508",
+        "translation": "Общий размер"
+    },
+    {
+        "id": "disaster_event.cycle_conflicts",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.tsx:764",
+        "translation": "Противоречивые события:"
+    },
+    {
+        "id": "disaster_event.form.add_affected_areas",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4183",
+        "translation": "Добавить поражённые участки"
+    },
+    {
+        "id": "disaster_event.form.add_assessment",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4779",
+        "translation": "Добавить оценку"
+    },
+    {
+        "id": "disaster_event.form.add_declaration",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4830",
+        "translation": "Добавить объявление"
+    },
+    {
+        "id": "disaster_event.form.add_response",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4728",
+        "translation": "Добавить ответ"
+    },
+    {
+        "id": "disaster_event.form.additional_details",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4681",
+        "translation": "Дополнительная информация"
+    },
+    {
+        "id": "disaster_event.form.additional_details_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4700",
+        "translation": "Документальные отчеты, оценки и официальные заявления, связанные с данным стихийным бедствием."
+    },
+    {
+        "id": "disaster_event.form.assessments_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4770",
+        "translation": "Оценка потребностей в документации и аналитические обзоры"
+    },
+    {
+        "id": "disaster_event.form.copy_uuid",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3926",
+        "translation": "Скопировать UUID события аварии"
+    },
+    {
+        "id": "disaster_event.form.date_format_label",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:976",
+        "translation": "{label} формат"
+    },
+    {
+        "id": "disaster_event.form.declarations_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4821",
+        "translation": "Регистрация официальных заявлений о чрезвычайных ситуациях"
+    },
+    {
+        "id": "disaster_event.form.define_spatial_footprint",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4261",
+        "translation": "Определить площадь занимаемой территории"
+    },
+    {
+        "id": "disaster_event.form.enter_coverage",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4993",
+        "translation": "Ввести покрытие"
+    },
+    {
+        "id": "disaster_event.form.enter_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5049",
+        "translation": "Введите описание"
+    },
+    {
+        "id": "disaster_event.form.enter_issuing_organization",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5018",
+        "translation": "Укажите организацию-эмитента"
+    },
+    {
+        "id": "disaster_event.form.enter_other_sectors",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5152",
+        "translation": "Укажите другие отрасли (если они не указаны в списке)"
+    },
+    {
+        "id": "disaster_event.form.enter_type",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4887",
+        "translation": "Укажите тип"
+    },
+    {
+        "id": "disaster_event.form.event_basics",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3781",
+        "translation": "Основная информация о мероприятии"
+    },
+    {
+        "id": "disaster_event.form.event_basics_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3787",
+        "translation": "Общая информация о стихийном бедствии."
+    },
+    {
+        "id": "disaster_event.form.geographic_level_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4169",
+        "translation": "Выберите административные районы, в которых произошло стихийное бедствие."
+    },
+    {
+        "id": "disaster_event.form.hazard_and_timing",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3965",
+        "translation": "Опасность и выбор момента"
+    },
+    {
+        "id": "disaster_event.form.hazard_and_timing_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3971",
+        "translation": "Подробная информация о выявленных угрозах и сроках."
+    },
+    {
+        "id": "disaster_event.form.hazard_cluster_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4023",
+        "translation": "Группа рисков (наблюдаемая)"
+    },
+    {
+        "id": "disaster_event.form.hazard_type_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3984",
+        "translation": "Тип опасности (зафиксированный)"
+    },
+    {
+        "id": "disaster_event.form.linked_disaster_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4482",
+        "translation": "Связанные между собой стихийные бедствия"
+    },
+    {
+        "id": "disaster_event.form.linked_disaster_events_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4488",
+        "translation": "Свяжите это стихийное бедствие с его причиной или последствиями."
+    },
+    {
+        "id": "disaster_event.form.linked_disaster_records_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4599",
+        "translation": "Свяжите это событие, связанное со стихийным бедствием, с соответствующими записями о стихийных бедствиях."
+    },
+    {
+        "id": "disaster_event.form.linked_events_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4363",
+        "translation": "Определите связи между этим событием и другими записями системы."
+    },
+    {
+        "id": "disaster_event.form.linked_hazardous_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4371",
+        "translation": "Связанные опасные события"
+    },
+    {
+        "id": "disaster_event.form.linked_hazardous_events_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4377",
+        "translation": "Свяжите это чрезвычайное происшествие с сопутствующими опасными явлениями."
+    },
+    {
+        "id": "disaster_event.form.loading_affected_areas_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4196",
+        "translation": "Загрузка выбора затронутых областей"
+    },
+    {
+        "id": "disaster_event.form.loading_linked_disaster_records_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4623",
+        "translation": "Загрузка выбора связанных записей о стихийных бедствиях"
+    },
+    {
+        "id": "disaster_event.form.loading_linked_triggered_events_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4568",
+        "translation": "Загрузка селектора связанных триггерных событий"
+    },
+    {
+        "id": "disaster_event.form.loading_linked_triggered_hazardous_events_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4457",
+        "translation": "Загрузка выпадающего списка связанных опасных событий"
+    },
+    {
+        "id": "disaster_event.form.loading_linked_triggering_events_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4521",
+        "translation": "Загрузка выпадающего списка связанных триггерных событий"
+    },
+    {
+        "id": "disaster_event.form.loading_linked_triggering_hazardous_events_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4410",
+        "translation": "Загрузка выпадающего списка, связанного с триггерами опасных событий"
+    },
+    {
+        "id": "disaster_event.form.loading_spatial_footprint_editor",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4274",
+        "translation": "Загрузка редактора пространственного охвата"
+    },
+    {
+        "id": "disaster_event.form.manage_linked_disaster_records",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4610",
+        "translation": "Управление связанными записями о чрезвычайных ситуациях"
+    },
+    {
+        "id": "disaster_event.form.manage_linked_triggered_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4444",
+        "translation": "Управление связанными триггерными событиями"
+    },
+    {
+        "id": "disaster_event.form.manage_linked_triggering_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4397",
+        "translation": "Управление связанными триггерными событиями"
+    },
+    {
+        "id": "disaster_event.form.name_global_other",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3829",
+        "translation": "Название бедствия — Прочее (глобальное или региональное)"
+    },
+    {
+        "id": "disaster_event.form.no_spatial_footprint_items",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4292",
+        "translation": "Пока не добавлено ни одного элемента, занимающего место в пространстве"
+    },
+    {
+        "id": "disaster_event.form.other_sectors_help",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5138",
+        "translation": "Другие отрасли помогают"
+    },
+    {
+        "id": "disaster_event.form.placeholder.add_event_id",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3860",
+        "translation": "Добавить идентификатор события"
+    },
+    {
+        "id": "disaster_event.form.placeholder.add_event_name",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3838",
+        "translation": "Добавить название мероприятия"
+    },
+    {
+        "id": "disaster_event.form.placeholder.add_glide_number",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3888",
+        "translation": "Добавить номер GLIDE"
+    },
+    {
+        "id": "disaster_event.form.placeholder.name_national",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3810",
+        "translation": "Например, ураган «Митч»"
+    },
+    {
+        "id": "disaster_event.form.placeholder.yyyy",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1146",
+        "translation": "Год, год, год"
+    },
+    {
+        "id": "disaster_event.form.placeholder.yyyy_mm",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1109",
+        "translation": "Год-месяц"
+    },
+    {
+        "id": "disaster_event.form.placeholder.yyyy_mm_dd",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1062",
+        "translation": "Год-месяц-день"
+    },
+    {
+        "id": "disaster_event.form.remove_named",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3189",
+        "translation": "Удалить {name}"
+    },
+    {
+        "id": "disaster_event.form.responses_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4719",
+        "translation": "Отслеживание первоначальных действий и операций по реагированию"
+    },
+    {
+        "id": "disaster_event.form.select_format",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1002",
+        "translation": "Выберите формат"
+    },
+    {
+        "id": "disaster_event.form.select_hazard_cluster",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4041",
+        "translation": "Выбрать группу опасностей"
+    },
+    {
+        "id": "disaster_event.form.select_hazard_type",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4002",
+        "translation": "Выберите тип опасности"
+    },
+    {
+        "id": "disaster_event.form.select_sectors",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5068",
+        "translation": "Выбрать отрасли"
+    },
+    {
+        "id": "disaster_event.form.select_status",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4961",
+        "translation": "Выбрать статус"
+    },
+    {
+        "id": "disaster_event.form.select_type",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4906",
+        "translation": "Выберите тип"
+    },
+    {
+        "id": "disaster_event.form.spatial_footprint_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4247",
+        "translation": "Определите конкретный географический район, на который распространяется данная информация, с помощью координат на интерактивной карте или путем ручного ввода."
+    },
+    {
+        "id": "disaster_event.form.spatial_footprint_items_added",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4285",
+        "translation": "{count} элемента(ов) с пространственной занимаемой площадью добавлено"
+    },
+    {
+        "id": "disaster_event.form.spatial_footprint_numbered",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2414",
+        "translation": "Площадь размещения {count}"
+    },
+    {
+        "id": "disaster_event.form.spatial_information",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4142",
+        "translation": "Пространственная информация о стихийных бедствиях"
+    },
+    {
+        "id": "disaster_event.form.spatial_information_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4148",
+        "translation": "Укажите географические районы, в которых произошло стихийное бедствие."
+    },
+    {
+        "id": "disaster_event.form.specific_hazard_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4062",
+        "translation": "Конкретная опасность (наблюдаемая)"
+    },
+    {
+        "id": "disaster_event.form.tooltip.glide_number",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3711",
+        "translation": "Глобальный уникальный идентификатор, используемый для сопоставления данного события в международных системах оценки риска бедствий"
+    },
+    {
+        "id": "disaster_event.form.tooltip.hazard_cluster_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3729",
+        "translation": "Наблюдаемый кластер опасностей"
+    },
+    {
+        "id": "disaster_event.form.tooltip.hazard_type_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3720",
+        "translation": "Тип наблюдаемой опасности до полного подтверждения"
+    },
+    {
+        "id": "disaster_event.form.tooltip.other_sectors",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3747",
+        "translation": "Введите название сектора, которого нет в выпадающем списке выше, например: «Управление отходами», «Гуманитарная помощь»."
+    },
+    {
+        "id": "disaster_event.form.tooltip.specific_hazard_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3738",
+        "translation": "Конкретная наблюдаемая опасность"
+    },
+    {
+        "id": "disaster_event.form.validation.end_date_before_start_date",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2011",
+        "translation": "Дата окончания не может быть раньше даты начала"
+    },
+    {
+        "id": "disaster_event.form.validation.end_time_before_start_time",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2021",
+        "translation": "Время окончания не может быть раньше времени начала"
+    },
+    {
+        "id": "disaster_event.form.validation.end_time_requires_full_end_date",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1988",
+        "translation": "В поле «Время окончания» необходимо указать полную дату окончания (ГГГГ-ММ-ДД)"
+    },
+    {
+        "id": "disaster_event.form.validation.is_invalid",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:909",
+        "translation": "{label} — недопустимый символ"
+    },
+    {
+        "id": "disaster_event.form.validation.month_invalid",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:873",
+        "translation": "{label} месяц — недопустимое значение"
+    },
+    {
+        "id": "disaster_event.form.validation.national_name_required",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1952",
+        "translation": "Обязательно указать название стихийного бедствия (национальное)"
+    },
+    {
+        "id": "disaster_event.form.validation.requires_complete_date",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:890",
+        "translation": "{label} требует указания полной даты"
+    },
+    {
+        "id": "disaster_event.form.validation.requires_year_and_month",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:862",
+        "translation": "{label} требует указания как года, так и месяца"
+    },
+    {
+        "id": "disaster_event.form.validation.start_date_required_when_end_date_has_value",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1995",
+        "translation": "Дата начала является обязательной, если указана дата окончания"
+    },
+    {
+        "id": "disaster_event.form.validation.start_time_requires_full_start_date",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1978",
+        "translation": "В поле «Время начала» необходимо указать полную дату начала (ГГГГ-ММ-ДД)"
+    },
+    {
+        "id": "disaster_event.form.validation.year_must_be_4_digits",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:849",
+        "translation": "{label} год должен состоять из 4 цифр"
+    },
+    {
+        "id": "disaster_event.invalid_hazardous_event_reference",
+        "description": "File: app/backend.server/models/event.ts:1989",
+        "translation": "Неверная ссылка на опасное событие для данного экземпляра"
+    },
+    {
+        "id": "disaster_event.review.assessment",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1793",
+        "translation": "Оценка"
+    },
+    {
+        "id": "disaster_event.review.assessments",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1770",
+        "translation": "Оценки"
+    },
+    {
+        "id": "disaster_event.review.basic_information",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3767",
+        "translation": "Основная информация"
+    },
+    {
+        "id": "disaster_event.review.coverage",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3152",
+        "translation": "Объем покрытия"
+    },
+    {
+        "id": "disaster_event.review.date_at_time",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2497",
+        "translation": "{date} в {time}"
+    },
+    {
+        "id": "disaster_event.review.declaration",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1440",
+        "translation": "Декларация"
+    },
+    {
+        "id": "disaster_event.review.disaster_declaration_effects",
+        "description": "File: app/frontend/events/disastereventform.tsx:1503",
+        "translation": "Последствия объявления чрезвычайной ситуации"
+    },
+    {
+        "id": "disaster_event.review.hazard_details",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:796",
+        "translation": "Сведения об опасности"
+    },
+    {
+        "id": "disaster_event.review.issuing_organization",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5005",
+        "translation": "Организация-эмитент"
+    },
+    {
+        "id": "disaster_event.review.linked_disaster_records",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4593",
+        "translation": "Связанные записи о стихийных бедствиях"
+    },
+    {
+        "id": "disaster_event.review.linked_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4344",
+        "translation": "Связанные события"
+    },
+    {
+        "id": "disaster_event.review.links",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:901",
+        "translation": "Ссылки"
+    },
+    {
+        "id": "disaster_event.review.location",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:830",
+        "translation": "Местоположение"
+    },
+    {
+        "id": "disaster_event.review.map",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:391",
+        "translation": "Карта"
+    },
+    {
+        "id": "disaster_event.review.no_assessments",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4799",
+        "translation": "Оценок пока не зафиксировано"
+    },
+    {
+        "id": "disaster_event.review.no_attachments_selected",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:945",
+        "translation": "Вложения не выбраны"
+    },
+    {
+        "id": "disaster_event.review.no_declarations",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4850",
+        "translation": "Заявлений пока не зарегистрировано"
+    },
+    {
+        "id": "disaster_event.review.no_geographic_levels",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:860",
+        "translation": "Географические уровни не выбраны"
+    },
+    {
+        "id": "disaster_event.review.no_linked_disaster_records",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:1109",
+        "translation": "Пока не найдено ни одной записи о стихийных бедствиях"
+    },
+    {
+        "id": "disaster_event.review.no_linked_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:1007",
+        "translation": "Пока не выбрано ни одного связанного события, связанного с опасностью или стихийным бедствием"
+    },
+    {
+        "id": "disaster_event.review.no_linked_records",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4638",
+        "translation": "Связанных записей нет"
+    },
+    {
+        "id": "disaster_event.review.no_links_selected",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:903",
+        "translation": "Ссылки не выбраны"
+    },
+    {
+        "id": "disaster_event.review.no_location_details",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:835",
+        "translation": "Сведения о местоположении отсутствуют"
+    },
+    {
+        "id": "disaster_event.review.no_responses",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4748",
+        "translation": "Ответов пока не зафиксировано"
+    },
+    {
+        "id": "disaster_event.review.no_spatial_data",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:883",
+        "translation": "Пространственные данные не определены"
+    },
+    {
+        "id": "disaster_event.review.no_triggered_disaster_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4581",
+        "translation": "Отсутствие связанных (последующих) катастрофических событий"
+    },
+    {
+        "id": "disaster_event.review.no_triggered_hazardous_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4470",
+        "translation": "Не было связанных с этим (последующих) опасных событий"
+    },
+    {
+        "id": "disaster_event.review.no_triggering_disaster_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4534",
+        "translation": "Отсутствие взаимосвязанных (причинно-следственных) катастрофических событий"
+    },
+    {
+        "id": "disaster_event.review.no_triggering_hazardous_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4423",
+        "translation": "Отсутствие взаимосвязанных инициирующих (причинных) опасных событий"
+    },
+    {
+        "id": "disaster_event.review.official_declarations",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1775",
+        "translation": "Официальные заявления"
+    },
+    {
+        "id": "disaster_event.review.other_sectors",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5131",
+        "translation": "Другие отрасли"
+    },
+    {
+        "id": "disaster_event.review.response_operation",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1788",
+        "translation": "Ответная операция"
+    },
+    {
+        "id": "disaster_event.review.responses",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1765",
+        "translation": "Ответы"
+    },
+    {
+        "id": "disaster_event.review.review_and_save",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5303",
+        "translation": "Просмотреть и сохранить"
+    },
+    {
+        "id": "disaster_event.review.spatial_footprint_index",
+        "description": "File: app/frontend/events/disastereventform.tsx:1129",
+        "translation": "Площадь занимаемой территории {index}"
+    },
+    {
+        "id": "disaster_event.review.triggered_disaster_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4544",
+        "translation": "Следующие за этим (последующие) чрезвычайные события"
+    },
+    {
+        "id": "disaster_event.review.triggered_hazardous_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4433",
+        "translation": "Спровоцированные (последующие) опасные события"
+    },
+    {
+        "id": "disaster_event.review.triggering_disaster_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4497",
+        "translation": "События, вызывающие (причинные) стихийные бедствия"
+    },
+    {
+        "id": "disaster_event.review.triggering_hazardous_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4386",
+        "translation": "Спровоцировавшие (причинные) опасные события"
+    },
+    {
+        "id": "disaster_event.review.verify_before_saving",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:725",
+        "translation": "Перед сохранением проверьте информацию."
+    },
+    {
+        "id": "disaster_events.back_to_list",
+        "description": "File: app/frontend/events/disastereventform.tsx:1555",
+        "translation": "Вернуться к событиям, связанным с стихийными бедствиями"
+    },
+    {
+        "id": "disaster_record.damages.total_repair_cost",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:252",
+        "translation": "Общая стоимость ремонта"
+    },
+    {
+        "id": "disaster_record.damages.unit_repair_cost",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:249",
+        "translation": "Стоимость ремонта единицы оборудования"
+    },
+    {
+        "id": "disaster_record.losses.unit_value",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:364",
+        "translation": "Стоимость единицы"
+    },
+    {
+        "id": "disruption.duration_days",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:419",
+        "translation": "Продолжительность (дни)"
+    },
+    {
+        "id": "disruption.duration_hours",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:420",
+        "translation": "Продолжительность (часы)"
+    },
+    {
+        "id": "disruption.people_affected",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:422",
+        "translation": "Затронутые люди"
+    },
+    {
+        "id": "disruption.response_operation",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:423",
+        "translation": "Ответная операция"
+    },
+    {
+        "id": "disruption.users_affected",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:421",
+        "translation": "Затронутые пользователи"
+    },
+    {
+        "id": "email.assigned_validators.body_html",
+        "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:117",
+        "translation": "\u003cp\u003eУважаемый {validatorName},\u003c/p\u003e\n\u003cp\u003eНовое {recordType} ожидает вашего участия. Перейдите по ссылке ниже, чтобы просмотреть мероприятие.\u003c/p\u003e\n\u003cp\u003eНазвание мероприятия: {recordEventName} \u003cbr /\u003eДата мероприятия: {recordDate} \u003cbr /\u003eАвтор: {recordSubmitterName}\u003c/p\u003e\n\u003cp\u003e\u003ca href=\"{recordUrl}\"\u003eПросмотреть мероприятие\u003c/a\u003e\u003c/p\u003e"
+    },
+    {
+        "id": "email.assigned_validators.body_text",
+        "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:137",
+        "translation": "Уважаемый {validatorName},\n\nНовое {recordType} ждет вашего участия. Перейдите по ссылке ниже, чтобы просмотреть мероприятие.\n\nНазвание мероприятия: {recordEventName}\nДата мероприятия: {recordDate}\nАвтор: {recordSubmitterName}\n\nПросмотреть мероприятие: {recordUrl}"
+    },
+    {
+        "id": "email.assigned_validators.subject",
+        "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:49",
+        "translation": "Проверка события"
+    },
+    {
+        "id": "email.assignees_notification.body_returned_html",
+        "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:504",
+        "translation": "\u003cp\u003eУважаемый {assigneeName},\u003c/p\u003e\n\u003cp\u003eЗаявка {recordType} была возвращена на доработку.\u003c/p\u003e\n\u003cp\u003eВозвратил: {recordSubmitterName}\u003c/p\u003e\n\u003cp\u003eКомментарии: {rejectionMessage}\u003c/p\u003e\n\u003cp\u003e\u003ca href=\"{recordUrl}\"\u003eПросмотреть\u003c/a\u003e\u003c/p\u003e"
+    },
+    {
+        "id": "email.assignees_notification.body_returned_text",
+        "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:524",
+        "translation": "Уважаемый {assigneeName},\n\nЗаявка {recordType} была возвращена на доработку.\n\nВозвратил: {recordSubmitterName}\n\nКомментарии: {rejectionMessage}\n\nПросмотреть: {recordUrl}"
+    },
+    {
+        "id": "email.assignees_notification.subject_returned",
+        "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:467",
+        "translation": "Запись с возвратом — требуется действие"
+    },
+    {
+        "id": "end_time",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:962",
+        "translation": "Время окончания"
+    },
+    {
+        "id": "failed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3442",
+        "translation": "Не удалось"
+    },
+    {
+        "id": "geographies.add_division",
+        "description": "File: app/routes/$lang+/settings+/geography+/new.tsx:338",
+        "translation": "Добавить деление"
+    },
+    {
+        "id": "geographies.add_division_subtitle",
+        "description": "File: app/routes/$lang+/settings+/geography+/new.tsx:354",
+        "translation": "Создать новое административное подразделение."
+    },
+    {
+        "id": "geographies.cannot_delete_division_linked_children",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:56",
+        "translation": "С существующими геопространственными записями связано одно или несколько дочерних подразделений."
+    },
+    {
+        "id": "geographies.cannot_delete_linked_division",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:49",
+        "translation": "Данный раздел привязан к существующим геопространственным записям и не может быть удален."
+    },
+    {
+        "id": "geographies.cannot_delete_parent_division",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:40",
+        "translation": "У этого подразделения есть дочерние подразделения. Сначала удалите или переместите дочерние подразделения."
+    },
+    {
+        "id": "geographies.delete_division_confirmation",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:287",
+        "translation": "Эти данные нельзя восстановить после удаления."
+    },
+    {
+        "id": "geographies.delete_division_title",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:106",
+        "translation": "Удалить подразделение"
+    },
+    {
+        "id": "geographies.division_deleted_successfully",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:223",
+        "translation": "Подразделение удалено успешно."
+    },
+    {
+        "id": "geographies.download_geometry",
+        "description": "File: app/routes/$lang+/settings+/geography+/edit.$id.tsx:463",
+        "translation": "Скачать геометрию"
+    },
+    {
+        "id": "geographies.failed_delete_division",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:180",
+        "translation": "Не удается удалить этот подраздел из-за связанных с ним данных. Сначала удалите ссылки или дочерние подразделы."
+    },
+    {
+        "id": "geographies.upload_geometry",
+        "description": "File: app/routes/$lang+/settings+/geography+/edit.$id.tsx:489",
+        "translation": "Загрузить геометрию"
+    },
+    {
+        "id": "geographies.upload_geometry_hint",
+        "description": "File: app/routes/$lang+/settings+/geography+/edit.$id.tsx:502",
+        "translation": "Загрузка геометрии доступна только в том случае, если для данного подразделения геометрия ещё не создана."
+    },
+    {
+        "id": "human_effects.error.subtotal_larger_than_total_unset",
+        "description": "No total has been set for this metric. {group} is the group name(s), {column} is the metric name. File: app/frontend/editabletable/validate.ts:272",
+        "translation": "Для группы ({group}) не задан общий набор, столбец «{column}»"
+    },
+    {
+        "id": "nav.human_effects",
+        "description": "File: app/components/RegularMenuBar.tsx:413",
+        "translation": "Влияние на человека"
+    },
+    {
+        "id": "no_disaster_events_found",
+        "description": "File: app/frontend/disaster-event/DisasterEventsPage.tsx:856",
+        "translation": "События, связанные с чрезвычайными ситуациями, не найдены"
+    },
+    {
+        "id": "of",
+        "description": "File: app/frontend/disaster-event/DisasterEventsPage.tsx:979",
+        "translation": "из"
+    },
+    {
+        "id": "recovery_cost.sector",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:124",
+        "translation": "Стоимость восстановления"
+    },
+    {
+        "id": "rows_per_page",
+        "description": "File: app/frontend/disaster-event/DisasterEventsPage.tsx:973",
+        "translation": "Количество строк на странице"
+    },
+    {
+        "id": "spatial_footprint.define_specific_geographic_area",
+        "description": "Help text for spatial footprint section File: app/frontend/spatialFootprintFormView2.tsx:61",
+        "translation": "Определите конкретный географический район, на который распространяется влияние, с помощью координат на интерактивной карте или путем ручного ввода."
+    },
+    {
+        "id": "start_time",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:961",
+        "translation": "Время начала"
+    },
+    {
+        "id": "time_placeholder_24h",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:963",
+        "translation": "Время (24-часовой формат, например, 14:30)"
+    },
+    {
+        "id": "unit.centimeters",
+        "description": "File: app/frontend/unit_picker.tsx:164",
+        "translation": "Сантиметры (см)"
+    },
+    {
+        "id": "unit.feet",
+        "description": "File: app/frontend/unit_picker.tsx:172",
+        "translation": "Футы (ft)"
+    },
+    {
+        "id": "unit.kilometers",
+        "description": "File: app/frontend/unit_picker.tsx:160",
+        "translation": "Километры (км)"
+    },
+    {
+        "id": "unit.length",
+        "description": "File: app/frontend/unit_picker.tsx:76",
+        "translation": "Длина"
+    },
+    {
+        "id": "unit.meters",
+        "description": "File: app/frontend/unit_picker.tsx:156",
+        "translation": "Метры (м)"
+    },
+    {
+        "id": "unit.miles",
+        "description": "File: app/frontend/unit_picker.tsx:180",
+        "translation": "Мили (ми)"
+    },
+    {
+        "id": "unit.millimeters",
+        "description": "File: app/frontend/unit_picker.tsx:168",
+        "translation": "Миллиметры (мм)"
+    },
+    {
+        "id": "unit.nautical_miles",
+        "description": "File: app/frontend/unit_picker.tsx:184",
+        "translation": "Морские мили (NM)"
+    },
+    {
+        "id": "unit.yards",
+        "description": "File: app/frontend/unit_picker.tsx:176",
+        "translation": "Ярды (yd)"
+    },
+    {
+        "id": "user.permission.delete_disaster_event.label",
+        "description": "File: app/frontend/user/roles.ts:165",
+        "translation": "Удалить событие стихийного бедствия"
+    },
+    {
+        "id": "user.permission.disaster_event_list.label",
+        "description": "File: app/frontend/user/roles.ts:157",
+        "translation": "Список чрезвычайных ситуаций"
+    },
+    {
+        "id": "user.permission.edit_disaster_event.label",
+        "description": "File: app/frontend/user/roles.ts:173",
+        "translation": "Редактирование события катастрофы"
+    },
+    {
+        "id": "uuid_copied_to_clipboard",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3435",
+        "translation": "UUID {shortUuid}… скопировано в буфер обмена"
     }
 ]
