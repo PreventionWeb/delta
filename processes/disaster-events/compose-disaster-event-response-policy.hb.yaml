@@ -1,0 +1,25 @@
+id: compose-disaster-event-response-policy
+type: policy
+description: >
+  A data collector composes (creates or edits) a response for a disaster
+  event, selecting a response type and optionally coverage, description,
+  and attachments.
+businessGoal: a disaster event's responses carry a valid, tenant-scoped response type
+context: country-office
+actor: data-collector
+activatedBy: [disaster.event.response.save.requested]
+emits: compose.disaster.event.response
+processes: [disaster-events]
+
+preconditions:
+  - id: parent-event-in-tenant
+    description: The disaster event must exist and belong to the collector's tenant
+    reads: [disaster.event.response.disaster.event.country.account]
+
+  - id: response-type-resolvable
+    description: The submitted response type (id or text) must resolve to an entry in the global, seed-only response-type reference table
+    reads: [disaster.event.response.type]
+
+  - id: collector-judges-data-accurate
+    description: The collector's judgment that the response's fields and attachments reflect reality
+    reads: [disaster.event.response.fields]

@@ -1,0 +1,18 @@
+id: delete-disaster-event-declaration-policy
+type: policy
+description: A data collector decides to permanently remove a declaration from a disaster event.
+businessGoal: obsolete or mistaken declarations can be removed
+context: country-office
+actor: data-collector
+activatedBy: [disaster.event.declaration.deletion.requested]
+emits: delete.disaster.event.declaration
+processes: [disaster-events]
+
+preconditions:
+  - id: declaration-exists
+    description: The target declaration must exist in this tenant
+    reads: [disaster.event.declaration.exists]
+
+  - id: collector-confirms-deletion
+    description: The collector's explicit intent to permanently delete this declaration
+    reads: [disaster.event.declaration.exists]

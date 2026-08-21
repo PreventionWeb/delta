@@ -1,0 +1,28 @@
+id: delete-disaster-event-assessment-operation
+type: operation
+description: >
+  Delete the assessment row. Unlike Hazardous Event deletion, this is never
+  blocked by dependents — sector-relation and attachment rows cascade via a
+  database-level ON DELETE CASCADE, not an app-layer dependent-check.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [delete.disaster.event.assessment]
+processes: [disaster-events]
+
+constraints:
+  - id: assessment-exists
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [disaster.event.assessment.exists]
+
+unconditionalOutcome:
+  kind: disaster.event.assessment.deleted
+  description: The assessment and its sector/attachment rows are permanently removed
+  effects:
+    - point: disaster.event.assessment.exists
+      description: Set to false
+    - point: disaster.event.assessment.sectors
+      description: Cascade-deleted at the database level
+    - point: disaster.event.assessment.attachments
+      description: Cascade-deleted at the database level
+
+conditionalOutcomes: []

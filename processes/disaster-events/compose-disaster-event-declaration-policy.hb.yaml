@@ -1,0 +1,31 @@
+id: compose-disaster-event-declaration-policy
+type: policy
+description: >
+  A data collector composes (creates or edits) a declaration for a disaster
+  event, optionally setting a status, effects, issuing organization,
+  coverage, and attachments.
+businessGoal: a disaster event's declarations are tenant-scoped and, when a status is set, resolve to a valid reference value
+context: country-office
+actor: data-collector
+activatedBy: [disaster.event.declaration.save.requested]
+emits: compose.disaster.event.declaration
+processes: [disaster-events]
+
+preconditions:
+  - id: parent-event-in-tenant
+    description: The disaster event must exist and belong to the collector's tenant
+    reads: [disaster.event.declaration.disaster.event.country.account]
+
+  - id: declaration-status-resolvable-if-set
+    description: >
+      If a status is submitted (id or text), it must resolve to an entry in
+      the global, seed-only declaration-status reference table. Confirmed
+      with the domain expert: a declaration with no status at all is
+      intentionally valid — unlike assessment-type and response-type, a
+      declaration status is optional by design, not a required
+      classification.
+    reads: [disaster.event.declaration.status]
+
+  - id: collector-judges-data-accurate
+    description: The collector's judgment that the declaration's fields and attachments reflect reality
+    reads: [disaster.event.declaration.fields]

@@ -1,0 +1,26 @@
+id: delete-disaster-event-response-operation
+type: operation
+description: >
+  Delete the response row. Unlike Hazardous Event deletion, this is never
+  blocked by dependents — the attachment rows cascade via a database-level
+  ON DELETE CASCADE, not an app-layer dependent-check.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [delete.disaster.event.response]
+processes: [disaster-events]
+
+constraints:
+  - id: response-exists
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [disaster.event.response.exists]
+
+unconditionalOutcome:
+  kind: disaster.event.response.deleted
+  description: The response and its attachment rows are permanently removed
+  effects:
+    - point: disaster.event.response.exists
+      description: Set to false
+    - point: disaster.event.response.attachments
+      description: Cascade-deleted at the database level
+
+conditionalOutcomes: []

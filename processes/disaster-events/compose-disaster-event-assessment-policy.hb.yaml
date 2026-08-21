@@ -1,0 +1,25 @@
+id: compose-disaster-event-assessment-policy
+type: policy
+description: >
+  A data collector composes (creates or edits) an assessment for a disaster
+  event, selecting an assessment type and optionally a sector-level
+  breakdown and attachments.
+businessGoal: a disaster event's assessments carry a valid, tenant-scoped type and an internally consistent sector breakdown
+context: country-office
+actor: data-collector
+activatedBy: [disaster.event.assessment.save.requested]
+emits: compose.disaster.event.assessment
+processes: [disaster-events]
+
+preconditions:
+  - id: parent-event-in-tenant
+    description: The disaster event must exist and belong to the collector's tenant
+    reads: [disaster.event.assessment.disaster.event.country.account]
+
+  - id: assessment-type-resolvable
+    description: The submitted assessment type (id or text) must resolve to an entry in the global, seed-only assessment-type reference table
+    reads: [disaster.event.assessment.type]
+
+  - id: collector-judges-data-accurate
+    description: The collector's judgment that the assessment's fields, sector breakdown, and attachments reflect reality
+    reads: [disaster.event.assessment.fields]

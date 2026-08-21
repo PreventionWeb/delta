@@ -1,0 +1,40 @@
+id: compose-disaster-event-response-operation
+type: operation
+description: >
+  Persist the response's fields, replacing its attachments wholesale with
+  the submitted set (not diffed). No sector-level breakdown exists for
+  responses, unlike assessments (see
+  compose-disaster-event-assessment-operation). Confirmed with the domain
+  expert: this operation is independent of the disaster event's own
+  approval/validation status by design, same as assessments and
+  declarations — verified with no coupling found across the API layer, the
+  disaster-event validation-workflow model, or the approval SaveSubmitDialog
+  UI.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [compose.disaster.event.response]
+processes: [disaster-events]
+
+constraints:
+  - id: parent-event-in-tenant
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [disaster.event.response.disaster.event.country.account]
+
+  - id: response-type-resolvable
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [disaster.event.response.type]
+
+  - id: response-exists-on-update
+    description: When updating an existing response (not creating a new one), the target row must already exist
+    reads: [disaster.event.response.exists]
+
+unconditionalOutcome:
+  kind: disaster.event.response.composed
+  description: The response exists with its fields synced; attachments are fully replaced
+  effects:
+    - point: disaster.event.response.exists
+      description: Created, or its fields updated
+    - point: disaster.event.response.attachments
+      description: Replaced wholesale with the submitted attachment set (not diffed)
+
+conditionalOutcomes: []

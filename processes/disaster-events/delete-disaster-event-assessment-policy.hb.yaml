@@ -1,0 +1,18 @@
+id: delete-disaster-event-assessment-policy
+type: policy
+description: A data collector decides to permanently remove an assessment from a disaster event.
+businessGoal: obsolete or mistaken assessments can be removed
+context: country-office
+actor: data-collector
+activatedBy: [disaster.event.assessment.deletion.requested]
+emits: delete.disaster.event.assessment
+processes: [disaster-events]
+
+preconditions:
+  - id: assessment-exists
+    description: The target assessment must exist in this tenant
+    reads: [disaster.event.assessment.exists]
+
+  - id: collector-confirms-deletion
+    description: The collector's explicit intent to permanently delete this assessment
+    reads: [disaster.event.assessment.exists]

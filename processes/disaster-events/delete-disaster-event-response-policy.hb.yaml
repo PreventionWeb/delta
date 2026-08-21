@@ -1,0 +1,18 @@
+id: delete-disaster-event-response-policy
+type: policy
+description: A data collector decides to permanently remove a response from a disaster event.
+businessGoal: obsolete or mistaken responses can be removed
+context: country-office
+actor: data-collector
+activatedBy: [disaster.event.response.deletion.requested]
+emits: delete.disaster.event.response
+processes: [disaster-events]
+
+preconditions:
+  - id: response-exists
+    description: The target response must exist in this tenant
+    reads: [disaster.event.response.exists]
+
+  - id: collector-confirms-deletion
+    description: The collector's explicit intent to permanently delete this response
+    reads: [disaster.event.response.exists]

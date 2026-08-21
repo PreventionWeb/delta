@@ -1,0 +1,42 @@
+id: compose-disaster-event-assessment-operation
+type: operation
+description: >
+  Persist the assessment's fields, replacing its sector-relation rows and
+  attachments wholesale with the submitted set (not diffed against the
+  prior set). Confirmed with the domain expert: this operation is
+  independent of the disaster event's own approval/validation status by
+  design — an assessment can be created, edited, or deleted regardless of
+  whether the parent event is pending, validated, or published. Verified
+  across three independent surfaces (this API layer, the disaster-event
+  validation-workflow model, and the approval SaveSubmitDialog UI) with no
+  coupling found in any of them.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [compose.disaster.event.assessment]
+processes: [disaster-events]
+
+constraints:
+  - id: parent-event-in-tenant
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [disaster.event.assessment.disaster.event.country.account]
+
+  - id: assessment-type-resolvable
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [disaster.event.assessment.type]
+
+  - id: assessment-exists-on-update
+    description: When updating an existing assessment (not creating a new one), the target row must already exist
+    reads: [disaster.event.assessment.exists]
+
+unconditionalOutcome:
+  kind: disaster.event.assessment.composed
+  description: The assessment exists with its fields synced; sector breakdown and attachments are fully replaced
+  effects:
+    - point: disaster.event.assessment.exists
+      description: Created, or its fields updated
+    - point: disaster.event.assessment.sectors
+      description: Replaced wholesale with the submitted sector set (not diffed) — sector-level breakdown is assessment-specific; declarations and responses carry no equivalent (plausible domain convention — rapid/preliminary assessments are typically sector-specific, declarations/responses are administrative — not confirmed as a hard rule)
+    - point: disaster.event.assessment.attachments
+      description: Replaced wholesale with the submitted attachment set (not diffed)
+
+conditionalOutcomes: []

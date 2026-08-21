@@ -1,0 +1,26 @@
+id: delete-disaster-event-declaration-operation
+type: operation
+description: >
+  Delete the declaration row. Unlike Hazardous Event deletion, this is never
+  blocked by dependents — the attachment rows cascade via a database-level
+  ON DELETE CASCADE, not an app-layer dependent-check.
+context: delta-platform
+actor: delta-platform-engine
+activatedBy: [delete.disaster.event.declaration]
+processes: [disaster-events]
+
+constraints:
+  - id: declaration-exists
+    description: Re-checked at execution time — same rule as the paired policy
+    reads: [disaster.event.declaration.exists]
+
+unconditionalOutcome:
+  kind: disaster.event.declaration.deleted
+  description: The declaration and its attachment rows are permanently removed
+  effects:
+    - point: disaster.event.declaration.exists
+      description: Set to false
+    - point: disaster.event.declaration.attachments
+      description: Cascade-deleted at the database level
+
+conditionalOutcomes: []
