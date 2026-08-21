@@ -234,14 +234,6 @@ export function fieldsDefCommon(
 			},
 		},
 		{
-			key: "recordingInstitution",
-			label: ctx.t({
-				code: "disaster_event.recording_institution",
-				msg: "Recording institution",
-			}),
-			type: "text",
-		},
-		{
 			key: "effectsTotalUsd",
 			label: ctx.t({
 				code: "disaster_event.effects_total_usd",
@@ -1076,7 +1068,16 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 			typeof timeValue === "string" && timeValue.trim().length > 0
 				? timeValue.trim().slice(0, 5)
 				: "-";
-		return `${dateText} at ${timeText}`;
+		return ctx.t(
+			{
+				code: "disaster_event.review.date_at_time",
+				msg: "{date} at {time}",
+			},
+			{
+				date: dateText,
+				time: timeText,
+			},
+		);
 	};
 	const hipName = (value: any): string => {
 		if (!value) {
@@ -1123,7 +1124,16 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 		})
 		.map((entry, index) => {
 			const title = typeof entry?.title === "string" ? entry.title.trim() : "";
-			return title || `Spatial footprint ${index + 1}`;
+			return (
+				title ||
+				ctx.t(
+					{
+						code: "disaster_event.review.spatial_footprint_index",
+						msg: "Spatial footprint {index}",
+					},
+					{ index: index + 1 },
+				)
+			);
 		});
 	const buildAttachmentViewerName = (attachment: any): string => {
 		const eventId = String(itemAny?.id || "").trim();
@@ -1398,7 +1408,13 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 
 			return {
 				id: assessmentId,
-				type: String(assessment?.assessmentType || "Assessment"),
+				type: String(
+					assessment?.assessmentType ||
+						ctx.t({
+							code: "disaster_event.review.assessment",
+							msg: "Assessment",
+						}),
+				),
 				date: formatReviewDate(assessment?.assessmentDate),
 				coverage,
 				description: descriptionParts.join("\n"),
@@ -1428,7 +1444,12 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 
 			return {
 				id: declarationId,
-				type: declarationType || "Declaration",
+				type:
+					declarationType ||
+					ctx.t({
+						code: "disaster_event.review.declaration",
+						msg: "Declaration",
+					}),
 				date: formatReviewDate(declaration?.declarationDate),
 				coverage,
 				description: effects,
@@ -1449,21 +1470,45 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 	const getDetailTypeLabel = (value: string) => {
 		switch (value) {
 			case "early_action":
-				return "Early action";
+				return ctx.t({
+					code: "disaster_event.early_action",
+					msg: "Early action",
+				});
 			case "response_operation":
-				return "Response operation";
+				return ctx.t({
+					code: "disaster_event.review.response_operation",
+					msg: "Response operation",
+				});
 			case "rapid_preliminary_assessment":
-				return "Rapid/Preliminary assessment";
+				return ctx.t({
+					code: "disaster_event.rapid_preliminary_assessment",
+					msg: "Rapid/Preliminary assessment",
+				});
 			case "post_disaster_assessment":
-				return "Post-disaster assessment";
+				return ctx.t({
+					code: "disaster_event.post_disaster_assessment",
+					msg: "Post-disaster assessment",
+				});
 			case "other_assessment":
-				return "Other assessment";
+				return ctx.t({
+					code: "disaster_event.other_assessment",
+					msg: "Other assessment",
+				});
 			case "disaster_declaration":
-				return "Disaster declaration";
+				return ctx.t({
+					code: "disaster_event.disaster_declaration",
+					msg: "Disaster declaration",
+				});
 			case "disaster_declaration_effects":
-				return "Disaster declaration effects";
+				return ctx.t({
+					code: "disaster_event.review.disaster_declaration_effects",
+					msg: "Disaster declaration effects",
+				});
 			case "official_warning":
-				return "Official warning";
+				return ctx.t({
+					code: "common.official_warning",
+					msg: "Official Warning",
+				});
 			default:
 				return value;
 		}
@@ -1478,7 +1523,10 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 			detail.coverage.trim().length > 0
 		) {
 			return [
-				`Coverage: ${detail.coverage.trim()}`,
+				`${ctx.t({
+					code: "disaster_event.review.coverage",
+					msg: "Coverage",
+				})}: ${detail.coverage.trim()}`,
 				typeof detail?.description === "string" ? detail.description : "",
 			]
 				.filter((value) => value.trim().length > 0)
@@ -1521,6 +1569,7 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 			})}
 		>
 			<DisasterEventReviewStep
+				ctx={ctx}
 				form={{
 					nameNational: itemAny?.nameNational || "",
 					nameGlobalOrRegional: itemAny?.nameGlobalOrRegional || "",
@@ -1528,7 +1577,7 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 					glide: itemAny?.glide || "",
 					id: itemAny?.id || "",
 					recordingOrganizationName:
-						itemAny?.recordingInstitution || itemAny?.recordOriginator || "",
+						itemAny?.recordOriginator || "",
 				}}
 				selectedHazardTypeName={hipName(itemAny?.hipType)}
 				selectedHazardClusterName={hipName(itemAny?.hipCluster)}

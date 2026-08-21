@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { ViewContext } from "~/frontend/context";
 
-type LinkedHazardousEventCardItem = {
+type LinkedDisasterRecordCardItem = {
 	id: string;
 	name: string;
 	code: string;
@@ -10,8 +10,8 @@ type LinkedHazardousEventCardItem = {
 	divisionNamesLabel?: string;
 };
 
-type LinkedHazardousEventCardProps = {
-	item: LinkedHazardousEventCardItem;
+type LinkedDisasterRecordCardProps = {
+	item: LinkedDisasterRecordCardItem;
 	leading?: ReactNode;
 	trailing?: ReactNode;
 	className?: string;
@@ -20,7 +20,7 @@ type LinkedHazardousEventCardProps = {
 	showDivision?: boolean;
 };
 
-export default function LinkedHazardousEventCard({
+export default function LinkedDisasterRecordCard({
 	item,
 	leading,
 	trailing,
@@ -28,7 +28,7 @@ export default function LinkedHazardousEventCard({
 	showHip = true,
 	showDate = true,
 	showDivision = true,
-}: LinkedHazardousEventCardProps) {
+}: LinkedDisasterRecordCardProps) {
 	const ctx = new ViewContext();
 
 	return (
@@ -39,9 +39,6 @@ export default function LinkedHazardousEventCard({
 				{leading ? <div>{leading}</div> : null}
 				<div>
 					<p className="text-[14px] font-semibold text-slate-700">{item.name}</p>
-					<p>
-						{ctx.t({ code: "common.uuid", msg: "UUID" })}: {item.code.substring(0, 8)}
-					</p>
 					{showHip && item.hip ? (
 						<p className="mt-1 text-[12px] text-slate-500">{item.hip}</p>
 					) : null}

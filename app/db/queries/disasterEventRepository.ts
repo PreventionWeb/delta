@@ -1,10 +1,11 @@
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
 import { dr, Tx } from "~/db.server";
 import {
 	disasterEventTable,
 	InsertDisasterEvent,
 	organizationTable,
 } from "~/drizzle/schema";
+import { DisasterEventDivisionRepository } from "~/db/queries/disasterEventDivisionRepository";
 import { DisasterRecordsRepository } from "~/db/queries/disasterRecordsRepository";
 import { OrganizationRepository } from "./organizationRepository";
 
@@ -182,5 +183,121 @@ export const DisasterEventRepository = {
 			.values(data)
 			.returning()
 			.execute();
+	},
+	getLinkableOptionsData: async (
+		countryAccountsId: string,
+		currentItemId: string | undefined,
+		keyword?: string,
+		tx?: Tx,
+	) => {
+		const db = tx ?? dr;
+		const normalizedKeyword = keyword?.trim();
+		const shouldSearch = Boolean(normalizedKeyword);
+		const searchTerm = normalizedKeyword ? `%${normalizedKeyword}%` : "";
+
+		const whereClause = shouldSearch
+			? and(
+				eq(disasterEventTable.countryAccountsId, countryAccountsId),
+				currentItemId ? ne(disasterEventTable.id, currentItemId) : undefined,
+				or(
+					ilike(disasterEventTable.nameNational, searchTerm),
+					ilike(disasterEventTable.nameGlobalOrRegional, searchTerm),
+					ilike(disasterEventTable.nationalDisasterId, searchTerm),
+					ilike(disasterEventTable.glide, searchTerm),
+					sql`exists (
+						select 1
+						from disaster_event_division ded
+						join division d on d.id = ded.division_id
+						where ded.disaster_event_id = ${disasterEventTable.id}
+						and d.country_accounts_id = ${countryAccountsId}
+						and cast(d.name as text) ilike ${searchTerm}
+					)`,
+					sql`cast(${disasterEventTable.id} as text) ilike ${searchTerm}`,
+					sql`cast(${disasterEventTable.startDate} as text) ilike ${searchTerm}`,
+					sql`cast(${disasterEventTable.endDate} as text) ilike ${searchTerm}`,
+					sql`cast(${disasterEventTable.approvalStatus} as text) ilike ${searchTerm}`,
+					sql`exists (
+						select 1
+						from hip_hazard hh
+						where hh.id = ${disasterEventTable.hipHazardId}
+						and cast(hh.name as text) ilike ${searchTerm}
+					)`,
+					sql`exists (
+						select 1
+						from hip_cluster hc
+						where hc.id = ${disasterEventTable.hipClusterId}
+						and cast(hc.name as text) ilike ${searchTerm}
+					)`,
+					sql`exists (
+						select 1
+						from hip_class ht
+						where ht.id = ${disasterEventTable.hipTypeId}
+						and cast(ht.name as text) ilike ${searchTerm}
+					)`,
+				),
+			)
+			: and(
+				eq(disasterEventTable.countryAccountsId, countryAccountsId),
+				currentItemId ? ne(disasterEventTable.id, currentItemId) : undefined,
+			);
+
+		const disasterEvents = await db.query.disasterEventTable.findMany({
+			columns: {
+				id: true,
+				nameNational: true,
+				nameGlobalOrRegional: true,
+				startDate: true,
+				endDate: true,
+			},
+			with: {
+				hipHazard: {
+					columns: {
+						name: true,
+						code: true,
+					},
+				},
+				hipCluster: {
+					columns: {
+						name: true,
+					},
+				},
+				hipType: {
+					columns: {
+						name: true,
+					},
+				},
+			},
+			where: whereClause,
+			orderBy: [desc(disasterEventTable.updatedAt)],
+			limit: shouldSearch ? 500 : 200,
+		});
+
+		const disasterEventIds = disasterEvents.map((event) => event.id);
+		const divisionRows =
+			await DisasterEventDivisionRepository.getDivisionNamesByDisasterEventIds(
+				countryAccountsId,
+				disasterEventIds,
+				db,
+			);
+
+		const divisionNamesByDisasterEventId = new Map<
+			string,
+			Record<string, string>[]
+		>();
+		for (const row of divisionRows) {
+			if (!row.divisionName) {
+				continue;
+			}
+
+			const current =
+				divisionNamesByDisasterEventId.get(row.disasterEventId) || [];
+			current.push(row.divisionName as Record<string, string>);
+			divisionNamesByDisasterEventId.set(row.disasterEventId, current);
+		}
+
+		return {
+			disasterEvents,
+			divisionNamesByDisasterEventId,
+		};
 	},
 };

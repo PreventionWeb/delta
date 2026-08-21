@@ -81,6 +81,132 @@ export function SaveSubmitDialog(props: SaveSubmitDialogProps) {
 		selectedAction === "submit-validation" &&
 		(!selectedUserValidator || selectedUserValidator.length === 0);
 
+	const optionCardBaseStyle = {
+		display: "flex",
+		alignItems: "flex-start",
+		gap: "1rem",
+		width: "100%",
+		padding: "1.25rem 1.4rem",
+		borderRadius: "18px",
+		borderWidth: "2px",
+		borderStyle: "solid" as const,
+		borderColor: "#dde3ea",
+		background: "#ffffff",
+		outline: "none",
+		boxShadow: "none",
+		textAlign: "left" as const,
+		cursor: "default",
+		transition: "border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease",
+	};
+
+	const optionCardSelectedStyle = {
+		borderColor: "#1d66b1",
+		background: "#f7fbff",
+		boxShadow: "0 0 0 1px rgba(29, 102, 177, 0.08), 0 10px 24px rgba(29, 102, 177, 0.12)",
+	};
+
+	const optionIconWrapStyle = {
+		display: "inline-flex",
+		alignItems: "center",
+		justifyContent: "center",
+		width: "2.75rem",
+		height: "2.75rem",
+		borderRadius: "999px",
+		background: "#eaf2fb",
+		color: "#1d66b1",
+		flexShrink: 0,
+		fontSize: "1.05rem",
+	};
+
+	const optionMeta = {
+		"submit-draft": {
+			icon: "pi pi-save",
+			description: ctx.t({
+				code: "common.store_for_future_editing",
+				msg: "Store this entry for future editing",
+			}),
+		},
+		"submit-validate": {
+			icon: "pi pi-shield",
+			description: ctx.t({
+				code: "common.validate_description",
+				msg: "This indicates that the event has been checked for accuracy.",
+			}),
+		},
+		"submit-publish": {
+			icon: "pi pi-shield",
+			description: ctx.t({
+				code: "common.validate_description",
+				msg: "This indicates that the event has been checked for accuracy.",
+			}),
+		},
+		"submit-validation": {
+			icon: "pi pi-send",
+			description: ctx.t({
+				code: "common.request_entry_validation",
+				msg: "Request this entry to be validated",
+			}),
+		},
+	} satisfies Record<SaveAction, { icon: string; description: string }>;
+
+	const renderOptionCard = (
+		action: SaveAction,
+		title: string,
+		content: React.ReactNode,
+		onSelect: () => void,
+		selected = selectedAction === action ||
+			(action === "submit-validate" && selectedAction === "submit-publish"),
+	) => {
+		return (
+			<div
+				className={`save-submit-option-card${
+					selected ? " save-submit-option-card--selected" : ""
+				}`}
+				style={{
+					...optionCardBaseStyle,
+					...(selected ? optionCardSelectedStyle : {}),
+				}}
+			>
+				<input
+					type="radio"
+					name="saveSubmitAction"
+					checked={selected}
+					onChange={onSelect}
+					aria-label={title}
+					className="save-submit-option-radio"
+					style={{
+						width: "1.35rem",
+						height: "1.35rem",
+						marginTop: "0.4rem",
+						border: "2px solid #aeb8c4",
+						borderRadius: "999px",
+						background: selected
+							? "radial-gradient(circle at center, #1d66b1 0 34%, #ffffff 35%)"
+							: "#ffffff",
+						flexShrink: 0,
+						cursor: "pointer",
+						appearance: "none" as const,
+						WebkitAppearance: "none" as const,
+						MozAppearance: "none" as const,
+						outline: "none",
+						boxShadow: "none",
+					}}
+				/>
+				<span style={optionIconWrapStyle}>
+					<i className={optionMeta[action].icon} aria-hidden="true" />
+				</span>
+				<div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", flex: 1 }}>
+					<div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+						<span style={{ fontSize: "1.05rem", fontWeight: 600, color: "#24364b" }}>
+							{title}
+						</span>
+					</div>
+					<div style={{ color: "#6b7c93", lineHeight: 1.45 }}>{content}</div>
+				</div>
+			</div>
+		);
+	};
+
 	const footerContent = (
 		<Button
 			type="button"
@@ -106,6 +232,31 @@ export function SaveSubmitDialog(props: SaveSubmitDialogProps) {
 			className="save-submit-dialog"
 			onHide={onHide}
 		>
+			<style>{`
+				.save-submit-option-card {
+					border-color: #e1e7ee !important;
+					box-shadow: none !important;
+				}
+
+				.save-submit-option-card--selected {
+					border-color: #1d66b1 !important;
+					box-shadow: 0 0 0 1px rgba(29, 102, 177, 0.08), 0 10px 24px rgba(29, 102, 177, 0.12) !important;
+				}
+
+				.save-submit-option-card:focus,
+				.save-submit-option-card:focus-visible,
+				.save-submit-option-card:focus-within {
+					outline: none !important;
+				}
+
+				.save-submit-option-radio,
+				.save-submit-option-radio:focus,
+				.save-submit-option-radio:focus-visible {
+					outline: none !important;
+					box-shadow: none !important;
+				}
+			`}</style>
+
 			<div>
 				<p>
 					{ctx.t({
@@ -113,118 +264,53 @@ export function SaveSubmitDialog(props: SaveSubmitDialogProps) {
 						msg: "Decide what you'd like to do with this data that you've added or updated.",
 					})}
 				</p>
+				<p> </p>
 			</div>
 
-			<div>
-				<ul className="dts-attachments">
-					{/* Save as Draft Option */}
-					<li
-						className="dts-attachments__item"
-						style={{ justifyContent: "left" }}
-					>
-						<div className="dts-form-component">
-							<label>
-								<div className="dts-form-component__field--horizontal">
-									<input
-										type="radio"
-										name="saveSubmitAction"
-										checked={selectedAction === "submit-draft"}
-										onChange={() => {
-											setPublishChecked(false);
-											setSelectedAction("submit-draft");
-										}}
-									/>
-								</div>
-							</label>
-						</div>
-						<div
-							style={{
-								justifyContent: "left",
-								display: "flex",
-								flexDirection: "column",
-								gap: "4px",
-							}}
-						>
-							<span>
-								{ctx.t({ code: "common.save_draft", msg: "Save as draft" })}
-							</span>
-							<span style={{ color: "#aaa" }}>
-								{ctx.t({
-									code: "common.store_for_future_editing",
-									msg: "Store this entry for future editing",
-								})}
-							</span>
-						</div>
-					</li>
+			<div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+				{renderOptionCard(
+					"submit-draft",
+					ctx.t({ code: "common.save_draft", msg: "Save as draft" }),
+					<>
+						<span>{optionMeta["submit-draft"].description}</span>
+					</>,
+					() => {
+						setPublishChecked(false);
+						setSelectedAction("submit-draft");
+					},
+				)}
 
-					{/* Admin-only Validate Option */}
-					{userRole === "admin" && (
-						<li
-							className="dts-attachments__item"
-							style={{ justifyContent: "left" }}
-						>
-							<div className="dts-form-component">
-								<label>
-									<div className="dts-form-component__field--horizontal">
-										<input
-											type="radio"
-											name="saveSubmitAction"
-											checked={
-												selectedAction === "submit-validate" ||
-												selectedAction === "submit-publish"
+				{userRole === "admin" &&
+					renderOptionCard(
+						"submit-validate",
+						ctx.t({ code: "common.validate", msg: "Validate" }),
+						<>
+							<div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+								<span>{optionMeta["submit-validate"].description}</span>
+								<div style={{ display: "flex", alignItems: "flex-start", gap: "0.9rem" }}>
+									<Checkbox
+										id="publish-checkbox"
+										name="publish-checkbox"
+										onChange={(e) => {
+											if (e.checked === undefined) return;
+											if (!e.checked) {
+												setSelectedAction("submit-validate");
+												setPublishChecked(false);
+											} else {
+												setPublishChecked(true);
+												setSelectedAction("submit-publish");
 											}
-											onChange={() => setSelectedAction("submit-validate")}
-										/>
-									</div>
-								</label>
-							</div>
-							<div
-								className="validator-section"
-								style={{
-									justifyContent: "left",
-									display: "flex",
-									flexDirection: "column",
-									gap: "4px",
-								}}
-							>
-								<span>
-									{ctx.t({ code: "common.validate", msg: "Validate" })}
-								</span>
-								<span style={{ color: "#999" }}>
-									{ctx.t({
-										code: "common.validate_description",
-										msg: "This indicates that the event has been checked for accuracy.",
-									})}
-								</span>
-
-								<div style={{ display: "block" }}>
-									<div
-										style={{ width: "40px", marginTop: "10px", float: "left" }}
-									>
-										<Checkbox
-											id="publish-checkbox"
-											name="publish-checkbox"
-											onChange={(e) => {
-												if (e.checked === undefined) return;
-												if (!e.checked) {
-													setSelectedAction("submit-validate");
-													setPublishChecked(false);
-												} else {
-													setPublishChecked(true);
-													setSelectedAction("submit-publish");
-												}
-											}}
-											checked={publishChecked}
-										/>
-									</div>
-									<div style={{ marginLeft: "20px", marginTop: "10px" }}>
-										<div>
+										}}
+										checked={publishChecked}
+									/>
+									<div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+										<div style={{ fontWeight: 500, color: "#24364b" }}>
 											{ctx.t({
 												code: "common.publish_undrr_instance",
 												msg: "Publish to UNDRR instance",
 											})}
 										</div>
-										<span style={{ color: "#999" }}>
+										<span style={{ color: "#6b7c93" }}>
 											{ctx.t({
 												code: "common.publish_undrr_instance_description",
 												msg: "Data from this event will be made publicly available.",
@@ -233,83 +319,57 @@ export function SaveSubmitDialog(props: SaveSubmitDialogProps) {
 									</div>
 								</div>
 							</div>
-						</li>
+						</>,
+						() => {
+							setPublishChecked(false);
+							setSelectedAction("submit-validate");
+						},
+						selectedAction === "submit-validate" ||
+							selectedAction === "submit-publish",
 					)}
 
-					{/* Validator/Collector Option */}
-					{(userRole === "data-validator" ||
-						userRole === "data-collector" ||
-						userRole === "admin") && (
-						<li
-							className="dts-attachments__item"
-							style={{ justifyContent: "left" }}
-						>
-							<div className="dts-form-component">
-								<label>
-									<div className="dts-form-component__field--horizontal">
-										<input
-											type="radio"
-											name="saveSubmitAction"
-											checked={selectedAction === "submit-validation"}
-											onChange={() => {
-												setPublishChecked(false);
-												setSelectedAction("submit-validation");
-											}}
-										/>
-									</div>
-								</label>
-							</div>
-							<div
-								style={{
-									justifyContent: "left",
-									display: "flex",
-									flexDirection: "column",
-									gap: "10px",
-									width: "90%",
-								}}
-							>
-								<span>
-									{ctx.t({
-										code: "common.submit_for_validation",
-										msg: "Submit for validation",
-									})}
-								</span>
-								<span style={{ color: "#aaa" }}>
-									{ctx.t({
-										code: "common.request_entry_validation",
-										msg: "Request this entry to be validated",
-									})}
-								</span>
+				{(userRole === "data-validator" ||
+					userRole === "data-collector" ||
+					userRole === "admin") &&
+					renderOptionCard(
+						"submit-validation",
+						ctx.t({
+							code: "common.submit_for_validation",
+							msg: "Submit for validation",
+						}),
+						<>
+							<div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+								<span>{optionMeta["submit-validation"].description}</span>
 								<div>
-									*{" "}
-									{ctx.t({
+									* {ctx.t({
 										code: "common.select_validators",
 										msg: "Select validator(s)",
 									})}
 								</div>
-								<div>
-									<MultiSelect
-										filter
-										value={selectedUserValidator}
-										disabled={selectedAction !== "submit-validation"}
-										onChange={(e: MultiSelectChangeEvent) =>
-											setSelectedUserValidator(e.value)
-										}
-										options={usersWithValidatorRole}
-										optionLabel="name"
-										placeholder={ctx.t({
-											code: "common.select_validators",
-											msg: "Select validator(s)",
-										})}
-										className="w-full save-modal-notify-multiselect"
-										display="chip"
-										maxSelectedLabels={7}
-									/>
-								</div>
+								<MultiSelect
+									filter
+									value={selectedUserValidator}
+									disabled={selectedAction !== "submit-validation"}
+									onChange={(e: MultiSelectChangeEvent) =>
+										setSelectedUserValidator(e.value)
+									}
+									options={usersWithValidatorRole}
+									optionLabel="name"
+									placeholder={ctx.t({
+										code: "common.select_validators",
+										msg: "Select validator(s)",
+									})}
+									className="w-full save-modal-notify-multiselect"
+									display="chip"
+									maxSelectedLabels={7}
+								/>
 							</div>
-						</li>
+						</>,
+						() => {
+							setPublishChecked(false);
+							setSelectedAction("submit-validation");
+						},
 					)}
-				</ul>
 			</div>
 		</Dialog>
 	);

@@ -9,11 +9,7 @@ import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { Checkbox } from "primereact/checkbox";
 import { DataView } from "primereact/dataview";
-import { and, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
-import { dr } from "~/db.server";
-import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
-import { hazardousEventDivisionTable } from "~/drizzle/schema/hazardousEventDivisionTable";
-import { divisionTable } from "~/drizzle/schema/divisionTable";
+import { queryLinkedHazardousEventOptions } from "~/backend.server/services/disaster-event/linkedHazardousEventOptions";
 import LinkedHazardousEventCard from "~/frontend/disaster-event/LinkedHazardousEventCard";
 import type { DisasterEventFormOutletContext } from "~/frontend/disaster-event/DisasterEventForm";
 import { authActionWithPerm, authLoaderWithPerm } from "~/utils/auth";
@@ -25,253 +21,6 @@ type LinkedEventItem =
 		divisionNamesLabel?: string;
 	};
 
-function parseYmd(value: string | null | undefined) {
-	if (!value) {
-		return null;
-	}
-
-	const trimmed = value.trim();
-	const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-	if (!match) {
-		return null;
-	}
-
-	const year = Number(match[1]);
-	const month = Number(match[2]);
-	const day = Number(match[3]);
-
-	if (!Number.isInteger(year) || month < 1 || month > 12 || day < 1 || day > 31) {
-		return null;
-	}
-
-	return { year, month, day };
-}
-
-function toUtcDate(parts: { year: number; month: number; day: number }) {
-	return new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
-}
-
-function formatEventDateRange(
-	startDate: string | null | undefined,
-	endDate: string | null | undefined,
-	lang: string,
-) {
-	const start = parseYmd(startDate);
-	const end = parseYmd(endDate);
-	const formatter = new Intl.DateTimeFormat(lang || "en", {
-		day: "numeric",
-		month: "short",
-		year: "numeric",
-		timeZone: "UTC",
-	});
-
-	if (start && end) {
-		const startUtc = toUtcDate(start);
-		const endUtc = toUtcDate(end);
-
-		if (typeof formatter.formatRange === "function") {
-			return formatter.formatRange(startUtc, endUtc);
-		}
-
-		return `${formatter.format(startUtc)} - ${formatter.format(endUtc)}`;
-	}
-
-	if (start) {
-		return formatter.format(toUtcDate(start));
-	}
-
-	if (end) {
-		return formatter.format(toUtcDate(end));
-	}
-
-	return [startDate, endDate]
-		.map((value) => value?.trim())
-		.filter(Boolean)
-		.join(" - ");
-}
-
-function localizedHipName(
-	name: Record<string, string> | null | undefined,
-	lang: string,
-) {
-	if (!name) {
-		return "";
-	}
-
-	return String(name[lang] || name.en || Object.values(name)[0] || "").trim();
-}
-
-function formatHazardousEventOption(
-	event: {
-		id: string;
-		description: string | null;
-		startDate: string | null;
-		endDate: string | null;
-		hipHazard: {
-			name: Record<string, string> | null;
-			code: string | null;
-		} | null;
-		hipCluster: {
-			name: Record<string, string> | null;
-		} | null;
-		hipType: {
-			name: Record<string, string> | null;
-		} | null;
-	},
-	lang: string,
-	divisionNames: string[],
-) {
-	const hazardName = localizedHipName(event.hipHazard?.name, lang);
-	const clusterName = localizedHipName(event.hipCluster?.name, lang);
-	const typeName = localizedHipName(event.hipType?.name, lang);
-	const displayName =
-		hazardName ||
-		clusterName ||
-		typeName;
-
-	return {
-		id: event.id,
-		name: displayName,
-		code: event.id,
-		dateLabel: formatEventDateRange(event.startDate, event.endDate, lang),
-		divisionNamesLabel: divisionNames.join(", "),
-	};
-}
-
-async function queryHazardousEventOptions(
-	countryAccountsId: string,
-	lang: string,
-	currentHazardousIds: string[],
-	keyword?: string,
-) {
-	const normalizedKeyword = keyword?.trim();
-	const shouldSearch = Boolean(normalizedKeyword);
-	const searchTerm = normalizedKeyword ? `%${normalizedKeyword}%` : "";
-
-	const hazardousEvents = await dr.query.hazardousEventTable.findMany({
-		columns: {
-			id: true,
-			description: true,
-			startDate: true,
-			endDate: true,
-			approvalStatus: true,
-		},
-		with: {
-			hipHazard: {
-				columns: {
-					name: true,
-					code: true,
-				},
-			},
-			hipCluster: {
-				columns: {
-					name: true,
-				},
-			},
-			hipType: {
-				columns: {
-					name: true,
-				},
-			},
-		},
-		where: shouldSearch
-			? and(
-				eq(hazardousEventTable.countryAccountsId, countryAccountsId),
-				currentHazardousIds.length > 0
-					? ne(hazardousEventTable.id, currentHazardousIds[0] as string)
-					: undefined,
-				or(
-					ilike(hazardousEventTable.description, searchTerm),
-					sql`exists (
-						select 1
-						from hip_hazard hh
-						where hh.id = ${hazardousEventTable.hipHazardId}
-						and cast(hh.name as text) ilike ${searchTerm}
-					)`,
-					sql`exists (
-						select 1
-						from hip_cluster hc
-						where hc.id = ${hazardousEventTable.hipClusterId}
-						and cast(hc.name as text) ilike ${searchTerm}
-					)`,
-					sql`exists (
-						select 1
-						from hip_class ht
-						where ht.id = ${hazardousEventTable.hipTypeId}
-						and cast(ht.name as text) ilike ${searchTerm}
-					)`,
-					sql`cast(${hazardousEventTable.id} as text) ilike ${searchTerm}`,
-					sql`cast(${hazardousEventTable.startDate} as text) ilike ${searchTerm}`,
-					sql`cast(${hazardousEventTable.endDate} as text) ilike ${searchTerm}`,
-					sql`cast(${hazardousEventTable.approvalStatus} as text) ilike ${searchTerm}`,
-						sql`exists (
-							select 1
-							from hazardous_event_division hed
-							join division d on d.id = hed.division_id
-							where hed.hazardous_event_id = ${hazardousEventTable.id}
-							and d.country_accounts_id = ${countryAccountsId}
-							and cast(d.name as text) ilike ${searchTerm}
-						)`,
-				),
-			)
-			: and(
-				eq(hazardousEventTable.countryAccountsId, countryAccountsId),
-				currentHazardousIds.length > 0
-					? ne(hazardousEventTable.id, currentHazardousIds[0] as string)
-					: undefined,
-			),
-		orderBy: [desc(hazardousEventTable.updatedAt)],
-		limit: shouldSearch ? 500 : 200,
-	});
-
-	const blocked = new Set(currentHazardousIds);
-	const hazardousEventIds = hazardousEvents.map((event) => event.id);
-
-	const divisionRows = hazardousEventIds.length
-		? await dr
-				.select({
-					hazardousEventId: hazardousEventDivisionTable.hazardousEventId,
-					divisionName: divisionTable.name,
-				})
-				.from(hazardousEventDivisionTable)
-				.innerJoin(
-					divisionTable,
-					eq(hazardousEventDivisionTable.divisionId, divisionTable.id),
-				)
-				.where(
-					and(
-						inArray(
-							hazardousEventDivisionTable.hazardousEventId,
-							hazardousEventIds,
-						),
-						eq(divisionTable.countryAccountsId, countryAccountsId),
-					),
-				)
-		: [];
-
-	const divisionNamesByHazardousEventId = new Map<string, string[]>();
-	for (const row of divisionRows) {
-		const localizedName = localizedHipName(row.divisionName, lang);
-		if (!localizedName) {
-			continue;
-		}
-
-		const current = divisionNamesByHazardousEventId.get(row.hazardousEventId) || [];
-		current.push(localizedName);
-		divisionNamesByHazardousEventId.set(row.hazardousEventId, current);
-	}
-
-	return hazardousEvents
-		.map((event) =>
-			formatHazardousEventOption(
-				event,
-				lang,
-				divisionNamesByHazardousEventId.get(event.id) || [],
-			),
-		)
-		.filter((event) => !blocked.has(event.id));
-}
-
 export const loader = authLoaderWithPerm("EditData", async ({ request, params }) => {
 	const countryAccountsId = await getCountryAccountsIdFromSession(request);
 	if (!countryAccountsId) {
@@ -279,7 +28,7 @@ export const loader = authLoaderWithPerm("EditData", async ({ request, params })
 	}
 
 	const lang = typeof params.lang === "string" && params.lang ? params.lang : "en";
-	const hazardousEventOptions = await queryHazardousEventOptions(
+	const hazardousEventOptions = await queryLinkedHazardousEventOptions(
 		countryAccountsId,
 		lang,
 		[],
@@ -313,7 +62,7 @@ export const action = authActionWithPerm("EditData", async ({ request, params })
 		blockedHazardousIds = [];
 	}
 
-	const hazardousEventOptions = await queryHazardousEventOptions(
+	const hazardousEventOptions = await queryLinkedHazardousEventOptions(
 		countryAccountsId,
 		lang,
 		blockedHazardousIds,
@@ -548,7 +297,7 @@ export default function LinkedTriggeringHazardousEventsModalRoute() {
 					<InputText
 						value={searchTerm}
 						onChange={(event) => setSearchTerm(event.target.value)}
-						placeholder="Search by HIP name or UUID..."
+						placeholder="Search by Hazard classification, date (yyyy-mm-dd), geographic level or UUID..."
 						className="w-full pr-10"
 					/>
 				</div>

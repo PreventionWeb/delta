@@ -107,7 +107,11 @@ export default function Screen() {
 				msg: "Human effects: Configure built-in disaggregations",
 			})}
 		>
-			<LangLink lang={ctx.lang} to="/settings/human-effects-dsg/custom">
+			<LangLink
+				lang={ctx.lang}
+				to="/settings/human-effects-dsg/custom"
+				className="mg-button mg-button-outline inline-flex items-center mb-4"
+			>
 				{ctx.t({
 					code: "human_effects.configure_custom_disaggregations",
 					msg: "Configure custom disaggregations",
@@ -122,7 +126,7 @@ export default function Screen() {
 					messages={[actionData.error || "Server error"]}
 				/>
 			)}
-			<Form method="post">
+			<Form method="post" className="dts-form dts-page-section">
 				<h3>
 					{ctx.t({
 						code: "human_effects.disaggregation_columns",

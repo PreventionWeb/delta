@@ -119,7 +119,7 @@ export function ListView(props: ListViewProps) {
 					clearFiltersUrl={ctx.url(route)}
 					sectors={[]}
 					disasterEventName={filters.disasterEventName}
-					recordingInstitution={filters.recordingInstitution}
+					recordingOrganization={filters.recordingOrganization}
 					fromDate={filters.fromDate}
 					toDate={filters.toDate}
 					recordStatus={filters.recordStatus}

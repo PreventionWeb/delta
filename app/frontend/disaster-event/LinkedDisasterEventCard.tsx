@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { ViewContext } from "~/frontend/context";
 
-type LinkedHazardousEventCardItem = {
+type LinkedDisasterEventCardItem = {
 	id: string;
 	name: string;
 	code: string;
@@ -10,8 +10,8 @@ type LinkedHazardousEventCardItem = {
 	divisionNamesLabel?: string;
 };
 
-type LinkedHazardousEventCardProps = {
-	item: LinkedHazardousEventCardItem;
+type LinkedDisasterEventCardProps = {
+	item: LinkedDisasterEventCardItem;
 	leading?: ReactNode;
 	trailing?: ReactNode;
 	className?: string;
@@ -20,7 +20,7 @@ type LinkedHazardousEventCardProps = {
 	showDivision?: boolean;
 };
 
-export default function LinkedHazardousEventCard({
+export default function LinkedDisasterEventCard({
 	item,
 	leading,
 	trailing,
@@ -28,7 +28,7 @@ export default function LinkedHazardousEventCard({
 	showHip = true,
 	showDate = true,
 	showDivision = true,
-}: LinkedHazardousEventCardProps) {
+}: LinkedDisasterEventCardProps) {
 	const ctx = new ViewContext();
 
 	return (

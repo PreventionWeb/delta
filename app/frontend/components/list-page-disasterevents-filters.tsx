@@ -9,7 +9,7 @@ import { canAddNewRecord } from "../user/roles";
 interface Props {
 	ctx: ViewContext;
 	disasterEventName?: string;
-	recordingInstitution?: string;
+	recordingOrganization?: string;
 	fromDate?: string;
 	toDate?: string;
 	sectors: SelectSector[];
@@ -102,14 +102,14 @@ export function DisasterEventsFilter(props: Props) {
 							</span>
 						</div>
 						<input
-							name="recordingInstitution"
+							name="recordingOrganization"
 							type="text"
 							placeholder={ctx.t({
 								code: "disaster_event.search_organization_placeholder",
 								desc: "Placeholder for organization search input",
 								msg: "Search organization",
 							})}
-							defaultValue={props.recordingInstitution}
+							defaultValue={props.recordingOrganization}
 						/>
 					</label>
 				</div>

@@ -575,21 +575,21 @@ async function spatialFootprintPostProcess(
 					row.geojson = division.geojson;
 					row.geographic_level = divisionBreadcrumb;
 
-					// Ensure geojson has a properties object with required metadata
+					// Ensure geojson has required metadata, even when properties already exists
 					const geojsonAny = row.geojson as any;
-					if (
-						!geojsonAny.properties ||
-						typeof geojsonAny.properties !== "object"
-					) {
-						geojsonAny.properties = {
-							name: division.name,
-							level: division.level,
-							import_id: division.importId,
-							division_id: division.id,
-							national_id: division.nationalId,
-							division_ids: divisionIds,
-						};
-					}
+					const existingProperties =
+						geojsonAny.properties && typeof geojsonAny.properties === "object"
+							? geojsonAny.properties
+							: {};
+					geojsonAny.properties = {
+						...existingProperties,
+						name: division.name,
+						level: division.level,
+						import_id: division.importId,
+						division_id: division.id,
+						national_id: division.nationalId,
+						division_ids: divisionIds,
+					};
 
 					// Remove division_id as per business rules
 					delete row.division_id;

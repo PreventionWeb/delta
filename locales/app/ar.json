@@ -7380,5 +7380,900 @@
         "id": "notices.updated_at",
         "description": "File: app/domains/notices/presentation/NoticeListPage.tsx:52",
         "translation": "آخر تحديث"
+    },
+    {
+        "id": "admin.clone_country_account_timeout",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/clone.$id.tsx:60",
+        "translation": "استغرق عملية النسخ وقتًا طويلاً جدًّا في هذه الحالة. يرجى المحاولة مرة أخرى، أو نسخ مجموعة بيانات أصغر حجمًا."
+    },
+    {
+        "id": "admin.currency_lock_notice",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/edit.$id.tsx:321",
+        "translation": "يتم تحديد العملة بعد الإعداد، ولا يمكن تغييرها إلا في حالة توفر خدمة تحويل العملات."
+    },
+    {
+        "id": "admin.select_currency",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/new.tsx:329",
+        "translation": "اختر عملة"
+    },
+    {
+        "id": "common.cannot_save_record",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3694",
+        "translation": "تعذر حفظ هذا السجل"
+    },
+    {
+        "id": "common.choose_file",
+        "description": "File: app/components/ContentRepeater/index.tsx:2766",
+        "translation": "اختر ملفًا"
+    },
+    {
+        "id": "common.opening",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4179",
+        "translation": "الافتتاح..."
+    },
+    {
+        "id": "common.total",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:241",
+        "translation": "المجموع"
+    },
+    {
+        "id": "common.upload_zip",
+        "description": "File: app/routes/$lang+/settings+/geography+/_layout.tsx:564",
+        "translation": "تحميل ملف ZIP"
+    },
+    {
+        "id": "copied",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3434",
+        "translation": "تم النسخ"
+    },
+    {
+        "id": "could_not_copy_to_clipboard",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3443",
+        "translation": "تعذر النسخ إلى الحافظة"
+    },
+    {
+        "id": "disaster_event.attachments.error.file_too_large",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:155",
+        "translation": "حجم الملف يتجاوز 10 ميغابايت."
+    },
+    {
+        "id": "disaster_event.attachments.error.total_size_exceeded",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:189",
+        "translation": "يتجاوز الحجم الإجمالي للمرفقات 10 ميغابايت."
+    },
+    {
+        "id": "disaster_event.attachments.error.unsupported_type",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:144",
+        "translation": "نوع ملف غير مدعوم."
+    },
+    {
+        "id": "disaster_event.attachments.total_size",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:508",
+        "translation": "الحجم الإجمالي"
+    },
+    {
+        "id": "disaster_event.cycle_conflicts",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.tsx:764",
+        "translation": "أحداث متضاربة:"
+    },
+    {
+        "id": "disaster_event.form.add_affected_areas",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4183",
+        "translation": "أضف المناطق المتضررة"
+    },
+    {
+        "id": "disaster_event.form.add_assessment",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4779",
+        "translation": "إضافة تقييم"
+    },
+    {
+        "id": "disaster_event.form.add_declaration",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4830",
+        "translation": "إضافة تعريف"
+    },
+    {
+        "id": "disaster_event.form.add_response",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4728",
+        "translation": "إضافة رد"
+    },
+    {
+        "id": "disaster_event.form.additional_details",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4681",
+        "translation": "تفاصيل إضافية"
+    },
+    {
+        "id": "disaster_event.form.additional_details_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4700",
+        "translation": "توثيق الردود والتقييمات والإعلانات الرسمية المتعلقة بهذه الكارثة."
+    },
+    {
+        "id": "disaster_event.form.assessments_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4770",
+        "translation": "تقييمات الاحتياجات والتقييمات المتعلقة بالوثائق"
+    },
+    {
+        "id": "disaster_event.form.copy_uuid",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3926",
+        "translation": "نسخ معرّف UUID لحدث الكارثة"
+    },
+    {
+        "id": "disaster_event.form.date_format_label",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:976",
+        "translation": "{label} التنسيق"
+    },
+    {
+        "id": "disaster_event.form.declarations_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4821",
+        "translation": "تسجيل الإعلانات الرسمية عن حالات الطوارئ"
+    },
+    {
+        "id": "disaster_event.form.define_spatial_footprint",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4261",
+        "translation": "تحديد البصمة المكانية"
+    },
+    {
+        "id": "disaster_event.form.enter_coverage",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4993",
+        "translation": "إدخال التغطية"
+    },
+    {
+        "id": "disaster_event.form.enter_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5049",
+        "translation": "أدخل الوصف"
+    },
+    {
+        "id": "disaster_event.form.enter_issuing_organization",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5018",
+        "translation": "أدخل اسم الجهة المصدرة"
+    },
+    {
+        "id": "disaster_event.form.enter_other_sectors",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5152",
+        "translation": "أدخل قطاعات أخرى (إن لم تكن مدرجة)"
+    },
+    {
+        "id": "disaster_event.form.enter_type",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4887",
+        "translation": "أدخل النوع"
+    },
+    {
+        "id": "disaster_event.form.event_basics",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3781",
+        "translation": "أساسيات الفعالية"
+    },
+    {
+        "id": "disaster_event.form.event_basics_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3787",
+        "translation": "معلومات عامة عن الكارثة."
+    },
+    {
+        "id": "disaster_event.form.geographic_level_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4169",
+        "translation": "حدد المناطق الإدارية التي تعرضت للكارثة."
+    },
+    {
+        "id": "disaster_event.form.hazard_and_timing",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3965",
+        "translation": "المخاطر والتوقيت"
+    },
+    {
+        "id": "disaster_event.form.hazard_and_timing_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3971",
+        "translation": "معلومات تفصيلية بشأن المخاطر التي تمت ملاحظتها وتوقيتها."
+    },
+    {
+        "id": "disaster_event.form.hazard_cluster_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4023",
+        "translation": "مجموعة المخاطر (الملاحظة)"
+    },
+    {
+        "id": "disaster_event.form.hazard_type_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3984",
+        "translation": "نوع الخطر (الملاحظ)"
+    },
+    {
+        "id": "disaster_event.form.linked_disaster_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4482",
+        "translation": "أحداث الكوارث المرتبطة ببعضها"
+    },
+    {
+        "id": "disaster_event.form.linked_disaster_events_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4488",
+        "translation": "اربط هذا الحدث الكارثي بأسبابه أو عواقبه."
+    },
+    {
+        "id": "disaster_event.form.linked_disaster_records_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4599",
+        "translation": "اربط هذا الحدث الكارثي بسجلات الكوارث ذات الصلة."
+    },
+    {
+        "id": "disaster_event.form.linked_events_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4363",
+        "translation": "حدد العلاقات بين هذا الحدث وسجلات النظام الأخرى."
+    },
+    {
+        "id": "disaster_event.form.linked_hazardous_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4371",
+        "translation": "الأحداث الخطرة المرتبطة ببعضها"
+    },
+    {
+        "id": "disaster_event.form.linked_hazardous_events_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4377",
+        "translation": "اربط هذا الحدث الكارثي بالأحداث الخطرة ذات الصلة."
+    },
+    {
+        "id": "disaster_event.form.loading_affected_areas_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4196",
+        "translation": "جاري تحميل أداة اختيار المناطق المتضررة"
+    },
+    {
+        "id": "disaster_event.form.loading_linked_disaster_records_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4623",
+        "translation": "جاري تحميل أداة اختيار سجلات الكوارث المرتبطة"
+    },
+    {
+        "id": "disaster_event.form.loading_linked_triggered_events_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4568",
+        "translation": "جاري تحميل محدد الأحداث المرتبطة"
+    },
+    {
+        "id": "disaster_event.form.loading_linked_triggered_hazardous_events_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4457",
+        "translation": "تحميل أداة اختيار الأحداث الخطرة المرتبطة بالمحفزات"
+    },
+    {
+        "id": "disaster_event.form.loading_linked_triggering_events_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4521",
+        "translation": "جاري تحميل أداة اختيار أحداث التشغيل المرتبطة"
+    },
+    {
+        "id": "disaster_event.form.loading_linked_triggering_hazardous_events_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4410",
+        "translation": "تحميل أداة اختيار الأحداث الخطرة المرتبطة بالمشغلات"
+    },
+    {
+        "id": "disaster_event.form.loading_spatial_footprint_editor",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4274",
+        "translation": "جاري تحميل محرر البصمة المكانية"
+    },
+    {
+        "id": "disaster_event.form.manage_linked_disaster_records",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4610",
+        "translation": "إدارة سجلات الكوارث المرتبطة"
+    },
+    {
+        "id": "disaster_event.form.manage_linked_triggered_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4444",
+        "translation": "إدارة الأحداث المرتبطة التي يتم تشغيلها تلقائيًا"
+    },
+    {
+        "id": "disaster_event.form.manage_linked_triggering_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4397",
+        "translation": "إدارة الأحداث المُحفزة المرتبطة"
+    },
+    {
+        "id": "disaster_event.form.name_global_other",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3829",
+        "translation": "اسم الكارثة - أخرى (عالمية أو إقليمية)"
+    },
+    {
+        "id": "disaster_event.form.no_spatial_footprint_items",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4292",
+        "translation": "لم تتم إضافة أي عناصر ذات أثر مكاني حتى الآن"
+    },
+    {
+        "id": "disaster_event.form.other_sectors_help",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5138",
+        "translation": "مساعدة القطاعات الأخرى"
+    },
+    {
+        "id": "disaster_event.form.placeholder.add_event_id",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3860",
+        "translation": "إضافة معرّف الحدث"
+    },
+    {
+        "id": "disaster_event.form.placeholder.add_event_name",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3838",
+        "translation": "أضف اسم الحدث"
+    },
+    {
+        "id": "disaster_event.form.placeholder.add_glide_number",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3888",
+        "translation": "أضف رقم GLIDE"
+    },
+    {
+        "id": "disaster_event.form.placeholder.name_national",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3810",
+        "translation": "على سبيل المثال، إعصار ميتش"
+    },
+    {
+        "id": "disaster_event.form.placeholder.yyyy",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1146",
+        "translation": "سنة، سنة، سنة"
+    },
+    {
+        "id": "disaster_event.form.placeholder.yyyy_mm",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1109",
+        "translation": "السنة - الشهر"
+    },
+    {
+        "id": "disaster_event.form.placeholder.yyyy_mm_dd",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1062",
+        "translation": "السنة-الشهر-اليوم"
+    },
+    {
+        "id": "disaster_event.form.remove_named",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3189",
+        "translation": "إزالة {name}"
+    },
+    {
+        "id": "disaster_event.form.responses_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4719",
+        "translation": "تتبع الإجراءات المبكرة وعمليات الاستجابة"
+    },
+    {
+        "id": "disaster_event.form.select_format",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1002",
+        "translation": "اختر التنسيق"
+    },
+    {
+        "id": "disaster_event.form.select_hazard_cluster",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4041",
+        "translation": "اختر مجموعة المخاطر"
+    },
+    {
+        "id": "disaster_event.form.select_hazard_type",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4002",
+        "translation": "اختر نوع الخطر"
+    },
+    {
+        "id": "disaster_event.form.select_sectors",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5068",
+        "translation": "قطاعات مختارة"
+    },
+    {
+        "id": "disaster_event.form.select_status",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4961",
+        "translation": "اختر الحالة"
+    },
+    {
+        "id": "disaster_event.form.select_type",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4906",
+        "translation": "اختر النوع"
+    },
+    {
+        "id": "disaster_event.form.spatial_footprint_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4247",
+        "translation": "حدد المنطقة الجغرافية المحددة المتأثرة باستخدام إحداثيات الخريطة التفاعلية أو الإدخال اليدوي."
+    },
+    {
+        "id": "disaster_event.form.spatial_footprint_items_added",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4285",
+        "translation": "تمت إضافة عنصر (عناصر) {count} ذات البصمة المكانية"
+    },
+    {
+        "id": "disaster_event.form.spatial_footprint_numbered",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2414",
+        "translation": "المساحة المشغولة {count}"
+    },
+    {
+        "id": "disaster_event.form.spatial_information",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4142",
+        "translation": "المعلومات المكانية المتعلقة بالكوارث"
+    },
+    {
+        "id": "disaster_event.form.spatial_information_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4148",
+        "translation": "حدد المناطق الجغرافية التي وقعت فيها الكارثة."
+    },
+    {
+        "id": "disaster_event.form.specific_hazard_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4062",
+        "translation": "خطر محدد (تم رصده)"
+    },
+    {
+        "id": "disaster_event.form.tooltip.glide_number",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3711",
+        "translation": "معرّف فريد عالمي يُستخدم لربط هذا الحدث بنظم مخاطر الكوارث الدولية"
+    },
+    {
+        "id": "disaster_event.form.tooltip.hazard_cluster_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3729",
+        "translation": "مجموعة المخاطر التي تمت ملاحظتها"
+    },
+    {
+        "id": "disaster_event.form.tooltip.hazard_type_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3720",
+        "translation": "نوع الخطر الذي لوحظ قبل التأكيد النهائي"
+    },
+    {
+        "id": "disaster_event.form.tooltip.other_sectors",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3747",
+        "translation": "اكتب اسم قطاع غير موجود في القائمة المنسدلة أعلاه، على سبيل المثال: إدارة النفايات، المساعدة الإنسانية."
+    },
+    {
+        "id": "disaster_event.form.tooltip.specific_hazard_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3738",
+        "translation": "الخطر المحدد الذي تم رصده"
+    },
+    {
+        "id": "disaster_event.form.validation.end_date_before_start_date",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2011",
+        "translation": "لا يمكن أن يكون تاريخ الانتهاء قبل تاريخ البدء"
+    },
+    {
+        "id": "disaster_event.form.validation.end_time_before_start_time",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2021",
+        "translation": "لا يمكن أن يكون وقت الانتهاء قبل وقت البدء"
+    },
+    {
+        "id": "disaster_event.form.validation.end_time_requires_full_end_date",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1988",
+        "translation": "يجب أن يتضمن «وقت الانتهاء» تاريخ انتهاء كامل (YYYY-MM-DD)"
+    },
+    {
+        "id": "disaster_event.form.validation.is_invalid",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:909",
+        "translation": "{label} غير صالح"
+    },
+    {
+        "id": "disaster_event.form.validation.month_invalid",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:873",
+        "translation": "{label} شهر غير صالح"
+    },
+    {
+        "id": "disaster_event.form.validation.national_name_required",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1952",
+        "translation": "اسم الكارثة (على المستوى الوطني) مطلوب"
+    },
+    {
+        "id": "disaster_event.form.validation.requires_complete_date",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:890",
+        "translation": "{label} يتطلب تاريخًا كاملاً"
+    },
+    {
+        "id": "disaster_event.form.validation.requires_year_and_month",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:862",
+        "translation": "{label} يتطلب إدخال كل من السنة والشهر"
+    },
+    {
+        "id": "disaster_event.form.validation.start_date_required_when_end_date_has_value",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1995",
+        "translation": "يُعد تاريخ البدء حقلًا إلزاميًا عندما يكون لتاريخ الانتهاء قيمة محددة"
+    },
+    {
+        "id": "disaster_event.form.validation.start_time_requires_full_start_date",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1978",
+        "translation": "يتطلب وقت البدء تاريخ بدء كامل (YYYY-MM-DD)"
+    },
+    {
+        "id": "disaster_event.form.validation.year_must_be_4_digits",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:849",
+        "translation": "يجب أن تتكون {label} سنة من 4 أرقام"
+    },
+    {
+        "id": "disaster_event.review.assessment",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1793",
+        "translation": "التقييم"
+    },
+    {
+        "id": "disaster_event.review.assessments",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1770",
+        "translation": "التقييمات"
+    },
+    {
+        "id": "disaster_event.review.basic_information",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3767",
+        "translation": "معلومات أساسية"
+    },
+    {
+        "id": "disaster_event.review.coverage",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3152",
+        "translation": "التغطية"
+    },
+    {
+        "id": "disaster_event.review.date_at_time",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2497",
+        "translation": "{date} في {time}"
+    },
+    {
+        "id": "disaster_event.review.declaration",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1440",
+        "translation": "إعلان"
+    },
+    {
+        "id": "disaster_event.review.disaster_declaration_effects",
+        "description": "File: app/frontend/events/disastereventform.tsx:1503",
+        "translation": "آثار إعلان حالة الكوارث"
+    },
+    {
+        "id": "disaster_event.review.hazard_details",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:796",
+        "translation": "تفاصيل المخاطر"
+    },
+    {
+        "id": "disaster_event.review.issuing_organization",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5005",
+        "translation": "الجهة المصدرة"
+    },
+    {
+        "id": "disaster_event.review.linked_disaster_records",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4593",
+        "translation": "سجلات الكوارث المرتبطة"
+    },
+    {
+        "id": "disaster_event.review.linked_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4344",
+        "translation": "الأحداث ذات الصلة"
+    },
+    {
+        "id": "disaster_event.review.links",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:901",
+        "translation": "روابط"
+    },
+    {
+        "id": "disaster_event.review.location",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:830",
+        "translation": "الموقع"
+    },
+    {
+        "id": "disaster_event.review.map",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:391",
+        "translation": "خريطة"
+    },
+    {
+        "id": "disaster_event.review.no_assessments",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4799",
+        "translation": "لم يتم تسجيل أي تقييمات حتى الآن"
+    },
+    {
+        "id": "disaster_event.review.no_attachments_selected",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:945",
+        "translation": "لم يتم تحديد أي مرفقات"
+    },
+    {
+        "id": "disaster_event.review.no_declarations",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4850",
+        "translation": "لم يتم تسجيل أي تصريحات حتى الآن"
+    },
+    {
+        "id": "disaster_event.review.no_geographic_levels",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:860",
+        "translation": "لم يتم تحديد أي مستويات جغرافية"
+    },
+    {
+        "id": "disaster_event.review.no_linked_disaster_records",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:1109",
+        "translation": "لم يتم ربط أي سجلات للكوارث حتى الآن"
+    },
+    {
+        "id": "disaster_event.review.no_linked_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:1007",
+        "translation": "لم يتم اختيار أي أحداث خطرة أو كوارث مرتبطة حتى الآن"
+    },
+    {
+        "id": "disaster_event.review.no_linked_records",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4638",
+        "translation": "لا توجد سجلات مرتبطة"
+    },
+    {
+        "id": "disaster_event.review.no_links_selected",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:903",
+        "translation": "لم يتم تحديد أي روابط"
+    },
+    {
+        "id": "disaster_event.review.no_location_details",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:835",
+        "translation": "لا تتوفر تفاصيل عن الموقع"
+    },
+    {
+        "id": "disaster_event.review.no_responses",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4748",
+        "translation": "لم يتم تسجيل أي ردود حتى الآن"
+    },
+    {
+        "id": "disaster_event.review.no_spatial_data",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:883",
+        "translation": "لم يتم تحديد أي بيانات مكانية"
+    },
+    {
+        "id": "disaster_event.review.no_triggered_disaster_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4581",
+        "translation": "لا توجد أحداث كوارث مرتبطة (لاحقة) تم تشغيلها"
+    },
+    {
+        "id": "disaster_event.review.no_triggered_hazardous_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4470",
+        "translation": "لم تحدث أي أحداث خطرة مرتبطة (لاحقة) تم تشغيلها"
+    },
+    {
+        "id": "disaster_event.review.no_triggering_disaster_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4534",
+        "translation": "لا توجد أحداث كوارث مرتبطة (سببية)"
+    },
+    {
+        "id": "disaster_event.review.no_triggering_hazardous_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4423",
+        "translation": "لا توجد أحداث خطرة مرتبطة (سببية)"
+    },
+    {
+        "id": "disaster_event.review.official_declarations",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1775",
+        "translation": "التصريحات الرسمية"
+    },
+    {
+        "id": "disaster_event.review.other_sectors",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5131",
+        "translation": "قطاعات أخرى"
+    },
+    {
+        "id": "disaster_event.review.response_operation",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1788",
+        "translation": "عملية الاستجابة"
+    },
+    {
+        "id": "disaster_event.review.responses",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1765",
+        "translation": "الردود"
+    },
+    {
+        "id": "disaster_event.review.review_and_save",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5303",
+        "translation": "مراجعة وحفظ"
+    },
+    {
+        "id": "disaster_event.review.spatial_footprint_index",
+        "description": "File: app/frontend/events/disastereventform.tsx:1129",
+        "translation": "المساحة المشغولة {index}"
+    },
+    {
+        "id": "disaster_event.review.triggered_disaster_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4544",
+        "translation": "أحداث الكوارث (اللاحقة) التي نتجت عن ذلك"
+    },
+    {
+        "id": "disaster_event.review.triggered_hazardous_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4433",
+        "translation": "الأحداث الخطرة (اللاحقة) التي نتجت عن ذلك"
+    },
+    {
+        "id": "disaster_event.review.triggering_disaster_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4497",
+        "translation": "الأحداث المسببة (السببية) للكوارث"
+    },
+    {
+        "id": "disaster_event.review.triggering_hazardous_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4386",
+        "translation": "الأحداث الخطرة المُسببة (السببية)"
+    },
+    {
+        "id": "disaster_event.review.verify_before_saving",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:725",
+        "translation": "تأكد من صحة المعلومات قبل الحفظ."
+    },
+    {
+        "id": "disaster_events.back_to_list",
+        "description": "File: app/frontend/events/disastereventform.tsx:1555",
+        "translation": "العودة إلى أحداث الكوارث"
+    },
+    {
+        "id": "disaster_record.damages.total_repair_cost",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:252",
+        "translation": "إجمالي تكلفة الإصلاح"
+    },
+    {
+        "id": "disaster_record.damages.unit_repair_cost",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:249",
+        "translation": "تكلفة إصلاح الوحدة"
+    },
+    {
+        "id": "disaster_record.losses.unit_value",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:364",
+        "translation": "قيمة الوحدة"
+    },
+    {
+        "id": "disruption.duration_days",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:419",
+        "translation": "المدة (بالأيام)"
+    },
+    {
+        "id": "disruption.duration_hours",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:420",
+        "translation": "المدة (بالساعات)"
+    },
+    {
+        "id": "disruption.people_affected",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:422",
+        "translation": "الأشخاص المتضررون"
+    },
+    {
+        "id": "disruption.response_operation",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:423",
+        "translation": "عملية الاستجابة"
+    },
+    {
+        "id": "disruption.users_affected",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:421",
+        "translation": "المستخدمون المتأثرون"
+    },
+    {
+        "id": "end_time",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:962",
+        "translation": "وقت الانتهاء"
+    },
+    {
+        "id": "failed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3442",
+        "translation": "فشل"
+    },
+    {
+        "id": "geographies.add_division",
+        "description": "File: app/routes/$lang+/settings+/geography+/new.tsx:338",
+        "translation": "إضافة قسم"
+    },
+    {
+        "id": "geographies.add_division_subtitle",
+        "description": "File: app/routes/$lang+/settings+/geography+/new.tsx:354",
+        "translation": "إنشاء تقسيم إداري جديد."
+    },
+    {
+        "id": "geographies.cannot_delete_division_linked_children",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:56",
+        "translation": "يتم ربط قسم فرعي واحد أو أكثر بالسجلات الجغرافية المكانية الموجودة."
+    },
+    {
+        "id": "geographies.cannot_delete_linked_division",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:49",
+        "translation": "يرتبط هذا القسم بالسجلات الجغرافية المكانية الموجودة ولا يمكن حذفه."
+    },
+    {
+        "id": "geographies.cannot_delete_parent_division",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:40",
+        "translation": "يحتوي هذا القسم على أقسام فرعية. قم بحذف الأقسام الفرعية أو نقلها أولاً."
+    },
+    {
+        "id": "geographies.delete_division_confirmation",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:287",
+        "translation": "لا يمكن استرداد هذه البيانات بعد حذفها."
+    },
+    {
+        "id": "geographies.delete_division_title",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:106",
+        "translation": "حذف القسم"
+    },
+    {
+        "id": "geographies.division_deleted_successfully",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:223",
+        "translation": "تم حذف القسم بنجاح."
+    },
+    {
+        "id": "geographies.download_geometry",
+        "description": "File: app/routes/$lang+/settings+/geography+/edit.$id.tsx:463",
+        "translation": "تنزيل ملف الهندسة"
+    },
+    {
+        "id": "geographies.failed_delete_division",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:180",
+        "translation": "يتعذر حذف هذا القسم بسبب وجود بيانات مرتبطة به. يرجى إزالة الروابط أو الأقسام الفرعية أولاً."
+    },
+    {
+        "id": "geographies.upload_geometry",
+        "description": "File: app/routes/$lang+/settings+/geography+/edit.$id.tsx:489",
+        "translation": "تحميل الشكل الهندسي"
+    },
+    {
+        "id": "geographies.upload_geometry_hint",
+        "description": "File: app/routes/$lang+/settings+/geography+/edit.$id.tsx:502",
+        "translation": "لا يتوفر تحميل الشكل الهندسي إلا إذا لم يكن لهذا القسم شكل هندسي بعد."
+    },
+    {
+        "id": "human_effects.error.subtotal_larger_than_total_unset",
+        "description": "No total has been set for this metric. {group} is the group name(s), {column} is the metric name. File: app/frontend/editabletable/validate.ts:272",
+        "translation": "لا يوجد مجموع محدد للمجموعة ({group})، العمود \"{column}\""
+    },
+    {
+        "id": "nav.human_effects",
+        "description": "File: app/components/RegularMenuBar.tsx:413",
+        "translation": "التأثيرات البشرية"
+    },
+    {
+        "id": "no_disaster_events_found",
+        "description": "File: app/frontend/disaster-event/DisasterEventsPage.tsx:856",
+        "translation": "لم يتم العثور على أي أحداث كوارث"
+    },
+    {
+        "id": "of",
+        "description": "File: app/frontend/disaster-event/DisasterEventsPage.tsx:979",
+        "translation": "من"
+    },
+    {
+        "id": "recovery_cost.sector",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:124",
+        "translation": "تكلفة الاسترداد"
+    },
+    {
+        "id": "rows_per_page",
+        "description": "File: app/frontend/disaster-event/DisasterEventsPage.tsx:973",
+        "translation": "عدد الصفوف في كل صفحة"
+    },
+    {
+        "id": "spatial_footprint.define_specific_geographic_area",
+        "description": "Help text for spatial footprint section File: app/frontend/spatialFootprintFormView2.tsx:61",
+        "translation": "حدد المنطقة الجغرافية المعنية باستخدام إحداثيات الخريطة التفاعلية أو الإدخال اليدوي."
+    },
+    {
+        "id": "start_time",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:961",
+        "translation": "وقت البدء"
+    },
+    {
+        "id": "time_placeholder_24h",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:963",
+        "translation": "الوقت (24 ساعة، على سبيل المثال 14:30)"
+    },
+    {
+        "id": "unit.centimeters",
+        "description": "File: app/frontend/unit_picker.tsx:164",
+        "translation": "السنتيمترات (سم)"
+    },
+    {
+        "id": "unit.feet",
+        "description": "File: app/frontend/unit_picker.tsx:172",
+        "translation": "أقدام (ft)"
+    },
+    {
+        "id": "unit.kilometers",
+        "description": "File: app/frontend/unit_picker.tsx:160",
+        "translation": "الكيلومترات (كم)"
+    },
+    {
+        "id": "unit.length",
+        "description": "File: app/frontend/unit_picker.tsx:76",
+        "translation": "الطول"
+    },
+    {
+        "id": "unit.meters",
+        "description": "File: app/frontend/unit_picker.tsx:156",
+        "translation": "الأمتار (م)"
+    },
+    {
+        "id": "unit.miles",
+        "description": "File: app/frontend/unit_picker.tsx:180",
+        "translation": "ميل (mi)"
+    },
+    {
+        "id": "unit.millimeters",
+        "description": "File: app/frontend/unit_picker.tsx:168",
+        "translation": "مليمترات (مم)"
+    },
+    {
+        "id": "unit.nautical_miles",
+        "description": "File: app/frontend/unit_picker.tsx:184",
+        "translation": "الأميال البحرية (NM)"
+    },
+    {
+        "id": "unit.yards",
+        "description": "File: app/frontend/unit_picker.tsx:176",
+        "translation": "ياردات (yd)"
+    },
+    {
+        "id": "user.permission.delete_disaster_event.label",
+        "description": "File: app/frontend/user/roles.ts:165",
+        "translation": "حذف حدث الكارثة"
+    },
+    {
+        "id": "user.permission.disaster_event_list.label",
+        "description": "File: app/frontend/user/roles.ts:157",
+        "translation": "قائمة الأحداث الكارثية"
+    },
+    {
+        "id": "user.permission.edit_disaster_event.label",
+        "description": "File: app/frontend/user/roles.ts:173",
+        "translation": "تحرير حدث الكارثة"
+    },
+    {
+        "id": "uuid_copied_to_clipboard",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3435",
+        "translation": "تم نسخ UUID {shortUuid}… إلى الحافظة"
     }
 ]
