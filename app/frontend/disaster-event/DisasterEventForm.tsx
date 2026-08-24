@@ -2975,6 +2975,14 @@ function StepperValidation({
 										{item.meta.declarationStatus}
 									</p>
 								) : null}
+								{item.coverage?.trim() ? (
+									<p>
+										<span className="font-semibold text-slate-700">
+											Coverage:
+										</span>{" "}
+										{item.coverage.trim()}
+									</p>
+								) : null}
 								{category === "declaration" &&
 								item.meta?.issuingOrganization?.trim() ? (
 									<p>
@@ -2982,14 +2990,6 @@ function StepperValidation({
 											Issuing Organization:
 										</span>{" "}
 										{item.meta.issuingOrganization.trim()}
-									</p>
-								) : null}
-								{item.coverage?.trim() ? (
-									<p>
-										<span className="font-semibold text-slate-700">
-											Coverage:
-										</span>{" "}
-										{item.coverage.trim()}
 									</p>
 								) : null}
 								{item.description?.trim() ? (

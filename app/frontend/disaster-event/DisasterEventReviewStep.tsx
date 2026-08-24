@@ -484,6 +484,18 @@ const renderStep4DetailRow = (
 							{item.meta.declarationStatus}
 						</p>
 					) : null}
+					{item.coverage?.trim() ? (
+						<p>
+							<span className="font-semibold text-slate-700">
+								{ctx.t({
+									code: "disaster_event.review.coverage",
+									msg: "Coverage",
+								})}
+								:
+							</span>{" "}
+							{item.coverage.trim()}
+						</p>
+					) : null}
 					{category === "declaration" &&
 					item.meta?.issuingOrganization?.trim() ? (
 						<p>
@@ -495,18 +507,6 @@ const renderStep4DetailRow = (
 								:
 							</span>{" "}
 							{item.meta.issuingOrganization.trim()}
-						</p>
-					) : null}
-					{item.coverage?.trim() ? (
-						<p>
-							<span className="font-semibold text-slate-700">
-								{ctx.t({
-									code: "disaster_event.review.coverage",
-									msg: "Coverage",
-								})}
-								:
-							</span>{" "}
-							{item.coverage.trim()}
 						</p>
 					) : null}
 					{item.description?.trim() ? (
