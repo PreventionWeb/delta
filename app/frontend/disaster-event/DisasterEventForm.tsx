@@ -3028,14 +3028,6 @@ function StepperValidation({
 										)}
 									</p>
 								) : null}
-								{item.meta?.otherSectors?.trim() ? (
-									<p>
-										<span className="font-semibold text-slate-700">
-											Other sectors:
-										</span>{" "}
-										{item.meta.otherSectors.trim()}
-									</p>
-								) : null}
 								{assessmentSectorNames.length > 0 ? (
 									<p>
 										<span className="font-semibold text-slate-700">
@@ -3044,10 +3036,18 @@ function StepperValidation({
 										{assessmentSectorNames.join(", ")}
 									</p>
 								) : null}
+								{item.meta?.otherSectors?.trim() ? (
+									<p>
+										<span className="font-semibold text-slate-700">
+											Other sectors:
+										</span>{" "}
+										{item.meta.otherSectors.trim()}
+									</p>
+								) : null}
 								{!item.coverage?.trim() &&
 								!item.description?.trim() &&
-								!item.meta?.otherSectors?.trim() &&
-								assessmentSectorNames.length === 0 ? (
+								assessmentSectorNames.length === 0 &&
+								!item.meta?.otherSectors?.trim() ? (
 									<p>-</p>
 								) : null}
 							</div>

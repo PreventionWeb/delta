@@ -41,6 +41,14 @@ import DisasterEventReviewStep from "~/frontend/disaster-event/DisasterEventRevi
 
 export const route = "/disaster-event";
 
+export function formatAssessmentSectorSummary(sectorNames: string[]): string {
+	return sectorNames
+		.map((name) => name.trim())
+		.filter((name) => name.length > 0)
+		.filter((name, index, values) => values.indexOf(name) === index)
+		.join(", ");
+}
+
 export function resolveAssessmentSectorNames(
 	sectorIds: string[],
 	sectorNamesById: Map<string, string>,

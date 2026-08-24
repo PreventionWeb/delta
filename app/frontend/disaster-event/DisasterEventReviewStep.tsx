@@ -509,15 +509,25 @@ const renderStep4DetailRow = (
 							{item.coverage.trim()}
 						</p>
 					) : null}
+					{item.description?.trim() ? (
+						<p>
+							<span className="font-semibold text-slate-700">
+								{category === "declaration"
+									? `${ctx.t({ code: "disaster_event.effects", msg: "Effects" })}:`
+									: `${ctx.t({ code: "common.description", msg: "Description" })}:`}
+							</span>{" "}
+							{renderMultilineText(
+								item.description.trim(),
+								`${item.id}-detail-description`,
+							)}
+						</p>
+					) : null}
 					{category === "assessment" && assessmentSectorNames.length > 0 ? (
 						<p>
 							<span className="font-semibold text-slate-700">
 								{ctx.t({ code: "common.sectors", msg: "Sectors" })}:
-							</span>
-							{renderMultilineText(
-								assessmentSectorNames.join("\n"),
-								`${item.id}-assessment-sectors`,
-							)}
+							</span>{" "}
+							{assessmentSectorNames.join(", ")}
 						</p>
 					) : null}
 					{category === "assessment" && item.meta?.otherSectors?.trim() ? (
@@ -530,19 +540,6 @@ const renderStep4DetailRow = (
 								:
 							</span>{" "}
 							{item.meta.otherSectors.trim()}
-						</p>
-					) : null}
-					{item.description?.trim() ? (
-						<p>
-							<span className="font-semibold text-slate-700">
-								{category === "declaration"
-									? `${ctx.t({ code: "disaster_event.effects", msg: "Effects" })}:`
-									: `${ctx.t({ code: "common.description", msg: "Description" })}:`}
-							</span>{" "}
-							{renderMultilineText(
-								item.description.trim(),
-								`${item.id}-detail-description`,
-							)}
 						</p>
 					) : null}
 					{!item.coverage?.trim() &&
