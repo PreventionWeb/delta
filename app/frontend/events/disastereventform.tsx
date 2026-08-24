@@ -1584,8 +1584,7 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 					nationalDisasterId: itemAny?.nationalDisasterId || "",
 					glide: itemAny?.glide || "",
 					id: itemAny?.id || "",
-					recordingOrganizationName:
-						itemAny?.recordOriginator || "",
+					recordingOrganizationName: itemAny?.recordOriginator || "",
 				}}
 				selectedHazardTypeName={hipName(itemAny?.hipType)}
 				selectedHazardClusterName={hipName(itemAny?.hipCluster)}

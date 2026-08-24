@@ -764,11 +764,17 @@ export default function DisasterEventReviewStep({
 								form.nationalDisasterId,
 							)}
 							{renderReviewItem(
-								ctx.t({ code: "disaster_event.glide_number", msg: "GLIDE number" }),
+								ctx.t({
+									code: "disaster_event.glide_number",
+									msg: "GLIDE number",
+								}),
 								form.glide,
 							)}
 							{renderReviewItem(
-								ctx.t({ code: "disaster_event.uuid", msg: "Disaster event UUID" }),
+								ctx.t({
+									code: "disaster_event.uuid",
+									msg: "Disaster event UUID",
+								}),
 								form.id,
 							)}
 							{renderReviewItem(
