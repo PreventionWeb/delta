@@ -29,11 +29,11 @@
     },
     {
         "id": "asset.name.00d1f0d9-38af-42c0-9c05-0a2854bfee68.497575",
-        "translation": "جذور ودرنات أخرى، غير مذكورة ولا توجد في مكان آخر"
+        "translation": "جذور ودرنات أخرى، غير مذكورة ولا توجد في مكان آخر."
     },
     {
         "id": "asset.name.00dd23f2-abc9-4670-a34c-5b29b9737ec9.d12d16",
-        "translation": "الآبار المحفورة يدوياً"
+        "translation": "الآبار المحفورة يدوياً. "
     },
     {
         "id": "asset.name.0e75023a-b773-4543-b3ca-5b6284982bb2.0a4aab",
@@ -61,7 +61,7 @@
     },
     {
         "id": "asset.name.1c666545-0b79-49fd-a82c-9e927e86a330.ac200f",
-        "translation": "خزانات المياه"
+        "translation": "خزانات المياه "
     },
     {
         "id": "asset.name.1efb83c0-3967-42cf-80fd-e9a1f47dbf2d.32f3d8",
@@ -925,7 +925,7 @@
     },
     {
         "id": "asset.name.02660f64-64ed-4fad-99fa-54525bdfc933.568c22",
-        "translation": "نقل الكهرباء تحت الأرض"
+        "translation": "نقل الكهرباء تحت الأرض "
     },
     {
         "id": "asset.name.2693cdbb-ced9-4ee4-b7a4-dc47e78d126f.29af97",
