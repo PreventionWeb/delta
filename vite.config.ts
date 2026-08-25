@@ -3,11 +3,31 @@ import { defineConfig } from "vite";
 import path from "path";
 import tailwindcss from "@tailwindcss/vite";
 
+const START = Date.now();
+const elapsed = () => `${((Date.now() - START) / 1000).toFixed(2)}s`;
+
+// put this first in the plugins array
+const timingPlugin = {
+	name: "startup-timer",
+	configResolved() {
+		console.log(`[timer] vite config resolved: ${elapsed()}`);
+	},
+	buildStart() {
+		console.log(`[timer] build start (dep scan begins): ${elapsed()}`);
+	},
+	configureServer(server: any) {
+		server.httpServer?.once("listening", () => {
+			console.log(`[timer] server LISTENING: ${elapsed()}`);
+		});
+	},
+};
+
 export default defineConfig({
 	ssr: {
 		noExternal: ["primereact", "primeicons"],
 	},
 	plugins: [
+		timingPlugin,
 		reactRouter(),
 		tailwindcss(),
 		{

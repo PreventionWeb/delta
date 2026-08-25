@@ -841,6 +841,53 @@ export async function disasterRecordsDeleteById(
 		};
 	}
 
+	const recordDisasterEventId = record.disasterEventId;
+	if (
+		(record.approvalStatus === "validated" ||
+			record.approvalStatus === "published") &&
+		recordDisasterEventId != null
+	) {
+		const eventIsApproved = await dr
+			.select({ id: disasterEventTable.id })
+			.from(disasterEventTable)
+			.where(
+				and(
+					eq(disasterEventTable.id, recordDisasterEventId as string),
+					eq(disasterEventTable.countryAccountsId, countryAccountsId),
+					inArray(disasterEventTable.approvalStatus, ["validated", "published"]),
+				),
+			)
+			.limit(1);
+
+		if (eventIsApproved.length > 0) {
+			const otherApprovedRecords = await dr
+				.select({ id: disasterRecordsTable.id })
+				.from(disasterRecordsTable)
+				.where(
+					and(
+						eq(
+							disasterRecordsTable.disasterEventId,
+							recordDisasterEventId as string,
+						),
+						eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
+						inArray(disasterRecordsTable.approvalStatus, [
+							"validated",
+							"published",
+						]),
+						sql`${disasterRecordsTable.id} != ${idStr}`,
+					),
+				)
+				.limit(1);
+			if (otherApprovedRecords.length === 0) {
+				return {
+					ok: false,
+					error:
+						"This is the only published or validated disaster record linked to a validated or published disaster event. It cannot be deleted.",
+				};
+			}
+		}
+	}
+
 	await dr.transaction(async (tx) => {
 		await entityValidationAssignmentDeleteByEntityId(
 			idStr,
@@ -906,23 +953,59 @@ export async function deleteAllDataByDisasterRecordId(
 	idStr: string,
 	countryAccountsId: string,
 ): Promise<DeleteResult> {
-	await dr.transaction(async (tx) => {
-		const existingRecord = tx
-			.select({})
-			.from(disasterRecordsTable)
+	const existingRecord = await disasterRecordsById(idStr, countryAccountsId);
+	if (!existingRecord) {
+		return {
+			ok: false,
+			error: `Record with ID ${idStr} not found or you don't have permission to delete it.`,
+		};
+	}
+
+	const existingRecordDisasterEventId = existingRecord.disasterEventId;
+	if (
+		(existingRecord.approvalStatus === "validated" ||
+			existingRecord.approvalStatus === "published") &&
+		existingRecordDisasterEventId != null
+	) {
+		const eventIsApproved = await dr
+			.select({ id: disasterEventTable.id })
+			.from(disasterEventTable)
 			.where(
 				and(
-					eq(disasterRecordsTable.id, idStr),
-					eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
+					eq(disasterEventTable.id, existingRecordDisasterEventId as string),
+					eq(disasterEventTable.countryAccountsId, countryAccountsId),
+					inArray(disasterEventTable.approvalStatus, ["validated", "published"]),
 				),
-			);
-		if (!existingRecord) {
-			throw new Error(
-				`Record with ID ${idStr} not found or you don't have permission to delete it.`,
-			);
-		}
+			)
+			.limit(1);
 
-		// -------------------------------------
+		if (eventIsApproved.length > 0) {
+			const otherApprovedRecords = await dr
+				.select({ id: disasterRecordsTable.id })
+				.from(disasterRecordsTable)
+				.where(
+					and(
+						eq(
+							disasterRecordsTable.disasterEventId,
+							existingRecordDisasterEventId as string,
+						),
+						eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
+						inArray(disasterRecordsTable.approvalStatus, ["validated", "published"]),
+						sql`${disasterRecordsTable.id} != ${idStr}`,
+					),
+				)
+				.limit(1);
+			if (otherApprovedRecords.length === 0) {
+				return {
+					ok: false,
+					error:
+						"This is the only published or validated disaster record linked to a validated or published disaster event. It cannot be deleted.",
+				};
+			}
+		}
+	}
+
+	await dr.transaction(async (tx) => {
 		// DELETE child related noneco losses
 		// -------------------------------------
 		await tx

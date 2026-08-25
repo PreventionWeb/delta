@@ -3,6 +3,7 @@ import { MultiSelect } from "primereact/multiselect";
 import { Dialog } from "primereact/dialog";
 import { Checkbox } from "primereact/checkbox";
 import { InputTextarea } from "primereact/inputtextarea";
+import { Toast } from "primereact/toast";
 import { useFetcher } from "react-router";
 import { useState, useEffect, useRef } from "react";
 import {
@@ -45,6 +46,7 @@ export function ViewComponentMainDataCollection(
 	const [checked, setChecked] = useState(false);
 
 	const btnRefSubmit = useRef(null);
+	const toast = useRef<Toast>(null);
 	const actionLabels: Record<string, string> = {
 		"submit-validate": ctx.t({
 			code: "common.validate_record",
@@ -107,7 +109,15 @@ export function ViewComponentMainDataCollection(
 
 		// Client-side validation only for submit-reject action
 		if (!rejectionComments && selectedAction === "submit-reject") {
-			alert("Provide comments for changes needed for this record");
+			toast.current?.show({
+				severity: "error",
+				summary: ctx.t({ code: "common.error", msg: "Error" }),
+				detail: ctx.t({
+					code: "common.provide_comments_for_return",
+					msg: "Provide comments for changes needed for this record",
+				}),
+				life: 6000,
+			});
 			return false;
 		}
 
@@ -131,7 +141,14 @@ export function ViewComponentMainDataCollection(
 			} else {
 				// Perform failure action
 				console.error("Error:", fetcher.data.message);
-				alert("Something went wrong.");
+				toast.current?.show({
+					severity: "error",
+					summary: ctx.t({ code: "common.error", msg: "Error" }),
+					detail:
+						fetcher.data.message ||
+						ctx.t({ code: "common.something_went_wrong", msg: "Something went wrong." }),
+					life: 8000,
+				});
 			}
 		}
 	}, [fetcher.state, fetcher.data]);
@@ -140,6 +157,10 @@ export function ViewComponentMainDataCollection(
 
 	return (
 		<>
+			<Toast
+				ref={toast}
+				position={ctx.lang === "ar" ? "top-left" : "top-right"}
+			/>
 			<fetcher.Form method="post" ref={formRef}>
 				<div className="card flex justify-content-center">
 					<Dialog

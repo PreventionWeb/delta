@@ -14,6 +14,30 @@ import {
 import { emailAssignedValidators } from "./emailValidationWorkflowService";
 import { getUserCountryAccountsByUserIdAndCountryAccountsId } from "~/db/queries/userCountryAccountsRepository";
 
+async function ensureDisasterEventHasApprovedDisasterRecords(
+	tx: Tx,
+	entityId: string,
+	countryAccountsId: string,
+): Promise<void> {
+	const rows = await tx
+		.select({ id: disasterRecordsTable.id })
+		.from(disasterRecordsTable)
+		.where(
+			and(
+				eq(disasterRecordsTable.disasterEventId, entityId),
+				eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
+				sql`${disasterRecordsTable.approvalStatus} IN ('validated', 'published')`,
+			),
+		)
+		.limit(1);
+
+	if (rows.length === 0) {
+		throw new Error(
+			"A validated or published disaster event must have at least one associated published or validated disaster record.",
+		);
+	}
+}
+
 export type ApprovalAction =
 	| "submit-validation"
 	| "submit-draft"
@@ -134,6 +158,7 @@ export async function handleApprovalWorkflowService(
 						entityId,
 						entityType,
 						submittedByUserId,
+						countryAccountsId,
 					);
 					break;
 
@@ -144,6 +169,7 @@ export async function handleApprovalWorkflowService(
 						entityId,
 						entityType,
 						submittedByUserId,
+						countryAccountsId,
 					);
 					break;
 
@@ -272,12 +298,20 @@ async function handleSubmitAsValidated(
 	entityId: string,
 	entityType: EntityType,
 	submittedByUserId: string,
+	countryAccountsId: string,
 ): Promise<void> {
+	if (entityType === "disaster_event") {
+		await ensureDisasterEventHasApprovedDisasterRecords(
+			tx,
+			entityId,
+			countryAccountsId,
+		);
+	}
+
 	const table = getTableForEntityType(entityType);
 
 	ctx.url("/"); // do nothing
 
-	// Update the entity to published status
 	await tx
 		.update(table)
 		.set({
@@ -288,7 +322,6 @@ async function handleSubmitAsValidated(
 		})
 		.where(eq(table.id, entityId));
 
-	// Remove any existing validation assignments
 	await entityValidationAssignmentDeleteByEntityId(entityId, entityType);
 }
 
@@ -298,12 +331,20 @@ async function handleSubmitAsPublished(
 	entityId: string,
 	entityType: EntityType,
 	submittedByUserId: string,
+	countryAccountsId: string,
 ): Promise<void> {
+	if (entityType === "disaster_event") {
+		await ensureDisasterEventHasApprovedDisasterRecords(
+			tx,
+			entityId,
+			countryAccountsId,
+		);
+	}
+
 	const table = getTableForEntityType(entityType);
 
 	ctx.url("/"); // do nothing
 
-	// Update the entity to published status
 	await tx
 		.update(table)
 		.set({
@@ -316,7 +357,6 @@ async function handleSubmitAsPublished(
 		})
 		.where(eq(table.id, entityId));
 
-	// Remove any existing validation assignments
 	await entityValidationAssignmentDeleteByEntityId(entityId, entityType);
 }
 
