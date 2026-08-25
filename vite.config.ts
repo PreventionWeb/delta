@@ -6,7 +6,6 @@ import tailwindcss from "@tailwindcss/vite";
 const START = Date.now();
 const elapsed = () => `${((Date.now() - START) / 1000).toFixed(2)}s`;
 
-// put this first in the plugins array
 const timingPlugin = {
 	name: "startup-timer",
 	configResolved() {
@@ -68,7 +67,27 @@ export default defineConfig({
 	},
 	publicDir: path.resolve(__dirname, "public"), // Ensures the "public" folder is correctly configured
 	optimizeDeps: {
-		include: ["react", "react-dom", "react-router"],
+		include: [
+			"react",
+			"react-dom",
+			"react-router",
+			"drizzle-orm",
+			"drizzle-orm/node-postgres",
+			"drizzle-orm/pg-core",
+			"i18next",
+			"react-i18next",
+			"i18next-fs-backend",
+			"remix-i18next",
+			"@nestjs/core",
+			"@nestjs/common",
+			"@nestjs/swagger",
+			"nestjs-zod",
+			"zod",
+			"bcryptjs",
+			"otpauth",
+			"pino",
+			"reflect-metadata",
+		],
 		// nestjs-i18n's optional-peer require()s (graphql/hbs) break the scanner even though
 		// it's server-only — see vite.config.ts git history for details.
 		exclude: ["nestjs-i18n"],
