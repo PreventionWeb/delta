@@ -41,7 +41,10 @@ async function hasOtherApprovedRecordsForEvent(
 			and(
 				eq(disasterRecordsTable.disasterEventId, eventId),
 				eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
-				inArray(disasterRecordsTable.approvalStatus, ["validated", "published"]),
+				inArray(disasterRecordsTable.approvalStatus, [
+					"validated",
+					"published",
+				]),
 				ne(disasterRecordsTable.id, recordId),
 			),
 		)
@@ -91,8 +94,7 @@ export async function updateDisasterRecordStatusService({
 	) {
 		const recordDisasterEventId = record.disasterEventId;
 		const nextStatusMovesAwayFromApproval =
-			approvalStatus !== "validated" &&
-			approvalStatus !== "published";
+			approvalStatus !== "validated" && approvalStatus !== "published";
 		if (
 			recordDisasterEventId &&
 			nextStatusMovesAwayFromApproval &&

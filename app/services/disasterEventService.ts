@@ -23,7 +23,10 @@ async function hasApprovedDisasterRecordsForEvent(
 			and(
 				eq(disasterRecordsTable.disasterEventId, eventId),
 				eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
-				inArray(disasterRecordsTable.approvalStatus, ["validated", "published"]),
+				inArray(disasterRecordsTable.approvalStatus, [
+					"validated",
+					"published",
+				]),
 			),
 		)
 		.limit(1);

@@ -854,7 +854,10 @@ export async function disasterRecordsDeleteById(
 				and(
 					eq(disasterEventTable.id, recordDisasterEventId as string),
 					eq(disasterEventTable.countryAccountsId, countryAccountsId),
-					inArray(disasterEventTable.approvalStatus, ["validated", "published"]),
+					inArray(disasterEventTable.approvalStatus, [
+						"validated",
+						"published",
+					]),
 				),
 			)
 			.limit(1);
@@ -974,7 +977,10 @@ export async function deleteAllDataByDisasterRecordId(
 				and(
 					eq(disasterEventTable.id, existingRecordDisasterEventId as string),
 					eq(disasterEventTable.countryAccountsId, countryAccountsId),
-					inArray(disasterEventTable.approvalStatus, ["validated", "published"]),
+					inArray(disasterEventTable.approvalStatus, [
+						"validated",
+						"published",
+					]),
 				),
 			)
 			.limit(1);
@@ -990,7 +996,10 @@ export async function deleteAllDataByDisasterRecordId(
 							existingRecordDisasterEventId as string,
 						),
 						eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
-						inArray(disasterRecordsTable.approvalStatus, ["validated", "published"]),
+						inArray(disasterRecordsTable.approvalStatus, [
+							"validated",
+							"published",
+						]),
 						sql`${disasterRecordsTable.id} != ${idStr}`,
 					),
 				)

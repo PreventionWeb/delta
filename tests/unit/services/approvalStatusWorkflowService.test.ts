@@ -93,9 +93,8 @@ describe("approval-status guard rules", () => {
 	});
 
 	it("blocks validating a disaster event without any approved disaster records", async () => {
-		const { updateDisasterEventStatusService } = await import(
-			"~/services/disasterEventService"
-		);
+		const { updateDisasterEventStatusService } =
+			await import("~/services/disasterEventService");
 
 		disasterEventByIdMock.mockResolvedValue({
 			id: "event-1",
@@ -116,13 +115,14 @@ describe("approval-status guard rules", () => {
 		expect(result.message).toContain(
 			"at least one associated published or validated disaster record",
 		);
-		expect(disasterEventUpdateApprovalStatusValidateMock).not.toHaveBeenCalled();
+		expect(
+			disasterEventUpdateApprovalStatusValidateMock,
+		).not.toHaveBeenCalled();
 	});
 
 	it("blocks returning the only approved record for an approved disaster event to edit", async () => {
-		const { updateDisasterRecordStatusService } = await import(
-			"~/services/disasterRecordService"
-		);
+		const { updateDisasterRecordStatusService } =
+			await import("~/services/disasterRecordService");
 
 		disasterRecordsByIdMock.mockResolvedValue({
 			id: "record-1",
@@ -146,13 +146,14 @@ describe("approval-status guard rules", () => {
 		expect(result.message).toContain(
 			"only published or validated disaster record linked to a validated or published disaster event",
 		);
-		expect(disasterRecordsUpdateApprovalStatusNeedRevisionMock).not.toHaveBeenCalled();
+		expect(
+			disasterRecordsUpdateApprovalStatusNeedRevisionMock,
+		).not.toHaveBeenCalled();
 	});
 
 	it("blocks the direct disaster-event validation workflow when no approved record is linked", async () => {
-		const { handleApprovalWorkflowService } = await import(
-			"~/backend.server/services/approvalWorkflowService"
-		);
+		const { handleApprovalWorkflowService } =
+			await import("~/backend.server/services/approvalWorkflowService");
 
 		userCountryAccountsRepositoryMock.mockResolvedValue({ role: "admin" });
 		const tx = {
@@ -183,26 +184,28 @@ describe("approval-status guard rules", () => {
 				tx as any,
 				"event-1",
 				"disaster_event",
-				{ updatedByUserId: "user-1", countryAccountsId: "country-1", tempAction: "submit-validate" },
+				{
+					updatedByUserId: "user-1",
+					countryAccountsId: "country-1",
+					tempAction: "submit-validate",
+				},
 			),
 		).rejects.toThrow(
 			"A validated or published disaster event must have at least one associated published or validated disaster record.",
 		);
 	});
 
-	it(
-		"returns a form error instead of throwing when approval validation fails during save",
-		async () => {
+	it("returns a form error instead of throwing when approval validation fails during save", async () => {
 		const { formSave } = await import("~/backend.server/handlers/form/form");
 
 		const result = await formSave({
 			actionArgs: {
 				request: new Request("http://localhost/en/disaster-event/123", {
-				method: "POST",
-				body: new URLSearchParams({}),
-			}),
+					method: "POST",
+					body: new URLSearchParams({}),
+				}),
 				params: { lang: "en", id: "123" },
-		} as any,
+			} as any,
 			userRole: "admin",
 			fieldsDef: [],
 			save: async () => {
@@ -221,7 +224,5 @@ describe("approval-status guard rules", () => {
 				],
 			},
 		});
-		},
-		15000,
-	);
+	}, 15000);
 });

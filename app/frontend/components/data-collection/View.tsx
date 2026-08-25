@@ -146,7 +146,10 @@ export function ViewComponentMainDataCollection(
 					summary: ctx.t({ code: "common.error", msg: "Error" }),
 					detail:
 						fetcher.data.message ||
-						ctx.t({ code: "common.something_went_wrong", msg: "Something went wrong." }),
+						ctx.t({
+							code: "common.something_went_wrong",
+							msg: "Something went wrong.",
+						}),
 					life: 8000,
 				});
 			}
