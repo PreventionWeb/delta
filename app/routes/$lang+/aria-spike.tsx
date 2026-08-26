@@ -498,48 +498,73 @@ export default function AriaSpikeRoute() {
 					</SearchField>
 					<DialogTrigger>
 						<Button>Filters{filterCount ? ` (${filterCount})` : ""}</Button>
-						<Popover>
-							<Dialog>
-								<Heading slot="title">Filters</Heading>
-								{filterCount > 0 && (
-									<Button onPress={clearFilters}>Clear filters</Button>
-								)}
-								<Checkbox
-									isSelected={favoritesOnly}
-									onChange={(value) => {
-										setFavoritesOnly(value);
-										setPage(1);
-									}}
-								>
-									Favorites
-								</Checkbox>
-								<Label>Record status</Label>
-								<div className="flex flex-wrap gap-2">
-									{STATUSES.map((status) => (
-										<Checkbox
-											key={status}
-											isSelected={statuses.has(status)}
-											onChange={(value) =>
-												toggleFilter(setStatuses, status, value)
-											}
+						<Popover className="!w-[min(25rem,calc(100vw-2rem))] !p-0">
+							<Dialog className="gap-0">
+								<div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+									<Heading
+										slot="title"
+										className="text-lg font-semibold text-slate-900"
+									>
+										Filters
+									</Heading>
+									{filterCount > 0 && (
+										<Button
+											className="min-h-10 bg-transparent px-2 py-1 text-sm text-blue-800 active:scale-[0.96]"
+											onPress={clearFilters}
 										>
-											{status}
-										</Checkbox>
-									))}
+											Clear all
+										</Button>
+									)}
 								</div>
-								<Label>Onset</Label>
-								<div className="flex flex-wrap gap-2">
-									{ONSETS.map((onset) => (
-										<Checkbox
-											key={onset}
-											isSelected={onsets.has(onset)}
-											onChange={(value) =>
-												toggleFilter(setOnsets, onset, value)
-											}
-										>
-											{onset}
-										</Checkbox>
-									))}
+								<div className="space-y-4 px-4 py-4">
+									<Checkbox
+										className="min-h-10"
+										isSelected={favoritesOnly}
+										onChange={(value) => {
+											setFavoritesOnly(value);
+											setPage(1);
+										}}
+									>
+										Favorites only
+									</Checkbox>
+									<div className="space-y-2 border-t border-slate-100 pt-4">
+										<Label className="block text-sm font-semibold text-slate-800">
+											Record status
+										</Label>
+										<div className="grid grid-cols-2 gap-x-4 gap-y-2">
+											{STATUSES.map((status) => (
+												<Checkbox
+													className="min-h-10"
+													key={status}
+													isSelected={statuses.has(status)}
+													onChange={(value) =>
+														toggleFilter(setStatuses, status, value)
+													}
+												>
+													{status}
+												</Checkbox>
+											))}
+										</div>
+									</div>
+									<div className="space-y-2 border-t border-slate-100 pt-4">
+										<Label className="block text-sm font-semibold text-slate-800">
+											Onset
+										</Label>
+										<div className="grid grid-cols-2 gap-x-4 gap-y-2">
+											{ONSETS.map((onset) => (
+												<Checkbox
+													className="min-h-10"
+													key={onset}
+													isSelected={onsets.has(onset)}
+													onChange={(value) =>
+														toggleFilter(setOnsets, onset, value)
+													}
+												>
+													{onset}
+												</Checkbox>
+											))}
+										</div>
+									</div>
 								</div>
 							</Dialog>
 						</Popover>
