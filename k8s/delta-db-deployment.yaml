@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: delta-local-db
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: delta-local-db
+
+  template:
+    metadata:
+      labels:
+        app: delta-local-db
+
+    spec:
+      containers:
+        - name: delta-local-db
+          image: postgis/postgis:17-3.5
+          env:
+            - name: POSTGRES_USER
+              value: "postgres"
+            - name: POSTGRES_PASSWORD
+              value: "postgres"
+            - name: POSTGRES_DB
+              value: "dts-shared-01"
+          ports:
+            - containerPort: 5432

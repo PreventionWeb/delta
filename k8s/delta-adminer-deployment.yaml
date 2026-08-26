@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: delta-adminer-app
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: delta-adminer-app
+
+  template:
+    metadata:
+      labels:
+        app: delta-adminer-app
+
+    spec:
+      containers:
+        - name: delta-adminer-app
+          image: adminer
+          env:
+            - name: ADMINER_DEFAULT_DB_DRIVER
+              value: "pgsql"
+            - name: ADMINER_DEFAULT_SERVER
+              value: "delta-local-db"
+          ports:
+            - containerPort: 8080
