@@ -1759,6 +1759,16 @@ function StepperValidation({
 			}),
 		},
 	];
+	const stepperStatusLabel = (status: "required" | "optional") =>
+		status === "required"
+			? ctx.t({
+					code: "disaster_event.form.stepper_status.required",
+					msg: "Required",
+				})
+			: ctx.t({
+					code: "disaster_event.form.stepper_status.optional",
+					msg: "Optional",
+				});
 	const detailCategoryLabel = (category: AdditionalDetailCategory): string => {
 		switch (category) {
 			case "response":
@@ -2975,6 +2985,14 @@ function StepperValidation({
 										{item.meta.declarationStatus}
 									</p>
 								) : null}
+								{item.coverage?.trim() ? (
+									<p>
+										<span className="font-semibold text-slate-700">
+											Coverage:
+										</span>{" "}
+										{item.coverage.trim()}
+									</p>
+								) : null}
 								{category === "declaration" &&
 								item.meta?.issuingOrganization?.trim() ? (
 									<p>
@@ -2982,14 +3000,6 @@ function StepperValidation({
 											Issuing Organization:
 										</span>{" "}
 										{item.meta.issuingOrganization.trim()}
-									</p>
-								) : null}
-								{item.coverage?.trim() ? (
-									<p>
-										<span className="font-semibold text-slate-700">
-											Coverage:
-										</span>{" "}
-										{item.coverage.trim()}
 									</p>
 								) : null}
 								{item.description?.trim() ? (
@@ -3028,14 +3038,6 @@ function StepperValidation({
 										)}
 									</p>
 								) : null}
-								{item.meta?.otherSectors?.trim() ? (
-									<p>
-										<span className="font-semibold text-slate-700">
-											Other sectors:
-										</span>{" "}
-										{item.meta.otherSectors.trim()}
-									</p>
-								) : null}
 								{assessmentSectorNames.length > 0 ? (
 									<p>
 										<span className="font-semibold text-slate-700">
@@ -3044,10 +3046,18 @@ function StepperValidation({
 										{assessmentSectorNames.join(", ")}
 									</p>
 								) : null}
+								{item.meta?.otherSectors?.trim() ? (
+									<p>
+										<span className="font-semibold text-slate-700">
+											Other sectors:
+										</span>{" "}
+										{item.meta.otherSectors.trim()}
+									</p>
+								) : null}
 								{!item.coverage?.trim() &&
 								!item.description?.trim() &&
-								!item.meta?.otherSectors?.trim() &&
-								assessmentSectorNames.length === 0 ? (
+								assessmentSectorNames.length === 0 &&
+								!item.meta?.otherSectors?.trim() ? (
 									<p>-</p>
 								) : null}
 							</div>
@@ -3545,7 +3555,7 @@ function StepperValidation({
 			</div>
 			<style>{`
 			.status-stepper .p-stepper-title::after {
-				content: attr(data-status);
+				content: attr(data-status-label);
 				display: block;
 				margin-top: 2px;
 				font-size: 12px;
@@ -3556,11 +3566,11 @@ function StepperValidation({
 				color: #94a3b8;
 			}
 
-			.status-stepper .p-stepper-title[data-status="required"]::after {
+			.status-stepper .p-stepper-title[data-status-kind="required"]::after {
 				color: #94a3b8;
 			}
 
-			.status-stepper .p-stepper-title[data-status="optional"]::after {
+			.status-stepper .p-stepper-title[data-status-kind="optional"]::after {
 				color: #9ca3af;
 			}
 
@@ -3672,13 +3682,13 @@ function StepperValidation({
 										msg: "Edit disaster event",
 									})}
 								</h2>
-							<Button
-								type="button"
-								icon="pi pi-times"
-								text
-								aria-label={ctx.t({ code: "common.close", msg: "Close" })}
-								onClick={openExitConfirmModal}
-							/>
+								<Button
+									type="button"
+									icon="pi pi-times"
+									text
+									aria-label={ctx.t({ code: "common.close", msg: "Close" })}
+									onClick={openExitConfirmModal}
+								/>
 							</div>
 						</div>
 
@@ -3771,24 +3781,25 @@ function StepperValidation({
 								pt={{
 									title: {
 										style: { textAlign: "center" },
-										"data-status": "required",
+										"data-status-kind": "required",
+										"data-status-label": stepperStatusLabel("required"),
 									},
 								}}
 							>
 								<div className="grid grid-cols-12 gap-4">
 									<div className="col-span-12 mb-4">
-									<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
-										{ctx.t({
-											code: "disaster_event.form.event_basics",
-											msg: "Event basics",
-										})}
-									</h2>
-									<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
-										{ctx.t({
-											code: "disaster_event.form.event_basics_description",
-											msg: "General information about the disaster event.",
-										})}
-									</p>
+										<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
+											{ctx.t({
+												code: "disaster_event.form.event_basics",
+												msg: "Event basics",
+											})}
+										</h2>
+										<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
+											{ctx.t({
+												code: "disaster_event.form.event_basics_description",
+												msg: "General information about the disaster event.",
+											})}
+										</p>
 									</div>
 
 									<div className="col-span-12 grid grid-cols-12 gap-4">
@@ -3961,18 +3972,18 @@ function StepperValidation({
 									<div className="col-span-12 my-6 border-t border-slate-200" />
 
 									<div className="col-span-12 mb-4">
-									<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
-										{ctx.t({
-											code: "disaster_event.form.hazard_and_timing",
-											msg: "Hazard and timing",
-										})}
-									</h2>
-									<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
-										{ctx.t({
-											code: "disaster_event.form.hazard_and_timing_description",
-											msg: "Detailed information regarding the observed hazards and timing.",
-										})}
-									</p>
+										<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
+											{ctx.t({
+												code: "disaster_event.form.hazard_and_timing",
+												msg: "Hazard and timing",
+											})}
+										</h2>
+										<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
+											{ctx.t({
+												code: "disaster_event.form.hazard_and_timing_description",
+												msg: "Detailed information regarding the observed hazards and timing.",
+											})}
+										</p>
 									</div>
 
 									<div className="col-span-12 grid grid-cols-12 gap-4">
@@ -4108,7 +4119,10 @@ function StepperValidation({
 											<div className="grid grid-cols-12 gap-4">
 												{renderDateWithPrecision(
 													"startDate",
-													ctx.t({ code: "common.start_date", msg: "Start date" }),
+													ctx.t({
+														code: "common.start_date",
+														msg: "Start date",
+													}),
 													startDateState,
 													setStartDateState,
 													errors.startDate,
@@ -4138,18 +4152,18 @@ function StepperValidation({
 									<div className="col-span-12 my-6 border-t border-slate-200" />
 
 									<div className="col-span-12 mb-2">
-									<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
-										{ctx.t({
-											code: "disaster_event.form.spatial_information",
-											msg: "Disaster event spatial information",
-										})}
-									</h2>
-									<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
-										{ctx.t({
-											code: "disaster_event.form.spatial_information_description",
-											msg: "Indicate the geographic areas where the disaster event was experienced.",
-										})}
-									</p>
+										<h2 className="text-[18px] leading-[24px] font-semibold text-slate-800 tracking-[-0.01em]">
+											{ctx.t({
+												code: "disaster_event.form.spatial_information",
+												msg: "Disaster event spatial information",
+											})}
+										</h2>
+										<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
+											{ctx.t({
+												code: "disaster_event.form.spatial_information_description",
+												msg: "Indicate the geographic areas where the disaster event was experienced.",
+											})}
+										</p>
 									</div>
 
 									<div className="col-span-12 space-y-4">
@@ -4158,47 +4172,47 @@ function StepperValidation({
 												<div>
 													<div className="flex items-center gap-2">
 														<i className="pi pi-map-marker text-blue-500" />
-													<h3 className="text-[18px] font-semibold text-slate-800">
+														<h3 className="text-[18px] font-semibold text-slate-800">
+															{ctx.t({
+																code: "spatial_footprint.geographic_level",
+																msg: "Geographic level",
+															})}
+														</h3>
+													</div>
+													<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
 														{ctx.t({
-															code: "spatial_footprint.geographic_level",
-															msg: "Geographic level",
+															code: "disaster_event.form.geographic_level_description",
+															msg: "Select the administrative areas where the disaster event was experienced.",
 														})}
-													</h3>
-												</div>
-												<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
-													{ctx.t({
-														code: "disaster_event.form.geographic_level_description",
-														msg: "Select the administrative areas where the disaster event was experienced.",
-													})}
-												</p>
-												<div className="mt-2.5">
-													<Button
-														type="button"
-														label={
-															isOpeningAffectedAreasModal
-																? ctx.t({
-																		code: "common.opening",
-																		msg: "Opening...",
-																  })
-																: ctx.t({
-																		code: "disaster_event.form.add_affected_areas",
-																		msg: "Add affected areas",
-																  })
-														}
+													</p>
+													<div className="mt-2.5">
+														<Button
+															type="button"
+															label={
+																isOpeningAffectedAreasModal
+																	? ctx.t({
+																			code: "common.opening",
+																			msg: "Opening...",
+																		})
+																	: ctx.t({
+																			code: "disaster_event.form.add_affected_areas",
+																			msg: "Add affected areas",
+																		})
+															}
 															outlined
 															icon="pi pi-plus"
 															loading={isOpeningAffectedAreasModal}
 															disabled={isOpeningAffectedAreasModal}
 															onClick={openAffectedAreasModal}
 														/>
-													<span className="sr-only" aria-live="polite">
-														{isOpeningAffectedAreasModal
-															? ctx.t({
-																	code: "disaster_event.form.loading_affected_areas_selector",
-																	msg: "Loading affected areas selector",
-																  })
-															: ""}
-													</span>
+														<span className="sr-only" aria-live="polite">
+															{isOpeningAffectedAreasModal
+																? ctx.t({
+																		code: "disaster_event.form.loading_affected_areas_selector",
+																		msg: "Loading affected areas selector",
+																	})
+																: ""}
+														</span>
 													</div>
 													<div className="mt-6 flex flex-wrap gap-2 text-sm">
 														{selectedDivisionItems.length > 0 &&
@@ -4208,15 +4222,15 @@ function StepperValidation({
 																	className="inline-flex items-center gap-2 rounded-md bg-sky-100 px-3 py-2 text-sky-700"
 																>
 																	<span>{item.label}</span>
-															<button
-																type="button"
-																aria-label={ctx.t(
-																	{
-																		code: "disaster_event.form.remove_named",
-																		msg: "Remove {name}",
-																	},
-																	{ name: item.label },
-																)}
+																	<button
+																		type="button"
+																		aria-label={ctx.t(
+																			{
+																				code: "disaster_event.form.remove_named",
+																				msg: "Remove {name}",
+																			},
+																			{ name: item.label },
+																		)}
 																		onClick={() =>
 																			removeDivisionSelection(item.key)
 																		}
@@ -4236,67 +4250,68 @@ function StepperValidation({
 												<div>
 													<div className="flex items-center gap-2">
 														<i className="pi pi-map text-blue-500" />
-													<h3 className="text-[18px] font-semibold text-slate-800">
+														<h3 className="text-[18px] font-semibold text-slate-800">
+															{ctx.t({
+																code: "common.spatial_footprint",
+																msg: "Spatial footprint",
+															})}
+														</h3>
+													</div>
+													<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
 														{ctx.t({
-															code: "common.spatial_footprint",
-															msg: "Spatial footprint",
+															code: "disaster_event.form.spatial_footprint_description",
+															msg: "Define the specific geographic area affected using interactive map coordinates or manual input.",
 														})}
-													</h3>
-												</div>
-												<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
-													{ctx.t({
-														code: "disaster_event.form.spatial_footprint_description",
-														msg: "Define the specific geographic area affected using interactive map coordinates or manual input.",
-													})}
-												</p>
+													</p>
 													<div className="mt-2.5">
 														<Button
 															type="button"
-														label={
-															isOpeningSpatialFootprintModal
-																? ctx.t({
-																		code: "common.opening",
-																		msg: "Opening...",
-																  })
-																: ctx.t({
-																		code: "disaster_event.form.define_spatial_footprint",
-																		msg: "Define spatial footprint",
-																  })
-														}
+															label={
+																isOpeningSpatialFootprintModal
+																	? ctx.t({
+																			code: "common.opening",
+																			msg: "Opening...",
+																		})
+																	: ctx.t({
+																			code: "disaster_event.form.define_spatial_footprint",
+																			msg: "Define spatial footprint",
+																		})
+															}
 															outlined
 															icon="pi pi-map"
 															loading={isOpeningSpatialFootprintModal}
 															disabled={isOpeningSpatialFootprintModal}
 															onClick={openSpatialFootprintModal}
 														/>
-													<span className="sr-only" aria-live="polite">
-														{isOpeningSpatialFootprintModal
-															? ctx.t({
-																	code: "disaster_event.form.loading_spatial_footprint_editor",
-																	msg: "Loading spatial footprint editor",
-																  })
-															: ""}
-													</span>
+														<span className="sr-only" aria-live="polite">
+															{isOpeningSpatialFootprintModal
+																? ctx.t({
+																		code: "disaster_event.form.loading_spatial_footprint_editor",
+																		msg: "Loading spatial footprint editor",
+																	})
+																: ""}
+														</span>
 													</div>
 												</div>
 											</div>
 											<div className="px-3 py-3 text-[13px] text-slate-600">
 												{mapCoordinateSpatialFootprintCount > 0
 													? ctx.t(
-														{
-															code: "disaster_event.form.spatial_footprint_items_added",
-															msg: "{count} spatial footprint item(s) added",
-														},
-														{ count: mapCoordinateSpatialFootprintCount },
-													)
+															{
+																code: "disaster_event.form.spatial_footprint_items_added",
+																msg: "{count} spatial footprint item(s) added",
+															},
+															{ count: mapCoordinateSpatialFootprintCount },
+														)
 													: ctx.t({
 															code: "disaster_event.form.no_spatial_footprint_items",
 															msg: "No spatial footprint items added yet",
-														  })}
+														})}
 											</div>
 										</div>
 
 										<DisasterEventLink
+											ctx={ctx}
 											initialLinks={disasterEventLinks}
 											onLinksChange={setDisasterEventLinks}
 										/>
@@ -4348,7 +4363,8 @@ function StepperValidation({
 								pt={{
 									title: {
 										style: { textAlign: "center" },
-										"data-status": "optional",
+										"data-status-kind": "optional",
+										"data-status-label": stepperStatusLabel("optional"),
 									},
 								}}
 							>
@@ -4393,11 +4409,14 @@ function StepperValidation({
 												type="button"
 												label={
 													isOpeningLinkedTriggeringHazardousEventsModal
-														? ctx.t({ code: "common.opening", msg: "Opening..." })
+														? ctx.t({
+																code: "common.opening",
+																msg: "Opening...",
+															})
 														: ctx.t({
 																code: "disaster_event.form.manage_linked_triggering_events",
 																msg: "Manage linked triggering events",
-														  })
+															})
 												}
 												outlined
 												icon="pi pi-link"
@@ -4410,7 +4429,7 @@ function StepperValidation({
 													? ctx.t({
 															code: "disaster_event.form.loading_linked_triggering_hazardous_events_selector",
 															msg: "Loading linked triggering hazardous events selector",
-														  })
+														})
 													: ""}
 											</span>
 										</div>
@@ -4440,11 +4459,14 @@ function StepperValidation({
 												type="button"
 												label={
 													isOpeningLinkedTriggeredHazardousEventsModal
-														? ctx.t({ code: "common.opening", msg: "Opening..." })
+														? ctx.t({
+																code: "common.opening",
+																msg: "Opening...",
+															})
 														: ctx.t({
 																code: "disaster_event.form.manage_linked_triggered_events",
 																msg: "Manage linked triggered events",
-														  })
+															})
 												}
 												outlined
 												icon="pi pi-link"
@@ -4457,7 +4479,7 @@ function StepperValidation({
 													? ctx.t({
 															code: "disaster_event.form.loading_linked_triggered_hazardous_events_selector",
 															msg: "Loading linked triggered hazardous events selector",
-														  })
+														})
 													: ""}
 											</span>
 										</div>
@@ -4504,11 +4526,14 @@ function StepperValidation({
 												type="button"
 												label={
 													isOpeningLinkedTriggeringDisasterEventsModal
-														? ctx.t({ code: "common.opening", msg: "Opening..." })
+														? ctx.t({
+																code: "common.opening",
+																msg: "Opening...",
+															})
 														: ctx.t({
 																code: "disaster_event.form.manage_linked_triggering_events",
 																msg: "Manage linked triggering events",
-														  })
+															})
 												}
 												outlined
 												icon="pi pi-link"
@@ -4521,7 +4546,7 @@ function StepperValidation({
 													? ctx.t({
 															code: "disaster_event.form.loading_linked_triggering_events_selector",
 															msg: "Loading linked triggering events selector",
-														  })
+														})
 													: ""}
 											</span>
 										</div>
@@ -4551,11 +4576,14 @@ function StepperValidation({
 												type="button"
 												label={
 													isOpeningLinkedTriggeredDisasterEventsModal
-														? ctx.t({ code: "common.opening", msg: "Opening..." })
+														? ctx.t({
+																code: "common.opening",
+																msg: "Opening...",
+															})
 														: ctx.t({
 																code: "disaster_event.form.manage_linked_triggered_events",
 																msg: "Manage linked triggered events",
-														  })
+															})
 												}
 												outlined
 												icon="pi pi-link"
@@ -4568,7 +4596,7 @@ function StepperValidation({
 													? ctx.t({
 															code: "disaster_event.form.loading_linked_triggered_events_selector",
 															msg: "Loading linked triggered events selector",
-														  })
+														})
 													: ""}
 											</span>
 										</div>
@@ -4604,14 +4632,14 @@ function StepperValidation({
 									<div className="mt-2.5">
 										<Button
 											type="button"
-												label={
-													isOpeningLinkedDisasterRecordsModal
-														? ctx.t({ code: "common.opening", msg: "Opening..." })
-														: ctx.t({
-																code: "disaster_event.form.manage_linked_disaster_records",
-																msg: "Manage linked disaster records",
-														  })
-												}
+											label={
+												isOpeningLinkedDisasterRecordsModal
+													? ctx.t({ code: "common.opening", msg: "Opening..." })
+													: ctx.t({
+															code: "disaster_event.form.manage_linked_disaster_records",
+															msg: "Manage linked disaster records",
+														})
+											}
 											outlined
 											icon="pi pi-link"
 											loading={isOpeningLinkedDisasterRecordsModal}
@@ -4685,7 +4713,8 @@ function StepperValidation({
 								pt={{
 									title: {
 										style: { textAlign: "center" },
-										"data-status": "optional",
+										"data-status-kind": "optional",
+										"data-status-label": stepperStatusLabel("optional"),
 									},
 								}}
 							>
@@ -5031,11 +5060,11 @@ function StepperValidation({
 														? ctx.t({
 																code: "disaster_event.effects",
 																msg: "Effects",
-														  })
+															})
 														: ctx.t({
 																code: "common.description",
 																msg: "Description",
-														  })}
+															})}
 												</label>
 												<InputTextarea
 													value={detailForm.description}
@@ -5248,7 +5277,10 @@ function StepperValidation({
 											<div className="flex gap-2">
 												<Button
 													type="button"
-													label={ctx.t({ code: "common.cancel", msg: "Cancel" })}
+													label={ctx.t({
+														code: "common.cancel",
+														msg: "Cancel",
+													})}
 													outlined
 													onClick={() => setDetailDialogVisible(false)}
 												/>
@@ -5307,13 +5339,14 @@ function StepperValidation({
 								pt={{
 									title: {
 										style: { textAlign: "center" },
-										"data-status": "required",
+										"data-status-kind": "required",
+										"data-status-label": stepperStatusLabel("required"),
 									},
 								}}
 							>
-							<DisasterEventReviewStep
-								ctx={ctx}
-								form={form}
+								<DisasterEventReviewStep
+									ctx={ctx}
+									form={form}
 									selectedHazardTypeName={selectedHazardTypeName}
 									selectedHazardClusterName={selectedHazardClusterName}
 									selectedSpecificHazardName={selectedSpecificHazardName}

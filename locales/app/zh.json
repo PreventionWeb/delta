@@ -8270,5 +8270,85 @@
         "id": "uuid_copied_to_clipboard",
         "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3435",
         "translation": "UUID {shortUuid}… 已复制到剪贴板"
+    },
+    {
+        "id": "common_err_msg.event_requires_linked_record",
+        "description": "File: app/services/disasterEventService.ts:78",
+        "translation": "一个已验证或已发布的灾害事件必须至少有一份相关的已发布或已验证的灾害记录。"
+    },
+    {
+        "id": "common_err_msg.record_requires_linked_event",
+        "description": "File: app/services/disasterRecordService.ts:110",
+        "translation": "这是唯一一份与已验证或已发布的灾害事件相关的、已发布或已验证的灾害记录。该记录无法返回进行编辑。"
+    },
+    {
+        "id": "common.provide_comments_for_return",
+        "description": "File: app/frontend/components/data-collection/View.tsx:115",
+        "translation": "针对此记录所需的修改，请提出意见"
+    },
+    {
+        "id": "common.something_went_wrong",
+        "description": "File: app/frontend/components/data-collection/View.tsx:149",
+        "translation": "出现了一些问题。"
+    },
+    {
+        "id": "disaster_event.attachments.cta_click_to_upload",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:293",
+        "translation": "点击上传"
+    },
+    {
+        "id": "disaster_event.attachments.cta_drag_and_drop",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:302",
+        "translation": "或拖放"
+    },
+    {
+        "id": "disaster_event.form.add_link",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:145",
+        "translation": "添加链接"
+    },
+    {
+        "id": "disaster_event.form.cancel",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:278",
+        "translation": "取消"
+    },
+    {
+        "id": "disaster_event.form.edit_link",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:211",
+        "translation": "编辑链接"
+    },
+    {
+        "id": "disaster_event.form.label",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:260",
+        "translation": "标签"
+    },
+    {
+        "id": "disaster_event.form.links_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:137",
+        "translation": "请添加与此次灾害事件相关的网址。"
+    },
+    {
+        "id": "disaster_event.form.no_links_added_yet",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:160",
+        "translation": "尚未添加任何链接"
+    },
+    {
+        "id": "disaster_event.form.save_link",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:288",
+        "translation": "保存链接"
+    },
+    {
+        "id": "disaster_event.form.stepper_status.optional",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1768",
+        "translation": "可选"
+    },
+    {
+        "id": "disaster_event.form.stepper_status.required",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1764",
+        "translation": "必填"
+    },
+    {
+        "id": "disaster_event.form.url",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:234",
+        "translation": "网址"
     }
 ]

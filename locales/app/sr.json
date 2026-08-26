@@ -7754,5 +7754,85 @@
         "id": "uuid_copied_to_clipboard",
         "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3435",
         "translation": "UUID {shortUuid}… копирано у међуспремник"
+    },
+    {
+        "id": "common_err_msg.event_requires_linked_record",
+        "description": "File: app/services/disasterEventService.ts:78",
+        "translation": "Важећи или објављени догађај катастрофе мора имати најмање један повезани важећи или објављени запис о катастрофи."
+    },
+    {
+        "id": "common_err_msg.record_requires_linked_event",
+        "description": "File: app/services/disasterRecordService.ts:110",
+        "translation": "Ово је једини објављени или потврђени запис о катастрофи повезан са потврђеним или објављеним догађајем катастрофе. Не може се вратити на уређивање."
+    },
+    {
+        "id": "common.provide_comments_for_return",
+        "description": "File: app/frontend/components/data-collection/View.tsx:115",
+        "translation": "Оставите коментаре о променама потребним за овај запис."
+    },
+    {
+        "id": "common.something_went_wrong",
+        "description": "File: app/frontend/components/data-collection/View.tsx:149",
+        "translation": "Нешто је пошло по злу."
+    },
+    {
+        "id": "disaster_event.attachments.cta_click_to_upload",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:293",
+        "translation": "Кликните да отпремите"
+    },
+    {
+        "id": "disaster_event.attachments.cta_drag_and_drop",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:302",
+        "translation": "или повуците и испустите"
+    },
+    {
+        "id": "disaster_event.form.add_link",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:145",
+        "translation": "Додај линк"
+    },
+    {
+        "id": "disaster_event.form.cancel",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:278",
+        "translation": "Откажи"
+    },
+    {
+        "id": "disaster_event.form.edit_link",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:211",
+        "translation": "Уреди везу"
+    },
+    {
+        "id": "disaster_event.form.label",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:260",
+        "translation": "Ознака"
+    },
+    {
+        "id": "disaster_event.form.links_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:137",
+        "translation": "Додајте релевантне УРЛ адресе за овај догађај катастрофе."
+    },
+    {
+        "id": "disaster_event.form.no_links_added_yet",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:160",
+        "translation": "Још нису додати линкови"
+    },
+    {
+        "id": "disaster_event.form.save_link",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:288",
+        "translation": "Линк ка себи"
+    },
+    {
+        "id": "disaster_event.form.stepper_status.optional",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1768",
+        "translation": "Опционално"
+    },
+    {
+        "id": "disaster_event.form.stepper_status.required",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1764",
+        "translation": "Обавезно"
+    },
+    {
+        "id": "disaster_event.form.url",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:234",
+        "translation": "Веб адреса"
     }
 ]

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
 import { InputText } from "primereact/inputtext";
+import { ViewContext } from "~/frontend/context";
 
 export type DisasterEventLinkItem = {
 	id: string;
@@ -17,11 +18,13 @@ export type EditableDisasterEventLink = {
 };
 
 type DisasterEventLinkProps = {
+	ctx: ViewContext;
 	initialLinks: DisasterEventLinkItem[];
 	onLinksChange: (links: EditableDisasterEventLink[]) => void;
 };
 
 export default function DisasterEventLink({
+	ctx,
 	initialLinks,
 	onLinksChange,
 }: DisasterEventLinkProps) {
@@ -124,16 +127,25 @@ export default function DisasterEventLink({
 						<div className="flex items-center gap-2">
 							<i className="pi pi-link text-blue-500" />
 							<h3 className="text-[18px] font-semibold text-slate-800">
-								Links
+								{ctx.t({
+									code: "disaster_event.review.links",
+									msg: "Links",
+								})}
 							</h3>
 						</div>
 						<p className="mt-2 text-[14px] leading-[22px] text-slate-500">
-							Add related URLs for this disaster event.
+							{ctx.t({
+								code: "disaster_event.form.links_description",
+								msg: "Add related URLs for this disaster event.",
+							})}
 						</p>
 						<div className="mt-2.5">
 							<Button
 								type="button"
-								label="Add link"
+								label={ctx.t({
+									code: "disaster_event.form.add_link",
+									msg: "Add link",
+								})}
 								icon="pi pi-plus"
 								outlined
 								onClick={openAddLinkDialog}
@@ -145,7 +157,10 @@ export default function DisasterEventLink({
 				<div className="mt-4 space-y-2">
 					{disasterEventLinks.length === 0 ? (
 						<div className="rounded-lg border border-dashed border-slate-200 px-4 py-3 text-sm text-slate-500">
-							No links added yet
+							{ctx.t({
+								code: "disaster_event.form.no_links_added_yet",
+								msg: "No links added yet",
+							})}
 						</div>
 					) : (
 						disasterEventLinks.map((link) => (
@@ -192,7 +207,17 @@ export default function DisasterEventLink({
 			</div>
 
 			<Dialog
-				header={editingLinkId ? "Edit link" : "Add link"}
+				header={editingLinkId ? 
+					ctx.t({
+						code: "disaster_event.form.edit_link",
+						msg: "Edit link",
+					})
+					: 
+					ctx.t({
+						code: "disaster_event.form.add_link",
+						msg: "Add link",
+					})
+				}
 				visible={isLinkDialogVisible}
 				onHide={closeLinkDialog}
 				style={{ width: "36rem", maxWidth: "95vw" }}
@@ -205,7 +230,11 @@ export default function DisasterEventLink({
 							htmlFor="event-link-url"
 							className="mb-1 inline-flex items-center gap-2"
 						>
-							<span className="text-red-500">*</span> URL
+							<span className="text-red-500">*</span> 
+							{ctx.t({
+								code: "disaster_event.form.url",
+								msg: "URL",
+							})}
 						</label>
 						<InputText
 							id="event-link-url"
@@ -228,7 +257,10 @@ export default function DisasterEventLink({
 
 					<div>
 						<label htmlFor="event-link-label" className="mb-1 block">
-							Label
+							{ctx.t({
+								code: "disaster_event.form.label",
+								msg: "Label",
+							})}
 						</label>
 						<InputText
 							id="event-link-label"
@@ -243,13 +275,23 @@ export default function DisasterEventLink({
 				<div className="mt-5 flex items-center justify-end gap-2">
 					<Button
 						type="button"
-						label="Cancel"
+						label={ctx.t({
+							code: "disaster_event.form.cancel",
+							msg: "Cancel",
+						})}
 						outlined
 						onClick={closeLinkDialog}
 					/>
 					<Button
 						type="button"
-						label={editingLinkId ? "Save link" : "Add link"}
+						label={editingLinkId ? 
+							ctx.t({
+								code: "disaster_event.form.save_link",
+								msg: "Save link",
+							}) : ctx.t({
+								code: "disaster_event.form.add_link",
+								msg: "Add link",
+							})}
 						onClick={saveLink}
 					/>
 				</div>

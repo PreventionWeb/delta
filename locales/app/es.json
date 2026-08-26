@@ -8272,5 +8272,85 @@
         "id": "uuid_copied_to_clipboard",
         "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3435",
         "translation": "UUID {shortUuid}… copiado en el portapapeles"
+    },
+    {
+        "id": "common_err_msg.event_requires_linked_record",
+        "description": "File: app/services/disasterEventService.ts:78",
+        "translation": "Un suceso de catástrofe validado o publicado debe tener al menos un registro de catástrofe asociado, ya sea publicado o validado."
+    },
+    {
+        "id": "common_err_msg.record_requires_linked_event",
+        "description": "File: app/services/disasterRecordService.ts:110",
+        "translation": "Este es el único registro de catástrofe publicado o validado vinculado a un suceso de catástrofe validado o publicado. No se puede recuperar para editarlo."
+    },
+    {
+        "id": "common.provide_comments_for_return",
+        "description": "File: app/frontend/components/data-collection/View.tsx:115",
+        "translation": "Envía tus comentarios sobre los cambios que se deben realizar en este registro"
+    },
+    {
+        "id": "common.something_went_wrong",
+        "description": "File: app/frontend/components/data-collection/View.tsx:149",
+        "translation": "Ha habido un error."
+    },
+    {
+        "id": "disaster_event.attachments.cta_click_to_upload",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:293",
+        "translation": "Haz clic para subir un archivo"
+    },
+    {
+        "id": "disaster_event.attachments.cta_drag_and_drop",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:302",
+        "translation": "o arrastrar y soltar"
+    },
+    {
+        "id": "disaster_event.form.add_link",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:145",
+        "translation": "Añadir enlace"
+    },
+    {
+        "id": "disaster_event.form.cancel",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:278",
+        "translation": "Cancelar"
+    },
+    {
+        "id": "disaster_event.form.edit_link",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:211",
+        "translation": "Editar enlace"
+    },
+    {
+        "id": "disaster_event.form.label",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:260",
+        "translation": "Etiqueta"
+    },
+    {
+        "id": "disaster_event.form.links_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:137",
+        "translation": "Añade las URL relacionadas con este suceso catastrófico."
+    },
+    {
+        "id": "disaster_event.form.no_links_added_yet",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:160",
+        "translation": "Aún no se han añadido enlaces"
+    },
+    {
+        "id": "disaster_event.form.save_link",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:288",
+        "translation": "Enlace a «Guardar»"
+    },
+    {
+        "id": "disaster_event.form.stepper_status.optional",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1768",
+        "translation": "Opcional"
+    },
+    {
+        "id": "disaster_event.form.stepper_status.required",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1764",
+        "translation": "Obligatorio"
+    },
+    {
+        "id": "disaster_event.form.url",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:234",
+        "translation": "Dirección web"
     }
 ]

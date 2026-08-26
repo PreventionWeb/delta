@@ -3,11 +3,30 @@ import { defineConfig } from "vite";
 import path from "path";
 import tailwindcss from "@tailwindcss/vite";
 
+const START = Date.now();
+const elapsed = () => `${((Date.now() - START) / 1000).toFixed(2)}s`;
+
+const timingPlugin = {
+	name: "startup-timer",
+	configResolved() {
+		console.log(`[timer] vite config resolved: ${elapsed()}`);
+	},
+	buildStart() {
+		console.log(`[timer] build start (dep scan begins): ${elapsed()}`);
+	},
+	configureServer(server: any) {
+		server.httpServer?.once("listening", () => {
+			console.log(`[timer] server LISTENING: ${elapsed()}`);
+		});
+	},
+};
+
 export default defineConfig({
 	ssr: {
 		noExternal: ["primereact", "primeicons"],
 	},
 	plugins: [
+		timingPlugin,
 		reactRouter(),
 		tailwindcss(),
 		{
@@ -48,7 +67,27 @@ export default defineConfig({
 	},
 	publicDir: path.resolve(__dirname, "public"), // Ensures the "public" folder is correctly configured
 	optimizeDeps: {
-		include: ["react", "react-dom", "react-router"],
+		include: [
+			"react",
+			"react-dom",
+			"react-router",
+			"drizzle-orm",
+			"drizzle-orm/node-postgres",
+			"drizzle-orm/pg-core",
+			"i18next",
+			"react-i18next",
+			"i18next-fs-backend",
+			"remix-i18next",
+			"@nestjs/core",
+			"@nestjs/common",
+			"@nestjs/swagger",
+			"nestjs-zod",
+			"zod",
+			"bcryptjs",
+			"otpauth",
+			"pino",
+			"reflect-metadata",
+		],
 		// nestjs-i18n's optional-peer require()s (graphql/hbs) break the scanner even though
 		// it's server-only — see vite.config.ts git history for details.
 		exclude: ["nestjs-i18n"],

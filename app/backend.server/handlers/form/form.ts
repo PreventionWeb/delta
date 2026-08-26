@@ -286,7 +286,16 @@ export async function formSave<T>(
 			}
 		});
 	} catch (error) {
-		throw error;
+		const message =
+			error instanceof Error && error.message
+				? error.message
+				: "An unexpected error occurred while saving this record.";
+		return {
+			common: await getCommonData(args.actionArgs),
+			ok: false,
+			data: validateRes.data,
+			errors: { form: [message] },
+		} as FormResponse2<T>;
 	}
 
 	let res = res0!;

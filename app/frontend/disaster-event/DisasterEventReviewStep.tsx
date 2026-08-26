@@ -484,6 +484,18 @@ const renderStep4DetailRow = (
 							{item.meta.declarationStatus}
 						</p>
 					) : null}
+					{item.coverage?.trim() ? (
+						<p>
+							<span className="font-semibold text-slate-700">
+								{ctx.t({
+									code: "disaster_event.review.coverage",
+									msg: "Coverage",
+								})}
+								:
+							</span>{" "}
+							{item.coverage.trim()}
+						</p>
+					) : null}
 					{category === "declaration" &&
 					item.meta?.issuingOrganization?.trim() ? (
 						<p>
@@ -497,27 +509,25 @@ const renderStep4DetailRow = (
 							{item.meta.issuingOrganization.trim()}
 						</p>
 					) : null}
-					{item.coverage?.trim() ? (
+					{item.description?.trim() ? (
 						<p>
 							<span className="font-semibold text-slate-700">
-								{ctx.t({
-									code: "disaster_event.review.coverage",
-									msg: "Coverage",
-								})}
-								:
+								{category === "declaration"
+									? `${ctx.t({ code: "disaster_event.effects", msg: "Effects" })}:`
+									: `${ctx.t({ code: "common.description", msg: "Description" })}:`}
 							</span>{" "}
-							{item.coverage.trim()}
+							{renderMultilineText(
+								item.description.trim(),
+								`${item.id}-detail-description`,
+							)}
 						</p>
 					) : null}
 					{category === "assessment" && assessmentSectorNames.length > 0 ? (
 						<p>
 							<span className="font-semibold text-slate-700">
 								{ctx.t({ code: "common.sectors", msg: "Sectors" })}:
-							</span>
-							{renderMultilineText(
-								assessmentSectorNames.join("\n"),
-								`${item.id}-assessment-sectors`,
-							)}
+							</span>{" "}
+							{assessmentSectorNames.join(", ")}
 						</p>
 					) : null}
 					{category === "assessment" && item.meta?.otherSectors?.trim() ? (
@@ -530,19 +540,6 @@ const renderStep4DetailRow = (
 								:
 							</span>{" "}
 							{item.meta.otherSectors.trim()}
-						</p>
-					) : null}
-					{item.description?.trim() ? (
-						<p>
-							<span className="font-semibold text-slate-700">
-								{category === "declaration"
-									? `${ctx.t({ code: "disaster_event.effects", msg: "Effects" })}:`
-									: `${ctx.t({ code: "common.description", msg: "Description" })}:`}
-							</span>{" "}
-							{renderMultilineText(
-								item.description.trim(),
-								`${item.id}-detail-description`,
-							)}
 						</p>
 					) : null}
 					{!item.coverage?.trim() &&
@@ -767,11 +764,17 @@ export default function DisasterEventReviewStep({
 								form.nationalDisasterId,
 							)}
 							{renderReviewItem(
-								ctx.t({ code: "disaster_event.glide_number", msg: "GLIDE number" }),
+								ctx.t({
+									code: "disaster_event.glide_number",
+									msg: "GLIDE number",
+								}),
 								form.glide,
 							)}
 							{renderReviewItem(
-								ctx.t({ code: "disaster_event.uuid", msg: "Disaster event UUID" }),
+								ctx.t({
+									code: "disaster_event.uuid",
+									msg: "Disaster event UUID",
+								}),
 								form.id,
 							)}
 							{renderReviewItem(
