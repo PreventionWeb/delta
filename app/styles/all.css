@@ -1,5 +1,10 @@
+@import "@undrr/undrr-mangrove/tokens/delta.css";
 @import "~/frontend/dtsmap/styles.css";
 @import "~/frontend/editabletable/styles.css";
 @import "~/frontend/human_effects/styles.css";
 @import "react-json-view-lite/dist/index.css";
 @import "tailwindcss";
+
+/* Keep the tokenised Aria rules after DELTA's global and Tailwind reset CSS.
+ * This spike intentionally uses normal source order, not a cascade layer. */
+@import "@undrr/undrr-mangrove/aria.css";
