@@ -498,7 +498,7 @@ export default function AriaSpikeRoute() {
 					</SearchField>
 					<DialogTrigger>
 						<Button>Filters{filterCount ? ` (${filterCount})` : ""}</Button>
-						<Popover className="!w-[min(25rem,calc(100vw-2rem))] !p-0">
+						<Popover className="!z-[var(--mg-aria-overlay-z-index)] !w-[min(25rem,calc(100vw-2rem))] !border !border-[var(--mg-aria-color-border)] !bg-[var(--mg-aria-color-surface)] !p-0 !shadow-[var(--mg-aria-overlay-shadow)]">
 							<Dialog className="gap-0">
 								<div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
 									<Heading
