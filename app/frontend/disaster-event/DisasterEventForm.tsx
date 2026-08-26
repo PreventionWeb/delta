@@ -1759,6 +1759,16 @@ function StepperValidation({
 			}),
 		},
 	];
+	const stepperStatusLabel = (status: "required" | "optional") =>
+		status === "required"
+			? ctx.t({
+					code: "disaster_event.form.stepper_status.required",
+					msg: "Required",
+				})
+			: ctx.t({
+					code: "disaster_event.form.stepper_status.optional",
+					msg: "Optional",
+				});
 	const detailCategoryLabel = (category: AdditionalDetailCategory): string => {
 		switch (category) {
 			case "response":
@@ -3545,7 +3555,7 @@ function StepperValidation({
 			</div>
 			<style>{`
 			.status-stepper .p-stepper-title::after {
-				content: attr(data-status);
+				content: attr(data-status-label);
 				display: block;
 				margin-top: 2px;
 				font-size: 12px;
@@ -3556,11 +3566,11 @@ function StepperValidation({
 				color: #94a3b8;
 			}
 
-			.status-stepper .p-stepper-title[data-status="required"]::after {
+			.status-stepper .p-stepper-title[data-status-kind="required"]::after {
 				color: #94a3b8;
 			}
 
-			.status-stepper .p-stepper-title[data-status="optional"]::after {
+			.status-stepper .p-stepper-title[data-status-kind="optional"]::after {
 				color: #9ca3af;
 			}
 
@@ -3771,7 +3781,8 @@ function StepperValidation({
 								pt={{
 									title: {
 										style: { textAlign: "center" },
-										"data-status": "required",
+										"data-status-kind": "required",
+										"data-status-label": stepperStatusLabel("required"),
 									},
 								}}
 							>
@@ -4300,6 +4311,7 @@ function StepperValidation({
 										</div>
 
 										<DisasterEventLink
+											ctx={ctx}
 											initialLinks={disasterEventLinks}
 											onLinksChange={setDisasterEventLinks}
 										/>
@@ -4351,7 +4363,8 @@ function StepperValidation({
 								pt={{
 									title: {
 										style: { textAlign: "center" },
-										"data-status": "optional",
+										"data-status-kind": "optional",
+										"data-status-label": stepperStatusLabel("optional"),
 									},
 								}}
 							>
@@ -4700,7 +4713,8 @@ function StepperValidation({
 								pt={{
 									title: {
 										style: { textAlign: "center" },
-										"data-status": "optional",
+										"data-status-kind": "optional",
+										"data-status-label": stepperStatusLabel("optional"),
 									},
 								}}
 							>
@@ -5325,7 +5339,8 @@ function StepperValidation({
 								pt={{
 									title: {
 										style: { textAlign: "center" },
-										"data-status": "required",
+										"data-status-kind": "required",
+										"data-status-label": stepperStatusLabel("required"),
 									},
 								}}
 							>
