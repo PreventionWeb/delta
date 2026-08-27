@@ -123,6 +123,87 @@ import from it, no behavior change — re-verified green after the extraction).
 
 ---
 
-## 0c–0f
+## 0c — Approval / validation workflow
+
+**Test file:** `tests/integration/db/models/hazardousEventApprovalWorkflow.test.ts` (6 tests, all
+green).
+
+### Architecture finding: three parallel mechanisms exist today, not one
+
+This directly informs Phase 2/3's decision to build `app/domains/validation-workflow/` as a
+shared module now rather than porting whatever HE currently has — there isn't one thing to port,
+there are three, reachable from two different live pages:
+
+1. **`processValidationAssignmentWorkflow`** (`validation_workflow.ts`) — the "submit for
+   validation" step only: assigns validators, moves `draft → waiting-for-validation`, emails
+   validators. Called directly from `hazardous_event_create_update.ts`'s create/update
+   `tempAction` branches.
+2. **`handleApprovalWorkflowService`** (`app/backend.server/services/approvalWorkflowService.ts`)
+   — generic, `EntityType`-parameterized (includes `"hazardous_event"`). Handles
+   validate/publish/reject/return by calling the `hazardous_event_approval.ts` functions
+   directly. Wired to the **edit page** (`hazardous-event+/edit.$id.tsx`).
+3. **`updateHazardousEventStatusService`** (`app/services/hazardousEventService.ts`) — a second,
+   independent implementation of the same validate/publish/reject/return transitions, calling the
+   same underlying `hazardous_event_approval.ts` functions but through a different orchestration
+   layer (`dataCollectionService` → `processApprovalStatusActionService` in
+   `approvalStatusWorkflowService.ts`, which also handles rejection comments and email
+   notifications separately). Wired to the **detail/view page** (`hazardous-event+/$id.tsx`).
+
+Both (2) and (3) are live, not dead code — confirmed by tracing actual route imports, not
+assumed. They independently reimplement the same transitions for the same entity; this is
+exactly the kind of drift risk that already bit the Disaster Event side (the "must have at least
+one approved record" rule landed in the generic service and was separately hand-duplicated into
+the entity-specific one — see the earlier "quick behaviour check" findings from this session,
+before Phase 0 started). HE doesn't have an equivalent drift today, but the structural risk is
+identical.
+
+**Also dead code, small**: `hazardousEventUpdateApprovalStatus` (the generic one, distinct from
+the four specific `...OnGoing`/`NeedRevision`/`Validate`/`Publish` variants) has no callers
+anywhere in the app — confirmed via repo-wide grep — only its own commented-out import in
+`hazardousEventService.ts`.
+
+### Real bugs found
+
+1. **Publishing silently overwrites the original validator's attribution — needs a product
+   decision, not just a code fix; no schema change required.**
+   `hazardousEventUpdateApprovalStatusPublish` sets `validatedByUserId`/`validatedAt` to the
+   *publisher's* identity and the publish timestamp — not the original validator's. If a
+   different user validates than publishes (a normal workflow shape — validator hands off to a
+   publisher), the record of who actually validated it, and when, is lost. Confirmed via a
+   dedicated test asserting the validator's id is gone after publish.
+   - **No DB/schema change needed** — `validatedByUserId`/`validatedAt` and
+     `publishedByUserId`/`publishedAt` already exist as four separate columns; the bug is purely
+     in the application code unconditionally overwriting the former with the latter's values.
+   - **Also confirmed**: `submit-publish` has no state-transition guard requiring the record to
+     already be `"validated"` — traced `approvalWorkflowService.ts`'s action dispatch, it's a
+     flat switch with no prior-status check. So today's unconditional overwrite may be an
+     (imperfect) safety net ensuring a published record never shows a null validator, not pure
+     carelessness.
+   - **Two different fixes depending on the product answer** (flagging for PM discussion, not
+     deciding here): (a) if direct publish-without-validation should stay allowed, the fix is
+     conditional — only backfill validated fields from the publisher when they're still null,
+     preserve them otherwise; (b) if it shouldn't be allowed, the real fix is a state-transition
+     guard requiring `approvalStatus === "validated"` before `submit-publish` is accepted — which
+     doesn't exist today in either of the two live workflow paths (0c's architecture finding
+     above), and would need to live somewhere both call through.
+   - **Explicitly out of scope for now** — not being fixed as part of this refactor unless asked;
+     recorded here for the PM conversation.
+2. **The falsy-`submittedByUserId` "skip email" guard in `processValidationAssignmentWorkflow` is
+   unreachable.** The function writes `submittedByUserId` unconditionally to the (UUID)
+   `submitted_by_user_id` column *before* the `if (submittedByUserId)` guard around the email
+   call is even checked — so passing an empty string to intentionally skip the email crashes on
+   the DB write first, with the same raw Postgres UUID-parse error as the 0a finding. The current
+   single call site never triggers this in practice (an earlier guard already ensures a non-empty
+   value reaches it), but the function has no such guarantee on its own if called elsewhere.
+
+### Confirmed (non-bug) quirks
+
+3. **`hazardousEventUpdateApprovalStatusNeedRevision` clears validated/published attribution but
+   deliberately leaves `submittedByUserId`/`submittedAt` intact** — a revision request doesn't
+   erase who originally submitted the record for validation.
+
+---
+
+## 0d–0f
 
 Not yet started.

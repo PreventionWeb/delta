@@ -1,9 +1,4 @@
-// Phase 0a characterization tests (Hazardous Events refactor roadmap,
-// _docs/refactoring-plan/hazardous-events-refactoring-roadmap.md) — these pin CURRENT
-// behavior of the core CRUD model layer exactly, including quirks, as the parity contract
-// for the upcoming Clean Architecture migration. Do not "fix" a failing assertion here
-// without updating the roadmap's Invariant 1 quirk list and getting an explicit decision —
-// that's the entire point of this suite.
+// Phase 0a characterization tests — see hazardous-events-phase0-audit-findings.md before "fixing" any failure here.
 import "../setup";
 import { describe, it, expect } from "vitest";
 import { randomUUID } from "crypto";
@@ -102,8 +97,7 @@ describe("hazardousEventCreate()", () => {
 		expect(result.ok).toBe(false);
 
 		const rows = await dr.select().from(eventTable);
-		// Only rows from earlier tests in this file may exist; assert none carry this
-		// description, i.e. nothing was inserted for this attempt.
+		// Confirm nothing was inserted for this failed attempt (other tests' rows may exist).
 		expect(
 			rows.some(
 				(r) => r.description === fields.description && r.name === fields.name,
@@ -382,8 +376,7 @@ describe("hazardousEventDelete()", () => {
 			record.id,
 			record.countryAccountsId,
 		);
-		// Unlike the primary-FK case above, this succeeds — today's dependent-check only
-		// reads disasterEventTable.hazardousEventId, not event_causality.
+		// Dependent-check only reads hazardousEventId, not event_causality — see audit findings doc.
 		expect(result.ok).toBe(true);
 
 		const causalityRows = await dr
@@ -393,16 +386,7 @@ describe("hazardousEventDelete()", () => {
 		expect(causalityRows).toHaveLength(0); // silently cascade-deleted, not preserved
 	});
 
-	it("BUG (real, not test-only — see roadmap): the reactive FK-23503 catch never fires, so deleting a hazardous event that another one lists as its parent throws a raw Drizzle error instead of the intended friendly message", async () => {
-		// hazardous_event_delete.ts checks `error?.code === "23503"`, but Drizzle's
-		// query wrapper nests the real pg driver error under `.cause` — confirmed here
-		// via a diagnostic run: error.code is undefined, error.cause.code is "23503".
-		// This is not a PGlite artifact: drizzle-orm wraps every driver error this way
-		// regardless of driver, and division/delete_all.ts's newer
-		// hasForeignKeyConstraintError helper independently defends against exactly
-		// this class of nested-cause wrapping (checking a different, also-unverified
-		// path: error?.details?.cause?.code). The intended friendly message ("Delete
-		// events that are caused by this event first") is dead code today.
+	it("BUG: the reactive FK-23503 catch never fires (error.code is nested under .cause) — see audit findings doc", async () => {
 		const countryAccountsId = await seedCountryAccount();
 		const parent = await seedHazardousEvent({ countryAccountsId });
 		const child = await seedHazardousEvent({ countryAccountsId });

@@ -88,10 +88,7 @@ export async function baseFields(
 		recordOriginator: "Field survey",
 		attachments: [],
 		parent: "",
-		// NOTE (quirk, see roadmap Invariant 1): passing "" here instead of null hits
-		// Postgres's UUID parser directly (error 22P02), not a graceful app-level
-		// validation error — hazardousEventCreate/Update spread these fields straight
-		// into the insert/update with no sanitization. null is the only safe "unset".
+		// "" instead of null here crashes with a raw Postgres UUID error — see audit findings doc.
 		createdByUserId: null as any,
 		updatedByUserId: null as any,
 		submittedByUserId: null,
