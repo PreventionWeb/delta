@@ -1,8 +1,4 @@
-// Phase 0b characterization tests (Hazardous Events refactor roadmap,
-// _docs/refactoring-plan/hazardous-events-refactoring-roadmap.md) — deeper coverage of
-// cycles.ts and temporal.ts beyond what 0a exercised as a side effect of testing
-// hazardousEventUpdate(). Do not "fix" a failing assertion here without updating the
-// roadmap's Invariant 1 quirk list and getting an explicit decision.
+// Phase 0b characterization tests — see hazardous-events-phase0-audit-findings.md before "fixing" any failure here.
 import "../setup";
 import { describe, it, expect } from "vitest";
 import { dr } from "~/db.server";
@@ -59,10 +55,8 @@ describe("cycles.ts — checkForCycle via hazardousEventUpdate", () => {
 
 	it("detects an indirect (multi-hop) cycle across a 4-hop chain", async () => {
 		const countryAccountsId = await seedCountryAccount();
-		// chain[0] <- chain[1] <- chain[2] <- chain[3] (chain[3] caused_by chain[2] caused_by chain[1] caused_by chain[0])
-		const chain = await seedChain(countryAccountsId, 4);
+		const chain = await seedChain(countryAccountsId, 4); // chain[0] <- chain[1] <- chain[2] <- chain[3]
 
-		// Closing the loop: make chain[0]'s parent = chain[3] (the far end of its own descendant chain).
 		const result = await hazardousEventUpdate(ctx, dr as any, chain[0].id, {
 			countryAccountsId,
 			parent: chain[3].id,
@@ -73,37 +67,23 @@ describe("cycles.ts — checkForCycle via hazardousEventUpdate", () => {
 		);
 	});
 
-	it("QUIRK: cycle detection is capped at recursion depth 10 — a cycle closed across a long enough chain goes UNDETECTED", async () => {
-		// checkForCycle's recursive CTE stops walking ancestry once the accumulated
-		// path already has 10 elements (array_length(cc.path, 1) < 10 gates each
-		// further recursive step). This test empirically finds the actual current
-		// behavior at a chain long enough to matter, rather than asserting a
-		// theoretical off-by-one calculation.
+	it("BUG: cycle detection is capped at recursion depth 10 — a cycle across a longer chain goes undetected and gets persisted", async () => {
 		const countryAccountsId = await seedCountryAccount();
 		const chainLength = 20;
 		const chain = await seedChain(countryAccountsId, chainLength);
 
-		// Attempt to close a cycle across the full length of the chain — chain[0]'s
-		// parent becomes the very last node, chain[chainLength - 1].
 		const result = await hazardousEventUpdate(ctx, dr as any, chain[0].id, {
 			countryAccountsId,
 			parent: chain[chainLength - 1].id,
 		});
-
-		// Documents actual current behavior: the cap means this specific
-		// far-across-a-long-chain cycle is NOT caught — the update succeeds and an
-		// actual cycle is persisted into event_relationship. This is a real data-
-		// integrity gap in today's system, not a test bug; see roadmap Invariant 1
-		// and Phase 2 Section D (whether a DB-level constraint should replace this).
-		expect(result.ok).toBe(true);
+		expect(result.ok).toBe(true); // real bug, not a test bug — see audit findings doc
 
 		const rel = await dr
 			.select()
 			.from(eventRelationshipTable)
 			.where(eq(eventRelationshipTable.childId, chain[0].id));
 		expect(rel).toHaveLength(1);
-		expect(rel[0].parentId).toBe(chain[chainLength - 1].id);
-		// A true cycle now exists in the data: chain[0] -> ... -> chain[19] -> chain[0].
+		expect(rel[0].parentId).toBe(chain[chainLength - 1].id); // a real cycle now exists in the data
 	});
 
 	it("still detects a cycle at a short-to-moderate chain length (well under the cap)", async () => {
@@ -148,17 +128,11 @@ describe("temporal.ts — validateTemporalCausality via hazardousEventUpdate", (
 		expect(result.ok).toBe(true); // 2020-01-01 <= 2020-06-15
 	});
 
-	it("QUIRK: a month-level parent date can incorrectly pass against an earlier-in-month child day, because normalization pads to the 1st", async () => {
+	it("QUIRK: a month-level parent date normalizes to the 1st, so it optimistically passes against an earlier child day in the same month", async () => {
 		const countryAccountsId = await seedCountryAccount();
 		const parent = await seedHazardousEvent({ countryAccountsId });
 		const child = await seedHazardousEvent({ countryAccountsId });
-		// Parent's real event could be anywhere in June; normalized to 2020-06-01.
-		await setStartDate(parent.id, "2020-06");
-		// Child started June 3rd — before the parent's normalized 2020-06-01? No,
-		// 2020-06-01 <= 2020-06-03, so this passes. The quirk shows up when the
-		// child's actual day is EARLIER than the 1st is impossible, so month-level
-		// parent dates are effectively always treated as "start of month", which is
-		// optimistic (assumes the best case for the parent) rather than accurate.
+		await setStartDate(parent.id, "2020-06"); // normalizes to 2020-06-01
 		await setStartDate(child.id, "2020-06-03");
 
 		const result = await hazardousEventUpdate(ctx, dr as any, child.id, {
@@ -184,11 +158,7 @@ describe("temporal.ts — validateTemporalCausality via hazardousEventUpdate", (
 });
 
 describe("cycles.ts + temporal.ts — via hazardousEventCreate's parent path", () => {
-	it("also runs cycle detection when parent is set at creation time, not just on update", async () => {
-		// hazardousEventCreate's own parent-handling (distinct from hazardousEventUpdate's)
-		// only checks parent existence + tenant match — NOT cycle/temporal — since a
-		// brand-new event can never already be someone's ancestor. Confirming that
-		// explicitly here rather than assuming, since it's a real asymmetry with update.
+	it("creation only checks parent existence + tenant, never cycle/temporal (a new event can't be an ancestor yet)", async () => {
 		const countryAccountsId = await seedCountryAccount();
 		const parent = await seedHazardousEvent({ countryAccountsId });
 		const fields = await baseFields({ countryAccountsId, parent: parent.id });
