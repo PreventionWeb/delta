@@ -2,12 +2,13 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 16.6
--- Dumped by pg_dump version 16.6
+-- Dumped from database version 17.5 (Debian 17.5-1.pgdg110+1)
+-- Dumped by pg_dump version 17.5 (Debian 17.5-1.pgdg110+1)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
+SET transaction_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
 SELECT pg_catalog.set_config('search_path', '', false);
@@ -52,6 +53,16 @@ CREATE TYPE public.entity_validation_type AS ENUM (
     'hazardous_event',
     'disaster_event',
     'disaster_records'
+);
+
+
+--
+-- Name: event_causality_entity_type; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.event_causality_entity_type AS ENUM (
+    'HE',
+    'DE'
 );
 
 
@@ -253,6 +264,21 @@ END;
 $$;
 
 
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- Name: __drizzle_migrations__; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.__drizzle_migrations__ (
+    id integer NOT NULL,
+    hash text NOT NULL,
+    created_at bigint
+);
+
+
 --
 -- Name: __drizzle_migrations___id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
@@ -266,9 +292,12 @@ CREATE SEQUENCE public.__drizzle_migrations___id_seq
     CACHE 1;
 
 
-SET default_tablespace = '';
+--
+-- Name: __drizzle_migrations___id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
 
-SET default_table_access_method = heap;
+ALTER SEQUENCE public.__drizzle_migrations___id_seq OWNED BY public.__drizzle_migrations__.id;
+
 
 --
 -- Name: affected; Type: TABLE; Schema: public; Owner: -
@@ -294,6 +323,16 @@ CREATE TABLE public.api_key (
     name text DEFAULT ''::text NOT NULL,
     user_id uuid NOT NULL,
     country_accounts_id uuid
+);
+
+
+--
+-- Name: assessment_type; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.assessment_type (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    type text NOT NULL
 );
 
 
@@ -359,7 +398,7 @@ CREATE TABLE public.countries (
     iso3 character varying(3),
     flag_url character varying(255) DEFAULT 'https://example.com/default-flag.png'::character varying NOT NULL,
     type character varying DEFAULT 'Real'::character varying NOT NULL,
-    CONSTRAINT countries_type_check CHECK (((type)::text = ANY (ARRAY[('Real'::character varying)::text, ('Fictional'::character varying)::text])))
+    CONSTRAINT countries_type_check CHECK (((type)::text = ANY ((ARRAY['Real'::character varying, 'Fictional'::character varying])::text[])))
 );
 
 
@@ -423,8 +462,30 @@ CREATE TABLE public.damages (
     td_disruption_users_affected bigint,
     td_disruption_people_affected bigint,
     td_disruption_description text,
-    spatial_footprint jsonb,
     attachments jsonb
+);
+
+
+--
+-- Name: damages_division; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.damages_division (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    damage_id uuid NOT NULL,
+    division_id uuid NOT NULL
+);
+
+
+--
+-- Name: damages_geom; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.damages_geom (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    damage_id uuid NOT NULL,
+    geom public.geometry(Geometry,4326) NOT NULL,
+    title text
 );
 
 
@@ -436,6 +497,17 @@ CREATE TABLE public.deaths (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     dsg_id uuid NOT NULL,
     deaths integer
+);
+
+
+--
+-- Name: declaration_status; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.declaration_status (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    status text NOT NULL,
+    description text
 );
 
 
@@ -467,62 +539,9 @@ CREATE TABLE public.disaster_event (
     start_date_local text,
     end_date_local text,
     duration_days bigint,
-    disaster_declaration text DEFAULT 'unknown'::text NOT NULL,
-    disaster_declaration_type_and_effect1 text DEFAULT ''::text NOT NULL,
-    disaster_declaration_date1 timestamp without time zone,
-    disaster_declaration_type_and_effect2 text DEFAULT ''::text NOT NULL,
-    disaster_declaration_date2 timestamp without time zone,
-    disaster_declaration_type_and_effect3 text DEFAULT ''::text NOT NULL,
-    disaster_declaration_date3 timestamp without time zone,
-    disaster_declaration_type_and_effect4 text DEFAULT ''::text NOT NULL,
-    disaster_declaration_date4 timestamp without time zone,
-    disaster_declaration_type_and_effect5 text DEFAULT ''::text NOT NULL,
-    disaster_declaration_date5 timestamp without time zone,
     had_official_warning_or_weather_advisory boolean DEFAULT false NOT NULL,
     official_warning_affected_areas text DEFAULT ''::text NOT NULL,
-    early_action_description1 text DEFAULT ''::text NOT NULL,
-    early_action_date1 timestamp without time zone,
-    early_action_description2 text DEFAULT ''::text NOT NULL,
-    early_action_date2 timestamp without time zone,
-    early_action_description3 text DEFAULT ''::text NOT NULL,
-    early_action_date3 timestamp without time zone,
-    early_action_description4 text DEFAULT ''::text NOT NULL,
-    early_action_date4 timestamp without time zone,
-    early_action_description5 text DEFAULT ''::text NOT NULL,
-    early_action_date5 timestamp without time zone,
-    rapid_or_preliminary_assesment_description1 text,
-    rapid_or_preliminary_assessment_date1 timestamp without time zone,
-    rapid_or_preliminary_assesment_description2 text,
-    rapid_or_preliminary_assessment_date2 timestamp without time zone,
-    rapid_or_preliminary_assesment_description3 text,
-    rapid_or_preliminary_assessment_date3 timestamp without time zone,
-    rapid_or_preliminary_assesment_description4 text,
-    rapid_or_preliminary_assessment_date4 timestamp without time zone,
-    rapid_or_preliminary_assesment_description5 text,
-    rapid_or_preliminary_assessment_date5 timestamp without time zone,
-    response_oprations text DEFAULT ''::text NOT NULL,
-    post_disaster_assessment_description1 text,
-    post_disaster_assessment_date1 timestamp without time zone,
-    post_disaster_assessment_description2 text,
-    post_disaster_assessment_date2 timestamp without time zone,
-    post_disaster_assessment_description3 text,
-    post_disaster_assessment_date3 timestamp without time zone,
-    post_disaster_assessment_description4 text,
-    post_disaster_assessment_date4 timestamp without time zone,
-    post_disaster_assessment_description5 text,
-    post_disaster_assessment_date5 timestamp without time zone,
-    other_assessment_description1 text,
-    other_assessment_date1 timestamp without time zone,
-    other_assessment_description2 text,
-    other_assessment_date2 timestamp without time zone,
-    other_assessment_description3 text,
-    other_assessment_date3 timestamp without time zone,
-    other_assessment_description4 text,
-    other_assessment_date4 timestamp without time zone,
-    other_assessment_description5 text,
-    other_assessment_date5 timestamp without time zone,
     data_source text DEFAULT ''::text NOT NULL,
-    recording_institution text DEFAULT ''::text NOT NULL,
     effects_total_usd numeric,
     non_economic_losses text DEFAULT ''::text NOT NULL,
     damages_subtotal_local_currency numeric,
@@ -542,8 +561,6 @@ CREATE TABLE public.disaster_event (
     replacement_costs_local_currency_override numeric,
     recovery_needs_local_currency_calc numeric,
     recovery_needs_local_currency_override numeric,
-    attachments jsonb,
-    spatial_footprint jsonb,
     legacy_data jsonb,
     created_by_user_id uuid,
     updated_by_user_id uuid,
@@ -552,7 +569,170 @@ CREATE TABLE public.disaster_event (
     published_by_user_id uuid,
     published_at timestamp without time zone,
     submitted_by_user_id uuid,
-    submitted_at timestamp without time zone
+    submitted_at timestamp without time zone,
+    start_date_time time with time zone,
+    end_date_time time with time zone,
+    recording_organization_id uuid
+);
+
+
+--
+-- Name: disaster_event_assessment; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.disaster_event_assessment (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    disaster_event_id uuid NOT NULL,
+    assessment_type_id uuid NOT NULL,
+    coverage text,
+    assessment_date timestamp with time zone,
+    description text,
+    other_sectors text
+);
+
+
+--
+-- Name: disaster_event_assessment_attachment; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.disaster_event_assessment_attachment (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    disaster_event_assessment_id uuid NOT NULL,
+    title text NOT NULL,
+    file_key text NOT NULL,
+    file_name text NOT NULL,
+    file_type text NOT NULL,
+    file_size bigint NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone
+);
+
+
+--
+-- Name: disaster_event_assessment_sector; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.disaster_event_assessment_sector (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    disaster_event_assessment_id uuid NOT NULL,
+    sector_id uuid NOT NULL
+);
+
+
+--
+-- Name: disaster_event_attachment; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.disaster_event_attachment (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    disaster_event_id uuid,
+    file_key text DEFAULT ''::text NOT NULL,
+    file_name text DEFAULT ''::text NOT NULL,
+    file_type text DEFAULT ''::text NOT NULL,
+    file_size bigint DEFAULT 0 NOT NULL,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: disaster_event_declaration; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.disaster_event_declaration (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    disaster_event_id uuid NOT NULL,
+    type text,
+    effects text,
+    declaration_date timestamp with time zone,
+    issuing_organization text,
+    coverage text,
+    declaration_status_id uuid
+);
+
+
+--
+-- Name: disaster_event_declaration_attachment; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.disaster_event_declaration_attachment (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    disaster_event_declaration_id uuid NOT NULL,
+    title text NOT NULL,
+    file_key text NOT NULL,
+    file_name text NOT NULL,
+    file_type text NOT NULL,
+    file_size bigint NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone
+);
+
+
+--
+-- Name: disaster_event_division; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.disaster_event_division (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    disaster_event_id uuid NOT NULL,
+    division_id uuid NOT NULL
+);
+
+
+--
+-- Name: disaster_event_geom; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.disaster_event_geom (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    disaster_event_id uuid NOT NULL,
+    geom public.geometry(Geometry,4326) NOT NULL,
+    title text
+);
+
+
+--
+-- Name: disaster_event_link; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.disaster_event_link (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    disaster_event_id uuid,
+    title text,
+    url text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone
+);
+
+
+--
+-- Name: disaster_event_response; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.disaster_event_response (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    disaster_event_id uuid,
+    response_type_id uuid NOT NULL,
+    response_date timestamp with time zone,
+    coverage text,
+    description text
+);
+
+
+--
+-- Name: disaster_event_response_attachment; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.disaster_event_response_attachment (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    disaster_event_response_id uuid NOT NULL,
+    title text NOT NULL,
+    file_key text NOT NULL,
+    file_name text NOT NULL,
+    file_type text NOT NULL,
+    file_size bigint NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone
 );
 
 
@@ -581,7 +761,6 @@ CREATE TABLE public.disaster_records (
     checked_by text,
     data_collector text,
     legacy_data jsonb,
-    spatial_footprint jsonb,
     attachments jsonb,
     "approvalStatus" text DEFAULT 'draft'::text NOT NULL,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
@@ -594,6 +773,29 @@ CREATE TABLE public.disaster_records (
     published_at timestamp without time zone,
     submitted_by_user_id uuid,
     submitted_at timestamp without time zone
+);
+
+
+--
+-- Name: disaster_records_division; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.disaster_records_division (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    disaster_record_id uuid NOT NULL,
+    division_id uuid NOT NULL
+);
+
+
+--
+-- Name: disaster_records_geom; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.disaster_records_geom (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    disaster_record_id uuid NOT NULL,
+    geom public.geometry(Geometry,4326) NOT NULL,
+    title text
 );
 
 
@@ -629,8 +831,30 @@ CREATE TABLE public.disruption (
     response_operation text,
     response_cost numeric,
     response_currency text,
-    spatial_footprint jsonb,
     attachments jsonb
+);
+
+
+--
+-- Name: disruption_division; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.disruption_division (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    disruption_id uuid NOT NULL,
+    division_id uuid NOT NULL
+);
+
+
+--
+-- Name: disruption_geom; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.disruption_geom (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    disruption_id uuid NOT NULL,
+    geom public.geometry(Geometry,4326) NOT NULL,
+    title text
 );
 
 
@@ -660,9 +884,9 @@ CREATE TABLE public.division (
 
 CREATE TABLE public.dts_system_info (
     id uuid DEFAULT '73f0defb-4eba-4398-84b3-5e6737fec2b7'::uuid NOT NULL,
+    version_no character varying(50) NOT NULL,
     installed_at timestamp without time zone,
     updated_at timestamp without time zone,
-    version_no character varying(50) NOT NULL,
     last_translation_import_at timestamp with time zone
 );
 
@@ -707,6 +931,25 @@ CREATE TABLE public.event (
 
 
 --
+-- Name: event_causality; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.event_causality (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    triggering_entity_type public.event_causality_entity_type NOT NULL,
+    triggering_hazardous_event_id uuid,
+    triggering_disaster_event_id uuid,
+    triggered_entity_type public.event_causality_entity_type NOT NULL,
+    triggered_hazardous_event_id uuid,
+    triggered_disaster_event_id uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT event_causality_triggered_entity_fk_check CHECK ((((triggered_entity_type = 'HE'::public.event_causality_entity_type) AND (triggered_hazardous_event_id IS NOT NULL) AND (triggered_disaster_event_id IS NULL)) OR ((triggered_entity_type = 'DE'::public.event_causality_entity_type) AND (triggered_disaster_event_id IS NOT NULL) AND (triggered_hazardous_event_id IS NULL)))),
+    CONSTRAINT event_causality_triggering_entity_fk_check CHECK ((((triggering_entity_type = 'HE'::public.event_causality_entity_type) AND (triggering_hazardous_event_id IS NOT NULL) AND (triggering_disaster_event_id IS NULL)) OR ((triggering_entity_type = 'DE'::public.event_causality_entity_type) AND (triggering_disaster_event_id IS NOT NULL) AND (triggering_hazardous_event_id IS NULL))))
+);
+
+
+--
 -- Name: event_relationship; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -738,19 +981,41 @@ CREATE TABLE public.hazardous_event (
     description text DEFAULT ''::text NOT NULL,
     chains_explanation text DEFAULT ''::text NOT NULL,
     magniture text DEFAULT ''::text NOT NULL,
-    spatial_footprint jsonb,
     attachments jsonb,
     record_originator text DEFAULT ''::text NOT NULL,
     hazardous_event_status text,
     data_source text DEFAULT ''::text NOT NULL,
     created_by_user_id uuid,
     updated_by_user_id uuid,
+    submitted_by_user_id uuid,
+    submitted_at timestamp without time zone,
     validated_by_user_id uuid,
     validated_at timestamp without time zone,
     published_by_user_id uuid,
-    published_at timestamp without time zone,
-    submitted_by_user_id uuid,
-    submitted_at timestamp without time zone
+    published_at timestamp without time zone
+);
+
+
+--
+-- Name: hazardous_event_division; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.hazardous_event_division (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    hazardous_event_id uuid NOT NULL,
+    division_id uuid NOT NULL
+);
+
+
+--
+-- Name: hazardous_event_geom; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.hazardous_event_geom (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    hazardous_event_id uuid NOT NULL,
+    geom public.geometry(Geometry,4326) NOT NULL,
+    title text
 );
 
 
@@ -809,17 +1074,17 @@ CREATE TABLE public.human_category_presence (
     affected_direct boolean,
     affected_indirect boolean,
     displaced boolean,
-    deaths_total_group_column_names jsonb,
-    injured_total_group_column_names jsonb,
-    missing_total_group_column_names jsonb,
-    affected_total_group_column_names jsonb,
-    displaced_total_group_column_names jsonb,
     deaths_total bigint,
     injured_total bigint,
     missing_total bigint,
     affected_direct_total bigint,
     affected_indirect_total bigint,
-    displaced_total bigint
+    displaced_total bigint,
+    deaths_total_group_column_names jsonb,
+    injured_total_group_column_names jsonb,
+    missing_total_group_column_names jsonb,
+    affected_total_group_column_names jsonb,
+    displaced_total_group_column_names jsonb
 );
 
 
@@ -908,8 +1173,30 @@ CREATE TABLE public.losses (
     private_cost_unit_currency text,
     private_cost_total numeric,
     private_cost_total_override boolean DEFAULT false NOT NULL,
-    spatial_footprint jsonb,
     attachments jsonb
+);
+
+
+--
+-- Name: losses_division; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.losses_division (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    loss_id uuid NOT NULL,
+    division_id uuid NOT NULL
+);
+
+
+--
+-- Name: losses_geom; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.losses_geom (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    loss_id uuid NOT NULL,
+    geom public.geometry(Geometry,4326) NOT NULL,
+    title text
 );
 
 
@@ -941,6 +1228,24 @@ CREATE TABLE public.noneco_losses (
 
 
 --
+-- Name: notices; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.notices (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    country_accounts_id uuid NOT NULL,
+    is_published boolean DEFAULT false NOT NULL,
+    audience text DEFAULT 'private'::text NOT NULL,
+    published_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    title text NOT NULL,
+    body text,
+    locale text NOT NULL
+);
+
+
+--
 -- Name: organization; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -951,6 +1256,16 @@ CREATE TABLE public.organization (
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     api_import_id text,
     country_accounts_id uuid
+);
+
+
+--
+-- Name: response_type; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.response_type (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    type text NOT NULL
 );
 
 
@@ -1071,10 +1386,19 @@ CREATE TABLE public.user_country_accounts (
 
 
 --
+-- Data for Name: assessment_type; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.assessment_type VALUES ('e6027ecf-a245-43ee-bed6-55ab013846ff', 'Rapid/Preliminary assessment');
+INSERT INTO public.assessment_type VALUES ('53a0ddad-3f2d-4a3a-ad6a-2386f7b5912d', 'Post-disaster assessment');
+INSERT INTO public.assessment_type VALUES ('67b4e3f2-d3f7-4669-b417-7f997f9b75e8', 'Other assessment');
+
+
+--
 -- Data for Name: asset; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO public.asset VALUES (NULL, '3f603498-c258-4dfd-9eb7-d06eff817386', 'a48d6f2e-16e4-4976-8c25-5c8b1788232f', true, 'Artworks', '', '', 'Culture', NULL, '{"en": "Artworks"}', '{"en": ""}', '{"en": "Culture"}');
+INSERT INTO public.asset VALUES (NULL, '868cbacd-7c5b-4041-8d8f-779e6a27d91a', '0f260f9c-c8b8-4a71-94c3-883158f540ad', true, 'Dams', '', '', 'Water', NULL, '{"en": "Dams"}', '{"en": ""}', '{"en": "Water"}');
 INSERT INTO public.asset VALUES (NULL, '43e4bc48-7700-4d51-8e11-0fb3ace947af', 'dd16548d-4087-4bef-8861-7069624859e3', true, 'Wheat', '', '11', 'Temporary - annual crops - Agriculture', NULL, '{"en": "Wheat"}', '{"en": ""}', '{"en": "Temporary - annual crops - Agriculture"}');
 INSERT INTO public.asset VALUES (NULL, '857c0722-6ff0-4ab5-a709-a0f16080962a', 'dd16548d-4087-4bef-8861-7069624859e3', true, 'Maize', '', '12', 'Temporary - annual crops - Agriculture', NULL, '{"en": "Maize"}', '{"en": ""}', '{"en": "Temporary - annual crops - Agriculture"}');
 INSERT INTO public.asset VALUES (NULL, 'f82779c8-2a56-4bd1-bf9c-8328a6cb8350', 'dd16548d-4087-4bef-8861-7069624859e3', true, 'Rice', '', '13', 'Temporary - annual crops - Agriculture', NULL, '{"en": "Rice"}', '{"en": ""}', '{"en": "Temporary - annual crops - Agriculture"}');
@@ -1107,7 +1431,6 @@ INSERT INTO public.asset VALUES (NULL, '6b5a5df9-1402-4ee6-9aec-e47e54221bdb', '
 INSERT INTO public.asset VALUES (NULL, '8626d134-df4a-4af0-b264-458747478ec1', 'dd16548d-4087-4bef-8861-7069624859e3', true, 'Mustard', '', '433', 'Temporary - annual crops - Agriculture', NULL, '{"en": "Mustard"}', '{"en": ""}', '{"en": "Temporary - annual crops - Agriculture"}');
 INSERT INTO public.asset VALUES (NULL, '54e76c51-0276-4a5b-bc59-c91f1570a69b', 'dd16548d-4087-4bef-8861-7069624859e3', true, 'Niger seed', '', '434', 'Temporary - annual crops - Agriculture', NULL, '{"en": "Niger seed"}', '{"en": ""}', '{"en": "Temporary - annual crops - Agriculture"}');
 INSERT INTO public.asset VALUES (NULL, '80012e57-edb3-4e74-9200-f6cbb171b725', 'dd16548d-4087-4bef-8861-7069624859e3', true, 'Rapeseed', '', '435', 'Temporary - annual crops - Agriculture', NULL, '{"en": "Rapeseed"}', '{"en": ""}', '{"en": "Temporary - annual crops - Agriculture"}');
-INSERT INTO public.asset VALUES (NULL, 'f5dc46b2-6e89-471c-b9a2-dded3c0b911c', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', true, 'Tunnels', '', '', 'Industry', NULL, '{"en": "Tunnels"}', '{"en": ""}', '{"en": "Industry"}');
 INSERT INTO public.asset VALUES (NULL, 'dd96cc41-8603-4f22-9cf4-3020618b2c56', 'dd16548d-4087-4bef-8861-7069624859e3', true, 'Safflower', '', '436', 'Temporary - annual crops - Agriculture', NULL, '{"en": "Safflower"}', '{"en": ""}', '{"en": "Temporary - annual crops - Agriculture"}');
 INSERT INTO public.asset VALUES (NULL, '88a908c4-117b-4cc5-8b62-f71e61d0916e', 'dd16548d-4087-4bef-8861-7069624859e3', true, 'Sesame', '', '437', 'Temporary - annual crops - Agriculture', NULL, '{"en": "Sesame"}', '{"en": ""}', '{"en": "Temporary - annual crops - Agriculture"}');
 INSERT INTO public.asset VALUES (NULL, '8e854da4-418e-4ad9-98fc-833350c18efd', 'dd16548d-4087-4bef-8861-7069624859e3', true, 'Sunflower', '', '438', 'Temporary - annual crops - Agriculture', NULL, '{"en": "Sunflower"}', '{"en": ""}', '{"en": "Temporary - annual crops - Agriculture"}');
@@ -1129,6 +1452,7 @@ INSERT INTO public.asset VALUES (NULL, '9ee3e6da-783c-45a8-9635-785c4c299e7e', '
 INSERT INTO public.asset VALUES (NULL, '37baa2fa-0fc2-4d71-bc93-28175ba0babf', 'dd16548d-4087-4bef-8861-7069624859e3', true, 'Watermelons', '', '224', 'Temporary - annual crops - Agriculture', NULL, '{"en": "Watermelons"}', '{"en": ""}', '{"en": "Temporary - annual crops - Agriculture"}');
 INSERT INTO public.asset VALUES (NULL, '5f17cb11-f5cf-46a3-be54-885a2fcb7341', 'dd16548d-4087-4bef-8861-7069624859e3', true, 'Cantaloupes and other melons', '', '225', 'Temporary - annual crops - Agriculture', NULL, '{"en": "Cantaloupes and other melons"}', '{"en": ""}', '{"en": "Temporary - annual crops - Agriculture"}');
 INSERT INTO public.asset VALUES (NULL, '89090ff2-e57d-4be8-bad2-671de871746b', 'dd16548d-4087-4bef-8861-7069624859e3', true, 'Pumpkin, squash and gourds', '', '226', 'Temporary - annual crops - Agriculture', NULL, '{"en": "Pumpkin, squash and gourds"}', '{"en": ""}', '{"en": "Temporary - annual crops - Agriculture"}');
+INSERT INTO public.asset VALUES (NULL, '7dfa0326-d22a-4bc0-b086-26aef494f25c', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', true, 'Cranes', 'Machinery and equipments', '', 'Industry', NULL, '{"en": "Cranes"}', '{"en": "Machinery and equipments"}', '{"en": "Industry"}');
 INSERT INTO public.asset VALUES (NULL, '1a875652-53ab-4c79-b0f3-db16d599ab10', 'dd16548d-4087-4bef-8861-7069624859e3', true, 'Other fruit-bearing vegetables, n.e.c', '', '229', 'Temporary - annual crops - Agriculture', NULL, '{"en": "Other fruit-bearing vegetables, n.e.c"}', '{"en": ""}', '{"en": "Temporary - annual crops - Agriculture"}');
 INSERT INTO public.asset VALUES (NULL, '61a2a82f-f852-4fc8-b45c-cfa745013db6', 'dd16548d-4087-4bef-8861-7069624859e3', true, 'Carrots', '', '231', 'Temporary - annual crops - Agriculture', NULL, '{"en": "Carrots"}', '{"en": ""}', '{"en": "Temporary - annual crops - Agriculture"}');
 INSERT INTO public.asset VALUES (NULL, '2dd927e8-3d6e-4122-91bc-0462c4e81508', 'dd16548d-4087-4bef-8861-7069624859e3', true, 'Turnips', '', '232', 'Temporary - annual crops - Agriculture', NULL, '{"en": "Turnips"}', '{"en": ""}', '{"en": "Temporary - annual crops - Agriculture"}');
@@ -1153,7 +1477,6 @@ INSERT INTO public.asset VALUES (NULL, 'cfbfd2fc-515a-4236-8eb8-0010fb2e9584', '
 INSERT INTO public.asset VALUES (NULL, 'de55925a-8022-4793-aece-4fbd8c962dc1', '5a525ef1-592d-4808-977c-1e2cc2d2de8f', true, 'Raspberries', '', '344', 'Permanent- perennial crops - Agriculture', NULL, '{"en": "Raspberries"}', '{"en": ""}', '{"en": "Permanent- perennial crops - Agriculture"}');
 INSERT INTO public.asset VALUES (NULL, '13a255b2-2b17-4a8d-b051-215877ecfa3c', '5a525ef1-592d-4808-977c-1e2cc2d2de8f', true, 'Strawberries', '', '345', 'Permanent- perennial crops - Agriculture', NULL, '{"en": "Strawberries"}', '{"en": ""}', '{"en": "Permanent- perennial crops - Agriculture"}');
 INSERT INTO public.asset VALUES (NULL, '3fd61e18-6f93-45cc-a44f-bb63cb7dc8f5', '5a525ef1-592d-4808-977c-1e2cc2d2de8f', true, 'Blueberries', '', '346', 'Permanent- perennial crops - Agriculture', NULL, '{"en": "Blueberries"}', '{"en": ""}', '{"en": "Permanent- perennial crops - Agriculture"}');
-INSERT INTO public.asset VALUES (NULL, '09f970db-332a-4821-a83c-b4c14aee496b', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', true, 'Water treatment units', '', '', 'Tourism', NULL, '{"en": "Water treatment units"}', '{"en": ""}', '{"en": "Tourism"}');
 INSERT INTO public.asset VALUES (NULL, '9e28e703-75cd-4460-80fb-dd462bb3e3d5', '5a525ef1-592d-4808-977c-1e2cc2d2de8f', true, 'Other berries', '', '349', 'Permanent- perennial crops - Agriculture', NULL, '{"en": "Other berries"}', '{"en": ""}', '{"en": "Permanent- perennial crops - Agriculture"}');
 INSERT INTO public.asset VALUES (NULL, '0a45eb42-0617-4755-9dbf-010d07c3dca0', '5a525ef1-592d-4808-977c-1e2cc2d2de8f', true, 'Grapefruit & pomelo', '', '321', 'Permanent- perennial crops - Agriculture', NULL, '{"en": "Grapefruit & pomelo"}', '{"en": ""}', '{"en": "Permanent- perennial crops - Agriculture"}');
 INSERT INTO public.asset VALUES (NULL, '09d80ac1-fb83-4724-b44b-146193ba1fdb', '5a525ef1-592d-4808-977c-1e2cc2d2de8f', true, 'Lemons and Limes', '', '322', 'Permanent- perennial crops - Agriculture', NULL, '{"en": "Lemons and Limes"}', '{"en": ""}', '{"en": "Permanent- perennial crops - Agriculture"}');
@@ -1181,6 +1504,7 @@ INSERT INTO public.asset VALUES (NULL, 'ddfe13e9-9d67-49fa-b706-0f8a49c2d45e', '
 INSERT INTO public.asset VALUES (NULL, 'dd6cd1af-2626-4529-83c9-5d81834ea2c2', '5a525ef1-592d-4808-977c-1e2cc2d2de8f', true, 'Coffee', '', '611', 'Permanent- perennial crops - Agriculture', NULL, '{"en": "Coffee"}', '{"en": ""}', '{"en": "Permanent- perennial crops - Agriculture"}');
 INSERT INTO public.asset VALUES (NULL, '9e6e1845-e778-4f8f-9834-6064c02684a9', '5a525ef1-592d-4808-977c-1e2cc2d2de8f', true, 'Tea', '', '612', 'Permanent- perennial crops - Agriculture', NULL, '{"en": "Tea"}', '{"en": ""}', '{"en": "Permanent- perennial crops - Agriculture"}');
 INSERT INTO public.asset VALUES (NULL, '527dbc0d-c2dd-4d5e-bd43-c773335e769e', '5a525ef1-592d-4808-977c-1e2cc2d2de8f', true, 'Mate', '', '613', 'Permanent- perennial crops - Agriculture', NULL, '{"en": "Mate"}', '{"en": ""}', '{"en": "Permanent- perennial crops - Agriculture"}');
+INSERT INTO public.asset VALUES (NULL, '9509deb3-8a24-48bc-832c-906261ac180f', 'adcd0b72-1c9f-40ec-9267-d91a2ff2b08a', true, 'Mobile treatment units', '', '', 'Sanitation', NULL, '{"en": "Mobile treatment units"}', '{"en": ""}', '{"en": "Sanitation"}');
 INSERT INTO public.asset VALUES (NULL, 'be846dc3-3cc8-4b54-93e0-96f0f9698428', '5a525ef1-592d-4808-977c-1e2cc2d2de8f', true, 'Cocoa', '', '614', 'Permanent- perennial crops - Agriculture', NULL, '{"en": "Cocoa"}', '{"en": ""}', '{"en": "Permanent- perennial crops - Agriculture"}');
 INSERT INTO public.asset VALUES (NULL, '281fba40-fb97-4df4-a959-5731964f3b27', '5a525ef1-592d-4808-977c-1e2cc2d2de8f', true, 'Other beverage crops, n.e.c', '', '619', 'Permanent- perennial crops - Agriculture', NULL, '{"en": "Other beverage crops, n.e.c"}', '{"en": ""}', '{"en": "Permanent- perennial crops - Agriculture"}');
 INSERT INTO public.asset VALUES (NULL, '9bb969b9-219d-402c-9cbf-2bb0e2865dfb', '5a525ef1-592d-4808-977c-1e2cc2d2de8f', true, 'Pepper (piper spp.) 2', '', '6221', 'Permanent- perennial crops - Agriculture', NULL, '{"en": "Pepper (piper spp.) 2"}', '{"en": ""}', '{"en": "Permanent- perennial crops - Agriculture"}');
@@ -1204,11 +1528,11 @@ INSERT INTO public.asset VALUES (NULL, 'd5d6a76f-2f50-4e00-b37c-f001742d74c3', '
 INSERT INTO public.asset VALUES (NULL, 'de5a74a9-f5a8-4979-bfcf-2ab813a90351', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', true, 'Industrial units', '', '', 'Industry', NULL, '{"en": "Industrial units"}', '{"en": ""}', '{"en": "Industry"}');
 INSERT INTO public.asset VALUES (NULL, 'ed626b59-2243-4d23-b2b6-26ade7335977', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', true, 'Distribution centers', '', '', 'Industry', NULL, '{"en": "Distribution centers"}', '{"en": ""}', '{"en": "Industry"}');
 INSERT INTO public.asset VALUES (NULL, '421e99c8-9e0e-4532-ae26-875809135302', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', true, 'Mine shafts', '', '', 'Industry', NULL, '{"en": "Mine shafts"}', '{"en": ""}', '{"en": "Industry"}');
+INSERT INTO public.asset VALUES (NULL, 'f5dc46b2-6e89-471c-b9a2-dded3c0b911c', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', true, 'Tunnels', '', '', 'Industry', NULL, '{"en": "Tunnels"}', '{"en": ""}', '{"en": "Industry"}');
 INSERT INTO public.asset VALUES (NULL, '7cf4f34a-7234-4031-8942-a6a967567304', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370,c83a021f-5861-4f2c-932b-07decb1fa9d2', true, 'Processing plants', '', '', 'Industry', NULL, '{"en": "Processing plants"}', '{"en": ""}', '{"en": "Industry"}');
 INSERT INTO public.asset VALUES (NULL, '811c4717-849f-45f7-b20f-e036e0dc954b', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', true, 'Workshops', '', '', 'Industry', NULL, '{"en": "Workshops"}', '{"en": ""}', '{"en": "Industry"}');
 INSERT INTO public.asset VALUES (NULL, '28ae9842-7bdb-4c36-934f-2a14e779a9d9', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370,ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', true, 'Vehicles', 'Machinery and equipments', '', 'Industry', NULL, '{"en": "Vehicles"}', '{"en": "Machinery and equipments"}', '{"en": "Industry"}');
 INSERT INTO public.asset VALUES (NULL, '5fa6ac59-0087-4974-bf0a-b1f53bb989fc', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', true, 'Production machinery', 'Machinery and equipments', '', 'Industry', NULL, '{"en": "Production machinery"}', '{"en": "Machinery and equipments"}', '{"en": "Industry"}');
-INSERT INTO public.asset VALUES (NULL, '8dff59a8-555f-4c77-b481-2915e97265e2', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', true, 'Recreational amenities', '', '', 'Tourism', NULL, '{"en": "Recreational amenities"}', '{"en": ""}', '{"en": "Tourism"}');
 INSERT INTO public.asset VALUES (NULL, 'a03bd5c1-c59e-43fb-ad26-e62221a45505', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', true, 'Assembly lines', 'Machinery and equipments', '', 'Industry', NULL, '{"en": "Assembly lines"}', '{"en": "Machinery and equipments"}', '{"en": "Industry"}');
 INSERT INTO public.asset VALUES (NULL, '0e75023a-b773-4543-b3ca-5b6284982bb2', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', true, 'Specialized equipment', 'Machinery and equipments', '', 'Industry', NULL, '{"en": "Specialized equipment"}', '{"en": "Machinery and equipments"}', '{"en": "Industry"}');
 INSERT INTO public.asset VALUES (NULL, '78274c14-d0ec-4ff1-86c7-8e7819b5ad65', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370,c83a021f-5861-4f2c-932b-07decb1fa9d2', true, 'Compressors', 'Machinery and equipments', '', 'Industry', NULL, '{"en": "Compressors"}', '{"en": "Machinery and equipments"}', '{"en": "Industry"}');
@@ -1219,7 +1543,6 @@ INSERT INTO public.asset VALUES (NULL, 'e3c55002-bcb6-4c5a-865d-172e5e03738e', '
 INSERT INTO public.asset VALUES (NULL, '182260b6-37be-4ee8-a57d-ed45f2e5b038', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', true, 'Bulldozers', 'Machinery and equipments', '', 'Industry', NULL, '{"en": "Bulldozers"}', '{"en": "Machinery and equipments"}', '{"en": "Industry"}');
 INSERT INTO public.asset VALUES (NULL, 'bca1eead-755d-45d5-b75f-5db45f8b792f', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', true, 'Haul tracks', 'Machinery and equipments', '', 'Industry', NULL, '{"en": "Haul tracks"}', '{"en": "Machinery and equipments"}', '{"en": "Industry"}');
 INSERT INTO public.asset VALUES (NULL, '36eb213e-709c-4ad0-ab6e-e3e9f7eff9a9', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', true, 'Crushing machinery', 'Machinery and equipments', '', 'Industry', NULL, '{"en": "Crushing machinery"}', '{"en": "Machinery and equipments"}', '{"en": "Industry"}');
-INSERT INTO public.asset VALUES (NULL, '84e833a7-e9f1-46ed-b3a2-dc549ce2a5c8', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', true, 'Kitchens', '', '', 'Tourism', NULL, '{"en": "Kitchens"}', '{"en": ""}', '{"en": "Tourism"}');
 INSERT INTO public.asset VALUES (NULL, 'ee3659ac-cd8f-4c52-ae1b-be0161770cd2', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', true, 'Grinding machinery', 'Machinery and equipments', '', 'Industry', NULL, '{"en": "Grinding machinery"}', '{"en": "Machinery and equipments"}', '{"en": "Industry"}');
 INSERT INTO public.asset VALUES (NULL, 'e53e6f2c-f051-4597-a167-29662d4923dc', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', true, 'Separation equipment', 'Machinery and equipments', '', 'Industry', NULL, '{"en": "Separation equipment"}', '{"en": "Machinery and equipments"}', '{"en": "Industry"}');
 INSERT INTO public.asset VALUES (NULL, '2b0d2414-05de-48d4-beae-7307be24dea8', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', true, 'Conveyor system', 'Machinery and equipments', '', 'Industry', NULL, '{"en": "Conveyor system"}', '{"en": "Machinery and equipments"}', '{"en": "Industry"}');
@@ -1236,7 +1559,6 @@ INSERT INTO public.asset VALUES (NULL, '448fd98f-a6ff-4bfc-92cb-3316ada631fc', '
 INSERT INTO public.asset VALUES (NULL, '41ff479d-0357-4596-8f6b-3ffb7f54a19c', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', true, 'Pile drivers', 'Machinery and equipments', '', 'Industry', NULL, '{"en": "Pile drivers"}', '{"en": "Machinery and equipments"}', '{"en": "Industry"}');
 INSERT INTO public.asset VALUES (NULL, 'f4150a33-52d2-4917-8f1c-c0188d80bf4e', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', true, 'Compactors', 'Machinery and equipments', '', 'Industry', NULL, '{"en": "Compactors"}', '{"en": "Machinery and equipments"}', '{"en": "Industry"}');
 INSERT INTO public.asset VALUES (NULL, 'b3fbc6cd-9612-4538-9ac5-4381e7d4cae9', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', true, 'Lighting systems', 'Machinery and equipments', '', 'Industry', NULL, '{"en": "Lighting systems"}', '{"en": "Machinery and equipments"}', '{"en": "Industry"}');
-INSERT INTO public.asset VALUES (NULL, '7dfa0326-d22a-4bc0-b086-26aef494f25c', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', true, 'Cranes', 'Machinery and equipments', '', 'Industry', NULL, '{"en": "Cranes"}', '{"en": "Machinery and equipments"}', '{"en": "Industry"}');
 INSERT INTO public.asset VALUES (NULL, 'e0cb6601-e9d5-4c7b-bb6d-6493d80020d8', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', true, 'Scaffolding', 'Machinery and equipments', '', 'Industry', NULL, '{"en": "Scaffolding"}', '{"en": "Machinery and equipments"}', '{"en": "Industry"}');
 INSERT INTO public.asset VALUES (NULL, '99cb1644-daf9-43a5-a875-455c710481da', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370,ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', true, 'Generators', 'Machinery and equipments', '', 'Industry', NULL, '{"en": "Generators"}', '{"en": "Machinery and equipments"}', '{"en": "Industry"}');
 INSERT INTO public.asset VALUES (NULL, '5c04f3c7-c5cc-4071-af1a-6ba90ff446aa', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', true, 'Concrete mixers', 'Machinery and equipments', '', 'Industry', NULL, '{"en": "Concrete mixers"}', '{"en": "Machinery and equipments"}', '{"en": "Industry"}');
@@ -1248,6 +1570,7 @@ INSERT INTO public.asset VALUES (NULL, 'b2666498-cf34-4411-98ac-fe1f729f7c9b', '
 INSERT INTO public.asset VALUES (NULL, '97a9bcdf-efea-4e4d-b995-abd697eac3ad', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', true, 'On-site restaurants', '', '', 'Tourism', NULL, '{"en": "On-site restaurants"}', '{"en": ""}', '{"en": "Tourism"}');
 INSERT INTO public.asset VALUES (NULL, 'ddf3d2f5-5772-4430-9256-0c33fd6b3740', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', true, 'Restaurants', '', '', 'Tourism', NULL, '{"en": "Restaurants"}', '{"en": ""}', '{"en": "Tourism"}');
 INSERT INTO public.asset VALUES (NULL, '3cd27f3c-e992-4e42-b4e7-c87adf8a289a', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', true, 'Conference facilities', '', '', 'Tourism', NULL, '{"en": "Conference facilities"}', '{"en": ""}', '{"en": "Tourism"}');
+INSERT INTO public.asset VALUES (NULL, '8dff59a8-555f-4c77-b481-2915e97265e2', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', true, 'Recreational amenities', '', '', 'Tourism', NULL, '{"en": "Recreational amenities"}', '{"en": ""}', '{"en": "Tourism"}');
 INSERT INTO public.asset VALUES (NULL, 'd423fd56-50ca-4ae7-8765-ee96f57d3457', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', true, 'Swimming pool', '', '', 'Tourism', NULL, '{"en": "Swimming pool"}', '{"en": ""}', '{"en": "Tourism"}');
 INSERT INTO public.asset VALUES (NULL, '71d181ef-a581-4758-ae89-16e6f398bb03', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', true, 'Saunas', '', '', 'Tourism', NULL, '{"en": "Saunas"}', '{"en": ""}', '{"en": "Tourism"}');
 INSERT INTO public.asset VALUES (NULL, 'e0cdafc6-65ca-4630-8d26-c4fc94d73ecd', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', true, 'golf park', '', '', 'Tourism', NULL, '{"en": "golf park"}', '{"en": ""}', '{"en": "Tourism"}');
@@ -1257,6 +1580,8 @@ INSERT INTO public.asset VALUES (NULL, 'fd418033-4e88-4e80-b0b7-2517064eba5a', '
 INSERT INTO public.asset VALUES (NULL, 'f9365996-2633-4fb0-b727-ef715560627b', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', true, 'Landscaping', '', '', 'Tourism', NULL, '{"en": "Landscaping"}', '{"en": ""}', '{"en": "Tourism"}');
 INSERT INTO public.asset VALUES (NULL, '8bcb0daf-cd55-498f-b4ae-2a94ca412812', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', true, 'Laundry facilities', '', '', 'Tourism', NULL, '{"en": "Laundry facilities"}', '{"en": ""}', '{"en": "Tourism"}');
 INSERT INTO public.asset VALUES (NULL, '5f7799c8-d246-4825-9b81-b23cc874cedd', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', true, 'Wastewater treatment units', '', '', 'Tourism', NULL, '{"en": "Wastewater treatment units"}', '{"en": ""}', '{"en": "Tourism"}');
+INSERT INTO public.asset VALUES (NULL, '09f970db-332a-4821-a83c-b4c14aee496b', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', true, 'Water treatment units', '', '', 'Tourism', NULL, '{"en": "Water treatment units"}', '{"en": ""}', '{"en": "Tourism"}');
+INSERT INTO public.asset VALUES (NULL, '84e833a7-e9f1-46ed-b3a2-dc549ce2a5c8', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', true, 'Kitchens', '', '', 'Tourism', NULL, '{"en": "Kitchens"}', '{"en": ""}', '{"en": "Tourism"}');
 INSERT INTO public.asset VALUES (NULL, '9bc700f0-aa67-4bf1-8a03-89b1c3a2a8a0', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', true, 'Storage areas', '', '', 'Tourism', NULL, '{"en": "Storage areas"}', '{"en": ""}', '{"en": "Tourism"}');
 INSERT INTO public.asset VALUES (NULL, 'd17c37f6-ac1a-46eb-b5ae-a6576113204e', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', true, 'Garage', '', '', 'Tourism', NULL, '{"en": "Garage"}', '{"en": ""}', '{"en": "Tourism"}');
 INSERT INTO public.asset VALUES (NULL, 'f9c769ad-3cb5-45cf-a881-0158716fdae6', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', true, 'Room furnishing', 'Furniture and equipment', '', 'Tourism', NULL, '{"en": "Room furnishing"}', '{"en": "Furniture and equipment"}', '{"en": "Tourism"}');
@@ -1351,8 +1676,8 @@ INSERT INTO public.asset VALUES (NULL, '750d1a6b-7bda-4397-b97d-20ee58956191', '
 INSERT INTO public.asset VALUES (NULL, 'e2f26abf-a73c-4149-9bc7-fbed4eaa148f', '6ac0b833-6218-49d0-9882-827c1b748d7a', true, 'Precarious housing - Single family houses - detached houses', '', '', 'Housing', NULL, '{"en": "Precarious housing - Single family houses - detached houses"}', '{"en": ""}', '{"en": "Housing"}');
 INSERT INTO public.asset VALUES (NULL, 'f1527655-55c3-4291-bb7d-fdaaad7cae78', '6ac0b833-6218-49d0-9882-827c1b748d7a', true, 'Precarious housing - Single family houses - attached houses', '', '', 'Housing', NULL, '{"en": "Precarious housing - Single family houses - attached houses"}', '{"en": ""}', '{"en": "Housing"}');
 INSERT INTO public.asset VALUES (NULL, '7092275f-b130-46c4-b986-c92749e72c09', '6ac0b833-6218-49d0-9882-827c1b748d7a', true, 'Precarious housing - Multi family housing - appartment buildings', '', '', 'Housing', NULL, '{"en": "Precarious housing - Multi family housing - appartment buildings"}', '{"en": ""}', '{"en": "Housing"}');
-INSERT INTO public.asset VALUES (NULL, 'ecbacbca-c803-4233-8551-d14f48504733', 'e9f80a3c-84b4-4fa6-92a0-324ae34f81fd', true, 'Studios music', '', '', 'Information and Communication', NULL, '{"en": "Studios music"}', '{"en": ""}', '{"en": "Information and Communication"}');
 INSERT INTO public.asset VALUES (NULL, '173b19aa-49aa-4036-b633-2c18b4002d93', '6ac0b833-6218-49d0-9882-827c1b748d7a', true, 'Precarious housing - Multi family housing - condominiums', '', '', 'Housing', NULL, '{"en": "Precarious housing - Multi family housing - condominiums"}', '{"en": ""}', '{"en": "Housing"}');
+INSERT INTO public.asset VALUES (NULL, 'acadf718-6fca-4546-a71c-0938ec57c9a6', 'c83a021f-5861-4f2c-932b-07decb1fa9d2', true, 'Storage tanks', '', '', 'Energy and Electricity ', NULL, '{"en": "Storage tanks"}', '{"en": ""}', '{"en": "Energy and Electricity "}');
 INSERT INTO public.asset VALUES (NULL, 'ded03c8b-a468-4a85-bac9-27ad949c2a09', '6ac0b833-6218-49d0-9882-827c1b748d7a', true, 'Precarious housing - Multi family housing - House Complex', '', '', 'Housing', NULL, '{"en": "Precarious housing - Multi family housing - House Complex"}', '{"en": ""}', '{"en": "Housing"}');
 INSERT INTO public.asset VALUES (NULL, '2a296db5-faff-4d42-8c8a-e244f0707101', '6ac0b833-6218-49d0-9882-827c1b748d7a', true, 'Recreational Vehicles (RVs) - motorhomes', '', '', 'Housing', NULL, '{"en": "Recreational Vehicles (RVs) - motorhomes"}', '{"en": ""}', '{"en": "Housing"}');
 INSERT INTO public.asset VALUES (NULL, '171eb06f-33dc-4002-97ab-8b84e3473d0c', '6ac0b833-6218-49d0-9882-827c1b748d7a', true, 'Recreational Vehicles (RVs) - travel trailers', '', '', 'Housing', NULL, '{"en": "Recreational Vehicles (RVs) - travel trailers"}', '{"en": ""}', '{"en": "Housing"}');
@@ -1377,6 +1702,7 @@ INSERT INTO public.asset VALUES (NULL, 'b34ef229-5f0e-4b73-b57d-336f0613fe1b', '
 INSERT INTO public.asset VALUES (NULL, '9123f3d1-9c79-4251-b5e4-c0c83ffaf8e0', 'a48d6f2e-16e4-4976-8c25-5c8b1788232f', true, 'Art galleries', '', '', 'Culture', NULL, '{"en": "Art galleries"}', '{"en": ""}', '{"en": "Culture"}');
 INSERT INTO public.asset VALUES (NULL, '95c9b83a-c28b-49cf-b5e1-7fcd3e3e77d5', 'a48d6f2e-16e4-4976-8c25-5c8b1788232f', true, 'Culture centeres', '', '', 'Culture', NULL, '{"en": "Culture centeres"}', '{"en": ""}', '{"en": "Culture"}');
 INSERT INTO public.asset VALUES (NULL, '5b3ef4e5-097d-49a8-ab52-93e3bdaefb86', 'a48d6f2e-16e4-4976-8c25-5c8b1788232f', true, 'Artifacts', '', '', 'Culture', NULL, '{"en": "Artifacts"}', '{"en": ""}', '{"en": "Culture"}');
+INSERT INTO public.asset VALUES (NULL, '3f603498-c258-4dfd-9eb7-d06eff817386', 'a48d6f2e-16e4-4976-8c25-5c8b1788232f', true, 'Artworks', '', '', 'Culture', NULL, '{"en": "Artworks"}', '{"en": ""}', '{"en": "Culture"}');
 INSERT INTO public.asset VALUES (NULL, 'd4c90296-f83b-40d2-805a-a833db5a151b', 'a48d6f2e-16e4-4976-8c25-5c8b1788232f', true, 'Colections', '', '', 'Culture', NULL, '{"en": "Colections"}', '{"en": ""}', '{"en": "Culture"}');
 INSERT INTO public.asset VALUES (NULL, '15de048d-11c7-4302-8d8c-64e0fe042433', 'a48d6f2e-16e4-4976-8c25-5c8b1788232f', true, 'Archives', '', '', 'Culture', NULL, '{"en": "Archives"}', '{"en": ""}', '{"en": "Culture"}');
 INSERT INTO public.asset VALUES (NULL, 'e977ad27-f0c2-4611-bbcf-5b03d460495a', 'a48d6f2e-16e4-4976-8c25-5c8b1788232f', true, 'Libraries', '', '', 'Culture', NULL, '{"en": "Libraries"}', '{"en": ""}', '{"en": "Culture"}');
@@ -1388,7 +1714,6 @@ INSERT INTO public.asset VALUES (NULL, '276c857d-a47e-4295-8c35-e53b44dadcc0', '
 INSERT INTO public.asset VALUES (NULL, 'b49275ca-2c28-4418-8899-33a6888b4d0c', '2b01b68b-bf42-4a72-83b8-e272b0af90b5', true, 'Assets: viaducts, roads ', 'Assets - Road infrastructure', '', 'Transportation', NULL, '{"en": "Assets: viaducts, roads "}', '{"en": "Assets - Road infrastructure"}', '{"en": "Transportation"}');
 INSERT INTO public.asset VALUES (NULL, '6b314aa9-a08c-4d5c-89ea-d43210ab2746', '2b01b68b-bf42-4a72-83b8-e272b0af90b5', true, 'Light passenger', 'Assets - Road infrastructure', '', 'Transportation', NULL, '{"en": "Light passenger"}', '{"en": "Assets - Road infrastructure"}', '{"en": "Transportation"}');
 INSERT INTO public.asset VALUES (NULL, '9dcd4c31-5a1b-4a3c-af88-681f25200ba2', '2b01b68b-bf42-4a72-83b8-e272b0af90b5', true, 'Medium passenger services', 'Assets - Road infrastructure', '', 'Transportation', NULL, '{"en": "Medium passenger services"}', '{"en": "Assets - Road infrastructure"}', '{"en": "Transportation"}');
-INSERT INTO public.asset VALUES (NULL, '26d94e9a-dffa-425d-8797-c5a2eb8f65d9', 'e9f80a3c-84b4-4fa6-92a0-324ae34f81fd', true, 'TV studios', '', '', 'Information and Communication', NULL, '{"en": "TV studios"}', '{"en": ""}', '{"en": "Information and Communication"}');
 INSERT INTO public.asset VALUES (NULL, '84328ccf-92d7-40d0-9013-f49d47e4d1e4', '2b01b68b-bf42-4a72-83b8-e272b0af90b5', true, 'Large passenger bus', 'Assets - Road infrastructure', '', 'Transportation', NULL, '{"en": "Large passenger bus"}', '{"en": "Assets - Road infrastructure"}', '{"en": "Transportation"}');
 INSERT INTO public.asset VALUES (NULL, '8d444136-9124-450b-8782-0a1cd93e73cf', '2b01b68b-bf42-4a72-83b8-e272b0af90b5', true, 'Rigid ( 2-3 axle) cargo vehicle', 'Assets - Road infrastructure', '', 'Transportation', NULL, '{"en": "Rigid ( 2-3 axle) cargo vehicle"}', '{"en": "Assets - Road infrastructure"}', '{"en": "Transportation"}');
 INSERT INTO public.asset VALUES (NULL, '139adf31-e6ef-4de9-b126-b72ac6f886fe', 'c83a021f-5861-4f2c-932b-07decb1fa9d2', true, 'Generation plants', '', '', 'Energy and Electricity ', NULL, '{"en": "Generation plants"}', '{"en": ""}', '{"en": "Energy and Electricity "}');
@@ -1400,7 +1725,6 @@ INSERT INTO public.asset VALUES (NULL, 'c6cbd2db-963d-42f4-b42e-128e6146fb1c', '
 INSERT INTO public.asset VALUES (NULL, '9bb96832-87b4-4f6c-8aaa-5de12fae9bd0', 'c83a021f-5861-4f2c-932b-07decb1fa9d2', true, 'Solar PV', '', '', 'Energy and Electricity ', NULL, '{"en": "Solar PV"}', '{"en": ""}', '{"en": "Energy and Electricity "}');
 INSERT INTO public.asset VALUES (NULL, 'c42231ba-bfda-45c5-8284-c0c3030e0c69', 'c83a021f-5861-4f2c-932b-07decb1fa9d2', true, 'Batteries', '', '', 'Energy and Electricity ', NULL, '{"en": "Batteries"}', '{"en": ""}', '{"en": "Energy and Electricity "}');
 INSERT INTO public.asset VALUES (NULL, 'ba44e960-d4b7-4a07-b046-aeffe3537acf', 'c83a021f-5861-4f2c-932b-07decb1fa9d2', true, 'Storage systems', '', '', 'Energy and Electricity ', NULL, '{"en": "Storage systems"}', '{"en": ""}', '{"en": "Energy and Electricity "}');
-INSERT INTO public.asset VALUES (NULL, 'acadf718-6fca-4546-a71c-0938ec57c9a6', 'c83a021f-5861-4f2c-932b-07decb1fa9d2', true, 'Storage tanks', '', '', 'Energy and Electricity ', NULL, '{"en": "Storage tanks"}', '{"en": ""}', '{"en": "Energy and Electricity "}');
 INSERT INTO public.asset VALUES (NULL, '82a406bc-a31b-4e2b-99d4-08a58006c9b8', 'c83a021f-5861-4f2c-932b-07decb1fa9d2', true, 'Refineries', '', '', 'Energy and Electricity ', NULL, '{"en": "Refineries"}', '{"en": ""}', '{"en": "Energy and Electricity "}');
 INSERT INTO public.asset VALUES (NULL, 'b2ed1990-a17d-4e61-8b5d-856aaaf0bfa2', 'c83a021f-5861-4f2c-932b-07decb1fa9d2', true, 'Regasification terminals', '', '', 'Energy and Electricity ', NULL, '{"en": "Regasification terminals"}', '{"en": ""}', '{"en": "Energy and Electricity "}');
 INSERT INTO public.asset VALUES (NULL, '0710307f-03e5-43b5-a317-d6b64a91c30d', 'c83a021f-5861-4f2c-932b-07decb1fa9d2', true, 'Pipelines oil - oleduct', '', '', 'Energy and Electricity ', NULL, '{"en": "Pipelines oil - oleduct"}', '{"en": ""}', '{"en": "Energy and Electricity "}');
@@ -1424,6 +1748,8 @@ INSERT INTO public.asset VALUES (NULL, '0f467d81-867a-4850-ad3c-d4973681bfe5', '
 INSERT INTO public.asset VALUES (NULL, 'd5a47c7b-4817-4a2b-95e8-44688031438b', 'c83a021f-5861-4f2c-932b-07decb1fa9d2', true, 'Wiring', '', '', 'Energy and Electricity ', NULL, '{"en": "Wiring"}', '{"en": ""}', '{"en": "Energy and Electricity "}');
 INSERT INTO public.asset VALUES (NULL, '845b008b-be31-48c1-82af-d95833194d93', 'e9f80a3c-84b4-4fa6-92a0-324ae34f81fd', true, 'Aerial telephone lines', '', '', 'Information and Communication', NULL, '{"en": "Aerial telephone lines"}', '{"en": ""}', '{"en": "Information and Communication"}');
 INSERT INTO public.asset VALUES (NULL, '6f0b75cc-94e0-4965-ad51-3525ea0140c4', 'e9f80a3c-84b4-4fa6-92a0-324ae34f81fd', true, 'Electronic switching ', '', '', 'Information and Communication', NULL, '{"en": "Electronic switching "}', '{"en": ""}', '{"en": "Information and Communication"}');
+INSERT INTO public.asset VALUES (NULL, 'ecbacbca-c803-4233-8551-d14f48504733', 'e9f80a3c-84b4-4fa6-92a0-324ae34f81fd', true, 'Studios music', '', '', 'Information and Communication', NULL, '{"en": "Studios music"}', '{"en": ""}', '{"en": "Information and Communication"}');
+INSERT INTO public.asset VALUES (NULL, '26d94e9a-dffa-425d-8797-c5a2eb8f65d9', 'e9f80a3c-84b4-4fa6-92a0-324ae34f81fd', true, 'TV studios', '', '', 'Information and Communication', NULL, '{"en": "TV studios"}', '{"en": ""}', '{"en": "Information and Communication"}');
 INSERT INTO public.asset VALUES (NULL, 'fc343ac8-8666-4538-ac1e-17a6e0f54524', 'e9f80a3c-84b4-4fa6-92a0-324ae34f81fd', true, 'Movie studios', '', '', 'Information and Communication', NULL, '{"en": "Movie studios"}', '{"en": ""}', '{"en": "Information and Communication"}');
 INSERT INTO public.asset VALUES (NULL, '2e92e4ed-f9fb-4738-8282-8b0333909e7f', 'e9f80a3c-84b4-4fa6-92a0-324ae34f81fd', true, 'Photo studies', '', '', 'Information and Communication', NULL, '{"en": "Photo studies"}', '{"en": ""}', '{"en": "Information and Communication"}');
 INSERT INTO public.asset VALUES (NULL, '4a92b447-5561-4a97-9211-d34b64a9aa63', 'e9f80a3c-84b4-4fa6-92a0-324ae34f81fd', true, 'Printing presses ', '', '', 'Information and Communication', NULL, '{"en": "Printing presses "}', '{"en": ""}', '{"en": "Information and Communication"}');
@@ -1452,7 +1778,6 @@ INSERT INTO public.asset VALUES (NULL, '56108ffa-3c66-4d1d-9cbf-80d8c65306b2', '
 INSERT INTO public.asset VALUES (NULL, '00dd23f2-abc9-4670-a34c-5b29b9737ec9', '0f260f9c-c8b8-4a71-94c3-883158f540ad', true, 'Hand-dug wells ', '', '', 'Water', NULL, '{"en": "Hand-dug wells "}', '{"en": ""}', '{"en": "Water"}');
 INSERT INTO public.asset VALUES (NULL, 'd4be69df-beed-4f86-bf42-b90a3fcfa9f7', '0f260f9c-c8b8-4a71-94c3-883158f540ad,5c91ad51-b152-4ed0-a7f1-0d3e23e3253e', true, 'Ponds', '', '', 'Water', NULL, '{"en": "Ponds"}', '{"en": ""}', '{"en": "Water"}');
 INSERT INTO public.asset VALUES (NULL, '09519eef-862a-44f6-95aa-31f9059d638d', '0f260f9c-c8b8-4a71-94c3-883158f540ad', true, 'Intake structures', '', '', 'Water', NULL, '{"en": "Intake structures"}', '{"en": ""}', '{"en": "Water"}');
-INSERT INTO public.asset VALUES (NULL, '868cbacd-7c5b-4041-8d8f-779e6a27d91a', '0f260f9c-c8b8-4a71-94c3-883158f540ad', true, 'Dams', '', '', 'Water', NULL, '{"en": "Dams"}', '{"en": ""}', '{"en": "Water"}');
 INSERT INTO public.asset VALUES (NULL, '8626139d-32fa-42d4-86b4-fcc00f4a81ca', '0f260f9c-c8b8-4a71-94c3-883158f540ad', true, 'weirs', '', '', 'Water', NULL, '{"en": "weirs"}', '{"en": ""}', '{"en": "Water"}');
 INSERT INTO public.asset VALUES (NULL, 'f03801ec-f7e2-47d7-9cf0-284fb91e52e6', '0f260f9c-c8b8-4a71-94c3-883158f540ad', true, 'river intakes', '', '', 'Water', NULL, '{"en": "river intakes"}', '{"en": ""}', '{"en": "Water"}');
 INSERT INTO public.asset VALUES (NULL, 'bea6a2c7-9265-4c2c-a3a6-94e8d3c5f86c', '0f260f9c-c8b8-4a71-94c3-883158f540ad', true, 'Pumping systems submersible', '', '', 'Water', NULL, '{"en": "Pumping systems submersible"}', '{"en": ""}', '{"en": "Water"}');
@@ -1472,7 +1797,6 @@ INSERT INTO public.asset VALUES (NULL, '2e568e75-9239-4744-be03-369d2f22e095', '
 INSERT INTO public.asset VALUES (NULL, 'd528ed2c-90c7-49ba-a05e-1533c062d077', 'adcd0b72-1c9f-40ec-9267-d91a2ff2b08a', true, 'Sewage pipelines', '', '', 'Sanitation', NULL, '{"en": "Sewage pipelines"}', '{"en": ""}', '{"en": "Sanitation"}');
 INSERT INTO public.asset VALUES (NULL, 'db3a9957-7be5-4bd1-86d6-96b5321cf4fe', 'adcd0b72-1c9f-40ec-9267-d91a2ff2b08a', true, 'Vacuum trucks', '', '', 'Sanitation', NULL, '{"en": "Vacuum trucks"}', '{"en": ""}', '{"en": "Sanitation"}');
 INSERT INTO public.asset VALUES (NULL, 'a732b3df-bca5-42ec-9b87-851dd00ce9e9', 'adcd0b72-1c9f-40ec-9267-d91a2ff2b08a', true, 'Sludge transports', '', '', 'Sanitation', NULL, '{"en": "Sludge transports"}', '{"en": ""}', '{"en": "Sanitation"}');
-INSERT INTO public.asset VALUES (NULL, '9509deb3-8a24-48bc-832c-906261ac180f', 'adcd0b72-1c9f-40ec-9267-d91a2ff2b08a', true, 'Mobile treatment units', '', '', 'Sanitation', NULL, '{"en": "Mobile treatment units"}', '{"en": ""}', '{"en": "Sanitation"}');
 INSERT INTO public.asset VALUES (NULL, 'e5e1f01e-b1f6-4d1a-8428-ba1a234599bb', 'adcd0b72-1c9f-40ec-9267-d91a2ff2b08a', true, 'Pipes', '', '', 'Sanitation', NULL, '{"en": "Pipes"}', '{"en": ""}', '{"en": "Sanitation"}');
 INSERT INTO public.asset VALUES (NULL, 'd94ad3ec-1dbe-4f88-bfbb-ddcd52ac40b6', 'adcd0b72-1c9f-40ec-9267-d91a2ff2b08a', true, 'Pumps', '', '', 'Sanitation', NULL, '{"en": "Pumps"}', '{"en": ""}', '{"en": "Sanitation"}');
 INSERT INTO public.asset VALUES (NULL, '7b2a5afc-9990-4a02-a462-fbfd0414691c', 'adcd0b72-1c9f-40ec-9267-d91a2ff2b08a', true, 'Drainage system', '', '', 'Sanitation', NULL, '{"en": "Drainage system"}', '{"en": ""}', '{"en": "Sanitation"}');
@@ -1542,255 +1866,286 @@ INSERT INTO public.asset VALUES (NULL, 'e65e7a04-234a-48b4-9d90-d59ffd86c146', '
 -- Data for Name: categories; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO public.categories VALUES ('01308f4d-a94e-41c9-8410-0321f7032d7c', 'Human Life - health and livelihoods', NULL, 1, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Human Life - health and livelihoods"}');
-INSERT INTO public.categories VALUES ('d7a7e57c-4e94-42b4-87ef-d946f100af9c', 'Meaningful Places', NULL, 1, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Meaningful Places"}');
-INSERT INTO public.categories VALUES ('fffef50e-59f6-4454-bb1c-2aef2a570d46', 'Cultural heritage', NULL, 1, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Cultural heritage"}');
-INSERT INTO public.categories VALUES ('4b7a1cde-6526-4263-8a94-404079bcff63', 'Social and Intrinsic values', NULL, 1, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Social and Intrinsic values"}');
-INSERT INTO public.categories VALUES ('5eeb43f7-e754-471f-9495-5abc30fc5c87', 'Biodiversity', NULL, 1, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Biodiversity"}');
-INSERT INTO public.categories VALUES ('5872c33c-08cf-431e-95a1-2032a000f889', 'Ecosystem services', NULL, 1, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Ecosystem services"}');
-INSERT INTO public.categories VALUES ('b7ce061a-2979-48fc-aa20-d50891179573', 'Lives', '01308f4d-a94e-41c9-8410-0321f7032d7c', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Lives"}');
-INSERT INTO public.categories VALUES ('40a7e116-44c0-41d0-a467-d5e0950c80c1', 'Health', '01308f4d-a94e-41c9-8410-0321f7032d7c', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Health"}');
-INSERT INTO public.categories VALUES ('57782008-1844-4e50-9aa3-08e5bc149a82', 'Wellbeing', '01308f4d-a94e-41c9-8410-0321f7032d7c', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Wellbeing"}');
-INSERT INTO public.categories VALUES ('17ceb8cf-e5bb-4528-84b7-882c1531b1ff', 'Livelihoods', '01308f4d-a94e-41c9-8410-0321f7032d7c', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Livelihoods"}');
-INSERT INTO public.categories VALUES ('45448808-6ddc-43b8-bf7e-cef82da80985', 'Food security', '01308f4d-a94e-41c9-8410-0321f7032d7c', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Food security"}');
-INSERT INTO public.categories VALUES ('032b71d2-e78b-4f44-b8f6-0c18f9ab35d8', 'Territory', 'd7a7e57c-4e94-42b4-87ef-d946f100af9c', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Territory"}');
-INSERT INTO public.categories VALUES ('b36ef1fb-a0c6-40b4-a097-25eb46ca0390', 'Homes - sense of place', 'd7a7e57c-4e94-42b4-87ef-d946f100af9c', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Homes - sense of place"}');
-INSERT INTO public.categories VALUES ('dc2c47b7-5f52-4aea-a8bd-b44f384f7fcd', 'Places', 'd7a7e57c-4e94-42b4-87ef-d946f100af9c', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Places"}');
-INSERT INTO public.categories VALUES ('9c252ad4-acdb-452f-b3a2-ad195f0e2c18', 'Sacred sites', 'd7a7e57c-4e94-42b4-87ef-d946f100af9c', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Sacred sites"}');
-INSERT INTO public.categories VALUES ('66d771cf-e07e-44cb-972e-eda18b0699a1', 'Heritage', 'fffef50e-59f6-4454-bb1c-2aef2a570d46', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Heritage"}');
-INSERT INTO public.categories VALUES ('74f0b67a-3118-4a14-9a2a-ccd3a1f91cb8', 'Historical monuments', 'fffef50e-59f6-4454-bb1c-2aef2a570d46', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Historical monuments"}');
-INSERT INTO public.categories VALUES ('7dd75a3d-09bd-44dd-ad99-9bfb46387b9f', 'Artefacts', 'fffef50e-59f6-4454-bb1c-2aef2a570d46', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Artefacts"}');
-INSERT INTO public.categories VALUES ('30115738-9421-449c-bb90-4220ca6f8e97', 'Rituals', 'fffef50e-59f6-4454-bb1c-2aef2a570d46', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Rituals"}');
-INSERT INTO public.categories VALUES ('2a76bb27-fdba-4030-8241-e6246295628e', 'Traditions - ways of life', 'fffef50e-59f6-4454-bb1c-2aef2a570d46', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Traditions - ways of life"}');
-INSERT INTO public.categories VALUES ('e1ede461-4f11-4aa3-b4b3-310ee69e791f', 'Customs', 'fffef50e-59f6-4454-bb1c-2aef2a570d46', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Customs"}');
-INSERT INTO public.categories VALUES ('513701c4-faf0-40f8-9a39-9155cf2291c4', 'Culture', 'fffef50e-59f6-4454-bb1c-2aef2a570d46', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Culture"}');
-INSERT INTO public.categories VALUES ('cdca0b31-f99b-48a0-83be-b0793064bc0e', 'Language', 'fffef50e-59f6-4454-bb1c-2aef2a570d46', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Language"}');
-INSERT INTO public.categories VALUES ('cff98629-ca72-498e-a024-6a8220a425ac', 'Indigenous knowledge', 'fffef50e-59f6-4454-bb1c-2aef2a570d46', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Indigenous knowledge"}');
-INSERT INTO public.categories VALUES ('f584344a-360d-4a4d-8bc2-74bf2993a244', 'Dignity', '4b7a1cde-6526-4263-8a94-404079bcff63', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Dignity"}');
-INSERT INTO public.categories VALUES ('8b509335-b6a7-4a19-9f99-f0eda995e5c9', 'Agency', '4b7a1cde-6526-4263-8a94-404079bcff63', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Agency"}');
-INSERT INTO public.categories VALUES ('b7e06380-dc6d-4268-93d4-ffb896cfd7db', 'Identity', '4b7a1cde-6526-4263-8a94-404079bcff63', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Identity"}');
-INSERT INTO public.categories VALUES ('35ee7ebd-de96-45aa-8da7-6d3846f4dae5', 'Security', '4b7a1cde-6526-4263-8a94-404079bcff63', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Security"}');
-INSERT INTO public.categories VALUES ('ea665425-c7b9-474e-be88-c7ff4462cd8f', 'Social cohesion', '4b7a1cde-6526-4263-8a94-404079bcff63', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Social cohesion"}');
-INSERT INTO public.categories VALUES ('574f13bd-bba4-4447-a330-7f38e719ca8d', 'Social capital', '4b7a1cde-6526-4263-8a94-404079bcff63', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Social capital"}');
-INSERT INTO public.categories VALUES ('ae1bd1c3-d247-4bee-9bc5-91ed77640323', 'Social fabric', '4b7a1cde-6526-4263-8a94-404079bcff63', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Social fabric"}');
-INSERT INTO public.categories VALUES ('7ae2ffe9-a8dd-4eda-a360-759dc6f61194', 'Community ( sense of)', '4b7a1cde-6526-4263-8a94-404079bcff63', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Community ( sense of)"}');
-INSERT INTO public.categories VALUES ('a1dc3899-d829-4026-a35a-381d0399bf9d', 'Sovereignty', '4b7a1cde-6526-4263-8a94-404079bcff63', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Sovereignty"}');
-INSERT INTO public.categories VALUES ('9342c507-d13a-4ece-8e56-5a66f5c32082', 'Education', '4b7a1cde-6526-4263-8a94-404079bcff63', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Education"}');
-INSERT INTO public.categories VALUES ('6bf52130-05a9-4b71-82fa-8fd3a78652c4', '(Human) Mobility', '4b7a1cde-6526-4263-8a94-404079bcff63', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "(Human) Mobility"}');
-INSERT INTO public.categories VALUES ('aca6190c-7cf1-4a83-8baa-59405d4db286', 'Genetic diversity', '5eeb43f7-e754-471f-9495-5abc30fc5c87', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Genetic diversity"}');
-INSERT INTO public.categories VALUES ('bd4d59c8-6efb-44f2-b7c2-fb710dad7f89', 'Species diversity', '5eeb43f7-e754-471f-9495-5abc30fc5c87', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Species diversity"}');
-INSERT INTO public.categories VALUES ('5f4356a5-d386-48ea-abc9-9399466d28f0', 'Ecosystems diversity', '5eeb43f7-e754-471f-9495-5abc30fc5c87', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Ecosystems diversity"}');
-INSERT INTO public.categories VALUES ('5c043650-60b9-45b6-9944-8f13c5177279', 'Habitats', '5eeb43f7-e754-471f-9495-5abc30fc5c87', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Habitats"}');
-INSERT INTO public.categories VALUES ('462ce870-1c04-4a65-b512-038b54f98ec3', 'Landscapes', '5eeb43f7-e754-471f-9495-5abc30fc5c87', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Landscapes"}');
-INSERT INTO public.categories VALUES ('292bdb90-4c34-4828-b4a9-63768e25972a', 'Regulation and maintenance services', '5872c33c-08cf-431e-95a1-2032a000f889', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Regulation and maintenance services"}');
-INSERT INTO public.categories VALUES ('81e84cf2-7ab2-469e-a7e2-9e47bea94d2d', 'Provisioning services', '5872c33c-08cf-431e-95a1-2032a000f889', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Provisioning services"}');
-INSERT INTO public.categories VALUES ('99c46eda-c7d3-4db7-8e12-85c0a8ef5e7f', 'Cultural services', '5872c33c-08cf-431e-95a1-2032a000f889', 2, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Cultural services"}');
-INSERT INTO public.categories VALUES ('c61e8fc8-4567-4fb6-9386-5f70175a6e51', 'Biotic (living components of an ecosystem)', '292bdb90-4c34-4828-b4a9-63768e25972a', 3, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Biotic (living components of an ecosystem)"}');
-INSERT INTO public.categories VALUES ('4a47d526-b792-42d1-8224-709273829617', 'Abiotic (non-living physical and chemical components of an ecosystem)', '292bdb90-4c34-4828-b4a9-63768e25972a', 3, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Abiotic (non-living physical and chemical components of an ecosystem)"}');
-INSERT INTO public.categories VALUES ('27c30866-9f90-4a92-b5cb-784d045afe1b', 'Biotic (living components of an ecosystem)', '81e84cf2-7ab2-469e-a7e2-9e47bea94d2d', 3, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Biotic (living components of an ecosystem)"}');
-INSERT INTO public.categories VALUES ('ad01932c-6dfc-48b1-a6eb-6495b64391c3', 'Abiotic (non-living physical and chemical components of an ecosystem)', '81e84cf2-7ab2-469e-a7e2-9e47bea94d2d', 3, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Abiotic (non-living physical and chemical components of an ecosystem)"}');
-INSERT INTO public.categories VALUES ('042d97f6-e791-4461-8f7e-e495ffcee020', 'Biotic (living components of an ecosystem)', '99c46eda-c7d3-4db7-8e12-85c0a8ef5e7f', 3, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Biotic (living components of an ecosystem)"}');
-INSERT INTO public.categories VALUES ('d83571b2-16b8-4dba-89ae-a0a73bd6ca02', 'Abiotic (non-living physical and chemical components of an ecosystem)', '99c46eda-c7d3-4db7-8e12-85c0a8ef5e7f', 3, '2025-08-20 05:54:12.588033', '2025-08-20 05:54:12.588033', '{"en": "Abiotic (non-living physical and chemical components of an ecosystem)"}');
+INSERT INTO public.categories VALUES ('01308f4d-a94e-41c9-8410-0321f7032d7c', 'Human Life - health and livelihoods', NULL, 1, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Human Life - health and livelihoods"}');
+INSERT INTO public.categories VALUES ('d7a7e57c-4e94-42b4-87ef-d946f100af9c', 'Meaningful Places', NULL, 1, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Meaningful Places"}');
+INSERT INTO public.categories VALUES ('fffef50e-59f6-4454-bb1c-2aef2a570d46', 'Cultural heritage', NULL, 1, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Cultural heritage"}');
+INSERT INTO public.categories VALUES ('4b7a1cde-6526-4263-8a94-404079bcff63', 'Social and Intrinsic values', NULL, 1, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Social and Intrinsic values"}');
+INSERT INTO public.categories VALUES ('5eeb43f7-e754-471f-9495-5abc30fc5c87', 'Biodiversity', NULL, 1, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Biodiversity"}');
+INSERT INTO public.categories VALUES ('5872c33c-08cf-431e-95a1-2032a000f889', 'Ecosystem services', NULL, 1, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Ecosystem services"}');
+INSERT INTO public.categories VALUES ('b7ce061a-2979-48fc-aa20-d50891179573', 'Lives', '01308f4d-a94e-41c9-8410-0321f7032d7c', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Lives"}');
+INSERT INTO public.categories VALUES ('40a7e116-44c0-41d0-a467-d5e0950c80c1', 'Health', '01308f4d-a94e-41c9-8410-0321f7032d7c', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Health"}');
+INSERT INTO public.categories VALUES ('57782008-1844-4e50-9aa3-08e5bc149a82', 'Wellbeing', '01308f4d-a94e-41c9-8410-0321f7032d7c', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Wellbeing"}');
+INSERT INTO public.categories VALUES ('17ceb8cf-e5bb-4528-84b7-882c1531b1ff', 'Livelihoods', '01308f4d-a94e-41c9-8410-0321f7032d7c', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Livelihoods"}');
+INSERT INTO public.categories VALUES ('45448808-6ddc-43b8-bf7e-cef82da80985', 'Food security', '01308f4d-a94e-41c9-8410-0321f7032d7c', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Food security"}');
+INSERT INTO public.categories VALUES ('032b71d2-e78b-4f44-b8f6-0c18f9ab35d8', 'Territory', 'd7a7e57c-4e94-42b4-87ef-d946f100af9c', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Territory"}');
+INSERT INTO public.categories VALUES ('b36ef1fb-a0c6-40b4-a097-25eb46ca0390', 'Homes - sense of place', 'd7a7e57c-4e94-42b4-87ef-d946f100af9c', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Homes - sense of place"}');
+INSERT INTO public.categories VALUES ('dc2c47b7-5f52-4aea-a8bd-b44f384f7fcd', 'Places', 'd7a7e57c-4e94-42b4-87ef-d946f100af9c', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Places"}');
+INSERT INTO public.categories VALUES ('9c252ad4-acdb-452f-b3a2-ad195f0e2c18', 'Sacred sites', 'd7a7e57c-4e94-42b4-87ef-d946f100af9c', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Sacred sites"}');
+INSERT INTO public.categories VALUES ('66d771cf-e07e-44cb-972e-eda18b0699a1', 'Heritage', 'fffef50e-59f6-4454-bb1c-2aef2a570d46', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Heritage"}');
+INSERT INTO public.categories VALUES ('74f0b67a-3118-4a14-9a2a-ccd3a1f91cb8', 'Historical monuments', 'fffef50e-59f6-4454-bb1c-2aef2a570d46', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Historical monuments"}');
+INSERT INTO public.categories VALUES ('7dd75a3d-09bd-44dd-ad99-9bfb46387b9f', 'Artefacts', 'fffef50e-59f6-4454-bb1c-2aef2a570d46', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Artefacts"}');
+INSERT INTO public.categories VALUES ('30115738-9421-449c-bb90-4220ca6f8e97', 'Rituals', 'fffef50e-59f6-4454-bb1c-2aef2a570d46', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Rituals"}');
+INSERT INTO public.categories VALUES ('2a76bb27-fdba-4030-8241-e6246295628e', 'Traditions - ways of life', 'fffef50e-59f6-4454-bb1c-2aef2a570d46', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Traditions - ways of life"}');
+INSERT INTO public.categories VALUES ('e1ede461-4f11-4aa3-b4b3-310ee69e791f', 'Customs', 'fffef50e-59f6-4454-bb1c-2aef2a570d46', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Customs"}');
+INSERT INTO public.categories VALUES ('513701c4-faf0-40f8-9a39-9155cf2291c4', 'Culture', 'fffef50e-59f6-4454-bb1c-2aef2a570d46', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Culture"}');
+INSERT INTO public.categories VALUES ('cdca0b31-f99b-48a0-83be-b0793064bc0e', 'Language', 'fffef50e-59f6-4454-bb1c-2aef2a570d46', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Language"}');
+INSERT INTO public.categories VALUES ('cff98629-ca72-498e-a024-6a8220a425ac', 'Indigenous knowledge', 'fffef50e-59f6-4454-bb1c-2aef2a570d46', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Indigenous knowledge"}');
+INSERT INTO public.categories VALUES ('f584344a-360d-4a4d-8bc2-74bf2993a244', 'Dignity', '4b7a1cde-6526-4263-8a94-404079bcff63', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Dignity"}');
+INSERT INTO public.categories VALUES ('8b509335-b6a7-4a19-9f99-f0eda995e5c9', 'Agency', '4b7a1cde-6526-4263-8a94-404079bcff63', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Agency"}');
+INSERT INTO public.categories VALUES ('b7e06380-dc6d-4268-93d4-ffb896cfd7db', 'Identity', '4b7a1cde-6526-4263-8a94-404079bcff63', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Identity"}');
+INSERT INTO public.categories VALUES ('35ee7ebd-de96-45aa-8da7-6d3846f4dae5', 'Security', '4b7a1cde-6526-4263-8a94-404079bcff63', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Security"}');
+INSERT INTO public.categories VALUES ('ea665425-c7b9-474e-be88-c7ff4462cd8f', 'Social cohesion', '4b7a1cde-6526-4263-8a94-404079bcff63', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Social cohesion"}');
+INSERT INTO public.categories VALUES ('574f13bd-bba4-4447-a330-7f38e719ca8d', 'Social capital', '4b7a1cde-6526-4263-8a94-404079bcff63', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Social capital"}');
+INSERT INTO public.categories VALUES ('ae1bd1c3-d247-4bee-9bc5-91ed77640323', 'Social fabric', '4b7a1cde-6526-4263-8a94-404079bcff63', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Social fabric"}');
+INSERT INTO public.categories VALUES ('7ae2ffe9-a8dd-4eda-a360-759dc6f61194', 'Community ( sense of)', '4b7a1cde-6526-4263-8a94-404079bcff63', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Community ( sense of)"}');
+INSERT INTO public.categories VALUES ('a1dc3899-d829-4026-a35a-381d0399bf9d', 'Sovereignty', '4b7a1cde-6526-4263-8a94-404079bcff63', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Sovereignty"}');
+INSERT INTO public.categories VALUES ('9342c507-d13a-4ece-8e56-5a66f5c32082', 'Education', '4b7a1cde-6526-4263-8a94-404079bcff63', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Education"}');
+INSERT INTO public.categories VALUES ('6bf52130-05a9-4b71-82fa-8fd3a78652c4', '(Human) Mobility', '4b7a1cde-6526-4263-8a94-404079bcff63', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "(Human) Mobility"}');
+INSERT INTO public.categories VALUES ('aca6190c-7cf1-4a83-8baa-59405d4db286', 'Genetic diversity', '5eeb43f7-e754-471f-9495-5abc30fc5c87', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Genetic diversity"}');
+INSERT INTO public.categories VALUES ('bd4d59c8-6efb-44f2-b7c2-fb710dad7f89', 'Species diversity', '5eeb43f7-e754-471f-9495-5abc30fc5c87', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Species diversity"}');
+INSERT INTO public.categories VALUES ('5f4356a5-d386-48ea-abc9-9399466d28f0', 'Ecosystems diversity', '5eeb43f7-e754-471f-9495-5abc30fc5c87', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Ecosystems diversity"}');
+INSERT INTO public.categories VALUES ('5c043650-60b9-45b6-9944-8f13c5177279', 'Habitats', '5eeb43f7-e754-471f-9495-5abc30fc5c87', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Habitats"}');
+INSERT INTO public.categories VALUES ('462ce870-1c04-4a65-b512-038b54f98ec3', 'Landscapes', '5eeb43f7-e754-471f-9495-5abc30fc5c87', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Landscapes"}');
+INSERT INTO public.categories VALUES ('292bdb90-4c34-4828-b4a9-63768e25972a', 'Regulation and maintenance services', '5872c33c-08cf-431e-95a1-2032a000f889', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Regulation and maintenance services"}');
+INSERT INTO public.categories VALUES ('81e84cf2-7ab2-469e-a7e2-9e47bea94d2d', 'Provisioning services', '5872c33c-08cf-431e-95a1-2032a000f889', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Provisioning services"}');
+INSERT INTO public.categories VALUES ('99c46eda-c7d3-4db7-8e12-85c0a8ef5e7f', 'Cultural services', '5872c33c-08cf-431e-95a1-2032a000f889', 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Cultural services"}');
+INSERT INTO public.categories VALUES ('c61e8fc8-4567-4fb6-9386-5f70175a6e51', 'Biotic (living components of an ecosystem)', '292bdb90-4c34-4828-b4a9-63768e25972a', 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Biotic (living components of an ecosystem)"}');
+INSERT INTO public.categories VALUES ('4a47d526-b792-42d1-8224-709273829617', 'Abiotic (non-living physical and chemical components of an ecosystem)', '292bdb90-4c34-4828-b4a9-63768e25972a', 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Abiotic (non-living physical and chemical components of an ecosystem)"}');
+INSERT INTO public.categories VALUES ('27c30866-9f90-4a92-b5cb-784d045afe1b', 'Biotic (living components of an ecosystem)', '81e84cf2-7ab2-469e-a7e2-9e47bea94d2d', 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Biotic (living components of an ecosystem)"}');
+INSERT INTO public.categories VALUES ('ad01932c-6dfc-48b1-a6eb-6495b64391c3', 'Abiotic (non-living physical and chemical components of an ecosystem)', '81e84cf2-7ab2-469e-a7e2-9e47bea94d2d', 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Abiotic (non-living physical and chemical components of an ecosystem)"}');
+INSERT INTO public.categories VALUES ('042d97f6-e791-4461-8f7e-e495ffcee020', 'Biotic (living components of an ecosystem)', '99c46eda-c7d3-4db7-8e12-85c0a8ef5e7f', 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Biotic (living components of an ecosystem)"}');
+INSERT INTO public.categories VALUES ('d83571b2-16b8-4dba-89ae-a0a73bd6ca02', 'Abiotic (non-living physical and chemical components of an ecosystem)', '99c46eda-c7d3-4db7-8e12-85c0a8ef5e7f', 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Abiotic (non-living physical and chemical components of an ecosystem)"}');
 
 
 --
 -- Data for Name: countries; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO public.countries VALUES ('3e8cc2da-7ac4-43ff-953c-867976c3f5e0', 'Afghanistan', 'AFG', 'https://www.preventionweb.net/assets/shared/images/flags/afg.jpg', 'Real');
-INSERT INTO public.countries VALUES ('e0734318-f3ad-408b-9a90-7d8432f51b4c', 'Albania', 'ALB', 'https://www.preventionweb.net/assets/shared/images/flags/alb.jpg', 'Real');
-INSERT INTO public.countries VALUES ('e3b0575a-5e09-427e-b0d2-d4d7cc6f2763', 'Algeria', 'DZA', 'https://www.preventionweb.net/assets/shared/images/flags/dza.jpg', 'Real');
-INSERT INTO public.countries VALUES ('da34033b-8fee-4649-aede-eee0ab0a3de0', 'Andorra', 'AND', 'https://www.preventionweb.net/assets/shared/images/flags/and.jpg', 'Real');
-INSERT INTO public.countries VALUES ('78c82236-d5bd-4313-9993-0286525c2bca', 'Angola', 'AGO', 'https://www.preventionweb.net/assets/shared/images/flags/ago.jpg', 'Real');
-INSERT INTO public.countries VALUES ('f2cc5be1-3caa-4207-b092-2b1845424089', 'Antigua and Barbuda', 'ATG', 'https://www.preventionweb.net/assets/shared/images/flags/atg.jpg', 'Real');
-INSERT INTO public.countries VALUES ('e4a36ede-bcf4-422a-b1a3-3f6cca63d103', 'Argentina', 'ARG', 'https://www.preventionweb.net/assets/shared/images/flags/arg.jpg', 'Real');
-INSERT INTO public.countries VALUES ('701f3de8-19ad-45b7-a4b0-75eb4d8c1a40', 'Armenia', 'ARM', 'https://www.preventionweb.net/assets/shared/images/flags/arm.jpg', 'Real');
-INSERT INTO public.countries VALUES ('d7732490-6eae-403d-8649-a27e9feb49fb', 'Australia', 'AUS', 'https://www.preventionweb.net/assets/shared/images/flags/aus.jpg', 'Real');
-INSERT INTO public.countries VALUES ('f81a4a8a-f9ee-45a2-a0b3-e194a1696e95', 'Austria', 'AUT', 'https://www.preventionweb.net/assets/shared/images/flags/aut.jpg', 'Real');
-INSERT INTO public.countries VALUES ('2a5d64d9-e2db-4017-9774-66a12e89b842', 'Azerbaijan', 'AZE', 'https://www.preventionweb.net/assets/shared/images/flags/aze.jpg', 'Real');
-INSERT INTO public.countries VALUES ('029e4a1f-6aa2-412c-91e1-f935f74682f8', 'Bahamas', 'BHS', 'https://www.preventionweb.net/assets/shared/images/flags/bhs.jpg', 'Real');
-INSERT INTO public.countries VALUES ('aa23bf5d-0c46-46b4-83f5-11a5bf48f343', 'Bahrain', 'BHR', 'https://www.preventionweb.net/assets/shared/images/flags/bhr.jpg', 'Real');
-INSERT INTO public.countries VALUES ('39004bfe-707d-42f4-bc1e-bc0d7565c94e', 'Bangladesh', 'BGD', 'https://www.preventionweb.net/assets/shared/images/flags/bgd.jpg', 'Real');
-INSERT INTO public.countries VALUES ('1813979b-eb58-42e5-8348-ced6d044ce48', 'Barbados', 'BRB', 'https://www.preventionweb.net/assets/shared/images/flags/brb.jpg', 'Real');
-INSERT INTO public.countries VALUES ('b6c88227-8ae2-4cf4-b041-7a7aa82ed828', 'Belarus', 'BLR', 'https://www.preventionweb.net/assets/shared/images/flags/blr.jpg', 'Real');
-INSERT INTO public.countries VALUES ('fb5fa4be-450f-492f-9aad-696f97c32415', 'Belgium', 'BEL', 'https://www.preventionweb.net/assets/shared/images/flags/bel.jpg', 'Real');
-INSERT INTO public.countries VALUES ('42a96ba1-efee-4cef-ba4f-3e1626dc621a', 'Belize', 'BLZ', 'https://www.preventionweb.net/assets/shared/images/flags/blz.jpg', 'Real');
-INSERT INTO public.countries VALUES ('d899aafa-a2e0-4122-8a25-4af59eb63927', 'Benin', 'BEN', 'https://www.preventionweb.net/assets/shared/images/flags/ben.jpg', 'Real');
-INSERT INTO public.countries VALUES ('9c4ce48b-8460-4494-afc8-89bcd405acee', 'Bhutan', 'BTN', 'https://www.preventionweb.net/assets/shared/images/flags/btn.jpg', 'Real');
-INSERT INTO public.countries VALUES ('4143e205-72b1-45fc-9ef0-207e6bba7faf', 'Bolivia', 'BOL', 'https://www.preventionweb.net/assets/shared/images/flags/bol.jpg', 'Real');
-INSERT INTO public.countries VALUES ('ddf64a1b-54c6-4806-ba94-653afb4342ca', 'Bosnia and Herzegovina', 'BIH', 'https://www.preventionweb.net/assets/shared/images/flags/bih.jpg', 'Real');
-INSERT INTO public.countries VALUES ('b2427d54-cee2-4dbb-ae06-fa3c5bb5033e', 'Botswana', 'BWA', 'https://www.preventionweb.net/assets/shared/images/flags/bwa.jpg', 'Real');
-INSERT INTO public.countries VALUES ('d673e089-4d43-49c0-a3e7-95a59c59158a', 'Brazil', 'BRA', 'https://www.preventionweb.net/assets/shared/images/flags/bra.jpg', 'Real');
-INSERT INTO public.countries VALUES ('fa456668-fe08-4581-a115-7c678d4ce128', 'Brunei', 'BRN', 'https://www.preventionweb.net/assets/shared/images/flags/brn.jpg', 'Real');
-INSERT INTO public.countries VALUES ('f42011ab-5718-42fb-8a05-54f444e8e4bd', 'Bulgaria', 'BGR', 'https://www.preventionweb.net/assets/shared/images/flags/bgr.jpg', 'Real');
-INSERT INTO public.countries VALUES ('54adf5d0-bc73-4841-a3a6-bc71169fde37', 'Burkina Faso', 'BFA', 'https://www.preventionweb.net/assets/shared/images/flags/bfa.jpg', 'Real');
-INSERT INTO public.countries VALUES ('71ed9e4d-8a38-44d3-88d7-7f4b36515f81', 'Burundi', 'BDI', 'https://www.preventionweb.net/assets/shared/images/flags/bdi.jpg', 'Real');
-INSERT INTO public.countries VALUES ('8bac4160-ab0b-41b3-8e29-7934530f5e0d', 'Cabo Verde', 'CPV', 'https://www.preventionweb.net/assets/shared/images/flags/cpv.jpg', 'Real');
-INSERT INTO public.countries VALUES ('a2413733-68cf-44a2-8c27-acfa34f00e3d', 'Cambodia', 'KHM', 'https://www.preventionweb.net/assets/shared/images/flags/khm.jpg', 'Real');
-INSERT INTO public.countries VALUES ('ceca82b2-68d1-4708-8c18-ea79d6c6c257', 'Cameroon', 'CMR', 'https://www.preventionweb.net/assets/shared/images/flags/cmr.jpg', 'Real');
-INSERT INTO public.countries VALUES ('d5e6a4c2-5c87-46f1-90e3-9f09acf0148c', 'Canada', 'CAN', 'https://www.preventionweb.net/assets/shared/images/flags/can.jpg', 'Real');
-INSERT INTO public.countries VALUES ('5a43049d-0670-41f5-8848-618309168c48', 'Central African Republic', 'CAF', 'https://www.preventionweb.net/assets/shared/images/flags/caf.jpg', 'Real');
-INSERT INTO public.countries VALUES ('1fe86dd1-f4d0-4ff6-8d65-99cbf1d0a17f', 'Chad', 'TCD', 'https://www.preventionweb.net/assets/shared/images/flags/tcd.jpg', 'Real');
-INSERT INTO public.countries VALUES ('ffa44e9c-225e-4954-b210-e8d7e90a31a0', 'Chile', 'CHL', 'https://www.preventionweb.net/assets/shared/images/flags/chl.jpg', 'Real');
-INSERT INTO public.countries VALUES ('e5352921-f582-4511-a2bc-6e2cd0ca5141', 'China', 'CHN', 'https://www.preventionweb.net/assets/shared/images/flags/chn.jpg', 'Real');
-INSERT INTO public.countries VALUES ('e93025ad-fb6f-4d1c-a69a-3232b6077cc2', 'Colombia', 'COL', 'https://www.preventionweb.net/assets/shared/images/flags/col.jpg', 'Real');
-INSERT INTO public.countries VALUES ('b62923cd-f070-410e-914e-4eb600af6e7c', 'Comoros', 'COM', 'https://www.preventionweb.net/assets/shared/images/flags/com.jpg', 'Real');
-INSERT INTO public.countries VALUES ('b07c0c58-6fbf-44e2-8843-0a43bcdc948f', 'Congo', 'COG', 'https://www.preventionweb.net/assets/shared/images/flags/cog.jpg', 'Real');
-INSERT INTO public.countries VALUES ('8505ecb3-93fc-492d-9587-e0635cc3fe94', 'Costa Rica', 'CRI', 'https://www.preventionweb.net/assets/shared/images/flags/cri.jpg', 'Real');
-INSERT INTO public.countries VALUES ('1f5c0502-12da-41cb-91a1-4e1d839a2eec', 'Croatia', 'HRV', 'https://www.preventionweb.net/assets/shared/images/flags/hrv.jpg', 'Real');
-INSERT INTO public.countries VALUES ('cd0937ce-7ed7-4af3-8249-e71e59d0ba17', 'Cuba', 'CUB', 'https://www.preventionweb.net/assets/shared/images/flags/cub.jpg', 'Real');
-INSERT INTO public.countries VALUES ('2825f4b9-5e96-411a-9c31-a7b88c94f7cf', 'Cyprus', 'CYP', 'https://www.preventionweb.net/assets/shared/images/flags/cyp.jpg', 'Real');
-INSERT INTO public.countries VALUES ('b01df1cf-0153-4136-be7a-cf69ff349a16', 'Czech Republic', 'CZE', 'https://www.preventionweb.net/assets/shared/images/flags/cze.jpg', 'Real');
-INSERT INTO public.countries VALUES ('7432628a-8192-4ae9-9293-ff1ba73b1919', 'Democratic Republic of the Congo', 'COD', 'https://www.preventionweb.net/assets/shared/images/flags/cod.jpg', 'Real');
-INSERT INTO public.countries VALUES ('e37e4cd3-1e00-4fbd-9e91-af1b6427ea83', 'Denmark', 'DNK', 'https://www.preventionweb.net/assets/shared/images/flags/dnk.jpg', 'Real');
-INSERT INTO public.countries VALUES ('d620553c-f253-44fc-b5ad-b2009cf66d28', 'Djibouti', 'DJI', 'https://www.preventionweb.net/assets/shared/images/flags/dji.jpg', 'Real');
-INSERT INTO public.countries VALUES ('179ba740-890c-4970-bb22-af68dc064ff0', 'Dominica', 'DMA', 'https://www.preventionweb.net/assets/shared/images/flags/dma.jpg', 'Real');
-INSERT INTO public.countries VALUES ('9803794c-b31a-435f-b3d3-96858cc01bf5', 'Dominican Republic', 'DOM', 'https://www.preventionweb.net/assets/shared/images/flags/dom.jpg', 'Real');
-INSERT INTO public.countries VALUES ('035c279d-4dfa-4fa0-8582-b4fa42f0c59e', 'Ecuador', 'ECU', 'https://www.preventionweb.net/assets/shared/images/flags/ecu.jpg', 'Real');
-INSERT INTO public.countries VALUES ('8f9f2ea4-9dbe-46f5-814f-9667d0827671', 'Egypt', 'EGY', 'https://www.preventionweb.net/assets/shared/images/flags/egy.jpg', 'Real');
-INSERT INTO public.countries VALUES ('a1bd3e13-531c-4d89-8720-c6e1547944f2', 'El Salvador', 'SLV', 'https://www.preventionweb.net/assets/shared/images/flags/slv.jpg', 'Real');
-INSERT INTO public.countries VALUES ('23d95ad5-1be2-4999-939a-bab9446b4c2b', 'Equatorial Guinea', 'GNQ', 'https://www.preventionweb.net/assets/shared/images/flags/gnq.jpg', 'Real');
-INSERT INTO public.countries VALUES ('37886d5e-e637-41ea-b4ed-45283244f7a7', 'Eritrea', 'ERI', 'https://www.preventionweb.net/assets/shared/images/flags/eri.jpg', 'Real');
-INSERT INTO public.countries VALUES ('61dfa27c-b12e-43a1-b584-842cd0d7e067', 'Estonia', 'EST', 'https://www.preventionweb.net/assets/shared/images/flags/est.jpg', 'Real');
-INSERT INTO public.countries VALUES ('21ad21a4-f5ce-49ac-89db-0e65d5fc1b68', 'Eswatini', 'SWZ', 'https://www.preventionweb.net/assets/shared/images/flags/swz.jpg', 'Real');
-INSERT INTO public.countries VALUES ('ccf1b22c-84ae-4375-abbd-923aed73420a', 'Ethiopia', 'ETH', 'https://www.preventionweb.net/assets/shared/images/flags/eth.jpg', 'Real');
-INSERT INTO public.countries VALUES ('1c4e29a2-afde-4fd1-8cb8-bb815afd1a0c', 'Fiji', 'FJI', 'https://www.preventionweb.net/assets/shared/images/flags/fji.jpg', 'Real');
-INSERT INTO public.countries VALUES ('dd0121c4-4765-4769-b90e-7e39170f1f96', 'Finland', 'FIN', 'https://www.preventionweb.net/assets/shared/images/flags/fin.jpg', 'Real');
-INSERT INTO public.countries VALUES ('7a64a321-37b3-4bff-a5ab-568e51b4b069', 'France', 'FRA', 'https://www.preventionweb.net/assets/shared/images/flags/fra.jpg', 'Real');
-INSERT INTO public.countries VALUES ('4f3f6ac1-4177-4744-b9c9-70112c842dd6', 'Gabon', 'GAB', 'https://www.preventionweb.net/assets/shared/images/flags/gab.jpg', 'Real');
-INSERT INTO public.countries VALUES ('9ef151cc-ab2b-456d-9551-59b7d7a62e1d', 'Gambia', 'GMB', 'https://www.preventionweb.net/assets/shared/images/flags/gmb.jpg', 'Real');
-INSERT INTO public.countries VALUES ('76c32a00-9693-43da-b40e-e481804f6e29', 'Georgia', 'GEO', 'https://www.preventionweb.net/assets/shared/images/flags/geo.jpg', 'Real');
-INSERT INTO public.countries VALUES ('212e3529-fcfa-4bc9-9a24-c67687e89c90', 'Germany', 'DEU', 'https://www.preventionweb.net/assets/shared/images/flags/deu.jpg', 'Real');
-INSERT INTO public.countries VALUES ('c63ef847-dee3-4584-b57d-fde502c40bef', 'Ghana', 'GHA', 'https://www.preventionweb.net/assets/shared/images/flags/gha.jpg', 'Real');
-INSERT INTO public.countries VALUES ('c864fa40-a644-470c-be5c-24f207ca9ee6', 'Greece', 'GRC', 'https://www.preventionweb.net/assets/shared/images/flags/grc.jpg', 'Real');
-INSERT INTO public.countries VALUES ('874983ef-3c2e-4b58-85fb-2196ea974a95', 'Grenada', 'GRD', 'https://www.preventionweb.net/assets/shared/images/flags/grd.jpg', 'Real');
-INSERT INTO public.countries VALUES ('698ae043-ba2c-4d1e-9176-817fcb9a6872', 'Guatemala', 'GTM', 'https://www.preventionweb.net/assets/shared/images/flags/gtm.jpg', 'Real');
-INSERT INTO public.countries VALUES ('fb54fb1c-8fdc-4edc-a773-77e2a2bde1a1', 'Guinea', 'GIN', 'https://www.preventionweb.net/assets/shared/images/flags/gin.jpg', 'Real');
-INSERT INTO public.countries VALUES ('824f935c-8885-4ab1-808f-deddd101bac2', 'Guinea-Bissau', 'GNB', 'https://www.preventionweb.net/assets/shared/images/flags/gnb.jpg', 'Real');
-INSERT INTO public.countries VALUES ('915a3b1a-47cf-4e73-bcb1-b2191256a668', 'Guyana', 'GUY', 'https://www.preventionweb.net/assets/shared/images/flags/guy.jpg', 'Real');
-INSERT INTO public.countries VALUES ('e651bcb2-0aac-4761-93fd-15a11fe7f094', 'Haiti', 'HTI', 'https://www.preventionweb.net/assets/shared/images/flags/hti.jpg', 'Real');
-INSERT INTO public.countries VALUES ('0c7f8b47-e6c5-4903-9ad1-81c0b2c14bc0', 'Honduras', 'HND', 'https://www.preventionweb.net/assets/shared/images/flags/hnd.jpg', 'Real');
-INSERT INTO public.countries VALUES ('b36ee648-9b0d-4548-bf31-cdcc1eedc574', 'Hungary', 'HUN', 'https://www.preventionweb.net/assets/shared/images/flags/hun.jpg', 'Real');
-INSERT INTO public.countries VALUES ('e426e764-8432-42f7-a950-638b05d08d49', 'Iceland', 'ISL', 'https://www.preventionweb.net/assets/shared/images/flags/isl.jpg', 'Real');
-INSERT INTO public.countries VALUES ('48944ec5-0a19-4175-9ede-a8b03e7aaf2d', 'India', 'IND', 'https://www.preventionweb.net/assets/shared/images/flags/ind.jpg', 'Real');
-INSERT INTO public.countries VALUES ('38a3db28-5182-4d77-bc84-c8bd6f7e7c61', 'Indonesia', 'IDN', 'https://www.preventionweb.net/assets/shared/images/flags/idn.jpg', 'Real');
-INSERT INTO public.countries VALUES ('85dbdd2d-11a6-40d2-987a-9179e00209c7', 'Iran', 'IRN', 'https://www.preventionweb.net/assets/shared/images/flags/irn.jpg', 'Real');
-INSERT INTO public.countries VALUES ('2f8d9c5b-a710-44c8-9996-66f3df70d113', 'Iraq', 'IRQ', 'https://www.preventionweb.net/assets/shared/images/flags/irq.jpg', 'Real');
-INSERT INTO public.countries VALUES ('fa594a45-fd19-4d0b-8c8f-42b9e0d2ded6', 'Ireland', 'IRL', 'https://www.preventionweb.net/assets/shared/images/flags/irl.jpg', 'Real');
-INSERT INTO public.countries VALUES ('83e01968-afbe-436c-bb33-0950a2baadb5', 'Israel', 'ISR', 'https://www.preventionweb.net/assets/shared/images/flags/isr.jpg', 'Real');
-INSERT INTO public.countries VALUES ('64529f6c-0498-46ad-9802-957fc7946001', 'Italy', 'ITA', 'https://www.preventionweb.net/assets/shared/images/flags/ita.jpg', 'Real');
-INSERT INTO public.countries VALUES ('f79df498-0244-46bb-8493-a3ecf5dcddee', 'Jamaica', 'JAM', 'https://www.preventionweb.net/assets/shared/images/flags/jam.jpg', 'Real');
-INSERT INTO public.countries VALUES ('f8b91ee5-3013-4beb-9167-4b22fe17314a', 'Japan', 'JPN', 'https://www.preventionweb.net/assets/shared/images/flags/jpn.jpg', 'Real');
-INSERT INTO public.countries VALUES ('34fc3fe4-9aff-4c74-9bf3-ff5c1e59b5fd', 'Jordan', 'JOR', 'https://www.preventionweb.net/assets/shared/images/flags/jor.jpg', 'Real');
-INSERT INTO public.countries VALUES ('423f64e5-7dde-483a-af6f-122ac5720842', 'Kazakhstan', 'KAZ', 'https://www.preventionweb.net/assets/shared/images/flags/kaz.jpg', 'Real');
-INSERT INTO public.countries VALUES ('3f7cb3f7-d6c4-4a31-a17d-c36e218fab6b', 'Kenya', 'KEN', 'https://www.preventionweb.net/assets/shared/images/flags/ken.jpg', 'Real');
-INSERT INTO public.countries VALUES ('5f2cc673-d02f-4ade-aea4-83e6eb58ff37', 'Kiribati', 'KIR', 'https://www.preventionweb.net/assets/shared/images/flags/kir.jpg', 'Real');
-INSERT INTO public.countries VALUES ('eaf7f44c-e90d-4ff2-bd3f-e52802a5ea18', 'Kuwait', 'KWT', 'https://www.preventionweb.net/assets/shared/images/flags/kwt.jpg', 'Real');
-INSERT INTO public.countries VALUES ('c19c6545-b651-433a-8efd-b34c2bc4af62', 'Kyrgyzstan', 'KGZ', 'https://www.preventionweb.net/assets/shared/images/flags/kgz.jpg', 'Real');
-INSERT INTO public.countries VALUES ('473e0bbf-c60b-4540-a0f0-b0079c3f33d4', 'Laos', 'LAO', 'https://www.preventionweb.net/assets/shared/images/flags/lao.jpg', 'Real');
-INSERT INTO public.countries VALUES ('4e1ebb6f-5b1c-4898-bcf9-d6539c9da1b4', 'Latvia', 'LVA', 'https://www.preventionweb.net/assets/shared/images/flags/lva.jpg', 'Real');
-INSERT INTO public.countries VALUES ('941400d9-440c-41dd-9abc-a99a2d7a5638', 'Lebanon', 'LBN', 'https://www.preventionweb.net/assets/shared/images/flags/lbn.jpg', 'Real');
-INSERT INTO public.countries VALUES ('5e9b5351-54b4-4e8a-8b5d-b45d8319c9d7', 'Lesotho', 'LSO', 'https://www.preventionweb.net/assets/shared/images/flags/lso.jpg', 'Real');
-INSERT INTO public.countries VALUES ('f5cbefde-d30c-4185-bae6-06fbcdf072cb', 'Liberia', 'LBR', 'https://www.preventionweb.net/assets/shared/images/flags/lbr.jpg', 'Real');
-INSERT INTO public.countries VALUES ('5b5c860f-dc14-42f8-8188-a805f85ae494', 'Libya', 'LBY', 'https://www.preventionweb.net/assets/shared/images/flags/lby.jpg', 'Real');
-INSERT INTO public.countries VALUES ('54c62462-555e-47c0-a64e-378a0e6f06fc', 'Liechtenstein', 'LIE', 'https://www.preventionweb.net/assets/shared/images/flags/lie.jpg', 'Real');
-INSERT INTO public.countries VALUES ('23fbac27-7ff3-4e21-b54f-0b00f7913c4e', 'Lithuania', 'LTU', 'https://www.preventionweb.net/assets/shared/images/flags/ltu.jpg', 'Real');
-INSERT INTO public.countries VALUES ('a5a2c678-c1b2-40c0-a157-5f4426c1f5e0', 'Luxembourg', 'LUX', 'https://www.preventionweb.net/assets/shared/images/flags/lux.jpg', 'Real');
-INSERT INTO public.countries VALUES ('56e81d70-314c-4393-83c4-9f978d043122', 'Madagascar', 'MDG', 'https://www.preventionweb.net/assets/shared/images/flags/mdg.jpg', 'Real');
-INSERT INTO public.countries VALUES ('bddecb79-87b2-46d0-9346-a97d786e8a25', 'Malawi', 'MWI', 'https://www.preventionweb.net/assets/shared/images/flags/mwi.jpg', 'Real');
-INSERT INTO public.countries VALUES ('dcccbc40-54f7-4942-a461-eb6bde2612b5', 'Malaysia', 'MYS', 'https://www.preventionweb.net/assets/shared/images/flags/mys.jpg', 'Real');
-INSERT INTO public.countries VALUES ('66fbbade-65fa-4c6c-b6df-64aca0f349d7', 'Maldives', 'MDV', 'https://www.preventionweb.net/assets/shared/images/flags/mdv.jpg', 'Real');
-INSERT INTO public.countries VALUES ('36251255-1bfa-4a4e-b653-2daf8c35ddf5', 'Mali', 'MLI', 'https://www.preventionweb.net/assets/shared/images/flags/mli.jpg', 'Real');
-INSERT INTO public.countries VALUES ('4547a1e7-f2d3-4252-9d5f-3a7fd1eb5897', 'Malta', 'MLT', 'https://www.preventionweb.net/assets/shared/images/flags/mlt.jpg', 'Real');
-INSERT INTO public.countries VALUES ('bb7e04fe-4597-47cf-b034-17674d438b40', 'Marshall Islands', 'MHL', 'https://www.preventionweb.net/assets/shared/images/flags/mhl.jpg', 'Real');
-INSERT INTO public.countries VALUES ('2dcf0221-2c92-4da9-86fd-acbe6a3abb32', 'Mauritania', 'MRT', 'https://www.preventionweb.net/assets/shared/images/flags/mrt.jpg', 'Real');
-INSERT INTO public.countries VALUES ('c8391219-08ec-49f2-bfe0-58f1e5093529', 'Mauritius', 'MUS', 'https://www.preventionweb.net/assets/shared/images/flags/mus.jpg', 'Real');
-INSERT INTO public.countries VALUES ('4614d305-ce97-4b57-8ccd-16b553fa3d25', 'Mexico', 'MEX', 'https://www.preventionweb.net/assets/shared/images/flags/mex.jpg', 'Real');
-INSERT INTO public.countries VALUES ('c3d8dc22-5352-4532-a640-3b7725cdc1d1', 'Micronesia', 'FSM', 'https://www.preventionweb.net/assets/shared/images/flags/fsm.jpg', 'Real');
-INSERT INTO public.countries VALUES ('0145137b-71a8-4a27-933c-83b6fe6c4432', 'Moldova', 'MDA', 'https://www.preventionweb.net/assets/shared/images/flags/mda.jpg', 'Real');
-INSERT INTO public.countries VALUES ('265e39aa-c1e9-4c4d-8cc7-39f2ff31be6d', 'Monaco', 'MCO', 'https://www.preventionweb.net/assets/shared/images/flags/mco.jpg', 'Real');
-INSERT INTO public.countries VALUES ('39df73ed-696e-40aa-8694-30fc2c749d28', 'Mongolia', 'MNG', 'https://www.preventionweb.net/assets/shared/images/flags/mng.jpg', 'Real');
-INSERT INTO public.countries VALUES ('11b2c22b-d192-41c5-a2b7-619c56672e07', 'Montenegro', 'MNE', 'https://www.preventionweb.net/assets/shared/images/flags/mne.jpg', 'Real');
-INSERT INTO public.countries VALUES ('fcea85b5-9667-4af8-9b61-8e346331c45e', 'Morocco', 'MAR', 'https://www.preventionweb.net/assets/shared/images/flags/mar.jpg', 'Real');
-INSERT INTO public.countries VALUES ('57af20bd-a4aa-4aea-ac84-d268774cf7ef', 'Mozambique', 'MOZ', 'https://www.preventionweb.net/assets/shared/images/flags/moz.jpg', 'Real');
-INSERT INTO public.countries VALUES ('59342516-5d2e-4d02-bc7b-eed74f3da30a', 'Myanmar', 'MMR', 'https://www.preventionweb.net/assets/shared/images/flags/mmr.jpg', 'Real');
-INSERT INTO public.countries VALUES ('aae2e1d5-2487-4ba0-8d40-53261e2dde86', 'Namibia', 'NAM', 'https://www.preventionweb.net/assets/shared/images/flags/nam.jpg', 'Real');
-INSERT INTO public.countries VALUES ('c2c1581b-bb87-4060-a153-d3fb551b4361', 'Nauru', 'NRU', 'https://www.preventionweb.net/assets/shared/images/flags/nru.jpg', 'Real');
-INSERT INTO public.countries VALUES ('1800ea2f-fafb-4db2-b785-a2a820024563', 'Nepal', 'NPL', 'https://www.preventionweb.net/assets/shared/images/flags/npl.jpg', 'Real');
-INSERT INTO public.countries VALUES ('00b53e6a-36c4-4772-9c8d-5b1f59918b8a', 'Netherlands', 'NLD', 'https://www.preventionweb.net/assets/shared/images/flags/nld.jpg', 'Real');
-INSERT INTO public.countries VALUES ('481af8c4-9250-4441-83db-a6d3c4161bd0', 'New Zealand', 'NZL', 'https://www.preventionweb.net/assets/shared/images/flags/nzl.jpg', 'Real');
-INSERT INTO public.countries VALUES ('efc84644-04af-4736-b867-e8b0520d24be', 'Nicaragua', 'NIC', 'https://www.preventionweb.net/assets/shared/images/flags/nic.jpg', 'Real');
-INSERT INTO public.countries VALUES ('94acdcd7-c386-458b-a8ec-2269916dde22', 'Niger', 'NER', 'https://www.preventionweb.net/assets/shared/images/flags/ner.jpg', 'Real');
-INSERT INTO public.countries VALUES ('da1d9d4e-4e7e-4d19-bef0-750c455f624d', 'Nigeria', 'NGA', 'https://www.preventionweb.net/assets/shared/images/flags/nga.jpg', 'Real');
-INSERT INTO public.countries VALUES ('e533f268-df9d-4805-b173-96c068e2442b', 'North Korea', 'PRK', 'https://www.preventionweb.net/assets/shared/images/flags/prk.jpg', 'Real');
-INSERT INTO public.countries VALUES ('7a6c6699-f927-44df-b92b-3e27d60ba4b2', 'North Macedonia', 'MKD', 'https://www.preventionweb.net/assets/shared/images/flags/mkd.jpg', 'Real');
-INSERT INTO public.countries VALUES ('2b7dd90b-4d6d-4af7-959d-f726bef9ff85', 'Norway', 'NOR', 'https://www.preventionweb.net/assets/shared/images/flags/nor.jpg', 'Real');
-INSERT INTO public.countries VALUES ('5c50bebc-0b27-4dcb-ae28-b5397104fc87', 'Oman', 'OMN', 'https://www.preventionweb.net/assets/shared/images/flags/omn.jpg', 'Real');
-INSERT INTO public.countries VALUES ('65fc2068-b1bb-4e63-ba4e-f611d3a64245', 'Pakistan', 'PAK', 'https://www.preventionweb.net/assets/shared/images/flags/pak.jpg', 'Real');
-INSERT INTO public.countries VALUES ('fe331218-4677-454c-a256-44c7eb60b158', 'Palau', 'PLW', 'https://www.preventionweb.net/assets/shared/images/flags/plw.jpg', 'Real');
-INSERT INTO public.countries VALUES ('43a337b7-1b32-46cb-ac99-459f02662107', 'Panama', 'PAN', 'https://www.preventionweb.net/assets/shared/images/flags/pan.jpg', 'Real');
-INSERT INTO public.countries VALUES ('12d4133f-ddcf-49ec-856c-3adfd402e0fe', 'Papua New Guinea', 'PNG', 'https://www.preventionweb.net/assets/shared/images/flags/png.jpg', 'Real');
-INSERT INTO public.countries VALUES ('0e67f7fb-6907-4776-8106-a95cbc059294', 'Paraguay', 'PRY', 'https://www.preventionweb.net/assets/shared/images/flags/pry.jpg', 'Real');
-INSERT INTO public.countries VALUES ('9d49d7fa-39a5-4747-a330-4847eb15369f', 'Peru', 'PER', 'https://www.preventionweb.net/assets/shared/images/flags/per.jpg', 'Real');
-INSERT INTO public.countries VALUES ('b43afbf3-a547-4b01-83e3-ad85cb3db55f', 'Philippines', 'PHL', 'https://www.preventionweb.net/assets/shared/images/flags/phl.jpg', 'Real');
-INSERT INTO public.countries VALUES ('b5b2c354-7dac-479e-8a62-f495c65e5a98', 'Poland', 'POL', 'https://www.preventionweb.net/assets/shared/images/flags/pol.jpg', 'Real');
-INSERT INTO public.countries VALUES ('1701a1fd-731f-4872-a574-2175d14ed3cf', 'Portugal', 'PRT', 'https://www.preventionweb.net/assets/shared/images/flags/prt.jpg', 'Real');
-INSERT INTO public.countries VALUES ('225aa79f-2a26-4f46-84fa-7c4fdf50b119', 'Qatar', 'QAT', 'https://www.preventionweb.net/assets/shared/images/flags/qat.jpg', 'Real');
-INSERT INTO public.countries VALUES ('c3c45498-3d29-4d75-9fea-7d8d8476bfb3', 'Romania', 'ROU', 'https://www.preventionweb.net/assets/shared/images/flags/rou.jpg', 'Real');
-INSERT INTO public.countries VALUES ('bfba914d-c726-4dc4-8312-2a9415748402', 'Russia', 'RUS', 'https://www.preventionweb.net/assets/shared/images/flags/rus.jpg', 'Real');
-INSERT INTO public.countries VALUES ('762637e2-3e36-4af2-a046-8743386fd843', 'Rwanda', 'RWA', 'https://www.preventionweb.net/assets/shared/images/flags/rwa.jpg', 'Real');
-INSERT INTO public.countries VALUES ('7b655f02-ab87-4344-9c8b-4402d810294d', 'Saint Kitts and Nevis', 'KNA', 'https://www.preventionweb.net/assets/shared/images/flags/kna.jpg', 'Real');
-INSERT INTO public.countries VALUES ('de5e31f8-426c-48d8-b42a-d43b5e483415', 'Saint Lucia', 'LCA', 'https://www.preventionweb.net/assets/shared/images/flags/lca.jpg', 'Real');
-INSERT INTO public.countries VALUES ('c3cfb849-f2ae-421c-b450-b38a8ec2620c', 'Saint Vincent and the Grenadines', 'VCT', 'https://www.preventionweb.net/assets/shared/images/flags/vct.jpg', 'Real');
-INSERT INTO public.countries VALUES ('4bde96a4-b65b-4731-af22-afe688822081', 'Samoa', 'WSM', 'https://www.preventionweb.net/assets/shared/images/flags/wsm.jpg', 'Real');
-INSERT INTO public.countries VALUES ('60806439-5049-44d9-80d9-9fdafc1adf71', 'San Marino', 'SMR', 'https://www.preventionweb.net/assets/shared/images/flags/smr.jpg', 'Real');
-INSERT INTO public.countries VALUES ('d08228c1-4d52-4b7d-8a83-63549e73ee05', 'Sao Tome and Principe', 'STP', 'https://www.preventionweb.net/assets/shared/images/flags/stp.jpg', 'Real');
-INSERT INTO public.countries VALUES ('891282d8-529b-4970-9056-a3aec75c19ff', 'Saudi Arabia', 'SAU', 'https://www.preventionweb.net/assets/shared/images/flags/sau.jpg', 'Real');
-INSERT INTO public.countries VALUES ('f0c43a94-5a34-4348-b7a1-b48972113697', 'Senegal', 'SEN', 'https://www.preventionweb.net/assets/shared/images/flags/sen.jpg', 'Real');
-INSERT INTO public.countries VALUES ('2780434b-124e-4eae-8485-a78087b3cd48', 'Serbia', 'SRB', 'https://www.preventionweb.net/assets/shared/images/flags/srb.jpg', 'Real');
-INSERT INTO public.countries VALUES ('c2a9d3cc-628f-4d4c-b9f9-72f03139cc9d', 'Seychelles', 'SYC', 'https://www.preventionweb.net/assets/shared/images/flags/syc.jpg', 'Real');
-INSERT INTO public.countries VALUES ('3693a558-6b79-4067-8bf3-c41aa27eee81', 'Sierra Leone', 'SLE', 'https://www.preventionweb.net/assets/shared/images/flags/sle.jpg', 'Real');
-INSERT INTO public.countries VALUES ('0faaac2d-7d90-437d-8398-a731a105f860', 'Singapore', 'SGP', 'https://www.preventionweb.net/assets/shared/images/flags/sgp.jpg', 'Real');
-INSERT INTO public.countries VALUES ('0d416a42-9ee8-4b41-912e-f9fbc4db7cb1', 'Slovakia', 'SVK', 'https://www.preventionweb.net/assets/shared/images/flags/svk.jpg', 'Real');
-INSERT INTO public.countries VALUES ('e712a7d1-e4d1-47a0-8b9b-acb735a6bdf6', 'Slovenia', 'SVN', 'https://www.preventionweb.net/assets/shared/images/flags/svn.jpg', 'Real');
-INSERT INTO public.countries VALUES ('40fbc10f-f290-4ccb-a69a-c7af51029f5f', 'Solomon Islands', 'SLB', 'https://www.preventionweb.net/assets/shared/images/flags/slb.jpg', 'Real');
-INSERT INTO public.countries VALUES ('e02fec53-b9bb-44a5-a0dc-2e998ad3b0b9', 'Somalia', 'SOM', 'https://www.preventionweb.net/assets/shared/images/flags/som.jpg', 'Real');
-INSERT INTO public.countries VALUES ('3e41aab3-823a-4357-9cf1-66b52d3b7ef6', 'South Africa', 'ZAF', 'https://www.preventionweb.net/assets/shared/images/flags/zaf.jpg', 'Real');
-INSERT INTO public.countries VALUES ('52bc884c-ddd9-4ac1-b873-c71944faf6e3', 'South Korea', 'KOR', 'https://www.preventionweb.net/assets/shared/images/flags/kor.jpg', 'Real');
-INSERT INTO public.countries VALUES ('a360b066-8f28-488a-8b4c-731d0eb323f6', 'South Sudan', 'SSD', 'https://www.preventionweb.net/assets/shared/images/flags/ssd.jpg', 'Real');
-INSERT INTO public.countries VALUES ('8ce1b3ac-6f0c-4ac2-b69d-e7c25acdcf5c', 'Spain', 'ESP', 'https://www.preventionweb.net/assets/shared/images/flags/esp.jpg', 'Real');
-INSERT INTO public.countries VALUES ('1ffac7ec-bfb6-472e-945f-f6ce36cdfb46', 'Sri Lanka', 'LKA', 'https://www.preventionweb.net/assets/shared/images/flags/lka.jpg', 'Real');
-INSERT INTO public.countries VALUES ('3f886305-6966-4203-a0da-07efc0593995', 'Sudan', 'SDN', 'https://www.preventionweb.net/assets/shared/images/flags/sdn.jpg', 'Real');
-INSERT INTO public.countries VALUES ('9e187c56-f8b7-47de-a549-257ef68dd3b0', 'Suriname', 'SUR', 'https://www.preventionweb.net/assets/shared/images/flags/sur.jpg', 'Real');
-INSERT INTO public.countries VALUES ('ed9c14cf-b995-44da-9ff2-175db09c552d', 'Sweden', 'SWE', 'https://www.preventionweb.net/assets/shared/images/flags/swe.jpg', 'Real');
-INSERT INTO public.countries VALUES ('d8949616-c895-48b7-b30c-773a9941f3ec', 'Switzerland', 'CHE', 'https://www.preventionweb.net/assets/shared/images/flags/che.jpg', 'Real');
-INSERT INTO public.countries VALUES ('10303007-81fd-4811-bf9e-07cfaef509a8', 'Syria', 'SYR', 'https://www.preventionweb.net/assets/shared/images/flags/syr.jpg', 'Real');
-INSERT INTO public.countries VALUES ('8df1ab4e-53d6-478b-9ab5-68dd06b31f30', 'Taiwan', 'TWN', 'https://www.preventionweb.net/assets/shared/images/flags/twn.jpg', 'Real');
-INSERT INTO public.countries VALUES ('039908d6-373a-487e-9782-719fa032947a', 'Tajikistan', 'TJK', 'https://www.preventionweb.net/assets/shared/images/flags/tjk.jpg', 'Real');
-INSERT INTO public.countries VALUES ('c616338a-f708-49ba-b5a1-c57e45dbc148', 'Tanzania', 'TZA', 'https://www.preventionweb.net/assets/shared/images/flags/tza.jpg', 'Real');
-INSERT INTO public.countries VALUES ('a1cb2ce9-b298-40d7-a5e9-591df0bf4e6f', 'Thailand', 'THA', 'https://www.preventionweb.net/assets/shared/images/flags/tha.jpg', 'Real');
-INSERT INTO public.countries VALUES ('207efe69-ee75-4fa8-a28c-01e7013b01d3', 'Timor-Leste', 'TLS', 'https://www.preventionweb.net/assets/shared/images/flags/tls.jpg', 'Real');
-INSERT INTO public.countries VALUES ('6c987e2c-0ce0-4892-a8e8-590b335fc44e', 'Togo', 'TGO', 'https://www.preventionweb.net/assets/shared/images/flags/tgo.jpg', 'Real');
-INSERT INTO public.countries VALUES ('88ee764e-ece1-4e81-844e-9c7ba32fc72d', 'Tonga', 'TON', 'https://www.preventionweb.net/assets/shared/images/flags/ton.jpg', 'Real');
-INSERT INTO public.countries VALUES ('a745cd99-c332-4df6-a3d3-dfa93eb04ec1', 'Trinidad and Tobago', 'TTO', 'https://www.preventionweb.net/assets/shared/images/flags/tto.jpg', 'Real');
-INSERT INTO public.countries VALUES ('cb019c48-9ad7-4cdd-9dee-392d11a03eea', 'Tunisia', 'TUN', 'https://www.preventionweb.net/assets/shared/images/flags/tun.jpg', 'Real');
-INSERT INTO public.countries VALUES ('5210203a-b6b9-42c1-81a3-d1f6777184d5', 'Turkey', 'TUR', 'https://www.preventionweb.net/assets/shared/images/flags/tur.jpg', 'Real');
-INSERT INTO public.countries VALUES ('fccd8f3a-8b3a-4ab8-8ddd-7b2618df666a', 'Turkmenistan', 'TKM', 'https://www.preventionweb.net/assets/shared/images/flags/tkm.jpg', 'Real');
-INSERT INTO public.countries VALUES ('0e77df5a-f181-4b29-a560-7a1e2d159f08', 'Tuvalu', 'TUV', 'https://www.preventionweb.net/assets/shared/images/flags/tuv.jpg', 'Real');
-INSERT INTO public.countries VALUES ('c5871fe3-e44f-4910-97aa-f943b6882e0a', 'Uganda', 'UGA', 'https://www.preventionweb.net/assets/shared/images/flags/uga.jpg', 'Real');
-INSERT INTO public.countries VALUES ('6d063a70-8b37-40c0-a823-3cce1b03520d', 'Ukraine', 'UKR', 'https://www.preventionweb.net/assets/shared/images/flags/ukr.jpg', 'Real');
-INSERT INTO public.countries VALUES ('4f06f245-48bf-414b-981e-6a160c7bd497', 'United Arab Emirates', 'ARE', 'https://www.preventionweb.net/assets/shared/images/flags/are.jpg', 'Real');
-INSERT INTO public.countries VALUES ('cece439b-8db6-4b61-a9cb-d0577ddd1d44', 'United Kingdom', 'GBR', 'https://www.preventionweb.net/assets/shared/images/flags/gbr.jpg', 'Real');
-INSERT INTO public.countries VALUES ('b44c52e2-87a0-4d9c-bf31-204ba6182ca3', 'United States', 'USA', 'https://www.preventionweb.net/assets/shared/images/flags/usa.jpg', 'Real');
-INSERT INTO public.countries VALUES ('f723bdea-693b-4ee9-9312-0833d3871a0d', 'Uruguay', 'URY', 'https://www.preventionweb.net/assets/shared/images/flags/ury.jpg', 'Real');
-INSERT INTO public.countries VALUES ('854ee919-69f8-47fe-80aa-58cba5d3a82c', 'Uzbekistan', 'UZB', 'https://www.preventionweb.net/assets/shared/images/flags/uzb.jpg', 'Real');
-INSERT INTO public.countries VALUES ('3792ad3f-990b-4d43-a3e6-30c8d1989a26', 'Vanuatu', 'VUT', 'https://www.preventionweb.net/assets/shared/images/flags/vut.jpg', 'Real');
-INSERT INTO public.countries VALUES ('295ebf4c-2ee5-4d0b-a14d-c2bd00df5fe6', 'Vatican City', 'VAT', 'https://www.preventionweb.net/assets/shared/images/flags/vat.jpg', 'Real');
-INSERT INTO public.countries VALUES ('4626d68a-eb39-4783-b7a2-5b90baf191e3', 'Venezuela', 'VEN', 'https://www.preventionweb.net/assets/shared/images/flags/ven.jpg', 'Real');
-INSERT INTO public.countries VALUES ('336848df-d2be-4478-8e59-3ab2ebffd443', 'Vietnam', 'VNM', 'https://www.preventionweb.net/assets/shared/images/flags/vnm.jpg', 'Real');
-INSERT INTO public.countries VALUES ('e631984e-4106-470e-8d71-6bd9f761e397', 'Yemen', 'YEM', 'https://www.preventionweb.net/assets/shared/images/flags/yem.jpg', 'Real');
-INSERT INTO public.countries VALUES ('5954d9b1-0c3e-4dcd-8db9-47a3c5a5c755', 'Zambia', 'ZMB', 'https://www.preventionweb.net/assets/shared/images/flags/zmb.jpg', 'Real');
-INSERT INTO public.countries VALUES ('e681fd57-6ef2-4ef5-ac4f-d6199092941f', 'Zimbabwe', 'ZWE', 'https://www.preventionweb.net/assets/shared/images/flags/zwe.jpg', 'Real');
+INSERT INTO public.countries VALUES ('704e8850-d5e2-422c-956c-bce5312ab266', 'Afghanistan', 'AFG', 'https://www.preventionweb.net/assets/shared/images/flags/afg.jpg', 'Real');
+INSERT INTO public.countries VALUES ('e34ef71f-0a72-40c4-a6e0-dd19fb26f391', 'Albania', 'ALB', 'https://www.preventionweb.net/assets/shared/images/flags/alb.jpg', 'Real');
+INSERT INTO public.countries VALUES ('4af50751-bfb0-4ca3-a4b3-d8c2ad6ec62d', 'Algeria', 'DZA', 'https://www.preventionweb.net/assets/shared/images/flags/dza.jpg', 'Real');
+INSERT INTO public.countries VALUES ('11750269-2ff2-449f-b10e-c3bd88487298', 'American Samoa', 'ASM', 'https://www.preventionweb.net/assets/shared/images/flags/asm.jpg', 'Real');
+INSERT INTO public.countries VALUES ('1b641fce-aca9-4522-ba15-f620fa0f309b', 'Andorra', 'AND', 'https://www.preventionweb.net/assets/shared/images/flags/and.jpg', 'Real');
+INSERT INTO public.countries VALUES ('73de5df3-592a-45cd-8e18-254af7dc7b8e', 'Angola', 'AGO', 'https://www.preventionweb.net/assets/shared/images/flags/ago.jpg', 'Real');
+INSERT INTO public.countries VALUES ('79725a26-9fa4-4b1a-8a5b-ea2c9d3a9ded', 'Anguilla', 'AIA', 'https://www.preventionweb.net/assets/shared/images/flags/aia.jpg', 'Real');
+INSERT INTO public.countries VALUES ('41b0d20a-0d98-46df-b389-710ac0c96427', 'Antigua and Barbuda', 'ATG', 'https://www.preventionweb.net/assets/shared/images/flags/atg.jpg', 'Real');
+INSERT INTO public.countries VALUES ('525434cb-f24b-4f47-8bda-4ba50754a129', 'Argentina', 'ARG', 'https://www.preventionweb.net/assets/shared/images/flags/arg.jpg', 'Real');
+INSERT INTO public.countries VALUES ('eef26331-4334-4951-b990-8cee438e9fb5', 'Armenia', 'ARM', 'https://www.preventionweb.net/assets/shared/images/flags/arm.jpg', 'Real');
+INSERT INTO public.countries VALUES ('0e7a6922-7f98-4496-9864-534322b8aead', 'Aruba', 'ABW', 'https://www.preventionweb.net/assets/shared/images/flags/abw.jpg', 'Real');
+INSERT INTO public.countries VALUES ('b16ec05d-7dac-4c99-b0ba-ac3e7d4cabee', 'Australia', 'AUS', 'https://www.preventionweb.net/assets/shared/images/flags/aus.jpg', 'Real');
+INSERT INTO public.countries VALUES ('82f05a87-4bbd-49ef-85b3-cb54deff0234', 'Austria', 'AUT', 'https://www.preventionweb.net/assets/shared/images/flags/aut.jpg', 'Real');
+INSERT INTO public.countries VALUES ('1804c265-07cd-4226-8bd2-437b94577fb8', 'Azerbaijan', 'AZE', 'https://www.preventionweb.net/assets/shared/images/flags/aze.jpg', 'Real');
+INSERT INTO public.countries VALUES ('0098f8c0-0b0d-4823-986d-bea7b6c48705', 'Bahamas', 'BHS', 'https://www.preventionweb.net/assets/shared/images/flags/bhs.jpg', 'Real');
+INSERT INTO public.countries VALUES ('02c66fc5-c640-43b4-95ea-37b4d047f9a7', 'Bahrain', 'BHR', 'https://www.preventionweb.net/assets/shared/images/flags/bhr.jpg', 'Real');
+INSERT INTO public.countries VALUES ('a0f72f40-4f17-4c96-99ad-5fbfd2847035', 'Bangladesh', 'BGD', 'https://www.preventionweb.net/assets/shared/images/flags/bgd.jpg', 'Real');
+INSERT INTO public.countries VALUES ('9314d619-344f-431c-9ea2-4970bbbf174a', 'Barbados', 'BRB', 'https://www.preventionweb.net/assets/shared/images/flags/brb.jpg', 'Real');
+INSERT INTO public.countries VALUES ('d78ea2e2-cde2-416b-b95e-855b81fdaa9b', 'Belarus', 'BLR', 'https://www.preventionweb.net/assets/shared/images/flags/blr.jpg', 'Real');
+INSERT INTO public.countries VALUES ('b1a8f7b4-c21e-4885-afd2-076551fbc0c0', 'Belgium', 'BEL', 'https://www.preventionweb.net/assets/shared/images/flags/bel.jpg', 'Real');
+INSERT INTO public.countries VALUES ('7e129d0f-8c45-45cd-bf91-a3c0551cef02', 'Belize', 'BLZ', 'https://www.preventionweb.net/assets/shared/images/flags/blz.jpg', 'Real');
+INSERT INTO public.countries VALUES ('8a6c4b24-b4df-407a-8d75-aae50859be7b', 'Benin', 'BEN', 'https://www.preventionweb.net/assets/shared/images/flags/ben.jpg', 'Real');
+INSERT INTO public.countries VALUES ('2ccafa00-33e6-4faf-b519-9e02ba28a02f', 'Bermuda', 'BMU', 'https://www.preventionweb.net/assets/shared/images/flags/bmu.jpg', 'Real');
+INSERT INTO public.countries VALUES ('863228a9-e58b-46a2-8f9e-26f080c84fe5', 'Bhutan', 'BTN', 'https://www.preventionweb.net/assets/shared/images/flags/btn.jpg', 'Real');
+INSERT INTO public.countries VALUES ('0a9a548f-6a1b-4b40-9525-385367d72a20', 'Bolivia, Plurinational State of', 'BOL', 'https://www.preventionweb.net/assets/shared/images/flags/bol.jpg', 'Real');
+INSERT INTO public.countries VALUES ('c71424c6-cc7a-4a0a-bfd4-04ff99e2bb89', 'Bosnia and Herzegovina', 'BIH', 'https://www.preventionweb.net/assets/shared/images/flags/bih.jpg', 'Real');
+INSERT INTO public.countries VALUES ('b8ff3d2b-05de-43cb-8576-5b158d6231bb', 'Botswana', 'BWA', 'https://www.preventionweb.net/assets/shared/images/flags/bwa.jpg', 'Real');
+INSERT INTO public.countries VALUES ('4000f991-19b2-443d-aeb8-0d647c41c2a2', 'Togo', 'TGO', 'https://www.preventionweb.net/assets/shared/images/flags/tgo.jpg', 'Real');
+INSERT INTO public.countries VALUES ('0ecbd87d-aaaf-47ac-a60a-fa674765aef6', 'Brazil', 'BRA', 'https://www.preventionweb.net/assets/shared/images/flags/bra.jpg', 'Real');
+INSERT INTO public.countries VALUES ('b5fc1969-6154-4fbf-ba66-1d92e0aae3bf', 'British Virgin Islands', 'VGB', 'https://www.preventionweb.net/assets/shared/images/flags/vgb.jpg', 'Real');
+INSERT INTO public.countries VALUES ('a9d19d4c-febe-4f78-8abe-fbffe066d4fd', 'Brunei Darussalam', 'BRN', 'https://www.preventionweb.net/assets/shared/images/flags/brn.jpg', 'Real');
+INSERT INTO public.countries VALUES ('624484cc-ae6b-4840-a821-fbb92241d52f', 'Bulgaria', 'BGR', 'https://www.preventionweb.net/assets/shared/images/flags/bgr.jpg', 'Real');
+INSERT INTO public.countries VALUES ('05d675c7-3470-43b5-b980-f5351c3ad5af', 'Burkina Faso', 'BFA', 'https://www.preventionweb.net/assets/shared/images/flags/bfa.jpg', 'Real');
+INSERT INTO public.countries VALUES ('243fd43c-b48b-4a04-adce-27218d08b1b8', 'Burundi', 'BDI', 'https://www.preventionweb.net/assets/shared/images/flags/bdi.jpg', 'Real');
+INSERT INTO public.countries VALUES ('362fdfac-8cc9-4cd4-8681-b4466fd90723', 'Cabo Verde', 'CPV', 'https://www.preventionweb.net/assets/shared/images/flags/cpv.jpg', 'Real');
+INSERT INTO public.countries VALUES ('fd5329fe-8c60-4d39-9ecb-d104478be2f9', 'Cambodia', 'KHM', 'https://www.preventionweb.net/assets/shared/images/flags/khm.jpg', 'Real');
+INSERT INTO public.countries VALUES ('a06d7bdf-5701-461a-ba79-f412bce04697', 'Cameroon', 'CMR', 'https://www.preventionweb.net/assets/shared/images/flags/cmr.jpg', 'Real');
+INSERT INTO public.countries VALUES ('5834ea4e-e957-4ee8-bcee-6da279082297', 'Canada', 'CAN', 'https://www.preventionweb.net/assets/shared/images/flags/can.jpg', 'Real');
+INSERT INTO public.countries VALUES ('da7576aa-dde4-4ddb-b068-0ce17dc66f60', 'Cayman Islands', 'CYM', 'https://www.preventionweb.net/assets/shared/images/flags/cym.jpg', 'Real');
+INSERT INTO public.countries VALUES ('07f25a89-5f8f-4c23-80e7-0ea090b93c4e', 'Central African Republic', 'CAF', 'https://www.preventionweb.net/assets/shared/images/flags/caf.jpg', 'Real');
+INSERT INTO public.countries VALUES ('596cd94b-4946-4611-9f12-3ab8ccf99738', 'Chad', 'TCD', 'https://www.preventionweb.net/assets/shared/images/flags/tcd.jpg', 'Real');
+INSERT INTO public.countries VALUES ('ef03d376-4822-4170-9f5e-883ff29c7339', 'Chile', 'CHL', 'https://www.preventionweb.net/assets/shared/images/flags/chl.jpg', 'Real');
+INSERT INTO public.countries VALUES ('0874fc23-f2b0-4fab-bfba-5bb49694b36a', 'China', 'CHN', 'https://www.preventionweb.net/assets/shared/images/flags/chn.jpg', 'Real');
+INSERT INTO public.countries VALUES ('9022dd46-8bd5-4040-b7da-368662f404f9', 'Colombia', 'COL', 'https://www.preventionweb.net/assets/shared/images/flags/col.jpg', 'Real');
+INSERT INTO public.countries VALUES ('7be1ad90-410c-40c7-824d-fecf25210b18', 'Comoros', 'COM', 'https://www.preventionweb.net/assets/shared/images/flags/com.jpg', 'Real');
+INSERT INTO public.countries VALUES ('4df6f7ed-795e-4566-ab05-b9992bba1028', 'Democratic Republic of the Congo', 'COD', 'https://www.preventionweb.net/assets/shared/images/flags/cod.jpg', 'Real');
+INSERT INTO public.countries VALUES ('bb380c1d-380b-4da4-a80c-06e4b0f1f29c', 'Republic of the Congo', 'COG', 'https://www.preventionweb.net/assets/shared/images/flags/cog.jpg', 'Real');
+INSERT INTO public.countries VALUES ('f05e985a-002e-40e6-9606-f2a5c61df76d', 'Cook Islands', 'COK', 'https://www.preventionweb.net/assets/shared/images/flags/cok.jpg', 'Real');
+INSERT INTO public.countries VALUES ('198840e9-051f-45ae-a3e8-f625e76c403f', 'Costa Rica', 'CRI', 'https://www.preventionweb.net/assets/shared/images/flags/cri.jpg', 'Real');
+INSERT INTO public.countries VALUES ('643d576d-d4e0-473e-b3b7-b0c5c0852817', 'Côte d''Ivoire', 'CIV', 'https://www.preventionweb.net/assets/shared/images/flags/civ.jpg', 'Real');
+INSERT INTO public.countries VALUES ('9e06c44b-3f0f-4408-8e2c-c7ef63b00ef0', 'Croatia', 'HRV', 'https://www.preventionweb.net/assets/shared/images/flags/hrv.jpg', 'Real');
+INSERT INTO public.countries VALUES ('c014465d-8134-4d74-92cc-783eec7e2cf2', 'Cuba', 'CUB', 'https://www.preventionweb.net/assets/shared/images/flags/cub.jpg', 'Real');
+INSERT INTO public.countries VALUES ('f3cb925b-e831-46b8-8650-7faeab52ed9e', 'Cyprus', 'CYP', 'https://www.preventionweb.net/assets/shared/images/flags/cyp.jpg', 'Real');
+INSERT INTO public.countries VALUES ('c4539af0-327c-4815-add9-3c50947da988', 'Czech Republic', 'CZE', 'https://www.preventionweb.net/assets/shared/images/flags/cze.jpg', 'Real');
+INSERT INTO public.countries VALUES ('2c91b114-af80-42b0-ba1b-f9dd3b7803c6', 'Denmark', 'DNK', 'https://www.preventionweb.net/assets/shared/images/flags/dnk.jpg', 'Real');
+INSERT INTO public.countries VALUES ('3db53449-8e33-43b8-8735-013147400d70', 'Djibouti', 'DJI', 'https://www.preventionweb.net/assets/shared/images/flags/dji.jpg', 'Real');
+INSERT INTO public.countries VALUES ('63305a07-314a-442a-a623-fa3df20dc056', 'Dominica', 'DMA', 'https://www.preventionweb.net/assets/shared/images/flags/dma.jpg', 'Real');
+INSERT INTO public.countries VALUES ('5deaedca-f182-47f6-8e78-462241780bf9', 'Dominican Republic', 'DOM', 'https://www.preventionweb.net/assets/shared/images/flags/dom.jpg', 'Real');
+INSERT INTO public.countries VALUES ('3ef546c0-b52c-4240-bcbc-beac2d28bc1d', 'Ecuador', 'ECU', 'https://www.preventionweb.net/assets/shared/images/flags/ecu.jpg', 'Real');
+INSERT INTO public.countries VALUES ('89d14089-cf2c-40b5-ae92-84221166f578', 'Egypt', 'EGY', 'https://www.preventionweb.net/assets/shared/images/flags/egy.jpg', 'Real');
+INSERT INTO public.countries VALUES ('ea935731-1ece-4bf0-88f2-1bf6cecd297f', 'El Salvador', 'SLV', 'https://www.preventionweb.net/assets/shared/images/flags/slv.jpg', 'Real');
+INSERT INTO public.countries VALUES ('e4cc9a9b-f397-4f41-807b-49599e82f8e4', 'Equatorial Guinea', 'GNQ', 'https://www.preventionweb.net/assets/shared/images/flags/gnq.jpg', 'Real');
+INSERT INTO public.countries VALUES ('a82fcf7f-00eb-423f-89ca-38cde379c632', 'Eritrea', 'ERI', 'https://www.preventionweb.net/assets/shared/images/flags/eri.jpg', 'Real');
+INSERT INTO public.countries VALUES ('ebb06aec-0d1b-4f13-8649-575eae42ce9a', 'Estonia', 'EST', 'https://www.preventionweb.net/assets/shared/images/flags/est.jpg', 'Real');
+INSERT INTO public.countries VALUES ('daf7a178-9cb6-493f-9845-85392bd5fdd4', 'Eswatini', 'SWZ', 'https://www.preventionweb.net/assets/shared/images/flags/swz.jpg', 'Real');
+INSERT INTO public.countries VALUES ('3a6d1f31-2446-4621-9dee-61c9bc40f91b', 'Ethiopia', 'ETH', 'https://www.preventionweb.net/assets/shared/images/flags/eth.jpg', 'Real');
+INSERT INTO public.countries VALUES ('9333c4ca-60e1-488a-bebe-d64ca42c8c35', 'Fiji', 'FJI', 'https://www.preventionweb.net/assets/shared/images/flags/fji.jpg', 'Real');
+INSERT INTO public.countries VALUES ('292c8b18-483c-4c4f-92f3-f5b13fc7886b', 'Finland', 'FIN', 'https://www.preventionweb.net/assets/shared/images/flags/fin.jpg', 'Real');
+INSERT INTO public.countries VALUES ('7a1f7289-2a39-4000-b101-577f3607eddb', 'France', 'FRA', 'https://www.preventionweb.net/assets/shared/images/flags/fra.jpg', 'Real');
+INSERT INTO public.countries VALUES ('ee8389a0-6b2d-42ae-b6bf-86ceba3dc595', 'French Guiana', 'GUF', 'https://www.preventionweb.net/assets/shared/images/flags/guf.jpg', 'Real');
+INSERT INTO public.countries VALUES ('dd270ac5-5902-4330-88f4-1f228edc1d51', 'French Polynesia', 'PYF', 'https://www.preventionweb.net/assets/shared/images/flags/pyf.jpg', 'Real');
+INSERT INTO public.countries VALUES ('dec4eae0-e403-4fae-885c-db5a4d1156b8', 'Gabon', 'GAB', 'https://www.preventionweb.net/assets/shared/images/flags/gab.jpg', 'Real');
+INSERT INTO public.countries VALUES ('197fa126-1dba-49f7-bab4-4392d709d7bc', 'Gambia, Republic of The', 'GMB', 'https://www.preventionweb.net/assets/shared/images/flags/gmb.jpg', 'Real');
+INSERT INTO public.countries VALUES ('56656064-6337-4148-bbf2-9fcbfc275cda', 'Georgia', 'GEO', 'https://www.preventionweb.net/assets/shared/images/flags/geo.jpg', 'Real');
+INSERT INTO public.countries VALUES ('81980191-e681-4f80-b16f-38d172a5a3ad', 'Germany', 'DEU', 'https://www.preventionweb.net/assets/shared/images/flags/deu.jpg', 'Real');
+INSERT INTO public.countries VALUES ('7dbd4afd-e659-477f-ab3b-52cde6bd24b0', 'Ghana', 'GHA', 'https://www.preventionweb.net/assets/shared/images/flags/gha.jpg', 'Real');
+INSERT INTO public.countries VALUES ('fe2aa99e-812a-4314-9475-52590e4ee16f', 'Greece', 'GRC', 'https://www.preventionweb.net/assets/shared/images/flags/grc.jpg', 'Real');
+INSERT INTO public.countries VALUES ('cbd759f6-4359-4a6a-80ed-4eef3a1649cc', 'Grenada', 'GRD', 'https://www.preventionweb.net/assets/shared/images/flags/grd.jpg', 'Real');
+INSERT INTO public.countries VALUES ('d7a3b52b-6e84-4912-a87d-6d3659e2a275', 'Guadeloupe', 'GLP', 'https://www.preventionweb.net/assets/shared/images/flags/glp.jpg', 'Real');
+INSERT INTO public.countries VALUES ('c5ae8ae2-1925-4471-a24e-fc0fe88bae97', 'Guam', 'GUM', 'https://www.preventionweb.net/assets/shared/images/flags/gum.jpg', 'Real');
+INSERT INTO public.countries VALUES ('73c26e32-cbba-47c0-be12-de9f13926fac', 'Guatemala', 'GTM', 'https://www.preventionweb.net/assets/shared/images/flags/gtm.jpg', 'Real');
+INSERT INTO public.countries VALUES ('0901e1ab-4cd8-4d11-a102-3d99c45b7cfe', 'Guinea', 'GIN', 'https://www.preventionweb.net/assets/shared/images/flags/gin.jpg', 'Real');
+INSERT INTO public.countries VALUES ('3cc0150d-c354-4652-a27d-9bfa9bb54aa1', 'Guinea-Bissau', 'GNB', 'https://www.preventionweb.net/assets/shared/images/flags/gnb.jpg', 'Real');
+INSERT INTO public.countries VALUES ('9ec6e95c-9199-4bcd-a20b-2eebd39b0441', 'Guyana', 'GUY', 'https://www.preventionweb.net/assets/shared/images/flags/guy.jpg', 'Real');
+INSERT INTO public.countries VALUES ('800c08a7-5ac9-47c1-ac16-ec9e25a04d16', 'Haiti', 'HTI', 'https://www.preventionweb.net/assets/shared/images/flags/hti.jpg', 'Real');
+INSERT INTO public.countries VALUES ('ab157e21-72c8-4a2d-939c-3af1a7f3b7b3', 'Holy See', 'VAT', 'https://www.preventionweb.net/assets/shared/images/flags/vat.jpg', 'Real');
+INSERT INTO public.countries VALUES ('01b197a3-2495-4682-acd6-d48853d6fcc7', 'Honduras', 'HND', 'https://www.preventionweb.net/assets/shared/images/flags/hnd.jpg', 'Real');
+INSERT INTO public.countries VALUES ('b94090f8-475e-4499-aa3b-bd48b6a5d4ae', 'Hong Kong (China)', 'HKG', 'https://www.preventionweb.net/assets/shared/images/flags/hkg.jpg', 'Real');
+INSERT INTO public.countries VALUES ('535e4882-c1ba-4306-969b-cc0141abd0df', 'Hungary', 'HUN', 'https://www.preventionweb.net/assets/shared/images/flags/hun.jpg', 'Real');
+INSERT INTO public.countries VALUES ('cc917261-52de-4c73-b88b-4cc0550f868d', 'Iceland', 'ISL', 'https://www.preventionweb.net/assets/shared/images/flags/isl.jpg', 'Real');
+INSERT INTO public.countries VALUES ('4a8caa07-6de5-4845-8b8e-94aad6498e58', 'India', 'IND', 'https://www.preventionweb.net/assets/shared/images/flags/ind.jpg', 'Real');
+INSERT INTO public.countries VALUES ('c665d957-50f7-4c4f-9c81-e2285db927b4', 'Indonesia', 'IDN', 'https://www.preventionweb.net/assets/shared/images/flags/idn.jpg', 'Real');
+INSERT INTO public.countries VALUES ('692cc30e-2bbd-4825-9fd4-6ab0f207e1f7', 'Iran, Islamic Rep of', 'IRN', 'https://www.preventionweb.net/assets/shared/images/flags/irn.jpg', 'Real');
+INSERT INTO public.countries VALUES ('43af24f4-f135-40f4-b24f-6cd6217ce5ab', 'Iraq', 'IRQ', 'https://www.preventionweb.net/assets/shared/images/flags/irq.jpg', 'Real');
+INSERT INTO public.countries VALUES ('47990480-65b0-435b-9357-1b611022dc42', 'Ireland', 'IRL', 'https://www.preventionweb.net/assets/shared/images/flags/irl.jpg', 'Real');
+INSERT INTO public.countries VALUES ('b79f5c91-4eb0-42aa-b0dd-8c58b7ce6438', 'Israel', 'ISR', 'https://www.preventionweb.net/assets/shared/images/flags/isr.jpg', 'Real');
+INSERT INTO public.countries VALUES ('20ab9b75-512e-45c6-b420-2da5c749c601', 'Italy', 'ITA', 'https://www.preventionweb.net/assets/shared/images/flags/ita.jpg', 'Real');
+INSERT INTO public.countries VALUES ('1928f61f-feb2-404e-b061-e688ede1b9fc', 'Jamaica', 'JAM', 'https://www.preventionweb.net/assets/shared/images/flags/jam.jpg', 'Real');
+INSERT INTO public.countries VALUES ('3ab7da78-6340-422a-948b-c2f71e399a49', 'Japan', 'JPN', 'https://www.preventionweb.net/assets/shared/images/flags/jpn.jpg', 'Real');
+INSERT INTO public.countries VALUES ('9fdd65ac-f763-457a-9441-e5a952ccc986', 'Jordan', 'JOR', 'https://www.preventionweb.net/assets/shared/images/flags/jor.jpg', 'Real');
+INSERT INTO public.countries VALUES ('651f17c8-7a1b-4d8b-a876-676882237cd6', 'Kazakhstan', 'KAZ', 'https://www.preventionweb.net/assets/shared/images/flags/kaz.jpg', 'Real');
+INSERT INTO public.countries VALUES ('6896f1e9-72b7-49f0-af38-7b4984110553', 'Kenya', 'KEN', 'https://www.preventionweb.net/assets/shared/images/flags/ken.jpg', 'Real');
+INSERT INTO public.countries VALUES ('2b95c384-2f75-4803-ac24-69f8985b1323', 'Kiribati', 'KIR', 'https://www.preventionweb.net/assets/shared/images/flags/kir.jpg', 'Real');
+INSERT INTO public.countries VALUES ('48e63eb9-1c57-4141-8692-b799b22c7600', 'Korea, Dem People''s Rep of', 'PRK', 'https://www.preventionweb.net/assets/shared/images/flags/prk.jpg', 'Real');
+INSERT INTO public.countries VALUES ('57cebaf1-7fc8-4619-9092-1eaeaf3e5976', 'Korea, Rep of', 'KOR', 'https://www.preventionweb.net/assets/shared/images/flags/kor.jpg', 'Real');
+INSERT INTO public.countries VALUES ('7255a212-5689-476e-9fb1-d43f384bcf34', 'Kuwait', 'KWT', 'https://www.preventionweb.net/assets/shared/images/flags/kwt.jpg', 'Real');
+INSERT INTO public.countries VALUES ('39ade2f0-5bc8-4c20-a62e-60b8010a9dec', 'Kyrgyzstan', 'KGZ', 'https://www.preventionweb.net/assets/shared/images/flags/kgz.jpg', 'Real');
+INSERT INTO public.countries VALUES ('9ea3ab13-f196-4d3f-b953-6e0a78c484be', 'Lao People''s Democratic Republic', 'LAO', 'https://www.preventionweb.net/assets/shared/images/flags/lao.jpg', 'Real');
+INSERT INTO public.countries VALUES ('f8f36a65-4201-47b6-8013-06d3b2aedd6c', 'Latvia', 'LVA', 'https://www.preventionweb.net/assets/shared/images/flags/lva.jpg', 'Real');
+INSERT INTO public.countries VALUES ('ca5015cf-f87f-458c-8d90-7f7416ce9f5c', 'Lebanon', 'LBN', 'https://www.preventionweb.net/assets/shared/images/flags/lbn.jpg', 'Real');
+INSERT INTO public.countries VALUES ('fea9fe4a-7fd9-4239-9631-df8b5aaf2492', 'Lesotho', 'LSO', 'https://www.preventionweb.net/assets/shared/images/flags/lso.jpg', 'Real');
+INSERT INTO public.countries VALUES ('70a25a1a-6192-4b19-8f92-3b5f90ce29d7', 'Liberia', 'LBR', 'https://www.preventionweb.net/assets/shared/images/flags/lbr.jpg', 'Real');
+INSERT INTO public.countries VALUES ('3e0dd05c-5412-4572-b5ef-3af0e0bb3e35', 'Libya', 'LBY', 'https://www.preventionweb.net/assets/shared/images/flags/lby.jpg', 'Real');
+INSERT INTO public.countries VALUES ('1912cf48-447d-49cb-bc45-960681e2a6c8', 'Liechtenstein', 'LIE', 'https://www.preventionweb.net/assets/shared/images/flags/lie.jpg', 'Real');
+INSERT INTO public.countries VALUES ('ac55fda9-5666-4d66-9bd4-290e73df4c7f', 'Lithuania', 'LTU', 'https://www.preventionweb.net/assets/shared/images/flags/ltu.jpg', 'Real');
+INSERT INTO public.countries VALUES ('65b1a1fd-0c75-499a-a950-9a66e47960eb', 'Luxembourg', 'LUX', 'https://www.preventionweb.net/assets/shared/images/flags/lux.jpg', 'Real');
+INSERT INTO public.countries VALUES ('83781cef-2824-45a3-bcde-dc570af94d8f', 'Macao (China)', 'MAC', 'https://www.preventionweb.net/assets/shared/images/flags/mac.jpg', 'Real');
+INSERT INTO public.countries VALUES ('6c0c91f7-7ac2-40c2-82f7-db6235c4972a', 'Madagascar', 'MDG', 'https://www.preventionweb.net/assets/shared/images/flags/mdg.jpg', 'Real');
+INSERT INTO public.countries VALUES ('be0a753b-79a2-48cd-bfe5-2b72dd707f22', 'Malawi', 'MWI', 'https://www.preventionweb.net/assets/shared/images/flags/mwi.jpg', 'Real');
+INSERT INTO public.countries VALUES ('8bb41959-c612-443a-850f-3c310abe7aba', 'Malaysia', 'MYS', 'https://www.preventionweb.net/assets/shared/images/flags/mys.jpg', 'Real');
+INSERT INTO public.countries VALUES ('b048dc8c-ee8d-4605-9772-3f9e65e76481', 'Maldives', 'MDV', 'https://www.preventionweb.net/assets/shared/images/flags/mdv.jpg', 'Real');
+INSERT INTO public.countries VALUES ('0265aa2d-bceb-44b2-ab42-9e825ff245f2', 'Mali', 'MLI', 'https://www.preventionweb.net/assets/shared/images/flags/mli.jpg', 'Real');
+INSERT INTO public.countries VALUES ('8124cb0e-c931-446b-8a63-f36bc0d2e048', 'Malta', 'MLT', 'https://www.preventionweb.net/assets/shared/images/flags/mlt.jpg', 'Real');
+INSERT INTO public.countries VALUES ('44f2b86a-895f-475d-bfc9-c76edff05a91', 'Marshall Islands', 'MHL', 'https://www.preventionweb.net/assets/shared/images/flags/mhl.jpg', 'Real');
+INSERT INTO public.countries VALUES ('789dd216-44df-40f3-b62c-289a19c69057', 'Martinique', 'MTQ', 'https://www.preventionweb.net/assets/shared/images/flags/mtq.jpg', 'Real');
+INSERT INTO public.countries VALUES ('471cba90-5cc9-40df-80f7-3f73501c8121', 'Mauritania', 'MRT', 'https://www.preventionweb.net/assets/shared/images/flags/mrt.jpg', 'Real');
+INSERT INTO public.countries VALUES ('d57db03e-bee6-4eae-92eb-61dc3b2c3417', 'Mauritius', 'MUS', 'https://www.preventionweb.net/assets/shared/images/flags/mus.jpg', 'Real');
+INSERT INTO public.countries VALUES ('d5f9dbdf-4f9d-452e-8bc6-aed703d04ab8', 'Mayotte', 'MYT', 'https://www.preventionweb.net/assets/shared/images/flags/myt.jpg', 'Real');
+INSERT INTO public.countries VALUES ('d88f37fd-b81d-4bdc-803e-04d2897dd74e', 'Mexico', 'MEX', 'https://www.preventionweb.net/assets/shared/images/flags/mex.jpg', 'Real');
+INSERT INTO public.countries VALUES ('c3f1ae3d-722a-4f8b-b662-9ec77521550c', 'Micronesia, Fed States of', 'FSM', 'https://www.preventionweb.net/assets/shared/images/flags/fsm.jpg', 'Real');
+INSERT INTO public.countries VALUES ('e46c8127-9ecd-4bf1-b111-ca33e233cf5a', 'Republic of Moldova', 'MDA', 'https://www.preventionweb.net/assets/shared/images/flags/mda.jpg', 'Real');
+INSERT INTO public.countries VALUES ('0d7a3350-17ad-4649-91f6-5cfec11a168e', 'Monaco', 'MCO', 'https://www.preventionweb.net/assets/shared/images/flags/mco.jpg', 'Real');
+INSERT INTO public.countries VALUES ('20d23aa9-3f7f-4b60-9bed-488c6953cb80', 'Mongolia', 'MNG', 'https://www.preventionweb.net/assets/shared/images/flags/mng.jpg', 'Real');
+INSERT INTO public.countries VALUES ('ecc11593-3f2c-4c39-be05-407e315b2075', 'Montenegro', 'MNE', 'https://www.preventionweb.net/assets/shared/images/flags/mne.jpg', 'Real');
+INSERT INTO public.countries VALUES ('7ef013c9-a1aa-495f-9cd2-9e10ed23a91d', 'Montserrat', 'MSR', 'https://www.preventionweb.net/assets/shared/images/flags/msr.jpg', 'Real');
+INSERT INTO public.countries VALUES ('4f08750e-e38b-4c33-956f-d9199e310ba7', 'Morocco', 'MAR', 'https://www.preventionweb.net/assets/shared/images/flags/mar.jpg', 'Real');
+INSERT INTO public.countries VALUES ('c3824b7d-c951-48fa-ac35-b3f386b3549b', 'Mozambique', 'MOZ', 'https://www.preventionweb.net/assets/shared/images/flags/moz.jpg', 'Real');
+INSERT INTO public.countries VALUES ('c2b997cd-af4f-44c3-a76d-d9376bcdf4cc', 'Myanmar', 'MMR', 'https://www.preventionweb.net/assets/shared/images/flags/mmr.jpg', 'Real');
+INSERT INTO public.countries VALUES ('04ae3fbb-1f43-40ec-8eb2-799f9687bebb', 'Namibia', 'NAM', 'https://www.preventionweb.net/assets/shared/images/flags/nam.jpg', 'Real');
+INSERT INTO public.countries VALUES ('6605c4e5-2da3-411f-bfd4-745ba710a7a3', 'Nauru', 'NRU', 'https://www.preventionweb.net/assets/shared/images/flags/nru.jpg', 'Real');
+INSERT INTO public.countries VALUES ('15972f49-7299-4fa6-a0ca-5a82116a8a50', 'Nepal', 'NPL', 'https://www.preventionweb.net/assets/shared/images/flags/npl.jpg', 'Real');
+INSERT INTO public.countries VALUES ('62a9ea2a-8709-4d9b-ade9-fe9e2a4b3014', 'Netherlands, the', 'NLD', 'https://www.preventionweb.net/assets/shared/images/flags/nld.jpg', 'Real');
+INSERT INTO public.countries VALUES ('f161c63f-32f8-4ac5-853c-23673dec62ea', 'New Caledonia', 'NCL', 'https://www.preventionweb.net/assets/shared/images/flags/ncl.jpg', 'Real');
+INSERT INTO public.countries VALUES ('df5eea6d-f1b1-461e-be75-90eae37b4acc', 'New Zealand', 'NZL', 'https://www.preventionweb.net/assets/shared/images/flags/nzl.jpg', 'Real');
+INSERT INTO public.countries VALUES ('d017da25-6138-4344-a0cb-b6d97a4ec12c', 'Nicaragua', 'NIC', 'https://www.preventionweb.net/assets/shared/images/flags/nic.jpg', 'Real');
+INSERT INTO public.countries VALUES ('a1f2f162-ca24-457e-8033-986dc0d79c85', 'Niger', 'NER', 'https://www.preventionweb.net/assets/shared/images/flags/ner.jpg', 'Real');
+INSERT INTO public.countries VALUES ('df80997b-f0f2-4454-8940-efc48048cf53', 'Nigeria', 'NGA', 'https://www.preventionweb.net/assets/shared/images/flags/nga.jpg', 'Real');
+INSERT INTO public.countries VALUES ('46667076-f1c1-4da4-a19b-03839742dfe8', 'Niue', 'NIU', 'https://www.preventionweb.net/assets/shared/images/flags/niu.jpg', 'Real');
+INSERT INTO public.countries VALUES ('3ba6cfab-a26e-4510-b0ba-e499ad97f101', 'Norfolk Island', 'NFK', 'https://www.preventionweb.net/assets/shared/images/flags/nfk.jpg', 'Real');
+INSERT INTO public.countries VALUES ('3aa3fbfe-b9a7-4eb9-a155-a18f94c03c1c', 'North Macedonia', 'MKD', 'https://www.preventionweb.net/assets/shared/images/flags/mkd.jpg', 'Real');
+INSERT INTO public.countries VALUES ('744be52e-df58-4bfb-84dc-8ae832e8db31', 'Northern Mariana Islands', 'MNP', 'https://www.preventionweb.net/assets/shared/images/flags/mnp.jpg', 'Real');
+INSERT INTO public.countries VALUES ('4e0f8155-982a-43bb-b7e2-b3030fa7bfc1', 'Norway', 'NOR', 'https://www.preventionweb.net/assets/shared/images/flags/nor.jpg', 'Real');
+INSERT INTO public.countries VALUES ('e471f20a-fd05-478e-8bdf-0509fa79de7b', 'Oman', 'OMN', 'https://www.preventionweb.net/assets/shared/images/flags/omn.jpg', 'Real');
+INSERT INTO public.countries VALUES ('3fb6627b-7b5b-4611-9882-578ab82ddf9a', 'Pakistan', 'PAK', 'https://www.preventionweb.net/assets/shared/images/flags/pak.jpg', 'Real');
+INSERT INTO public.countries VALUES ('9784ab8a-99db-49fa-8a97-ae87c8c4512c', 'Palau', 'PLW', 'https://www.preventionweb.net/assets/shared/images/flags/plw.jpg', 'Real');
+INSERT INTO public.countries VALUES ('1f370a8e-f42f-425f-ae70-75925107ca10', 'Palestine, State of', 'PSE', 'https://www.preventionweb.net/assets/shared/images/flags/pse.jpg', 'Real');
+INSERT INTO public.countries VALUES ('c667542f-554f-405f-928d-9ef4e410af2c', 'Panama', 'PAN', 'https://www.preventionweb.net/assets/shared/images/flags/pan.jpg', 'Real');
+INSERT INTO public.countries VALUES ('8ab7f277-2134-4bf9-b4be-6f6f75f036a3', 'Papua New Guinea', 'PNG', 'https://www.preventionweb.net/assets/shared/images/flags/png.jpg', 'Real');
+INSERT INTO public.countries VALUES ('a9969c88-1b18-4602-9ef7-1def74b3a41f', 'Paraguay', 'PRY', 'https://www.preventionweb.net/assets/shared/images/flags/pry.jpg', 'Real');
+INSERT INTO public.countries VALUES ('34b36990-dcc3-422c-8d0e-6420499cb5a0', 'Peru', 'PER', 'https://www.preventionweb.net/assets/shared/images/flags/per.jpg', 'Real');
+INSERT INTO public.countries VALUES ('0bf26858-9765-4789-999a-e43d25dcd482', 'Philippines', 'PHL', 'https://www.preventionweb.net/assets/shared/images/flags/phl.jpg', 'Real');
+INSERT INTO public.countries VALUES ('fc28ae57-fccc-4355-bec7-5d5153b7937d', 'Poland', 'POL', 'https://www.preventionweb.net/assets/shared/images/flags/pol.jpg', 'Real');
+INSERT INTO public.countries VALUES ('e1569bf2-88bf-4be1-bc09-63227f4fc817', 'Portugal', 'PRT', 'https://www.preventionweb.net/assets/shared/images/flags/prt.jpg', 'Real');
+INSERT INTO public.countries VALUES ('e6474541-c35a-4141-8143-595e23f04db6', 'Puerto Rico', 'PRI', 'https://www.preventionweb.net/assets/shared/images/flags/pri.jpg', 'Real');
+INSERT INTO public.countries VALUES ('fa23b430-4de0-4359-bd8a-448b35fadd8a', 'Qatar', 'QAT', 'https://www.preventionweb.net/assets/shared/images/flags/qat.jpg', 'Real');
+INSERT INTO public.countries VALUES ('47ba785c-ef56-4547-8301-3b0e26591cd7', 'Reunion', 'REU', 'https://www.preventionweb.net/assets/shared/images/flags/reu.jpg', 'Real');
+INSERT INTO public.countries VALUES ('26036c8d-703c-4ef2-9c0b-916a789085c6', 'Romania', 'ROU', 'https://www.preventionweb.net/assets/shared/images/flags/rou.jpg', 'Real');
+INSERT INTO public.countries VALUES ('eea79fd8-511b-4549-8f09-929814122590', 'Russian Federation', 'RUS', 'https://www.preventionweb.net/assets/shared/images/flags/rus.jpg', 'Real');
+INSERT INTO public.countries VALUES ('bf4413b1-3bbe-4c52-b6c2-a9fa22e11c74', 'Rwanda', 'RWA', 'https://www.preventionweb.net/assets/shared/images/flags/rwa.jpg', 'Real');
+INSERT INTO public.countries VALUES ('470b89f0-48a5-421d-ab93-898dd2b0de28', 'Saint Kitts and Nevis', 'KNA', 'https://www.preventionweb.net/assets/shared/images/flags/kna.jpg', 'Real');
+INSERT INTO public.countries VALUES ('9a22fe25-86c2-42bd-9553-d3ccaaa0b873', 'Saint Lucia', 'LCA', 'https://www.preventionweb.net/assets/shared/images/flags/lca.jpg', 'Real');
+INSERT INTO public.countries VALUES ('625047e9-1ccd-4712-9557-212fca234737', 'Saint Pierre and Miquelon', 'SPM', 'https://www.preventionweb.net/assets/shared/images/flags/spm.jpg', 'Real');
+INSERT INTO public.countries VALUES ('c5435851-9874-4946-acde-7a4eb4f69d9c', 'Saint Vincent and the Grenadines', 'VCT', 'https://www.preventionweb.net/assets/shared/images/flags/vct.jpg', 'Real');
+INSERT INTO public.countries VALUES ('db98298d-1864-49c1-97d3-86801c1456dc', 'Samoa', 'WSM', 'https://www.preventionweb.net/assets/shared/images/flags/wsm.jpg', 'Real');
+INSERT INTO public.countries VALUES ('d100cbc8-a076-489c-832a-d6851bc54825', 'San Marino', 'SMR', 'https://www.preventionweb.net/assets/shared/images/flags/smr.jpg', 'Real');
+INSERT INTO public.countries VALUES ('ea632d47-e10a-4d57-93ee-dab8c8f839bc', 'Sao Tome and Principe', 'STP', 'https://www.preventionweb.net/assets/shared/images/flags/stp.jpg', 'Real');
+INSERT INTO public.countries VALUES ('f7473922-38fe-4993-b71e-b16dd1360f6a', 'Saudi Arabia', 'SAU', 'https://www.preventionweb.net/assets/shared/images/flags/sau.jpg', 'Real');
+INSERT INTO public.countries VALUES ('d2b068c0-3a05-4611-af72-782b830a47ab', 'Senegal', 'SEN', 'https://www.preventionweb.net/assets/shared/images/flags/sen.jpg', 'Real');
+INSERT INTO public.countries VALUES ('0add34b0-4f70-4c6b-b71d-45abcdcb1411', 'Serbia', 'SRB', 'https://www.preventionweb.net/assets/shared/images/flags/srb.jpg', 'Real');
+INSERT INTO public.countries VALUES ('b33209ee-e0cf-4020-863a-e165b643cf35', 'Seychelles', 'SYC', 'https://www.preventionweb.net/assets/shared/images/flags/syc.jpg', 'Real');
+INSERT INTO public.countries VALUES ('d5f4b6a1-283d-4467-adef-4ebf0ce4fb82', 'Sierra Leone', 'SLE', 'https://www.preventionweb.net/assets/shared/images/flags/sle.jpg', 'Real');
+INSERT INTO public.countries VALUES ('c07bc2c1-a278-4857-9fb9-1b12fc4e5e43', 'Singapore', 'SGP', 'https://www.preventionweb.net/assets/shared/images/flags/sgp.jpg', 'Real');
+INSERT INTO public.countries VALUES ('78ccfb77-8a84-43c9-b688-f1c46e506011', 'Slovakia', 'SVK', 'https://www.preventionweb.net/assets/shared/images/flags/svk.jpg', 'Real');
+INSERT INTO public.countries VALUES ('5d50d75e-a687-4923-9e56-83303f5b577c', 'Slovenia', 'SVN', 'https://www.preventionweb.net/assets/shared/images/flags/svn.jpg', 'Real');
+INSERT INTO public.countries VALUES ('a6eea0b5-ae70-42d3-9a86-baaf0cf4dba1', 'Solomon Islands', 'SLB', 'https://www.preventionweb.net/assets/shared/images/flags/slb.jpg', 'Real');
+INSERT INTO public.countries VALUES ('25adca6d-ceb1-40ff-9b86-257141b05e27', 'Somalia', 'SOM', 'https://www.preventionweb.net/assets/shared/images/flags/som.jpg', 'Real');
+INSERT INTO public.countries VALUES ('60f9f4e7-55d0-492a-910e-fd5d5716bdb6', 'South Africa', 'ZAF', 'https://www.preventionweb.net/assets/shared/images/flags/zaf.jpg', 'Real');
+INSERT INTO public.countries VALUES ('aba391aa-d920-44f8-8a4b-a724e463e68d', 'South Sudan', 'SSD', 'https://www.preventionweb.net/assets/shared/images/flags/ssd.jpg', 'Real');
+INSERT INTO public.countries VALUES ('56fb06a9-5326-4678-92b1-9b7b86b43aa6', 'Spain', 'ESP', 'https://www.preventionweb.net/assets/shared/images/flags/esp.jpg', 'Real');
+INSERT INTO public.countries VALUES ('ce86428f-04ba-4ee1-98b1-fa02a367e17a', 'Sri Lanka', 'LKA', 'https://www.preventionweb.net/assets/shared/images/flags/lka.jpg', 'Real');
+INSERT INTO public.countries VALUES ('5e09dd8d-4595-4c89-a1fe-bff7e6968b06', 'Sudan', 'SDN', 'https://www.preventionweb.net/assets/shared/images/flags/sdn.jpg', 'Real');
+INSERT INTO public.countries VALUES ('7508df7c-9ffb-4f43-b084-d8954ea94885', 'Suriname', 'SUR', 'https://www.preventionweb.net/assets/shared/images/flags/sur.jpg', 'Real');
+INSERT INTO public.countries VALUES ('8334c696-f4ed-40c4-a046-6194ffd75e8b', 'Sweden', 'SWE', 'https://www.preventionweb.net/assets/shared/images/flags/swe.jpg', 'Real');
+INSERT INTO public.countries VALUES ('22af78c6-b700-4bb1-9823-4bcac2890816', 'Switzerland', 'CHE', 'https://www.preventionweb.net/assets/shared/images/flags/che.jpg', 'Real');
+INSERT INTO public.countries VALUES ('73d53899-2fe6-441c-8eb7-6823dfe6ba70', 'Syrian Arab Republic', 'SYR', 'https://www.preventionweb.net/assets/shared/images/flags/syr.jpg', 'Real');
+INSERT INTO public.countries VALUES ('d60237fe-d48d-4c4c-a6c4-3f7e56ea163e', 'Tajikistan', 'TJK', 'https://www.preventionweb.net/assets/shared/images/flags/tjk.jpg', 'Real');
+INSERT INTO public.countries VALUES ('e370afaf-1826-4aca-a179-bc22666151f4', 'Tanzania, United Rep of', 'TZA', 'https://www.preventionweb.net/assets/shared/images/flags/tza.jpg', 'Real');
+INSERT INTO public.countries VALUES ('f59cc61e-8ee9-4fb5-a86e-4f7ee418c408', 'Thailand', 'THA', 'https://www.preventionweb.net/assets/shared/images/flags/tha.jpg', 'Real');
+INSERT INTO public.countries VALUES ('b52ef707-97a8-4f7f-b9dd-cc0d6aa06f8e', 'Timor-Leste', 'TLS', 'https://www.preventionweb.net/assets/shared/images/flags/tls.jpg', 'Real');
+INSERT INTO public.countries VALUES ('74f1c170-c0bd-451b-9aef-44e3f6c502db', 'Tokelau', 'TKL', 'https://www.preventionweb.net/assets/shared/images/flags/tkl.jpg', 'Real');
+INSERT INTO public.countries VALUES ('12af80b5-839c-46ae-b8fd-b4c2580dd8a5', 'Tonga', 'TON', 'https://www.preventionweb.net/assets/shared/images/flags/ton.jpg', 'Real');
+INSERT INTO public.countries VALUES ('7e825b50-ffe4-4e75-b760-d90b31451c8e', 'Trinidad and Tobago', 'TTO', 'https://www.preventionweb.net/assets/shared/images/flags/tto.jpg', 'Real');
+INSERT INTO public.countries VALUES ('2ad58f41-eed6-49bb-93e3-85a92559a44e', 'Tunisia', 'TUN', 'https://www.preventionweb.net/assets/shared/images/flags/tun.jpg', 'Real');
+INSERT INTO public.countries VALUES ('fdc1ed69-3b06-4d75-b605-aa4a7f9dba46', 'Türkiye', 'TUR', 'https://www.preventionweb.net/assets/shared/images/flags/tur.jpg', 'Real');
+INSERT INTO public.countries VALUES ('f4ef536b-ea6c-45a8-a3de-195473fd0835', 'Turkmenistan', 'TKM', 'https://www.preventionweb.net/assets/shared/images/flags/tkm.jpg', 'Real');
+INSERT INTO public.countries VALUES ('7dd388b8-2658-4e1c-966c-f7deab5e484a', 'Turks and Caicos Islands', 'TCA', 'https://www.preventionweb.net/assets/shared/images/flags/tca.jpg', 'Real');
+INSERT INTO public.countries VALUES ('fb607843-e3f0-42f8-b00e-42a00f917281', 'Tuvalu', 'TUV', 'https://www.preventionweb.net/assets/shared/images/flags/tuv.jpg', 'Real');
+INSERT INTO public.countries VALUES ('a9464f99-a3fb-4327-ba9b-8b6d6d780690', 'Uganda', 'UGA', 'https://www.preventionweb.net/assets/shared/images/flags/uga.jpg', 'Real');
+INSERT INTO public.countries VALUES ('38432b5f-700f-432a-9165-fd2055a8c4cf', 'Ukraine', 'UKR', 'https://www.preventionweb.net/assets/shared/images/flags/ukr.jpg', 'Real');
+INSERT INTO public.countries VALUES ('c645762b-301b-4ecb-ad5c-9212a9ec208f', 'United Arab Emirates', 'ARE', 'https://www.preventionweb.net/assets/shared/images/flags/are.jpg', 'Real');
+INSERT INTO public.countries VALUES ('1120f73e-f98a-4cd3-86c9-ad4a2a93cc11', 'United Kingdom of Great Britain and Northern Ireland', 'GBR', 'https://www.preventionweb.net/assets/shared/images/flags/gbr.jpg', 'Real');
+INSERT INTO public.countries VALUES ('0e1a5089-2111-4fa0-a8dc-403164c29d57', 'United States of America', 'USA', 'https://www.preventionweb.net/assets/shared/images/flags/usa.jpg', 'Real');
+INSERT INTO public.countries VALUES ('4cc3a385-5396-4fcf-8f5a-72855625f45d', 'United States Virgin Islands', 'VIR', 'https://www.preventionweb.net/assets/shared/images/flags/vir.jpg', 'Real');
+INSERT INTO public.countries VALUES ('02221e73-c758-433f-b519-616e631d0dac', 'Uruguay', 'URY', 'https://www.preventionweb.net/assets/shared/images/flags/ury.jpg', 'Real');
+INSERT INTO public.countries VALUES ('3daba758-e061-42d9-9465-ef61cc5bb0dc', 'Uzbekistan', 'UZB', 'https://www.preventionweb.net/assets/shared/images/flags/uzb.jpg', 'Real');
+INSERT INTO public.countries VALUES ('db022d4b-ecf5-4386-9868-34583ce40819', 'Vanuatu', 'VUT', 'https://www.preventionweb.net/assets/shared/images/flags/vut.jpg', 'Real');
+INSERT INTO public.countries VALUES ('483bbd4c-b675-43d2-a461-84759b6efaf6', 'Venezuela, Bolivarian Rep of', 'VEN', 'https://www.preventionweb.net/assets/shared/images/flags/ven.jpg', 'Real');
+INSERT INTO public.countries VALUES ('0dff578e-34d2-47b9-abc1-25cef1d7ffb4', 'Viet Nam', 'VNM', 'https://www.preventionweb.net/assets/shared/images/flags/vnm.jpg', 'Real');
+INSERT INTO public.countries VALUES ('dc92b5cc-713e-4d2b-8e27-84d5acc84bc0', 'Wallis and Futuna Islands', 'WLF', 'https://www.preventionweb.net/assets/shared/images/flags/wlf.jpg', 'Real');
+INSERT INTO public.countries VALUES ('5c26a1f7-cc69-4066-b0df-2cfd42b5a52a', 'Yemen', 'YEM', 'https://www.preventionweb.net/assets/shared/images/flags/yem.jpg', 'Real');
+INSERT INTO public.countries VALUES ('7835a1ef-10ea-4035-bdc9-c05911677a54', 'Zambia', 'ZMB', 'https://www.preventionweb.net/assets/shared/images/flags/zmb.jpg', 'Real');
+INSERT INTO public.countries VALUES ('c6ed5c81-62d4-4ba4-a9d7-73ba4f9a420a', 'Zimbabwe', 'ZWE', 'https://www.preventionweb.net/assets/shared/images/flags/zwe.jpg', 'Real');
+INSERT INTO public.countries VALUES ('0eabbdb7-927f-4c5f-96bb-d661b4a85e97', 'Sint Maarten', 'SXM', 'https://www.preventionweb.net/assets/shared/images/flags/vir.jpg', 'Real');
+INSERT INTO public.countries VALUES ('4a3e51d7-1f92-4a80-94a4-eeadf1f05d6c', 'Saint Martin', 'MAF', ' https://www.preventionweb.net/assets/shared/images/flags/ury.jpg', 'Real');
+INSERT INTO public.countries VALUES ('c8f1a9d4-7b2e-4f6a-9c31-5e2d8a4b7f90', 'Disaster Land', 'DLN', '/assets/country-instance-logo.png', 'Fictional');
 
 
 --
@@ -1806,9 +2161,33 @@ INSERT INTO public.countries VALUES ('e681fd57-6ef2-4ef5-ac4f-d6199092941f', 'Zi
 
 
 --
+-- Data for Name: damages_division; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: damages_geom; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
 -- Data for Name: deaths; Type: TABLE DATA; Schema: public; Owner: -
 --
 
+
+
+--
+-- Data for Name: declaration_status; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.declaration_status VALUES ('ebe7e7b5-faf1-4833-b316-0e4d8c8ef84a', 'Declared / In force', 'The official declaration has been issued by the competent authority and is currently active and legally effective.');
+INSERT INTO public.declaration_status VALUES ('7a7975b9-aba6-4801-a64e-2ff946eb21b8', 'Extended', 'The declaration has been formally renewed beyond its original validity period through a separate legal act or official approval.');
+INSERT INTO public.declaration_status VALUES ('0bfe8716-fca1-4f2f-8d45-a3da230a7007', 'Modified', 'The declaration remains in force but has been amended, such as through escalation or de-escalation of the alert level, expansion or reduction of the affected area, or other substantive changes to its scope or conditions.');
+INSERT INTO public.declaration_status VALUES ('5e7bfe87-aa12-4e68-aa77-68c90f710ecd', 'Lifted / Revoked', 'The declaration has been formally terminated by the declaring or supervising authority before or at the end of its intended duration.');
+INSERT INTO public.declaration_status VALUES ('765954e2-f76d-4655-a62a-f0a9ad4fa410', 'Expired', 'The declaration has ceased to be in force automatically upon reaching its specified end date or time without formal renewal or extension.');
+INSERT INTO public.declaration_status VALUES ('80033fe6-cef6-435d-910e-a0396aaeb7c9', 'Annulled / Invalidated', 'The declaration has been declared legally invalid or void through judicial, legislative, or other competent legal review.');
 
 
 --
@@ -1818,7 +2197,85 @@ INSERT INTO public.countries VALUES ('e681fd57-6ef2-4ef5-ac4f-d6199092941f', 'Zi
 
 
 --
+-- Data for Name: disaster_event_assessment; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: disaster_event_assessment_attachment; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: disaster_event_assessment_sector; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: disaster_event_attachment; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: disaster_event_declaration; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: disaster_event_declaration_attachment; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: disaster_event_division; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: disaster_event_geom; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: disaster_event_link; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: disaster_event_response; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: disaster_event_response_attachment; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
 -- Data for Name: disaster_records; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: disaster_records_division; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: disaster_records_geom; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
@@ -1836,6 +2293,18 @@ INSERT INTO public.countries VALUES ('e681fd57-6ef2-4ef5-ac4f-d6199092941f', 'Zi
 
 
 --
+-- Data for Name: disruption_division; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: disruption_geom; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
 -- Data for Name: division; Type: TABLE DATA; Schema: public; Owner: -
 --
 
@@ -1845,7 +2314,7 @@ INSERT INTO public.countries VALUES ('e681fd57-6ef2-4ef5-ac4f-d6199092941f', 'Zi
 -- Data for Name: dts_system_info; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO public.dts_system_info VALUES ('73f0defb-4eba-4398-84b3-5e6737fec2b7', NULL, '2026-05-06 15:14:48.195087', '0.2.3', NULL);
+INSERT INTO public.dts_system_info VALUES ('73f0defb-4eba-4398-84b3-5e6737fec2b7', '0.3.0', NULL, '2026-08-27 05:49:32.201601', NULL);
 
 
 --
@@ -1867,6 +2336,12 @@ INSERT INTO public.dts_system_info VALUES ('73f0defb-4eba-4398-84b3-5e6737fec2b7
 
 
 --
+-- Data for Name: event_causality; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
 -- Data for Name: event_relationship; Type: TABLE DATA; Schema: public; Owner: -
 --
 
@@ -1874,6 +2349,18 @@ INSERT INTO public.dts_system_info VALUES ('73f0defb-4eba-4398-84b3-5e6737fec2b7
 
 --
 -- Data for Name: hazardous_event; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: hazardous_event_division; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: hazardous_event_geom; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
@@ -1921,7 +2408,6 @@ INSERT INTO public.hip_cluster VALUES ('1072', '1042', 'Water-related', '{"en": 
 INSERT INTO public.hip_cluster VALUES ('1073', '1042', 'Particle-related', '{"en": "Particle-related"}');
 INSERT INTO public.hip_cluster VALUES ('1074', '1042', 'Marine-related', '{"en": "Marine-related"}');
 INSERT INTO public.hip_cluster VALUES ('1076', '1042', 'Precipitation-related', '{"en": "Precipitation-related"}');
-INSERT INTO public.hip_cluster VALUES ('1090', '1044', 'Waste', '{"en": "Waste"}');
 INSERT INTO public.hip_cluster VALUES ('1077', '1042', 'Temperature-related', '{"en": "Temperature-related"}');
 INSERT INTO public.hip_cluster VALUES ('1078', '1042', 'Terrestrial', '{"en": "Terrestrial"}');
 INSERT INTO public.hip_cluster VALUES ('1079', '1042', 'Wind- & Pressure-related', '{"en": "Wind- & Pressure-related"}');
@@ -1933,6 +2419,7 @@ INSERT INTO public.hip_cluster VALUES ('1084', '1044', 'Radiation', '{"en": "Rad
 INSERT INTO public.hip_cluster VALUES ('1086', '1044', 'Construction/Structural Failure', '{"en": "Construction/Structural Failure"}');
 INSERT INTO public.hip_cluster VALUES ('1088', '1044', 'Cyber Hazards', '{"en": "Cyber Hazards"}');
 INSERT INTO public.hip_cluster VALUES ('1089', '1044', 'Industrial Failure', '{"en": "Industrial Failure"}');
+INSERT INTO public.hip_cluster VALUES ('1090', '1044', 'Waste', '{"en": "Waste"}');
 INSERT INTO public.hip_cluster VALUES ('1093', '1044', 'Transportation Accidents', '{"en": "Transportation Accidents"}');
 
 
@@ -1940,45 +2427,49 @@ INSERT INTO public.hip_cluster VALUES ('1093', '1044', 'Transportation Accidents
 -- Data for Name: hip_hazard; Type: TABLE DATA; Schema: public; Owner: -
 --
 
+INSERT INTO public.hip_hazard VALUES ('78554', 'GH0309', '1742', 'Subsidence and Uplift', 'Subsidence is a lowering or collapse of the ground (BGS, 2020). Uplift is the converse.', '{"en": "Subsidence and Uplift"}', '{"en": "Subsidence is a lowering or collapse of the ground (BGS, 2020). Uplift is the converse."}');
+INSERT INTO public.hip_hazard VALUES ('78571', 'MH0603', '1072', 'Flash Flooding', 'A flash flood is a flood of short duration with a relatively high peak discharge (WMO, 2021).', '{"en": "Flash Flooding"}', '{"en": "A flash flood is a flood of short duration with a relatively high peak discharge (WMO, 2021)."}');
+INSERT INTO public.hip_hazard VALUES ('78639', 'TL0201', '1086', 'Building Collapse', 'Building collapse is the failure of load-bearing structural elements, causing a building to fall or fail catastrophically / catastrophic failure (adapted from US Department of Labor, no date).', '{"en": "Building Collapse"}', '{"en": "Building collapse is the failure of load-bearing structural elements, causing a building to fall or fail catastrophically / catastrophic failure (adapted from US Department of Labor, no date)."}');
+INSERT INTO public.hip_hazard VALUES ('78401', 'BI0102', '1053', 'Bloodborne Viruses', 'Bloodborne viruses are viruses transmitted by direct contact with infected blood or other body fluids (adapted from WHO, 2023).', '{"en": "Bloodborne Viruses"}', '{"en": "Bloodborne viruses are viruses transmitted by direct contact with infected blood or other body fluids (adapted from WHO, 2023)."}');
+INSERT INTO public.hip_hazard VALUES ('78599', 'MH0403', '1076', 'Blizzard', 'A blizzard is a severe snowstorm characterised by poor visibility, usually occurring at high latitudes and in mountainous regions (WMO, 1992).', '{"en": "Blizzard"}', '{"en": "A blizzard is a severe snowstorm characterised by poor visibility, usually occurring at high latitudes and in mountainous regions (WMO, 1992)."}');
+INSERT INTO public.hip_hazard VALUES ('78660', 'TL0309', '1089', 'Natech', 'Natural hazard triggered technological accident (Showalter et al., 1994).', '{"en": "Natech"}', '{"en": "Natural hazard triggered technological accident (Showalter et al., 1994)."}');
+INSERT INTO public.hip_hazard VALUES ('78437', 'BI0222', '1844', 'Meningococcal Meningitis', 'Meningococcal meningitis is a bacterial form of meningitis, a serious infection of the thin lining that surrounds the brain and spinal cord, that is caused by the bacterium Neisseria meningitidis. Meningococcal meningitis has the potential to cause large-scale epidemics and is observed worldwide (adapted from WHO, 2025).', '{"en": "Meningococcal Meningitis"}', '{"en": "Meningococcal meningitis is a bacterial form of meningitis, a serious infection of the thin lining that surrounds the brain and spinal cord, that is caused by the bacterium Neisseria meningitidis. Meningococcal meningitis has the potential to cause large-scale epidemics and is observed worldwide (adapted from WHO, 2025)."}');
+INSERT INTO public.hip_hazard VALUES ('94015', 'CH0604', '1058', 'Opioids and Other Psychoactive Substances', 'Psychoactive substances are chemical compounds that can lead to physical or psychological dependence when consumed repeatedly, often altering brain function and behaviour. Overdose and overuse have caused significant public health concerns due to their potential to cause a wide range of adverse health effects. Addictive substances include alcohol, nicotine, (synthetic) opioids, (natural) opiates, stimulants, and certain sedatives, amongst others.', '{"en": "Opioids and Other Psychoactive Substances"}', '{"en": "Psychoactive substances are chemical compounds that can lead to physical or psychological dependence when consumed repeatedly, often altering brain function and behaviour. Overdose and overuse have caused significant public health concerns due to their potential to cause a wide range of adverse health effects. Addictive substances include alcohol, nicotine, (synthetic) opioids, (natural) opiates, stimulants, and certain sedatives, amongst others."}');
+INSERT INTO public.hip_hazard VALUES ('94093', 'GH0300', '1742', 'Gravitational Mass Movement (‘Landslide’)', 'A gravitational mass movement (‘landslide’) is the downslope movement of soil, rock and organic materials under the effects of gravity, which occurs when the gravitational driving forces exceed the frictional resistance of the material resisting on the slope. Such movements may be terrestrial or submarine (GH0306) (cf. Cruden and Varnes, 1996).', '{"en": "Gravitational Mass Movement (‘Landslide’)"}', '{"en": "A gravitational mass movement (‘landslide’) is the downslope movement of soil, rock and organic materials under the effects of gravity, which occurs when the gravitational driving forces exceed the frictional resistance of the material resisting on the slope. Such movements may be terrestrial or submarine (GH0306) (cf. Cruden and Varnes, 1996)."}');
+INSERT INTO public.hip_hazard VALUES ('94337', 'CH0100', '1057', 'Heavy Metals and Other Trace Elements', 'Heavy metals are metallic trace elements with either high relative atomic weights or occurring in materials with high densities. Trace Elements is the term used for elements that are generally found in soil at low concentrations but can still have significant impacts on human health and ecosystems when their levels exceed safe limits, as in the case of many heavy metals. Trace element contaminants that have biological significance are generally found in soil at concentrations of less than 100 mg/kg, and sometimes in aquatic ecosystems or as particulates in the atmosphere. Biological significance would include elements that are essential or toxic to any organism; some elements can be both, depending on their concentration. Many of the trace elements of importance are metals, while others are metalloids, alloys, non-metals, actinoids, and halogens occurring in a variety of chemical states (elemental, cations, anions, oxyanions, methylated, etc.). This category can overlap or be used synonymously with terms such as potentially toxic elements, heavy metals, persistent inorganic contaminants, and inorganic contaminants, and halides, such as fluoride and iodide. For the clarity of this document, the term trace elements will be used (FAO and UNEP, 2021a).', '{"en": "Heavy Metals and Other Trace Elements"}', '{"en": "Heavy metals are metallic trace elements with either high relative atomic weights or occurring in materials with high densities. Trace Elements is the term used for elements that are generally found in soil at low concentrations but can still have significant impacts on human health and ecosystems when their levels exceed safe limits, as in the case of many heavy metals. Trace element contaminants that have biological significance are generally found in soil at concentrations of less than 100 mg/kg, and sometimes in aquatic ecosystems or as particulates in the atmosphere. Biological significance would include elements that are essential or toxic to any organism; some elements can be both, depending on their concentration. Many of the trace elements of importance are metals, while others are metalloids, alloys, non-metals, actinoids, and halogens occurring in a variety of chemical states (elemental, cations, anions, oxyanions, methylated, etc.). This category can overlap or be used synonymously with terms such as potentially toxic elements, heavy metals, persistent inorganic contaminants, and inorganic contaminants, and halides, such as fluoride and iodide. For the clarity of this document, the term trace elements will be used (FAO and UNEP, 2021a)."}');
+INSERT INTO public.hip_hazard VALUES ('94360', 'CH0300', '1056', 'Toxic Gases', 'Toxic gases are substances in the gaseous state that cause hazardous physiological effects when inhaled, affecting the respiratory, cardiovascular, and nervous systems, making them major public hazards (WHO 2000).', '{"en": "Toxic Gases"}', '{"en": "Toxic gases are substances in the gaseous state that cause hazardous physiological effects when inhaled, affecting the respiratory, cardiovascular, and nervous systems, making them major public hazards (WHO 2000)."}');
+INSERT INTO public.hip_hazard VALUES ('94366', 'CH0400', '1843', 'Asphyxiant ​​Gases', 'Asphyxiant gases are gases that can cause unconsciousness or death by suffocation by displacing oxygen from air. Asphyxiant gases that have no other health effects are considered as simple asphyxiants. Simple asphyxiant gases become harmful to humans at high concentrations by lowering the percentage of oxygen in air (regularly present at 21%) to 19.5% or lower. (CCOHS, 2024)', '{"en": "Asphyxiant ​​Gases"}', '{"en": "Asphyxiant gases are gases that can cause unconsciousness or death by suffocation by displacing oxygen from air. Asphyxiant gases that have no other health effects are considered as simple asphyxiants. Simple asphyxiant gases become harmful to humans at high concentrations by lowering the percentage of oxygen in air (regularly present at 21%) to 19.5% or lower. (CCOHS, 2024)"}');
+INSERT INTO public.hip_hazard VALUES ('94367', 'CH0500', '1060', 'Persistent Organic Pollutants', 'Persistent organic pollutants (POPs) are chemicals of global concern due to their potential for long-range transport, persistence in the environment, ability to bio-magnify and bio-accumulate in ecosystems, as well as their significant negative effects on human health and the environment.', '{"en": "Persistent Organic Pollutants"}', '{"en": "Persistent organic pollutants (POPs) are chemicals of global concern due to their potential for long-range transport, persistence in the environment, ability to bio-magnify and bio-accumulate in ecosystems, as well as their significant negative effects on human health and the environment."}');
+INSERT INTO public.hip_hazard VALUES ('94514', 'MH0708', '1074', 'Marine Heatwave', 'A period of extreme warm near-sea surface temperature (SST) that persists for days to months and can extend up to thousands of kilometres (IPCC, 2019).', '{"en": "Marine Heatwave"}', '{"en": "A period of extreme warm near-sea surface temperature (SST) that persists for days to months and can extend up to thousands of kilometres (IPCC, 2019)."}');
+INSERT INTO public.hip_hazard VALUES ('94370', 'CH0503', '1060', 'Perfluoroalkyl and Polyfluoroalkyl Substances', 'Polyfluoroalkyl substances (PFAS) are a large family of chemicals in which ​multiple fluorine atoms are attached to an alkyl chain within a molecule​. If all possible sites of an alkyl chain are occupied by fluorine atoms, the substance may also be referred to as a perfluoroalkyl substance as in perfluorooctanoic acid (PFOA) or perfluorooctanesulfonic acid (PFOS). (WHO, 2023).', '{"en": "Perfluoroalkyl and Polyfluoroalkyl Substances"}', '{"en": "Polyfluoroalkyl substances (PFAS) are a large family of chemicals in which ​multiple fluorine atoms are attached to an alkyl chain within a molecule​. If all possible sites of an alkyl chain are occupied by fluorine atoms, the substance may also be referred to as a perfluoroalkyl substance as in perfluorooctanoic acid (PFOA) or perfluorooctanesulfonic acid (PFOS). (WHO, 2023)."}');
+INSERT INTO public.hip_hazard VALUES ('94397', 'CH0901', '1063', 'Corrosive Substances', 'Corrosive substances are materials, such as strong acids and strong bases, that, through chemical reactions, cause visible destruction of biological tissues, and other materials. Acids are substances that have a high tendency to donate protons when completely dissociating into ions in water; whereas strong bases are substances that accept protons when completely dissociating into ions in water. Both are highly corrosive and catalyse the decomposition of biological molecules. (Burrows et al., 2021)', '{"en": "Corrosive Substances"}', '{"en": "Corrosive substances are materials, such as strong acids and strong bases, that, through chemical reactions, cause visible destruction of biological tissues, and other materials. Acids are substances that have a high tendency to donate protons when completely dissociating into ions in water; whereas strong bases are substances that accept protons when completely dissociating into ions in water. Both are highly corrosive and catalyse the decomposition of biological molecules. (Burrows et al., 2021)"}');
+INSERT INTO public.hip_hazard VALUES ('94400', 'CH0902', '1063', 'Ammonium Nitr​​ate', 'Ammonium nitrate (NH4NO3) is principally used as a high nitrogen content fertilizer in agricultural applications. It is also a major component of industrial explosives, and similar mixtures have been used as improvised explosive devices. Thousands of people have been killed in accidental ammonium nitrate explosions triggered either by a shock/explosion, or by fire spreading into a storage facility. Overuse as a fertilizer can lead to contamination of drinking water.', '{"en": "Ammonium Nitr​​ate"}', '{"en": "Ammonium nitrate (NH4NO3) is principally used as a high nitrogen content fertilizer in agricultural applications. It is also a major component of industrial explosives, and similar mixtures have been used as improvised explosive devices. Thousands of people have been killed in accidental ammonium nitrate explosions triggered either by a shock/explosion, or by fire spreading into a storage facility. Overuse as a fertilizer can lead to contamination of drinking water."}');
+INSERT INTO public.hip_hazard VALUES ('94403', 'GH0303', '1742', 'Debris and earth (mud)flows and rock avalanches', 'Flows are gravitational mass movements down a slope in the form of a fluid. Flows often leave behind a distinctive, fan-shaped deposit where the landslide material has stopped moving (cf. British Geological Survey 2024)Sub-categories of flows may be defined by the type and proportion of material (e.g., soil, debris, or earth and the velocity of the mass movement, cf. Cruden and Varnes, 1996; Hungr et al., 2014). Mud flows are here taken to be a sub-category of earth flows. The term rock avalanche implies extremely rapid, massive, flow-like motion of fragmented rock from a large rock slide or rock fall (Hungr. et al., 2014).', '{"en": "Debris and earth (mud)flows and rock avalanches"}', '{"en": "Flows are gravitational mass movements down a slope in the form of a fluid. Flows often leave behind a distinctive, fan-shaped deposit where the landslide material has stopped moving (cf. British Geological Survey 2024)Sub-categories of flows may be defined by the type and proportion of material (e.g., soil, debris, or earth and the velocity of the mass movement, cf. Cruden and Varnes, 1996; Hungr et al., 2014). Mud flows are here taken to be a sub-category of earth flows. The term rock avalanche implies extremely rapid, massive, flow-like motion of fragmented rock from a large rock slide or rock fall (Hungr. et al., 2014)."}');
+INSERT INTO public.hip_hazard VALUES ('94404', 'GH0304', '1742', 'Rock, debris and earth (mud) slide', 'A slide is a movement of a mass of rock, debris or earth on an individualized failure surface (adapted from Dennis and Didier, 2019).Sub-categories of slides may be defined by the type of material (e.g., rock, soil, debris, or earth) and the velocity of the mass movement (cf. Cruden and Varnes, 1996; Hungr et al., 2014). Mud slides are here taken to be a sub-category of earth slides.', '{"en": "Rock, debris and earth (mud) slide"}', '{"en": "A slide is a movement of a mass of rock, debris or earth on an individualized failure surface (adapted from Dennis and Didier, 2019).Sub-categories of slides may be defined by the type of material (e.g., rock, soil, debris, or earth) and the velocity of the mass movement (cf. Cruden and Varnes, 1996; Hungr et al., 2014). Mud slides are here taken to be a sub-category of earth slides."}');
+INSERT INTO public.hip_hazard VALUES ('94405', 'GH0305', '1742', 'Rock, debris and earth topples', 'A topple is the forward rotation out of the slope of a mass of soil or rock about a point or axis below the center of gravity of the displaced mass (Cruden and Varnes, 1996).Sub-categories of topples may be defined by the type of material (e.g., rock, soil, debris, or earth, modes of toppling (Goodman and Bray, 1976) and the velocity of the mass movement (cf. Cruden and Varnes, 1996; Hungr et al., 2014).', '{"en": "Rock, debris and earth topples"}', '{"en": "A topple is the forward rotation out of the slope of a mass of soil or rock about a point or axis below the center of gravity of the displaced mass (Cruden and Varnes, 1996).Sub-categories of topples may be defined by the type of material (e.g., rock, soil, debris, or earth, modes of toppling (Goodman and Bray, 1976) and the velocity of the mass movement (cf. Cruden and Varnes, 1996; Hungr et al., 2014)."}');
+INSERT INTO public.hip_hazard VALUES ('94464', 'MH0402', '1076', 'Rain', 'Rain is precipitation of drops of water that falls from a cloud (WMO, 2017). While rain is essential for sustaining life and ecosystems, extreme rainfall is a primary trigger for some of the most devastating secondary hazards—flooding, landslides, and soil erosion—which result in widespread loss of life, damage to infrastructure, disruption of livelihoods, and environmental degradation (Rijal et al., 2024; Myhre et al., 2019).', '{"en": "Rain"}', '{"en": "Rain is precipitation of drops of water that falls from a cloud (WMO, 2017). While rain is essential for sustaining life and ecosystems, extreme rainfall is a primary trigger for some of the most devastating secondary hazards—flooding, landslides, and soil erosion—which result in widespread loss of life, damage to infrastructure, disruption of livelihoods, and environmental degradation (Rijal et al., 2024; Myhre et al., 2019)."}');
+INSERT INTO public.hip_hazard VALUES ('94492', 'MH0600', '1072', 'Flooding', 'Flooding is (1) an overflowing by water of the normal confines of a watercourse or other body of water; (2) an accumulation of drainage water over areas which are not normally submerged; (3) a controlled spreading of water for irrigation (WMO and UNESCO, 2012).', '{"en": "Flooding"}', '{"en": "Flooding is (1) an overflowing by water of the normal confines of a watercourse or other body of water; (2) an accumulation of drainage water over areas which are not normally submerged; (3) a controlled spreading of water for irrigation (WMO and UNESCO, 2012)."}');
+INSERT INTO public.hip_hazard VALUES ('94574', 'ET0206', '1067', 'Space Debris', 'Space debris refers to all human-made objects, including fragments and elements thereof, in Earth orbit or re-entering the atmosphere, that are nonfunctional (COPUOS, 2002 and UNOOSA, 2007).', '{"en": "Space Debris"}', '{"en": "Space debris refers to all human-made objects, including fragments and elements thereof, in Earth orbit or re-entering the atmosphere, that are nonfunctional (COPUOS, 2002 and UNOOSA, 2007)."}');
+INSERT INTO public.hip_hazard VALUES ('94603', 'TL0103', '1088', 'Advanced Persistent Threat', 'An advanced threat is created by an adversary with sophisticated levels of expertise and significant resources, allowing it, through the use of multiple different attack vectors (e.g., cyber, physical, and deception), to generate opportunities to achieve its objectives (NIST, 2012).', '{"en": "Advanced Persistent Threat"}', '{"en": "An advanced threat is created by an adversary with sophisticated levels of expertise and significant resources, allowing it, through the use of multiple different attack vectors (e.g., cyber, physical, and deception), to generate opportunities to achieve its objectives (NIST, 2012)."}');
+INSERT INTO public.hip_hazard VALUES ('94604', 'TL0104', '1088', 'Denial of Service', 'Denial of service is the prevention of authorised access to resources or the delaying of time-critical operations. (Time-critical may be milliseconds or it may be hours, depending upon the service provided) (NIST, 2017).', '{"en": "Denial of Service"}', '{"en": "Denial of service is the prevention of authorised access to resources or the delaying of time-critical operations. (Time-critical may be milliseconds or it may be hours, depending upon the service provided) (NIST, 2017)."}');
+INSERT INTO public.hip_hazard VALUES ('94606', 'TL0105', '1088', 'Supply Chain Attack', 'A supply chain attack is when products, services, or technology you are supplied with have been breached or compromised, and are in turn used to infiltrate and further compromise your own systems (ICO, no date).', '{"en": "Supply Chain Attack"}', '{"en": "A supply chain attack is when products, services, or technology you are supplied with have been breached or compromised, and are in turn used to infiltrate and further compromise your own systems (ICO, no date)."}');
+INSERT INTO public.hip_hazard VALUES ('94607', 'TL0107', '1088', 'Social Engineering - Phishing', 'Social engineering corresponds to all techniques aimed at persuading a target into revealing specific information or performing a specific action for illegitimate reasons (ECS, no date).', '{"en": "Social Engineering - Phishing"}', '{"en": "Social engineering corresponds to all techniques aimed at persuading a target into revealing specific information or performing a specific action for illegitimate reasons (ECS, no date)."}');
 INSERT INTO public.hip_hazard VALUES ('94770', 'TL0213', '1086', 'Tunnel Failure', 'Tunnels are artificial confined underground structures, which are used for different purposes; where, for example, collapses, fires, explosions and water ingress may damage tunnel facilities and cause injuries and human casualties, resulting in severe social harm (Adapted from Zafirovski et al., 2018 and Chien and Chao, 2021).', '{"en": "Tunnel Failure"}', '{"en": "Tunnels are artificial confined underground structures, which are used for different purposes; where, for example, collapses, fires, explosions and water ingress may damage tunnel facilities and cause injuries and human casualties, resulting in severe social harm (Adapted from Zafirovski et al., 2018 and Chien and Chao, 2021)."}');
 INSERT INTO public.hip_hazard VALUES ('95166', 'BI0220', '1844', 'Marburg virus disease', 'Marburg virus disease (MVD), formerly known as Marburg haemorrhagic fever, is a severe, often fatal illness in humans. The virus causes severe viral haemorrhagic fever in humans (WHO, 2025).', '{"en": "Marburg virus disease"}', '{"en": "Marburg virus disease (MVD), formerly known as Marburg haemorrhagic fever, is a severe, often fatal illness in humans. The virus causes severe viral haemorrhagic fever in humans (WHO, 2025)."}');
 INSERT INTO public.hip_hazard VALUES ('78385', 'BI0603', '1743', 'Harmful Algal Blooms', 'Harmful algal blooms result from noxious and/or toxic algae that cause direct and indirect negative impacts on aquatic ecosystems, coastal resources, and human health (Kudela et al., 2015).', '{"en": "Harmful Algal Blooms"}', '{"en": "Harmful algal blooms result from noxious and/or toxic algae that cause direct and indirect negative impacts on aquatic ecosystems, coastal resources, and human health (Kudela et al., 2015)."}');
-INSERT INTO public.hip_hazard VALUES ('78660', 'TL0309', '1089', 'Natech', 'Natural hazard triggered technological accident (Showalter et al., 1994).', '{"en": "Natech"}', '{"en": "Natural hazard triggered technological accident (Showalter et al., 1994)."}');
-INSERT INTO public.hip_hazard VALUES ('78604', 'MH0406', '1076', 'Snow Storm', 'A snow storm is a meteorological disturbance giving rise to a heavy fall of snow, often accompanied by strong winds (WMO, 1992).', '{"en": "Snow Storm"}', '{"en": "A snow storm is a meteorological disturbance giving rise to a heavy fall of snow, often accompanied by strong winds (WMO, 1992)."}');
 INSERT INTO public.hip_hazard VALUES ('78386', 'BI0401', '1046', 'Insect Pest Infestations', 'An insect pest infestation is a recently detected insect pest population, including an incursion, or a sudden significant increase of an established insect in an area leading to damage to plants in production fields, forests or natural habitats and causing substantial damage to productivity, biodiversity or natural resources (adapted from IPPC Secretariat, 2024).', '{"en": "Insect Pest Infestations"}', '{"en": "An insect pest infestation is a recently detected insect pest population, including an incursion, or a sudden significant increase of an established insect in an area leading to damage to plants in production fields, forests or natural habitats and causing substantial damage to productivity, biodiversity or natural resources (adapted from IPPC Secretariat, 2024)."}');
-INSERT INTO public.hip_hazard VALUES ('78613', 'MH0509', '1077', 'Icing (Including Ice)', 'Icing refers to any deposit or coating of ice on an object caused by the impact of liquid hydrometeors, usually supercooled (WMO, 1992).', '{"en": "Icing (Including Ice)"}', '{"en": "Icing refers to any deposit or coating of ice on an object caused by the impact of liquid hydrometeors, usually supercooled (WMO, 1992)."}');
 INSERT INTO public.hip_hazard VALUES ('78387', 'BI0402', '1046', 'Locust upsurge', 'Widespread and heavy infestations of crops and natural vegetation by locusts causing significant threats to food security, livelihoods and natural habitats in multiple regions (adapted from FAO, 2009a).', '{"en": "Locust upsurge"}', '{"en": "Widespread and heavy infestations of crops and natural vegetation by locusts causing significant threats to food security, livelihoods and natural habitats in multiple regions (adapted from FAO, 2009a)."}');
 INSERT INTO public.hip_hazard VALUES ('78389', 'BI0403', '1046', 'Invasive Species, Including Weeds', '‘Invasive species’, also known as ‘alien invasive species’, are species whose introduction, establishment and spread into new areas threaten ecosystems, habitats or other species and cause social, economic or environmental harm, or harm to human health (FAO, 2007:82).', '{"en": "Invasive Species, Including Weeds"}', '{"en": "‘Invasive species’, also known as ‘alien invasive species’, are species whose introduction, establishment and spread into new areas threaten ecosystems, habitats or other species and cause social, economic or environmental harm, or harm to human health (FAO, 2007:82)."}');
 INSERT INTO public.hip_hazard VALUES ('78390', 'BI0605', '1743', 'Snakebite envenoming', 'A snakebite envenoming is a potentially life-threatening disease caused by toxins in the bite of a venomous snake (WHO, 2023).', '{"en": "Snakebite envenoming"}', '{"en": "A snakebite envenoming is a potentially life-threatening disease caused by toxins in the bite of a venomous snake (WHO, 2023)."}');
 INSERT INTO public.hip_hazard VALUES ('78391', 'BI0604', '1743', 'Human-Wildlife Conflict', 'Human-wildlife conflict is defined as struggles that emerge when the presence or behaviour of wildlife poses an actual or perceived, direct and recurring threat to human interests or needs, leading to disagreements between groups of people and negative impacts on people and/or wildlife (IUCN SSC, 2022).', '{"en": "Human-Wildlife Conflict"}', '{"en": "Human-wildlife conflict is defined as struggles that emerge when the presence or behaviour of wildlife poses an actual or perceived, direct and recurring threat to human interests or needs, leading to disagreements between groups of people and negative impacts on people and/or wildlife (IUCN SSC, 2022)."}');
 INSERT INTO public.hip_hazard VALUES ('78392', 'BI0602', '1743', 'Biological Agents', 'Biological and toxin agents are either microorganisms like viruses, bacteria or fungi, or toxic substances produced by living organisms that are produced and released deliberately to cause disease and death in humans, animals or plants (WHO, no date).Biological agents include bacteria, viruses, fungi, other microorganisms and their associated toxins. They have the ability to adversely affect human health in a variety of ways, ranging from relatively mild, allergic reactions to serious medical conditions-even death. In some forms, biological agents can also be weaponized for use in bioterrorism or other crimes (adapted from US OSHA, no date)', '{"en": "Biological Agents"}', '{"en": "Biological and toxin agents are either microorganisms like viruses, bacteria or fungi, or toxic substances produced by living organisms that are produced and released deliberately to cause disease and death in humans, animals or plants (WHO, no date).Biological agents include bacteria, viruses, fungi, other microorganisms and their associated toxins. They have the ability to adversely affect human health in a variety of ways, ranging from relatively mild, allergic reactions to serious medical conditions-even death. In some forms, biological agents can also be weaponized for use in bioterrorism or other crimes (adapted from US OSHA, no date)"}');
-INSERT INTO public.hip_hazard VALUES ('78594', 'MH0705', '1074', 'Tsunami', 'Tsunami, a Japanese term meaning ''wave'' (‘nami’) in a harbour (‘tsu’), refers to a series of long-period travelling waves, typically caused by disturbances such as earthquakes occurring beneath or near the ocean floor (IOC, 2019).', '{"en": "Tsunami"}', '{"en": "Tsunami, a Japanese term meaning ''wave'' (‘nami’) in a harbour (‘tsu’), refers to a series of long-period travelling waves, typically caused by disturbances such as earthquakes occurring beneath or near the ocean floor (IOC, 2019)."}');
 INSERT INTO public.hip_hazard VALUES ('78393', 'SO0303', '1082', 'Suicide Cluster', 'The term ‘suicide cluster’ describes a situation in which more suicides than expected occur in terms of time, place, or both (PHE, 2019). Two types of suicide clusters can be distinguished (Joiner, 1999): clusters where suicides occur during a restricted time period and are related to actual or fictional media-related phenomena, and space-time clusters (or point clusters), where an unusually high number of suicides occur in a small geographical area, or institution, and over a relatively brief period of time (adapted from Joiner, 1999 and PHE, 2019).', '{"en": "Suicide Cluster"}', '{"en": "The term ‘suicide cluster’ describes a situation in which more suicides than expected occur in terms of time, place, or both (PHE, 2019). Two types of suicide clusters can be distinguished (Joiner, 1999): clusters where suicides occur during a restricted time period and are related to actual or fictional media-related phenomena, and space-time clusters (or point clusters), where an unusually high number of suicides occur in a small geographical area, or institution, and over a relatively brief period of time (adapted from Joiner, 1999 and PHE, 2019)."}');
 INSERT INTO public.hip_hazard VALUES ('78394', 'BI0601', '1743', 'Antimicrobial Resistance', 'Antimicrobial-resistant (AMR) microorganisms are bacteria, fungi, viruses, or parasites that evolve to withstand antimicrobial treatments, including antibiotics, antifungals, antivirals, and antiparasitics. These resistant microorganisms, make infections harder to treat, increasing the risk of disease spread, severe illness, and mortality. AMR is a major global public health and food security challenge and is driven by the misuse and overuse of antimicrobials in human medicine, animal health, and plant production and protection, as well as environmental contamination (adapted from WHO, 2023 and FAO, 2025).', '{"en": "Antimicrobial Resistance"}', '{"en": "Antimicrobial-resistant (AMR) microorganisms are bacteria, fungi, viruses, or parasites that evolve to withstand antimicrobial treatments, including antibiotics, antifungals, antivirals, and antiparasitics. These resistant microorganisms, make infections harder to treat, increasing the risk of disease spread, severe illness, and mortality. AMR is a major global public health and food security challenge and is driven by the misuse and overuse of antimicrobials in human medicine, animal health, and plant production and protection, as well as environmental contamination (adapted from WHO, 2023 and FAO, 2025)."}');
 INSERT INTO public.hip_hazard VALUES ('78396', 'BI0501', '1052', 'Bacterial Plant Disease', 'A bacterial plant disease is the occurrence of plant diseases caused by bacterial microorganisms over large areas with significant impacts on crop and forest productivity or natural habitat (adapted from FAO, 2018).', '{"en": "Bacterial Plant Disease"}', '{"en": "A bacterial plant disease is the occurrence of plant diseases caused by bacterial microorganisms over large areas with significant impacts on crop and forest productivity or natural habitat (adapted from FAO, 2018)."}');
 INSERT INTO public.hip_hazard VALUES ('78397', 'BI0502', '1052', 'Fungal Plant Disease', 'Fungal plant disease is the occurrence of plant diseases caused by fungal agents over large areas with significant impacts on crop productivity or natural habitats (adapted from Arneson, 2001 and Moore et al., 2019).', '{"en": "Fungal Plant Disease"}', '{"en": "Fungal plant disease is the occurrence of plant diseases caused by fungal agents over large areas with significant impacts on crop productivity or natural habitats (adapted from Arneson, 2001 and Moore et al., 2019)."}');
-INSERT INTO public.hip_hazard VALUES ('78420', 'BI0225', '1844', 'Paratyphoid fever', 'Paratyphoid fever results from systemic infection with Salmonella enterica serotype Paratyphi. It is characterised by febrile illness and, in severe cases, gastrointestinal bleeding, altered mental status, intestinal perforation, and death (IHME 2021).', '{"en": "Paratyphoid fever"}', '{"en": "Paratyphoid fever results from systemic infection with Salmonella enterica serotype Paratyphi. It is characterised by febrile illness and, in severe cases, gastrointestinal bleeding, altered mental status, intestinal perforation, and death (IHME 2021)."}');
-INSERT INTO public.hip_hazard VALUES ('94015', 'CH0604', '1058', 'Opioids and Other Psychoactive Substances', 'Psychoactive substances are chemical compounds that can lead to physical or psychological dependence when consumed repeatedly, often altering brain function and behaviour. Overdose and overuse have caused significant public health concerns due to their potential to cause a wide range of adverse health effects. Addictive substances include alcohol, nicotine, (synthetic) opioids, (natural) opiates, stimulants, and certain sedatives, amongst others.', '{"en": "Opioids and Other Psychoactive Substances"}', '{"en": "Psychoactive substances are chemical compounds that can lead to physical or psychological dependence when consumed repeatedly, often altering brain function and behaviour. Overdose and overuse have caused significant public health concerns due to their potential to cause a wide range of adverse health effects. Addictive substances include alcohol, nicotine, (synthetic) opioids, (natural) opiates, stimulants, and certain sedatives, amongst others."}');
-INSERT INTO public.hip_hazard VALUES ('94093', 'GH0300', '1742', 'Gravitational Mass Movement (‘Landslide’)', 'A gravitational mass movement (‘landslide’) is the downslope movement of soil, rock and organic materials under the effects of gravity, which occurs when the gravitational driving forces exceed the frictional resistance of the material resisting on the slope. Such movements may be terrestrial or submarine (GH0306) (cf. Cruden and Varnes, 1996).', '{"en": "Gravitational Mass Movement (‘Landslide’)"}', '{"en": "A gravitational mass movement (‘landslide’) is the downslope movement of soil, rock and organic materials under the effects of gravity, which occurs when the gravitational driving forces exceed the frictional resistance of the material resisting on the slope. Such movements may be terrestrial or submarine (GH0306) (cf. Cruden and Varnes, 1996)."}');
-INSERT INTO public.hip_hazard VALUES ('94403', 'GH0303', '1742', 'Debris and earth (mud)flows and rock avalanches', 'Flows are gravitational mass movements down a slope in the form of a fluid. Flows often leave behind a distinctive, fan-shaped deposit where the landslide material has stopped moving (cf. British Geological Survey 2024)Sub-categories of flows may be defined by the type and proportion of material (e.g., soil, debris, or earth and the velocity of the mass movement, cf. Cruden and Varnes, 1996; Hungr et al., 2014). Mud flows are here taken to be a sub-category of earth flows. The term rock avalanche implies extremely rapid, massive, flow-like motion of fragmented rock from a large rock slide or rock fall (Hungr. et al., 2014).', '{"en": "Debris and earth (mud)flows and rock avalanches"}', '{"en": "Flows are gravitational mass movements down a slope in the form of a fluid. Flows often leave behind a distinctive, fan-shaped deposit where the landslide material has stopped moving (cf. British Geological Survey 2024)Sub-categories of flows may be defined by the type and proportion of material (e.g., soil, debris, or earth and the velocity of the mass movement, cf. Cruden and Varnes, 1996; Hungr et al., 2014). Mud flows are here taken to be a sub-category of earth flows. The term rock avalanche implies extremely rapid, massive, flow-like motion of fragmented rock from a large rock slide or rock fall (Hungr. et al., 2014)."}');
-INSERT INTO public.hip_hazard VALUES ('94337', 'CH0100', '1057', 'Heavy Metals and Other Trace Elements', 'Heavy metals are metallic trace elements with either high relative atomic weights or occurring in materials with high densities. Trace Elements is the term used for elements that are generally found in soil at low concentrations but can still have significant impacts on human health and ecosystems when their levels exceed safe limits, as in the case of many heavy metals. Trace element contaminants that have biological significance are generally found in soil at concentrations of less than 100 mg/kg, and sometimes in aquatic ecosystems or as particulates in the atmosphere. Biological significance would include elements that are essential or toxic to any organism; some elements can be both, depending on their concentration. Many of the trace elements of importance are metals, while others are metalloids, alloys, non-metals, actinoids, and halogens occurring in a variety of chemical states (elemental, cations, anions, oxyanions, methylated, etc.). This category can overlap or be used synonymously with terms such as potentially toxic elements, heavy metals, persistent inorganic contaminants, and inorganic contaminants, and halides, such as fluoride and iodide. For the clarity of this document, the term trace elements will be used (FAO and UNEP, 2021a).', '{"en": "Heavy Metals and Other Trace Elements"}', '{"en": "Heavy metals are metallic trace elements with either high relative atomic weights or occurring in materials with high densities. Trace Elements is the term used for elements that are generally found in soil at low concentrations but can still have significant impacts on human health and ecosystems when their levels exceed safe limits, as in the case of many heavy metals. Trace element contaminants that have biological significance are generally found in soil at concentrations of less than 100 mg/kg, and sometimes in aquatic ecosystems or as particulates in the atmosphere. Biological significance would include elements that are essential or toxic to any organism; some elements can be both, depending on their concentration. Many of the trace elements of importance are metals, while others are metalloids, alloys, non-metals, actinoids, and halogens occurring in a variety of chemical states (elemental, cations, anions, oxyanions, methylated, etc.). This category can overlap or be used synonymously with terms such as potentially toxic elements, heavy metals, persistent inorganic contaminants, and inorganic contaminants, and halides, such as fluoride and iodide. For the clarity of this document, the term trace elements will be used (FAO and UNEP, 2021a)."}');
-INSERT INTO public.hip_hazard VALUES ('94360', 'CH0300', '1056', 'Toxic Gases', 'Toxic gases are substances in the gaseous state that cause hazardous physiological effects when inhaled, affecting the respiratory, cardiovascular, and nervous systems, making them major public hazards (WHO 2000).', '{"en": "Toxic Gases"}', '{"en": "Toxic gases are substances in the gaseous state that cause hazardous physiological effects when inhaled, affecting the respiratory, cardiovascular, and nervous systems, making them major public hazards (WHO 2000)."}');
-INSERT INTO public.hip_hazard VALUES ('94366', 'CH0400', '1843', 'Asphyxiant ​​Gases', 'Asphyxiant gases are gases that can cause unconsciousness or death by suffocation by displacing oxygen from air. Asphyxiant gases that have no other health effects are considered as simple asphyxiants. Simple asphyxiant gases become harmful to humans at high concentrations by lowering the percentage of oxygen in air (regularly present at 21%) to 19.5% or lower. (CCOHS, 2024)', '{"en": "Asphyxiant ​​Gases"}', '{"en": "Asphyxiant gases are gases that can cause unconsciousness or death by suffocation by displacing oxygen from air. Asphyxiant gases that have no other health effects are considered as simple asphyxiants. Simple asphyxiant gases become harmful to humans at high concentrations by lowering the percentage of oxygen in air (regularly present at 21%) to 19.5% or lower. (CCOHS, 2024)"}');
-INSERT INTO public.hip_hazard VALUES ('94367', 'CH0500', '1060', 'Persistent Organic Pollutants', 'Persistent organic pollutants (POPs) are chemicals of global concern due to their potential for long-range transport, persistence in the environment, ability to bio-magnify and bio-accumulate in ecosystems, as well as their significant negative effects on human health and the environment.', '{"en": "Persistent Organic Pollutants"}', '{"en": "Persistent organic pollutants (POPs) are chemicals of global concern due to their potential for long-range transport, persistence in the environment, ability to bio-magnify and bio-accumulate in ecosystems, as well as their significant negative effects on human health and the environment."}');
-INSERT INTO public.hip_hazard VALUES ('94370', 'CH0503', '1060', 'Perfluoroalkyl and Polyfluoroalkyl Substances', 'Polyfluoroalkyl substances (PFAS) are a large family of chemicals in which ​multiple fluorine atoms are attached to an alkyl chain within a molecule​. If all possible sites of an alkyl chain are occupied by fluorine atoms, the substance may also be referred to as a perfluoroalkyl substance as in perfluorooctanoic acid (PFOA) or perfluorooctanesulfonic acid (PFOS). (WHO, 2023).', '{"en": "Perfluoroalkyl and Polyfluoroalkyl Substances"}', '{"en": "Polyfluoroalkyl substances (PFAS) are a large family of chemicals in which ​multiple fluorine atoms are attached to an alkyl chain within a molecule​. If all possible sites of an alkyl chain are occupied by fluorine atoms, the substance may also be referred to as a perfluoroalkyl substance as in perfluorooctanoic acid (PFOA) or perfluorooctanesulfonic acid (PFOS). (WHO, 2023)."}');
-INSERT INTO public.hip_hazard VALUES ('94397', 'CH0901', '1063', 'Corrosive Substances', 'Corrosive substances are materials, such as strong acids and strong bases, that, through chemical reactions, cause visible destruction of biological tissues, and other materials. Acids are substances that have a high tendency to donate protons when completely dissociating into ions in water; whereas strong bases are substances that accept protons when completely dissociating into ions in water. Both are highly corrosive and catalyse the decomposition of biological molecules. (Burrows et al., 2021)', '{"en": "Corrosive Substances"}', '{"en": "Corrosive substances are materials, such as strong acids and strong bases, that, through chemical reactions, cause visible destruction of biological tissues, and other materials. Acids are substances that have a high tendency to donate protons when completely dissociating into ions in water; whereas strong bases are substances that accept protons when completely dissociating into ions in water. Both are highly corrosive and catalyse the decomposition of biological molecules. (Burrows et al., 2021)"}');
-INSERT INTO public.hip_hazard VALUES ('94400', 'CH0902', '1063', 'Ammonium Nitr​​ate', 'Ammonium nitrate (NH4NO3) is principally used as a high nitrogen content fertilizer in agricultural applications. It is also a major component of industrial explosives, and similar mixtures have been used as improvised explosive devices. Thousands of people have been killed in accidental ammonium nitrate explosions triggered either by a shock/explosion, or by fire spreading into a storage facility. Overuse as a fertilizer can lead to contamination of drinking water.', '{"en": "Ammonium Nitr​​ate"}', '{"en": "Ammonium nitrate (NH4NO3) is principally used as a high nitrogen content fertilizer in agricultural applications. It is also a major component of industrial explosives, and similar mixtures have been used as improvised explosive devices. Thousands of people have been killed in accidental ammonium nitrate explosions triggered either by a shock/explosion, or by fire spreading into a storage facility. Overuse as a fertilizer can lead to contamination of drinking water."}');
-INSERT INTO public.hip_hazard VALUES ('78414', 'BI0212', '1844', 'Hepatitis B', 'Hepatitis B is a vaccine-preventable disease, that is endemic and epidemic worldwide and is caused by the Hepatitis B virus (HBV). HBV can cause both acute and chronic liver disease. Chronic infection puts people at high risk of death from cirrhosis and liver cancer (WHO, 2024).', '{"en": "Hepatitis B"}', '{"en": "Hepatitis B is a vaccine-preventable disease, that is endemic and epidemic worldwide and is caused by the Hepatitis B virus (HBV). HBV can cause both acute and chronic liver disease. Chronic infection puts people at high risk of death from cirrhosis and liver cancer (WHO, 2024)."}');
-INSERT INTO public.hip_hazard VALUES ('94404', 'GH0304', '1742', 'Rock, debris and earth (mud) slide', 'A slide is a movement of a mass of rock, debris or earth on an individualized failure surface (adapted from Dennis and Didier, 2019).Sub-categories of slides may be defined by the type of material (e.g., rock, soil, debris, or earth) and the velocity of the mass movement (cf. Cruden and Varnes, 1996; Hungr et al., 2014). Mud slides are here taken to be a sub-category of earth slides.', '{"en": "Rock, debris and earth (mud) slide"}', '{"en": "A slide is a movement of a mass of rock, debris or earth on an individualized failure surface (adapted from Dennis and Didier, 2019).Sub-categories of slides may be defined by the type of material (e.g., rock, soil, debris, or earth) and the velocity of the mass movement (cf. Cruden and Varnes, 1996; Hungr et al., 2014). Mud slides are here taken to be a sub-category of earth slides."}');
-INSERT INTO public.hip_hazard VALUES ('94405', 'GH0305', '1742', 'Rock, debris and earth topples', 'A topple is the forward rotation out of the slope of a mass of soil or rock about a point or axis below the center of gravity of the displaced mass (Cruden and Varnes, 1996).Sub-categories of topples may be defined by the type of material (e.g., rock, soil, debris, or earth, modes of toppling (Goodman and Bray, 1976) and the velocity of the mass movement (cf. Cruden and Varnes, 1996; Hungr et al., 2014).', '{"en": "Rock, debris and earth topples"}', '{"en": "A topple is the forward rotation out of the slope of a mass of soil or rock about a point or axis below the center of gravity of the displaced mass (Cruden and Varnes, 1996).Sub-categories of topples may be defined by the type of material (e.g., rock, soil, debris, or earth, modes of toppling (Goodman and Bray, 1976) and the velocity of the mass movement (cf. Cruden and Varnes, 1996; Hungr et al., 2014)."}');
-INSERT INTO public.hip_hazard VALUES ('94464', 'MH0402', '1076', 'Rain', 'Rain is precipitation of drops of water that falls from a cloud (WMO, 2017). While rain is essential for sustaining life and ecosystems, extreme rainfall is a primary trigger for some of the most devastating secondary hazards—flooding, landslides, and soil erosion—which result in widespread loss of life, damage to infrastructure, disruption of livelihoods, and environmental degradation (Rijal et al., 2024; Myhre et al., 2019).', '{"en": "Rain"}', '{"en": "Rain is precipitation of drops of water that falls from a cloud (WMO, 2017). While rain is essential for sustaining life and ecosystems, extreme rainfall is a primary trigger for some of the most devastating secondary hazards—flooding, landslides, and soil erosion—which result in widespread loss of life, damage to infrastructure, disruption of livelihoods, and environmental degradation (Rijal et al., 2024; Myhre et al., 2019)."}');
-INSERT INTO public.hip_hazard VALUES ('94492', 'MH0600', '1072', 'Flooding', 'Flooding is (1) an overflowing by water of the normal confines of a watercourse or other body of water; (2) an accumulation of drainage water over areas which are not normally submerged; (3) a controlled spreading of water for irrigation (WMO and UNESCO, 2012).', '{"en": "Flooding"}', '{"en": "Flooding is (1) an overflowing by water of the normal confines of a watercourse or other body of water; (2) an accumulation of drainage water over areas which are not normally submerged; (3) a controlled spreading of water for irrigation (WMO and UNESCO, 2012)."}');
-INSERT INTO public.hip_hazard VALUES ('94514', 'MH0708', '1074', 'Marine Heatwave', 'A period of extreme warm near-sea surface temperature (SST) that persists for days to months and can extend up to thousands of kilometres (IPCC, 2019).', '{"en": "Marine Heatwave"}', '{"en": "A period of extreme warm near-sea surface temperature (SST) that persists for days to months and can extend up to thousands of kilometres (IPCC, 2019)."}');
-INSERT INTO public.hip_hazard VALUES ('94574', 'ET0206', '1067', 'Space Debris', 'Space debris refers to all human-made objects, including fragments and elements thereof, in Earth orbit or re-entering the atmosphere, that are nonfunctional (COPUOS, 2002 and UNOOSA, 2007).', '{"en": "Space Debris"}', '{"en": "Space debris refers to all human-made objects, including fragments and elements thereof, in Earth orbit or re-entering the atmosphere, that are nonfunctional (COPUOS, 2002 and UNOOSA, 2007)."}');
 INSERT INTO public.hip_hazard VALUES ('78398', 'BI0503', '1052', 'Viral, Phytoplasma and Viroid Plant Disease Outbreaks', 'Viral, phytoplasma and viroid plant disease outbreaks refer to sudden occurrence of plant diseases caused by viruses, phytoplasma (syn. mycoplasma-like organisms) and viroids over large areas with significant impact on crop production or natural habitats (adapted from Nakashima & Murata, 1993; Hammond & Owens, 2006; FAO / IPPC, 2016; Rubio et al., 2020).', '{"en": "Viral, Phytoplasma and Viroid Plant Disease Outbreaks"}', '{"en": "Viral, phytoplasma and viroid plant disease outbreaks refer to sudden occurrence of plant diseases caused by viruses, phytoplasma (syn. mycoplasma-like organisms) and viroids over large areas with significant impact on crop production or natural habitats (adapted from Nakashima & Murata, 1993; Hammond & Owens, 2006; FAO / IPPC, 2016; Rubio et al., 2020)."}');
 INSERT INTO public.hip_hazard VALUES ('78399', 'BI0201', '1844', 'Anthrax', 'Anthrax is a disease caused by the spore-forming bacteria Bacillus anthracis. Anthrax is primarily a disease of herbivorous animals, although all mammals, including humans, can contract it. In humans, anthrax manifests itself in three distinct patterns (cutaneous, gastrointestinal, inhalational) (adapted from WHO, FAO, & OIE, 2008; CDC, 2020).', '{"en": "Anthrax"}', '{"en": "Anthrax is a disease caused by the spore-forming bacteria Bacillus anthracis. Anthrax is primarily a disease of herbivorous animals, although all mammals, including humans, can contract it. In humans, anthrax manifests itself in three distinct patterns (cutaneous, gastrointestinal, inhalational) (adapted from WHO, FAO, & OIE, 2008; CDC, 2020)."}');
 INSERT INTO public.hip_hazard VALUES ('78400', 'BI0101', '1053', 'Airborne Diseases', 'Airborne transmission of infectious agents refers to the transmission of disease caused by the dissemination of very small droplets that remain infectious when suspended in air over long distances and time, and potentially cause significant morbidity and mortality (adapted from WHO, 2020).', '{"en": "Airborne Diseases"}', '{"en": "Airborne transmission of infectious agents refers to the transmission of disease caused by the dissemination of very small droplets that remain infectious when suspended in air over long distances and time, and potentially cause significant morbidity and mortality (adapted from WHO, 2020)."}');
-INSERT INTO public.hip_hazard VALUES ('78401', 'BI0102', '1053', 'Bloodborne Viruses', 'Bloodborne viruses are viruses transmitted by direct contact with infected blood or other body fluids (adapted from WHO, 2023).', '{"en": "Bloodborne Viruses"}', '{"en": "Bloodborne viruses are viruses transmitted by direct contact with infected blood or other body fluids (adapted from WHO, 2023)."}');
 INSERT INTO public.hip_hazard VALUES ('78402', 'BI0110', '1053', 'Waterborne Diseases', 'Contaminated water and poor sanitation are linked to transmission of diseases such as cholera, diarrhoea, dysentery, hepatitis A, hepatitis E, typhoid and polio (adapted from WHO, 2023a and WHO, 2023b).', '{"en": "Waterborne Diseases"}', '{"en": "Contaminated water and poor sanitation are linked to transmission of diseases such as cholera, diarrhoea, dysentery, hepatitis A, hepatitis E, typhoid and polio (adapted from WHO, 2023a and WHO, 2023b)."}');
 INSERT INTO public.hip_hazard VALUES ('78403', 'BI0104', '1053', 'Foodborne Diseases', 'Foodborne diseases are caused by contamination of food and occur at any stage of the food production, delivery and consumption chain. They can result from several forms of environmental contamination including pollution in water, soil or air, as well as unsafe food storage and processing. Foodborne diseases encompass a wide range of illnesses from diarrhoea to cancers (WHO, no date a).', '{"en": "Foodborne Diseases"}', '{"en": "Foodborne diseases are caused by contamination of food and occur at any stage of the food production, delivery and consumption chain. They can result from several forms of environmental contamination including pollution in water, soil or air, as well as unsafe food storage and processing. Foodborne diseases encompass a wide range of illnesses from diarrhoea to cancers (WHO, no date a)."}');
 INSERT INTO public.hip_hazard VALUES ('78404', 'BI0106', '1053', 'Sexually Transmitted Infections', 'Sexually transmitted infections are transmitted through sexual contact, including vaginal, anal and oral sex and some can also be transmitted from mother-to-child during pregnancy, childbirth and breastfeeding (WHO, 2024).', '{"en": "Sexually Transmitted Infections"}', '{"en": "Sexually transmitted infections are transmitted through sexual contact, including vaginal, anal and oral sex and some can also be transmitted from mother-to-child during pregnancy, childbirth and breastfeeding (WHO, 2024)."}');
@@ -1990,12 +2481,15 @@ INSERT INTO public.hip_hazard VALUES ('78410', 'BI0301', '1054', 'Infectious Ani
 INSERT INTO public.hip_hazard VALUES ('78411', 'BI0113', '1053', 'Zoonotic Diseases', 'Zoonotic diseases, or zoonoses, are diseases shared between animals – including livestock, wildlife, and pets – and people. They can pose serious risks to both animal and human health and may have far-reaching impacts on economies and livelihoods and represent a major public health problem. Zoonotic diseases are commonly spread at the human-animal-environment interface – where people and animals interact with each other in their shared environment (adapted from WHO, FAO, WOAH, 2019 & WHO, 2020).', '{"en": "Zoonotic Diseases"}', '{"en": "Zoonotic diseases, or zoonoses, are diseases shared between animals – including livestock, wildlife, and pets – and people. They can pose serious risks to both animal and human health and may have far-reaching impacts on economies and livelihoods and represent a major public health problem. Zoonotic diseases are commonly spread at the human-animal-environment interface – where people and animals interact with each other in their shared environment (adapted from WHO, FAO, WOAH, 2019 & WHO, 2020)."}');
 INSERT INTO public.hip_hazard VALUES ('78412', 'BI0103', '1053', 'Diarrhoeal Diseases', 'Diarrhoeal diseases are infectious diseases, contaminants and other causes of diarrhoea. Diarrhoea is defined as the passage of three or more loose or liquid stools per day, or more frequently than is normal for the individual. Diarrhoeal disease is the third leading cause of death in children 1–59 months of age. It is both preventable and treatable. (WHO, 2024a).', '{"en": "Diarrhoeal Diseases"}', '{"en": "Diarrhoeal diseases are infectious diseases, contaminants and other causes of diarrhoea. Diarrhoea is defined as the passage of three or more loose or liquid stools per day, or more frequently than is normal for the individual. Diarrhoeal disease is the third leading cause of death in children 1–59 months of age. It is both preventable and treatable. (WHO, 2024a)."}');
 INSERT INTO public.hip_hazard VALUES ('78413', 'BI0230', '1844', 'Prion Diseases', 'Prion diseases are a family of rare progressive neurodegenerative disorders that affect both humans and animals (Adapted from CDC, 2024, and WHO, no date).', '{"en": "Prion Diseases"}', '{"en": "Prion diseases are a family of rare progressive neurodegenerative disorders that affect both humans and animals (Adapted from CDC, 2024, and WHO, no date)."}');
+INSERT INTO public.hip_hazard VALUES ('78580', 'MH0201', '1073', 'Dust storm or Sandstorm', 'A dust storm is an ensemble of particles of dust or sand energetically lifted to great heights by a strong and turbulent wind (WMO, 2017).', '{"en": "Dust storm or Sandstorm"}', '{"en": "A dust storm is an ensemble of particles of dust or sand energetically lifted to great heights by a strong and turbulent wind (WMO, 2017)."}');
+INSERT INTO public.hip_hazard VALUES ('78414', 'BI0212', '1844', 'Hepatitis B', 'Hepatitis B is a vaccine-preventable disease, that is endemic and epidemic worldwide and is caused by the Hepatitis B virus (HBV). HBV can cause both acute and chronic liver disease. Chronic infection puts people at high risk of death from cirrhosis and liver cancer (WHO, 2024).', '{"en": "Hepatitis B"}', '{"en": "Hepatitis B is a vaccine-preventable disease, that is endemic and epidemic worldwide and is caused by the Hepatitis B virus (HBV). HBV can cause both acute and chronic liver disease. Chronic infection puts people at high risk of death from cirrhosis and liver cancer (WHO, 2024)."}');
 INSERT INTO public.hip_hazard VALUES ('78415', 'BI0213', '1844', 'Hepatitis C', 'Hepatitis C is a blood-borne liver disease caused by the hepatitis C virus: the virus can cause both acute and chronic hepatitis, ranging in severity from a mild illness lasting a few weeks to a serious, lifelong illness including liver cirrhosis and liver cancer. Hepatitis C is endemic and epidemic worldwide (WHO, 2024a).', '{"en": "Hepatitis C"}', '{"en": "Hepatitis C is a blood-borne liver disease caused by the hepatitis C virus: the virus can cause both acute and chronic hepatitis, ranging in severity from a mild illness lasting a few weeks to a serious, lifelong illness including liver cirrhosis and liver cancer. Hepatitis C is endemic and epidemic worldwide (WHO, 2024a)."}');
+INSERT INTO public.hip_hazard VALUES ('78438', 'BI0227', '1844', 'Pertussis (Human)', 'Pertussis is a highly contagious disease, which can be fatal, of the respiratory tract caused by the bacterium Bordetella pertussis (WHO, no date a).', '{"en": "Pertussis (Human)"}', '{"en": "Pertussis is a highly contagious disease, which can be fatal, of the respiratory tract caused by the bacterium Bordetella pertussis (WHO, no date a)."}');
 INSERT INTO public.hip_hazard VALUES ('78416', 'BI0214', '1844', 'HIV and AIDS', 'Human immunodeficiency virus (HIV) is a virus that attacks the body’s immune system. Acquired immunodeficiency syndrome (AIDS) occurs at the most advanced stage of infection. HIV targets the body’s white blood cells, weakening the immune system. This makes it easier to get sick with diseases like tuberculosis, infections and some cancers. HIV is spread from the body fluids of an infected person, including blood, breast milk, semen and vaginal fluids. WHO now defines Advanced HIV Disease (AHD) as CD4 cell count less than 200 cells/mm3 or WHO stage 3 or 4 in adults and adolescents. All children younger than 5 years of age living with HIV are considered to have advanced HIV disease (WHO, 2024a).', '{"en": "HIV and AIDS"}', '{"en": "Human immunodeficiency virus (HIV) is a virus that attacks the body’s immune system. Acquired immunodeficiency syndrome (AIDS) occurs at the most advanced stage of infection. HIV targets the body’s white blood cells, weakening the immune system. This makes it easier to get sick with diseases like tuberculosis, infections and some cancers. HIV is spread from the body fluids of an infected person, including blood, breast milk, semen and vaginal fluids. WHO now defines Advanced HIV Disease (AHD) as CD4 cell count less than 200 cells/mm3 or WHO stage 3 or 4 in adults and adolescents. All children younger than 5 years of age living with HIV are considered to have advanced HIV disease (WHO, 2024a)."}');
 INSERT INTO public.hip_hazard VALUES ('78417', 'BI0205', '1844', 'COVID-19 (SARS-CoV-2)', 'COVID-19 is an infectious disease caused by the SARS Coronavirus 2 (SARS-CoV-2), a virus first identified in human populations in late 2019 which caused a global outbreak of coronavirus – an infectious disease caused by the severe acute respiratory syndrome coronavirus 2 (SARS-CoV-2) (adapted from WHO, 2023 and WHO Euro, no date).', '{"en": "COVID-19 (SARS-CoV-2)"}', '{"en": "COVID-19 is an infectious disease caused by the SARS Coronavirus 2 (SARS-CoV-2), a virus first identified in human populations in late 2019 which caused a global outbreak of coronavirus – an infectious disease caused by the severe acute respiratory syndrome coronavirus 2 (SARS-CoV-2) (adapted from WHO, 2023 and WHO Euro, no date)."}');
 INSERT INTO public.hip_hazard VALUES ('78418', 'BI0204', '1844', 'Cholera', 'Cholera is an acute diarrhoeal infection caused by ingestion of food or water contaminated with the bacterium Vibrio cholerae. Cholera is a global threat to public health (WHO, 2024a).', '{"en": "Cholera"}', '{"en": "Cholera is an acute diarrhoeal infection caused by ingestion of food or water contaminated with the bacterium Vibrio cholerae. Cholera is a global threat to public health (WHO, 2024a)."}');
-INSERT INTO public.hip_hazard VALUES ('78615', 'MH0801', '1078', 'Avalanche', 'An avalanche is a mass of snow and ice falling suddenly down a mountain slope and often taking with it earth, rocks and rubble of every description (WMO, 1992).', '{"en": "Avalanche"}', '{"en": "An avalanche is a mass of snow and ice falling suddenly down a mountain slope and often taking with it earth, rocks and rubble of every description (WMO, 1992)."}');
 INSERT INTO public.hip_hazard VALUES ('78419', 'BI0111', '1053', 'Cryptosporidium', 'Cryptosporidium is a microscopic parasite that can live in water, food, soil, or on surfaces that have been contaminated with infected faeces and causes the watery diarrhoeal disease cryptosporidiosis (adapted from CDC 2024 and Peletz et al., 2013).', '{"en": "Cryptosporidium"}', '{"en": "Cryptosporidium is a microscopic parasite that can live in water, food, soil, or on surfaces that have been contaminated with infected faeces and causes the watery diarrhoeal disease cryptosporidiosis (adapted from CDC 2024 and Peletz et al., 2013)."}');
+INSERT INTO public.hip_hazard VALUES ('78420', 'BI0225', '1844', 'Paratyphoid fever', 'Paratyphoid fever results from systemic infection with Salmonella enterica serotype Paratyphi. It is characterised by febrile illness and, in severe cases, gastrointestinal bleeding, altered mental status, intestinal perforation, and death (IHME 2021).', '{"en": "Paratyphoid fever"}', '{"en": "Paratyphoid fever results from systemic infection with Salmonella enterica serotype Paratyphi. It is characterised by febrile illness and, in severe cases, gastrointestinal bleeding, altered mental status, intestinal perforation, and death (IHME 2021)."}');
 INSERT INTO public.hip_hazard VALUES ('78421', 'BI0226', '1844', 'Typhoid Fever', 'Typhoid fever is a life-threatening infection caused by the bacterium Salmonella typhi. It is usually spread through contaminated food or water. As of 2019 estimates, there are 9 million cases of typhoid fever annually, resulting in about 110 000 deaths per year. (WHO, 2023).', '{"en": "Typhoid Fever"}', '{"en": "Typhoid fever is a life-threatening infection caused by the bacterium Salmonella typhi. It is usually spread through contaminated food or water. As of 2019 estimates, there are 9 million cases of typhoid fever annually, resulting in about 110 000 deaths per year. (WHO, 2023)."}');
 INSERT INTO public.hip_hazard VALUES ('78422', 'BI0211', '1844', 'Hepatitis A', 'Hepatitis A is an acute vaccine-preventable viral liver disease and can cause mild to severe illness. Hepatitis A occurs sporadically and in epidemics worldwide, with a tendency for cyclic recurrences, as the virus persists in the environment and can withstand food production processes routinely used to inactivate or control bacterial pathogens (WHO, 2025a).', '{"en": "Hepatitis A"}', '{"en": "Hepatitis A is an acute vaccine-preventable viral liver disease and can cause mild to severe illness. Hepatitis A occurs sporadically and in epidemics worldwide, with a tendency for cyclic recurrences, as the virus persists in the environment and can withstand food production processes routinely used to inactivate or control bacterial pathogens (WHO, 2025a)."}');
 INSERT INTO public.hip_hazard VALUES ('78423', 'BI0210', '1844', 'Escherichia Coli (STEC)', 'Escherichia coli (E. coli) is a bacterium commonly found in the gut. Some strains can cause serious food poisoning, leading to diarrhoea and sometimes to life-threatening complications including haemolytic uraemic syndrome (WHO, 2018a).', '{"en": "Escherichia Coli (STEC)"}', '{"en": "Escherichia coli (E. coli) is a bacterium commonly found in the gut. Some strains can cause serious food poisoning, leading to diarrhoea and sometimes to life-threatening complications including haemolytic uraemic syndrome (WHO, 2018a)."}');
@@ -2012,29 +2506,27 @@ INSERT INTO public.hip_hazard VALUES ('78433', 'BI0203', '1844', 'Chikungunya', 
 INSERT INTO public.hip_hazard VALUES ('78434', 'BI0242', '1844', 'Zika Virus', 'Zika virus disease is a disease transmitted primarily by Aedes mosquitoes which can lead to complications including microcephaly and other congenital malformations and neurodevelopmental disorders (WHO, 2022a).', '{"en": "Zika Virus"}', '{"en": "Zika virus disease is a disease transmitted primarily by Aedes mosquitoes which can lead to complications including microcephaly and other congenital malformations and neurodevelopmental disorders (WHO, 2022a)."}');
 INSERT INTO public.hip_hazard VALUES ('78435', 'BI0208', '1844', 'Diphtheria', 'Diphtheria is a widespread severe infectious disease caused by the bacterium Corynebacterium diphtheriae and the toxin they produce. It is a potentially life-threatening, vaccine-preventable disease that primarily affects the throat and upper airways and has the potential for epidemics (WHO, 2024a).', '{"en": "Diphtheria"}', '{"en": "Diphtheria is a widespread severe infectious disease caused by the bacterium Corynebacterium diphtheriae and the toxin they produce. It is a potentially life-threatening, vaccine-preventable disease that primarily affects the throat and upper airways and has the potential for epidemics (WHO, 2024a)."}');
 INSERT INTO public.hip_hazard VALUES ('78436', 'BI0221', '1844', 'Measles', 'Measles is a highly contagious, serious disease caused by a virus from the paramyxovirus family. It spreads easily when an infected person breathes, coughs or sneezes. It can cause severe disease, complications, and even death (adapted from WHO 2024).', '{"en": "Measles"}', '{"en": "Measles is a highly contagious, serious disease caused by a virus from the paramyxovirus family. It spreads easily when an infected person breathes, coughs or sneezes. It can cause severe disease, complications, and even death (adapted from WHO 2024)."}');
-INSERT INTO public.hip_hazard VALUES ('78437', 'BI0222', '1844', 'Meningococcal Meningitis', 'Meningococcal meningitis is a bacterial form of meningitis, a serious infection of the thin lining that surrounds the brain and spinal cord, that is caused by the bacterium Neisseria meningitidis. Meningococcal meningitis has the potential to cause large-scale epidemics and is observed worldwide (adapted from WHO, 2025).', '{"en": "Meningococcal Meningitis"}', '{"en": "Meningococcal meningitis is a bacterial form of meningitis, a serious infection of the thin lining that surrounds the brain and spinal cord, that is caused by the bacterium Neisseria meningitidis. Meningococcal meningitis has the potential to cause large-scale epidemics and is observed worldwide (adapted from WHO, 2025)."}');
-INSERT INTO public.hip_hazard VALUES ('78438', 'BI0227', '1844', 'Pertussis (Human)', 'Pertussis is a highly contagious disease, which can be fatal, of the respiratory tract caused by the bacterium Bordetella pertussis (WHO, no date a).', '{"en": "Pertussis (Human)"}', '{"en": "Pertussis is a highly contagious disease, which can be fatal, of the respiratory tract caused by the bacterium Bordetella pertussis (WHO, no date a)."}');
 INSERT INTO public.hip_hazard VALUES ('78439', 'BI0229', '1844', 'Polio', 'Polio (human) is a highly infectious viral disease, which mainly affects young children, where 1 in 200 leads to irreversible paralysis and among those paralysed, 5–10% die when their breathing muscles become immobilized (WHO, 2025).', '{"en": "Polio"}', '{"en": "Polio (human) is a highly infectious viral disease, which mainly affects young children, where 1 in 200 leads to irreversible paralysis and among those paralysed, 5–10% die when their breathing muscles become immobilized (WHO, 2025)."}');
 INSERT INTO public.hip_hazard VALUES ('78440', 'BI0235', '1844', 'Smallpox', 'Smallpox is an acute contagious disease caused by the variola virus. Before its eradication, smallpox was one of the world’s most devastating diseases known and was fatal in up to 30% of cases (WHO, no date a).', '{"en": "Smallpox"}', '{"en": "Smallpox is an acute contagious disease caused by the variola virus. Before its eradication, smallpox was one of the world’s most devastating diseases known and was fatal in up to 30% of cases (WHO, no date a)."}');
 INSERT INTO public.hip_hazard VALUES ('78441', 'BI0239', '1844', 'Varicella and herpes zoster', 'Varicella is an acute, highly contagious disease caused by varicella- zoster virus. Following infection, the virus remains latent in neural ganglia and in about 10-20% of cases it is reactivated to cause herpes zoster, or shingles, generally in persons over 50 years of age or immunocompromised individuals. (WHO, no date).', '{"en": "Varicella and herpes zoster"}', '{"en": "Varicella is an acute, highly contagious disease caused by varicella- zoster virus. Following infection, the virus remains latent in neural ganglia and in about 10-20% of cases it is reactivated to cause herpes zoster, or shingles, generally in persons over 50 years of age or immunocompromised individuals. (WHO, no date)."}');
 INSERT INTO public.hip_hazard VALUES ('78442', 'BI0241', '1844', 'Yellow Fever', 'Yellow fever is an acute viral haemorrhagic disease transmitted by infected mosquitoes and is a high-impact high-threat disease, with risk of international spread, which represents a potential threat to global health security (WHO, 2023).', '{"en": "Yellow Fever"}', '{"en": "Yellow fever is an acute viral haemorrhagic disease transmitted by infected mosquitoes and is a high-impact high-threat disease, with risk of international spread, which represents a potential threat to global health security (WHO, 2023)."}');
-INSERT INTO public.hip_hazard VALUES ('78453', 'BI0233', '1844', 'Rotavirus', 'Rotaviruses are the most common cause of severe diarrhoeal disease in young children throughout the world. According to WHO estimates in 2013 about 215,000 children aged under 5 years die each year from vaccine-preventable rotavirus infections; the vast majority of these children live in low-income countries (WHO, 2018).', '{"en": "Rotavirus"}', '{"en": "Rotaviruses are the most common cause of severe diarrhoeal disease in young children throughout the world. According to WHO estimates in 2013 about 215,000 children aged under 5 years die each year from vaccine-preventable rotavirus infections; the vast majority of these children live in low-income countries (WHO, 2018)."}');
 INSERT INTO public.hip_hazard VALUES ('78443', 'BI0207', '1844', 'Dengue', 'Dengue is a mosquito-borne disease that is caused by a virus of the Flaviviridae family and transmitted by female mosquitoes mainly of the species Aedes aegypti and, to a lesser extent, A. albopictus. The incidence of dengue has grown dramatically around the world in recent decades, with cases reported to WHO increasing from 505 430 cases in 2000 to 5.2 million in 2019 (adapted from WHO, 2024).', '{"en": "Dengue"}', '{"en": "Dengue is a mosquito-borne disease that is caused by a virus of the Flaviviridae family and transmitted by female mosquitoes mainly of the species Aedes aegypti and, to a lesser extent, A. albopictus. The incidence of dengue has grown dramatically around the world in recent decades, with cases reported to WHO increasing from 505 430 cases in 2000 to 5.2 million in 2019 (adapted from WHO, 2024)."}');
 INSERT INTO public.hip_hazard VALUES ('78444', 'BI0219', '1844', 'Malaria', 'Malaria is a life-threatening disease caused by parasites that are transmitted to people mostly through the bites of infected female Anopheles mosquitoes. In 2023, there were an estimated 263 million cases of malaria worldwide and the estimated number of malaria deaths stood at 597,000 in 83 countries (adapted from WHO, 2024a).', '{"en": "Malaria"}', '{"en": "Malaria is a life-threatening disease caused by parasites that are transmitted to people mostly through the bites of infected female Anopheles mosquitoes. In 2023, there were an estimated 263 million cases of malaria worldwide and the estimated number of malaria deaths stood at 597,000 in 83 countries (adapted from WHO, 2024a)."}');
 INSERT INTO public.hip_hazard VALUES ('78445', 'BI0206', '1844', 'Crimean-Congo Haemorrhagic Fever', 'Crimean-Congo haemorrhagic fever (CCHF) is a tick-borne viral infection caused by the CCHF virus. It causes severe viral haemorrhagic fever outbreaks and epidemics. CCHF outbreaks have a case fatality rate of 10-40% (WHO, 2025).', '{"en": "Crimean-Congo Haemorrhagic Fever"}', '{"en": "Crimean-Congo haemorrhagic fever (CCHF) is a tick-borne viral infection caused by the CCHF virus. It causes severe viral haemorrhagic fever outbreaks and epidemics. CCHF outbreaks have a case fatality rate of 10-40% (WHO, 2025)."}');
 INSERT INTO public.hip_hazard VALUES ('78446', 'BI0209', '1844', 'Ebola', 'Ebola virus disease (EVD) is a rare but severe zoonotic viral infectious disease caused by the Ebola virus. It can be characterized by haemorrhagic fever and is often fatal in humans. EVD can trigger epidemics with high case-fatality rates (WHO, 2025).', '{"en": "Ebola"}', '{"en": "Ebola virus disease (EVD) is a rare but severe zoonotic viral infectious disease caused by the Ebola virus. It can be characterized by haemorrhagic fever and is often fatal in humans. EVD can trigger epidemics with high case-fatality rates (WHO, 2025)."}');
 INSERT INTO public.hip_hazard VALUES ('78447', 'BI0215', '1844', 'Lassa Fever', 'Lassa fever is a zoonotic disease associated with acute and potentially fatal haemorrhagic illness caused by Lassa virus. The virus is a single-stranded RNA virus belonging to the virus family Arenaviridae. About 1 in 5 infections result in severe disease, where the virus affects several organs such as the liver, spleen and kidneys. (WHO, 2024a).', '{"en": "Lassa Fever"}', '{"en": "Lassa fever is a zoonotic disease associated with acute and potentially fatal haemorrhagic illness caused by Lassa virus. The virus is a single-stranded RNA virus belonging to the virus family Arenaviridae. About 1 in 5 infections result in severe disease, where the virus affects several organs such as the liver, spleen and kidneys. (WHO, 2024a)."}');
+INSERT INTO public.hip_hazard VALUES ('78459', 'BI0307', '1054', 'Lumpy Skin Disease', 'Lumpy skin disease is a vector-borne pox disease of domestic cattle and Asian water buffalo and is characterised by the appearance of skin nodules on all body surfaces including the udder (FAO, 2017).', '{"en": "Lumpy Skin Disease"}', '{"en": "Lumpy skin disease is a vector-borne pox disease of domestic cattle and Asian water buffalo and is characterised by the appearance of skin nodules on all body surfaces including the udder (FAO, 2017)."}');
 INSERT INTO public.hip_hazard VALUES ('78448', 'BI0237', '1844', 'Tuberculosis', 'Tuberculosis (TB) is a curable bacterial infectious disease caused by Mycobacterium tuberculosis that most commonly affects the lungs. It causes national epidemics of varied severity worldwide. Forms of TB that are resistant to treatment - multi-drug-resistant TB (MDR-TB) and extensively drug-resistant TB (XDR-TB) - are public health crises and threaten health security worldwide (WHO, 2024).', '{"en": "Tuberculosis"}', '{"en": "Tuberculosis (TB) is a curable bacterial infectious disease caused by Mycobacterium tuberculosis that most commonly affects the lungs. It causes national epidemics of varied severity worldwide. Forms of TB that are resistant to treatment - multi-drug-resistant TB (MDR-TB) and extensively drug-resistant TB (XDR-TB) - are public health crises and threaten health security worldwide (WHO, 2024)."}');
 INSERT INTO public.hip_hazard VALUES ('78449', 'BI0223', '1844', 'Middle East Respiratory Syndrome (MERS)', 'Middle East respiratory syndrome (MERS) is a viral respiratory disease caused by Middle East respiratory syndrome coronavirus (MERS‐CoV) with a clinical spectrum of infection ranging from no symptoms (asymptomatic) or mild respiratory symptoms to severe acute respiratory disease and death (adapted from WHO, 2022).', '{"en": "Middle East Respiratory Syndrome (MERS)"}', '{"en": "Middle East respiratory syndrome (MERS) is a viral respiratory disease caused by Middle East respiratory syndrome coronavirus (MERS‐CoV) with a clinical spectrum of infection ranging from no symptoms (asymptomatic) or mild respiratory symptoms to severe acute respiratory disease and death (adapted from WHO, 2022)."}');
 INSERT INTO public.hip_hazard VALUES ('78450', 'BI0224', '1844', 'Mpox', 'Mpox, previously known as monkeypox, is a viral illness caused by the monkeypox virus, a species of the genus Orthopoxvirus. There are two distinct clades of the virus: clade I (with subclades Ia and Ib) and clade II (with subclades IIa and IIb). Mpox can be fatal in some cases (adapted from WHO, 2024).', '{"en": "Mpox"}', '{"en": "Mpox, previously known as monkeypox, is a viral illness caused by the monkeypox virus, a species of the genus Orthopoxvirus. There are two distinct clades of the virus: clade I (with subclades Ia and Ib) and clade II (with subclades IIa and IIb). Mpox can be fatal in some cases (adapted from WHO, 2024)."}');
 INSERT INTO public.hip_hazard VALUES ('78451', 'BI0232', '1844', 'Rabies', 'Rabies is a serious public health problem in over 150 countries and territories. It is a viral zoonotic disease that affects the central nervous system and spreads from bites, licks, and scratches from infected mammals. It is almost always fatal when clinical signs appear, killing approximately 59,000 people every year (adapted from WHO, 2024a; and WOAH no date).', '{"en": "Rabies"}', '{"en": "Rabies is a serious public health problem in over 150 countries and territories. It is a viral zoonotic disease that affects the central nervous system and spreads from bites, licks, and scratches from infected mammals. It is almost always fatal when clinical signs appear, killing approximately 59,000 people every year (adapted from WHO, 2024a; and WOAH no date)."}');
 INSERT INTO public.hip_hazard VALUES ('78452', 'BI0236', '1844', 'Severe Acute Respiratory Syndrome (SARS)', 'Severe acute respiratory syndrome (SARS) is a viral respiratory illness caused by a coronavirus called SARS-associated coronavirus (SARS-CoV). Among individuals who meet the current WHO case definition for confirmed SARS, the case-fatality rate is approximately 9.6% (WHO, no date).', '{"en": "Severe Acute Respiratory Syndrome (SARS)"}', '{"en": "Severe acute respiratory syndrome (SARS) is a viral respiratory illness caused by a coronavirus called SARS-associated coronavirus (SARS-CoV). Among individuals who meet the current WHO case definition for confirmed SARS, the case-fatality rate is approximately 9.6% (WHO, no date)."}');
+INSERT INTO public.hip_hazard VALUES ('78453', 'BI0233', '1844', 'Rotavirus', 'Rotaviruses are the most common cause of severe diarrhoeal disease in young children throughout the world. According to WHO estimates in 2013 about 215,000 children aged under 5 years die each year from vaccine-preventable rotavirus infections; the vast majority of these children live in low-income countries (WHO, 2018).', '{"en": "Rotavirus"}', '{"en": "Rotaviruses are the most common cause of severe diarrhoeal disease in young children throughout the world. According to WHO estimates in 2013 about 215,000 children aged under 5 years die each year from vaccine-preventable rotavirus infections; the vast majority of these children live in low-income countries (WHO, 2018)."}');
 INSERT INTO public.hip_hazard VALUES ('78455', 'BI0202', '1844', 'Brucellosis', 'Brucellosis is a bacterial disease caused by various Brucella species, which mainly infect cattle, swine, goats, sheep and dogs. Humans generally acquire the disease through direct contact with infected animals (WHO, 2020).', '{"en": "Brucellosis"}', '{"en": "Brucellosis is a bacterial disease caused by various Brucella species, which mainly infect cattle, swine, goats, sheep and dogs. Humans generally acquire the disease through direct contact with infected animals (WHO, 2020)."}');
 INSERT INTO public.hip_hazard VALUES ('78456', 'BI0304', '1054', 'Contagious Bovine Pleuropneumonia (CBPP)', 'Contagious bovine pleuropneumonia (CBPP) is an infectious and contagious respiratory disease of cattle and water buffalo caused by Mycoplasma mycoides subsp. mycoides (Mmm) with a major impact on livestock production and a potential for rapid spread (WOAH, 2024a).', '{"en": "Contagious Bovine Pleuropneumonia (CBPP)"}', '{"en": "Contagious bovine pleuropneumonia (CBPP) is an infectious and contagious respiratory disease of cattle and water buffalo caused by Mycoplasma mycoides subsp. mycoides (Mmm) with a major impact on livestock production and a potential for rapid spread (WOAH, 2024a)."}');
 INSERT INTO public.hip_hazard VALUES ('78457', 'BI0305', '1054', 'Contagious Caprine Pleuropneumonia (CCPP)', 'Contagious caprine pleuropneumonia (CCPP) is a disease affecting goats and some wild ruminant species, caused by Mycoplasma capricolum subsp. capripneumoniae (Mccp). In goats, it is manifested by anorexia, fever and respiratory signs such as dyspnoea, polypnea, cough and nasal discharges. The acute and subacute disease is characterised by unilateral serofibrinous pleuropneumonia with severe pleural effusion. (Adapted from WOAH, 2021).', '{"en": "Contagious Caprine Pleuropneumonia (CCPP)"}', '{"en": "Contagious caprine pleuropneumonia (CCPP) is a disease affecting goats and some wild ruminant species, caused by Mycoplasma capricolum subsp. capripneumoniae (Mccp). In goats, it is manifested by anorexia, fever and respiratory signs such as dyspnoea, polypnea, cough and nasal discharges. The acute and subacute disease is characterised by unilateral serofibrinous pleuropneumonia with severe pleural effusion. (Adapted from WOAH, 2021)."}');
 INSERT INTO public.hip_hazard VALUES ('78458', 'BI0306', '1054', 'Foot-and-mouth disease', 'Foot-and-mouth disease is caused by a virus of the family Picornaviridae, genus Aphthovirus. It is a highly contagious and economically important disease of cloven-hoofed domestic animals (cattle, buffaloes, pigs, sheep, goats) and wild animals (adapted from FAO no date; WOAH, no date).', '{"en": "Foot-and-mouth disease"}', '{"en": "Foot-and-mouth disease is caused by a virus of the family Picornaviridae, genus Aphthovirus. It is a highly contagious and economically important disease of cloven-hoofed domestic animals (cattle, buffaloes, pigs, sheep, goats) and wild animals (adapted from FAO no date; WOAH, no date)."}');
-INSERT INTO public.hip_hazard VALUES ('78459', 'BI0307', '1054', 'Lumpy Skin Disease', 'Lumpy skin disease is a vector-borne pox disease of domestic cattle and Asian water buffalo and is characterised by the appearance of skin nodules on all body surfaces including the udder (FAO, 2017).', '{"en": "Lumpy Skin Disease"}', '{"en": "Lumpy skin disease is a vector-borne pox disease of domestic cattle and Asian water buffalo and is characterised by the appearance of skin nodules on all body surfaces including the udder (FAO, 2017)."}');
-INSERT INTO public.hip_hazard VALUES ('78482', 'CH0501', '1060', 'Pesticides', 'Pesticide means any substance, or mixture of substances of chemical or biological ingredients intended for repelling, destroying or controlling any pest, or regulating plant growth.', '{"en": "Pesticides"}', '{"en": "Pesticide means any substance, or mixture of substances of chemical or biological ingredients intended for repelling, destroying or controlling any pest, or regulating plant growth."}');
+INSERT INTO public.hip_hazard VALUES ('78581', 'MH0202', '1073', 'Fog', 'Fog is a suspension of very small, usually microscopic water droplets in the air, reducing visibility at the Earth’s surface (WMO, 2017).', '{"en": "Fog"}', '{"en": "Fog is a suspension of very small, usually microscopic water droplets in the air, reducing visibility at the Earth’s surface (WMO, 2017)."}');
 INSERT INTO public.hip_hazard VALUES ('78460', 'BI0309', '1054', 'New World Screwworm (NWS)', 'The New World screwworm (NWS), Cochliomyia hominivorax (Coquerel), is an obligate parasite of mammals, including humans, during their larval stages. Larvae feeding on the skin and underlying tissues of the host cause a condition known as wound or traumatic myiasis, which can be fatal (adapted from PAHO, no date and WOAH, no date).', '{"en": "New World Screwworm (NWS)"}', '{"en": "The New World screwworm (NWS), Cochliomyia hominivorax (Coquerel), is an obligate parasite of mammals, including humans, during their larval stages. Larvae feeding on the skin and underlying tissues of the host cause a condition known as wound or traumatic myiasis, which can be fatal (adapted from PAHO, no date and WOAH, no date)."}');
 INSERT INTO public.hip_hazard VALUES ('78461', 'BI0308', '1054', 'Newcastle Disease', 'Newcastle Disease (ND) is a highly contagious and often severe disease found worldwide that affects birds caused by virulent strains of avian paramyxovirus type 1 (WOAH, no date).', '{"en": "Newcastle Disease"}', '{"en": "Newcastle Disease (ND) is a highly contagious and often severe disease found worldwide that affects birds caused by virulent strains of avian paramyxovirus type 1 (WOAH, no date)."}');
 INSERT INTO public.hip_hazard VALUES ('78462', 'BI0310', '1054', 'Peste Des Petits Ruminants', 'Peste des petits ruminants is a highly contagious and devastating disease of goats and sheep. The causative agent, Peste des petits ruminants virus, is a member of the genus Morbillivirus, Family Paramyxoviridae and Order Mononegavirales (adapted from FAO, no date and WOAH, 2024a).', '{"en": "Peste Des Petits Ruminants"}', '{"en": "Peste des petits ruminants is a highly contagious and devastating disease of goats and sheep. The causative agent, Peste des petits ruminants virus, is a member of the genus Morbillivirus, Family Paramyxoviridae and Order Mononegavirales (adapted from FAO, no date and WOAH, 2024a)."}');
@@ -2045,7 +2537,7 @@ INSERT INTO public.hip_hazard VALUES ('78467', 'BI0238', '1844', 'Trypanosomiasi
 INSERT INTO public.hip_hazard VALUES ('78468', 'BI0302', '1054', 'African Swine Fever', 'African swine fever (ASF) is a highly contagious viral disease of domestic and wild pigs, whose mortality rate can reach 100%. It is not a danger to human health, but it has devastating effects on pig populations and the farming economy. (WOAH, no date).', '{"en": "African Swine Fever"}', '{"en": "African swine fever (ASF) is a highly contagious viral disease of domestic and wild pigs, whose mortality rate can reach 100%. It is not a danger to human health, but it has devastating effects on pig populations and the farming economy. (WOAH, no date)."}');
 INSERT INTO public.hip_hazard VALUES ('78469', 'BI0303', '1054', 'Classical Swine Fever', 'Classical swine fever, also known as hog cholera, is a contagious viral disease of domestic and wild swine. It is caused by a virus of the genus Pestivirus of the family Flaviviridae (WOAH, no date).', '{"en": "Classical Swine Fever"}', '{"en": "Classical swine fever, also known as hog cholera, is a contagious viral disease of domestic and wild swine. It is caused by a virus of the genus Pestivirus of the family Flaviviridae (WOAH, no date)."}');
 INSERT INTO public.hip_hazard VALUES ('78470', 'BI0312', '1054', 'Rinderpest', 'Rinderpest was an acute, highly contagious viral disease of wild and domesticated ruminants and pigs, characterized by sudden onset of fever, oculonasal discharges, necrotic stomatitis, gastroenteritis and death. Rinderpest was eradicated in 2011 (FAO & OIE, 2011).', '{"en": "Rinderpest"}', '{"en": "Rinderpest was an acute, highly contagious viral disease of wild and domesticated ruminants and pigs, characterized by sudden onset of fever, oculonasal discharges, necrotic stomatitis, gastroenteritis and death. Rinderpest was eradicated in 2011 (FAO & OIE, 2011)."}');
-INSERT INTO public.hip_hazard VALUES ('78595', 'MH0306', '1079', 'Depression or Cyclone (Low Pressure Area)', 'A depression or cyclone is a region of the atmosphere in which the pressure is lower than that of the surrounding region at the same level (WMO, 1992).', '{"en": "Depression or Cyclone (Low Pressure Area)"}', '{"en": "A depression or cyclone is a region of the atmosphere in which the pressure is lower than that of the surrounding region at the same level (WMO, 1992)."}');
+INSERT INTO public.hip_hazard VALUES ('78482', 'CH0501', '1060', 'Pesticides', 'Pesticide means any substance, or mixture of substances of chemical or biological ingredients intended for repelling, destroying or controlling any pest, or regulating plant growth.', '{"en": "Pesticides"}', '{"en": "Pesticide means any substance, or mixture of substances of chemical or biological ingredients intended for repelling, destroying or controlling any pest, or regulating plant growth."}');
 INSERT INTO public.hip_hazard VALUES ('78471', 'BI0314', '1054', 'Shrimp disease (bacterial) - Acute Hepatic Pancreatic Necrosis', 'Shrimp acute hepatopancreatic necrosis disease (AHPND) is caused by virulent strains of Vibrio parahaemolyticus and related Vibrio species. AHPND-associated mortalities occur early in the production cycle, usually within 30 to 35 days of stocking, and because of this AHPND was initially referred to as early mortality syndrome (WOAH, 2023).', '{"en": "Shrimp disease (bacterial) - Acute Hepatic Pancreatic Necrosis"}', '{"en": "Shrimp acute hepatopancreatic necrosis disease (AHPND) is caused by virulent strains of Vibrio parahaemolyticus and related Vibrio species. AHPND-associated mortalities occur early in the production cycle, usually within 30 to 35 days of stocking, and because of this AHPND was initially referred to as early mortality syndrome (WOAH, 2023)."}');
 INSERT INTO public.hip_hazard VALUES ('78472', 'BI0313', '1054', 'Oyster Disease Aquaculture', 'There are a number of causal agents recognised for oyster diseases. Examples of major oyster diseases and their causal protozoan agents are: bonamiosis (Bonamia exitiosa, B. ostreae); marteiliosis (Marteilia refringens); perkinsosis (Perkinsus marinus, P. olseni). These oyster diseases are notifiable OIE-listed diseases and occur worldwide (WOAH, 2024a).', '{"en": "Oyster Disease Aquaculture"}', '{"en": "There are a number of causal agents recognised for oyster diseases. Examples of major oyster diseases and their causal protozoan agents are: bonamiosis (Bonamia exitiosa, B. ostreae); marteiliosis (Marteilia refringens); perkinsosis (Perkinsus marinus, P. olseni). These oyster diseases are notifiable OIE-listed diseases and occur worldwide (WOAH, 2024a)."}');
 INSERT INTO public.hip_hazard VALUES ('78473', 'CH0301', '1056', 'Ammonia', 'Ammonia (NH3) is a colourless acrid-smelling reactive gas at ambient temperature and pressure and is considered a significant public health hazard (WHO, 1986; PHE, 2019).', '{"en": "Ammonia"}', '{"en": "Ammonia (NH3) is a colourless acrid-smelling reactive gas at ambient temperature and pressure and is considered a significant public health hazard (WHO, 1986; PHE, 2019)."}');
@@ -2056,43 +2548,43 @@ INSERT INTO public.hip_hazard VALUES ('78478', 'CH0102', '1057', 'Cadmium', 'Cad
 INSERT INTO public.hip_hazard VALUES ('78479', 'CH0103', '1057', 'Lead', 'Lead is a naturally occurring highly toxic heavy metal. Its widespread use has caused extensive environmental contamination and health problems in many parts of the world. It is a cumulative toxicant that affects multiple body systems, including the neurological, haematological, gastrointestinal, cardiovascular and renal systems. Children are particularly vulnerable to the neurotoxic effects of lead, and even relatively low levels of exposure can cause serious and, in some cases, irreversible neurological damage (WHO, 2024).', '{"en": "Lead"}', '{"en": "Lead is a naturally occurring highly toxic heavy metal. Its widespread use has caused extensive environmental contamination and health problems in many parts of the world. It is a cumulative toxicant that affects multiple body systems, including the neurological, haematological, gastrointestinal, cardiovascular and renal systems. Children are particularly vulnerable to the neurotoxic effects of lead, and even relatively low levels of exposure can cause serious and, in some cases, irreversible neurological damage (WHO, 2024)."}');
 INSERT INTO public.hip_hazard VALUES ('78480', 'CH0104', '1057', 'Mercury', 'Mercury is a naturally occurring element that is found in air, water and soil. Exposure to mercury – even small amounts – may cause serious health problems and is a threat to the development of the foetus in utero and for children early in life (WHO, 2021).', '{"en": "Mercury"}', '{"en": "Mercury is a naturally occurring element that is found in air, water and soil. Exposure to mercury – even small amounts – may cause serious health problems and is a threat to the development of the foetus in utero and for children early in life (WHO, 2021)."}');
 INSERT INTO public.hip_hazard VALUES ('78481', 'CH0601', '1058', 'Levels of Contaminants in Food and Feed', 'A contaminant in food and feed is defined as any substance not intentionally added but present in such food or feed as a result of the production, manufacture, processing, preparation, treatment, packing, packaging, transport or storage, or as a result of environmental contamination, which can lead to major public hazards (FAO and WHO, 2019).', '{"en": "Levels of Contaminants in Food and Feed"}', '{"en": "A contaminant in food and feed is defined as any substance not intentionally added but present in such food or feed as a result of the production, manufacture, processing, preparation, treatment, packing, packaging, transport or storage, or as a result of environmental contamination, which can lead to major public hazards (FAO and WHO, 2019)."}');
+INSERT INTO public.hip_hazard VALUES ('78546', 'GH0206', '1069', 'Volcanic Gases and Aerosols', 'Volcanic gas includes any gas-phase substance that is emitted by volcanic or volcanic-geothermal activity. Volcanic aerosols include liquid or solid particles that are small enough to be suspended in the air, and that are emitted by volcanic or volcanic-geothermal activity (adapted from Baxter and Horwell, 2015, Fischer and Chiodini, 2015, and Williams-Jones and Rymer ,2015).', '{"en": "Volcanic Gases and Aerosols"}', '{"en": "Volcanic gas includes any gas-phase substance that is emitted by volcanic or volcanic-geothermal activity. Volcanic aerosols include liquid or solid particles that are small enough to be suspended in the air, and that are emitted by volcanic or volcanic-geothermal activity (adapted from Baxter and Horwell, 2015, Fischer and Chiodini, 2015, and Williams-Jones and Rymer ,2015)."}');
 INSERT INTO public.hip_hazard VALUES ('78487', 'CH0502', '1060', 'Dioxins and Dioxin-like Substances', 'Dioxins and dioxin-like substances, including polychlorinated biphenyls (PCBs), polychlorinated dibenzo-p-dioxins (PCDDs) and polychlorinated dibenzofurans (PCDFs) are ​​​​persistent organic pollutants (POPs, see CH0​500​) and are unwanted by-products of combustion and various industrial processes, such as chlorine bleaching of paper pulp and smelting. They can travel long distances from the source of emission, and bioaccumulate in food chains. These substances represent a major public health concern. They have been associated with a range of acute and long-term adverse health effects and diseases (WHO, 2019).', '{"en": "Dioxins and Dioxin-like Substances"}', '{"en": "Dioxins and dioxin-like substances, including polychlorinated biphenyls (PCBs), polychlorinated dibenzo-p-dioxins (PCDDs) and polychlorinated dibenzofurans (PCDFs) are ​​​​persistent organic pollutants (POPs, see CH0​500​) and are unwanted by-products of combustion and various industrial processes, such as chlorine bleaching of paper pulp and smelting. They can travel long distances from the source of emission, and bioaccumulate in food chains. These substances represent a major public health concern. They have been associated with a range of acute and long-term adverse health effects and diseases (WHO, 2019)."}');
 INSERT INTO public.hip_hazard VALUES ('78488', 'CH0504', '1060', 'Microplastics', 'Microplastics are small plastic pieces less than five millimetres in length which can be harmful to the environment, especially marine life. They originate from a variety of sources, including larger plastic debris that degrade into progressively smaller pieces (adapted from UNEP, 2016 and NOAA, 2023).', '{"en": "Microplastics"}', '{"en": "Microplastics are small plastic pieces less than five millimetres in length which can be harmful to the environment, especially marine life. They originate from a variety of sources, including larger plastic debris that degrade into progressively smaller pieces (adapted from UNEP, 2016 and NOAA, 2023)."}');
-INSERT INTO public.hip_hazard VALUES ('78520', 'EN0204', '1065', 'Forest Invasive Species', 'Forest invasive species are any species that are non-native to a particular forest ecosystem and whose introduction and spread cause, or are likely to cause, socio-cultural, economic or environmental harm, or harm to human health (adapted from FAO, 2015).', '{"en": "Forest Invasive Species"}', '{"en": "Forest invasive species are any species that are non-native to a particular forest ecosystem and whose introduction and spread cause, or are likely to cause, socio-cultural, economic or environmental harm, or harm to human health (adapted from FAO, 2015)."}');
-INSERT INTO public.hip_hazard VALUES ('78498', 'EN0101', '1065', 'Household Air Pollution', 'Household air pollution is pollution primarily resulting from the incomplete combustion of solid fuels (e.g. wood, dung, charcoal, coal, kerosene), resulting in the emission of potentially toxic pollutants, including particles of varying sizes, carbon monoxide (CO), nitrogen dioxide, volatile and semi-volatile organic compounds (e.g. formaldehyde and benzo[a]pyrene), methylene chloride and dioxins. It is one of the leading environmental risk factors for disease and premature death and is generated by the use of inefficient and polluting fuels and technologies in and around homes.', '{"en": "Household Air Pollution"}', '{"en": "Household air pollution is pollution primarily resulting from the incomplete combustion of solid fuels (e.g. wood, dung, charcoal, coal, kerosene), resulting in the emission of potentially toxic pollutants, including particles of varying sizes, carbon monoxide (CO), nitrogen dioxide, volatile and semi-volatile organic compounds (e.g. formaldehyde and benzo[a]pyrene), methylene chloride and dioxins. It is one of the leading environmental risk factors for disease and premature death and is generated by the use of inefficient and polluting fuels and technologies in and around homes."}');
+INSERT INTO public.hip_hazard VALUES ('78517', 'EN0402', '1065', 'Sea Level Rise', 'Sea-level change (sea-level rise / sea-level fall) refers to a change in the height of sea level, both globally and locally (relative sea-level change), at seasonal, annual, or longer time scales. It results from a change in ocean volume due to a change in the mass of water in the ocean (e.g. melting of glaciers and ice sheets), changes in ocean water density (e.g. expansion under warmer conditions), changes in the shape of ocean basins, changes in the Earth''s gravitational and rotational fields, and local land subsidence or uplift (IPCC, 2019).', '{"en": "Sea Level Rise"}', '{"en": "Sea-level change (sea-level rise / sea-level fall) refers to a change in the height of sea level, both globally and locally (relative sea-level change), at seasonal, annual, or longer time scales. It results from a change in ocean volume due to a change in the mass of water in the ocean (e.g. melting of glaciers and ice sheets), changes in ocean water density (e.g. expansion under warmer conditions), changes in the shape of ocean basins, changes in the Earth''s gravitational and rotational fields, and local land subsidence or uplift (IPCC, 2019)."}');
 INSERT INTO public.hip_hazard VALUES ('78490', 'CH0203', '1061', 'Benzene and Hydrocarbons', 'Hydrocarbons are organic compounds composed entirely of hydrogen (H) and carbon (C) atoms. They are the simplest form of organic molecules and are the main components of fossil fuels such as coal, natural gas, and petroleum. Benzene is a clear, colourless, highly flammable and volatile, liquid aromatic hydrocarbon (molecular formula C6H6) with a gasoline-like odour, which can lead to major public hazards. Benzene is the simplest aromatic hydrocarbon, characterised by alternating single and double bonds between the carbon atoms, forming a delocalized π-electron system. (WHO, 2019) The release of hydrocarbon ground gases, such as methane, can lead to major public hazards.', '{"en": "Benzene and Hydrocarbons"}', '{"en": "Hydrocarbons are organic compounds composed entirely of hydrogen (H) and carbon (C) atoms. They are the simplest form of organic molecules and are the main components of fossil fuels such as coal, natural gas, and petroleum. Benzene is a clear, colourless, highly flammable and volatile, liquid aromatic hydrocarbon (molecular formula C6H6) with a gasoline-like odour, which can lead to major public hazards. Benzene is the simplest aromatic hydrocarbon, characterised by alternating single and double bonds between the carbon atoms, forming a delocalized π-electron system. (WHO, 2019) The release of hydrocarbon ground gases, such as methane, can lead to major public hazards."}');
 INSERT INTO public.hip_hazard VALUES ('78491', 'CH0903', '1063', 'Chemical Warfare Agents', 'Chemical agents or ‘chemical warfare agents’ (chemical weapons) are chemicals, including dual -use chemicals, used to cause intentional death or harm through their toxic properties, and are a major public hazard. (OPCW, 2024a, b, c).', '{"en": "Chemical Warfare Agents"}', '{"en": "Chemical agents or ‘chemical warfare agents’ (chemical weapons) are chemicals, including dual -use chemicals, used to cause intentional death or harm through their toxic properties, and are a major public hazard. (OPCW, 2024a, b, c)."}');
 INSERT INTO public.hip_hazard VALUES ('78492', 'CH0202', '1061', 'Asbestos', 'Asbestos is the term for a group of naturally occurring fibrous silicate minerals widely used historically in building materials and other products (WHO, 2018). All types of asbestos cause lung cancer, mesothelioma, cancer of the larynx and ovary, and asbestosis (fibrosis of the lungs) (WHO, 2018).', '{"en": "Asbestos"}', '{"en": "Asbestos is the term for a group of naturally occurring fibrous silicate minerals widely used historically in building materials and other products (WHO, 2018). All types of asbestos cause lung cancer, mesothelioma, cancer of the larynx and ovary, and asbestosis (fibrosis of the lungs) (WHO, 2018)."}');
 INSERT INTO public.hip_hazard VALUES ('78493', 'CH0201', '1061', 'Aflatoxins', 'Aflatoxins are mycotoxins – toxic compounds that are naturally produced by certain types of mould (fungi). Aflatoxins are among the most poisonous mycotoxins and are produced by certain moulds (Aspergillus flavus and A. parasiticus) that grow in soil, decaying vegetation, hay, and grains. Aflatoxins pose a serious health risk to humans and livestock (WHO, 2023).', '{"en": "Aflatoxins"}', '{"en": "Aflatoxins are mycotoxins – toxic compounds that are naturally produced by certain types of mould (fungi). Aflatoxins are among the most poisonous mycotoxins and are produced by certain moulds (Aspergillus flavus and A. parasiticus) that grow in soil, decaying vegetation, hay, and grains. Aflatoxins pose a serious health risk to humans and livestock (WHO, 2023)."}');
-INSERT INTO public.hip_hazard VALUES ('78596', 'MH0307', '1079', 'Extra-tropical Cyclone', 'An extra-tropical cyclone is a low-pressure system, which develops in latitudes outside the tropics (WMO, 1992).', '{"en": "Extra-tropical Cyclone"}', '{"en": "An extra-tropical cyclone is a low-pressure system, which develops in latitudes outside the tropics (WMO, 1992)."}');
 INSERT INTO public.hip_hazard VALUES ('78494', 'CH0105', '1057', 'Fluoride and Iodine/Iodide Excess or Inadequate Intake', 'Fluoride is a naturally occurring mineral to which the public are often exposed via drinking water. Depending on dose intake, fluoride may have both beneficial effects (reducing the incidence of dental caries) or negative effects (causing tooth enamel and skeletal fluorosis following prolonged high exposure) (adapted from NCBI, 2020 and WHO, no date). Some water supplies are fluoridated in order to achieve improved dental health.Iodine is a non-metallic element essential for the human body, as it is a crucial component of thyroid hormones, which regulate various metabolic processes, including growth and energy expenditure. Iodine, usually as iodide salts in the diet, is absorbed throughout the gastrointestinal tract. Iodine is essential for healthy brain development in the foetus and young child. A deficiency in iodine can lead to thyroid gland problems, such as goitre and hypothyroidism. Iodine deficiency negatively affects the health of women, as well as economic productivity and quality of life (WHO, 2023). Food fortification (often with potassium iodide, KI) is sometimes used to address iodine deficiency.', '{"en": "Fluoride and Iodine/Iodide Excess or Inadequate Intake"}', '{"en": "Fluoride is a naturally occurring mineral to which the public are often exposed via drinking water. Depending on dose intake, fluoride may have both beneficial effects (reducing the incidence of dental caries) or negative effects (causing tooth enamel and skeletal fluorosis following prolonged high exposure) (adapted from NCBI, 2020 and WHO, no date). Some water supplies are fluoridated in order to achieve improved dental health.Iodine is a non-metallic element essential for the human body, as it is a crucial component of thyroid hormones, which regulate various metabolic processes, including growth and energy expenditure. Iodine, usually as iodide salts in the diet, is absorbed throughout the gastrointestinal tract. Iodine is essential for healthy brain development in the foetus and young child. A deficiency in iodine can lead to thyroid gland problems, such as goitre and hypothyroidism. Iodine deficiency negatively affects the health of women, as well as economic productivity and quality of life (WHO, 2023). Food fortification (often with potassium iodide, KI) is sometimes used to address iodine deficiency."}');
 INSERT INTO public.hip_hazard VALUES ('78495', 'CH0603', '1058', 'Methanol', 'Methanol is a colourless, volatile liquid. Categorized as an alcohol, methanol is commonly used as a solvent and reagent in an array of industrial applications. Outbreaks of methanol poisoning most commonly arise from the consumption of adulterated or informally produced spirit drinks (adapted from NCBI, 2024 and WHO, 2014).', '{"en": "Methanol"}', '{"en": "Methanol is a colourless, volatile liquid. Categorized as an alcohol, methanol is commonly used as a solvent and reagent in an array of industrial applications. Outbreaks of methanol poisoning most commonly arise from the consumption of adulterated or informally produced spirit drinks (adapted from NCBI, 2024 and WHO, 2014)."}');
 INSERT INTO public.hip_hazard VALUES ('78496', 'CH0602', '1058', 'Substandard and Falsified Medical Products', 'Substandard and falsified medical products are defined as those that may cause harm to patients and fail to treat the diseases for which they were intended (WHO, 2018).', '{"en": "Substandard and Falsified Medical Products"}', '{"en": "Substandard and falsified medical products are defined as those that may cause harm to patients and fail to treat the diseases for which they were intended (WHO, 2018)."}');
 INSERT INTO public.hip_hazard VALUES ('78497', 'CH0605', '1058', 'Marine Toxins', 'Marine toxins (biotoxins) are naturally occurring, toxic substances, mostly caused by certain types of marine organisms such as toxic algae, but also by bacteria. These toxins can accumulate in fish and shellfish, causing significant public health concerns due to their potential to cause a wide range of adverse health effects.', '{"en": "Marine Toxins"}', '{"en": "Marine toxins (biotoxins) are naturally occurring, toxic substances, mostly caused by certain types of marine organisms such as toxic algae, but also by bacteria. These toxins can accumulate in fish and shellfish, causing significant public health concerns due to their potential to cause a wide range of adverse health effects."}');
+INSERT INTO public.hip_hazard VALUES ('78498', 'EN0101', '1065', 'Household Air Pollution', 'Household air pollution is pollution primarily resulting from the incomplete combustion of solid fuels (e.g. wood, dung, charcoal, coal, kerosene), resulting in the emission of potentially toxic pollutants, including particles of varying sizes, carbon monoxide (CO), nitrogen dioxide, volatile and semi-volatile organic compounds (e.g. formaldehyde and benzo[a]pyrene), methylene chloride and dioxins. It is one of the leading environmental risk factors for disease and premature death and is generated by the use of inefficient and polluting fuels and technologies in and around homes.', '{"en": "Household Air Pollution"}', '{"en": "Household air pollution is pollution primarily resulting from the incomplete combustion of solid fuels (e.g. wood, dung, charcoal, coal, kerosene), resulting in the emission of potentially toxic pollutants, including particles of varying sizes, carbon monoxide (CO), nitrogen dioxide, volatile and semi-volatile organic compounds (e.g. formaldehyde and benzo[a]pyrene), methylene chloride and dioxins. It is one of the leading environmental risk factors for disease and premature death and is generated by the use of inefficient and polluting fuels and technologies in and around homes."}');
 INSERT INTO public.hip_hazard VALUES ('78499', 'EN0102', '1065', 'Air Pollution (Point Source)', 'A point source of air pollution is an identifiable stationary location or fixed facility from which air pollutants are released, which may be human-made or natural in origin (adapted from Kibble and Harrison, 2005; Dunne et al., 2014).', '{"en": "Air Pollution (Point Source)"}', '{"en": "A point source of air pollution is an identifiable stationary location or fixed facility from which air pollutants are released, which may be human-made or natural in origin (adapted from Kibble and Harrison, 2005; Dunne et al., 2014)."}');
 INSERT INTO public.hip_hazard VALUES ('78500', 'EN0103', '1065', 'Ambient (Outdoor) Air Pollution', 'Ambient (outdoor) air pollution is pollution that is present at concentrations that affect human health, ecosystems and agriculture. It is primarily measured through the presence of particulate matter (PM10 and PM2.5), ozone, nitrogen dioxide, sulphur dioxide and carbon monoxide in the air. Ambient air pollution is one of the leading environmental risk factors affecting urban and rural populations around the world, resulting in an estimated 4.2 million premature deaths in 2019 (WHO, 2024).', '{"en": "Ambient (Outdoor) Air Pollution"}', '{"en": "Ambient (outdoor) air pollution is pollution that is present at concentrations that affect human health, ecosystems and agriculture. It is primarily measured through the presence of particulate matter (PM10 and PM2.5), ozone, nitrogen dioxide, sulphur dioxide and carbon monoxide in the air. Ambient air pollution is one of the leading environmental risk factors affecting urban and rural populations around the world, resulting in an estimated 4.2 million premature deaths in 2019 (WHO, 2024)."}');
 INSERT INTO public.hip_hazard VALUES ('78501', 'EN0301', '1065', 'Land Degradation', 'Land degradation is the reduction or loss, in arid, semi-arid and dry sub-humid areas, of the biological or economic productivity and complexity of rainfed cropland, irrigated cropland or range, pasture, forest and woodlands resulting from land uses or from a process or combination of processes, including processes arising from human activities and habitation patterns such as soil erosion caused by wind and/or water; deterioration of the physical, chemical and biological or economic properties of soil; and long-term loss of natural vegetation (UNCCD, 1993).', '{"en": "Land Degradation"}', '{"en": "Land degradation is the reduction or loss, in arid, semi-arid and dry sub-humid areas, of the biological or economic productivity and complexity of rainfed cropland, irrigated cropland or range, pasture, forest and woodlands resulting from land uses or from a process or combination of processes, including processes arising from human activities and habitation patterns such as soil erosion caused by wind and/or water; deterioration of the physical, chemical and biological or economic properties of soil; and long-term loss of natural vegetation (UNCCD, 1993)."}');
 INSERT INTO public.hip_hazard VALUES ('78502', 'GH0402', '1070', 'Soil Degradation', 'Soil degradation is defined as a change in soil health status resulting in a diminished capacity of the ecosystem to provide goods and services for its beneficiaries (FAO, 2020).', '{"en": "Soil Degradation"}', '{"en": "Soil degradation is defined as a change in soil health status resulting in a diminished capacity of the ecosystem to provide goods and services for its beneficiaries (FAO, 2020)."}');
+INSERT INTO public.hip_hazard VALUES ('78575', 'MH0609', '1072', 'Ponding (Drainage) Flooding', 'A ponding flood is a flood that results from rainwater ponding at or near the point where it falls because it is falling faster than the drainage system (natural or man-made) can carry it away (WMO, 2006).', '{"en": "Ponding (Drainage) Flooding"}', '{"en": "A ponding flood is a flood that results from rainwater ponding at or near the point where it falls because it is falling faster than the drainage system (natural or man-made) can carry it away (WMO, 2006)."}');
 INSERT INTO public.hip_hazard VALUES ('78503', 'EN0106', '1065', 'Runoff / Nonpoint Source Pollution', 'Nonpoint sources of pollution refer to pollution that does not have a single point of origin or has not been introduced into a receiving freshwater or maritime environment from a specific outlet. The pollutants are generally carried off from the land by agricultural runoff, urban stormwater, atmospheric deposition or subaqueous groundwater discharges. The most common categories of nonpoint pollution are agriculture, forestry, urban areas, mining, construction, dams and channels, land disposal and saltwater intrusion.', '{"en": "Runoff / Nonpoint Source Pollution"}', '{"en": "Nonpoint sources of pollution refer to pollution that does not have a single point of origin or has not been introduced into a receiving freshwater or maritime environment from a specific outlet. The pollutants are generally carried off from the land by agricultural runoff, urban stormwater, atmospheric deposition or subaqueous groundwater discharges. The most common categories of nonpoint pollution are agriculture, forestry, urban areas, mining, construction, dams and channels, land disposal and saltwater intrusion."}');
-INSERT INTO public.hip_hazard VALUES ('78518', 'EN0403', '1065', 'Eutrophication', 'Eutrophication refers to the phenomenon of increased production of organic matter, primarily nitrogen and phosphorus, in aquatic systems (Nixon, 1995). Eutrophication can be caused by human activities (e.g. sewage outfall, agricultural runoff, aquaculture) and may result in secondary environmental effects such as algal blooms and fish kills (NOAA, 2007; UNEP, 2015). Given the complex structure and functioning of ecosystems, and the multitude of pressures they face (Cloern, 2001), the precise definition of eutrophication remains to be established (Pannard et al., 2024).', '{"en": "Eutrophication"}', '{"en": "Eutrophication refers to the phenomenon of increased production of organic matter, primarily nitrogen and phosphorus, in aquatic systems (Nixon, 1995). Eutrophication can be caused by human activities (e.g. sewage outfall, agricultural runoff, aquaculture) and may result in secondary environmental effects such as algal blooms and fish kills (NOAA, 2007; UNEP, 2015). Given the complex structure and functioning of ecosystems, and the multitude of pressures they face (Cloern, 2001), the precise definition of eutrophication remains to be established (Pannard et al., 2024)."}');
-INSERT INTO public.hip_hazard VALUES ('78519', 'EN0201', '1065', 'Deforestation', 'Deforestation is the conversion of forest to other land use independently of whether human-induced or not (FAO, 2023).', '{"en": "Deforestation"}', '{"en": "Deforestation is the conversion of forest to other land use independently of whether human-induced or not (FAO, 2023)."}');
 INSERT INTO public.hip_hazard VALUES ('78504', 'EN0303', '1065', 'Salinity &amp; Sodicity', 'Salt-affected soils consist of saline and sodic soils. Saline soils are those with an elevated amount of soluble salts, which reduces the ability of plants to take up water from soil due to the high osmotic pressure of the soil solution (FAO, 1985).The technical criteria used to distinguish saline soil from other soils is the electrical conductivity (ECe) of a soil paste saturation extract: ECe > 2 dS/m (slightly saline) or ECe > 4 dS/m (saline) at 25 C. The content of soluble salts should be higher than 0.1-0.2% (FAO, 2018). The threshold of salinity above which a plant will suffer deleterious effects varies according to plant species, type of ions in solution, soil health and soil fertility status.Sodic soils get their name from sodium ions (Na⁺) adsorbed on soil clays and organic matter. Sodic soils have elevated amounts of exchangeable Na⁺ compared to the amounts of Ca²⁺ and Mg²⁺, measured as sodium adsorption ratio (SAR) > 13 or exchangeable sodium percentage (ESP) > 15, and with relatively lower salinity (ECe', '{"en": "Salinity &amp; Sodicity"}', '{"en": "Salt-affected soils consist of saline and sodic soils. Saline soils are those with an elevated amount of soluble salts, which reduces the ability of plants to take up water from soil due to the high osmotic pressure of the soil solution (FAO, 1985).The technical criteria used to distinguish saline soil from other soils is the electrical conductivity (ECe) of a soil paste saturation extract: ECe > 2 dS/m (slightly saline) or ECe > 4 dS/m (saline) at 25 C. The content of soluble salts should be higher than 0.1-0.2% (FAO, 2018). The threshold of salinity above which a plant will suffer deleterious effects varies according to plant species, type of ions in solution, soil health and soil fertility status.Sodic soils get their name from sodium ions (Na⁺) adsorbed on soil clays and organic matter. Sodic soils have elevated amounts of exchangeable Na⁺ compared to the amounts of Ca²⁺ and Mg²⁺, measured as sodium adsorption ratio (SAR) > 13 or exchangeable sodium percentage (ESP) > 15, and with relatively lower salinity (ECe"}');
 INSERT INTO public.hip_hazard VALUES ('78505', 'EN0501', '1065', 'Biodiversity Loss', 'Biodiversity loss refers to the reduction of any aspect of biological diversity (i.e. diversity at the genetic, species and ecosystem levels) in a particular area through death (including extinction), destruction or manual removal. It can occur at many scales, from global extinctions to local population extinctions, leading to a decline in total diversity at the same scale.', '{"en": "Biodiversity Loss"}', '{"en": "Biodiversity loss refers to the reduction of any aspect of biological diversity (i.e. diversity at the genetic, species and ecosystem levels) in a particular area through death (including extinction), destruction or manual removal. It can occur at many scales, from global extinctions to local population extinctions, leading to a decline in total diversity at the same scale."}');
-INSERT INTO public.hip_hazard VALUES ('78581', 'MH0202', '1073', 'Fog', 'Fog is a suspension of very small, usually microscopic water droplets in the air, reducing visibility at the Earth’s surface (WMO, 2017).', '{"en": "Fog"}', '{"en": "Fog is a suspension of very small, usually microscopic water droplets in the air, reducing visibility at the Earth’s surface (WMO, 2017)."}');
 INSERT INTO public.hip_hazard VALUES ('78506', 'EN0202', '1065', 'Forest Declines and Diebacks', 'Forest declines and diebacks are episodic events characterised by premature, progressive loss of tree and stand vigour and health over a given period without obvious evidence of a single clearly identifiable causal factor such as physical disturbance or attack by primary disease or insect (Ciesla & Donaubauer, 1994).Tree declines can be described as the gradual deterioration of plant tissues over time, triggered by a series of adverse events such as abiotic stress, climate deregulation, the emergence of new pathogens, biological invasions and agricultural strategies. Declines may also be seen as a long-term reduction of wood or fruit productivity, leading (or not) to sudden tree mortality, occasionally referred to as dieback (Bettenfeld et al., 2020).', '{"en": "Forest Declines and Diebacks"}', '{"en": "Forest declines and diebacks are episodic events characterised by premature, progressive loss of tree and stand vigour and health over a given period without obvious evidence of a single clearly identifiable causal factor such as physical disturbance or attack by primary disease or insect (Ciesla & Donaubauer, 1994).Tree declines can be described as the gradual deterioration of plant tissues over time, triggered by a series of adverse events such as abiotic stress, climate deregulation, the emergence of new pathogens, biological invasions and agricultural strategies. Declines may also be seen as a long-term reduction of wood or fruit productivity, leading (or not) to sudden tree mortality, occasionally referred to as dieback (Bettenfeld et al., 2020)."}');
 INSERT INTO public.hip_hazard VALUES ('78507', 'EN0203', '1065', 'Forest Disturbances', 'Forest disturbance is the damage caused by any factor (biotic or abiotic) that adversely affects the vigour and productivity of the forest, and which is not a direct result of human activities. It includes disturbance by insect pests, diseases, severe weather events and fires (FAO, 2018; 2020).', '{"en": "Forest Disturbances"}', '{"en": "Forest disturbance is the damage caused by any factor (biotic or abiotic) that adversely affects the vigour and productivity of the forest, and which is not a direct result of human activities. It includes disturbance by insect pests, diseases, severe weather events and fires (FAO, 2018; 2020)."}');
 INSERT INTO public.hip_hazard VALUES ('78508', 'EN0206', '1065', 'Desertification', 'Desertification refers to land degradation in arid, semi-arid and dry sub-humid areas resulting from various factors, including climatic variations and human activities (UNCCD, 2017).', '{"en": "Desertification"}', '{"en": "Desertification refers to land degradation in arid, semi-arid and dry sub-humid areas resulting from various factors, including climatic variations and human activities (UNCCD, 2017)."}');
 INSERT INTO public.hip_hazard VALUES ('78516', 'EN0405', '1065', 'Sand Mining', 'Sand mining (extraction) is defined as the removal of primary (virgin) natural sand and sand resources (mineral sands and aggregates) from the natural environment (terrestrial, riverine, coastal, or marine) for extracting valuable minerals, metals, crushed stone, sand and gravel for subsequent processing (UNEP, 2019).', '{"en": "Sand Mining"}', '{"en": "Sand mining (extraction) is defined as the removal of primary (virgin) natural sand and sand resources (mineral sands and aggregates) from the natural environment (terrestrial, riverine, coastal, or marine) for extracting valuable minerals, metals, crushed stone, sand and gravel for subsequent processing (UNEP, 2019)."}');
+INSERT INTO public.hip_hazard VALUES ('78576', 'MH0610', '1072', 'Snowmelt Flooding', 'A snowmelt flood is a significant flood rise in a river caused by the melting of snowpack accumulated during the winter (WMO, 2012).', '{"en": "Snowmelt Flooding"}', '{"en": "A snowmelt flood is a significant flood rise in a river caused by the melting of snowpack accumulated during the winter (WMO, 2012)."}');
 INSERT INTO public.hip_hazard VALUES ('78509', 'EN0207', '1065', 'Loss of Mangroves', 'Mangroves are distinctive tropical and sub-tropical, woody plants that grow at the interface/intertidal zone between land and sea, where they exist in conditions of high salinity, extreme tides, strong winds, high temperatures and muddy, anaerobic soils (Kathiresan and Bingham, 2001). The destruction of mangrove habitat is caused by both human and natural causes. Humans have cleared mangrove forests to expand farmlands, aquaculture ponds or urban areas. Natural stressors, such as sediment erosion, extreme storm surges or drought have also resulted in mangrove habitat loss. The loss of mangroves has devastated coastal communities, which depend on them for socio-economic activities and environmental conservation, especially in regions with low mangrove diversity and coverage.', '{"en": "Loss of Mangroves"}', '{"en": "Mangroves are distinctive tropical and sub-tropical, woody plants that grow at the interface/intertidal zone between land and sea, where they exist in conditions of high salinity, extreme tides, strong winds, high temperatures and muddy, anaerobic soils (Kathiresan and Bingham, 2001). The destruction of mangrove habitat is caused by both human and natural causes. Humans have cleared mangrove forests to expand farmlands, aquaculture ponds or urban areas. Natural stressors, such as sediment erosion, extreme storm surges or drought have also resulted in mangrove habitat loss. The loss of mangroves has devastated coastal communities, which depend on them for socio-economic activities and environmental conservation, especially in regions with low mangrove diversity and coverage."}');
-INSERT INTO public.hip_hazard VALUES ('78554', 'GH0309', '1742', 'Subsidence and Uplift', 'Subsidence is a lowering or collapse of the ground (BGS, 2020). Uplift is the converse.', '{"en": "Subsidence and Uplift"}', '{"en": "Subsidence is a lowering or collapse of the ground (BGS, 2020). Uplift is the converse."}');
 INSERT INTO public.hip_hazard VALUES ('78510', 'EN0304', '1065', 'Wetland Loss/Degradation', 'Wetland loss/degradation is a negative trend in wetland condition, caused by physical or direct/indirect human-induced processes, expressed as a long-term reduction or loss of at least one of the following: biological productivity, ecological role or value to humans (Olsson et al., 2019). Wetlands are defined as areas of marsh, fen, peatland or water, whether natural or artificial, permanent or temporary, with water that is static or flowing, fresh, brackish or salt, including areas of marine water the depth of which at low tide does not exceed six metres (Convention on Wetlands, 1971: Article 1.1). Wetlands may incorporate riparian and coastal zones adjacent to the wetlands, and islands or bodies of marine water deeper than six metres at low tide lying within the wetlands (Convention on Wetlands, 1971: Article 2.1).', '{"en": "Wetland Loss/Degradation"}', '{"en": "Wetland loss/degradation is a negative trend in wetland condition, caused by physical or direct/indirect human-induced processes, expressed as a long-term reduction or loss of at least one of the following: biological productivity, ecological role or value to humans (Olsson et al., 2019). Wetlands are defined as areas of marsh, fen, peatland or water, whether natural or artificial, permanent or temporary, with water that is static or flowing, fresh, brackish or salt, including areas of marine water the depth of which at low tide does not exceed six metres (Convention on Wetlands, 1971: Article 1.1). Wetlands may incorporate riparian and coastal zones adjacent to the wetlands, and islands or bodies of marine water deeper than six metres at low tide lying within the wetlands (Convention on Wetlands, 1971: Article 2.1)."}');
 INSERT INTO public.hip_hazard VALUES ('78511', 'EN0404', '1065', 'Coral Bleaching', 'Corals are subject to ‘bleaching’ when the seawater temperature is too high: they lose the symbiotic algae that give coral its colour and part of its nutrients. Severe, prolonged or repeated bleaching can lead to the death of coral colonies (United Nations, 2017).', '{"en": "Coral Bleaching"}', '{"en": "Corals are subject to ‘bleaching’ when the seawater temperature is too high: they lose the symbiotic algae that give coral its colour and part of its nutrients. Severe, prolonged or repeated bleaching can lead to the death of coral colonies (United Nations, 2017)."}');
 INSERT INTO public.hip_hazard VALUES ('78512', 'GH0401', '1070', 'Compressive Soils', 'Compressive soils are prone to volumetric change when subject to mechanical loading (USDA, 1990:30). Collapsible soils are metastable in that they are prone to volumetric change (collapse) on wetting and loading (Rogers, 1995).', '{"en": "Compressive Soils"}', '{"en": "Compressive soils are prone to volumetric change when subject to mechanical loading (USDA, 1990:30). Collapsible soils are metastable in that they are prone to volumetric change (collapse) on wetting and loading (Rogers, 1995)."}');
 INSERT INTO public.hip_hazard VALUES ('78513', 'GH0403', '1070', 'Soil Erosion', 'Erosion is the wearing away of the land surface by water, wind, ice, gravity or other natural or anthropogenic agents that abrade, detach and remove soil particles from one point on the earth''s surface, for deposition elsewhere. Four main forms are recognized: water, wind, harvest and tillage. (FAO, 2020).', '{"en": "Soil Erosion"}', '{"en": "Erosion is the wearing away of the land surface by water, wind, ice, gravity or other natural or anthropogenic agents that abrade, detach and remove soil particles from one point on the earth''s surface, for deposition elsewhere. Four main forms are recognized: water, wind, harvest and tillage. (FAO, 2020)."}');
 INSERT INTO public.hip_hazard VALUES ('78514', 'GH0405', '1070', 'Coastal Erosion and Accretion', 'Coastal erosion is the process of removal of material at the shoreline which leads to the loss of land as the shoreline retreats landward. Coastal accretion is the product of deposition of material at the shoreline which leads to gain of land as the coast advances seaward (Gibb, 1978).', '{"en": "Coastal Erosion and Accretion"}', '{"en": "Coastal erosion is the process of removal of material at the shoreline which leads to the loss of land as the shoreline retreats landward. Coastal accretion is the product of deposition of material at the shoreline which leads to gain of land as the coast advances seaward (Gibb, 1978)."}');
 INSERT INTO public.hip_hazard VALUES ('78515', 'EN0305', '1065', 'Permafrost Loss', 'Permafrost is defined as ground that remains frozen at or below 0°C for a minimum of two consecutive years. Permafrost loss, also known as permafrost thaw, is the progressive loss of ground ice in permafrost, usually due to input of heat. Thaw can occur over decades to centuries over the entire depth of permafrost ground, with impacts occurring while thaw progresses. During thaw, temperature fluctuations are subdued because energy is transferred by phase change between ice and water. After the transition from permafrost to non-permafrost, ground can be described as thawed (IPCC, 2019).', '{"en": "Permafrost Loss"}', '{"en": "Permafrost is defined as ground that remains frozen at or below 0°C for a minimum of two consecutive years. Permafrost loss, also known as permafrost thaw, is the progressive loss of ground ice in permafrost, usually due to input of heat. Thaw can occur over decades to centuries over the entire depth of permafrost ground, with impacts occurring while thaw progresses. During thaw, temperature fluctuations are subdued because energy is transferred by phase change between ice and water. After the transition from permafrost to non-permafrost, ground can be described as thawed (IPCC, 2019)."}');
-INSERT INTO public.hip_hazard VALUES ('78517', 'EN0402', '1065', 'Sea Level Rise', 'Sea-level change (sea-level rise / sea-level fall) refers to a change in the height of sea level, both globally and locally (relative sea-level change), at seasonal, annual, or longer time scales. It results from a change in ocean volume due to a change in the mass of water in the ocean (e.g. melting of glaciers and ice sheets), changes in ocean water density (e.g. expansion under warmer conditions), changes in the shape of ocean basins, changes in the Earth''s gravitational and rotational fields, and local land subsidence or uplift (IPCC, 2019).', '{"en": "Sea Level Rise"}', '{"en": "Sea-level change (sea-level rise / sea-level fall) refers to a change in the height of sea level, both globally and locally (relative sea-level change), at seasonal, annual, or longer time scales. It results from a change in ocean volume due to a change in the mass of water in the ocean (e.g. melting of glaciers and ice sheets), changes in ocean water density (e.g. expansion under warmer conditions), changes in the shape of ocean basins, changes in the Earth''s gravitational and rotational fields, and local land subsidence or uplift (IPCC, 2019)."}');
-INSERT INTO public.hip_hazard VALUES ('78618', 'MH0302', '1079', 'Derecho', 'Derechos are fast-moving bands of thunderstorms with destructive winds. The winds can be as strong as those found in hurricanes or even tornadoes. Unlike hurricanes and tornadoes, these winds follow straight lines (NOAA, 2019).', '{"en": "Derecho"}', '{"en": "Derechos are fast-moving bands of thunderstorms with destructive winds. The winds can be as strong as those found in hurricanes or even tornadoes. Unlike hurricanes and tornadoes, these winds follow straight lines (NOAA, 2019)."}');
+INSERT INTO public.hip_hazard VALUES ('78604', 'MH0406', '1076', 'Snow Storm', 'A snow storm is a meteorological disturbance giving rise to a heavy fall of snow, often accompanied by strong winds (WMO, 1992).', '{"en": "Snow Storm"}', '{"en": "A snow storm is a meteorological disturbance giving rise to a heavy fall of snow, often accompanied by strong winds (WMO, 1992)."}');
+INSERT INTO public.hip_hazard VALUES ('78518', 'EN0403', '1065', 'Eutrophication', 'Eutrophication refers to the phenomenon of increased production of organic matter, primarily nitrogen and phosphorus, in aquatic systems (Nixon, 1995). Eutrophication can be caused by human activities (e.g. sewage outfall, agricultural runoff, aquaculture) and may result in secondary environmental effects such as algal blooms and fish kills (NOAA, 2007; UNEP, 2015). Given the complex structure and functioning of ecosystems, and the multitude of pressures they face (Cloern, 2001), the precise definition of eutrophication remains to be established (Pannard et al., 2024).', '{"en": "Eutrophication"}', '{"en": "Eutrophication refers to the phenomenon of increased production of organic matter, primarily nitrogen and phosphorus, in aquatic systems (Nixon, 1995). Eutrophication can be caused by human activities (e.g. sewage outfall, agricultural runoff, aquaculture) and may result in secondary environmental effects such as algal blooms and fish kills (NOAA, 2007; UNEP, 2015). Given the complex structure and functioning of ecosystems, and the multitude of pressures they face (Cloern, 2001), the precise definition of eutrophication remains to be established (Pannard et al., 2024)."}');
+INSERT INTO public.hip_hazard VALUES ('78519', 'EN0201', '1065', 'Deforestation', 'Deforestation is the conversion of forest to other land use independently of whether human-induced or not (FAO, 2023).', '{"en": "Deforestation"}', '{"en": "Deforestation is the conversion of forest to other land use independently of whether human-induced or not (FAO, 2023)."}');
+INSERT INTO public.hip_hazard VALUES ('78520', 'EN0204', '1065', 'Forest Invasive Species', 'Forest invasive species are any species that are non-native to a particular forest ecosystem and whose introduction and spread cause, or are likely to cause, socio-cultural, economic or environmental harm, or harm to human health (adapted from FAO, 2015).', '{"en": "Forest Invasive Species"}', '{"en": "Forest invasive species are any species that are non-native to a particular forest ecosystem and whose introduction and spread cause, or are likely to cause, socio-cultural, economic or environmental harm, or harm to human health (adapted from FAO, 2015)."}');
 INSERT INTO public.hip_hazard VALUES ('78521', 'EN0205', '1065', 'Wildfires', 'Any unplanned and uncontrolled vegetation fire that, regardless of ignition source, may negatively affect social, economic or environmental values, and require suppression response or other action according to agency policy (FAO, 2024).', '{"en": "Wildfires"}', '{"en": "Any unplanned and uncontrolled vegetation fire that, regardless of ignition source, may negatively affect social, economic or environmental values, and require suppression response or other action according to agency policy (FAO, 2024)."}');
 INSERT INTO public.hip_hazard VALUES ('78522', 'ET0201', '1067', 'Airburst', 'An airburst is defined as a high-energy explosion in mid-air caused either by an artificial explosive device or by the sudden disruption of a natural object entering the Earth''s atmosphere at high speeds at an altitude where the hydrodynamic pressure exceeds the structural integrity of the object (adapted from ESA, No date).An airburst is defined as an explosion in the air, especially of a nuclear bomb or large meteorite (Lexico Dictionary, no date).', '{"en": "Airburst"}', '{"en": "An airburst is defined as a high-energy explosion in mid-air caused either by an artificial explosive device or by the sudden disruption of a natural object entering the Earth''s atmosphere at high speeds at an altitude where the hydrodynamic pressure exceeds the structural integrity of the object (adapted from ESA, No date).An airburst is defined as an explosion in the air, especially of a nuclear bomb or large meteorite (Lexico Dictionary, no date)."}');
 INSERT INTO public.hip_hazard VALUES ('78523', 'ET0101', '1833', 'Geomagnetic Disturbance', 'A geomagnetic disturbance refers to perturbations in Earth''s magnetosphere caused by sudden and significant variations in the solar wind''s speed, density, and magnetic properties. The intensity of a geomagnetic disturbance can be measured using different geomagnetic indexes. Although a geomagnetic disturbance is a global phenomenon, the intensities and characteristics vary at different geographic locations (NOAA, 2023).', '{"en": "Geomagnetic Disturbance"}', '{"en": "A geomagnetic disturbance refers to perturbations in Earth''s magnetosphere caused by sudden and significant variations in the solar wind''s speed, density, and magnetic properties. The intensity of a geomagnetic disturbance can be measured using different geomagnetic indexes. Although a geomagnetic disturbance is a global phenomenon, the intensities and characteristics vary at different geographic locations (NOAA, 2023)."}');
@@ -2100,7 +2592,6 @@ INSERT INTO public.hip_hazard VALUES ('78524', 'ET0202', '1067', 'Ultraviolet Ra
 INSERT INTO public.hip_hazard VALUES ('78525', 'ET0203', '1067', 'Meteorite Impact', 'A meteorite is an object that survives a trip through Earth’s atmosphere and hits the ground (adapted from NASA, no date).', '{"en": "Meteorite Impact"}', '{"en": "A meteorite is an object that survives a trip through Earth’s atmosphere and hits the ground (adapted from NASA, no date)."}');
 INSERT INTO public.hip_hazard VALUES ('78526', 'ET0102', '1833', 'Ionospheric Disturbances', 'Ionospheric disturbances refer to the state of the ionosphere characterized by irregular variations of ionospheric parameters without a systematic pattern. These disturbances can be of different spatiotemporal scales and have distinct characteristics at different geographic locations. Different ionospheric disturbances pose different risks to various applications (WMO, 1992).', '{"en": "Ionospheric Disturbances"}', '{"en": "Ionospheric disturbances refer to the state of the ionosphere characterized by irregular variations of ionospheric parameters without a systematic pattern. These disturbances can be of different spatiotemporal scales and have distinct characteristics at different geographic locations. Different ionospheric disturbances pose different risks to various applications (WMO, 1992)."}');
 INSERT INTO public.hip_hazard VALUES ('78527', 'ET0103', '1833', 'Solar Flares', 'A solar flare is a sudden and large explosion on the Sun characterized by the rapid release of energy, resulting in the emission of electromagnetic radiation across all wavelengths and a rapid increase in brightness on a portion of the Sun''s surface. The sudden outburst of electromagnetic energy travels at the speed of light therefore any effect upon the sunlit side of Earth’s exposed outer atmosphere occurs at the same time the event is observed (NOAA Space Weather Prediction Center, 2023).', '{"en": "Solar Flares"}', '{"en": "A solar flare is a sudden and large explosion on the Sun characterized by the rapid release of energy, resulting in the emission of electromagnetic radiation across all wavelengths and a rapid increase in brightness on a portion of the Sun''s surface. The sudden outburst of electromagnetic energy travels at the speed of light therefore any effect upon the sunlit side of Earth’s exposed outer atmosphere occurs at the same time the event is observed (NOAA Space Weather Prediction Center, 2023)."}');
-INSERT INTO public.hip_hazard VALUES ('78561', 'GH0306', '1742', 'Submarine Gravitational Mass Movement (‘Landslide’)', 'A submarine gravitational mass movement (‘Landslide’) is the downslope movement of sediment or rock due to gravity, occurring when the downslope forces exceed the sediment''s resistance to movement (Adapted from Lee et al., 2007).', '{"en": "Submarine Gravitational Mass Movement (‘Landslide’)"}', '{"en": "A submarine gravitational mass movement (‘Landslide’) is the downslope movement of sediment or rock due to gravity, occurring when the downslope forces exceed the sediment''s resistance to movement (Adapted from Lee et al., 2007)."}');
 INSERT INTO public.hip_hazard VALUES ('78528', 'ET0104', '1833', 'Solar Energetic Particles', 'Solar energetic particle (SEP) events occur when a large-scale magnetic eruption, often accompanied by a coronal mass ejection and/or a related solar flare, accelerates charged particles in the solar atmosphere to significant fractions of the speed of light. The primary particles of interest are protons. SEP arrive with diverse fluxes and energies at different geographic locations (NOAA, 2023).', '{"en": "Solar Energetic Particles"}', '{"en": "Solar energetic particle (SEP) events occur when a large-scale magnetic eruption, often accompanied by a coronal mass ejection and/or a related solar flare, accelerates charged particles in the solar atmosphere to significant fractions of the speed of light. The primary particles of interest are protons. SEP arrive with diverse fluxes and energies at different geographic locations (NOAA, 2023)."}');
 INSERT INTO public.hip_hazard VALUES ('78529', 'ET0204', '1067', 'Space Hazard / Accident', 'A space accident is any accident involving space objects that cause damage (adapted from UNGA, 1971).', '{"en": "Space Hazard / Accident"}', '{"en": "A space accident is any accident involving space objects that cause damage (adapted from UNGA, 1971)."}');
 INSERT INTO public.hip_hazard VALUES ('78530', 'ET0205', '1067', 'Near-Earth Object', 'A near-Earth object (NEO) is an asteroid or comet whose trajectory brings it to within 1.3 astronomical units of the Sun and hence within 0.3 astronomical units, or approximately 45 million kilometres, of the Earth’s orbit (UN OOSA, no date).', '{"en": "Near-Earth Object"}', '{"en": "A near-Earth object (NEO) is an asteroid or comet whose trajectory brings it to within 1.3 astronomical units of the Sun and hence within 0.3 astronomical units, or approximately 45 million kilometres, of the Earth’s orbit (UN OOSA, no date)."}');
@@ -2109,37 +2600,30 @@ INSERT INTO public.hip_hazard VALUES ('78539', 'GH0202', '1069', 'Lava Flows and
 INSERT INTO public.hip_hazard VALUES ('78540', 'GH0203', '1069', 'Ash/Tephra Fall (including Volcanic Ballistic Projectiles)', 'Tephra is a collective term for volcanic fragments (pyroclasts) generated by the fragmentation of fresh magma and old (i.e., pre- existing) rocks ejected into the atmosphere during an explosive eruption, irrespective of size, composition and shape. The term ''volcanic ash'' refers to the finest particles of tephra (Tephra also include relatively large bombs (fragments of fresh magma) and blocks (fragments of pre-existing rocks) that are ejected during an explosive eruption at variable velocity and angle on cannon ball-like trajectories (Volcanic Ballistic Projectiles); they are not entrained within the volcanic plume, are not significantly affected by the wind field, and are dispersed in proximity to the vent (typically', '{"en": "Ash/Tephra Fall (including Volcanic Ballistic Projectiles)"}', '{"en": "Tephra is a collective term for volcanic fragments (pyroclasts) generated by the fragmentation of fresh magma and old (i.e., pre- existing) rocks ejected into the atmosphere during an explosive eruption, irrespective of size, composition and shape. The term ''volcanic ash'' refers to the finest particles of tephra (Tephra also include relatively large bombs (fragments of fresh magma) and blocks (fragments of pre-existing rocks) that are ejected during an explosive eruption at variable velocity and angle on cannon ball-like trajectories (Volcanic Ballistic Projectiles); they are not entrained within the volcanic plume, are not significantly affected by the wind field, and are dispersed in proximity to the vent (typically"}');
 INSERT INTO public.hip_hazard VALUES ('78542', 'GH0204', '1069', 'Pyroclastic Density Current', 'Pyroclastic density currents are hot, fast-moving mixtures of volcanic particles and gas that flow according to their density relative to the surrounding medium and the Earth''s gravity. They typically originate from the gravitational collapse of explosive eruption columns, lava domes or lava-flow fronts, and explosive lateral blasts (cf. Charbonnier et al., 2025).', '{"en": "Pyroclastic Density Current"}', '{"en": "Pyroclastic density currents are hot, fast-moving mixtures of volcanic particles and gas that flow according to their density relative to the surrounding medium and the Earth''s gravity. They typically originate from the gravitational collapse of explosive eruption columns, lava domes or lava-flow fronts, and explosive lateral blasts (cf. Charbonnier et al., 2025)."}');
 INSERT INTO public.hip_hazard VALUES ('78543', 'GH0205', '1069', 'Lahars', 'Lahars are discrete, rapid, gravity-driven, water-saturated flows containing water and solid particles of volcanic rock, sediment, ice, wood, and other debris that originate at volcanoes (Gudmundsson, 2015; Vallance and Iverson, 2015).', '{"en": "Lahars"}', '{"en": "Lahars are discrete, rapid, gravity-driven, water-saturated flows containing water and solid particles of volcanic rock, sediment, ice, wood, and other debris that originate at volcanoes (Gudmundsson, 2015; Vallance and Iverson, 2015)."}');
-INSERT INTO public.hip_hazard VALUES ('78546', 'GH0206', '1069', 'Volcanic Gases and Aerosols', 'Volcanic gas includes any gas-phase substance that is emitted by volcanic or volcanic-geothermal activity. Volcanic aerosols include liquid or solid particles that are small enough to be suspended in the air, and that are emitted by volcanic or volcanic-geothermal activity (adapted from Baxter and Horwell, 2015, Fischer and Chiodini, 2015, and Williams-Jones and Rymer ,2015).', '{"en": "Volcanic Gases and Aerosols"}', '{"en": "Volcanic gas includes any gas-phase substance that is emitted by volcanic or volcanic-geothermal activity. Volcanic aerosols include liquid or solid particles that are small enough to be suspended in the air, and that are emitted by volcanic or volcanic-geothermal activity (adapted from Baxter and Horwell, 2015, Fischer and Chiodini, 2015, and Williams-Jones and Rymer ,2015)."}');
-INSERT INTO public.hip_hazard VALUES ('78573', 'MH0605', '1072', 'Groundwater Flooding', 'A groundwater flood is the emergence of groundwater at the ground surface away from perennial river channels or the rising of groundwater into man-made ground, under conditions where the ‘normal’ ranges of groundwater level and groundwater flow are exceeded (BGS, 2010).', '{"en": "Groundwater Flooding"}', '{"en": "A groundwater flood is the emergence of groundwater at the ground surface away from perennial river channels or the rising of groundwater into man-made ground, under conditions where the ‘normal’ ranges of groundwater level and groundwater flow are exceeded (BGS, 2010)."}');
 INSERT INTO public.hip_hazard VALUES ('78552', 'GH0307', '1742', 'Liquefaction', 'Liquefaction refers to the loss of strength experienced in loosely packed, saturated or close to saturated sediments at or near the ground surface in response to strong ground shaking, such as earthquakes, cyclic loading (repeated application of stresses), and vibration from machinery, or due to the development of excess pore water pressure resulting from a change in head or confining pressures. (c. AGI, 2017; USGS, no date).', '{"en": "Liquefaction"}', '{"en": "Liquefaction refers to the loss of strength experienced in loosely packed, saturated or close to saturated sediments at or near the ground surface in response to strong ground shaking, such as earthquakes, cyclic loading (repeated application of stresses), and vibration from machinery, or due to the development of excess pore water pressure resulting from a change in head or confining pressures. (c. AGI, 2017; USGS, no date)."}');
+INSERT INTO public.hip_hazard VALUES ('78578', 'MH0607', '1072', 'Glacial Lake Outburst Flooding', 'A ‘glacial lake outburst flood’ is a phrase used to describe a sudden release of a significant amount of water retained in a glacial lake, irrespective of the cause (Emmer, 2017).', '{"en": "Glacial Lake Outburst Flooding"}', '{"en": "A ‘glacial lake outburst flood’ is a phrase used to describe a sudden release of a significant amount of water retained in a glacial lake, irrespective of the cause (Emmer, 2017)."}');
 INSERT INTO public.hip_hazard VALUES ('78553', 'GH0311', '1070', 'Surface Rupture and Fissuring', 'Surface ruptures and fissures are localized ground displacements that develop in response to tensional, compressional, and shear stresses, most commonly in unconsolidated sediment, but also in rock (Arizona Geological Survey, 2020). Surface ruptures represent the upward continuation of fault slip at depth, while fissures are smaller displacements, or more distributed deformation in and around the rupture area (adapted from USGS, no date and PNSN, no date).', '{"en": "Surface Rupture and Fissuring"}', '{"en": "Surface ruptures and fissures are localized ground displacements that develop in response to tensional, compressional, and shear stresses, most commonly in unconsolidated sediment, but also in rock (Arizona Geological Survey, 2020). Surface ruptures represent the upward continuation of fault slip at depth, while fissures are smaller displacements, or more distributed deformation in and around the rupture area (adapted from USGS, no date and PNSN, no date)."}');
-INSERT INTO public.hip_hazard VALUES ('78612', 'MH0501', '1077', 'Heatwave', 'A heatwave is a marked, unusual period of hot weather over a region persisting for at least two or three consecutive days and nights during the hot period of the year based on local climatological conditions, with thermal conditions recorded above given thresholds (WMO and WHO, 2015).', '{"en": "Heatwave"}', '{"en": "A heatwave is a marked, unusual period of hot weather over a region persisting for at least two or three consecutive days and nights during the hot period of the year based on local climatological conditions, with thermal conditions recorded above given thresholds (WMO and WHO, 2015)."}');
 INSERT INTO public.hip_hazard VALUES ('78555', 'GH0310', '1742', 'Shrink-Swell Subsidence', 'Subsidence is a lowering or collapse of the ground, caused by various factors, including groundwater lowering, sub-surface mining or tunnelling, consolidation, sinkholes, or changes in moisture content in expansive soils. Shrink-swell is the term applied to the behaviour of expansive soils. These are a group of soils that exhibit volumetric change in response to changes in moisture content, such that they shrink in response to desiccation and swell by hydration, resulting in ground subsidence and ground heave respectively (BGS, 2020).', '{"en": "Shrink-Swell Subsidence"}', '{"en": "Subsidence is a lowering or collapse of the ground, caused by various factors, including groundwater lowering, sub-surface mining or tunnelling, consolidation, sinkholes, or changes in moisture content in expansive soils. Shrink-swell is the term applied to the behaviour of expansive soils. These are a group of soils that exhibit volumetric change in response to changes in moisture content, such that they shrink in response to desiccation and swell by hydration, resulting in ground subsidence and ground heave respectively (BGS, 2020)."}');
 INSERT INTO public.hip_hazard VALUES ('78556', 'GH0308', '1742', 'Sinkhole', 'Sinkholes (also known as dolines) are depressions or holes in the ground caused by the dissolution, collapse or erosion of rock below the landsurface. This is one of several hazards that result in subsidence, i.e., lowering or collapse of the ground (adapted from USGS, no date; and BGS, no date).', '{"en": "Sinkhole"}', '{"en": "Sinkholes (also known as dolines) are depressions or holes in the ground caused by the dissolution, collapse or erosion of rock below the landsurface. This is one of several hazards that result in subsidence, i.e., lowering or collapse of the ground (adapted from USGS, no date; and BGS, no date)."}');
 INSERT INTO public.hip_hazard VALUES ('78557', 'GH0407', '1070', 'Ground Gases (CH4, Rn, etc.)', 'Ground gases are natural gases generated by various processes including material decay (natural and anthropogenic) and magma bodies (adapted from UK HMRC, 2016 and USGS, no date).', '{"en": "Ground Gases (CH4, Rn, etc.)"}', '{"en": "Ground gases are natural gases generated by various processes including material decay (natural and anthropogenic) and magma bodies (adapted from UK HMRC, 2016 and USGS, no date)."}');
-INSERT INTO public.hip_hazard VALUES ('78582', 'MH0203', '1073', 'Haze', 'Haze is a suspension in the air of extremely small, dry particles invisible to the naked eye and sufficiently numerous to give the air an opalescent appearance (WMO, 2017).', '{"en": "Haze"}', '{"en": "Haze is a suspension in the air of extremely small, dry particles invisible to the naked eye and sufficiently numerous to give the air an opalescent appearance (WMO, 2017)."}');
 INSERT INTO public.hip_hazard VALUES ('78558', 'GH0404', '1070', 'River Erosion and Accretion', 'River erosion is the removal of material from the banks and beds of rivers and streams (cf. Lawler, 1993). River accretion is the formation of new land such as channel bars, sandbanks and deltas by sedimentation or changing river flow (after Islam and Guchhait, 2020 and Hasanuzzaman et al., 2024).', '{"en": "River Erosion and Accretion"}', '{"en": "River erosion is the removal of material from the banks and beds of rivers and streams (cf. Lawler, 1993). River accretion is the formation of new land such as channel bars, sandbanks and deltas by sedimentation or changing river flow (after Islam and Guchhait, 2020 and Hasanuzzaman et al., 2024)."}');
 INSERT INTO public.hip_hazard VALUES ('78559', 'GH0406', '1070', 'Sand Encroachment', 'Sand encroachment is the accumulation of wind-borne sand. It commonly affects coasts, watercourses, and both cultivated and uncultivated land, typically occurring in arid to semi-arid regions. As sand accumulations move, they can bury towns, roads, oases, crops, market gardens, irrigation channels, and dams, leading to significant material and socioeconomic damage (cf. FAO, 2010).', '{"en": "Sand Encroachment"}', '{"en": "Sand encroachment is the accumulation of wind-borne sand. It commonly affects coasts, watercourses, and both cultivated and uncultivated land, typically occurring in arid to semi-arid regions. As sand accumulations move, they can bury towns, roads, oases, crops, market gardens, irrigation channels, and dams, leading to significant material and socioeconomic damage (cf. FAO, 2010)."}');
-INSERT INTO public.hip_hazard VALUES ('78599', 'MH0403', '1076', 'Blizzard', 'A blizzard is a severe snowstorm characterised by poor visibility, usually occurring at high latitudes and in mountainous regions (WMO, 1992).', '{"en": "Blizzard"}', '{"en": "A blizzard is a severe snowstorm characterised by poor visibility, usually occurring at high latitudes and in mountainous regions (WMO, 1992)."}');
-INSERT INTO public.hip_hazard VALUES ('78593', 'MH0704', '1074', 'Storm Tides', 'A storm tide is the actual sea level as influenced by a weather disturbance. The storm tide consists of the normal astronomical tide plus the storm surge (WMO, 2017).', '{"en": "Storm Tides"}', '{"en": "A storm tide is the actual sea level as influenced by a weather disturbance. The storm tide consists of the normal astronomical tide plus the storm surge (WMO, 2017)."}');
+INSERT INTO public.hip_hazard VALUES ('78561', 'GH0306', '1742', 'Submarine Gravitational Mass Movement (‘Landslide’)', 'A submarine gravitational mass movement (‘Landslide’) is the downslope movement of sediment or rock due to gravity, occurring when the downslope forces exceed the sediment''s resistance to movement (Adapted from Lee et al., 2007).', '{"en": "Submarine Gravitational Mass Movement (‘Landslide’)"}', '{"en": "A submarine gravitational mass movement (‘Landslide’) is the downslope movement of sediment or rock due to gravity, occurring when the downslope forces exceed the sediment''s resistance to movement (Adapted from Lee et al., 2007)."}');
 INSERT INTO public.hip_hazard VALUES ('78562', 'GH0301', '1742', 'Rock, debris and earth falls', 'A rock, debris or earth fall is a fragment of rock (a block), body of debris or earth (here taken to include mud) detached by sliding, toppling, or falling, that falls from a vertical or sub-vertical cliff and proceeds down slope by bouncing and flying along ballistic trajectories or by rolling on talus or debris slopes (adapted from Highland and Bobrowsky, 2008).', '{"en": "Rock, debris and earth falls"}', '{"en": "A rock, debris or earth fall is a fragment of rock (a block), body of debris or earth (here taken to include mud) detached by sliding, toppling, or falling, that falls from a vertical or sub-vertical cliff and proceeds down slope by bouncing and flying along ballistic trajectories or by rolling on talus or debris slopes (adapted from Highland and Bobrowsky, 2008)."}');
+INSERT INTO public.hip_hazard VALUES ('78579', 'EN0104', '1065', 'Black Carbon', 'Black carbon refers to the substance formed through the incomplete combustion of fossil fuels, biofuels and biomass, which is emitted in both anthropogenic and naturally occurring soot. It consists of pure carbon in several linked forms. Black carbon warms the Earth by absorbing heat in the atmosphere and by reducing albedo – the ability to reflect sunlight – when deposited on snow and ice. It is operationally defined as an aerosol species based on measurement of light absorption and chemical reactivity and/or thermal stability (UNEP, 2019).', '{"en": "Black Carbon"}', '{"en": "Black carbon refers to the substance formed through the incomplete combustion of fossil fuels, biofuels and biomass, which is emitted in both anthropogenic and naturally occurring soot. It consists of pure carbon in several linked forms. Black carbon warms the Earth by absorbing heat in the atmosphere and by reducing albedo – the ability to reflect sunlight – when deposited on snow and ice. It is operationally defined as an aerosol species based on measurement of light absorption and chemical reactivity and/or thermal stability (UNEP, 2019)."}');
 INSERT INTO public.hip_hazard VALUES ('78563', 'GH0302', '1742', 'Rock, debris and earth spreads (including landscape creep)', 'Rock spread: Near-horizontal stretching (elongation) of a mass of coherent blocks of rock as a result of intensive deformation of an underlying weak material, or by multiple retrogressive sliding controlled by a weak basal surface. Usually with fairly limited total displacement and slow movement (Hungr et al., 2014).Debris spread requires formal definition, but is likely to include sub-categories based on type of material and the velocity of the mass movement (cf. Cruden and Varnes, 1996; Hungr et al., 2014). It includes Sand/silt liquefaction spread: extremely rapid lateral spreading of a series of soil blocks, floating on a layer of saturated (loose) granular soil, liquefied by earthquake shaking or spontaneous liquefaction (Hungr et al., 2014).Earth spread requires formal definition, but is likely to include sub-categories based on type of material and the velocity of the mass movement (cf. Cruden and Varnes, 1996; Hungr et al., 2014). It includes Sensitive clay spread: extremely rapid lateral spreading of a series of coherent clay blocks, floating on a layer of remoulded sensitive clay (Hungr et al., 2014).', '{"en": "Rock, debris and earth spreads (including landscape creep)"}', '{"en": "Rock spread: Near-horizontal stretching (elongation) of a mass of coherent blocks of rock as a result of intensive deformation of an underlying weak material, or by multiple retrogressive sliding controlled by a weak basal surface. Usually with fairly limited total displacement and slow movement (Hungr et al., 2014).Debris spread requires formal definition, but is likely to include sub-categories based on type of material and the velocity of the mass movement (cf. Cruden and Varnes, 1996; Hungr et al., 2014). It includes Sand/silt liquefaction spread: extremely rapid lateral spreading of a series of soil blocks, floating on a layer of saturated (loose) granular soil, liquefied by earthquake shaking or spontaneous liquefaction (Hungr et al., 2014).Earth spread requires formal definition, but is likely to include sub-categories based on type of material and the velocity of the mass movement (cf. Cruden and Varnes, 1996; Hungr et al., 2014). It includes Sensitive clay spread: extremely rapid lateral spreading of a series of coherent clay blocks, floating on a layer of remoulded sensitive clay (Hungr et al., 2014)."}');
 INSERT INTO public.hip_hazard VALUES ('78566', 'MH0101', '1071', 'Downburst', 'A downburst is a violent and damaging downdraught reaching the ground surface, associated with a severe thunderstorm (WMO, 1992).', '{"en": "Downburst"}', '{"en": "A downburst is a violent and damaging downdraught reaching the ground surface, associated with a severe thunderstorm (WMO, 1992)."}');
 INSERT INTO public.hip_hazard VALUES ('78567', 'MH0102', '1071', 'Lightning (Electrical Storm)', 'Lightning is the luminous manifestation accompanying a sudden electrical discharge that takes place from or inside a cloud or, less often, from high structures on the ground or from mountains (WMO, 2017).', '{"en": "Lightning (Electrical Storm)"}', '{"en": "Lightning is the luminous manifestation accompanying a sudden electrical discharge that takes place from or inside a cloud or, less often, from high structures on the ground or from mountains (WMO, 2017)."}');
 INSERT INTO public.hip_hazard VALUES ('78568', 'MH0103', '1071', 'Thunderstorm', 'A thunderstorm is defined as one or more sudden electrical discharges, manifested by a flash of light (lightning) and a sharp or rumbling sound (thunder) (WMO, no date).', '{"en": "Thunderstorm"}', '{"en": "A thunderstorm is defined as one or more sudden electrical discharges, manifested by a flash of light (lightning) and a sharp or rumbling sound (thunder) (WMO, no date)."}');
-INSERT INTO public.hip_hazard VALUES ('78584', 'MH0204', '1073', 'Sand haze', 'A dust haze (or sand haze) is a suspension in the air of dust or small sand particles, raised from the ground prior to the time of observation by a dust storm or sandstorm. The dust storm or sandstorm may have occurred either at or near the observation site or far from it (WMO, 2025).', '{"en": "Sand haze"}', '{"en": "A dust haze (or sand haze) is a suspension in the air of dust or small sand particles, raised from the ground prior to the time of observation by a dust storm or sandstorm. The dust storm or sandstorm may have occurred either at or near the observation site or far from it (WMO, 2025)."}');
-INSERT INTO public.hip_hazard VALUES ('78585', 'MH0205', '1073', 'Smoke', 'Smoke is a suspension in the air of small particles produced by combustion (WMO, 2017).', '{"en": "Smoke"}', '{"en": "Smoke is a suspension in the air of small particles produced by combustion (WMO, 2017)."}');
 INSERT INTO public.hip_hazard VALUES ('78569', 'MH0601', '1072', 'Coastal Flooding', 'Coastal flooding occurs from multiple sources, including storm surges, waves and swell, seiches, riverine and flash floods near the coast, tides, sea-level rise and tsunamis. It is most frequently the result of storm surges and high winds coinciding with high tides. The surge itself is the result of the raising of sea levels due to low atmospheric pressure. In particular configurations, such as major estuaries or confined sea areas, the piling up of water is amplified by a combination of the shallowing of the seabed and retarding of return flow (WMO, 2011; WMO, 2022).', '{"en": "Coastal Flooding"}', '{"en": "Coastal flooding occurs from multiple sources, including storm surges, waves and swell, seiches, riverine and flash floods near the coast, tides, sea-level rise and tsunamis. It is most frequently the result of storm surges and high winds coinciding with high tides. The surge itself is the result of the raising of sea levels due to low atmospheric pressure. In particular configurations, such as major estuaries or confined sea areas, the piling up of water is amplified by a combination of the shallowing of the seabed and retarding of return flow (WMO, 2011; WMO, 2022)."}');
 INSERT INTO public.hip_hazard VALUES ('78570', 'MH0602', '1072', 'Estuarine (Coastal) Flooding', 'Estuarine flooding is flooding over and near coastal areas caused by storm surges and high winds coincident with high tides, thereby obstructing the seaward river flow. Estuarine flooding can be caused by tsunamis in specific cases (WMO, 2011).', '{"en": "Estuarine (Coastal) Flooding"}', '{"en": "Estuarine flooding is flooding over and near coastal areas caused by storm surges and high winds coincident with high tides, thereby obstructing the seaward river flow. Estuarine flooding can be caused by tsunamis in specific cases (WMO, 2011)."}');
-INSERT INTO public.hip_hazard VALUES ('78571', 'MH0603', '1072', 'Flash Flooding', 'A flash flood is a flood of short duration with a relatively high peak discharge (WMO, 2021).', '{"en": "Flash Flooding"}', '{"en": "A flash flood is a flood of short duration with a relatively high peak discharge (WMO, 2021)."}');
 INSERT INTO public.hip_hazard VALUES ('78572', 'MH0604', '1072', 'Fluvial (Riverine) Flooding', 'Overflowing by water of the normal confines of a watercourse or other body of water (WMO, 2012).', '{"en": "Fluvial (Riverine) Flooding"}', '{"en": "Overflowing by water of the normal confines of a watercourse or other body of water (WMO, 2012)."}');
+INSERT INTO public.hip_hazard VALUES ('78573', 'MH0605', '1072', 'Groundwater Flooding', 'A groundwater flood is the emergence of groundwater at the ground surface away from perennial river channels or the rising of groundwater into man-made ground, under conditions where the ‘normal’ ranges of groundwater level and groundwater flow are exceeded (BGS, 2010).', '{"en": "Groundwater Flooding"}', '{"en": "A groundwater flood is the emergence of groundwater at the ground surface away from perennial river channels or the rising of groundwater into man-made ground, under conditions where the ‘normal’ ranges of groundwater level and groundwater flow are exceeded (BGS, 2010)."}');
 INSERT INTO public.hip_hazard VALUES ('78574', 'MH0608', '1072', 'Ice-Jam Flooding Including Debris', 'An ice-jam flood including debris is defined as an accumulation of shuga including ice cakes, below ice cover. It is broken ice in a river which causes a narrowing of the river channel, a rise in water level and local floods (WMO, 2012).Shuga is defined as the accumulation of spongy white ice lumps, a few centimetres across, formed from grease ice or slush, and sometimes from anchor ice rising to the surface (WMO, 2012).', '{"en": "Ice-Jam Flooding Including Debris"}', '{"en": "An ice-jam flood including debris is defined as an accumulation of shuga including ice cakes, below ice cover. It is broken ice in a river which causes a narrowing of the river channel, a rise in water level and local floods (WMO, 2012).Shuga is defined as the accumulation of spongy white ice lumps, a few centimetres across, formed from grease ice or slush, and sometimes from anchor ice rising to the surface (WMO, 2012)."}');
-INSERT INTO public.hip_hazard VALUES ('78575', 'MH0609', '1072', 'Ponding (Drainage) Flooding', 'A ponding flood is a flood that results from rainwater ponding at or near the point where it falls because it is falling faster than the drainage system (natural or man-made) can carry it away (WMO, 2006).', '{"en": "Ponding (Drainage) Flooding"}', '{"en": "A ponding flood is a flood that results from rainwater ponding at or near the point where it falls because it is falling faster than the drainage system (natural or man-made) can carry it away (WMO, 2006)."}');
-INSERT INTO public.hip_hazard VALUES ('78576', 'MH0610', '1072', 'Snowmelt Flooding', 'A snowmelt flood is a significant flood rise in a river caused by the melting of snowpack accumulated during the winter (WMO, 2012).', '{"en": "Snowmelt Flooding"}', '{"en": "A snowmelt flood is a significant flood rise in a river caused by the melting of snowpack accumulated during the winter (WMO, 2012)."}');
 INSERT INTO public.hip_hazard VALUES ('78577', 'MH0606', '1072', 'Surface Water Flooding', 'Surface water flooding is that part of the rain which remains on the ground surface during rain and either runs off or infiltrates after the rain ends, not including depression storage (WMO, 2012).', '{"en": "Surface Water Flooding"}', '{"en": "Surface water flooding is that part of the rain which remains on the ground surface during rain and either runs off or infiltrates after the rain ends, not including depression storage (WMO, 2012)."}');
-INSERT INTO public.hip_hazard VALUES ('78578', 'MH0607', '1072', 'Glacial Lake Outburst Flooding', 'A ‘glacial lake outburst flood’ is a phrase used to describe a sudden release of a significant amount of water retained in a glacial lake, irrespective of the cause (Emmer, 2017).', '{"en": "Glacial Lake Outburst Flooding"}', '{"en": "A ‘glacial lake outburst flood’ is a phrase used to describe a sudden release of a significant amount of water retained in a glacial lake, irrespective of the cause (Emmer, 2017)."}');
-INSERT INTO public.hip_hazard VALUES ('78579', 'EN0104', '1065', 'Black Carbon', 'Black carbon refers to the substance formed through the incomplete combustion of fossil fuels, biofuels and biomass, which is emitted in both anthropogenic and naturally occurring soot. It consists of pure carbon in several linked forms. Black carbon warms the Earth by absorbing heat in the atmosphere and by reducing albedo – the ability to reflect sunlight – when deposited on snow and ice. It is operationally defined as an aerosol species based on measurement of light absorption and chemical reactivity and/or thermal stability (UNEP, 2019).', '{"en": "Black Carbon"}', '{"en": "Black carbon refers to the substance formed through the incomplete combustion of fossil fuels, biofuels and biomass, which is emitted in both anthropogenic and naturally occurring soot. It consists of pure carbon in several linked forms. Black carbon warms the Earth by absorbing heat in the atmosphere and by reducing albedo – the ability to reflect sunlight – when deposited on snow and ice. It is operationally defined as an aerosol species based on measurement of light absorption and chemical reactivity and/or thermal stability (UNEP, 2019)."}');
-INSERT INTO public.hip_hazard VALUES ('78580', 'MH0201', '1073', 'Dust storm or Sandstorm', 'A dust storm is an ensemble of particles of dust or sand energetically lifted to great heights by a strong and turbulent wind (WMO, 2017).', '{"en": "Dust storm or Sandstorm"}', '{"en": "A dust storm is an ensemble of particles of dust or sand energetically lifted to great heights by a strong and turbulent wind (WMO, 2017)."}');
+INSERT INTO public.hip_hazard VALUES ('78582', 'MH0203', '1073', 'Haze', 'Haze is a suspension in the air of extremely small, dry particles invisible to the naked eye and sufficiently numerous to give the air an opalescent appearance (WMO, 2017).', '{"en": "Haze"}', '{"en": "Haze is a suspension in the air of extremely small, dry particles invisible to the naked eye and sufficiently numerous to give the air an opalescent appearance (WMO, 2017)."}');
+INSERT INTO public.hip_hazard VALUES ('78584', 'MH0204', '1073', 'Sand haze', 'A dust haze (or sand haze) is a suspension in the air of dust or small sand particles, raised from the ground prior to the time of observation by a dust storm or sandstorm. The dust storm or sandstorm may have occurred either at or near the observation site or far from it (WMO, 2025).', '{"en": "Sand haze"}', '{"en": "A dust haze (or sand haze) is a suspension in the air of dust or small sand particles, raised from the ground prior to the time of observation by a dust storm or sandstorm. The dust storm or sandstorm may have occurred either at or near the observation site or far from it (WMO, 2025)."}');
+INSERT INTO public.hip_hazard VALUES ('78585', 'MH0205', '1073', 'Smoke', 'Smoke is a suspension in the air of small particles produced by combustion (WMO, 2017).', '{"en": "Smoke"}', '{"en": "Smoke is a suspension in the air of small particles produced by combustion (WMO, 2017)."}');
 INSERT INTO public.hip_hazard VALUES ('78586', 'EN0401', '1065', 'Ocean Acidification', 'Ocean acidification refers to a reduction in the pH of the ocean over an extended period, caused primarily by the uptake of carbon dioxide from the atmosphere. It can also result from other chemical additions to or subtractions from the ocean (IPCC, 2011).', '{"en": "Ocean Acidification"}', '{"en": "Ocean acidification refers to a reduction in the pH of the ocean over an extended period, caused primarily by the uptake of carbon dioxide from the atmosphere. It can also result from other chemical additions to or subtractions from the ocean (IPCC, 2011)."}');
 INSERT INTO public.hip_hazard VALUES ('78587', 'MH0701', '1074', 'Rogue Wave', 'Rogue waves are extreme waves with overall or crest heights that are abnormally high relative to the background significant wave height (WMO, 2018).', '{"en": "Rogue Wave"}', '{"en": "Rogue waves are extreme waves with overall or crest heights that are abnormally high relative to the background significant wave height (WMO, 2018)."}');
 INSERT INTO public.hip_hazard VALUES ('78588', 'EN0302', '1065', 'Saltwater Intrusion', 'Seawater intrusion is the process by which saltwater infiltrates a coastal aquifer, leading to contamination of fresh groundwater (Prince Edward Island Department of Environment, Labour and Justice, 2011).', '{"en": "Saltwater Intrusion"}', '{"en": "Seawater intrusion is the process by which saltwater infiltrates a coastal aquifer, leading to contamination of fresh groundwater (Prince Edward Island Department of Environment, Labour and Justice, 2011)."}');
@@ -2147,8 +2631,13 @@ INSERT INTO public.hip_hazard VALUES ('78589', 'MH0706', '1074', 'Sea Ice (Icebe
 INSERT INTO public.hip_hazard VALUES ('78590', 'MH0707', '1074', 'Ice Flow', 'Ice flow is the motion of ice driven by gravitational forces, ice stress or, for sea ice, wind, water currents and tide (AMS, 2012).', '{"en": "Ice Flow"}', '{"en": "Ice flow is the motion of ice driven by gravitational forces, ice stress or, for sea ice, wind, water currents and tide (AMS, 2012)."}');
 INSERT INTO public.hip_hazard VALUES ('78591', 'MH0702', '1074', 'Seiche', 'Seiches are sea-level oscillations at the resonant frequency of enclosed bodies of water (WMO, 2011).', '{"en": "Seiche"}', '{"en": "Seiches are sea-level oscillations at the resonant frequency of enclosed bodies of water (WMO, 2011)."}');
 INSERT INTO public.hip_hazard VALUES ('78592', 'MH0703', '1074', 'Storm Surge', 'A storm surge reflects the difference between the actual water level under the influence of a meteorological disturbance (storm tide) and the level which would have occurred in the absence of the meteorological disturbance (i.e., astronomical tide) (WMO, 2008, 2011, 2017).', '{"en": "Storm Surge"}', '{"en": "A storm surge reflects the difference between the actual water level under the influence of a meteorological disturbance (storm tide) and the level which would have occurred in the absence of the meteorological disturbance (i.e., astronomical tide) (WMO, 2008, 2011, 2017)."}');
+INSERT INTO public.hip_hazard VALUES ('78593', 'MH0704', '1074', 'Storm Tides', 'A storm tide is the actual sea level as influenced by a weather disturbance. The storm tide consists of the normal astronomical tide plus the storm surge (WMO, 2017).', '{"en": "Storm Tides"}', '{"en": "A storm tide is the actual sea level as influenced by a weather disturbance. The storm tide consists of the normal astronomical tide plus the storm surge (WMO, 2017)."}');
+INSERT INTO public.hip_hazard VALUES ('78594', 'MH0705', '1074', 'Tsunami', 'Tsunami, a Japanese term meaning ''wave'' (‘nami’) in a harbour (‘tsu’), refers to a series of long-period travelling waves, typically caused by disturbances such as earthquakes occurring beneath or near the ocean floor (IOC, 2019).', '{"en": "Tsunami"}', '{"en": "Tsunami, a Japanese term meaning ''wave'' (‘nami’) in a harbour (‘tsu’), refers to a series of long-period travelling waves, typically caused by disturbances such as earthquakes occurring beneath or near the ocean floor (IOC, 2019)."}');
+INSERT INTO public.hip_hazard VALUES ('78595', 'MH0306', '1079', 'Depression or Cyclone (Low Pressure Area)', 'A depression or cyclone is a region of the atmosphere in which the pressure is lower than that of the surrounding region at the same level (WMO, 1992).', '{"en": "Depression or Cyclone (Low Pressure Area)"}', '{"en": "A depression or cyclone is a region of the atmosphere in which the pressure is lower than that of the surrounding region at the same level (WMO, 1992)."}');
+INSERT INTO public.hip_hazard VALUES ('78596', 'MH0307', '1079', 'Extra-tropical Cyclone', 'An extra-tropical cyclone is a low-pressure system, which develops in latitudes outside the tropics (WMO, 1992).', '{"en": "Extra-tropical Cyclone"}', '{"en": "An extra-tropical cyclone is a low-pressure system, which develops in latitudes outside the tropics (WMO, 1992)."}');
 INSERT INTO public.hip_hazard VALUES ('78597', 'MH0308', '1079', 'Sub-Tropical Cyclone', 'A subtropical cyclone is a non-frontal, low-pressure system that has characteristics of both tropical and extra-tropical cyclones. Like tropical cyclones, they are non-frontal, synoptic-scale cyclones that originate over tropical or subtropical waters and have a closed surface wind circulation about a well-defined centre (WMO, 2024 a).', '{"en": "Sub-Tropical Cyclone"}', '{"en": "A subtropical cyclone is a non-frontal, low-pressure system that has characteristics of both tropical and extra-tropical cyclones. Like tropical cyclones, they are non-frontal, synoptic-scale cyclones that originate over tropical or subtropical waters and have a closed surface wind circulation about a well-defined centre (WMO, 2024 a)."}');
 INSERT INTO public.hip_hazard VALUES ('78598', 'EN0105', '1065', 'Acid Rain', 'Acid rain is rain that, in the course of its history, has combined with chemical elements or pollutants in the atmosphere and reaches the Earth’s surface as a weak acid solution (WMO/UNESCO, 2012).', '{"en": "Acid Rain"}', '{"en": "Acid rain is rain that, in the course of its history, has combined with chemical elements or pollutants in the atmosphere and reaches the Earth’s surface as a weak acid solution (WMO/UNESCO, 2012)."}');
+INSERT INTO public.hip_hazard VALUES ('78619', 'MH0303', '1079', 'Gale (Strong Gale)', 'A gale is wind with a speed of between 34 and 40 knots (62–74 km/h, 32–38 mph). Also known as Beaufort scale wind force 8 (WMO, 1992).', '{"en": "Gale (Strong Gale)"}', '{"en": "A gale is wind with a speed of between 34 and 40 knots (62–74 km/h, 32–38 mph). Also known as Beaufort scale wind force 8 (WMO, 1992)."}');
 INSERT INTO public.hip_hazard VALUES ('78600', 'MH0401', '1076', 'Drought', 'A drought is a period of abnormally dry weather characterised by a prolonged deficiency of precipitation below a certain threshold over a large area and a period longer than a month (WMO, 2023).', '{"en": "Drought"}', '{"en": "A drought is a period of abnormally dry weather characterised by a prolonged deficiency of precipitation below a certain threshold over a large area and a period longer than a month (WMO, 2023)."}');
 INSERT INTO public.hip_hazard VALUES ('78601', 'MH0404', '1076', 'Hail', 'Hail is precipitation in the form of particles of ice (hailstones). These can be either transparent or partly or completely opaque. They are usually spheroidal, conical or irregular in form, and generally 5−50 mm in diameter. The particles may fall from a cloud either separately or agglomerated in irregular lumps (WMO, 2017).', '{"en": "Hail"}', '{"en": "Hail is precipitation in the form of particles of ice (hailstones). These can be either transparent or partly or completely opaque. They are usually spheroidal, conical or irregular in form, and generally 5−50 mm in diameter. The particles may fall from a cloud either separately or agglomerated in irregular lumps (WMO, 2017)."}');
 INSERT INTO public.hip_hazard VALUES ('78603', 'MH0405', '1076', 'Snow', 'Snow is the precipitation of ice crystals, isolated or agglomerated, falling from a cloud (WMO, 2017).', '{"en": "Snow"}', '{"en": "Snow is the precipitation of ice crystals, isolated or agglomerated, falling from a cloud (WMO, 2017)."}');
@@ -2159,29 +2648,32 @@ INSERT INTO public.hip_hazard VALUES ('78608', 'MH0505', '1077', 'Frost (Hoar Fr
 INSERT INTO public.hip_hazard VALUES ('78609', 'MH0506', '1077', 'Freezing Rain (Ice storm)', 'Freezing rain is rain where the temperature of the water droplets is below 0°C. Drops of supercooled rain may freeze on impact with the ground, in-flight aircraft or other objects (WMO, 2017).', '{"en": "Freezing Rain (Ice storm)"}', '{"en": "Freezing rain is rain where the temperature of the water droplets is below 0°C. Drops of supercooled rain may freeze on impact with the ground, in-flight aircraft or other objects (WMO, 2017)."}');
 INSERT INTO public.hip_hazard VALUES ('78610', 'MH0507', '1077', 'Glaze', 'Glaze is a smooth compact deposit of ice, generally transparent, formed by the freezing of super-cooled drizzle droplets or raindrops on objects with a surface temperature below or slightly above 0°C (WMO, 2017).', '{"en": "Glaze"}', '{"en": "Glaze is a smooth compact deposit of ice, generally transparent, formed by the freezing of super-cooled drizzle droplets or raindrops on objects with a surface temperature below or slightly above 0°C (WMO, 2017)."}');
 INSERT INTO public.hip_hazard VALUES ('78611', 'MH0508', '1077', 'Ground Frost', 'Ground frost is a covering of ice, in one of its many forms, produced by the sublimation of the water vapour on objects colder than 0°C (WMO, 1992).Ground frost occurs when the temperature of the upper layer of the soil is less than 0°C (WMO, 1992).', '{"en": "Ground Frost"}', '{"en": "Ground frost is a covering of ice, in one of its many forms, produced by the sublimation of the water vapour on objects colder than 0°C (WMO, 1992).Ground frost occurs when the temperature of the upper layer of the soil is less than 0°C (WMO, 1992)."}');
+INSERT INTO public.hip_hazard VALUES ('78612', 'MH0501', '1077', 'Heatwave', 'A heatwave is a marked, unusual period of hot weather over a region persisting for at least two or three consecutive days and nights during the hot period of the year based on local climatological conditions, with thermal conditions recorded above given thresholds (WMO and WHO, 2015).', '{"en": "Heatwave"}', '{"en": "A heatwave is a marked, unusual period of hot weather over a region persisting for at least two or three consecutive days and nights during the hot period of the year based on local climatological conditions, with thermal conditions recorded above given thresholds (WMO and WHO, 2015)."}');
+INSERT INTO public.hip_hazard VALUES ('78613', 'MH0509', '1077', 'Icing (Including Ice)', 'Icing refers to any deposit or coating of ice on an object caused by the impact of liquid hydrometeors, usually supercooled (WMO, 1992).', '{"en": "Icing (Including Ice)"}', '{"en": "Icing refers to any deposit or coating of ice on an object caused by the impact of liquid hydrometeors, usually supercooled (WMO, 1992)."}');
+INSERT INTO public.hip_hazard VALUES ('78614', 'MH0510', '1077', 'Thaw', 'Thaw is the melting of snow or ice at the Earth’s surface due to a temperature rise above 0°C (WMO, 1992).', '{"en": "Thaw"}', '{"en": "Thaw is the melting of snow or ice at the Earth’s surface due to a temperature rise above 0°C (WMO, 1992)."}');
+INSERT INTO public.hip_hazard VALUES ('78615', 'MH0801', '1078', 'Avalanche', 'An avalanche is a mass of snow and ice falling suddenly down a mountain slope and often taking with it earth, rocks and rubble of every description (WMO, 1992).', '{"en": "Avalanche"}', '{"en": "An avalanche is a mass of snow and ice falling suddenly down a mountain slope and often taking with it earth, rocks and rubble of every description (WMO, 1992)."}');
+INSERT INTO public.hip_hazard VALUES ('78618', 'MH0302', '1079', 'Derecho', 'Derechos are fast-moving bands of thunderstorms with destructive winds. The winds can be as strong as those found in hurricanes or even tornadoes. Unlike hurricanes and tornadoes, these winds follow straight lines (NOAA, 2019).', '{"en": "Derecho"}', '{"en": "Derechos are fast-moving bands of thunderstorms with destructive winds. The winds can be as strong as those found in hurricanes or even tornadoes. Unlike hurricanes and tornadoes, these winds follow straight lines (NOAA, 2019)."}');
 INSERT INTO public.hip_hazard VALUES ('78620', 'MH0304', '1079', 'Squall', 'A squall is an atmospheric phenomenon characterised by a very large variation of wind speed: it begins suddenly, has a duration of the order of minutes and decreases suddenly in speed. It is often accompanied by a shower or thunderstorm (WMO, 2018).', '{"en": "Squall"}', '{"en": "A squall is an atmospheric phenomenon characterised by a very large variation of wind speed: it begins suddenly, has a duration of the order of minutes and decreases suddenly in speed. It is often accompanied by a shower or thunderstorm (WMO, 2018)."}');
-INSERT INTO public.hip_hazard VALUES ('78630', 'SO0202', '1081', 'Environmental Degradation from Conflict', 'Environmental degradation is both a driver and consequence of disasters and conflict, reducing the capacity of the environment to meet social and ecological needs (Adapted from UNDRR, 2022).', '{"en": "Environmental Degradation from Conflict"}', '{"en": "Environmental degradation is both a driver and consequence of disasters and conflict, reducing the capacity of the environment to meet social and ecological needs (Adapted from UNDRR, 2022)."}');
 INSERT INTO public.hip_hazard VALUES ('78622', 'MH0309', '1079', 'Tropical Cyclone', 'A tropical cyclone is a cyclone of tropical origin of small diameter (some hundreds of kilometres) with a minimum surface pressure in some cases of less than 900 hPa, very violent winds and torrential rain; sometimes accompanied by thunderstorms. It usually contains a central region, known as the ''eye'' of the storm, with a diameter of the order of some tens of kilometres, and with light winds and a more or less lightly clouded sky (WMO, 2023).Alternative definition: A tropical cyclone is a warm-core, non-frontal synoptic-scale cyclone, originating over tropical or subtropical waters, with organised deep convection and closed surface wind circulation about a well-defined centre (WMO, 2024).Note: Typhoon, hurricane, cyclone, and tropical cyclone are different terms for the same weather phenomenon in different geographical regions (WMO, 2023):In the western North Atlantic, central and eastern North Pacific, Caribbean Sea and Gulf of Mexico, such a weather phenomenon is called a ‘hurricane’;In the western North Pacific, it is called a ‘typhoon;In the Bay of Bengal and Arabian Sea, it is called a ‘cyclone’; In the western South Pacific and southeast Indian Ocean, it is called a ‘severe tropical cyclone’;In the southwest India Ocean, it is called a ‘tropical cyclone’.', '{"en": "Tropical Cyclone"}', '{"en": "A tropical cyclone is a cyclone of tropical origin of small diameter (some hundreds of kilometres) with a minimum surface pressure in some cases of less than 900 hPa, very violent winds and torrential rain; sometimes accompanied by thunderstorms. It usually contains a central region, known as the ''eye'' of the storm, with a diameter of the order of some tens of kilometres, and with light winds and a more or less lightly clouded sky (WMO, 2023).Alternative definition: A tropical cyclone is a warm-core, non-frontal synoptic-scale cyclone, originating over tropical or subtropical waters, with organised deep convection and closed surface wind circulation about a well-defined centre (WMO, 2024).Note: Typhoon, hurricane, cyclone, and tropical cyclone are different terms for the same weather phenomenon in different geographical regions (WMO, 2023):In the western North Atlantic, central and eastern North Pacific, Caribbean Sea and Gulf of Mexico, such a weather phenomenon is called a ‘hurricane’;In the western North Pacific, it is called a ‘typhoon;In the Bay of Bengal and Arabian Sea, it is called a ‘cyclone’; In the western South Pacific and southeast Indian Ocean, it is called a ‘severe tropical cyclone’;In the southwest India Ocean, it is called a ‘tropical cyclone’."}');
 INSERT INTO public.hip_hazard VALUES ('78624', 'MH0305', '1079', 'Tornado', 'A tornado is a rotating column of air extending from the base of a cumuliform cloud and often visible as a condensation funnel in contact with the ground, and/or attendant circulating dust or debris cloud at the ground (WMO, 2017).', '{"en": "Tornado"}', '{"en": "A tornado is a rotating column of air extending from the base of a cumuliform cloud and often visible as a condensation funnel in contact with the ground, and/or attendant circulating dust or debris cloud at the ground (WMO, 2017)."}');
 INSERT INTO public.hip_hazard VALUES ('78625', 'MH0301', '1079', 'Wind', 'Wind is air motion relative to the Earth’s surface. Unless otherwise specified, only the horizontal component is considered (WMO, 1992).', '{"en": "Wind"}', '{"en": "Wind is air motion relative to the Earth’s surface. Unless otherwise specified, only the horizontal component is considered (WMO, 1992)."}');
 INSERT INTO public.hip_hazard VALUES ('78626', 'SO0101', '1080', 'International Armed Conflict (IAC)', 'International armed conflict covers all cases of declared war and other de facto armed conflict between two or more States, even if the state of war is not recognised by one of them and/or the use of armed force is unilateral (ICRC, 2024).', '{"en": "International Armed Conflict (IAC)"}', '{"en": "International armed conflict covers all cases of declared war and other de facto armed conflict between two or more States, even if the state of war is not recognised by one of them and/or the use of armed force is unilateral (ICRC, 2024)."}');
 INSERT INTO public.hip_hazard VALUES ('78627', 'SO0102', '1080', 'Non-International Armed Conflict (NIAC)', 'It is widely accepted today that two key conditions must be met for a situation of violence to be considered a Non-International Armed Conflict (NIAC) and therefore subject to International humanitarian law (IHL): the non-state party/parties must be organized, and the violence between the parties must be sufficiently intense. The existence of a NIAC is not predicated on any other threshold or condition. In particular, political or other motivations of the parties play no role in the classification of a conflict. (adapted from ICRC, 2024)', '{"en": "Non-International Armed Conflict (NIAC)"}', '{"en": "It is widely accepted today that two key conditions must be met for a situation of violence to be considered a Non-International Armed Conflict (NIAC) and therefore subject to International humanitarian law (IHL): the non-state party/parties must be organized, and the violence between the parties must be sufficiently intense. The existence of a NIAC is not predicated on any other threshold or condition. In particular, political or other motivations of the parties play no role in the classification of a conflict. (adapted from ICRC, 2024)"}');
 INSERT INTO public.hip_hazard VALUES ('78628', 'SO0103', '1080', 'Civil Unrest', 'Civil unrest is an umbrella term for a wide spectrum of social and/or political phenomena, and although there is no commonly agreed definition, the term is used widely among United Nations agencies, funds and programmes.A suggested definition for civil unrest is as follows: sporadic but continued collective physical violence in a context of social or political instability, that may result in deaths, injury and destruction. At times, non-violent collective action (such as protests, demonstrations, etc.) - exercising the right to peaceful assembly - or mass gatherings, when intersecting with external actors or factors, may lead to violence (Adapted from Kalyvas, 2000).', '{"en": "Civil Unrest"}', '{"en": "Civil unrest is an umbrella term for a wide spectrum of social and/or political phenomena, and although there is no commonly agreed definition, the term is used widely among United Nations agencies, funds and programmes.A suggested definition for civil unrest is as follows: sporadic but continued collective physical violence in a context of social or political instability, that may result in deaths, injury and destruction. At times, non-violent collective action (such as protests, demonstrations, etc.) - exercising the right to peaceful assembly - or mass gatherings, when intersecting with external actors or factors, may lead to violence (Adapted from Kalyvas, 2000)."}');
+INSERT INTO public.hip_hazard VALUES ('78638', 'TL0306', '1089', 'Explosive agents', 'An explosive substance or agent is a solid or liquid substance (or mixture of substances) which is in itself capable, by chemical reaction, of producing gas at such a temperature and pressure and at such a speed as to cause damage to the surroundings. Pyrotechnic substances and mixtures are included even when they do not evolve gases. Explosions can cause multiple severely injured casualties in a single incident (Adapted from UN 2023 and UK Parliament POSTNOTE 2011).', '{"en": "Explosive agents"}', '{"en": "An explosive substance or agent is a solid or liquid substance (or mixture of substances) which is in itself capable, by chemical reaction, of producing gas at such a temperature and pressure and at such a speed as to cause damage to the surroundings. Pyrotechnic substances and mixtures are included even when they do not evolve gases. Explosions can cause multiple severely injured casualties in a single incident (Adapted from UN 2023 and UK Parliament POSTNOTE 2011)."}');
 INSERT INTO public.hip_hazard VALUES ('78629', 'SO0201', '1081', 'Explosive Ordnance', 'Explosive ordnance, including explosive remnants of war, is interpreted as encompassing the following munitions: mines, cluster munitions, unexploded ordnance, abandoned ordnance, booby traps and other devices (IMAS 4.10) that remain in the environment following the cessation of armed conflict.Explosive remnants of war refer to unexploded ordnance and abandoned explosive ordnance that are left by a party to an armed conflict following the cessation of warfare. Unexploded ordnance are munitions that have been primed, fused, armed or otherwise prepared for use, and may have been fired, dropped, launched or projected yet remain unexploded through malfunction or design or for any other reason. Abandoned ordnance refers to explosive ordnance that has not been used during an armed conflict but has been left behind or dumped. Mines are munitions designed to be placed under, on or near the ground or other surface area and to be exploded by the presence, proximity or contact of a person or a vehicle.', '{"en": "Explosive Ordnance"}', '{"en": "Explosive ordnance, including explosive remnants of war, is interpreted as encompassing the following munitions: mines, cluster munitions, unexploded ordnance, abandoned ordnance, booby traps and other devices (IMAS 4.10) that remain in the environment following the cessation of armed conflict.Explosive remnants of war refer to unexploded ordnance and abandoned explosive ordnance that are left by a party to an armed conflict following the cessation of warfare. Unexploded ordnance are munitions that have been primed, fused, armed or otherwise prepared for use, and may have been fired, dropped, launched or projected yet remain unexploded through malfunction or design or for any other reason. Abandoned ordnance refers to explosive ordnance that has not been used during an armed conflict but has been left behind or dumped. Mines are munitions designed to be placed under, on or near the ground or other surface area and to be exploded by the presence, proximity or contact of a person or a vehicle."}');
+INSERT INTO public.hip_hazard VALUES ('78630', 'SO0202', '1081', 'Environmental Degradation from Conflict', 'Environmental degradation is both a driver and consequence of disasters and conflict, reducing the capacity of the environment to meet social and ecological needs (Adapted from UNDRR, 2022).', '{"en": "Environmental Degradation from Conflict"}', '{"en": "Environmental degradation is both a driver and consequence of disasters and conflict, reducing the capacity of the environment to meet social and ecological needs (Adapted from UNDRR, 2022)."}');
 INSERT INTO public.hip_hazard VALUES ('78631', 'SO0301', '1082', 'Violence', 'Violence is a social phenomenon that involves forceful acts or behaviour that are intended to cause harm. The injury or damage inflicted by violence to an individual or collective group may be physical, psychological, sexual, or deprivation, or combined. Violence is both intentional and forceful (Adapted from Jacquette, 2013).', '{"en": "Violence"}', '{"en": "Violence is a social phenomenon that involves forceful acts or behaviour that are intended to cause harm. The injury or damage inflicted by violence to an individual or collective group may be physical, psychological, sexual, or deprivation, or combined. Violence is both intentional and forceful (Adapted from Jacquette, 2013)."}');
 INSERT INTO public.hip_hazard VALUES ('78632', 'SO0302', '1082', 'Stampede or Crushing (Human)', 'Stampede or crushing is the surge of individuals in a crowd, in response to real or perceived danger or loss of physical space. It often disrupts the orderly movement of crowds resulting in movement for self-protection leading to increased localised crowd density and physical compression of the human bodies (Adapted from Burkle & Hsu, 2011; Illiyas et al., 2013; Ngai, et al., 2009).', '{"en": "Stampede or Crushing (Human)"}', '{"en": "Stampede or crushing is the surge of individuals in a crowd, in response to real or perceived danger or loss of physical space. It often disrupts the orderly movement of crowds resulting in movement for self-protection leading to increased localised crowd density and physical compression of the human bodies (Adapted from Burkle & Hsu, 2011; Illiyas et al., 2013; Ngai, et al., 2009)."}');
 INSERT INTO public.hip_hazard VALUES ('78633', 'SO0401', '1083', 'Financial shock', 'A financial shock is an unexpected disturbance which originates from the financial sector and has a significant effect on an economy (e.g. national, regional, or global). The term is largely used to refer to events which have negative impacts (ECB, 2013).', '{"en": "Financial shock"}', '{"en": "A financial shock is an unexpected disturbance which originates from the financial sector and has a significant effect on an economy (e.g. national, regional, or global). The term is largely used to refer to events which have negative impacts (ECB, 2013)."}');
-INSERT INTO public.hip_hazard VALUES ('78666', 'TL0307', '1089', 'Mining Hazards', 'Mining hazards may cause major environmental and health impacts such as pollution of water bodies, degradation of forest resources, depletion of soil nutrients, destruction of wildlife habitat, and threats to human health. (adapted from UNDP and UN Environment, 2018).', '{"en": "Mining Hazards"}', '{"en": "Mining hazards may cause major environmental and health impacts such as pollution of water bodies, degradation of forest resources, depletion of soil nutrients, destruction of wildlife habitat, and threats to human health. (adapted from UNDP and UN Environment, 2018)."}');
 INSERT INTO public.hip_hazard VALUES ('78634', 'TL0601', '1084', 'Radioactive Waste', 'Radioactive waste is radioactive material for which no further use is foreseen but still contains, or is contaminated with, radionuclides. Radioactive waste can be in gas, liquid or solid form (IAEA, 2018). It may remain radioactive from a few hours to hundreds of thousands of years.For legal and regulatory purposes, material for which no further use is foreseen that contains, or is contaminated with, radionuclides at activity concentrations greater than clearance levels as established by the regulatory body (Adapted from IAEA, 2018 and IAEA 2022 a).', '{"en": "Radioactive Waste"}', '{"en": "Radioactive waste is radioactive material for which no further use is foreseen but still contains, or is contaminated with, radionuclides. Radioactive waste can be in gas, liquid or solid form (IAEA, 2018). It may remain radioactive from a few hours to hundreds of thousands of years.For legal and regulatory purposes, material for which no further use is foreseen that contains, or is contaminated with, radionuclides at activity concentrations greater than clearance levels as established by the regulatory body (Adapted from IAEA, 2018 and IAEA 2022 a)."}');
 INSERT INTO public.hip_hazard VALUES ('78635', 'TL0602', '1084', 'Radioactive Agents &amp; Material', 'A substance or a material emitting, or related to the emission of, ionizing radiation (either in the form of electro-magnetic waves or particle radiation) is radioactive. Depending on the magnitude of exposure, the radioactive substance may affect human health; as such it is subject to regulatory control by national laws and national regulatory authorities. Radioactive material may also be a hazard to animal health, other forms of life and the environment (IAEA, 2018).', '{"en": "Radioactive Agents &amp; Material"}', '{"en": "A substance or a material emitting, or related to the emission of, ionizing radiation (either in the form of electro-magnetic waves or particle radiation) is radioactive. Depending on the magnitude of exposure, the radioactive substance may affect human health; as such it is subject to regulatory control by national laws and national regulatory authorities. Radioactive material may also be a hazard to animal health, other forms of life and the environment (IAEA, 2018)."}');
 INSERT INTO public.hip_hazard VALUES ('78637', 'TL0603', '1084', 'Nuclear Agents', 'Nuclear agents are derived from neutron radiation (n) which is a neutron emitted by an unstable nucleus, in particular during atomic fission and nuclear fusion. Apart from a component in cosmic rays, neutrons are usually produced artificially. Because they are electrically neutral particles, neutrons can be very penetrating and when they interact with matter or tissue, they cause the emission of beta- and gamma-radiation. Neutron radiation therefore requires heavy shielding to reduce exposure (IAEA, 2004).', '{"en": "Nuclear Agents"}', '{"en": "Nuclear agents are derived from neutron radiation (n) which is a neutron emitted by an unstable nucleus, in particular during atomic fission and nuclear fusion. Apart from a component in cosmic rays, neutrons are usually produced artificially. Because they are electrically neutral particles, neutrons can be very penetrating and when they interact with matter or tissue, they cause the emission of beta- and gamma-radiation. Neutron radiation therefore requires heavy shielding to reduce exposure (IAEA, 2004)."}');
-INSERT INTO public.hip_hazard VALUES ('78638', 'TL0306', '1089', 'Explosive agents', 'An explosive substance or agent is a solid or liquid substance (or mixture of substances) which is in itself capable, by chemical reaction, of producing gas at such a temperature and pressure and at such a speed as to cause damage to the surroundings. Pyrotechnic substances and mixtures are included even when they do not evolve gases. Explosions can cause multiple severely injured casualties in a single incident (Adapted from UN 2023 and UK Parliament POSTNOTE 2011).', '{"en": "Explosive agents"}', '{"en": "An explosive substance or agent is a solid or liquid substance (or mixture of substances) which is in itself capable, by chemical reaction, of producing gas at such a temperature and pressure and at such a speed as to cause damage to the surroundings. Pyrotechnic substances and mixtures are included even when they do not evolve gases. Explosions can cause multiple severely injured casualties in a single incident (Adapted from UN 2023 and UK Parliament POSTNOTE 2011)."}');
 INSERT INTO public.hip_hazard VALUES ('78640', 'TL0202', '1086', 'Building, highrise, cladding', 'A building high-rise cladding fire hazard occurs when combustible materials such as cladding on a high-rise building greatly increases risk in the event of a fire and can have a catastrophic outcome (adapted from Rockpanel, no date)', '{"en": "Building, highrise, cladding"}', '{"en": "A building high-rise cladding fire hazard occurs when combustible materials such as cladding on a high-rise building greatly increases risk in the event of a fire and can have a catastrophic outcome (adapted from Rockpanel, no date)"}');
 INSERT INTO public.hip_hazard VALUES ('78641', 'TL0203', '1086', 'Structural Failure', 'Structural failure corresponds to the exceedance of ultimate limit state in many of the load-carrying elements, which compromise the structural stability of the building (Rossetto, 2013).', '{"en": "Structural Failure"}', '{"en": "Structural failure corresponds to the exceedance of ultimate limit state in many of the load-carrying elements, which compromise the structural stability of the building (Rossetto, 2013)."}');
 INSERT INTO public.hip_hazard VALUES ('78642', 'TL0204', '1086', 'Bridge Failure', 'Bridge failure is the inability of a bridge, or its components, to perform as specified by its design and construction requirements (Wardhana and Hadipriono, 2003).Note: This definition includes bridges that have totally collapsed, partially collapsed and those that experienced distress, such as, exhibiting excessive deformation.', '{"en": "Bridge Failure"}', '{"en": "Bridge failure is the inability of a bridge, or its components, to perform as specified by its design and construction requirements (Wardhana and Hadipriono, 2003).Note: This definition includes bridges that have totally collapsed, partially collapsed and those that experienced distress, such as, exhibiting excessive deformation."}');
 INSERT INTO public.hip_hazard VALUES ('78643', 'TL0205', '1086', 'Dam Failure', 'Dam failure is the uncontrolled release of water due to structural collapse, foundation instability, or overtopping, posing risks on people and property downstream (ICOLD, 2023, mentioned in Moreno-Rodenas et al., 2025).', '{"en": "Dam Failure"}', '{"en": "Dam failure is the uncontrolled release of water due to structural collapse, foundation instability, or overtopping, posing risks on people and property downstream (ICOLD, 2023, mentioned in Moreno-Rodenas et al., 2025)."}');
 INSERT INTO public.hip_hazard VALUES ('78644', 'TL0206', '1086', 'Supply Chain Failure', 'Supply chain failure refers to an event in the supply chain that disrupts the flow of materials on their journey from initial suppliers through to final customers (Walters, 2007).', '{"en": "Supply Chain Failure"}', '{"en": "Supply chain failure refers to an event in the supply chain that disrupts the flow of materials on their journey from initial suppliers through to final customers (Walters, 2007)."}');
-INSERT INTO public.hip_hazard VALUES ('78677', 'TL0510', '1090', 'Waste Treatment Lagoons', 'Waste [treatment] lagoons can be defined as impoundments made by excavation or earth fill for biological treatment of animal and other agricultural waste (Spellman & Bieber, 2012).', '{"en": "Waste Treatment Lagoons"}', '{"en": "Waste [treatment] lagoons can be defined as impoundments made by excavation or earth fill for biological treatment of animal and other agricultural waste (Spellman & Bieber, 2012)."}');
 INSERT INTO public.hip_hazard VALUES ('78645', 'TL0207', '1086', 'Critical Infrastructure Failure', 'Critical Infrastructure failure is defined as the failure in one or more of the physical structures, facilities, networks and other assets which provide services that are essential to the social and economic functioning of a community or society (UNGA, 2016).Critical Infrastructures as described in the ANNEX of (CER - DIRECTIVE (EU) 2022/2557 of the European Parliament and of the council) can be defined as: Energy (e.g., Electricity, District heating and cooling, Oli, Gas, Hydrogen); Transport (Air, Rail, Water, Road, Public Transport); Banking; Financial market infrastructure; Health; Drinking water; Waste water; Digital Infrastructure; Public administration; Space (European Parliament 2022).', '{"en": "Critical Infrastructure Failure"}', '{"en": "Critical Infrastructure failure is defined as the failure in one or more of the physical structures, facilities, networks and other assets which provide services that are essential to the social and economic functioning of a community or society (UNGA, 2016).Critical Infrastructures as described in the ANNEX of (CER - DIRECTIVE (EU) 2022/2557 of the European Parliament and of the council) can be defined as: Energy (e.g., Electricity, District heating and cooling, Oli, Gas, Hydrogen); Transport (Air, Rail, Water, Road, Public Transport); Banking; Financial market infrastructure; Health; Drinking water; Waste water; Digital Infrastructure; Public administration; Space (European Parliament 2022)."}');
 INSERT INTO public.hip_hazard VALUES ('78646', 'TL0208', '1086', 'Nuclear Plant Failure', 'Nuclear plant failure occurs when the accidental melting of the core of a nuclear reactor results in a complete or partial core collapse (adapted from USNRC, 1975).', '{"en": "Nuclear Plant Failure"}', '{"en": "Nuclear plant failure occurs when the accidental melting of the core of a nuclear reactor results in a complete or partial core collapse (adapted from USNRC, 1975)."}');
 INSERT INTO public.hip_hazard VALUES ('78647', 'TL0209', '1086', 'Power Outage/ or Blackout', 'In the electric power domain, especially in power transmission and distribution, a power outage usually refers to a partial or total loss of power supply to some end user (e.g., population, enterprises, critical systems). Triggering factors may include accidents, equipment breakdowns, failure of control mechanisms, targeted attacks (physical or cyber), organisational errors, and natural hazards (adapted from Pescaroli et al., 2017; UK Cabinet Office, 2017; EIS Council, 2019; FEMA, 2018).', '{"en": "Power Outage/ or Blackout"}', '{"en": "In the electric power domain, especially in power transmission and distribution, a power outage usually refers to a partial or total loss of power supply to some end user (e.g., population, enterprises, critical systems). Triggering factors may include accidents, equipment breakdowns, failure of control mechanisms, targeted attacks (physical or cyber), organisational errors, and natural hazards (adapted from Pescaroli et al., 2017; UK Cabinet Office, 2017; EIS Council, 2019; FEMA, 2018)."}');
@@ -2191,20 +2683,18 @@ INSERT INTO public.hip_hazard VALUES ('78650', 'TL0212', '1086', 'Radio and Othe
 INSERT INTO public.hip_hazard VALUES ('78653', 'TL0101', '1088', 'Malware', 'Malware is a summary term for different forms of malevolent software designed to infiltrate and infect computers, typically without the knowledge of the owner (ITU, 2008).', '{"en": "Malware"}', '{"en": "Malware is a summary term for different forms of malevolent software designed to infiltrate and infect computers, typically without the knowledge of the owner (ITU, 2008)."}');
 INSERT INTO public.hip_hazard VALUES ('78654', 'TL0102', '1088', 'Data Breach &amp; PII Breach', 'A data breach occurs when the data for which a company/organisation is responsible suffers a security incident resulting in a breach of confidentiality, availability or integrity (European Commission, no date).', '{"en": "Data Breach &amp; PII Breach"}', '{"en": "A data breach occurs when the data for which a company/organisation is responsible suffers a security incident resulting in a breach of confidentiality, availability or integrity (European Commission, no date)."}');
 INSERT INTO public.hip_hazard VALUES ('78659', 'TL0106', '1088', 'Cyberbullying', 'Cyberbullying is bullying that takes place using digital devices such as cell/mobile phones, computers, and tablets. Cyberbullying can occur through SMS, e-mail, apps, social media, forums, or gaming when people view, participate in, or share content. Cyberbullying includes the deliberate sending, posting, or sharing of negative, harmful, false, or mean content about someone else. It can include sharing personal or private information about someone else causing embarrassment or humiliation. Some cyberbullying may also be unlawful or criminal behaviour (adapted from UNICEF, no date; PHE, 2014; US Government, no date).', '{"en": "Cyberbullying"}', '{"en": "Cyberbullying is bullying that takes place using digital devices such as cell/mobile phones, computers, and tablets. Cyberbullying can occur through SMS, e-mail, apps, social media, forums, or gaming when people view, participate in, or share content. Cyberbullying includes the deliberate sending, posting, or sharing of negative, harmful, false, or mean content about someone else. It can include sharing personal or private information about someone else causing embarrassment or humiliation. Some cyberbullying may also be unlawful or criminal behaviour (adapted from UNICEF, no date; PHE, 2014; US Government, no date)."}');
-INSERT INTO public.hip_hazard VALUES ('78681', 'TL0401', '1093', 'Air Transportation Accident', 'An air transportation accident is defined as an occurrence associated with the operation of an aircraft which takes place between the time any person boards the aircraft with the intention of flight until such time as all such persons have disembarked, in which one of the following applies: a person is fatally or seriously injured, the aircraft sustains damage or structural failure, and the aircraft is missing or is completely inaccessible (United Nations, European Union, the International Transport Forum at the OECD, 2019:119).', '{"en": "Air Transportation Accident"}', '{"en": "An air transportation accident is defined as an occurrence associated with the operation of an aircraft which takes place between the time any person boards the aircraft with the intention of flight until such time as all such persons have disembarked, in which one of the following applies: a person is fatally or seriously injured, the aircraft sustains damage or structural failure, and the aircraft is missing or is completely inaccessible (United Nations, European Union, the International Transport Forum at the OECD, 2019:119)."}');
-INSERT INTO public.hip_hazard VALUES ('78682', 'TL0402', '1093', 'Inland Water Ways Transportation Accident', 'An inland waterway transportation accident is an unwanted or unintended sudden event or a specific chain of such events occurring in connection with inland water vessel operations, which have harmful consequences (United Nations, European Union and the International Transport Forum at the OECD, 2019).', '{"en": "Inland Water Ways Transportation Accident"}', '{"en": "An inland waterway transportation accident is an unwanted or unintended sudden event or a specific chain of such events occurring in connection with inland water vessel operations, which have harmful consequences (United Nations, European Union and the International Transport Forum at the OECD, 2019)."}');
-INSERT INTO public.hip_hazard VALUES ('78683', 'TL0403', '1093', 'Maritime Accident', 'A maritime accident is an event, or a sequence of events, that has resulted in any of the following occurring directly in connection with the normal operation of a marine vessel: the death of, or serious injury to, a person; the loss of a person from a ship; the loss, presumed loss or abandonment of a marine vessel; material damage to a marine vessel; the stranding or disabling of a marine vessel, or the involvement of a marine vessel in a collision; material damage to the marine infrastructures external to a vessel, that could seriously endanger the safety of the vessel or another vessel or an individual; and severe damage to the environment, or the potential for severe damage to the environment, brought about by the damage of a marine vessel (United Nations, European Union and the International Transport Forum at the OECD, 2019).', '{"en": "Maritime Accident"}', '{"en": "A maritime accident is an event, or a sequence of events, that has resulted in any of the following occurring directly in connection with the normal operation of a marine vessel: the death of, or serious injury to, a person; the loss of a person from a ship; the loss, presumed loss or abandonment of a marine vessel; material damage to a marine vessel; the stranding or disabling of a marine vessel, or the involvement of a marine vessel in a collision; material damage to the marine infrastructures external to a vessel, that could seriously endanger the safety of the vessel or another vessel or an individual; and severe damage to the environment, or the potential for severe damage to the environment, brought about by the damage of a marine vessel (United Nations, European Union and the International Transport Forum at the OECD, 2019)."}');
-INSERT INTO public.hip_hazard VALUES ('78684', 'TL0404', '1093', 'Rail Accident', 'A rail accident is a sudden event or a specific chain of such events (occurring during train operation) which has harmful consequences (United Nations, European Union and the International Transport Forum at the OECD, 2019).', '{"en": "Rail Accident"}', '{"en": "A rail accident is a sudden event or a specific chain of such events (occurring during train operation) which has harmful consequences (United Nations, European Union and the International Transport Forum at the OECD, 2019)."}');
-INSERT INTO public.hip_hazard VALUES ('78671', 'TL0504', '1090', 'Hazardous Waste', 'Hazardous waste is waste that has physical, chemical, or biological characteristics such that it requires special handling and disposal procedures to avoid negative health effects, adverse environmental effects or both (Joint UNEP/OCHA Environment Unit, 2011).', '{"en": "Hazardous Waste"}', '{"en": "Hazardous waste is waste that has physical, chemical, or biological characteristics such that it requires special handling and disposal procedures to avoid negative health effects, adverse environmental effects or both (Joint UNEP/OCHA Environment Unit, 2011)."}');
-INSERT INTO public.hip_hazard VALUES ('78685', 'TL0405', '1093', 'Road Traffic Accident', 'A road traffic accident involving at least one road vehicle in motion on a public road or private road to which the public has right of access, resulting in at least one injured or killed person. Approximately 1.19 million people die each year as a result of road traffic crashes, which are the leading cause of death for children and young adults aged 5-29 years with 92% of the world''s fatalities on the roads occurring in low- and middle-income countries, even though these countries have around 60% of the world''s vehicles (adapted from UNECE, Eurostat, ITF, 2019 and WHO, 2023a).', '{"en": "Road Traffic Accident"}', '{"en": "A road traffic accident involving at least one road vehicle in motion on a public road or private road to which the public has right of access, resulting in at least one injured or killed person. Approximately 1.19 million people die each year as a result of road traffic crashes, which are the leading cause of death for children and young adults aged 5-29 years with 92% of the world''s fatalities on the roads occurring in low- and middle-income countries, even though these countries have around 60% of the world''s vehicles (adapted from UNECE, Eurostat, ITF, 2019 and WHO, 2023a)."}');
 INSERT INTO public.hip_hazard VALUES ('78661', 'TL0302', '1089', 'Pollution', 'Pollution is the presence of substances and heat in environmental media (air, water, land) whose nature, location, or quantity produces undesirable environmental effects; and the activities that generates pollutants. (UN data, no date).', '{"en": "Pollution"}', '{"en": "Pollution is the presence of substances and heat in environmental media (air, water, land) whose nature, location, or quantity produces undesirable environmental effects; and the activities that generates pollutants. (UN data, no date)."}');
 INSERT INTO public.hip_hazard VALUES ('78662', 'TL0304', '1089', 'Explosion', 'Explosion-related technological incidents can be defined as accidental or intentional rapid energetic events that result in the actual or potential exposure of responders and/or members of the public to a chemical hazard (adapted from WHO, no date).', '{"en": "Explosion"}', '{"en": "Explosion-related technological incidents can be defined as accidental or intentional rapid energetic events that result in the actual or potential exposure of responders and/or members of the public to a chemical hazard (adapted from WHO, no date)."}');
+INSERT INTO public.hip_hazard VALUES ('78663', 'TL0301', '1089', 'Leaks and Spills', 'A leak or a spill is an incident involving the uncontrolled release of a toxic substance, potentially resulting in harm to public health and the environment. Chemical incidents can occur as a result of natural events, or as a result of accidental or intentional events. These incidents can be sudden and acute or have a slow onset when there is a ‘silent’ release of a chemical. Leaks and spills can range from small releases to full-scale major emergencies (adapted from WHO, no date).', '{"en": "Leaks and Spills"}', '{"en": "A leak or a spill is an incident involving the uncontrolled release of a toxic substance, potentially resulting in harm to public health and the environment. Chemical incidents can occur as a result of natural events, or as a result of accidental or intentional events. These incidents can be sudden and acute or have a slow onset when there is a ‘silent’ release of a chemical. Leaks and spills can range from small releases to full-scale major emergencies (adapted from WHO, no date)."}');
 INSERT INTO public.hip_hazard VALUES ('78664', 'TL0303', '1089', 'Soil Pollution', 'Soil pollution refers to the presence of a chemical or substance out of place and/or present in a soil at higher-than-normal concentration that has adverse effects on any non-targeted organism (Rodríguez-Eugenio et al., 2018).', '{"en": "Soil Pollution"}', '{"en": "Soil pollution refers to the presence of a chemical or substance out of place and/or present in a soil at higher-than-normal concentration that has adverse effects on any non-targeted organism (Rodríguez-Eugenio et al., 2018)."}');
 INSERT INTO public.hip_hazard VALUES ('78665', 'TL0305', '1089', 'Fire', 'Fire-related technological incidents can be defined as accidental or intentional events that result in the actual or potential physical damage to property and exposure of responders and/or members of the public to a chemical hazard (adapted from WHO, no date)', '{"en": "Fire"}', '{"en": "Fire-related technological incidents can be defined as accidental or intentional events that result in the actual or potential physical damage to property and exposure of responders and/or members of the public to a chemical hazard (adapted from WHO, no date)"}');
+INSERT INTO public.hip_hazard VALUES ('78666', 'TL0307', '1089', 'Mining Hazards', 'Mining hazards may cause major environmental and health impacts such as pollution of water bodies, degradation of forest resources, depletion of soil nutrients, destruction of wildlife habitat, and threats to human health. (adapted from UNDP and UN Environment, 2018).', '{"en": "Mining Hazards"}', '{"en": "Mining hazards may cause major environmental and health impacts such as pollution of water bodies, degradation of forest resources, depletion of soil nutrients, destruction of wildlife habitat, and threats to human health. (adapted from UNDP and UN Environment, 2018)."}');
+INSERT INTO public.hip_hazard VALUES ('78677', 'TL0510', '1090', 'Waste Treatment Lagoons', 'Waste [treatment] lagoons can be defined as impoundments made by excavation or earth fill for biological treatment of animal and other agricultural waste (Spellman & Bieber, 2012).', '{"en": "Waste Treatment Lagoons"}', '{"en": "Waste [treatment] lagoons can be defined as impoundments made by excavation or earth fill for biological treatment of animal and other agricultural waste (Spellman & Bieber, 2012)."}');
 INSERT INTO public.hip_hazard VALUES ('78667', 'TL0308', '1089', 'Safety Hazards Associated with Oil and Gas', 'Oil and gas extraction, and associated servicing activities involve many types of equipment and materials. Identifying and controlling hazards is critical to preventing injuries and deaths (US Department of Labor, no date).Alternative definition: For the purpose of the C155 - Occupational Safety and Health Convention, 1981 (No. 155) (ILO, 1981):the term ''branches of economic activity'' covers all branches in which workers are employed, including the public service.the term ''workers'' covers all employed persons, including public employees.the term ''workplace'' covers all places where workers need to be or to go by reason of their work and which are under the direct or indirect control of the employer.the term ''regulations'' covers all provisions given force of law by the competent authority or authorities.the term ''health'', in relation to work, indicates not merely the absence of disease or infirmity; it also includes the physical and mental elements affecting health which are directly related to safety and hygiene at work.', '{"en": "Safety Hazards Associated with Oil and Gas"}', '{"en": "Oil and gas extraction, and associated servicing activities involve many types of equipment and materials. Identifying and controlling hazards is critical to preventing injuries and deaths (US Department of Labor, no date).Alternative definition: For the purpose of the C155 - Occupational Safety and Health Convention, 1981 (No. 155) (ILO, 1981):the term ''branches of economic activity'' covers all branches in which workers are employed, including the public service.the term ''workers'' covers all employed persons, including public employees.the term ''workplace'' covers all places where workers need to be or to go by reason of their work and which are under the direct or indirect control of the employer.the term ''regulations'' covers all provisions given force of law by the competent authority or authorities.the term ''health'', in relation to work, indicates not merely the absence of disease or infirmity; it also includes the physical and mental elements affecting health which are directly related to safety and hygiene at work."}');
 INSERT INTO public.hip_hazard VALUES ('78668', 'TL0501', '1090', 'Disaster and Conflict Waste', 'Disaster and conflict waste is the waste generated by the impact of a disaster or conflict, both as a direct effect of the disaster or conflict as well as in the post-disaster and post-conflict phase as a result of poor waste management (UNEP/OCHA, 2011).', '{"en": "Disaster and Conflict Waste"}', '{"en": "Disaster and conflict waste is the waste generated by the impact of a disaster or conflict, both as a direct effect of the disaster or conflict as well as in the post-disaster and post-conflict phase as a result of poor waste management (UNEP/OCHA, 2011)."}');
 INSERT INTO public.hip_hazard VALUES ('78669', 'TL0502', '1090', 'Solid Waste', 'Solid waste covers discarded materials that are no longer required by the owner or user. Solid waste includes materials that are in a solid or liquid state but excludes wastewater and small particulate matter released into the atmosphere (United Nations, 2014).', '{"en": "Solid Waste"}', '{"en": "Solid waste covers discarded materials that are no longer required by the owner or user. Solid waste includes materials that are in a solid or liquid state but excludes wastewater and small particulate matter released into the atmosphere (United Nations, 2014)."}');
 INSERT INTO public.hip_hazard VALUES ('78670', 'TL0503', '1090', 'Wastewater', 'Wastewater is regarded as a combination of one or more of the following materials: domestic effluent consisting of ‘blackwater’ (excreta, urine and faecal sludge, contaminants from pharmaceutical and personal care products) and ‘greywater’ (used water from washing and bathing); water from commercial establishments and institutions, including hospitals; industrial effluent, stormwater and other urban runoff; and agricultural, horticultural and aquaculture runoff (UNEP, 2023a).', '{"en": "Wastewater"}', '{"en": "Wastewater is regarded as a combination of one or more of the following materials: domestic effluent consisting of ‘blackwater’ (excreta, urine and faecal sludge, contaminants from pharmaceutical and personal care products) and ‘greywater’ (used water from washing and bathing); water from commercial establishments and institutions, including hospitals; industrial effluent, stormwater and other urban runoff; and agricultural, horticultural and aquaculture runoff (UNEP, 2023a)."}');
+INSERT INTO public.hip_hazard VALUES ('78671', 'TL0504', '1090', 'Hazardous Waste', 'Hazardous waste is waste that has physical, chemical, or biological characteristics such that it requires special handling and disposal procedures to avoid negative health effects, adverse environmental effects or both (Joint UNEP/OCHA Environment Unit, 2011).', '{"en": "Hazardous Waste"}', '{"en": "Hazardous waste is waste that has physical, chemical, or biological characteristics such that it requires special handling and disposal procedures to avoid negative health effects, adverse environmental effects or both (Joint UNEP/OCHA Environment Unit, 2011)."}');
 INSERT INTO public.hip_hazard VALUES ('78672', 'TL0505', '1090', 'Plastic Waste', 'Plastic Waste is defined as any discarded plastic (organic, or synthetic, material derived from polymers, resins or cellulose) generated by any industrial process, or by consumers. (Source: GEMET/APD).', '{"en": "Plastic Waste"}', '{"en": "Plastic Waste is defined as any discarded plastic (organic, or synthetic, material derived from polymers, resins or cellulose) generated by any industrial process, or by consumers. (Source: GEMET/APD)."}');
 INSERT INTO public.hip_hazard VALUES ('78673', 'TL0507', '1090', 'Electronic Waste (E-Waste)', 'Electrical and electronic waste, or E-waste, refers to electrical or electronic equipment that is waste, including all components, sub-assemblies and consumables that are part of the equipment at the time the equipment becomes waste (UNEP, 2019a).', '{"en": "Electronic Waste (E-Waste)"}', '{"en": "Electrical and electronic waste, or E-waste, refers to electrical or electronic equipment that is waste, including all components, sub-assemblies and consumables that are part of the equipment at the time the equipment becomes waste (UNEP, 2019a)."}');
 INSERT INTO public.hip_hazard VALUES ('78674', 'TL0508', '1090', 'Health-care Waste', 'Health-care waste is a by-product of health care that includes sharps, non-sharp blood contaminated items, blood, body parts and tissues, chemicals, pharmaceuticals and radioactive materials. Safe management of health-care waste protects health-care workers, waste handlers, patients and their families and the community to preventable infections, toxic effects and injuries (adapted from WHO, no date, and WHO, 2017).', '{"en": "Health-care Waste"}', '{"en": "Health-care waste is a by-product of health care that includes sharps, non-sharp blood contaminated items, blood, body parts and tissues, chemicals, pharmaceuticals and radioactive materials. Safe management of health-care waste protects health-care workers, waste handlers, patients and their families and the community to preventable infections, toxic effects and injuries (adapted from WHO, no date, and WHO, 2017)."}');
@@ -2213,14 +2703,11 @@ INSERT INTO public.hip_hazard VALUES ('78676', 'TL0511', '1090', 'Tailings', 'Ta
 INSERT INTO public.hip_hazard VALUES ('78678', 'TL0506', '1090', 'Marine Debris', 'Marine debris is any persistent, manufactured or processed solid material discarded, disposed of or abandoned in the marine and coastal environment. Marine litter consists of items that have been made or used by people and deliberately discarded into the sea or rivers or on beaches; brought indirectly to the sea with rivers, sewage, stormwater or winds; or accidentally lost, including material lost at sea in bad weather (adapted from UN Environment, no date and NOAA, no date).', '{"en": "Marine Debris"}', '{"en": "Marine debris is any persistent, manufactured or processed solid material discarded, disposed of or abandoned in the marine and coastal environment. Marine litter consists of items that have been made or used by people and deliberately discarded into the sea or rivers or on beaches; brought indirectly to the sea with rivers, sewage, stormwater or winds; or accidentally lost, including material lost at sea in bad weather (adapted from UN Environment, no date and NOAA, no date)."}');
 INSERT INTO public.hip_hazard VALUES ('78679', 'TL0214', '1086', 'Drain and Sewer Flooding', 'Drain and sewer flooding is said to occur when sewage or foul water leaks from the sewerage system (through pipes, drains or manholes) or floods up through toilets, sinks or showers inside a building (Priestly, 2016).', '{"en": "Drain and Sewer Flooding"}', '{"en": "Drain and sewer flooding is said to occur when sewage or foul water leaks from the sewerage system (through pipes, drains or manholes) or floods up through toilets, sinks or showers inside a building (Priestly, 2016)."}');
 INSERT INTO public.hip_hazard VALUES ('78680', 'TL0215', '1086', 'Reservoir Flooding', 'Man-made reservoirs, sometimes called artificial lakes, are important water sources in many countries around the world. In contrast to natural processes of lake formation, reservoirs are artificial, usually formed by constructing a dam across a river or by diverting a part of the river flow and storing the water in a reservoir. Reservoir flooding occurs as an uncontrolled release of water if a dam or reservoir fails (adapted from UNEP, 2000 and Defra and EA, 2014).', '{"en": "Reservoir Flooding"}', '{"en": "Man-made reservoirs, sometimes called artificial lakes, are important water sources in many countries around the world. In contrast to natural processes of lake formation, reservoirs are artificial, usually formed by constructing a dam across a river or by diverting a part of the river flow and storing the water in a reservoir. Reservoir flooding occurs as an uncontrolled release of water if a dam or reservoir fails (adapted from UNEP, 2000 and Defra and EA, 2014)."}');
-INSERT INTO public.hip_hazard VALUES ('94603', 'TL0103', '1088', 'Advanced Persistent Threat', 'An advanced threat is created by an adversary with sophisticated levels of expertise and significant resources, allowing it, through the use of multiple different attack vectors (e.g., cyber, physical, and deception), to generate opportunities to achieve its objectives (NIST, 2012).', '{"en": "Advanced Persistent Threat"}', '{"en": "An advanced threat is created by an adversary with sophisticated levels of expertise and significant resources, allowing it, through the use of multiple different attack vectors (e.g., cyber, physical, and deception), to generate opportunities to achieve its objectives (NIST, 2012)."}');
-INSERT INTO public.hip_hazard VALUES ('94604', 'TL0104', '1088', 'Denial of Service', 'Denial of service is the prevention of authorised access to resources or the delaying of time-critical operations. (Time-critical may be milliseconds or it may be hours, depending upon the service provided) (NIST, 2017).', '{"en": "Denial of Service"}', '{"en": "Denial of service is the prevention of authorised access to resources or the delaying of time-critical operations. (Time-critical may be milliseconds or it may be hours, depending upon the service provided) (NIST, 2017)."}');
-INSERT INTO public.hip_hazard VALUES ('94606', 'TL0105', '1088', 'Supply Chain Attack', 'A supply chain attack is when products, services, or technology you are supplied with have been breached or compromised, and are in turn used to infiltrate and further compromise your own systems (ICO, no date).', '{"en": "Supply Chain Attack"}', '{"en": "A supply chain attack is when products, services, or technology you are supplied with have been breached or compromised, and are in turn used to infiltrate and further compromise your own systems (ICO, no date)."}');
-INSERT INTO public.hip_hazard VALUES ('94607', 'TL0107', '1088', 'Social Engineering - Phishing', 'Social engineering corresponds to all techniques aimed at persuading a target into revealing specific information or performing a specific action for illegitimate reasons (ECS, no date).', '{"en": "Social Engineering - Phishing"}', '{"en": "Social engineering corresponds to all techniques aimed at persuading a target into revealing specific information or performing a specific action for illegitimate reasons (ECS, no date)."}');
-INSERT INTO public.hip_hazard VALUES ('78614', 'MH0510', '1077', 'Thaw', 'Thaw is the melting of snow or ice at the Earth’s surface due to a temperature rise above 0°C (WMO, 1992).', '{"en": "Thaw"}', '{"en": "Thaw is the melting of snow or ice at the Earth’s surface due to a temperature rise above 0°C (WMO, 1992)."}');
-INSERT INTO public.hip_hazard VALUES ('78619', 'MH0303', '1079', 'Gale (Strong Gale)', 'A gale is wind with a speed of between 34 and 40 knots (62–74 km/h, 32–38 mph). Also known as Beaufort scale wind force 8 (WMO, 1992).', '{"en": "Gale (Strong Gale)"}', '{"en": "A gale is wind with a speed of between 34 and 40 knots (62–74 km/h, 32–38 mph). Also known as Beaufort scale wind force 8 (WMO, 1992)."}');
-INSERT INTO public.hip_hazard VALUES ('78639', 'TL0201', '1086', 'Building Collapse', 'Building collapse is the failure of load-bearing structural elements, causing a building to fall or fail catastrophically / catastrophic failure (adapted from US Department of Labor, no date).', '{"en": "Building Collapse"}', '{"en": "Building collapse is the failure of load-bearing structural elements, causing a building to fall or fail catastrophically / catastrophic failure (adapted from US Department of Labor, no date)."}');
-INSERT INTO public.hip_hazard VALUES ('78663', 'TL0301', '1089', 'Leaks and Spills', 'A leak or a spill is an incident involving the uncontrolled release of a toxic substance, potentially resulting in harm to public health and the environment. Chemical incidents can occur as a result of natural events, or as a result of accidental or intentional events. These incidents can be sudden and acute or have a slow onset when there is a ‘silent’ release of a chemical. Leaks and spills can range from small releases to full-scale major emergencies (adapted from WHO, no date).', '{"en": "Leaks and Spills"}', '{"en": "A leak or a spill is an incident involving the uncontrolled release of a toxic substance, potentially resulting in harm to public health and the environment. Chemical incidents can occur as a result of natural events, or as a result of accidental or intentional events. These incidents can be sudden and acute or have a slow onset when there is a ‘silent’ release of a chemical. Leaks and spills can range from small releases to full-scale major emergencies (adapted from WHO, no date)."}');
+INSERT INTO public.hip_hazard VALUES ('78681', 'TL0401', '1093', 'Air Transportation Accident', 'An air transportation accident is defined as an occurrence associated with the operation of an aircraft which takes place between the time any person boards the aircraft with the intention of flight until such time as all such persons have disembarked, in which one of the following applies: a person is fatally or seriously injured, the aircraft sustains damage or structural failure, and the aircraft is missing or is completely inaccessible (United Nations, European Union, the International Transport Forum at the OECD, 2019:119).', '{"en": "Air Transportation Accident"}', '{"en": "An air transportation accident is defined as an occurrence associated with the operation of an aircraft which takes place between the time any person boards the aircraft with the intention of flight until such time as all such persons have disembarked, in which one of the following applies: a person is fatally or seriously injured, the aircraft sustains damage or structural failure, and the aircraft is missing or is completely inaccessible (United Nations, European Union, the International Transport Forum at the OECD, 2019:119)."}');
+INSERT INTO public.hip_hazard VALUES ('78682', 'TL0402', '1093', 'Inland Water Ways Transportation Accident', 'An inland waterway transportation accident is an unwanted or unintended sudden event or a specific chain of such events occurring in connection with inland water vessel operations, which have harmful consequences (United Nations, European Union and the International Transport Forum at the OECD, 2019).', '{"en": "Inland Water Ways Transportation Accident"}', '{"en": "An inland waterway transportation accident is an unwanted or unintended sudden event or a specific chain of such events occurring in connection with inland water vessel operations, which have harmful consequences (United Nations, European Union and the International Transport Forum at the OECD, 2019)."}');
+INSERT INTO public.hip_hazard VALUES ('78683', 'TL0403', '1093', 'Maritime Accident', 'A maritime accident is an event, or a sequence of events, that has resulted in any of the following occurring directly in connection with the normal operation of a marine vessel: the death of, or serious injury to, a person; the loss of a person from a ship; the loss, presumed loss or abandonment of a marine vessel; material damage to a marine vessel; the stranding or disabling of a marine vessel, or the involvement of a marine vessel in a collision; material damage to the marine infrastructures external to a vessel, that could seriously endanger the safety of the vessel or another vessel or an individual; and severe damage to the environment, or the potential for severe damage to the environment, brought about by the damage of a marine vessel (United Nations, European Union and the International Transport Forum at the OECD, 2019).', '{"en": "Maritime Accident"}', '{"en": "A maritime accident is an event, or a sequence of events, that has resulted in any of the following occurring directly in connection with the normal operation of a marine vessel: the death of, or serious injury to, a person; the loss of a person from a ship; the loss, presumed loss or abandonment of a marine vessel; material damage to a marine vessel; the stranding or disabling of a marine vessel, or the involvement of a marine vessel in a collision; material damage to the marine infrastructures external to a vessel, that could seriously endanger the safety of the vessel or another vessel or an individual; and severe damage to the environment, or the potential for severe damage to the environment, brought about by the damage of a marine vessel (United Nations, European Union and the International Transport Forum at the OECD, 2019)."}');
+INSERT INTO public.hip_hazard VALUES ('78684', 'TL0404', '1093', 'Rail Accident', 'A rail accident is a sudden event or a specific chain of such events (occurring during train operation) which has harmful consequences (United Nations, European Union and the International Transport Forum at the OECD, 2019).', '{"en": "Rail Accident"}', '{"en": "A rail accident is a sudden event or a specific chain of such events (occurring during train operation) which has harmful consequences (United Nations, European Union and the International Transport Forum at the OECD, 2019)."}');
+INSERT INTO public.hip_hazard VALUES ('78685', 'TL0405', '1093', 'Road Traffic Accident', 'A road traffic accident involving at least one road vehicle in motion on a public road or private road to which the public has right of access, resulting in at least one injured or killed person. Approximately 1.19 million people die each year as a result of road traffic crashes, which are the leading cause of death for children and young adults aged 5-29 years with 92% of the world''s fatalities on the roads occurring in low- and middle-income countries, even though these countries have around 60% of the world''s vehicles (adapted from UNECE, Eurostat, ITF, 2019 and WHO, 2023a).', '{"en": "Road Traffic Accident"}', '{"en": "A road traffic accident involving at least one road vehicle in motion on a public road or private road to which the public has right of access, resulting in at least one injured or killed person. Approximately 1.19 million people die each year as a result of road traffic crashes, which are the leading cause of death for children and young adults aged 5-29 years with 92% of the world''s fatalities on the roads occurring in low- and middle-income countries, even though these countries have around 60% of the world''s vehicles (adapted from UNECE, Eurostat, ITF, 2019 and WHO, 2023a)."}');
 
 
 --
@@ -2260,6 +2747,18 @@ INSERT INTO public.hip_hazard VALUES ('78663', 'TL0301', '1089', 'Leaks and Spil
 
 
 --
+-- Data for Name: losses_division; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: losses_geom; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
 -- Data for Name: missing; Type: TABLE DATA; Schema: public; Owner: -
 --
 
@@ -2272,382 +2771,396 @@ INSERT INTO public.hip_hazard VALUES ('78663', 'TL0301', '1089', 'Leaks and Spil
 
 
 --
+-- Data for Name: notices; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
 -- Data for Name: organization; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
 
 --
+-- Data for Name: response_type; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.response_type VALUES ('a1f068f2-fc65-4dc4-9df0-8aad23625935', 'Early action');
+INSERT INTO public.response_type VALUES ('4f52d906-b281-4853-a227-533322060d48', 'Response operation');
+
+
+--
 -- Data for Name: sector; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO public.sector VALUES ('7d5c9d4f-2e3d-45a1-b8f7-9d31a5f4c82a', NULL, 'Productive', NULL, 1, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Productive"}', '{}');
-INSERT INTO public.sector VALUES ('fa1b8e2c-8c43-4a18-9d24-5dbd1e4a6e9c', NULL, 'Social', NULL, 1, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Social"}', '{}');
-INSERT INTO public.sector VALUES ('c53f7189-4fcb-4f32-bb15-2ae88269a0b2', NULL, 'Infrastructures', NULL, 1, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Infrastructures"}', '{}');
-INSERT INTO public.sector VALUES ('0eaf22dd-5f77-4b86-a0b6-faa5106d4821', NULL, 'Cross-cutting', NULL, 1, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Cross-cutting"}', '{}');
-INSERT INTO public.sector VALUES ('8cf24ec3-3567-4c40-a5fd-bff9e9a27d87', '7d5c9d4f-2e3d-45a1-b8f7-9d31a5f4c82a', 'Agriculture', NULL, 2, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Agriculture"}', '{}');
-INSERT INTO public.sector VALUES ('3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', '7d5c9d4f-2e3d-45a1-b8f7-9d31a5f4c82a', 'Industry', NULL, 2, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Industry"}', '{}');
-INSERT INTO public.sector VALUES ('ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', '7d5c9d4f-2e3d-45a1-b8f7-9d31a5f4c82a', 'Tourism', NULL, 2, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Tourism"}', '{}');
-INSERT INTO public.sector VALUES ('5f00c4d2-12e0-4a89-9f35-5bbda1c3d904', '7d5c9d4f-2e3d-45a1-b8f7-9d31a5f4c82a', 'Commerce and Trade', NULL, 2, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Commerce and Trade"}', '{}');
-INSERT INTO public.sector VALUES ('ba8e2cf9-0d9a-49c1-814e-0a4d45d0726b', '7d5c9d4f-2e3d-45a1-b8f7-9d31a5f4c82a', 'Services', NULL, 2, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Services"}', '{}');
-INSERT INTO public.sector VALUES ('4a39d053-a4cf-41f8-93c0-7c30e60f3b42', 'fa1b8e2c-8c43-4a18-9d24-5dbd1e4a6e9c', 'Health', NULL, 2, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Health"}', '{}');
-INSERT INTO public.sector VALUES ('fd53c0da-5ad6-4a7d-943b-089c7726a2bb', 'fa1b8e2c-8c43-4a18-9d24-5dbd1e4a6e9c', 'Education', NULL, 2, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Education"}', '{}');
-INSERT INTO public.sector VALUES ('6ac0b833-6218-49d0-9882-827c1b748d7a', 'fa1b8e2c-8c43-4a18-9d24-5dbd1e4a6e9c', 'Housing', NULL, 2, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Housing"}', '{}');
-INSERT INTO public.sector VALUES ('a48d6f2e-16e4-4976-8c25-5c8b1788232f', 'fa1b8e2c-8c43-4a18-9d24-5dbd1e4a6e9c', 'Culture', NULL, 2, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Culture"}', '{}');
-INSERT INTO public.sector VALUES ('2b01b68b-bf42-4a72-83b8-e272b0af90b5', 'c53f7189-4fcb-4f32-bb15-2ae88269a0b2', 'Transportation', NULL, 2, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Transportation"}', '{}');
-INSERT INTO public.sector VALUES ('c83a021f-5861-4f2c-932b-07decb1fa9d2', 'c53f7189-4fcb-4f32-bb15-2ae88269a0b2', 'Energy and Electricity', NULL, 2, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Energy and Electricity"}', '{}');
-INSERT INTO public.sector VALUES ('e9f80a3c-84b4-4fa6-92a0-324ae34f81fd', 'c53f7189-4fcb-4f32-bb15-2ae88269a0b2', 'Information and Communication', NULL, 2, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Information and Communication"}', '{}');
-INSERT INTO public.sector VALUES ('0f260f9c-c8b8-4a71-94c3-883158f540ad', 'c53f7189-4fcb-4f32-bb15-2ae88269a0b2', 'Water', NULL, 2, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Water"}', '{}');
-INSERT INTO public.sector VALUES ('adcd0b72-1c9f-40ec-9267-d91a2ff2b08a', 'c53f7189-4fcb-4f32-bb15-2ae88269a0b2', 'Sanitation', NULL, 2, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Sanitation"}', '{}');
-INSERT INTO public.sector VALUES ('5c91ad51-b152-4ed0-a7f1-0d3e23e3253e', 'c53f7189-4fcb-4f32-bb15-2ae88269a0b2', 'Community infrastructure', NULL, 2, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Community infrastructure"}', '{}');
-INSERT INTO public.sector VALUES ('7780d3d4-5f64-4d77-8e45-ff924d47bbdf', '0eaf22dd-5f77-4b86-a0b6-faa5106d4821', 'Environment', NULL, 2, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Environment"}', '{}');
-INSERT INTO public.sector VALUES ('e7d2a20c-381c-42f8-99a5-3db2d8c71b86', '0eaf22dd-5f77-4b86-a0b6-faa5106d4821', 'Gender', NULL, 2, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Gender"}', '{}');
-INSERT INTO public.sector VALUES ('3910f40d-b1a1-4ac0-bfa6-52064d7d4e9f', '0eaf22dd-5f77-4b86-a0b6-faa5106d4821', 'Governance', NULL, 2, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Governance"}', '{}');
-INSERT INTO public.sector VALUES ('6f03a917-ec56-4a4b-bf48-16485f6a8ad4', '0eaf22dd-5f77-4b86-a0b6-faa5106d4821', 'Employment, Livelihoods and social protection', NULL, 2, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Employment, Livelihoods and social protection"}', '{}');
-INSERT INTO public.sector VALUES ('d7a01519-19c4-4fbb-9c66-64d4a002ebf8', '0eaf22dd-5f77-4b86-a0b6-faa5106d4821', 'Disaster Risk Management', NULL, 2, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Disaster Risk Management"}', '{}');
-INSERT INTO public.sector VALUES ('c70618ee-f1be-438f-8c40-14fc5dfb05fb', '8cf24ec3-3567-4c40-a5fd-bff9e9a27d87', 'Crops', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Crops"}', '{}');
-INSERT INTO public.sector VALUES ('a4039693-5b26-4653-acac-c70e7e8322eb', '8cf24ec3-3567-4c40-a5fd-bff9e9a27d87', 'Livestock', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Livestock"}', '{}');
-INSERT INTO public.sector VALUES ('729c96be-d16b-4410-8dd5-bf775b15f5bc', '8cf24ec3-3567-4c40-a5fd-bff9e9a27d87', 'Forestry and logging', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Forestry and logging"}', '{}');
-INSERT INTO public.sector VALUES ('cb6f79ed-4342-41e4-b744-245f8c2f48d8', '8cf24ec3-3567-4c40-a5fd-bff9e9a27d87', 'Aquaculture', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Aquaculture"}', '{}');
-INSERT INTO public.sector VALUES ('da0331e9-1d96-44ac-a498-206418bf6a50', '8cf24ec3-3567-4c40-a5fd-bff9e9a27d87', 'Fisheries', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Fisheries"}', '{}');
-INSERT INTO public.sector VALUES ('c5208da2-284f-46f7-9d16-e399b754073f', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', 'Mining and quarrying', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Mining and quarrying"}', '{}');
-INSERT INTO public.sector VALUES ('9a427e48-9c4f-4b54-b65d-f6fca389a79f', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', 'Manufacturing', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Manufacturing"}', '{}');
-INSERT INTO public.sector VALUES ('38342a23-fb47-4182-a2b4-58b1c3606043', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', 'Construction', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Construction"}', '{}');
-INSERT INTO public.sector VALUES ('1e7d14bb-0b56-4edb-8205-fb6bc2ca9d40', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', 'Accommodation services for visitors', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Accommodation services for visitors"}', '{}');
-INSERT INTO public.sector VALUES ('5c073efd-936f-40a9-8e29-52340c4c1af7', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', 'Food and beverage services', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Food and beverage services"}', '{}');
-INSERT INTO public.sector VALUES ('6473fe1a-096c-420a-b807-11d21f2d4761', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', 'Travel agency and reservation services', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Travel agency and reservation services"}', '{}');
-INSERT INTO public.sector VALUES ('92b69a99-1512-4142-9257-3da487c12596', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', 'Recreation and other entertainment', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Recreation and other entertainment"}', '{}');
-INSERT INTO public.sector VALUES ('dfc09fc9-088b-4643-9649-0ffc4bb4db0a', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', 'Passenger transport', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Passenger transport"}', '{}');
-INSERT INTO public.sector VALUES ('7903db62-6d91-47cf-94b1-d1ec129c4f80', '5f00c4d2-12e0-4a89-9f35-5bbda1c3d904', 'Wholesale trade', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Wholesale trade"}', '{}');
-INSERT INTO public.sector VALUES ('a906b6a2-6bf0-49c0-9553-e62f93123b23', '5f00c4d2-12e0-4a89-9f35-5bbda1c3d904', 'Retail trade', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Retail trade"}', '{}');
-INSERT INTO public.sector VALUES ('d472189c-06ff-4a43-96df-bd22cfc31b8e', '5f00c4d2-12e0-4a89-9f35-5bbda1c3d904', 'Sales and maintenance of vehicles', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Sales and maintenance of vehicles"}', '{}');
-INSERT INTO public.sector VALUES ('268a8fa2-0ab0-446a-9f2a-8f2a8fcb87a0', 'ba8e2cf9-0d9a-49c1-814e-0a4d45d0726b', 'Administrative and support services', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Administrative and support services"}', '{}');
-INSERT INTO public.sector VALUES ('57d8f07f-da85-4b98-bece-21628c06b41b', 'ba8e2cf9-0d9a-49c1-814e-0a4d45d0726b', 'Professional, scientific and technical activities', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Professional, scientific and technical activities"}', '{}');
-INSERT INTO public.sector VALUES ('9f89df69-ae73-4b72-92e2-f6377a054fb1', 'ba8e2cf9-0d9a-49c1-814e-0a4d45d0726b', 'Real estate', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Real estate"}', '{}');
-INSERT INTO public.sector VALUES ('bd2705b8-556e-4aa2-98d0-6bd197c5b75d', 'ba8e2cf9-0d9a-49c1-814e-0a4d45d0726b', 'Finance and insurance services', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Finance and insurance services"}', '{}');
-INSERT INTO public.sector VALUES ('2087f7b3-d75b-49a6-86e5-0038611877fa', '4a39d053-a4cf-41f8-93c0-7c30e60f3b42', 'Health care network', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Health care network"}', '{}');
-INSERT INTO public.sector VALUES ('42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', '4a39d053-a4cf-41f8-93c0-7c30e60f3b42', 'Health programs and other services', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Health programs and other services"}', '{}');
-INSERT INTO public.sector VALUES ('a92df837-2005-4fc0-9084-45a39649715e', '4a39d053-a4cf-41f8-93c0-7c30e60f3b42', 'Health care systems'' management', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Health care systems'' management"}', '{}');
-INSERT INTO public.sector VALUES ('890039b4-3fae-4fa5-ae95-85d47714045a', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', '0-Early childhood', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "0-Early childhood"}', '{}');
-INSERT INTO public.sector VALUES ('7fb35894-ff2a-48ce-bc13-18d8119a757e', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', '1-Primary education', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "1-Primary education"}', '{}');
-INSERT INTO public.sector VALUES ('ccbfb4dd-cd8a-489f-876c-e20fea0f22e3', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', '2-3- Secondary', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "2-3- Secondary"}', '{}');
-INSERT INTO public.sector VALUES ('bc363efd-051b-402c-ae67-bdf14a122364', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', '4- Post secondary', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "4- Post secondary"}', '{}');
-INSERT INTO public.sector VALUES ('073072a3-7142-4fbb-a4c2-07c8934a356e', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', '5-8 Tertiary', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "5-8 Tertiary"}', '{}');
-INSERT INTO public.sector VALUES ('3b5ef14c-bc6e-4fca-b158-62f35e0c6820', '729c96be-d16b-4410-8dd5-bf775b15f5bc', 'Logging', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Logging"}', '{}');
-INSERT INTO public.sector VALUES ('0c2cc3f5-2780-4d16-8663-76c7315f1f94', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', 'Others -Non-formal education', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Others -Non-formal education"}', '{}');
-INSERT INTO public.sector VALUES ('e25331d6-dca9-40da-bdd7-9f63979b353b', '6ac0b833-6218-49d0-9882-827c1b748d7a', 'Housing units', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Housing units"}', '{}');
-INSERT INTO public.sector VALUES ('13864003-2c42-454b-b723-f25eb0ae307d', '6ac0b833-6218-49d0-9882-827c1b748d7a', 'Collective living quarters', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Collective living quarters"}', '{}');
-INSERT INTO public.sector VALUES ('ca435a93-65bd-4d9e-b231-05d2f0107a75', 'a48d6f2e-16e4-4976-8c25-5c8b1788232f', 'Tangible Cultural heritage', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Tangible Cultural heritage"}', '{}');
-INSERT INTO public.sector VALUES ('52d0089f-d097-457d-82f9-a693561974f6', 'a48d6f2e-16e4-4976-8c25-5c8b1788232f', 'Intangible cultural heritage', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Intangible cultural heritage"}', '{}');
-INSERT INTO public.sector VALUES ('48b5facd-f99e-4051-bca9-8c02f683ae78', '2b01b68b-bf42-4a72-83b8-e272b0af90b5', 'Land Transportation', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Land Transportation"}', '{}');
-INSERT INTO public.sector VALUES ('3cf24f5d-5ecb-4d62-b0cf-77db213da02b', '2b01b68b-bf42-4a72-83b8-e272b0af90b5', 'Air Transportation', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Air Transportation"}', '{}');
-INSERT INTO public.sector VALUES ('84af0959-7f53-45db-888b-3eeeb897b405', '2b01b68b-bf42-4a72-83b8-e272b0af90b5', 'Water transportation', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Water transportation"}', '{}');
-INSERT INTO public.sector VALUES ('deffe5ac-8e53-44ad-a9f3-0d1a03f4b0c8', '2b01b68b-bf42-4a72-83b8-e272b0af90b5', 'Transportation supppor services', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Transportation supppor services"}', '{}');
-INSERT INTO public.sector VALUES ('a14fce6f-fae4-4f63-80c5-785d6c60298f', '2b01b68b-bf42-4a72-83b8-e272b0af90b5', 'Postal and courier services', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Postal and courier services"}', '{}');
-INSERT INTO public.sector VALUES ('9090ef1f-2abe-4623-8917-5b30cb6d0b5b', 'c83a021f-5861-4f2c-932b-07decb1fa9d2', 'Electricity', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Electricity"}', '{}');
-INSERT INTO public.sector VALUES ('f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'c83a021f-5861-4f2c-932b-07decb1fa9d2', 'Consumable fuels', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Consumable fuels"}', '{}');
-INSERT INTO public.sector VALUES ('4bda4671-3f59-4d0a-be9f-e067c4868aba', 'e9f80a3c-84b4-4fa6-92a0-324ae34f81fd', 'Publishing', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Publishing"}', '{}');
-INSERT INTO public.sector VALUES ('cb93fa53-3dbb-4125-8a3c-26e77dbad725', 'e9f80a3c-84b4-4fa6-92a0-324ae34f81fd', 'Telecommunications,', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Telecommunications,"}', '{}');
-INSERT INTO public.sector VALUES ('1a9ed881-e6dc-463f-836c-8f096c60df4c', 'e9f80a3c-84b4-4fa6-92a0-324ae34f81fd', 'Computer programming, consultancy and related', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Computer programming, consultancy and related"}', '{}');
-INSERT INTO public.sector VALUES ('5ec89056-2b9b-472e-8436-ce5cac6e09b1', 'e9f80a3c-84b4-4fa6-92a0-324ae34f81fd', 'Information services', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Information services"}', '{}');
-INSERT INTO public.sector VALUES ('74e0f62a-e9c7-48b6-8882-6988bb474899', 'e9f80a3c-84b4-4fa6-92a0-324ae34f81fd', 'Others', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Others"}', '{}');
-INSERT INTO public.sector VALUES ('b08b5ffc-26c5-4aa5-88ac-2baa217a4d7a', '0f260f9c-c8b8-4a71-94c3-883158f540ad', 'Water sources- generation', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Water sources- generation"}', '{}');
-INSERT INTO public.sector VALUES ('1e4cc659-c250-4f90-a107-294a85034790', '0f260f9c-c8b8-4a71-94c3-883158f540ad', 'Water treatment', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Water treatment"}', '{}');
-INSERT INTO public.sector VALUES ('f57c9597-420a-4df4-94a2-bd12345b7584', '0f260f9c-c8b8-4a71-94c3-883158f540ad', 'Water distribution', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Water distribution"}', '{}');
-INSERT INTO public.sector VALUES ('17e8b94c-2362-4dd9-89e0-4240df53110a', 'adcd0b72-1c9f-40ec-9267-d91a2ff2b08a', 'Large scale sanitation', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Large scale sanitation"}', '{}');
-INSERT INTO public.sector VALUES ('a5b4edee-54d8-426a-aee3-3ca0fd5e3161', 'adcd0b72-1c9f-40ec-9267-d91a2ff2b08a', 'Small scale sanitation', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Small scale sanitation"}', '{}');
-INSERT INTO public.sector VALUES ('7aad3cff-acee-4aaa-a2df-8e7ae9a135ce', 'adcd0b72-1c9f-40ec-9267-d91a2ff2b08a', 'Urban solid waste', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Urban solid waste"}', '{}');
-INSERT INTO public.sector VALUES ('d1af9066-f0c1-43e0-bca6-0ecfd0835a92', 'adcd0b72-1c9f-40ec-9267-d91a2ff2b08a', 'Hazardous waste', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Hazardous waste"}', '{}');
-INSERT INTO public.sector VALUES ('4a87040e-6b84-4732-a62a-02e4f93f2568', '5c91ad51-b152-4ed0-a7f1-0d3e23e3253e', 'Connective infrastructure', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Connective infrastructure"}', '{}');
-INSERT INTO public.sector VALUES ('ab79b47d-6ffc-47f6-9e77-ccb68bf3194a', '5c91ad51-b152-4ed0-a7f1-0d3e23e3253e', 'Protective infrastructure', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Protective infrastructure"}', '{}');
-INSERT INTO public.sector VALUES ('cf275ef1-313b-4ea5-b02f-2100603b1c24', '5c91ad51-b152-4ed0-a7f1-0d3e23e3253e', 'Socio-economic structures', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Socio-economic structures"}', '{}');
-INSERT INTO public.sector VALUES ('dfac8640-ba70-4c9a-bf63-061866f11778', '5c91ad51-b152-4ed0-a7f1-0d3e23e3253e', 'Community Water and sanitation lifelines', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Community Water and sanitation lifelines"}', '{}');
-INSERT INTO public.sector VALUES ('4fb9060c-965f-4cdc-a304-8ef574794eb8', '5c91ad51-b152-4ed0-a7f1-0d3e23e3253e', 'Community energy lifelines off-grid', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Community energy lifelines off-grid"}', '{}');
-INSERT INTO public.sector VALUES ('b3d6e1a8-6e92-4650-8a9c-2cf1bbf321dc', '5c91ad51-b152-4ed0-a7f1-0d3e23e3253e', 'Commnications community lifelines', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Commnications community lifelines"}', '{}');
-INSERT INTO public.sector VALUES ('0dca6942-2007-489f-9c7a-5f0a182837ab', '7780d3d4-5f64-4d77-8e45-ff924d47bbdf', 'Biodiversity', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Biodiversity"}', '{}');
-INSERT INTO public.sector VALUES ('3cda0cd2-ee4a-489a-9eb9-6f97c68a6ea1', '7780d3d4-5f64-4d77-8e45-ff924d47bbdf', 'Natural Ressources', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Natural Ressources"}', '{}');
-INSERT INTO public.sector VALUES ('d051628b-9012-4e35-9f82-78d977b7acf1', '7780d3d4-5f64-4d77-8e45-ff924d47bbdf', 'Ecosystem services', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Ecosystem services"}', '{}');
-INSERT INTO public.sector VALUES ('36b90c7d-743f-4ff3-8136-896b3e82c64d', 'e7d2a20c-381c-42f8-99a5-3db2d8c71b86', 'Gender inequalities', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Gender inequalities"}', '{}');
-INSERT INTO public.sector VALUES ('2d127594-6cd6-4c36-a867-96fae56d42c8', 'e7d2a20c-381c-42f8-99a5-3db2d8c71b86', 'Gender-based violence', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Gender-based violence"}', '{}');
-INSERT INTO public.sector VALUES ('66186b25-80bf-4a54-8c3e-35cdb2782e26', 'e7d2a20c-381c-42f8-99a5-3db2d8c71b86', 'Public administration', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Public administration"}', '{}');
-INSERT INTO public.sector VALUES ('fa57c7e9-865d-44a0-af80-bc7740775077', 'e7d2a20c-381c-42f8-99a5-3db2d8c71b86', 'Executive power', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Executive power"}', '{}');
-INSERT INTO public.sector VALUES ('4c21449f-ae8f-47c2-845a-77ffcd84c6ab', 'e7d2a20c-381c-42f8-99a5-3db2d8c71b86', 'Legislative power', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Legislative power"}', '{}');
-INSERT INTO public.sector VALUES ('04d3c630-ed60-4b25-86da-681b14a9ad75', 'e7d2a20c-381c-42f8-99a5-3db2d8c71b86', 'Judiciary power', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Judiciary power"}', '{}');
-INSERT INTO public.sector VALUES ('f4782b71-e4fc-4b42-8625-e07ef89391c0', '6f03a917-ec56-4a4b-bf48-16485f6a8ad4', 'Employment', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Employment"}', '{}');
-INSERT INTO public.sector VALUES ('d4771446-1514-449f-b38a-fb69530513a8', '6f03a917-ec56-4a4b-bf48-16485f6a8ad4', 'Livelihoods', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Livelihoods"}', '{}');
-INSERT INTO public.sector VALUES ('2bfec1c6-2d3c-4216-a3f1-3aff25a49bf4', '6f03a917-ec56-4a4b-bf48-16485f6a8ad4', 'Social protection', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Social protection"}', '{}');
-INSERT INTO public.sector VALUES ('5b8d5c0a-63ba-4adf-a54f-86268c187180', 'd7a01519-19c4-4fbb-9c66-64d4a002ebf8', 'Disaster management', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Disaster management"}', '{}');
-INSERT INTO public.sector VALUES ('87b4a6b8-ffbb-448d-b1db-aedd6eff87c1', 'd7a01519-19c4-4fbb-9c66-64d4a002ebf8', 'Disaster Recovery', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Disaster Recovery"}', '{}');
-INSERT INTO public.sector VALUES ('caf3cc98-6395-427a-b785-983ab9a2124b', 'd7a01519-19c4-4fbb-9c66-64d4a002ebf8', 'Disaster mitigation', NULL, 3, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Disaster mitigation"}', '{}');
-INSERT INTO public.sector VALUES ('dd16548d-4087-4bef-8861-7069624859e3', 'c70618ee-f1be-438f-8c40-14fc5dfb05fb', 'Temporary - annual crops', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Temporary - annual crops"}', '{}');
-INSERT INTO public.sector VALUES ('5a525ef1-592d-4808-977c-1e2cc2d2de8f', 'c70618ee-f1be-438f-8c40-14fc5dfb05fb', 'Permanent- perennial crops', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Permanent- perennial crops"}', '{}');
-INSERT INTO public.sector VALUES ('f26df827-9956-4f39-98e8-4597dd5c1b35', 'a4039693-5b26-4653-acac-c70e7e8322eb', 'Animal production', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Animal production"}', '{}');
-INSERT INTO public.sector VALUES ('ce23b2a5-506a-4b99-88d9-6ef1ff3e4a45', 'a4039693-5b26-4653-acac-c70e7e8322eb', 'Hunting and trapping', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Hunting and trapping"}', '{}');
-INSERT INTO public.sector VALUES ('a6ebba03-506c-49c2-92ca-eb219f680cc2', '729c96be-d16b-4410-8dd5-bf775b15f5bc', 'Silviculture', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Silviculture"}', '{}');
-INSERT INTO public.sector VALUES ('101135ba-66c7-4cf2-8db4-67322f136dc2', '729c96be-d16b-4410-8dd5-bf775b15f5bc', 'Gathering forest products', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Gathering forest products"}', '{}');
-INSERT INTO public.sector VALUES ('db591f94-9a08-4dd8-95dd-39118e847ff4', 'cb6f79ed-4342-41e4-b744-245f8c2f48d8', 'Marine aquaculture', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Marine aquaculture"}', '{}');
-INSERT INTO public.sector VALUES ('29729176-a8f1-4772-bccf-2e8850bb4879', 'cb6f79ed-4342-41e4-b744-245f8c2f48d8', 'Freshwater aquaculture', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Freshwater aquaculture"}', '{}');
-INSERT INTO public.sector VALUES ('5c3c8996-146a-41ab-bf5c-bbb816baff1e', 'da0331e9-1d96-44ac-a498-206418bf6a50', 'Marine fishing', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Marine fishing"}', '{}');
-INSERT INTO public.sector VALUES ('f0d975e0-662e-4135-a3dd-6d273a2e8369', 'da0331e9-1d96-44ac-a498-206418bf6a50', 'Freshwater fishing', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Freshwater fishing"}', '{}');
-INSERT INTO public.sector VALUES ('7891381c-b7a9-4fe8-bbfa-bb8fcc3d9c26', 'c5208da2-284f-46f7-9d16-e399b754073f', 'Mining of coal and lignite ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Mining of coal and lignite "}', '{}');
-INSERT INTO public.sector VALUES ('7dc1b459-d76c-45e4-aa13-e3abc4b2f21d', 'c5208da2-284f-46f7-9d16-e399b754073f', ' Extraction of crude petroleum and natural gas ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": " Extraction of crude petroleum and natural gas "}', '{}');
-INSERT INTO public.sector VALUES ('7c29f01a-f0f2-425e-b076-9cf981a5768d', 'c5208da2-284f-46f7-9d16-e399b754073f', ' Mining of metal ores ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": " Mining of metal ores "}', '{}');
-INSERT INTO public.sector VALUES ('439012c1-d097-4a80-b2fd-41e973a5aa70', 'c5208da2-284f-46f7-9d16-e399b754073f', 'Mining of  iron ores', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Mining of  iron ores"}', '{}');
-INSERT INTO public.sector VALUES ('ca3709b9-e04c-4b56-9454-dd17994cf137', 'c5208da2-284f-46f7-9d16-e399b754073f', 'Other mining and quarrying  ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Other mining and quarrying  "}', '{}');
-INSERT INTO public.sector VALUES ('a54887da-b58d-44be-90fa-91849e9856cb', 'c5208da2-284f-46f7-9d16-e399b754073f', 'Mining support service activities', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Mining support service activities"}', '{}');
-INSERT INTO public.sector VALUES ('750b090b-b564-4da9-a176-b7d041a0e0d0', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of food products ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Manufacture of food products "}', '{}');
-INSERT INTO public.sector VALUES ('91fba313-7f2e-41f7-9ab9-dcfe7f8e01ae', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', ' Manufacture of beverages ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": " Manufacture of beverages "}', '{}');
-INSERT INTO public.sector VALUES ('3a4c1654-df0a-47a2-a8a5-4b3eca984482', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of tobacco products', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Manufacture of tobacco products"}', '{}');
-INSERT INTO public.sector VALUES ('a2597dc0-2032-421e-9848-7034e715dbc4', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of textiles ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Manufacture of textiles "}', '{}');
-INSERT INTO public.sector VALUES ('fe1fa6b5-4736-47e6-8e23-42bedf2c8a36', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of wearing apparel', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Manufacture of wearing apparel"}', '{}');
-INSERT INTO public.sector VALUES ('1e3bc7ec-a023-4a1f-aadd-d77b3cc12ab4', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of leather and related products ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Manufacture of leather and related products "}', '{}');
-INSERT INTO public.sector VALUES ('32f349cc-a884-477a-a9cb-a3dbd82a6396', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of wood and of products of wood and cork, except furniture, manufacture of articles of straw and plaiting materials ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Manufacture of wood and of products of wood and cork, except furniture, manufacture of articles of straw and plaiting materials "}', '{}');
-INSERT INTO public.sector VALUES ('fe1f1b30-ebe6-4589-8c73-1e318100d9a3', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', ' Manufacture of paper and paper products', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": " Manufacture of paper and paper products"}', '{}');
-INSERT INTO public.sector VALUES ('4a451baf-9bb7-4b95-9044-eb82bbc46623', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Printing and reproduction of recorded media', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Printing and reproduction of recorded media"}', '{}');
-INSERT INTO public.sector VALUES ('12d508f2-6d48-4df0-8a06-65d18afc185a', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of coke and refined petroleum products', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Manufacture of coke and refined petroleum products"}', '{}');
-INSERT INTO public.sector VALUES ('3ff29932-17dc-401c-ab1d-ee84f682f228', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of chemicals and chemical products ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Manufacture of chemicals and chemical products "}', '{}');
-INSERT INTO public.sector VALUES ('8b4e9bac-6b73-4781-8318-7abc35516cf1', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', ' Manufacture of basic pharmaceutical products and pharmaceutical preparations ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": " Manufacture of basic pharmaceutical products and pharmaceutical preparations "}', '{}');
-INSERT INTO public.sector VALUES ('893f398a-37e6-4934-8112-d7d8989cf537', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of rubber and plastics products ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Manufacture of rubber and plastics products "}', '{}');
-INSERT INTO public.sector VALUES ('764f625c-314f-4609-ae0c-9dadf73ad135', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of other non metallic mineral products', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Manufacture of other non metallic mineral products"}', '{}');
-INSERT INTO public.sector VALUES ('a8cbcde6-38a5-4aa8-bede-1f56b5ca0148', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', '  Manufacture of basic metals', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "  Manufacture of basic metals"}', '{}');
-INSERT INTO public.sector VALUES ('32461210-5890-419d-afcd-00750614e5e3', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of fabricated metal products', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Manufacture of fabricated metal products"}', '{}');
-INSERT INTO public.sector VALUES ('27a3a37b-c0ca-422c-b62c-b6cb48d2eeb3', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of computer, electronic and optical products ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Manufacture of computer, electronic and optical products "}', '{}');
-INSERT INTO public.sector VALUES ('e4375f70-3fa0-48ec-b127-9618fc59535a', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', ' Manufacture of electrical equipment ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": " Manufacture of electrical equipment "}', '{}');
-INSERT INTO public.sector VALUES ('6c05c5c3-321c-42b4-beef-c89d4d04f9a0', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', ' Manufacture of machinery and equipment ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": " Manufacture of machinery and equipment "}', '{}');
-INSERT INTO public.sector VALUES ('613c270d-1f39-4c69-869d-7f0d0b2c567f', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of motor vehicles, trailers and semi trailers ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Manufacture of motor vehicles, trailers and semi trailers "}', '{}');
-INSERT INTO public.sector VALUES ('a04acdb4-f30f-4f2e-911c-17352f4cc940', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of other transport equipment ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Manufacture of other transport equipment "}', '{}');
-INSERT INTO public.sector VALUES ('8ebd270d-05ce-4239-83bf-5390d62626b6', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', ' Manufacture of furniture ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": " Manufacture of furniture "}', '{}');
-INSERT INTO public.sector VALUES ('65620f29-48ae-4d9e-966b-4bb228d96e81', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', ' Other manufacturing', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": " Other manufacturing"}', '{}');
-INSERT INTO public.sector VALUES ('0c0f796e-805c-4d83-a816-4a77455ef4b7', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Repair and installation of machinery and equipment', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Repair and installation of machinery and equipment"}', '{}');
-INSERT INTO public.sector VALUES ('86e24b8d-4c49-4fd1-8b73-b84271623041', '38342a23-fb47-4182-a2b4-58b1c3606043', 'Construction of buildings', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Construction of buildings"}', '{}');
-INSERT INTO public.sector VALUES ('d95559cc-7b6b-49f2-badb-18e976e888de', '38342a23-fb47-4182-a2b4-58b1c3606043', 'Civil engineering', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Civil engineering"}', '{}');
-INSERT INTO public.sector VALUES ('e315defa-a100-4569-a6c6-f338d268dc2d', '38342a23-fb47-4182-a2b4-58b1c3606043', 'Specialized construction activities', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Specialized construction activities"}', '{}');
-INSERT INTO public.sector VALUES ('dd2600ca-5cf1-41a7-a9e7-3a1671e7b8e9', '1e7d14bb-0b56-4edb-8205-fb6bc2ca9d40', 'Short-term accommodation in hotels, resort hotels, suite/apartment hotels, motels, motor hotels, guest houses, pensions, bed-and-breakfast units, visitor flats and bungalows, time-share units, holiday homes, chalets, housekeeping cottages and cabins, and youth hostel and mountain refuges,', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Short-term accommodation in hotels, resort hotels, suite/apartment hotels, motels, motor hotels, guest houses, pensions, bed-and-breakfast units, visitor flats and bungalows, time-share units, holiday homes, chalets, housekeeping cottages and cabins, and youth hostel and mountain refuges,"}', '{}');
-INSERT INTO public.sector VALUES ('ce1d178d-96ea-43d9-88e2-469d01f0d600', '1e7d14bb-0b56-4edb-8205-fb6bc2ca9d40', 'Accommodation in camping grounds, recreational vehicle parks and trailer parks, ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Accommodation in camping grounds, recreational vehicle parks and trailer parks, "}', '{}');
-INSERT INTO public.sector VALUES ('246ece37-06d6-4756-a664-d7befb77ac8a', '57d8f07f-da85-4b98-bece-21628c06b41b', 'Veterinary activities', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Veterinary activities"}', '{}');
-INSERT INTO public.sector VALUES ('1ad22b33-a0aa-408f-96f0-5fcc5bb6794b', '1e7d14bb-0b56-4edb-8205-fb6bc2ca9d40', 'Accommodation in student residences, school dormitories, workers’ hostels, rooming and boarding houses', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Accommodation in student residences, school dormitories, workers’ hostels, rooming and boarding houses"}', '{}');
-INSERT INTO public.sector VALUES ('e1232c0d-54d9-4ad6-b5fa-bcfe82dce554', '1e7d14bb-0b56-4edb-8205-fb6bc2ca9d40', 'Other accomodation services', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Other accomodation services"}', '{}');
-INSERT INTO public.sector VALUES ('ac4ecb39-34c1-4fb3-8240-2ae6b213ecf1', '5c073efd-936f-40a9-8e29-52340c4c1af7', 'Provision of food service to customers in restaurants, cafeterias, fast food restaurants, pizza delivery, take out eating places, ice-cream truck vendors, mobile food carts, food preparation in market stalls,', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Provision of food service to customers in restaurants, cafeterias, fast food restaurants, pizza delivery, take out eating places, ice-cream truck vendors, mobile food carts, food preparation in market stalls,"}', '{}');
-INSERT INTO public.sector VALUES ('920e07c3-d109-4ea8-b3df-4e9d76fe794e', '5c073efd-936f-40a9-8e29-52340c4c1af7', 'Event catering and other food-service activities, ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Event catering and other food-service activities, "}', '{}');
-INSERT INTO public.sector VALUES ('e5b25acf-d490-407c-8f0a-490b96c5f627', '5c073efd-936f-40a9-8e29-52340c4c1af7', 'Beverage serving activities in bars, taverns, cocktail lounges, discotheques, beer parlors and pubs, coffee shops, fruit juice bars, and mobile beverage vendors. ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Beverage serving activities in bars, taverns, cocktail lounges, discotheques, beer parlors and pubs, coffee shops, fruit juice bars, and mobile beverage vendors. "}', '{}');
-INSERT INTO public.sector VALUES ('105b91f0-040b-4c5b-9be7-530434c27b87', '5c073efd-936f-40a9-8e29-52340c4c1af7', 'Other food and beverage services', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Other food and beverage services"}', '{}');
-INSERT INTO public.sector VALUES ('a1da8e3b-1336-4476-9422-28f0be7a78ff', '6473fe1a-096c-420a-b807-11d21f2d4761', 'Retail travel agencies', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Retail travel agencies"}', '{}');
-INSERT INTO public.sector VALUES ('4ddf8c01-c4bd-401b-8a03-fee727fc3435', '6473fe1a-096c-420a-b807-11d21f2d4761', 'Wholesale travel agencies', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Wholesale travel agencies"}', '{}');
-INSERT INTO public.sector VALUES ('65bfcde8-5402-41cc-bf87-3370fca47477', '6473fe1a-096c-420a-b807-11d21f2d4761', 'Online travel agencies', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Online travel agencies"}', '{}');
-INSERT INTO public.sector VALUES ('89dd8b08-fd75-4ea7-84d1-fccafb71daa2', '6473fe1a-096c-420a-b807-11d21f2d4761', 'Tour operators', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Tour operators"}', '{}');
-INSERT INTO public.sector VALUES ('86662c0f-a378-4640-ba14-ca4b7cc9dffe', '92b69a99-1512-4142-9257-3da487c12596', 'Sport and recreational activities', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Sport and recreational activities"}', '{}');
-INSERT INTO public.sector VALUES ('dfdea11e-f480-4a9e-90cc-be0aad7d281d', '92b69a99-1512-4142-9257-3da487c12596', 'Cultural activities', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Cultural activities"}', '{}');
-INSERT INTO public.sector VALUES ('4cb2721a-ca5d-4305-b308-ef570538d64a', 'dfc09fc9-088b-4643-9649-0ffc4bb4db0a', 'Road passenger transport', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Road passenger transport"}', '{}');
-INSERT INTO public.sector VALUES ('8adc7986-3254-4483-b2ad-657acf2fd567', 'dfc09fc9-088b-4643-9649-0ffc4bb4db0a', 'Air passenger transport', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Air passenger transport"}', '{}');
-INSERT INTO public.sector VALUES ('8b6b1396-8cd6-4e1d-9959-b24e7c1e120c', 'dfc09fc9-088b-4643-9649-0ffc4bb4db0a', 'water passenger transport', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "water passenger transport"}', '{}');
-INSERT INTO public.sector VALUES ('19428870-335f-4002-ac48-51f60a0d186c', 'dfc09fc9-088b-4643-9649-0ffc4bb4db0a', 'railway passenger transport', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "railway passenger transport"}', '{}');
-INSERT INTO public.sector VALUES ('9895aa28-2974-4d8a-a3ea-a5d1a31572f9', '7903db62-6d91-47cf-94b1-d1ec129c4f80', 'Wholesale on a fee or contract basis', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Wholesale on a fee or contract basis"}', '{}');
-INSERT INTO public.sector VALUES ('1dd27d0e-f5f0-489e-8016-6c0458defd94', '7903db62-6d91-47cf-94b1-d1ec129c4f80', 'Wholesale of agricultural raw materials and live animals', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Wholesale of agricultural raw materials and live animals"}', '{}');
-INSERT INTO public.sector VALUES ('729638b3-0f11-45b1-9a0d-4b807952f98b', '7903db62-6d91-47cf-94b1-d1ec129c4f80', 'Wholesale of food, beverages and tobacco', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Wholesale of food, beverages and tobacco"}', '{}');
-INSERT INTO public.sector VALUES ('4d155378-0fdb-4001-b17d-704634803c86', '7903db62-6d91-47cf-94b1-d1ec129c4f80', 'Wholesale of household goods', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Wholesale of household goods"}', '{}');
-INSERT INTO public.sector VALUES ('96df845f-1f10-4781-b346-29842df3f97d', '7903db62-6d91-47cf-94b1-d1ec129c4f80', 'Wholesale of machinery, equipment and supplies', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Wholesale of machinery, equipment and supplies"}', '{}');
-INSERT INTO public.sector VALUES ('96d956cf-a193-4409-8729-ae57f1148abd', '7903db62-6d91-47cf-94b1-d1ec129c4f80', 'Other specialized wholesale', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Other specialized wholesale"}', '{}');
-INSERT INTO public.sector VALUES ('8756d857-ec69-4d54-9d7d-ead4587d91aa', '7903db62-6d91-47cf-94b1-d1ec129c4f80', 'Non-specialized wholesale trade', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Non-specialized wholesale trade"}', '{}');
-INSERT INTO public.sector VALUES ('2ed45da7-4b7a-4b78-84d8-28601638dff2', '7903db62-6d91-47cf-94b1-d1ec129c4f80', 'Other wholesade trade', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Other wholesade trade"}', '{}');
-INSERT INTO public.sector VALUES ('f4a4c184-fd3d-495a-a63a-976acecd3a62', 'a906b6a2-6bf0-49c0-9553-e62f93123b23', 'Retail trade in stores', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Retail trade in stores"}', '{}');
-INSERT INTO public.sector VALUES ('b1e8e81e-4ad6-42f6-9c68-4aba2eaad68e', 'a906b6a2-6bf0-49c0-9553-e62f93123b23', 'Retail trade non in stores', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Retail trade non in stores"}', '{}');
-INSERT INTO public.sector VALUES ('2d4522a8-7796-4879-b4f6-d9add84b5c2b', 'a906b6a2-6bf0-49c0-9553-e62f93123b23', 'Other retail trade', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Other retail trade"}', '{}');
-INSERT INTO public.sector VALUES ('8f48c5d3-b8c7-4972-a874-101709f28868', 'd472189c-06ff-4a43-96df-bd22cfc31b8e', 'Sale of motor vehicles', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Sale of motor vehicles"}', '{}');
-INSERT INTO public.sector VALUES ('b419469f-9ec3-44d8-b448-6aac504e5ff3', 'd472189c-06ff-4a43-96df-bd22cfc31b8e', 'Maintenance and repair of motor vehicles', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Maintenance and repair of motor vehicles"}', '{}');
-INSERT INTO public.sector VALUES ('b3726d40-58fc-4474-ae52-703523a90f83', 'd472189c-06ff-4a43-96df-bd22cfc31b8e', 'Sale of motor vehicle parts and accessories', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Sale of motor vehicle parts and accessories"}', '{}');
-INSERT INTO public.sector VALUES ('dd135916-91d6-4e15-96c3-262d8a9825da', 'd472189c-06ff-4a43-96df-bd22cfc31b8e', 'Sale, maintenance and repair of motorcycles and related parts and accessories', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Sale, maintenance and repair of motorcycles and related parts and accessories"}', '{}');
-INSERT INTO public.sector VALUES ('fff57b30-1492-4328-9691-224009442017', 'd472189c-06ff-4a43-96df-bd22cfc31b8e', 'Others', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Others"}', '{}');
-INSERT INTO public.sector VALUES ('0b2ce8f7-5e4d-42b5-8d3e-f3323931d601', '268a8fa2-0ab0-446a-9f2a-8f2a8fcb87a0', 'Rental and leasing activities', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Rental and leasing activities"}', '{}');
-INSERT INTO public.sector VALUES ('25ea9ae9-ac92-4c58-8af7-dc0a51837cdc', '268a8fa2-0ab0-446a-9f2a-8f2a8fcb87a0', 'Employment activities', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Employment activities"}', '{}');
-INSERT INTO public.sector VALUES ('6443ee09-b5de-419c-910d-669b6e96a6d5', '268a8fa2-0ab0-446a-9f2a-8f2a8fcb87a0', 'Security and investigation activities', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Security and investigation activities"}', '{}');
-INSERT INTO public.sector VALUES ('56506c13-ad53-4115-ab47-03a942e7ac29', '268a8fa2-0ab0-446a-9f2a-8f2a8fcb87a0', 'Services to buildings and landscape activities', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Services to buildings and landscape activities"}', '{}');
-INSERT INTO public.sector VALUES ('54cc223d-7cfd-4218-a85c-b26bdf74a763', '268a8fa2-0ab0-446a-9f2a-8f2a8fcb87a0', 'Office administrative, office support and other business support activities', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Office administrative, office support and other business support activities"}', '{}');
-INSERT INTO public.sector VALUES ('e03d35db-ef39-45a2-aa7b-e87110794294', '57d8f07f-da85-4b98-bece-21628c06b41b', 'legal and accounting activities', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "legal and accounting activities"}', '{}');
-INSERT INTO public.sector VALUES ('dc5377b6-8371-4b50-a0e4-3d13f4581625', '57d8f07f-da85-4b98-bece-21628c06b41b', 'Activities of head offices, management consultancy activities', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Activities of head offices, management consultancy activities"}', '{}');
-INSERT INTO public.sector VALUES ('55a75d0c-362a-46b7-a45c-a6ee920c0eba', '57d8f07f-da85-4b98-bece-21628c06b41b', 'Architectural and engineering activities, technical testing and analysis', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Architectural and engineering activities, technical testing and analysis"}', '{}');
-INSERT INTO public.sector VALUES ('741e8e37-b981-4fe7-8ee2-aab6002edbb9', '57d8f07f-da85-4b98-bece-21628c06b41b', 'Scientific research and development', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Scientific research and development"}', '{}');
-INSERT INTO public.sector VALUES ('18a71ba6-7ce6-46ec-a109-b22e55c96742', '57d8f07f-da85-4b98-bece-21628c06b41b', 'Other professional, scientific and technical activities', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Other professional, scientific and technical activities"}', '{}');
-INSERT INTO public.sector VALUES ('15c3ab0e-39ab-4128-951c-8984a8680369', '9f89df69-ae73-4b72-92e2-f6377a054fb1', 'real estate with own or leased property', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "real estate with own or leased property"}', '{}');
-INSERT INTO public.sector VALUES ('dc66cc14-d6da-4817-9674-0c10248e5ae4', '9f89df69-ae73-4b72-92e2-f6377a054fb1', 'Real estate activities on a fee or contract basis', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Real estate activities on a fee or contract basis"}', '{}');
-INSERT INTO public.sector VALUES ('e419da28-4837-4592-b8bc-3df3a889600d', 'bd2705b8-556e-4aa2-98d0-6bd197c5b75d', 'Monetary intermediation', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Monetary intermediation"}', '{}');
-INSERT INTO public.sector VALUES ('0fc457a4-2c64-4784-a656-c011589b685c', 'bd2705b8-556e-4aa2-98d0-6bd197c5b75d', 'Holding companies', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Holding companies"}', '{}');
-INSERT INTO public.sector VALUES ('db0c8841-bf65-4f77-bfd2-ff66927d05f6', 'bd2705b8-556e-4aa2-98d0-6bd197c5b75d', 'Trusts, funds and similar financial entities', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Trusts, funds and similar financial entities"}', '{}');
-INSERT INTO public.sector VALUES ('579f3c48-b5f2-4e4a-9469-1e7112aab10a', 'bd2705b8-556e-4aa2-98d0-6bd197c5b75d', 'Other financing services', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Other financing services"}', '{}');
-INSERT INTO public.sector VALUES ('b344b04c-8ff2-4a9b-b2d3-83d32f55bfeb', 'bd2705b8-556e-4aa2-98d0-6bd197c5b75d', 'Insurance', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Insurance"}', '{}');
-INSERT INTO public.sector VALUES ('1b2a88d0-13b6-4c24-82b7-c7b9faf899ea', 'bd2705b8-556e-4aa2-98d0-6bd197c5b75d', 'Reinsurance', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Reinsurance"}', '{}');
-INSERT INTO public.sector VALUES ('790a64e1-fa61-41ca-88cd-3ee75463872c', 'bd2705b8-556e-4aa2-98d0-6bd197c5b75d', 'Pension funding', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Pension funding"}', '{}');
-INSERT INTO public.sector VALUES ('e1ef450c-5e31-4adc-9ce9-2ce1187a0e17', 'bd2705b8-556e-4aa2-98d0-6bd197c5b75d', 'Activities auxiliary to financial service and insurance activities', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Activities auxiliary to financial service and insurance activities"}', '{}');
-INSERT INTO public.sector VALUES ('c3e75c3d-7b0f-48f8-973e-a7cb1338e78a', 'bd2705b8-556e-4aa2-98d0-6bd197c5b75d', 'Fund management activities', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Fund management activities"}', '{}');
-INSERT INTO public.sector VALUES ('c82d7874-ab80-497f-8bdb-52e0e885c11b', '2087f7b3-d75b-49a6-86e5-0038611877fa', 'community-based', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "community-based"}', '{}');
-INSERT INTO public.sector VALUES ('4e938f32-722f-4d92-8ce7-d3bc3cf26d2b', '2087f7b3-d75b-49a6-86e5-0038611877fa', 'primary health care', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "primary health care"}', '{}');
-INSERT INTO public.sector VALUES ('c61cfa1e-0ebe-4362-8e1a-07b1f72f0716', '2087f7b3-d75b-49a6-86e5-0038611877fa', 'secondary ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "secondary "}', '{}');
-INSERT INTO public.sector VALUES ('c09d7a13-e3bc-4f93-a2df-e3078cdd798b', '2087f7b3-d75b-49a6-86e5-0038611877fa', 'tertiary levels', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "tertiary levels"}', '{}');
-INSERT INTO public.sector VALUES ('14c98341-1bce-472e-8b10-de1613c8f48c', '2087f7b3-d75b-49a6-86e5-0038611877fa', 'Other-non categorized', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Other-non categorized"}', '{}');
-INSERT INTO public.sector VALUES ('ba2a1997-ecaa-4e83-a43b-7de3a5ed286a', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Telemedicine', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Telemedicine"}', '{}');
-INSERT INTO public.sector VALUES ('007c1471-41db-40d7-8dcc-259f0120131d', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Sexual and reproductive health', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Sexual and reproductive health"}', '{}');
-INSERT INTO public.sector VALUES ('f9979538-c012-4b72-9c72-0dce64859799', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Health education', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Health education"}', '{}');
-INSERT INTO public.sector VALUES ('86d0106b-2049-42e2-bb9b-9bc05fd737c9', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Emergency medical services', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Emergency medical services"}', '{}');
-INSERT INTO public.sector VALUES ('b1707b56-615c-4681-9a1e-91ea164dc5d4', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Environmental health', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Environmental health"}', '{}');
-INSERT INTO public.sector VALUES ('04b9f8b5-bed9-4dc4-9e43-48232a6c3bfa', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'One health', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "One health"}', '{}');
-INSERT INTO public.sector VALUES ('79c190c8-5bfa-4879-aeab-7e209d6baf7e', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Immunization programs', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Immunization programs"}', '{}');
-INSERT INTO public.sector VALUES ('59a71915-9f2c-473e-b916-f432f053eee9', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Mental health', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Mental health"}', '{}');
-INSERT INTO public.sector VALUES ('6c9c7298-1808-46d6-bbfc-a6adca79bf30', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Communicable diseases programs', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Communicable diseases programs"}', '{}');
-INSERT INTO public.sector VALUES ('cb3240d4-c6c4-4dc9-baec-0b9564eaec91', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Non-communicable diseases programs', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Non-communicable diseases programs"}', '{}');
-INSERT INTO public.sector VALUES ('2635d93d-724b-48ae-b1f4-ff794334dfce', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Nutrition', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Nutrition"}', '{}');
-INSERT INTO public.sector VALUES ('1302ba8f-51e6-4eb2-a214-79c775aedd3c', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Family planning', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Family planning"}', '{}');
-INSERT INTO public.sector VALUES ('fbf6956f-f71e-4055-bb28-fb59a6ca23ba', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Health surveillance and early warning', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Health surveillance and early warning"}', '{}');
-INSERT INTO public.sector VALUES ('2427e3e3-ac9f-4b27-90d6-dac29b4ba4bd', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Other health services', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Other health services"}', '{}');
-INSERT INTO public.sector VALUES ('488615b4-ea96-4e44-a34a-c0efa755429f', 'a92df837-2005-4fc0-9084-45a39649715e', 'Health information systems', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Health information systems"}', '{}');
-INSERT INTO public.sector VALUES ('66700d83-d880-4d10-96ff-3d79743aef1d', '890039b4-3fae-4fa5-ae95-85d47714045a', '01 Early childhood educational development ( below 3)', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "01 Early childhood educational development ( below 3)"}', '{}');
-INSERT INTO public.sector VALUES ('3232642f-08a2-460d-bd66-3dfe6219a206', '890039b4-3fae-4fa5-ae95-85d47714045a', 'Early childhood (02 Pre-primary - 3 to start primary)', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Early childhood (02 Pre-primary - 3 to start primary)"}', '{}');
-INSERT INTO public.sector VALUES ('cbdd6c28-a679-4520-838d-e5c791d97358', '7fb35894-ff2a-48ce-bc13-18d8119a757e', 'Primary education', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Primary education"}', '{}');
-INSERT INTO public.sector VALUES ('46abe55e-793f-445a-9556-cddc90e58695', 'ccbfb4dd-cd8a-489f-876c-e20fea0f22e3', '2- Lower secondary - middle school', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "2- Lower secondary - middle school"}', '{}');
-INSERT INTO public.sector VALUES ('6dbb6d4d-b756-424b-91bc-c1dc723fd32b', 'ccbfb4dd-cd8a-489f-876c-e20fea0f22e3', '3 Upper secondary / High school', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "3 Upper secondary / High school"}', '{}');
-INSERT INTO public.sector VALUES ('503ad119-18f0-4d2d-b69a-80a5639e0cb8', 'bc363efd-051b-402c-ae67-bdf14a122364', 'General', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "General"}', '{}');
-INSERT INTO public.sector VALUES ('3d080097-312a-4bb7-b7cb-46347a1f5b03', 'bc363efd-051b-402c-ae67-bdf14a122364', 'Vocational', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Vocational"}', '{}');
-INSERT INTO public.sector VALUES ('6890a2a3-2ac2-412c-9aa2-033b1e17a4e1', '073072a3-7142-4fbb-a4c2-07c8934a356e', '5 -Short-cycle tertiary education ( general or vocational)', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "5 -Short-cycle tertiary education ( general or vocational)"}', '{}');
-INSERT INTO public.sector VALUES ('e13d689c-a7b0-4719-b210-705bbfe18bb4', '073072a3-7142-4fbb-a4c2-07c8934a356e', '6,7,8-Bachelors, Master, Phd ( academic or professional)', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "6,7,8-Bachelors, Master, Phd ( academic or professional)"}', '{}');
-INSERT INTO public.sector VALUES ('30c2090f-5751-4920-a01f-9c80b3f225bd', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Natural Gas processing', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Natural Gas processing"}', '{}');
-INSERT INTO public.sector VALUES ('84441af0-7a3f-43c2-9c2c-321f87eec446', '0c2cc3f5-2780-4d16-8663-76c7315f1f94', 'Adult education/ literacy programs', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Adult education/ literacy programs"}', '{}');
-INSERT INTO public.sector VALUES ('4de62753-dbdd-4244-ba67-2428afefe2f7', '0c2cc3f5-2780-4d16-8663-76c7315f1f94', 'Community education', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Community education"}', '{}');
-INSERT INTO public.sector VALUES ('bf770f81-65dd-4d3e-bdda-78ec46c602ba', '0c2cc3f5-2780-4d16-8663-76c7315f1f94', 'Continuing professional development programs', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Continuing professional development programs"}', '{}');
-INSERT INTO public.sector VALUES ('ccc75fb7-874e-42a9-b345-1f36feb6c6d5', '0c2cc3f5-2780-4d16-8663-76c7315f1f94', 'Others - Adult language centers', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Others - Adult language centers"}', '{}');
-INSERT INTO public.sector VALUES ('c015376c-92db-427a-abca-a91a07b5eff5', '0c2cc3f5-2780-4d16-8663-76c7315f1f94', 'Others -lifelong learning', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Others -lifelong learning"}', '{}');
-INSERT INTO public.sector VALUES ('d55816d1-4e9b-4b3a-97e5-f5c096d7391a', '0c2cc3f5-2780-4d16-8663-76c7315f1f94', 'Other non-formal education', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Other non-formal education"}', '{}');
-INSERT INTO public.sector VALUES ('9d8b03b6-e37c-472b-9f2f-1b902f3fe567', 'e25331d6-dca9-40da-bdd7-9f63979b353b', 'With all basic facilities', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "With all basic facilities"}', '{}');
-INSERT INTO public.sector VALUES ('2064aa0c-d4a6-4564-88f3-9c9447189a1d', 'e25331d6-dca9-40da-bdd7-9f63979b353b', 'Conventional dwellings', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Conventional dwellings"}', '{}');
-INSERT INTO public.sector VALUES ('f0b6d9c7-7839-472c-a016-387d692b104e', 'e25331d6-dca9-40da-bdd7-9f63979b353b', 'Other housing units', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Other housing units"}', '{}');
-INSERT INTO public.sector VALUES ('b2222a5b-849f-4cba-b185-3d9b40477376', '13864003-2c42-454b-b723-f25eb0ae307d', 'Rooming houses and lodging', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Rooming houses and lodging"}', '{}');
-INSERT INTO public.sector VALUES ('dd3eaa67-41ff-49ef-a0b1-d3e2d3d98dd4', '13864003-2c42-454b-b723-f25eb0ae307d', 'Institutions', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Institutions"}', '{}');
-INSERT INTO public.sector VALUES ('a606c3aa-d629-46e8-9c90-660b98a333e3', '13864003-2c42-454b-b723-f25eb0ae307d', 'Camps and workers quarters', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Camps and workers quarters"}', '{}');
-INSERT INTO public.sector VALUES ('cbcf0a61-96c4-450f-aa9c-76bbc39914f8', '13864003-2c42-454b-b723-f25eb0ae307d', 'Other collectiving living quarters', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Other collectiving living quarters"}', '{}');
-INSERT INTO public.sector VALUES ('19b63b1e-4256-4fe0-8ab4-496182624d41', 'ca435a93-65bd-4d9e-b231-05d2f0107a75', 'Built heritage', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Built heritage"}', '{}');
-INSERT INTO public.sector VALUES ('303f5e40-7d85-449a-866b-30bd65810a15', 'ca435a93-65bd-4d9e-b231-05d2f0107a75', 'Cultural sites', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Cultural sites"}', '{}');
-INSERT INTO public.sector VALUES ('2207291f-04e2-4779-b10b-57f921b59bbf', 'ca435a93-65bd-4d9e-b231-05d2f0107a75', 'Natural sites', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Natural sites"}', '{}');
-INSERT INTO public.sector VALUES ('16424c99-ca8b-416c-ac7b-c1be41860df6', 'ca435a93-65bd-4d9e-b231-05d2f0107a75', 'Movable properties and collections', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Movable properties and collections"}', '{}');
-INSERT INTO public.sector VALUES ('469370c8-abff-42e1-99c3-c5f6801d5d09', 'ca435a93-65bd-4d9e-b231-05d2f0107a75', 'Repositories of heritage', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Repositories of heritage"}', '{}');
-INSERT INTO public.sector VALUES ('aca8ff5a-2da5-43f3-9111-ce1a98ae1263', 'ca435a93-65bd-4d9e-b231-05d2f0107a75', 'Urban heritage', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Urban heritage"}', '{}');
-INSERT INTO public.sector VALUES ('392f114b-6bc3-4df1-86bf-025aac84a08f', 'ca435a93-65bd-4d9e-b231-05d2f0107a75', 'Other tangible heritage designations', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Other tangible heritage designations"}', '{}');
-INSERT INTO public.sector VALUES ('a0a82c7e-8575-4218-950b-228bbc3cb31f', '52d0089f-d097-457d-82f9-a693561974f6', 'landscapes,', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "landscapes,"}', '{}');
-INSERT INTO public.sector VALUES ('69e9e911-89ea-494a-ba94-d594d4ae7697', '52d0089f-d097-457d-82f9-a693561974f6', 'traditional knowledge, ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "traditional knowledge, "}', '{}');
-INSERT INTO public.sector VALUES ('a722a6de-49bb-4d82-ba90-59bf2cda7fd0', '52d0089f-d097-457d-82f9-a693561974f6', 'rituals, ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "rituals, "}', '{}');
-INSERT INTO public.sector VALUES ('41744964-bb4e-4da4-8547-340d3f6df50f', '52d0089f-d097-457d-82f9-a693561974f6', 'festivals,  ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "festivals,  "}', '{}');
-INSERT INTO public.sector VALUES ('f34e60af-384a-4045-8325-ddbdad75e67e', '52d0089f-d097-457d-82f9-a693561974f6', 'language ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "language "}', '{}');
-INSERT INTO public.sector VALUES ('da9f4174-6ffc-4a38-b307-7a49e8fc0f4c', '52d0089f-d097-457d-82f9-a693561974f6', 'cultural practices', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "cultural practices"}', '{}');
-INSERT INTO public.sector VALUES ('cee4cc64-4490-4e18-a1ea-08f6acbd8193', '48b5facd-f99e-4051-bca9-8c02f683ae78', 'Road transport infrastructure', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Road transport infrastructure"}', '{}');
-INSERT INTO public.sector VALUES ('2620f256-b5fb-4da5-b7ca-c7fe9a0cbb2c', '48b5facd-f99e-4051-bca9-8c02f683ae78', 'Railroad transport ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Railroad transport "}', '{}');
-INSERT INTO public.sector VALUES ('ad895a04-068e-4cac-9fd1-aba6d3a154e2', '48b5facd-f99e-4051-bca9-8c02f683ae78', 'Pipeline transport ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Pipeline transport "}', '{}');
-INSERT INTO public.sector VALUES ('66c9f601-3b56-4542-ba66-501afcbc8631', '48b5facd-f99e-4051-bca9-8c02f683ae78', 'Other land transport', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Other land transport"}', '{}');
-INSERT INTO public.sector VALUES ('4ce52ad0-3255-4b3a-865e-4c36e840d518', '3cf24f5d-5ecb-4d62-b0cf-77db213da02b', 'Passenger air transport', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Passenger air transport"}', '{}');
-INSERT INTO public.sector VALUES ('cfb5e514-017e-406e-8bb2-998f72417da1', '3cf24f5d-5ecb-4d62-b0cf-77db213da02b', 'Freight air transport', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Freight air transport"}', '{}');
-INSERT INTO public.sector VALUES ('1279965a-ab82-4e3d-97ce-40c02ed58a5e', '84af0959-7f53-45db-888b-3eeeb897b405', 'Sea and coastal ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Sea and coastal "}', '{}');
-INSERT INTO public.sector VALUES ('dd56589a-a51d-48ce-bc9b-dc24fe41c656', '84af0959-7f53-45db-888b-3eeeb897b405', 'Inland water transport', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Inland water transport"}', '{}');
-INSERT INTO public.sector VALUES ('8a9ea73f-849a-4fff-ac04-6212af1b57c6', '84af0959-7f53-45db-888b-3eeeb897b405', 'Other water transportation', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Other water transportation"}', '{}');
-INSERT INTO public.sector VALUES ('22514fe2-8feb-42ed-aa6f-15531cb9d902', 'deffe5ac-8e53-44ad-a9f3-0d1a03f4b0c8', 'Warehousing and storage', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Warehousing and storage"}', '{}');
-INSERT INTO public.sector VALUES ('807e0e07-cab5-4ec3-af02-6d957cc04671', 'deffe5ac-8e53-44ad-a9f3-0d1a03f4b0c8', 'Support activities for transportation', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Support activities for transportation"}', '{}');
-INSERT INTO public.sector VALUES ('bd89c05b-85c0-406b-a5fd-c541e1f9f248', 'deffe5ac-8e53-44ad-a9f3-0d1a03f4b0c8', 'Other transportation support activities', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Other transportation support activities"}', '{}');
-INSERT INTO public.sector VALUES ('630e9cad-91ad-4926-ba8e-b60371f5f4fd', 'a14fce6f-fae4-4f63-80c5-785d6c60298f', 'Postal activities', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Postal activities"}', '{}');
-INSERT INTO public.sector VALUES ('dd4fc7fb-d632-4d5d-90db-d453c7efbede', 'a14fce6f-fae4-4f63-80c5-785d6c60298f', 'Courier activities', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Courier activities"}', '{}');
-INSERT INTO public.sector VALUES ('23023918-1f01-42ec-ba23-fb70f7cce0e4', '9090ef1f-2abe-4623-8917-5b30cb6d0b5b', 'Non Renewable', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Non Renewable"}', '{}');
-INSERT INTO public.sector VALUES ('10fddff2-721d-4858-9949-7de0eefa1575', '9090ef1f-2abe-4623-8917-5b30cb6d0b5b', 'Renewable', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Renewable"}', '{}');
-INSERT INTO public.sector VALUES ('870c5468-2d47-434e-94fb-9fc3c3306b0e', '9090ef1f-2abe-4623-8917-5b30cb6d0b5b', 'Electricity Storage', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Electricity Storage"}', '{}');
-INSERT INTO public.sector VALUES ('62f75567-7770-460f-b418-1019480df190', '9090ef1f-2abe-4623-8917-5b30cb6d0b5b', 'Extra/ultra/high voltage', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Extra/ultra/high voltage"}', '{}');
-INSERT INTO public.sector VALUES ('93267b28-7cd5-4b87-8bab-70bd72caab25', '9090ef1f-2abe-4623-8917-5b30cb6d0b5b', 'Medium voltage', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Medium voltage"}', '{}');
-INSERT INTO public.sector VALUES ('a71c4a2e-ced0-4350-96cf-371fefb9aba2', '9090ef1f-2abe-4623-8917-5b30cb6d0b5b', 'Low voltage', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Low voltage"}', '{}');
-INSERT INTO public.sector VALUES ('d1de06ce-4033-4071-82df-c91da1cf1bb0', '9090ef1f-2abe-4623-8917-5b30cb6d0b5b', 'Residential  and commercial network', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Residential  and commercial network"}', '{}');
-INSERT INTO public.sector VALUES ('d115c081-ac1d-497a-a5e3-4a4420f8e91f', '9090ef1f-2abe-4623-8917-5b30cb6d0b5b', 'Industrial network', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Industrial network"}', '{}');
-INSERT INTO public.sector VALUES ('8e679607-2e01-4273-8b0a-04e9b6223b9e', '9090ef1f-2abe-4623-8917-5b30cb6d0b5b', 'Other specials network', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Other specials network"}', '{}');
-INSERT INTO public.sector VALUES ('dc0ae105-7763-4d82-bf41-99837730c503', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Natural gas- upstream', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Natural gas- upstream"}', '{}');
-INSERT INTO public.sector VALUES ('c19f025d-dcd4-4f14-bbd3-755cf2809eba', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Natural Gas storage', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Natural Gas storage"}', '{}');
-INSERT INTO public.sector VALUES ('dfc398b4-ba68-4fcc-8dba-f14480ab9952', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Gas Distribution ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Gas Distribution "}', '{}');
-INSERT INTO public.sector VALUES ('f88c345c-5085-4355-884a-168bad07108e', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Oil Manufacture/ upstream', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Oil Manufacture/ upstream"}', '{}');
-INSERT INTO public.sector VALUES ('e1fe4767-6a35-436e-acdf-ae943e490d5b', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Oil refinery ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Oil refinery "}', '{}');
-INSERT INTO public.sector VALUES ('d5937a3f-84c1-46bd-90b1-6e99be7cc040', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Oil strorage', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Oil strorage"}', '{}');
-INSERT INTO public.sector VALUES ('26288798-deb9-46f9-95b7-fa9d925437ab', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Oil Distribution through mains', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Oil Distribution through mains"}', '{}');
-INSERT INTO public.sector VALUES ('0bd04b6b-f095-4d32-b634-0ada48972a37', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Coal Generation', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Coal Generation"}', '{}');
-INSERT INTO public.sector VALUES ('40fc83f2-18e1-493a-af2b-2499744e3416', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Coal Distribution', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Coal Distribution"}', '{}');
-INSERT INTO public.sector VALUES ('cdda5875-db4c-4c93-bbc6-838eb7e964d6', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Steam Generation', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Steam Generation"}', '{}');
-INSERT INTO public.sector VALUES ('bf88f421-ead9-438a-9876-6b832acc805f', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Steam Distribution', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Steam Distribution"}', '{}');
-INSERT INTO public.sector VALUES ('561a33e9-a2e6-4f27-91a4-35a30b75d78d', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Hot water Generation', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Hot water Generation"}', '{}');
-INSERT INTO public.sector VALUES ('78ac5869-ccbf-44ee-a5f3-0abba19f887a', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Hot water Distribution', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Hot water Distribution"}', '{}');
-INSERT INTO public.sector VALUES ('ca1045e2-046e-4d0b-954f-783d34faeb98', 'cb93fa53-3dbb-4125-8a3c-26e77dbad725', 'Wired telecommunication activities,', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Wired telecommunication activities,"}', '{}');
-INSERT INTO public.sector VALUES ('61f64901-3ac8-48aa-b342-3494ad2134c2', 'cb93fa53-3dbb-4125-8a3c-26e77dbad725', 'Wireless telecommunication activities,', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Wireless telecommunication activities,"}', '{}');
-INSERT INTO public.sector VALUES ('e366836c-a373-4286-a312-71654fc4dbdf', 'cb93fa53-3dbb-4125-8a3c-26e77dbad725', 'Satellite telecommunication activities, ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Satellite telecommunication activities, "}', '{}');
-INSERT INTO public.sector VALUES ('20b746cd-716f-464e-a3b2-c01f7a9a7beb', '1a9ed881-e6dc-463f-836c-8f096c60df4c', 'Other telecommunications activities', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Other telecommunications activities"}', '{}');
-INSERT INTO public.sector VALUES ('bdd093eb-66e1-45cd-bc9d-0752aa88f63a', 'b08b5ffc-26c5-4aa5-88ac-2baa217a4d7a', 'From  Surface water', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "From  Surface water"}', '{}');
-INSERT INTO public.sector VALUES ('0651e48f-ad73-41f3-9afc-8943b5c63898', 'b08b5ffc-26c5-4aa5-88ac-2baa217a4d7a', 'From Ground water', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "From Ground water"}', '{}');
-INSERT INTO public.sector VALUES ('cbf45558-cddb-4957-8c97-876d98cc95ca', 'b08b5ffc-26c5-4aa5-88ac-2baa217a4d7a', 'From Soil water', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "From Soil water"}', '{}');
-INSERT INTO public.sector VALUES ('5e12e084-13b4-4b03-8f26-93d9c0cdea09', 'b08b5ffc-26c5-4aa5-88ac-2baa217a4d7a', 'Desalination', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Desalination"}', '{}');
-INSERT INTO public.sector VALUES ('30e02d66-4e97-41b6-97b8-609cbcf6f00a', 'b08b5ffc-26c5-4aa5-88ac-2baa217a4d7a', 'From Reclaimed', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "From Reclaimed"}', '{}');
-INSERT INTO public.sector VALUES ('406c3161-b30c-46c2-8270-a12149d30276', 'b08b5ffc-26c5-4aa5-88ac-2baa217a4d7a', 'From Rainwater harvested', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "From Rainwater harvested"}', '{}');
-INSERT INTO public.sector VALUES ('7714c4b6-d186-43cf-9fa2-81fade0b0262', 'b08b5ffc-26c5-4aa5-88ac-2baa217a4d7a', 'Other water sources', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Other water sources"}', '{}');
-INSERT INTO public.sector VALUES ('853f7da3-df07-48da-b2b6-50ae0c4034a8', '1e4cc659-c250-4f90-a107-294a85034790', 'Physical water treatment ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Physical water treatment "}', '{}');
-INSERT INTO public.sector VALUES ('e7249d26-c14a-4c8a-8b78-9fcb5aefc946', '1e4cc659-c250-4f90-a107-294a85034790', 'Chemical water treatment', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Chemical water treatment"}', '{}');
-INSERT INTO public.sector VALUES ('d4c6ff01-027a-4cce-b4f0-7d1c4839722b', '1e4cc659-c250-4f90-a107-294a85034790', 'Biological water treatment', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Biological water treatment"}', '{}');
-INSERT INTO public.sector VALUES ('3f6ada77-cdb6-4205-a055-7877e1524ecb', '1e4cc659-c250-4f90-a107-294a85034790', 'Thermal water treatment', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Thermal water treatment"}', '{}');
-INSERT INTO public.sector VALUES ('755cc4c7-e571-4123-b785-5ae5860de70d', '1e4cc659-c250-4f90-a107-294a85034790', 'Other treatment system', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Other treatment system"}', '{}');
-INSERT INTO public.sector VALUES ('5089f10a-2674-4bc0-8c2f-c2d0077d0972', 'f57c9597-420a-4df4-94a2-bd12345b7584', 'Piped water distribution ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Piped water distribution "}', '{}');
-INSERT INTO public.sector VALUES ('f70c2b1a-8019-480a-aa2b-5625bfbdf68b', 'f57c9597-420a-4df4-94a2-bd12345b7584', 'Non-piped water distribution', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Non-piped water distribution"}', '{}');
-INSERT INTO public.sector VALUES ('1cd88e57-acca-42e0-8c3b-8caef5f71910', '17e8b94c-2362-4dd9-89e0-4240df53110a', 'Urban sewage system', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Urban sewage system"}', '{}');
-INSERT INTO public.sector VALUES ('25c18e73-1de8-4a9e-ba2c-13a3be435993', '17e8b94c-2362-4dd9-89e0-4240df53110a', 'Storm and runoff collection systems', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Storm and runoff collection systems"}', '{}');
-INSERT INTO public.sector VALUES ('7bce6096-3025-47a6-9367-43116f46b815', '17e8b94c-2362-4dd9-89e0-4240df53110a', 'Wastewater and sewage treatment facilities', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Wastewater and sewage treatment facilities"}', '{}');
-INSERT INTO public.sector VALUES ('0e088892-de2d-46be-a77e-a06a4be7dd21', '17e8b94c-2362-4dd9-89e0-4240df53110a', 'pumping systems', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "pumping systems"}', '{}');
-INSERT INTO public.sector VALUES ('c5d64ff0-3e4b-466a-af5b-251aa35b573f', '7aad3cff-acee-4aaa-a2df-8e7ae9a135ce', 'Waste collection', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Waste collection"}', '{}');
-INSERT INTO public.sector VALUES ('191a42a0-67c4-41de-bc20-4a770c30b384', '7aad3cff-acee-4aaa-a2df-8e7ae9a135ce', 'Waste processing and treatment', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Waste processing and treatment"}', '{}');
-INSERT INTO public.sector VALUES ('7f43540e-aa42-4f64-9e94-1b8441394a29', '7aad3cff-acee-4aaa-a2df-8e7ae9a135ce', 'Waste transportation', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Waste transportation"}', '{}');
-INSERT INTO public.sector VALUES ('c3fdf641-18c2-44aa-aade-08a1d86a6123', '7aad3cff-acee-4aaa-a2df-8e7ae9a135ce', 'Waste disposal', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Waste disposal"}', '{}');
-INSERT INTO public.sector VALUES ('a1f97f32-54c3-4c79-aabb-d9b557825cff', 'd1af9066-f0c1-43e0-bca6-0ecfd0835a92', 'Waste collection', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Waste collection"}', '{}');
-INSERT INTO public.sector VALUES ('ed87ee80-1269-4c3b-aaed-8327dc58dfa8', 'd1af9066-f0c1-43e0-bca6-0ecfd0835a92', 'Waste processing and treatment', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Waste processing and treatment"}', '{}');
-INSERT INTO public.sector VALUES ('7c468c3e-806c-4196-b17a-7d21dbca4d7b', 'd1af9066-f0c1-43e0-bca6-0ecfd0835a92', 'Waste transportation', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Waste transportation"}', '{}');
-INSERT INTO public.sector VALUES ('1bbfe971-fddf-45d7-bdde-99122d4aaede', 'd1af9066-f0c1-43e0-bca6-0ecfd0835a92', 'Waste disposal', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Waste disposal"}', '{}');
-INSERT INTO public.sector VALUES ('b4abfa88-397e-4bf4-8b67-35dcfeb1cf83', '0dca6942-2007-489f-9c7a-5f0a182837ab', 'Species', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Species"}', '{}');
-INSERT INTO public.sector VALUES ('1d584d8e-5e14-47e6-887b-c773ece1d0fb', '0dca6942-2007-489f-9c7a-5f0a182837ab', 'Habitats', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Habitats"}', '{}');
-INSERT INTO public.sector VALUES ('948d0024-f77c-444a-820c-9a0e9a2a1961', '0dca6942-2007-489f-9c7a-5f0a182837ab', 'Ecosystems', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Ecosystems"}', '{}');
-INSERT INTO public.sector VALUES ('7d5ec14a-e56c-4c3f-b42c-ff7fab53479a', '0dca6942-2007-489f-9c7a-5f0a182837ab', 'Landscapes', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Landscapes"}', '{}');
-INSERT INTO public.sector VALUES ('f417b311-ef99-4b0b-9530-a05beea9f8fa', '3cda0cd2-ee4a-489a-9eb9-6f97c68a6ea1', 'Land ( including soils)', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Land ( including soils)"}', '{}');
-INSERT INTO public.sector VALUES ('7982185b-6fea-4159-a4a1-2a302473ed55', '3cda0cd2-ee4a-489a-9eb9-6f97c68a6ea1', 'Agricultural land', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Agricultural land"}', '{}');
-INSERT INTO public.sector VALUES ('5c034f2f-3d81-4605-b8fa-507e16881370', '3cda0cd2-ee4a-489a-9eb9-6f97c68a6ea1', 'Primary forest', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Primary forest"}', '{}');
-INSERT INTO public.sector VALUES ('a4c97a9f-2fb1-4210-a989-b8a9289d0610', '3cda0cd2-ee4a-489a-9eb9-6f97c68a6ea1', 'Freshwater', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Freshwater"}', '{}');
-INSERT INTO public.sector VALUES ('2eaa8056-45c0-49b7-b5f8-267de34f919f', '3cda0cd2-ee4a-489a-9eb9-6f97c68a6ea1', 'Other natural resources', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Other natural resources"}', '{}');
-INSERT INTO public.sector VALUES ('aeb21813-7ffd-4a89-b046-2570b3ddb8ab', 'd051628b-9012-4e35-9f82-78d977b7acf1', 'Supporting services ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Supporting services "}', '{}');
-INSERT INTO public.sector VALUES ('603295fc-a0e4-47a4-a9d2-53f868b2a5dd', 'd051628b-9012-4e35-9f82-78d977b7acf1', 'Regulating Services', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Regulating Services"}', '{}');
-INSERT INTO public.sector VALUES ('049c8680-fe1d-4e3c-ac1e-7dfdda7a2bd8', 'd051628b-9012-4e35-9f82-78d977b7acf1', 'Provisioning services', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Provisioning services"}', '{}');
-INSERT INTO public.sector VALUES ('cfcb78d0-c53d-4a0a-bf6d-7158df6b1fb4', 'd051628b-9012-4e35-9f82-78d977b7acf1', 'Cultural services', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Cultural services"}', '{}');
-INSERT INTO public.sector VALUES ('5fb2ef9c-bd59-449f-acfe-bcc67beed140', '36b90c7d-743f-4ff3-8136-896b3e82c64d', 'Time-use', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Time-use"}', '{}');
-INSERT INTO public.sector VALUES ('4dfa5900-040f-4ba5-8b97-8869eca1e88d', '36b90c7d-743f-4ff3-8136-896b3e82c64d', 'Access to ressources', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Access to ressources"}', '{}');
-INSERT INTO public.sector VALUES ('26a2eda9-01d7-4c2c-8912-da963bac6695', '36b90c7d-743f-4ff3-8136-896b3e82c64d', 'Access to services', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Access to services"}', '{}');
-INSERT INTO public.sector VALUES ('c6106c3e-b79e-4d97-9cab-608ce9aaf83b', '36b90c7d-743f-4ff3-8136-896b3e82c64d', 'Livelihoods - production', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Livelihoods - production"}', '{}');
-INSERT INTO public.sector VALUES ('d98d2f67-0573-44ad-9624-963d84460e1d', '36b90c7d-743f-4ff3-8136-896b3e82c64d', 'Productive Asset ownership', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Productive Asset ownership"}', '{}');
-INSERT INTO public.sector VALUES ('874c324c-3296-44fc-a2d4-d1de18a06ae9', '36b90c7d-743f-4ff3-8136-896b3e82c64d', 'Human mobility', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Human mobility"}', '{}');
-INSERT INTO public.sector VALUES ('226c2228-319d-471a-bb3b-b384c2b582e4', '36b90c7d-743f-4ff3-8136-896b3e82c64d', 'Gender-based discrimination', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Gender-based discrimination"}', '{}');
-INSERT INTO public.sector VALUES ('b634a681-cc71-4c9e-9596-a8f3035a3520', '2d127594-6cd6-4c36-a867-96fae56d42c8', 'Physical violence', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Physical violence"}', '{}');
-INSERT INTO public.sector VALUES ('033fa443-4b45-4755-9ac9-eef89703f598', '2d127594-6cd6-4c36-a867-96fae56d42c8', 'Sexual violence', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Sexual violence"}', '{}');
-INSERT INTO public.sector VALUES ('adc919fb-f4b3-4314-87ae-42b13f85186e', '2d127594-6cd6-4c36-a867-96fae56d42c8', 'Psychological abuse', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Psychological abuse"}', '{}');
-INSERT INTO public.sector VALUES ('21c663e3-5ec3-4178-a860-192cbdde3207', '2d127594-6cd6-4c36-a867-96fae56d42c8', 'Economic abuse', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Economic abuse"}', '{}');
-INSERT INTO public.sector VALUES ('fd6a89f6-98b4-436c-a210-a89f27a82fb4', '2d127594-6cd6-4c36-a867-96fae56d42c8', 'Harmful traditional practices', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Harmful traditional practices"}', '{}');
-INSERT INTO public.sector VALUES ('b6ecdda3-ed32-4364-8014-333cc65cfcd7', '2d127594-6cd6-4c36-a867-96fae56d42c8', 'Cyber or online abuse', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Cyber or online abuse"}', '{}');
-INSERT INTO public.sector VALUES ('f149b01e-930c-4209-a277-957013405d5d', '66186b25-80bf-4a54-8c3e-35cdb2782e26', 'Administration of the state', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Administration of the state"}', '{}');
-INSERT INTO public.sector VALUES ('8577496e-8acd-44c7-97f1-e14237f6a9a5', '66186b25-80bf-4a54-8c3e-35cdb2782e26', 'Regional - Decentralized Administration', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Regional - Decentralized Administration"}', '{}');
-INSERT INTO public.sector VALUES ('d169543f-0d85-4ad9-b3cd-e37d47a2b98c', '66186b25-80bf-4a54-8c3e-35cdb2782e26', 'Local administration', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Local administration"}', '{}');
-INSERT INTO public.sector VALUES ('28a159d2-393b-41f6-bf49-ec06cb3fe962', 'fa57c7e9-865d-44a0-af80-bc7740775077', 'Government ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Government "}', '{}');
-INSERT INTO public.sector VALUES ('27496414-13fa-451a-a9b1-1f826ffded4a', '4c21449f-ae8f-47c2-845a-77ffcd84c6ab', 'Parlaments/ Congress/ Lower chamber', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Parlaments/ Congress/ Lower chamber"}', '{}');
-INSERT INTO public.sector VALUES ('6a6afe39-5f69-4388-a629-b6cb58d5d243', '4c21449f-ae8f-47c2-845a-77ffcd84c6ab', 'Upper Chamber/Senate', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Upper Chamber/Senate"}', '{}');
-INSERT INTO public.sector VALUES ('da8c1129-b486-4e19-8094-58c3bb2568d0', '04d3c630-ed60-4b25-86da-681b14a9ad75', 'Courts ', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Courts "}', '{}');
-INSERT INTO public.sector VALUES ('d5279f2c-a6cb-4849-b35d-7ead1309ff6b', '04d3c630-ed60-4b25-86da-681b14a9ad75', 'Tribunals', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Tribunals"}', '{}');
-INSERT INTO public.sector VALUES ('1c60b012-0bfd-4bdc-b4a7-8b4f41b71725', 'f4782b71-e4fc-4b42-8625-e07ef89391c0', 'Employees', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Employees"}', '{}');
-INSERT INTO public.sector VALUES ('2896fa44-03e9-4d46-a764-2243d510afa5', 'f4782b71-e4fc-4b42-8625-e07ef89391c0', 'Self-employed', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Self-employed"}', '{}');
-INSERT INTO public.sector VALUES ('7ad764b7-58de-4417-8f67-f7709091c30d', 'f4782b71-e4fc-4b42-8625-e07ef89391c0', 'Gig workers/ Dependent contractor', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Gig workers/ Dependent contractor"}', '{}');
-INSERT INTO public.sector VALUES ('1264a672-86d4-4bc1-8ab8-3c51cadd3e54', 'd4771446-1514-449f-b38a-fb69530513a8', 'Commerce livelihoods', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Commerce livelihoods"}', '{}');
-INSERT INTO public.sector VALUES ('e41994f6-4b02-4b6f-acb1-9d451c5ecb46', 'd4771446-1514-449f-b38a-fb69530513a8', 'Agriculture livelihoods', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Agriculture livelihoods"}', '{}');
-INSERT INTO public.sector VALUES ('bd5defd8-4cd4-4870-a45c-73590a78f50e', 'd4771446-1514-449f-b38a-fb69530513a8', 'Service livelihoods', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Service livelihoods"}', '{}');
-INSERT INTO public.sector VALUES ('e5f7dd46-ab53-4585-8fbe-08bc10ab1607', 'd4771446-1514-449f-b38a-fb69530513a8', 'Handicraft livelihoods', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Handicraft livelihoods"}', '{}');
-INSERT INTO public.sector VALUES ('0a921aa4-1d16-43ad-8dd1-29c92294bd5e', 'd4771446-1514-449f-b38a-fb69530513a8', 'Culture livelihoods', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Culture livelihoods"}', '{}');
-INSERT INTO public.sector VALUES ('3e65de57-f93b-49cd-8ac9-2c41397c23a1', 'd4771446-1514-449f-b38a-fb69530513a8', 'Tourism livelihoods', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Tourism livelihoods"}', '{}');
-INSERT INTO public.sector VALUES ('e997c4f7-046b-43de-a8a7-4af43e5fceb1', 'd4771446-1514-449f-b38a-fb69530513a8', 'Industry livelihoods', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Industry livelihoods"}', '{}');
-INSERT INTO public.sector VALUES ('6bfb2641-330f-4c09-a242-6bb391c9e930', 'd4771446-1514-449f-b38a-fb69530513a8', 'Care livelihoods', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Care livelihoods"}', '{}');
-INSERT INTO public.sector VALUES ('f0b28365-58e7-495f-87fb-2cbb45ef92fb', '5b8d5c0a-63ba-4adf-a54f-86268c187180', 'Disaster response', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Disaster response"}', '{}');
-INSERT INTO public.sector VALUES ('43b4c6f4-9d4d-4c71-8cc4-9557ee5272cf', '5b8d5c0a-63ba-4adf-a54f-86268c187180', 'Aid coordination', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Aid coordination"}', '{}');
-INSERT INTO public.sector VALUES ('b1dfc9d3-9b54-4d02-81d3-637988b4d0a2', '5b8d5c0a-63ba-4adf-a54f-86268c187180', 'Hazard monitoring', NULL, 4, '2025-08-15 10:58:25.403878', '2025-08-15 10:58:25.403878', '{"en": "Hazard monitoring"}', '{}');
+INSERT INTO public.sector VALUES ('7d5c9d4f-2e3d-45a1-b8f7-9d31a5f4c82a', NULL, 'Productive', NULL, 1, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Productive"}', '{}');
+INSERT INTO public.sector VALUES ('fa1b8e2c-8c43-4a18-9d24-5dbd1e4a6e9c', NULL, 'Social', NULL, 1, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Social"}', '{}');
+INSERT INTO public.sector VALUES ('c53f7189-4fcb-4f32-bb15-2ae88269a0b2', NULL, 'Infrastructures', NULL, 1, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Infrastructures"}', '{}');
+INSERT INTO public.sector VALUES ('0eaf22dd-5f77-4b86-a0b6-faa5106d4821', NULL, 'Cross-cutting', NULL, 1, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Cross-cutting"}', '{}');
+INSERT INTO public.sector VALUES ('8cf24ec3-3567-4c40-a5fd-bff9e9a27d87', '7d5c9d4f-2e3d-45a1-b8f7-9d31a5f4c82a', 'Agriculture', NULL, 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Agriculture"}', '{}');
+INSERT INTO public.sector VALUES ('3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', '7d5c9d4f-2e3d-45a1-b8f7-9d31a5f4c82a', 'Industry', NULL, 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Industry"}', '{}');
+INSERT INTO public.sector VALUES ('ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', '7d5c9d4f-2e3d-45a1-b8f7-9d31a5f4c82a', 'Tourism', NULL, 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Tourism"}', '{}');
+INSERT INTO public.sector VALUES ('5f00c4d2-12e0-4a89-9f35-5bbda1c3d904', '7d5c9d4f-2e3d-45a1-b8f7-9d31a5f4c82a', 'Commerce and Trade', NULL, 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Commerce and Trade"}', '{}');
+INSERT INTO public.sector VALUES ('ba8e2cf9-0d9a-49c1-814e-0a4d45d0726b', '7d5c9d4f-2e3d-45a1-b8f7-9d31a5f4c82a', 'Services', NULL, 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Services"}', '{}');
+INSERT INTO public.sector VALUES ('4a39d053-a4cf-41f8-93c0-7c30e60f3b42', 'fa1b8e2c-8c43-4a18-9d24-5dbd1e4a6e9c', 'Health', NULL, 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Health"}', '{}');
+INSERT INTO public.sector VALUES ('fd53c0da-5ad6-4a7d-943b-089c7726a2bb', 'fa1b8e2c-8c43-4a18-9d24-5dbd1e4a6e9c', 'Education', NULL, 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Education"}', '{}');
+INSERT INTO public.sector VALUES ('6ac0b833-6218-49d0-9882-827c1b748d7a', 'fa1b8e2c-8c43-4a18-9d24-5dbd1e4a6e9c', 'Housing', NULL, 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Housing"}', '{}');
+INSERT INTO public.sector VALUES ('a48d6f2e-16e4-4976-8c25-5c8b1788232f', 'fa1b8e2c-8c43-4a18-9d24-5dbd1e4a6e9c', 'Culture', NULL, 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Culture"}', '{}');
+INSERT INTO public.sector VALUES ('2b01b68b-bf42-4a72-83b8-e272b0af90b5', 'c53f7189-4fcb-4f32-bb15-2ae88269a0b2', 'Transportation', NULL, 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Transportation"}', '{}');
+INSERT INTO public.sector VALUES ('c83a021f-5861-4f2c-932b-07decb1fa9d2', 'c53f7189-4fcb-4f32-bb15-2ae88269a0b2', 'Energy and Electricity', NULL, 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Energy and Electricity"}', '{}');
+INSERT INTO public.sector VALUES ('e9f80a3c-84b4-4fa6-92a0-324ae34f81fd', 'c53f7189-4fcb-4f32-bb15-2ae88269a0b2', 'Information and Communication', NULL, 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Information and Communication"}', '{}');
+INSERT INTO public.sector VALUES ('0f260f9c-c8b8-4a71-94c3-883158f540ad', 'c53f7189-4fcb-4f32-bb15-2ae88269a0b2', 'Water', NULL, 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Water"}', '{}');
+INSERT INTO public.sector VALUES ('adcd0b72-1c9f-40ec-9267-d91a2ff2b08a', 'c53f7189-4fcb-4f32-bb15-2ae88269a0b2', 'Sanitation', NULL, 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Sanitation"}', '{}');
+INSERT INTO public.sector VALUES ('5c91ad51-b152-4ed0-a7f1-0d3e23e3253e', 'c53f7189-4fcb-4f32-bb15-2ae88269a0b2', 'Community infrastructure', NULL, 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Community infrastructure"}', '{}');
+INSERT INTO public.sector VALUES ('7780d3d4-5f64-4d77-8e45-ff924d47bbdf', '0eaf22dd-5f77-4b86-a0b6-faa5106d4821', 'Environment', NULL, 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Environment"}', '{}');
+INSERT INTO public.sector VALUES ('e7d2a20c-381c-42f8-99a5-3db2d8c71b86', '0eaf22dd-5f77-4b86-a0b6-faa5106d4821', 'Gender', NULL, 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Gender"}', '{}');
+INSERT INTO public.sector VALUES ('3910f40d-b1a1-4ac0-bfa6-52064d7d4e9f', '0eaf22dd-5f77-4b86-a0b6-faa5106d4821', 'Governance', NULL, 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Governance"}', '{}');
+INSERT INTO public.sector VALUES ('6f03a917-ec56-4a4b-bf48-16485f6a8ad4', '0eaf22dd-5f77-4b86-a0b6-faa5106d4821', 'Employment, Livelihoods and social protection', NULL, 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Employment, Livelihoods and social protection"}', '{}');
+INSERT INTO public.sector VALUES ('d7a01519-19c4-4fbb-9c66-64d4a002ebf8', '0eaf22dd-5f77-4b86-a0b6-faa5106d4821', 'Disaster Risk Management', NULL, 2, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Disaster Risk Management"}', '{}');
+INSERT INTO public.sector VALUES ('c70618ee-f1be-438f-8c40-14fc5dfb05fb', '8cf24ec3-3567-4c40-a5fd-bff9e9a27d87', 'Crops', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Crops"}', '{}');
+INSERT INTO public.sector VALUES ('a4039693-5b26-4653-acac-c70e7e8322eb', '8cf24ec3-3567-4c40-a5fd-bff9e9a27d87', 'Livestock', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Livestock"}', '{}');
+INSERT INTO public.sector VALUES ('729c96be-d16b-4410-8dd5-bf775b15f5bc', '8cf24ec3-3567-4c40-a5fd-bff9e9a27d87', 'Forestry and logging', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Forestry and logging"}', '{}');
+INSERT INTO public.sector VALUES ('cb6f79ed-4342-41e4-b744-245f8c2f48d8', '8cf24ec3-3567-4c40-a5fd-bff9e9a27d87', 'Aquaculture', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Aquaculture"}', '{}');
+INSERT INTO public.sector VALUES ('da0331e9-1d96-44ac-a498-206418bf6a50', '8cf24ec3-3567-4c40-a5fd-bff9e9a27d87', 'Fisheries', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Fisheries"}', '{}');
+INSERT INTO public.sector VALUES ('c5208da2-284f-46f7-9d16-e399b754073f', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', 'Mining and quarrying', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Mining and quarrying"}', '{}');
+INSERT INTO public.sector VALUES ('9a427e48-9c4f-4b54-b65d-f6fca389a79f', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', 'Manufacturing', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Manufacturing"}', '{}');
+INSERT INTO public.sector VALUES ('38342a23-fb47-4182-a2b4-58b1c3606043', '3e2bdf02-4f7a-4898-a9a5-bd98a8d1e370', 'Construction', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Construction"}', '{}');
+INSERT INTO public.sector VALUES ('1e7d14bb-0b56-4edb-8205-fb6bc2ca9d40', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', 'Accommodation services for visitors', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Accommodation services for visitors"}', '{}');
+INSERT INTO public.sector VALUES ('5c073efd-936f-40a9-8e29-52340c4c1af7', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', 'Food and beverage services', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Food and beverage services"}', '{}');
+INSERT INTO public.sector VALUES ('6473fe1a-096c-420a-b807-11d21f2d4761', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', 'Travel agency and reservation services', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Travel agency and reservation services"}', '{}');
+INSERT INTO public.sector VALUES ('92b69a99-1512-4142-9257-3da487c12596', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', 'Recreation and other entertainment', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Recreation and other entertainment"}', '{}');
+INSERT INTO public.sector VALUES ('dfc09fc9-088b-4643-9649-0ffc4bb4db0a', 'ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f', 'Passenger transport', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Passenger transport"}', '{}');
+INSERT INTO public.sector VALUES ('7903db62-6d91-47cf-94b1-d1ec129c4f80', '5f00c4d2-12e0-4a89-9f35-5bbda1c3d904', 'Wholesale trade', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Wholesale trade"}', '{}');
+INSERT INTO public.sector VALUES ('a906b6a2-6bf0-49c0-9553-e62f93123b23', '5f00c4d2-12e0-4a89-9f35-5bbda1c3d904', 'Retail trade', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Retail trade"}', '{}');
+INSERT INTO public.sector VALUES ('d472189c-06ff-4a43-96df-bd22cfc31b8e', '5f00c4d2-12e0-4a89-9f35-5bbda1c3d904', 'Sales and maintenance of vehicles', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Sales and maintenance of vehicles"}', '{}');
+INSERT INTO public.sector VALUES ('268a8fa2-0ab0-446a-9f2a-8f2a8fcb87a0', 'ba8e2cf9-0d9a-49c1-814e-0a4d45d0726b', 'Administrative and support services', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Administrative and support services"}', '{}');
+INSERT INTO public.sector VALUES ('57d8f07f-da85-4b98-bece-21628c06b41b', 'ba8e2cf9-0d9a-49c1-814e-0a4d45d0726b', 'Professional, scientific and technical activities', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Professional, scientific and technical activities"}', '{}');
+INSERT INTO public.sector VALUES ('9f89df69-ae73-4b72-92e2-f6377a054fb1', 'ba8e2cf9-0d9a-49c1-814e-0a4d45d0726b', 'Real estate', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Real estate"}', '{}');
+INSERT INTO public.sector VALUES ('bd2705b8-556e-4aa2-98d0-6bd197c5b75d', 'ba8e2cf9-0d9a-49c1-814e-0a4d45d0726b', 'Finance and insurance services', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Finance and insurance services"}', '{}');
+INSERT INTO public.sector VALUES ('2087f7b3-d75b-49a6-86e5-0038611877fa', '4a39d053-a4cf-41f8-93c0-7c30e60f3b42', 'Health care network', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Health care network"}', '{}');
+INSERT INTO public.sector VALUES ('42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', '4a39d053-a4cf-41f8-93c0-7c30e60f3b42', 'Health programs and other services', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Health programs and other services"}', '{}');
+INSERT INTO public.sector VALUES ('a92df837-2005-4fc0-9084-45a39649715e', '4a39d053-a4cf-41f8-93c0-7c30e60f3b42', 'Health care systems'' management', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Health care systems'' management"}', '{}');
+INSERT INTO public.sector VALUES ('890039b4-3fae-4fa5-ae95-85d47714045a', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', '0-Early childhood', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "0-Early childhood"}', '{}');
+INSERT INTO public.sector VALUES ('7fb35894-ff2a-48ce-bc13-18d8119a757e', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', '1-Primary education', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "1-Primary education"}', '{}');
+INSERT INTO public.sector VALUES ('ccbfb4dd-cd8a-489f-876c-e20fea0f22e3', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', '2-3- Secondary', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "2-3- Secondary"}', '{}');
+INSERT INTO public.sector VALUES ('bc363efd-051b-402c-ae67-bdf14a122364', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', '4- Post secondary', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "4- Post secondary"}', '{}');
+INSERT INTO public.sector VALUES ('073072a3-7142-4fbb-a4c2-07c8934a356e', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', '5-8 Tertiary', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "5-8 Tertiary"}', '{}');
+INSERT INTO public.sector VALUES ('0c2cc3f5-2780-4d16-8663-76c7315f1f94', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', 'Others -Non-formal education', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Others -Non-formal education"}', '{}');
+INSERT INTO public.sector VALUES ('e25331d6-dca9-40da-bdd7-9f63979b353b', '6ac0b833-6218-49d0-9882-827c1b748d7a', 'Housing units', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Housing units"}', '{}');
+INSERT INTO public.sector VALUES ('13864003-2c42-454b-b723-f25eb0ae307d', '6ac0b833-6218-49d0-9882-827c1b748d7a', 'Collective living quarters', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Collective living quarters"}', '{}');
+INSERT INTO public.sector VALUES ('ca435a93-65bd-4d9e-b231-05d2f0107a75', 'a48d6f2e-16e4-4976-8c25-5c8b1788232f', 'Tangible Cultural heritage', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Tangible Cultural heritage"}', '{}');
+INSERT INTO public.sector VALUES ('52d0089f-d097-457d-82f9-a693561974f6', 'a48d6f2e-16e4-4976-8c25-5c8b1788232f', 'Intangible cultural heritage', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Intangible cultural heritage"}', '{}');
+INSERT INTO public.sector VALUES ('48b5facd-f99e-4051-bca9-8c02f683ae78', '2b01b68b-bf42-4a72-83b8-e272b0af90b5', 'Land Transportation', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Land Transportation"}', '{}');
+INSERT INTO public.sector VALUES ('3cf24f5d-5ecb-4d62-b0cf-77db213da02b', '2b01b68b-bf42-4a72-83b8-e272b0af90b5', 'Air Transportation', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Air Transportation"}', '{}');
+INSERT INTO public.sector VALUES ('84af0959-7f53-45db-888b-3eeeb897b405', '2b01b68b-bf42-4a72-83b8-e272b0af90b5', 'Water transportation', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Water transportation"}', '{}');
+INSERT INTO public.sector VALUES ('deffe5ac-8e53-44ad-a9f3-0d1a03f4b0c8', '2b01b68b-bf42-4a72-83b8-e272b0af90b5', 'Transportation supppor services', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Transportation supppor services"}', '{}');
+INSERT INTO public.sector VALUES ('a14fce6f-fae4-4f63-80c5-785d6c60298f', '2b01b68b-bf42-4a72-83b8-e272b0af90b5', 'Postal and courier services', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Postal and courier services"}', '{}');
+INSERT INTO public.sector VALUES ('9090ef1f-2abe-4623-8917-5b30cb6d0b5b', 'c83a021f-5861-4f2c-932b-07decb1fa9d2', 'Electricity', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Electricity"}', '{}');
+INSERT INTO public.sector VALUES ('f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'c83a021f-5861-4f2c-932b-07decb1fa9d2', 'Consumable fuels', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Consumable fuels"}', '{}');
+INSERT INTO public.sector VALUES ('4bda4671-3f59-4d0a-be9f-e067c4868aba', 'e9f80a3c-84b4-4fa6-92a0-324ae34f81fd', 'Publishing', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Publishing"}', '{}');
+INSERT INTO public.sector VALUES ('cb93fa53-3dbb-4125-8a3c-26e77dbad725', 'e9f80a3c-84b4-4fa6-92a0-324ae34f81fd', 'Telecommunications,', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Telecommunications,"}', '{}');
+INSERT INTO public.sector VALUES ('1a9ed881-e6dc-463f-836c-8f096c60df4c', 'e9f80a3c-84b4-4fa6-92a0-324ae34f81fd', 'Computer programming, consultancy and related', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Computer programming, consultancy and related"}', '{}');
+INSERT INTO public.sector VALUES ('5ec89056-2b9b-472e-8436-ce5cac6e09b1', 'e9f80a3c-84b4-4fa6-92a0-324ae34f81fd', 'Information services', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Information services"}', '{}');
+INSERT INTO public.sector VALUES ('74e0f62a-e9c7-48b6-8882-6988bb474899', 'e9f80a3c-84b4-4fa6-92a0-324ae34f81fd', 'Others', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Others"}', '{}');
+INSERT INTO public.sector VALUES ('b08b5ffc-26c5-4aa5-88ac-2baa217a4d7a', '0f260f9c-c8b8-4a71-94c3-883158f540ad', 'Water sources- generation', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Water sources- generation"}', '{}');
+INSERT INTO public.sector VALUES ('1e4cc659-c250-4f90-a107-294a85034790', '0f260f9c-c8b8-4a71-94c3-883158f540ad', 'Water treatment', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Water treatment"}', '{}');
+INSERT INTO public.sector VALUES ('f57c9597-420a-4df4-94a2-bd12345b7584', '0f260f9c-c8b8-4a71-94c3-883158f540ad', 'Water distribution', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Water distribution"}', '{}');
+INSERT INTO public.sector VALUES ('17e8b94c-2362-4dd9-89e0-4240df53110a', 'adcd0b72-1c9f-40ec-9267-d91a2ff2b08a', 'Large scale sanitation', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Large scale sanitation"}', '{}');
+INSERT INTO public.sector VALUES ('a5b4edee-54d8-426a-aee3-3ca0fd5e3161', 'adcd0b72-1c9f-40ec-9267-d91a2ff2b08a', 'Small scale sanitation', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Small scale sanitation"}', '{}');
+INSERT INTO public.sector VALUES ('7aad3cff-acee-4aaa-a2df-8e7ae9a135ce', 'adcd0b72-1c9f-40ec-9267-d91a2ff2b08a', 'Urban solid waste', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Urban solid waste"}', '{}');
+INSERT INTO public.sector VALUES ('d1af9066-f0c1-43e0-bca6-0ecfd0835a92', 'adcd0b72-1c9f-40ec-9267-d91a2ff2b08a', 'Hazardous waste', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Hazardous waste"}', '{}');
+INSERT INTO public.sector VALUES ('4a87040e-6b84-4732-a62a-02e4f93f2568', '5c91ad51-b152-4ed0-a7f1-0d3e23e3253e', 'Connective infrastructure', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Connective infrastructure"}', '{}');
+INSERT INTO public.sector VALUES ('ab79b47d-6ffc-47f6-9e77-ccb68bf3194a', '5c91ad51-b152-4ed0-a7f1-0d3e23e3253e', 'Protective infrastructure', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Protective infrastructure"}', '{}');
+INSERT INTO public.sector VALUES ('cf275ef1-313b-4ea5-b02f-2100603b1c24', '5c91ad51-b152-4ed0-a7f1-0d3e23e3253e', 'Socio-economic structures', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Socio-economic structures"}', '{}');
+INSERT INTO public.sector VALUES ('dfac8640-ba70-4c9a-bf63-061866f11778', '5c91ad51-b152-4ed0-a7f1-0d3e23e3253e', 'Community Water and sanitation lifelines', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Community Water and sanitation lifelines"}', '{}');
+INSERT INTO public.sector VALUES ('4fb9060c-965f-4cdc-a304-8ef574794eb8', '5c91ad51-b152-4ed0-a7f1-0d3e23e3253e', 'Community energy lifelines off-grid', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Community energy lifelines off-grid"}', '{}');
+INSERT INTO public.sector VALUES ('b3d6e1a8-6e92-4650-8a9c-2cf1bbf321dc', '5c91ad51-b152-4ed0-a7f1-0d3e23e3253e', 'Commnications community lifelines', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Commnications community lifelines"}', '{}');
+INSERT INTO public.sector VALUES ('0dca6942-2007-489f-9c7a-5f0a182837ab', '7780d3d4-5f64-4d77-8e45-ff924d47bbdf', 'Biodiversity', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Biodiversity"}', '{}');
+INSERT INTO public.sector VALUES ('3cda0cd2-ee4a-489a-9eb9-6f97c68a6ea1', '7780d3d4-5f64-4d77-8e45-ff924d47bbdf', 'Natural Ressources', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Natural Ressources"}', '{}');
+INSERT INTO public.sector VALUES ('d051628b-9012-4e35-9f82-78d977b7acf1', '7780d3d4-5f64-4d77-8e45-ff924d47bbdf', 'Ecosystem services', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Ecosystem services"}', '{}');
+INSERT INTO public.sector VALUES ('36b90c7d-743f-4ff3-8136-896b3e82c64d', 'e7d2a20c-381c-42f8-99a5-3db2d8c71b86', 'Gender inequalities', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Gender inequalities"}', '{}');
+INSERT INTO public.sector VALUES ('2d127594-6cd6-4c36-a867-96fae56d42c8', 'e7d2a20c-381c-42f8-99a5-3db2d8c71b86', 'Gender-based violence', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Gender-based violence"}', '{}');
+INSERT INTO public.sector VALUES ('66186b25-80bf-4a54-8c3e-35cdb2782e26', 'e7d2a20c-381c-42f8-99a5-3db2d8c71b86', 'Public administration', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Public administration"}', '{}');
+INSERT INTO public.sector VALUES ('fa57c7e9-865d-44a0-af80-bc7740775077', 'e7d2a20c-381c-42f8-99a5-3db2d8c71b86', 'Executive power', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Executive power"}', '{}');
+INSERT INTO public.sector VALUES ('4c21449f-ae8f-47c2-845a-77ffcd84c6ab', 'e7d2a20c-381c-42f8-99a5-3db2d8c71b86', 'Legislative power', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Legislative power"}', '{}');
+INSERT INTO public.sector VALUES ('04d3c630-ed60-4b25-86da-681b14a9ad75', 'e7d2a20c-381c-42f8-99a5-3db2d8c71b86', 'Judiciary power', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Judiciary power"}', '{}');
+INSERT INTO public.sector VALUES ('f4782b71-e4fc-4b42-8625-e07ef89391c0', '6f03a917-ec56-4a4b-bf48-16485f6a8ad4', 'Employment', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Employment"}', '{}');
+INSERT INTO public.sector VALUES ('d4771446-1514-449f-b38a-fb69530513a8', '6f03a917-ec56-4a4b-bf48-16485f6a8ad4', 'Livelihoods', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Livelihoods"}', '{}');
+INSERT INTO public.sector VALUES ('2bfec1c6-2d3c-4216-a3f1-3aff25a49bf4', '6f03a917-ec56-4a4b-bf48-16485f6a8ad4', 'Social protection', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Social protection"}', '{}');
+INSERT INTO public.sector VALUES ('5b8d5c0a-63ba-4adf-a54f-86268c187180', 'd7a01519-19c4-4fbb-9c66-64d4a002ebf8', 'Disaster management', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Disaster management"}', '{}');
+INSERT INTO public.sector VALUES ('87b4a6b8-ffbb-448d-b1db-aedd6eff87c1', 'd7a01519-19c4-4fbb-9c66-64d4a002ebf8', 'Disaster Recovery', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Disaster Recovery"}', '{}');
+INSERT INTO public.sector VALUES ('caf3cc98-6395-427a-b785-983ab9a2124b', 'd7a01519-19c4-4fbb-9c66-64d4a002ebf8', 'Disaster mitigation', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Disaster mitigation"}', '{}');
+INSERT INTO public.sector VALUES ('dd16548d-4087-4bef-8861-7069624859e3', 'c70618ee-f1be-438f-8c40-14fc5dfb05fb', 'Temporary - annual crops', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Temporary - annual crops"}', '{}');
+INSERT INTO public.sector VALUES ('5a525ef1-592d-4808-977c-1e2cc2d2de8f', 'c70618ee-f1be-438f-8c40-14fc5dfb05fb', 'Permanent- perennial crops', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Permanent- perennial crops"}', '{}');
+INSERT INTO public.sector VALUES ('f26df827-9956-4f39-98e8-4597dd5c1b35', 'a4039693-5b26-4653-acac-c70e7e8322eb', 'Animal production', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Animal production"}', '{}');
+INSERT INTO public.sector VALUES ('ce23b2a5-506a-4b99-88d9-6ef1ff3e4a45', 'a4039693-5b26-4653-acac-c70e7e8322eb', 'Hunting and trapping', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Hunting and trapping"}', '{}');
+INSERT INTO public.sector VALUES ('a6ebba03-506c-49c2-92ca-eb219f680cc2', '729c96be-d16b-4410-8dd5-bf775b15f5bc', 'Silviculture', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Silviculture"}', '{}');
+INSERT INTO public.sector VALUES ('3b5ef14c-bc6e-4fca-b158-62f35e0c6820', '729c96be-d16b-4410-8dd5-bf775b15f5bc', 'Logging', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Logging"}', '{}');
+INSERT INTO public.sector VALUES ('101135ba-66c7-4cf2-8db4-67322f136dc2', '729c96be-d16b-4410-8dd5-bf775b15f5bc', 'Gathering forest products', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Gathering forest products"}', '{}');
+INSERT INTO public.sector VALUES ('db591f94-9a08-4dd8-95dd-39118e847ff4', 'cb6f79ed-4342-41e4-b744-245f8c2f48d8', 'Marine aquaculture', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Marine aquaculture"}', '{}');
+INSERT INTO public.sector VALUES ('29729176-a8f1-4772-bccf-2e8850bb4879', 'cb6f79ed-4342-41e4-b744-245f8c2f48d8', 'Freshwater aquaculture', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Freshwater aquaculture"}', '{}');
+INSERT INTO public.sector VALUES ('5c3c8996-146a-41ab-bf5c-bbb816baff1e', 'da0331e9-1d96-44ac-a498-206418bf6a50', 'Marine fishing', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Marine fishing"}', '{}');
+INSERT INTO public.sector VALUES ('f0d975e0-662e-4135-a3dd-6d273a2e8369', 'da0331e9-1d96-44ac-a498-206418bf6a50', 'Freshwater fishing', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Freshwater fishing"}', '{}');
+INSERT INTO public.sector VALUES ('7891381c-b7a9-4fe8-bbfa-bb8fcc3d9c26', 'c5208da2-284f-46f7-9d16-e399b754073f', 'Mining of coal and lignite ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Mining of coal and lignite "}', '{}');
+INSERT INTO public.sector VALUES ('7dc1b459-d76c-45e4-aa13-e3abc4b2f21d', 'c5208da2-284f-46f7-9d16-e399b754073f', ' Extraction of crude petroleum and natural gas ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": " Extraction of crude petroleum and natural gas "}', '{}');
+INSERT INTO public.sector VALUES ('7c29f01a-f0f2-425e-b076-9cf981a5768d', 'c5208da2-284f-46f7-9d16-e399b754073f', ' Mining of metal ores ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": " Mining of metal ores "}', '{}');
+INSERT INTO public.sector VALUES ('439012c1-d097-4a80-b2fd-41e973a5aa70', 'c5208da2-284f-46f7-9d16-e399b754073f', 'Mining of  iron ores', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Mining of  iron ores"}', '{}');
+INSERT INTO public.sector VALUES ('ca3709b9-e04c-4b56-9454-dd17994cf137', 'c5208da2-284f-46f7-9d16-e399b754073f', 'Other mining and quarrying  ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Other mining and quarrying  "}', '{}');
+INSERT INTO public.sector VALUES ('a54887da-b58d-44be-90fa-91849e9856cb', 'c5208da2-284f-46f7-9d16-e399b754073f', 'Mining support service activities', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Mining support service activities"}', '{}');
+INSERT INTO public.sector VALUES ('750b090b-b564-4da9-a176-b7d041a0e0d0', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of food products ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Manufacture of food products "}', '{}');
+INSERT INTO public.sector VALUES ('91fba313-7f2e-41f7-9ab9-dcfe7f8e01ae', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', ' Manufacture of beverages ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": " Manufacture of beverages "}', '{}');
+INSERT INTO public.sector VALUES ('3a4c1654-df0a-47a2-a8a5-4b3eca984482', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of tobacco products', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Manufacture of tobacco products"}', '{}');
+INSERT INTO public.sector VALUES ('a2597dc0-2032-421e-9848-7034e715dbc4', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of textiles ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Manufacture of textiles "}', '{}');
+INSERT INTO public.sector VALUES ('fe1fa6b5-4736-47e6-8e23-42bedf2c8a36', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of wearing apparel', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Manufacture of wearing apparel"}', '{}');
+INSERT INTO public.sector VALUES ('1e3bc7ec-a023-4a1f-aadd-d77b3cc12ab4', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of leather and related products ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Manufacture of leather and related products "}', '{}');
+INSERT INTO public.sector VALUES ('32f349cc-a884-477a-a9cb-a3dbd82a6396', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of wood and of products of wood and cork, except furniture, manufacture of articles of straw and plaiting materials ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Manufacture of wood and of products of wood and cork, except furniture, manufacture of articles of straw and plaiting materials "}', '{}');
+INSERT INTO public.sector VALUES ('fe1f1b30-ebe6-4589-8c73-1e318100d9a3', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', ' Manufacture of paper and paper products', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": " Manufacture of paper and paper products"}', '{}');
+INSERT INTO public.sector VALUES ('4a451baf-9bb7-4b95-9044-eb82bbc46623', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Printing and reproduction of recorded media', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Printing and reproduction of recorded media"}', '{}');
+INSERT INTO public.sector VALUES ('12d508f2-6d48-4df0-8a06-65d18afc185a', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of coke and refined petroleum products', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Manufacture of coke and refined petroleum products"}', '{}');
+INSERT INTO public.sector VALUES ('3ff29932-17dc-401c-ab1d-ee84f682f228', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of chemicals and chemical products ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Manufacture of chemicals and chemical products "}', '{}');
+INSERT INTO public.sector VALUES ('8b4e9bac-6b73-4781-8318-7abc35516cf1', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', ' Manufacture of basic pharmaceutical products and pharmaceutical preparations ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": " Manufacture of basic pharmaceutical products and pharmaceutical preparations "}', '{}');
+INSERT INTO public.sector VALUES ('893f398a-37e6-4934-8112-d7d8989cf537', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of rubber and plastics products ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Manufacture of rubber and plastics products "}', '{}');
+INSERT INTO public.sector VALUES ('764f625c-314f-4609-ae0c-9dadf73ad135', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of other non metallic mineral products', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Manufacture of other non metallic mineral products"}', '{}');
+INSERT INTO public.sector VALUES ('a8cbcde6-38a5-4aa8-bede-1f56b5ca0148', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', '  Manufacture of basic metals', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "  Manufacture of basic metals"}', '{}');
+INSERT INTO public.sector VALUES ('32461210-5890-419d-afcd-00750614e5e3', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of fabricated metal products', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Manufacture of fabricated metal products"}', '{}');
+INSERT INTO public.sector VALUES ('27a3a37b-c0ca-422c-b62c-b6cb48d2eeb3', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of computer, electronic and optical products ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Manufacture of computer, electronic and optical products "}', '{}');
+INSERT INTO public.sector VALUES ('e4375f70-3fa0-48ec-b127-9618fc59535a', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', ' Manufacture of electrical equipment ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": " Manufacture of electrical equipment "}', '{}');
+INSERT INTO public.sector VALUES ('6c05c5c3-321c-42b4-beef-c89d4d04f9a0', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', ' Manufacture of machinery and equipment ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": " Manufacture of machinery and equipment "}', '{}');
+INSERT INTO public.sector VALUES ('613c270d-1f39-4c69-869d-7f0d0b2c567f', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of motor vehicles, trailers and semi trailers ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Manufacture of motor vehicles, trailers and semi trailers "}', '{}');
+INSERT INTO public.sector VALUES ('a04acdb4-f30f-4f2e-911c-17352f4cc940', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Manufacture of other transport equipment ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Manufacture of other transport equipment "}', '{}');
+INSERT INTO public.sector VALUES ('8ebd270d-05ce-4239-83bf-5390d62626b6', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', ' Manufacture of furniture ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": " Manufacture of furniture "}', '{}');
+INSERT INTO public.sector VALUES ('65620f29-48ae-4d9e-966b-4bb228d96e81', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', ' Other manufacturing', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": " Other manufacturing"}', '{}');
+INSERT INTO public.sector VALUES ('0c0f796e-805c-4d83-a816-4a77455ef4b7', '9a427e48-9c4f-4b54-b65d-f6fca389a79f', 'Repair and installation of machinery and equipment', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Repair and installation of machinery and equipment"}', '{}');
+INSERT INTO public.sector VALUES ('86e24b8d-4c49-4fd1-8b73-b84271623041', '38342a23-fb47-4182-a2b4-58b1c3606043', 'Construction of buildings', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Construction of buildings"}', '{}');
+INSERT INTO public.sector VALUES ('d95559cc-7b6b-49f2-badb-18e976e888de', '38342a23-fb47-4182-a2b4-58b1c3606043', 'Civil engineering', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Civil engineering"}', '{}');
+INSERT INTO public.sector VALUES ('e315defa-a100-4569-a6c6-f338d268dc2d', '38342a23-fb47-4182-a2b4-58b1c3606043', 'Specialized construction activities', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Specialized construction activities"}', '{}');
+INSERT INTO public.sector VALUES ('dd2600ca-5cf1-41a7-a9e7-3a1671e7b8e9', '1e7d14bb-0b56-4edb-8205-fb6bc2ca9d40', 'Short-term accommodation in hotels, resort hotels, suite/apartment hotels, motels, motor hotels, guest houses, pensions, bed-and-breakfast units, visitor flats and bungalows, time-share units, holiday homes, chalets, housekeeping cottages and cabins, and youth hostel and mountain refuges,', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Short-term accommodation in hotels, resort hotels, suite/apartment hotels, motels, motor hotels, guest houses, pensions, bed-and-breakfast units, visitor flats and bungalows, time-share units, holiday homes, chalets, housekeeping cottages and cabins, and youth hostel and mountain refuges,"}', '{}');
+INSERT INTO public.sector VALUES ('ce1d178d-96ea-43d9-88e2-469d01f0d600', '1e7d14bb-0b56-4edb-8205-fb6bc2ca9d40', 'Accommodation in camping grounds, recreational vehicle parks and trailer parks, ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Accommodation in camping grounds, recreational vehicle parks and trailer parks, "}', '{}');
+INSERT INTO public.sector VALUES ('246ece37-06d6-4756-a664-d7befb77ac8a', '57d8f07f-da85-4b98-bece-21628c06b41b', 'Veterinary activities', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Veterinary activities"}', '{}');
+INSERT INTO public.sector VALUES ('1ad22b33-a0aa-408f-96f0-5fcc5bb6794b', '1e7d14bb-0b56-4edb-8205-fb6bc2ca9d40', 'Accommodation in student residences, school dormitories, workers’ hostels, rooming and boarding houses', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Accommodation in student residences, school dormitories, workers’ hostels, rooming and boarding houses"}', '{}');
+INSERT INTO public.sector VALUES ('e1232c0d-54d9-4ad6-b5fa-bcfe82dce554', '1e7d14bb-0b56-4edb-8205-fb6bc2ca9d40', 'Other accomodation services', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Other accomodation services"}', '{}');
+INSERT INTO public.sector VALUES ('ac4ecb39-34c1-4fb3-8240-2ae6b213ecf1', '5c073efd-936f-40a9-8e29-52340c4c1af7', 'Provision of food service to customers in restaurants, cafeterias, fast food restaurants, pizza delivery, take out eating places, ice-cream truck vendors, mobile food carts, food preparation in market stalls,', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Provision of food service to customers in restaurants, cafeterias, fast food restaurants, pizza delivery, take out eating places, ice-cream truck vendors, mobile food carts, food preparation in market stalls,"}', '{}');
+INSERT INTO public.sector VALUES ('920e07c3-d109-4ea8-b3df-4e9d76fe794e', '5c073efd-936f-40a9-8e29-52340c4c1af7', 'Event catering and other food-service activities, ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Event catering and other food-service activities, "}', '{}');
+INSERT INTO public.sector VALUES ('e5b25acf-d490-407c-8f0a-490b96c5f627', '5c073efd-936f-40a9-8e29-52340c4c1af7', 'Beverage serving activities in bars, taverns, cocktail lounges, discotheques, beer parlors and pubs, coffee shops, fruit juice bars, and mobile beverage vendors. ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Beverage serving activities in bars, taverns, cocktail lounges, discotheques, beer parlors and pubs, coffee shops, fruit juice bars, and mobile beverage vendors. "}', '{}');
+INSERT INTO public.sector VALUES ('105b91f0-040b-4c5b-9be7-530434c27b87', '5c073efd-936f-40a9-8e29-52340c4c1af7', 'Other food and beverage services', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Other food and beverage services"}', '{}');
+INSERT INTO public.sector VALUES ('a1da8e3b-1336-4476-9422-28f0be7a78ff', '6473fe1a-096c-420a-b807-11d21f2d4761', 'Retail travel agencies', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Retail travel agencies"}', '{}');
+INSERT INTO public.sector VALUES ('4ddf8c01-c4bd-401b-8a03-fee727fc3435', '6473fe1a-096c-420a-b807-11d21f2d4761', 'Wholesale travel agencies', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Wholesale travel agencies"}', '{}');
+INSERT INTO public.sector VALUES ('65bfcde8-5402-41cc-bf87-3370fca47477', '6473fe1a-096c-420a-b807-11d21f2d4761', 'Online travel agencies', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Online travel agencies"}', '{}');
+INSERT INTO public.sector VALUES ('89dd8b08-fd75-4ea7-84d1-fccafb71daa2', '6473fe1a-096c-420a-b807-11d21f2d4761', 'Tour operators', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Tour operators"}', '{}');
+INSERT INTO public.sector VALUES ('86662c0f-a378-4640-ba14-ca4b7cc9dffe', '92b69a99-1512-4142-9257-3da487c12596', 'Sport and recreational activities', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Sport and recreational activities"}', '{}');
+INSERT INTO public.sector VALUES ('dfdea11e-f480-4a9e-90cc-be0aad7d281d', '92b69a99-1512-4142-9257-3da487c12596', 'Cultural activities', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Cultural activities"}', '{}');
+INSERT INTO public.sector VALUES ('4cb2721a-ca5d-4305-b308-ef570538d64a', 'dfc09fc9-088b-4643-9649-0ffc4bb4db0a', 'Road passenger transport', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Road passenger transport"}', '{}');
+INSERT INTO public.sector VALUES ('8adc7986-3254-4483-b2ad-657acf2fd567', 'dfc09fc9-088b-4643-9649-0ffc4bb4db0a', 'Air passenger transport', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Air passenger transport"}', '{}');
+INSERT INTO public.sector VALUES ('8b6b1396-8cd6-4e1d-9959-b24e7c1e120c', 'dfc09fc9-088b-4643-9649-0ffc4bb4db0a', 'water passenger transport', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "water passenger transport"}', '{}');
+INSERT INTO public.sector VALUES ('19428870-335f-4002-ac48-51f60a0d186c', 'dfc09fc9-088b-4643-9649-0ffc4bb4db0a', 'railway passenger transport', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "railway passenger transport"}', '{}');
+INSERT INTO public.sector VALUES ('9895aa28-2974-4d8a-a3ea-a5d1a31572f9', '7903db62-6d91-47cf-94b1-d1ec129c4f80', 'Wholesale on a fee or contract basis', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Wholesale on a fee or contract basis"}', '{}');
+INSERT INTO public.sector VALUES ('1dd27d0e-f5f0-489e-8016-6c0458defd94', '7903db62-6d91-47cf-94b1-d1ec129c4f80', 'Wholesale of agricultural raw materials and live animals', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Wholesale of agricultural raw materials and live animals"}', '{}');
+INSERT INTO public.sector VALUES ('729638b3-0f11-45b1-9a0d-4b807952f98b', '7903db62-6d91-47cf-94b1-d1ec129c4f80', 'Wholesale of food, beverages and tobacco', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Wholesale of food, beverages and tobacco"}', '{}');
+INSERT INTO public.sector VALUES ('4d155378-0fdb-4001-b17d-704634803c86', '7903db62-6d91-47cf-94b1-d1ec129c4f80', 'Wholesale of household goods', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Wholesale of household goods"}', '{}');
+INSERT INTO public.sector VALUES ('96df845f-1f10-4781-b346-29842df3f97d', '7903db62-6d91-47cf-94b1-d1ec129c4f80', 'Wholesale of machinery, equipment and supplies', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Wholesale of machinery, equipment and supplies"}', '{}');
+INSERT INTO public.sector VALUES ('96d956cf-a193-4409-8729-ae57f1148abd', '7903db62-6d91-47cf-94b1-d1ec129c4f80', 'Other specialized wholesale', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Other specialized wholesale"}', '{}');
+INSERT INTO public.sector VALUES ('8756d857-ec69-4d54-9d7d-ead4587d91aa', '7903db62-6d91-47cf-94b1-d1ec129c4f80', 'Non-specialized wholesale trade', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Non-specialized wholesale trade"}', '{}');
+INSERT INTO public.sector VALUES ('2ed45da7-4b7a-4b78-84d8-28601638dff2', '7903db62-6d91-47cf-94b1-d1ec129c4f80', 'Other wholesade trade', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Other wholesade trade"}', '{}');
+INSERT INTO public.sector VALUES ('f4a4c184-fd3d-495a-a63a-976acecd3a62', 'a906b6a2-6bf0-49c0-9553-e62f93123b23', 'Retail trade in stores', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Retail trade in stores"}', '{}');
+INSERT INTO public.sector VALUES ('b1e8e81e-4ad6-42f6-9c68-4aba2eaad68e', 'a906b6a2-6bf0-49c0-9553-e62f93123b23', 'Retail trade non in stores', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Retail trade non in stores"}', '{}');
+INSERT INTO public.sector VALUES ('2d4522a8-7796-4879-b4f6-d9add84b5c2b', 'a906b6a2-6bf0-49c0-9553-e62f93123b23', 'Other retail trade', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Other retail trade"}', '{}');
+INSERT INTO public.sector VALUES ('8f48c5d3-b8c7-4972-a874-101709f28868', 'd472189c-06ff-4a43-96df-bd22cfc31b8e', 'Sale of motor vehicles', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Sale of motor vehicles"}', '{}');
+INSERT INTO public.sector VALUES ('b419469f-9ec3-44d8-b448-6aac504e5ff3', 'd472189c-06ff-4a43-96df-bd22cfc31b8e', 'Maintenance and repair of motor vehicles', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Maintenance and repair of motor vehicles"}', '{}');
+INSERT INTO public.sector VALUES ('b3726d40-58fc-4474-ae52-703523a90f83', 'd472189c-06ff-4a43-96df-bd22cfc31b8e', 'Sale of motor vehicle parts and accessories', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Sale of motor vehicle parts and accessories"}', '{}');
+INSERT INTO public.sector VALUES ('dd135916-91d6-4e15-96c3-262d8a9825da', 'd472189c-06ff-4a43-96df-bd22cfc31b8e', 'Sale, maintenance and repair of motorcycles and related parts and accessories', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Sale, maintenance and repair of motorcycles and related parts and accessories"}', '{}');
+INSERT INTO public.sector VALUES ('fff57b30-1492-4328-9691-224009442017', 'd472189c-06ff-4a43-96df-bd22cfc31b8e', 'Others', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Others"}', '{}');
+INSERT INTO public.sector VALUES ('0b2ce8f7-5e4d-42b5-8d3e-f3323931d601', '268a8fa2-0ab0-446a-9f2a-8f2a8fcb87a0', 'Rental and leasing activities', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Rental and leasing activities"}', '{}');
+INSERT INTO public.sector VALUES ('25ea9ae9-ac92-4c58-8af7-dc0a51837cdc', '268a8fa2-0ab0-446a-9f2a-8f2a8fcb87a0', 'Employment activities', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Employment activities"}', '{}');
+INSERT INTO public.sector VALUES ('6443ee09-b5de-419c-910d-669b6e96a6d5', '268a8fa2-0ab0-446a-9f2a-8f2a8fcb87a0', 'Security and investigation activities', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Security and investigation activities"}', '{}');
+INSERT INTO public.sector VALUES ('56506c13-ad53-4115-ab47-03a942e7ac29', '268a8fa2-0ab0-446a-9f2a-8f2a8fcb87a0', 'Services to buildings and landscape activities', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Services to buildings and landscape activities"}', '{}');
+INSERT INTO public.sector VALUES ('54cc223d-7cfd-4218-a85c-b26bdf74a763', '268a8fa2-0ab0-446a-9f2a-8f2a8fcb87a0', 'Office administrative, office support and other business support activities', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Office administrative, office support and other business support activities"}', '{}');
+INSERT INTO public.sector VALUES ('e03d35db-ef39-45a2-aa7b-e87110794294', '57d8f07f-da85-4b98-bece-21628c06b41b', 'legal and accounting activities', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "legal and accounting activities"}', '{}');
+INSERT INTO public.sector VALUES ('dc5377b6-8371-4b50-a0e4-3d13f4581625', '57d8f07f-da85-4b98-bece-21628c06b41b', 'Activities of head offices, management consultancy activities', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Activities of head offices, management consultancy activities"}', '{}');
+INSERT INTO public.sector VALUES ('55a75d0c-362a-46b7-a45c-a6ee920c0eba', '57d8f07f-da85-4b98-bece-21628c06b41b', 'Architectural and engineering activities, technical testing and analysis', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Architectural and engineering activities, technical testing and analysis"}', '{}');
+INSERT INTO public.sector VALUES ('741e8e37-b981-4fe7-8ee2-aab6002edbb9', '57d8f07f-da85-4b98-bece-21628c06b41b', 'Scientific research and development', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Scientific research and development"}', '{}');
+INSERT INTO public.sector VALUES ('18a71ba6-7ce6-46ec-a109-b22e55c96742', '57d8f07f-da85-4b98-bece-21628c06b41b', 'Other professional, scientific and technical activities', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Other professional, scientific and technical activities"}', '{}');
+INSERT INTO public.sector VALUES ('15c3ab0e-39ab-4128-951c-8984a8680369', '9f89df69-ae73-4b72-92e2-f6377a054fb1', 'real estate with own or leased property', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "real estate with own or leased property"}', '{}');
+INSERT INTO public.sector VALUES ('dc66cc14-d6da-4817-9674-0c10248e5ae4', '9f89df69-ae73-4b72-92e2-f6377a054fb1', 'Real estate activities on a fee or contract basis', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Real estate activities on a fee or contract basis"}', '{}');
+INSERT INTO public.sector VALUES ('e419da28-4837-4592-b8bc-3df3a889600d', 'bd2705b8-556e-4aa2-98d0-6bd197c5b75d', 'Monetary intermediation', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Monetary intermediation"}', '{}');
+INSERT INTO public.sector VALUES ('0fc457a4-2c64-4784-a656-c011589b685c', 'bd2705b8-556e-4aa2-98d0-6bd197c5b75d', 'Holding companies', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Holding companies"}', '{}');
+INSERT INTO public.sector VALUES ('db0c8841-bf65-4f77-bfd2-ff66927d05f6', 'bd2705b8-556e-4aa2-98d0-6bd197c5b75d', 'Trusts, funds and similar financial entities', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Trusts, funds and similar financial entities"}', '{}');
+INSERT INTO public.sector VALUES ('579f3c48-b5f2-4e4a-9469-1e7112aab10a', 'bd2705b8-556e-4aa2-98d0-6bd197c5b75d', 'Other financing services', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Other financing services"}', '{}');
+INSERT INTO public.sector VALUES ('b344b04c-8ff2-4a9b-b2d3-83d32f55bfeb', 'bd2705b8-556e-4aa2-98d0-6bd197c5b75d', 'Insurance', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Insurance"}', '{}');
+INSERT INTO public.sector VALUES ('1b2a88d0-13b6-4c24-82b7-c7b9faf899ea', 'bd2705b8-556e-4aa2-98d0-6bd197c5b75d', 'Reinsurance', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Reinsurance"}', '{}');
+INSERT INTO public.sector VALUES ('790a64e1-fa61-41ca-88cd-3ee75463872c', 'bd2705b8-556e-4aa2-98d0-6bd197c5b75d', 'Pension funding', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Pension funding"}', '{}');
+INSERT INTO public.sector VALUES ('e1ef450c-5e31-4adc-9ce9-2ce1187a0e17', 'bd2705b8-556e-4aa2-98d0-6bd197c5b75d', 'Activities auxiliary to financial service and insurance activities', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Activities auxiliary to financial service and insurance activities"}', '{}');
+INSERT INTO public.sector VALUES ('c3e75c3d-7b0f-48f8-973e-a7cb1338e78a', 'bd2705b8-556e-4aa2-98d0-6bd197c5b75d', 'Fund management activities', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Fund management activities"}', '{}');
+INSERT INTO public.sector VALUES ('c82d7874-ab80-497f-8bdb-52e0e885c11b', '2087f7b3-d75b-49a6-86e5-0038611877fa', 'community-based', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "community-based"}', '{}');
+INSERT INTO public.sector VALUES ('4e938f32-722f-4d92-8ce7-d3bc3cf26d2b', '2087f7b3-d75b-49a6-86e5-0038611877fa', 'primary health care', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "primary health care"}', '{}');
+INSERT INTO public.sector VALUES ('c61cfa1e-0ebe-4362-8e1a-07b1f72f0716', '2087f7b3-d75b-49a6-86e5-0038611877fa', 'secondary ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "secondary "}', '{}');
+INSERT INTO public.sector VALUES ('c09d7a13-e3bc-4f93-a2df-e3078cdd798b', '2087f7b3-d75b-49a6-86e5-0038611877fa', 'tertiary levels', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "tertiary levels"}', '{}');
+INSERT INTO public.sector VALUES ('14c98341-1bce-472e-8b10-de1613c8f48c', '2087f7b3-d75b-49a6-86e5-0038611877fa', 'Other-non categorized', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Other-non categorized"}', '{}');
+INSERT INTO public.sector VALUES ('ba2a1997-ecaa-4e83-a43b-7de3a5ed286a', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Telemedicine', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Telemedicine"}', '{}');
+INSERT INTO public.sector VALUES ('007c1471-41db-40d7-8dcc-259f0120131d', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Sexual and reproductive health', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Sexual and reproductive health"}', '{}');
+INSERT INTO public.sector VALUES ('f9979538-c012-4b72-9c72-0dce64859799', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Health education', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Health education"}', '{}');
+INSERT INTO public.sector VALUES ('86d0106b-2049-42e2-bb9b-9bc05fd737c9', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Emergency medical services', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Emergency medical services"}', '{}');
+INSERT INTO public.sector VALUES ('b1707b56-615c-4681-9a1e-91ea164dc5d4', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Environmental health', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Environmental health"}', '{}');
+INSERT INTO public.sector VALUES ('04b9f8b5-bed9-4dc4-9e43-48232a6c3bfa', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'One health', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "One health"}', '{}');
+INSERT INTO public.sector VALUES ('79c190c8-5bfa-4879-aeab-7e209d6baf7e', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Immunization programs', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Immunization programs"}', '{}');
+INSERT INTO public.sector VALUES ('59a71915-9f2c-473e-b916-f432f053eee9', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Mental health', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Mental health"}', '{}');
+INSERT INTO public.sector VALUES ('6c9c7298-1808-46d6-bbfc-a6adca79bf30', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Communicable diseases programs', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Communicable diseases programs"}', '{}');
+INSERT INTO public.sector VALUES ('cb3240d4-c6c4-4dc9-baec-0b9564eaec91', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Non-communicable diseases programs', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Non-communicable diseases programs"}', '{}');
+INSERT INTO public.sector VALUES ('2635d93d-724b-48ae-b1f4-ff794334dfce', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Nutrition', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Nutrition"}', '{}');
+INSERT INTO public.sector VALUES ('1302ba8f-51e6-4eb2-a214-79c775aedd3c', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Family planning', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Family planning"}', '{}');
+INSERT INTO public.sector VALUES ('fbf6956f-f71e-4055-bb28-fb59a6ca23ba', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Health surveillance and early warning', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Health surveillance and early warning"}', '{}');
+INSERT INTO public.sector VALUES ('2427e3e3-ac9f-4b27-90d6-dac29b4ba4bd', '42a6cc9e-ac57-4adb-ad22-ce3bdfba2d59', 'Other health services', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Other health services"}', '{}');
+INSERT INTO public.sector VALUES ('488615b4-ea96-4e44-a34a-c0efa755429f', 'a92df837-2005-4fc0-9084-45a39649715e', 'Health information systems', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Health information systems"}', '{}');
+INSERT INTO public.sector VALUES ('66700d83-d880-4d10-96ff-3d79743aef1d', '890039b4-3fae-4fa5-ae95-85d47714045a', '01 Early childhood educational development ( below 3)', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "01 Early childhood educational development ( below 3)"}', '{}');
+INSERT INTO public.sector VALUES ('3232642f-08a2-460d-bd66-3dfe6219a206', '890039b4-3fae-4fa5-ae95-85d47714045a', 'Early childhood (02 Pre-primary - 3 to start primary)', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Early childhood (02 Pre-primary - 3 to start primary)"}', '{}');
+INSERT INTO public.sector VALUES ('cbdd6c28-a679-4520-838d-e5c791d97358', '7fb35894-ff2a-48ce-bc13-18d8119a757e', 'Primary education', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Primary education"}', '{}');
+INSERT INTO public.sector VALUES ('46abe55e-793f-445a-9556-cddc90e58695', 'ccbfb4dd-cd8a-489f-876c-e20fea0f22e3', '2- Lower secondary - middle school', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "2- Lower secondary - middle school"}', '{}');
+INSERT INTO public.sector VALUES ('6dbb6d4d-b756-424b-91bc-c1dc723fd32b', 'ccbfb4dd-cd8a-489f-876c-e20fea0f22e3', '3 Upper secondary / High school', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "3 Upper secondary / High school"}', '{}');
+INSERT INTO public.sector VALUES ('503ad119-18f0-4d2d-b69a-80a5639e0cb8', 'bc363efd-051b-402c-ae67-bdf14a122364', 'General', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "General"}', '{}');
+INSERT INTO public.sector VALUES ('3d080097-312a-4bb7-b7cb-46347a1f5b03', 'bc363efd-051b-402c-ae67-bdf14a122364', 'Vocational', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Vocational"}', '{}');
+INSERT INTO public.sector VALUES ('6890a2a3-2ac2-412c-9aa2-033b1e17a4e1', '073072a3-7142-4fbb-a4c2-07c8934a356e', '5 -Short-cycle tertiary education ( general or vocational)', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "5 -Short-cycle tertiary education ( general or vocational)"}', '{}');
+INSERT INTO public.sector VALUES ('e13d689c-a7b0-4719-b210-705bbfe18bb4', '073072a3-7142-4fbb-a4c2-07c8934a356e', '6,7,8-Bachelors, Master, Phd ( academic or professional)', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "6,7,8-Bachelors, Master, Phd ( academic or professional)"}', '{}');
+INSERT INTO public.sector VALUES ('84441af0-7a3f-43c2-9c2c-321f87eec446', '0c2cc3f5-2780-4d16-8663-76c7315f1f94', 'Adult education/ literacy programs', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Adult education/ literacy programs"}', '{}');
+INSERT INTO public.sector VALUES ('4de62753-dbdd-4244-ba67-2428afefe2f7', '0c2cc3f5-2780-4d16-8663-76c7315f1f94', 'Community education', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Community education"}', '{}');
+INSERT INTO public.sector VALUES ('bf770f81-65dd-4d3e-bdda-78ec46c602ba', '0c2cc3f5-2780-4d16-8663-76c7315f1f94', 'Continuing professional development programs', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Continuing professional development programs"}', '{}');
+INSERT INTO public.sector VALUES ('ccc75fb7-874e-42a9-b345-1f36feb6c6d5', '0c2cc3f5-2780-4d16-8663-76c7315f1f94', 'Others - Adult language centers', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Others - Adult language centers"}', '{}');
+INSERT INTO public.sector VALUES ('c015376c-92db-427a-abca-a91a07b5eff5', '0c2cc3f5-2780-4d16-8663-76c7315f1f94', 'Others -lifelong learning', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Others -lifelong learning"}', '{}');
+INSERT INTO public.sector VALUES ('d55816d1-4e9b-4b3a-97e5-f5c096d7391a', '0c2cc3f5-2780-4d16-8663-76c7315f1f94', 'Other non-formal education', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Other non-formal education"}', '{}');
+INSERT INTO public.sector VALUES ('9d8b03b6-e37c-472b-9f2f-1b902f3fe567', 'e25331d6-dca9-40da-bdd7-9f63979b353b', 'With all basic facilities', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "With all basic facilities"}', '{}');
+INSERT INTO public.sector VALUES ('2064aa0c-d4a6-4564-88f3-9c9447189a1d', 'e25331d6-dca9-40da-bdd7-9f63979b353b', 'Conventional dwellings', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Conventional dwellings"}', '{}');
+INSERT INTO public.sector VALUES ('f0b6d9c7-7839-472c-a016-387d692b104e', 'e25331d6-dca9-40da-bdd7-9f63979b353b', 'Other housing units', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Other housing units"}', '{}');
+INSERT INTO public.sector VALUES ('b2222a5b-849f-4cba-b185-3d9b40477376', '13864003-2c42-454b-b723-f25eb0ae307d', 'Rooming houses and lodging', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Rooming houses and lodging"}', '{}');
+INSERT INTO public.sector VALUES ('dd3eaa67-41ff-49ef-a0b1-d3e2d3d98dd4', '13864003-2c42-454b-b723-f25eb0ae307d', 'Institutions', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Institutions"}', '{}');
+INSERT INTO public.sector VALUES ('a606c3aa-d629-46e8-9c90-660b98a333e3', '13864003-2c42-454b-b723-f25eb0ae307d', 'Camps and workers quarters', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Camps and workers quarters"}', '{}');
+INSERT INTO public.sector VALUES ('cbcf0a61-96c4-450f-aa9c-76bbc39914f8', '13864003-2c42-454b-b723-f25eb0ae307d', 'Other collectiving living quarters', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Other collectiving living quarters"}', '{}');
+INSERT INTO public.sector VALUES ('19b63b1e-4256-4fe0-8ab4-496182624d41', 'ca435a93-65bd-4d9e-b231-05d2f0107a75', 'Built heritage', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Built heritage"}', '{}');
+INSERT INTO public.sector VALUES ('303f5e40-7d85-449a-866b-30bd65810a15', 'ca435a93-65bd-4d9e-b231-05d2f0107a75', 'Cultural sites', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Cultural sites"}', '{}');
+INSERT INTO public.sector VALUES ('2207291f-04e2-4779-b10b-57f921b59bbf', 'ca435a93-65bd-4d9e-b231-05d2f0107a75', 'Natural sites', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Natural sites"}', '{}');
+INSERT INTO public.sector VALUES ('16424c99-ca8b-416c-ac7b-c1be41860df6', 'ca435a93-65bd-4d9e-b231-05d2f0107a75', 'Movable properties and collections', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Movable properties and collections"}', '{}');
+INSERT INTO public.sector VALUES ('469370c8-abff-42e1-99c3-c5f6801d5d09', 'ca435a93-65bd-4d9e-b231-05d2f0107a75', 'Repositories of heritage', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Repositories of heritage"}', '{}');
+INSERT INTO public.sector VALUES ('aca8ff5a-2da5-43f3-9111-ce1a98ae1263', 'ca435a93-65bd-4d9e-b231-05d2f0107a75', 'Urban heritage', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Urban heritage"}', '{}');
+INSERT INTO public.sector VALUES ('392f114b-6bc3-4df1-86bf-025aac84a08f', 'ca435a93-65bd-4d9e-b231-05d2f0107a75', 'Other tangible heritage designations', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Other tangible heritage designations"}', '{}');
+INSERT INTO public.sector VALUES ('a0a82c7e-8575-4218-950b-228bbc3cb31f', '52d0089f-d097-457d-82f9-a693561974f6', 'landscapes,', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "landscapes,"}', '{}');
+INSERT INTO public.sector VALUES ('69e9e911-89ea-494a-ba94-d594d4ae7697', '52d0089f-d097-457d-82f9-a693561974f6', 'traditional knowledge, ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "traditional knowledge, "}', '{}');
+INSERT INTO public.sector VALUES ('a722a6de-49bb-4d82-ba90-59bf2cda7fd0', '52d0089f-d097-457d-82f9-a693561974f6', 'rituals, ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "rituals, "}', '{}');
+INSERT INTO public.sector VALUES ('41744964-bb4e-4da4-8547-340d3f6df50f', '52d0089f-d097-457d-82f9-a693561974f6', 'festivals,  ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "festivals,  "}', '{}');
+INSERT INTO public.sector VALUES ('f34e60af-384a-4045-8325-ddbdad75e67e', '52d0089f-d097-457d-82f9-a693561974f6', 'language ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "language "}', '{}');
+INSERT INTO public.sector VALUES ('da9f4174-6ffc-4a38-b307-7a49e8fc0f4c', '52d0089f-d097-457d-82f9-a693561974f6', 'cultural practices', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "cultural practices"}', '{}');
+INSERT INTO public.sector VALUES ('cee4cc64-4490-4e18-a1ea-08f6acbd8193', '48b5facd-f99e-4051-bca9-8c02f683ae78', 'Road transport infrastructure', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Road transport infrastructure"}', '{}');
+INSERT INTO public.sector VALUES ('2620f256-b5fb-4da5-b7ca-c7fe9a0cbb2c', '48b5facd-f99e-4051-bca9-8c02f683ae78', 'Railroad transport ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Railroad transport "}', '{}');
+INSERT INTO public.sector VALUES ('ad895a04-068e-4cac-9fd1-aba6d3a154e2', '48b5facd-f99e-4051-bca9-8c02f683ae78', 'Pipeline transport ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Pipeline transport "}', '{}');
+INSERT INTO public.sector VALUES ('66c9f601-3b56-4542-ba66-501afcbc8631', '48b5facd-f99e-4051-bca9-8c02f683ae78', 'Other land transport', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Other land transport"}', '{}');
+INSERT INTO public.sector VALUES ('4ce52ad0-3255-4b3a-865e-4c36e840d518', '3cf24f5d-5ecb-4d62-b0cf-77db213da02b', 'Passenger air transport', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Passenger air transport"}', '{}');
+INSERT INTO public.sector VALUES ('cfb5e514-017e-406e-8bb2-998f72417da1', '3cf24f5d-5ecb-4d62-b0cf-77db213da02b', 'Freight air transport', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Freight air transport"}', '{}');
+INSERT INTO public.sector VALUES ('1279965a-ab82-4e3d-97ce-40c02ed58a5e', '84af0959-7f53-45db-888b-3eeeb897b405', 'Sea and coastal ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Sea and coastal "}', '{}');
+INSERT INTO public.sector VALUES ('dd56589a-a51d-48ce-bc9b-dc24fe41c656', '84af0959-7f53-45db-888b-3eeeb897b405', 'Inland water transport', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Inland water transport"}', '{}');
+INSERT INTO public.sector VALUES ('8a9ea73f-849a-4fff-ac04-6212af1b57c6', '84af0959-7f53-45db-888b-3eeeb897b405', 'Other water transportation', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Other water transportation"}', '{}');
+INSERT INTO public.sector VALUES ('22514fe2-8feb-42ed-aa6f-15531cb9d902', 'deffe5ac-8e53-44ad-a9f3-0d1a03f4b0c8', 'Warehousing and storage', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Warehousing and storage"}', '{}');
+INSERT INTO public.sector VALUES ('807e0e07-cab5-4ec3-af02-6d957cc04671', 'deffe5ac-8e53-44ad-a9f3-0d1a03f4b0c8', 'Support activities for transportation', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Support activities for transportation"}', '{}');
+INSERT INTO public.sector VALUES ('bd89c05b-85c0-406b-a5fd-c541e1f9f248', 'deffe5ac-8e53-44ad-a9f3-0d1a03f4b0c8', 'Other transportation support activities', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Other transportation support activities"}', '{}');
+INSERT INTO public.sector VALUES ('630e9cad-91ad-4926-ba8e-b60371f5f4fd', 'a14fce6f-fae4-4f63-80c5-785d6c60298f', 'Postal activities', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Postal activities"}', '{}');
+INSERT INTO public.sector VALUES ('dd4fc7fb-d632-4d5d-90db-d453c7efbede', 'a14fce6f-fae4-4f63-80c5-785d6c60298f', 'Courier activities', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Courier activities"}', '{}');
+INSERT INTO public.sector VALUES ('23023918-1f01-42ec-ba23-fb70f7cce0e4', '9090ef1f-2abe-4623-8917-5b30cb6d0b5b', 'Non Renewable', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Non Renewable"}', '{}');
+INSERT INTO public.sector VALUES ('10fddff2-721d-4858-9949-7de0eefa1575', '9090ef1f-2abe-4623-8917-5b30cb6d0b5b', 'Renewable', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Renewable"}', '{}');
+INSERT INTO public.sector VALUES ('870c5468-2d47-434e-94fb-9fc3c3306b0e', '9090ef1f-2abe-4623-8917-5b30cb6d0b5b', 'Electricity Storage', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Electricity Storage"}', '{}');
+INSERT INTO public.sector VALUES ('62f75567-7770-460f-b418-1019480df190', '9090ef1f-2abe-4623-8917-5b30cb6d0b5b', 'Extra/ultra/high voltage', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Extra/ultra/high voltage"}', '{}');
+INSERT INTO public.sector VALUES ('93267b28-7cd5-4b87-8bab-70bd72caab25', '9090ef1f-2abe-4623-8917-5b30cb6d0b5b', 'Medium voltage', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Medium voltage"}', '{}');
+INSERT INTO public.sector VALUES ('a71c4a2e-ced0-4350-96cf-371fefb9aba2', '9090ef1f-2abe-4623-8917-5b30cb6d0b5b', 'Low voltage', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Low voltage"}', '{}');
+INSERT INTO public.sector VALUES ('d1de06ce-4033-4071-82df-c91da1cf1bb0', '9090ef1f-2abe-4623-8917-5b30cb6d0b5b', 'Residential  and commercial network', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Residential  and commercial network"}', '{}');
+INSERT INTO public.sector VALUES ('d115c081-ac1d-497a-a5e3-4a4420f8e91f', '9090ef1f-2abe-4623-8917-5b30cb6d0b5b', 'Industrial network', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Industrial network"}', '{}');
+INSERT INTO public.sector VALUES ('8e679607-2e01-4273-8b0a-04e9b6223b9e', '9090ef1f-2abe-4623-8917-5b30cb6d0b5b', 'Other specials network', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Other specials network"}', '{}');
+INSERT INTO public.sector VALUES ('dc0ae105-7763-4d82-bf41-99837730c503', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Natural gas- upstream', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Natural gas- upstream"}', '{}');
+INSERT INTO public.sector VALUES ('30c2090f-5751-4920-a01f-9c80b3f225bd', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Natural Gas processing', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Natural Gas processing"}', '{}');
+INSERT INTO public.sector VALUES ('c19f025d-dcd4-4f14-bbd3-755cf2809eba', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Natural Gas storage', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Natural Gas storage"}', '{}');
+INSERT INTO public.sector VALUES ('dfc398b4-ba68-4fcc-8dba-f14480ab9952', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Gas Distribution ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Gas Distribution "}', '{}');
+INSERT INTO public.sector VALUES ('f88c345c-5085-4355-884a-168bad07108e', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Oil Manufacture/ upstream', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Oil Manufacture/ upstream"}', '{}');
+INSERT INTO public.sector VALUES ('e1fe4767-6a35-436e-acdf-ae943e490d5b', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Oil refinery ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Oil refinery "}', '{}');
+INSERT INTO public.sector VALUES ('d5937a3f-84c1-46bd-90b1-6e99be7cc040', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Oil strorage', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Oil strorage"}', '{}');
+INSERT INTO public.sector VALUES ('26288798-deb9-46f9-95b7-fa9d925437ab', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Oil Distribution through mains', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Oil Distribution through mains"}', '{}');
+INSERT INTO public.sector VALUES ('0bd04b6b-f095-4d32-b634-0ada48972a37', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Coal Generation', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Coal Generation"}', '{}');
+INSERT INTO public.sector VALUES ('40fc83f2-18e1-493a-af2b-2499744e3416', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Coal Distribution', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Coal Distribution"}', '{}');
+INSERT INTO public.sector VALUES ('cdda5875-db4c-4c93-bbc6-838eb7e964d6', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Steam Generation', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Steam Generation"}', '{}');
+INSERT INTO public.sector VALUES ('bf88f421-ead9-438a-9876-6b832acc805f', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Steam Distribution', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Steam Distribution"}', '{}');
+INSERT INTO public.sector VALUES ('561a33e9-a2e6-4f27-91a4-35a30b75d78d', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Hot water Generation', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Hot water Generation"}', '{}');
+INSERT INTO public.sector VALUES ('78ac5869-ccbf-44ee-a5f3-0abba19f887a', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Hot water Distribution', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Hot water Distribution"}', '{}');
+INSERT INTO public.sector VALUES ('ca1045e2-046e-4d0b-954f-783d34faeb98', 'cb93fa53-3dbb-4125-8a3c-26e77dbad725', 'Wired telecommunication activities,', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Wired telecommunication activities,"}', '{}');
+INSERT INTO public.sector VALUES ('61f64901-3ac8-48aa-b342-3494ad2134c2', 'cb93fa53-3dbb-4125-8a3c-26e77dbad725', 'Wireless telecommunication activities,', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Wireless telecommunication activities,"}', '{}');
+INSERT INTO public.sector VALUES ('e366836c-a373-4286-a312-71654fc4dbdf', 'cb93fa53-3dbb-4125-8a3c-26e77dbad725', 'Satellite telecommunication activities, ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Satellite telecommunication activities, "}', '{}');
+INSERT INTO public.sector VALUES ('20b746cd-716f-464e-a3b2-c01f7a9a7beb', '1a9ed881-e6dc-463f-836c-8f096c60df4c', 'Other telecommunications activities', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Other telecommunications activities"}', '{}');
+INSERT INTO public.sector VALUES ('bdd093eb-66e1-45cd-bc9d-0752aa88f63a', 'b08b5ffc-26c5-4aa5-88ac-2baa217a4d7a', 'From  Surface water', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "From  Surface water"}', '{}');
+INSERT INTO public.sector VALUES ('0651e48f-ad73-41f3-9afc-8943b5c63898', 'b08b5ffc-26c5-4aa5-88ac-2baa217a4d7a', 'From Ground water', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "From Ground water"}', '{}');
+INSERT INTO public.sector VALUES ('cbf45558-cddb-4957-8c97-876d98cc95ca', 'b08b5ffc-26c5-4aa5-88ac-2baa217a4d7a', 'From Soil water', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "From Soil water"}', '{}');
+INSERT INTO public.sector VALUES ('5e12e084-13b4-4b03-8f26-93d9c0cdea09', 'b08b5ffc-26c5-4aa5-88ac-2baa217a4d7a', 'Desalination', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Desalination"}', '{}');
+INSERT INTO public.sector VALUES ('30e02d66-4e97-41b6-97b8-609cbcf6f00a', 'b08b5ffc-26c5-4aa5-88ac-2baa217a4d7a', 'From Reclaimed', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "From Reclaimed"}', '{}');
+INSERT INTO public.sector VALUES ('406c3161-b30c-46c2-8270-a12149d30276', 'b08b5ffc-26c5-4aa5-88ac-2baa217a4d7a', 'From Rainwater harvested', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "From Rainwater harvested"}', '{}');
+INSERT INTO public.sector VALUES ('7714c4b6-d186-43cf-9fa2-81fade0b0262', 'b08b5ffc-26c5-4aa5-88ac-2baa217a4d7a', 'Other water sources', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Other water sources"}', '{}');
+INSERT INTO public.sector VALUES ('853f7da3-df07-48da-b2b6-50ae0c4034a8', '1e4cc659-c250-4f90-a107-294a85034790', 'Physical water treatment ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Physical water treatment "}', '{}');
+INSERT INTO public.sector VALUES ('e7249d26-c14a-4c8a-8b78-9fcb5aefc946', '1e4cc659-c250-4f90-a107-294a85034790', 'Chemical water treatment', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Chemical water treatment"}', '{}');
+INSERT INTO public.sector VALUES ('d4c6ff01-027a-4cce-b4f0-7d1c4839722b', '1e4cc659-c250-4f90-a107-294a85034790', 'Biological water treatment', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Biological water treatment"}', '{}');
+INSERT INTO public.sector VALUES ('3f6ada77-cdb6-4205-a055-7877e1524ecb', '1e4cc659-c250-4f90-a107-294a85034790', 'Thermal water treatment', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Thermal water treatment"}', '{}');
+INSERT INTO public.sector VALUES ('755cc4c7-e571-4123-b785-5ae5860de70d', '1e4cc659-c250-4f90-a107-294a85034790', 'Other treatment system', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Other treatment system"}', '{}');
+INSERT INTO public.sector VALUES ('5089f10a-2674-4bc0-8c2f-c2d0077d0972', 'f57c9597-420a-4df4-94a2-bd12345b7584', 'Piped water distribution ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Piped water distribution "}', '{}');
+INSERT INTO public.sector VALUES ('f70c2b1a-8019-480a-aa2b-5625bfbdf68b', 'f57c9597-420a-4df4-94a2-bd12345b7584', 'Non-piped water distribution', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Non-piped water distribution"}', '{}');
+INSERT INTO public.sector VALUES ('1cd88e57-acca-42e0-8c3b-8caef5f71910', '17e8b94c-2362-4dd9-89e0-4240df53110a', 'Urban sewage system', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Urban sewage system"}', '{}');
+INSERT INTO public.sector VALUES ('25c18e73-1de8-4a9e-ba2c-13a3be435993', '17e8b94c-2362-4dd9-89e0-4240df53110a', 'Storm and runoff collection systems', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Storm and runoff collection systems"}', '{}');
+INSERT INTO public.sector VALUES ('7bce6096-3025-47a6-9367-43116f46b815', '17e8b94c-2362-4dd9-89e0-4240df53110a', 'Wastewater and sewage treatment facilities', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Wastewater and sewage treatment facilities"}', '{}');
+INSERT INTO public.sector VALUES ('0e088892-de2d-46be-a77e-a06a4be7dd21', '17e8b94c-2362-4dd9-89e0-4240df53110a', 'pumping systems', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "pumping systems"}', '{}');
+INSERT INTO public.sector VALUES ('c5d64ff0-3e4b-466a-af5b-251aa35b573f', '7aad3cff-acee-4aaa-a2df-8e7ae9a135ce', 'Waste collection', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Waste collection"}', '{}');
+INSERT INTO public.sector VALUES ('191a42a0-67c4-41de-bc20-4a770c30b384', '7aad3cff-acee-4aaa-a2df-8e7ae9a135ce', 'Waste processing and treatment', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Waste processing and treatment"}', '{}');
+INSERT INTO public.sector VALUES ('7f43540e-aa42-4f64-9e94-1b8441394a29', '7aad3cff-acee-4aaa-a2df-8e7ae9a135ce', 'Waste transportation', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Waste transportation"}', '{}');
+INSERT INTO public.sector VALUES ('c3fdf641-18c2-44aa-aade-08a1d86a6123', '7aad3cff-acee-4aaa-a2df-8e7ae9a135ce', 'Waste disposal', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Waste disposal"}', '{}');
+INSERT INTO public.sector VALUES ('a1f97f32-54c3-4c79-aabb-d9b557825cff', 'd1af9066-f0c1-43e0-bca6-0ecfd0835a92', 'Waste collection', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Waste collection"}', '{}');
+INSERT INTO public.sector VALUES ('ed87ee80-1269-4c3b-aaed-8327dc58dfa8', 'd1af9066-f0c1-43e0-bca6-0ecfd0835a92', 'Waste processing and treatment', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Waste processing and treatment"}', '{}');
+INSERT INTO public.sector VALUES ('7c468c3e-806c-4196-b17a-7d21dbca4d7b', 'd1af9066-f0c1-43e0-bca6-0ecfd0835a92', 'Waste transportation', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Waste transportation"}', '{}');
+INSERT INTO public.sector VALUES ('1bbfe971-fddf-45d7-bdde-99122d4aaede', 'd1af9066-f0c1-43e0-bca6-0ecfd0835a92', 'Waste disposal', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Waste disposal"}', '{}');
+INSERT INTO public.sector VALUES ('b4abfa88-397e-4bf4-8b67-35dcfeb1cf83', '0dca6942-2007-489f-9c7a-5f0a182837ab', 'Species', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Species"}', '{}');
+INSERT INTO public.sector VALUES ('1d584d8e-5e14-47e6-887b-c773ece1d0fb', '0dca6942-2007-489f-9c7a-5f0a182837ab', 'Habitats', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Habitats"}', '{}');
+INSERT INTO public.sector VALUES ('948d0024-f77c-444a-820c-9a0e9a2a1961', '0dca6942-2007-489f-9c7a-5f0a182837ab', 'Ecosystems', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Ecosystems"}', '{}');
+INSERT INTO public.sector VALUES ('7d5ec14a-e56c-4c3f-b42c-ff7fab53479a', '0dca6942-2007-489f-9c7a-5f0a182837ab', 'Landscapes', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Landscapes"}', '{}');
+INSERT INTO public.sector VALUES ('f417b311-ef99-4b0b-9530-a05beea9f8fa', '3cda0cd2-ee4a-489a-9eb9-6f97c68a6ea1', 'Land ( including soils)', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Land ( including soils)"}', '{}');
+INSERT INTO public.sector VALUES ('7982185b-6fea-4159-a4a1-2a302473ed55', '3cda0cd2-ee4a-489a-9eb9-6f97c68a6ea1', 'Agricultural land', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Agricultural land"}', '{}');
+INSERT INTO public.sector VALUES ('5c034f2f-3d81-4605-b8fa-507e16881370', '3cda0cd2-ee4a-489a-9eb9-6f97c68a6ea1', 'Primary forest', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Primary forest"}', '{}');
+INSERT INTO public.sector VALUES ('a4c97a9f-2fb1-4210-a989-b8a9289d0610', '3cda0cd2-ee4a-489a-9eb9-6f97c68a6ea1', 'Freshwater', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Freshwater"}', '{}');
+INSERT INTO public.sector VALUES ('2eaa8056-45c0-49b7-b5f8-267de34f919f', '3cda0cd2-ee4a-489a-9eb9-6f97c68a6ea1', 'Other natural resources', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Other natural resources"}', '{}');
+INSERT INTO public.sector VALUES ('aeb21813-7ffd-4a89-b046-2570b3ddb8ab', 'd051628b-9012-4e35-9f82-78d977b7acf1', 'Supporting services ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Supporting services "}', '{}');
+INSERT INTO public.sector VALUES ('603295fc-a0e4-47a4-a9d2-53f868b2a5dd', 'd051628b-9012-4e35-9f82-78d977b7acf1', 'Regulating Services', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Regulating Services"}', '{}');
+INSERT INTO public.sector VALUES ('049c8680-fe1d-4e3c-ac1e-7dfdda7a2bd8', 'd051628b-9012-4e35-9f82-78d977b7acf1', 'Provisioning services', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Provisioning services"}', '{}');
+INSERT INTO public.sector VALUES ('cfcb78d0-c53d-4a0a-bf6d-7158df6b1fb4', 'd051628b-9012-4e35-9f82-78d977b7acf1', 'Cultural services', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Cultural services"}', '{}');
+INSERT INTO public.sector VALUES ('5fb2ef9c-bd59-449f-acfe-bcc67beed140', '36b90c7d-743f-4ff3-8136-896b3e82c64d', 'Time-use', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Time-use"}', '{}');
+INSERT INTO public.sector VALUES ('4dfa5900-040f-4ba5-8b97-8869eca1e88d', '36b90c7d-743f-4ff3-8136-896b3e82c64d', 'Access to ressources', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Access to ressources"}', '{}');
+INSERT INTO public.sector VALUES ('26a2eda9-01d7-4c2c-8912-da963bac6695', '36b90c7d-743f-4ff3-8136-896b3e82c64d', 'Access to services', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Access to services"}', '{}');
+INSERT INTO public.sector VALUES ('c6106c3e-b79e-4d97-9cab-608ce9aaf83b', '36b90c7d-743f-4ff3-8136-896b3e82c64d', 'Livelihoods - production', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Livelihoods - production"}', '{}');
+INSERT INTO public.sector VALUES ('d98d2f67-0573-44ad-9624-963d84460e1d', '36b90c7d-743f-4ff3-8136-896b3e82c64d', 'Productive Asset ownership', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Productive Asset ownership"}', '{}');
+INSERT INTO public.sector VALUES ('874c324c-3296-44fc-a2d4-d1de18a06ae9', '36b90c7d-743f-4ff3-8136-896b3e82c64d', 'Human mobility', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Human mobility"}', '{}');
+INSERT INTO public.sector VALUES ('226c2228-319d-471a-bb3b-b384c2b582e4', '36b90c7d-743f-4ff3-8136-896b3e82c64d', 'Gender-based discrimination', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Gender-based discrimination"}', '{}');
+INSERT INTO public.sector VALUES ('b634a681-cc71-4c9e-9596-a8f3035a3520', '2d127594-6cd6-4c36-a867-96fae56d42c8', 'Physical violence', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Physical violence"}', '{}');
+INSERT INTO public.sector VALUES ('033fa443-4b45-4755-9ac9-eef89703f598', '2d127594-6cd6-4c36-a867-96fae56d42c8', 'Sexual violence', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Sexual violence"}', '{}');
+INSERT INTO public.sector VALUES ('adc919fb-f4b3-4314-87ae-42b13f85186e', '2d127594-6cd6-4c36-a867-96fae56d42c8', 'Psychological abuse', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Psychological abuse"}', '{}');
+INSERT INTO public.sector VALUES ('21c663e3-5ec3-4178-a860-192cbdde3207', '2d127594-6cd6-4c36-a867-96fae56d42c8', 'Economic abuse', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Economic abuse"}', '{}');
+INSERT INTO public.sector VALUES ('fd6a89f6-98b4-436c-a210-a89f27a82fb4', '2d127594-6cd6-4c36-a867-96fae56d42c8', 'Harmful traditional practices', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Harmful traditional practices"}', '{}');
+INSERT INTO public.sector VALUES ('b6ecdda3-ed32-4364-8014-333cc65cfcd7', '2d127594-6cd6-4c36-a867-96fae56d42c8', 'Cyber or online abuse', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Cyber or online abuse"}', '{}');
+INSERT INTO public.sector VALUES ('f149b01e-930c-4209-a277-957013405d5d', '66186b25-80bf-4a54-8c3e-35cdb2782e26', 'Administration of the state', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Administration of the state"}', '{}');
+INSERT INTO public.sector VALUES ('8577496e-8acd-44c7-97f1-e14237f6a9a5', '66186b25-80bf-4a54-8c3e-35cdb2782e26', 'Regional - Decentralized Administration', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Regional - Decentralized Administration"}', '{}');
+INSERT INTO public.sector VALUES ('d169543f-0d85-4ad9-b3cd-e37d47a2b98c', '66186b25-80bf-4a54-8c3e-35cdb2782e26', 'Local administration', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Local administration"}', '{}');
+INSERT INTO public.sector VALUES ('28a159d2-393b-41f6-bf49-ec06cb3fe962', 'fa57c7e9-865d-44a0-af80-bc7740775077', 'Government ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Government "}', '{}');
+INSERT INTO public.sector VALUES ('27496414-13fa-451a-a9b1-1f826ffded4a', '4c21449f-ae8f-47c2-845a-77ffcd84c6ab', 'Parlaments/ Congress/ Lower chamber', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Parlaments/ Congress/ Lower chamber"}', '{}');
+INSERT INTO public.sector VALUES ('6a6afe39-5f69-4388-a629-b6cb58d5d243', '4c21449f-ae8f-47c2-845a-77ffcd84c6ab', 'Upper Chamber/Senate', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Upper Chamber/Senate"}', '{}');
+INSERT INTO public.sector VALUES ('da8c1129-b486-4e19-8094-58c3bb2568d0', '04d3c630-ed60-4b25-86da-681b14a9ad75', 'Courts ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Courts "}', '{}');
+INSERT INTO public.sector VALUES ('d5279f2c-a6cb-4849-b35d-7ead1309ff6b', '04d3c630-ed60-4b25-86da-681b14a9ad75', 'Tribunals', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Tribunals"}', '{}');
+INSERT INTO public.sector VALUES ('1c60b012-0bfd-4bdc-b4a7-8b4f41b71725', 'f4782b71-e4fc-4b42-8625-e07ef89391c0', 'Employees', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Employees"}', '{}');
+INSERT INTO public.sector VALUES ('2896fa44-03e9-4d46-a764-2243d510afa5', 'f4782b71-e4fc-4b42-8625-e07ef89391c0', 'Self-employed', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Self-employed"}', '{}');
+INSERT INTO public.sector VALUES ('7ad764b7-58de-4417-8f67-f7709091c30d', 'f4782b71-e4fc-4b42-8625-e07ef89391c0', 'Gig workers/ Dependent contractor', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Gig workers/ Dependent contractor"}', '{}');
+INSERT INTO public.sector VALUES ('1264a672-86d4-4bc1-8ab8-3c51cadd3e54', 'd4771446-1514-449f-b38a-fb69530513a8', 'Commerce livelihoods', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Commerce livelihoods"}', '{}');
+INSERT INTO public.sector VALUES ('e41994f6-4b02-4b6f-acb1-9d451c5ecb46', 'd4771446-1514-449f-b38a-fb69530513a8', 'Agriculture livelihoods', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Agriculture livelihoods"}', '{}');
+INSERT INTO public.sector VALUES ('bd5defd8-4cd4-4870-a45c-73590a78f50e', 'd4771446-1514-449f-b38a-fb69530513a8', 'Service livelihoods', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Service livelihoods"}', '{}');
+INSERT INTO public.sector VALUES ('e5f7dd46-ab53-4585-8fbe-08bc10ab1607', 'd4771446-1514-449f-b38a-fb69530513a8', 'Handicraft livelihoods', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Handicraft livelihoods"}', '{}');
+INSERT INTO public.sector VALUES ('0a921aa4-1d16-43ad-8dd1-29c92294bd5e', 'd4771446-1514-449f-b38a-fb69530513a8', 'Culture livelihoods', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Culture livelihoods"}', '{}');
+INSERT INTO public.sector VALUES ('3e65de57-f93b-49cd-8ac9-2c41397c23a1', 'd4771446-1514-449f-b38a-fb69530513a8', 'Tourism livelihoods', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Tourism livelihoods"}', '{}');
+INSERT INTO public.sector VALUES ('e997c4f7-046b-43de-a8a7-4af43e5fceb1', 'd4771446-1514-449f-b38a-fb69530513a8', 'Industry livelihoods', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Industry livelihoods"}', '{}');
+INSERT INTO public.sector VALUES ('6bfb2641-330f-4c09-a242-6bb391c9e930', 'd4771446-1514-449f-b38a-fb69530513a8', 'Care livelihoods', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Care livelihoods"}', '{}');
+INSERT INTO public.sector VALUES ('f0b28365-58e7-495f-87fb-2cbb45ef92fb', '5b8d5c0a-63ba-4adf-a54f-86268c187180', 'Disaster response', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Disaster response"}', '{}');
+INSERT INTO public.sector VALUES ('43b4c6f4-9d4d-4c71-8cc4-9557ee5272cf', '5b8d5c0a-63ba-4adf-a54f-86268c187180', 'Aid coordination', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Aid coordination"}', '{}');
+INSERT INTO public.sector VALUES ('b1dfc9d3-9b54-4d02-81d3-637988b4d0a2', '5b8d5c0a-63ba-4adf-a54f-86268c187180', 'Hazard monitoring', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Hazard monitoring"}', '{}');
 
 
 --
@@ -2666,7 +3179,7 @@ INSERT INTO public.sector VALUES ('b1dfc9d3-9b54-4d02-81d3-637988b4d0a2', '5b8d5
 -- Data for Name: super_admin_users; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO public.super_admin_users VALUES ('c8da7017-1a74-466f-ba90-366d61d56768', 'admin', 'admin', 'admin@admin.com', '$2a$10$sC1WJVSFRyIajR3mnvYUk.Q3uFL90h2KU4SZrxhbDJ1bYBtWRPwvK');
+INSERT INTO public.super_admin_users VALUES ('195c4df6-56bc-49a8-92b1-46e9875a39e0', 'admin', 'admin', 'admin@admin.com', '$2a$10$.fx0hI3poqS9vF0wohAlD.Z7PuB87hhDJnCryS3AVSQeoGMAdCTYq');
 
 
 --
@@ -2685,7 +3198,15 @@ INSERT INTO public.super_admin_users VALUES ('c8da7017-1a74-466f-ba90-366d61d567
 -- Name: __drizzle_migrations___id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.__drizzle_migrations___id_seq', 24, true);
+SELECT pg_catalog.setval('public.__drizzle_migrations___id_seq', 45, true);
+
+
+--
+-- Name: __drizzle_migrations__ __drizzle_migrations___pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.__drizzle_migrations__
+    ADD CONSTRAINT __drizzle_migrations___pkey PRIMARY KEY (id);
 
 
 --
@@ -2710,6 +3231,22 @@ ALTER TABLE ONLY public.api_key
 
 ALTER TABLE ONLY public.api_key
     ADD CONSTRAINT api_key_secret_unique UNIQUE (secret);
+
+
+--
+-- Name: assessment_type assessment_type_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.assessment_type
+    ADD CONSTRAINT assessment_type_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: assessment_type assessment_type_type_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.assessment_type
+    ADD CONSTRAINT assessment_type_type_unique UNIQUE (type);
 
 
 --
@@ -2777,6 +3314,30 @@ ALTER TABLE ONLY public.country_accounts
 
 
 --
+-- Name: damages_division damages_division_damage_id_division_id_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.damages_division
+    ADD CONSTRAINT damages_division_damage_id_division_id_unique UNIQUE (damage_id, division_id);
+
+
+--
+-- Name: damages_division damages_division_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.damages_division
+    ADD CONSTRAINT damages_division_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: damages_geom damages_geom_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.damages_geom
+    ADD CONSTRAINT damages_geom_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: damages damages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2793,11 +3354,115 @@ ALTER TABLE ONLY public.deaths
 
 
 --
+-- Name: declaration_status declaration_status_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.declaration_status
+    ADD CONSTRAINT declaration_status_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: declaration_status declaration_status_status_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.declaration_status
+    ADD CONSTRAINT declaration_status_status_unique UNIQUE (status);
+
+
+--
+-- Name: disaster_event_assessment_sector dis_event_assessment_sector_assessment_id_sector_id_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_assessment_sector
+    ADD CONSTRAINT dis_event_assessment_sector_assessment_id_sector_id_unique UNIQUE (disaster_event_assessment_id, sector_id);
+
+
+--
 -- Name: disaster_event disaster_event_api_import_id_tenant_unique; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.disaster_event
     ADD CONSTRAINT disaster_event_api_import_id_tenant_unique UNIQUE (api_import_id, country_accounts_id);
+
+
+--
+-- Name: disaster_event_assessment_attachment disaster_event_assessment_attachment_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_assessment_attachment
+    ADD CONSTRAINT disaster_event_assessment_attachment_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: disaster_event_assessment disaster_event_assessment_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_assessment
+    ADD CONSTRAINT disaster_event_assessment_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: disaster_event_assessment_sector disaster_event_assessment_sector_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_assessment_sector
+    ADD CONSTRAINT disaster_event_assessment_sector_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: disaster_event_attachment disaster_event_attachment_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_attachment
+    ADD CONSTRAINT disaster_event_attachment_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: disaster_event_declaration_attachment disaster_event_declaration_attachment_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_declaration_attachment
+    ADD CONSTRAINT disaster_event_declaration_attachment_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: disaster_event_declaration disaster_event_declaration_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_declaration
+    ADD CONSTRAINT disaster_event_declaration_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: disaster_event_division disaster_event_division_disaster_event_id_division_id_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_division
+    ADD CONSTRAINT disaster_event_division_disaster_event_id_division_id_unique UNIQUE (disaster_event_id, division_id);
+
+
+--
+-- Name: disaster_event_division disaster_event_division_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_division
+    ADD CONSTRAINT disaster_event_division_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: disaster_event_geom disaster_event_geom_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_geom
+    ADD CONSTRAINT disaster_event_geom_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: disaster_event_link disaster_event_link_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_link
+    ADD CONSTRAINT disaster_event_link_pkey PRIMARY KEY (id);
 
 
 --
@@ -2809,11 +3474,51 @@ ALTER TABLE ONLY public.disaster_event
 
 
 --
+-- Name: disaster_event_response_attachment disaster_event_response_attachment_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_response_attachment
+    ADD CONSTRAINT disaster_event_response_attachment_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: disaster_event_response disaster_event_response_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_response
+    ADD CONSTRAINT disaster_event_response_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: disaster_records disaster_records_api_import_id_tenant_unique; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.disaster_records
     ADD CONSTRAINT disaster_records_api_import_id_tenant_unique UNIQUE (api_import_id, country_accounts_id);
+
+
+--
+-- Name: disaster_records_division disaster_records_division_disaster_record_id_division_id_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_records_division
+    ADD CONSTRAINT disaster_records_division_disaster_record_id_division_id_unique UNIQUE (disaster_record_id, division_id);
+
+
+--
+-- Name: disaster_records_division disaster_records_division_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_records_division
+    ADD CONSTRAINT disaster_records_division_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: disaster_records_geom disaster_records_geom_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_records_geom
+    ADD CONSTRAINT disaster_records_geom_pkey PRIMARY KEY (id);
 
 
 --
@@ -2830,6 +3535,30 @@ ALTER TABLE ONLY public.disaster_records
 
 ALTER TABLE ONLY public.displaced
     ADD CONSTRAINT displaced_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: disruption_division disruption_division_disruption_id_division_id_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disruption_division
+    ADD CONSTRAINT disruption_division_disruption_id_division_id_unique UNIQUE (disruption_id, division_id);
+
+
+--
+-- Name: disruption_division disruption_division_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disruption_division
+    ADD CONSTRAINT disruption_division_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: disruption_geom disruption_geom_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disruption_geom
+    ADD CONSTRAINT disruption_geom_pkey PRIMARY KEY (id);
 
 
 --
@@ -2873,6 +3602,14 @@ ALTER TABLE ONLY public.entity_validation_rejection
 
 
 --
+-- Name: event_causality event_causality_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.event_causality
+    ADD CONSTRAINT event_causality_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: event event_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2886,6 +3623,30 @@ ALTER TABLE ONLY public.event
 
 ALTER TABLE ONLY public.hazardous_event
     ADD CONSTRAINT hazardous_event_api_import_id_tenant_unique UNIQUE (api_import_id, country_accounts_id);
+
+
+--
+-- Name: hazardous_event_division hazardous_event_division_hazardous_event_id_division_id_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_division
+    ADD CONSTRAINT hazardous_event_division_hazardous_event_id_division_id_unique UNIQUE (hazardous_event_id, division_id);
+
+
+--
+-- Name: hazardous_event_division hazardous_event_division_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_division
+    ADD CONSTRAINT hazardous_event_division_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: hazardous_event_geom hazardous_event_geom_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_geom
+    ADD CONSTRAINT hazardous_event_geom_pkey PRIMARY KEY (id);
 
 
 --
@@ -2953,6 +3714,30 @@ ALTER TABLE ONLY public.instance_system_settings
 
 
 --
+-- Name: losses_division losses_division_loss_id_division_id_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.losses_division
+    ADD CONSTRAINT losses_division_loss_id_division_id_unique UNIQUE (loss_id, division_id);
+
+
+--
+-- Name: losses_division losses_division_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.losses_division
+    ADD CONSTRAINT losses_division_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: losses_geom losses_geom_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.losses_geom
+    ADD CONSTRAINT losses_geom_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: losses losses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2985,11 +3770,51 @@ ALTER TABLE ONLY public.noneco_losses
 
 
 --
+-- Name: notices notices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notices
+    ADD CONSTRAINT notices_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: organization organization___api_import_id_country_accounts_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.organization
+    ADD CONSTRAINT organization___api_import_id_country_accounts_id UNIQUE NULLS NOT DISTINCT (name, api_import_id, country_accounts_id);
+
+
+--
+-- Name: organization organization___id_country_accounts_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.organization
+    ADD CONSTRAINT organization___id_country_accounts_id UNIQUE (id, country_accounts_id);
+
+
+--
 -- Name: organization organization_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.organization
     ADD CONSTRAINT organization_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: response_type response_type_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.response_type
+    ADD CONSTRAINT response_type_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: response_type response_type_type_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.response_type
+    ADD CONSTRAINT response_type_type_unique UNIQUE (type);
 
 
 --
@@ -3065,10 +3890,171 @@ ALTER TABLE ONLY public."user"
 
 
 --
+-- Name: damages_geom_geom_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX damages_geom_geom_idx ON public.damages_geom USING gist (geom);
+
+
+--
+-- Name: dis_event_assessment_attachment_assessment_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX dis_event_assessment_attachment_assessment_id_idx ON public.disaster_event_assessment_attachment USING btree (disaster_event_assessment_id);
+
+
+--
+-- Name: dis_event_assessment_event_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX dis_event_assessment_event_id_idx ON public.disaster_event_assessment USING btree (disaster_event_id);
+
+
+--
+-- Name: dis_event_assessment_sector_assessment_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX dis_event_assessment_sector_assessment_id_idx ON public.disaster_event_assessment_sector USING btree (disaster_event_assessment_id);
+
+
+--
+-- Name: dis_event_assessment_sector_sector_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX dis_event_assessment_sector_sector_id_idx ON public.disaster_event_assessment_sector USING btree (sector_id);
+
+
+--
+-- Name: dis_event_assessment_type_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX dis_event_assessment_type_id_idx ON public.disaster_event_assessment USING btree (assessment_type_id);
+
+
+--
+-- Name: dis_event_decl_attachment_declaration_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX dis_event_decl_attachment_declaration_id_idx ON public.disaster_event_declaration_attachment USING btree (disaster_event_declaration_id);
+
+
+--
+-- Name: dis_event_declaration_event_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX dis_event_declaration_event_id_idx ON public.disaster_event_declaration USING btree (disaster_event_id);
+
+
+--
+-- Name: dis_event_declaration_status_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX dis_event_declaration_status_id_idx ON public.disaster_event_declaration USING btree (declaration_status_id);
+
+
+--
+-- Name: dis_event_resp_attachment_response_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX dis_event_resp_attachment_response_id_idx ON public.disaster_event_response_attachment USING btree (disaster_event_response_id);
+
+
+--
+-- Name: disaster_event_disaster_event_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX disaster_event_disaster_event_id_idx ON public.disaster_event USING btree (disaster_event_id);
+
+
+--
+-- Name: disaster_event_geom_geom_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX disaster_event_geom_geom_idx ON public.disaster_event_geom USING gist (geom);
+
+
+--
+-- Name: disaster_event_hazardous_event_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX disaster_event_hazardous_event_id_idx ON public.disaster_event USING btree (hazardous_event_id);
+
+
+--
+-- Name: disaster_event_response_disaster_event_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX disaster_event_response_disaster_event_id_idx ON public.disaster_event_response USING btree (disaster_event_id);
+
+
+--
+-- Name: disaster_event_response_response_type_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX disaster_event_response_response_type_id_idx ON public.disaster_event_response USING btree (response_type_id);
+
+
+--
+-- Name: disaster_records_geom_geom_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX disaster_records_geom_geom_idx ON public.disaster_records_geom USING gist (geom);
+
+
+--
+-- Name: disruption_geom_geom_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX disruption_geom_geom_idx ON public.disruption_geom USING gist (geom);
+
+
+--
 -- Name: division_level_idx; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX division_level_idx ON public.division USING btree (level);
+
+
+--
+-- Name: event_causality_triggered_disaster_event_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX event_causality_triggered_disaster_event_id_idx ON public.event_causality USING btree (triggered_disaster_event_id);
+
+
+--
+-- Name: event_causality_triggered_hazardous_event_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX event_causality_triggered_hazardous_event_id_idx ON public.event_causality USING btree (triggered_hazardous_event_id);
+
+
+--
+-- Name: event_causality_triggering_disaster_event_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX event_causality_triggering_disaster_event_id_idx ON public.event_causality USING btree (triggering_disaster_event_id);
+
+
+--
+-- Name: event_causality_triggering_hazardous_event_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX event_causality_triggering_hazardous_event_id_idx ON public.event_causality USING btree (triggering_hazardous_event_id);
+
+
+--
+-- Name: hazardous_event_geom_geom_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX hazardous_event_geom_geom_idx ON public.hazardous_event_geom USING gist (geom);
+
+
+--
+-- Name: losses_geom_geom_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX losses_geom_geom_idx ON public.losses_geom USING gist (geom);
 
 
 --
@@ -3172,6 +4158,30 @@ ALTER TABLE ONLY public.damages
 
 
 --
+-- Name: damages_division damages_division_damage_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.damages_division
+    ADD CONSTRAINT damages_division_damage_id_fkey FOREIGN KEY (damage_id) REFERENCES public.damages(id) ON DELETE CASCADE;
+
+
+--
+-- Name: damages_division damages_division_division_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.damages_division
+    ADD CONSTRAINT damages_division_division_id_fkey FOREIGN KEY (division_id) REFERENCES public.division(id);
+
+
+--
+-- Name: damages_geom damages_geom_damage_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.damages_geom
+    ADD CONSTRAINT damages_geom_damage_id_fkey FOREIGN KEY (damage_id) REFERENCES public.damages(id) ON DELETE CASCADE;
+
+
+--
 -- Name: damages damages_record_id_disaster_records_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3196,6 +4206,54 @@ ALTER TABLE ONLY public.deaths
 
 
 --
+-- Name: disaster_event_assessment disaster_event_assessment_assessment_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_assessment
+    ADD CONSTRAINT disaster_event_assessment_assessment_type_id_fkey FOREIGN KEY (assessment_type_id) REFERENCES public.assessment_type(id);
+
+
+--
+-- Name: disaster_event_assessment_attachment disaster_event_assessment_att_disaster_event_assessment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_assessment_attachment
+    ADD CONSTRAINT disaster_event_assessment_att_disaster_event_assessment_id_fkey FOREIGN KEY (disaster_event_assessment_id) REFERENCES public.disaster_event_assessment(id) ON DELETE CASCADE;
+
+
+--
+-- Name: disaster_event_assessment disaster_event_assessment_disaster_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_assessment
+    ADD CONSTRAINT disaster_event_assessment_disaster_event_id_fkey FOREIGN KEY (disaster_event_id) REFERENCES public.disaster_event(id) ON DELETE CASCADE;
+
+
+--
+-- Name: disaster_event_assessment_sector disaster_event_assessment_sec_disaster_event_assessment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_assessment_sector
+    ADD CONSTRAINT disaster_event_assessment_sec_disaster_event_assessment_id_fkey FOREIGN KEY (disaster_event_assessment_id) REFERENCES public.disaster_event_assessment(id) ON DELETE CASCADE;
+
+
+--
+-- Name: disaster_event_assessment_sector disaster_event_assessment_sector_sector_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_assessment_sector
+    ADD CONSTRAINT disaster_event_assessment_sector_sector_id_fkey FOREIGN KEY (sector_id) REFERENCES public.sector(id);
+
+
+--
+-- Name: disaster_event_attachment disaster_event_attachment_disaster_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_attachment
+    ADD CONSTRAINT disaster_event_attachment_disaster_event_id_fkey FOREIGN KEY (disaster_event_id) REFERENCES public.disaster_event(id) ON DELETE CASCADE;
+
+
+--
 -- Name: disaster_event disaster_event_country_accounts_id_country_accounts_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3212,11 +4270,59 @@ ALTER TABLE ONLY public.disaster_event
 
 
 --
+-- Name: disaster_event_declaration_attachment disaster_event_declaration_at_disaster_event_declaration_i_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_declaration_attachment
+    ADD CONSTRAINT disaster_event_declaration_at_disaster_event_declaration_i_fkey FOREIGN KEY (disaster_event_declaration_id) REFERENCES public.disaster_event_declaration(id) ON DELETE CASCADE;
+
+
+--
+-- Name: disaster_event_declaration disaster_event_declaration_declaration_status_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_declaration
+    ADD CONSTRAINT disaster_event_declaration_declaration_status_id_fkey FOREIGN KEY (declaration_status_id) REFERENCES public.declaration_status(id);
+
+
+--
+-- Name: disaster_event_declaration disaster_event_declaration_disaster_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_declaration
+    ADD CONSTRAINT disaster_event_declaration_disaster_event_id_fkey FOREIGN KEY (disaster_event_id) REFERENCES public.disaster_event(id) ON DELETE CASCADE;
+
+
+--
 -- Name: disaster_event disaster_event_disaster_event_id_disaster_event_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.disaster_event
     ADD CONSTRAINT disaster_event_disaster_event_id_disaster_event_id_fk FOREIGN KEY (disaster_event_id) REFERENCES public.disaster_event(id);
+
+
+--
+-- Name: disaster_event_division disaster_event_division_disaster_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_division
+    ADD CONSTRAINT disaster_event_division_disaster_event_id_fkey FOREIGN KEY (disaster_event_id) REFERENCES public.disaster_event(id) ON DELETE CASCADE;
+
+
+--
+-- Name: disaster_event_division disaster_event_division_division_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_division
+    ADD CONSTRAINT disaster_event_division_division_id_fkey FOREIGN KEY (division_id) REFERENCES public.division(id);
+
+
+--
+-- Name: disaster_event_geom disaster_event_geom_disaster_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_geom
+    ADD CONSTRAINT disaster_event_geom_disaster_event_id_fkey FOREIGN KEY (disaster_event_id) REFERENCES public.disaster_event(id) ON DELETE CASCADE;
 
 
 --
@@ -3260,11 +4366,43 @@ ALTER TABLE ONLY public.disaster_event
 
 
 --
+-- Name: disaster_event_link disaster_event_link_disaster_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_link
+    ADD CONSTRAINT disaster_event_link_disaster_event_id_fkey FOREIGN KEY (disaster_event_id) REFERENCES public.disaster_event(id) ON DELETE CASCADE;
+
+
+--
 -- Name: disaster_event disaster_event_published_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.disaster_event
     ADD CONSTRAINT disaster_event_published_by_user_id_fkey FOREIGN KEY (published_by_user_id) REFERENCES public."user"(id) NOT VALID;
+
+
+--
+-- Name: disaster_event_response_attachment disaster_event_response_attachm_disaster_event_response_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_response_attachment
+    ADD CONSTRAINT disaster_event_response_attachm_disaster_event_response_id_fkey FOREIGN KEY (disaster_event_response_id) REFERENCES public.disaster_event_response(id) ON DELETE CASCADE;
+
+
+--
+-- Name: disaster_event_response disaster_event_response_disaster_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_response
+    ADD CONSTRAINT disaster_event_response_disaster_event_id_fkey FOREIGN KEY (disaster_event_id) REFERENCES public.disaster_event(id) ON DELETE CASCADE;
+
+
+--
+-- Name: disaster_event_response disaster_event_response_response_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event_response
+    ADD CONSTRAINT disaster_event_response_response_type_id_fkey FOREIGN KEY (response_type_id) REFERENCES public.response_type(id);
 
 
 --
@@ -3313,6 +4451,30 @@ ALTER TABLE ONLY public.disaster_records
 
 ALTER TABLE ONLY public.disaster_records
     ADD CONSTRAINT disaster_records_disaster_event_id_disaster_event_id_fk FOREIGN KEY (disaster_event_id) REFERENCES public.disaster_event(id);
+
+
+--
+-- Name: disaster_records_division disaster_records_division_disaster_record_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_records_division
+    ADD CONSTRAINT disaster_records_division_disaster_record_id_fkey FOREIGN KEY (disaster_record_id) REFERENCES public.disaster_records(id) ON DELETE CASCADE;
+
+
+--
+-- Name: disaster_records_division disaster_records_division_division_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_records_division
+    ADD CONSTRAINT disaster_records_division_division_id_fkey FOREIGN KEY (division_id) REFERENCES public.division(id);
+
+
+--
+-- Name: disaster_records_geom disaster_records_geom_disaster_record_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_records_geom
+    ADD CONSTRAINT disaster_records_geom_disaster_record_id_fkey FOREIGN KEY (disaster_record_id) REFERENCES public.disaster_records(id) ON DELETE CASCADE;
 
 
 --
@@ -3380,6 +4542,30 @@ ALTER TABLE ONLY public.displaced
 
 
 --
+-- Name: disruption_division disruption_division_disruption_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disruption_division
+    ADD CONSTRAINT disruption_division_disruption_id_fkey FOREIGN KEY (disruption_id) REFERENCES public.disruption(id) ON DELETE CASCADE;
+
+
+--
+-- Name: disruption_division disruption_division_division_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disruption_division
+    ADD CONSTRAINT disruption_division_division_id_fkey FOREIGN KEY (division_id) REFERENCES public.division(id);
+
+
+--
+-- Name: disruption_geom disruption_geom_disruption_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disruption_geom
+    ADD CONSTRAINT disruption_geom_disruption_id_fkey FOREIGN KEY (disruption_id) REFERENCES public.disruption(id) ON DELETE CASCADE;
+
+
+--
 -- Name: disruption disruption_record_id_disaster_records_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3412,6 +4598,38 @@ ALTER TABLE ONLY public.division
 
 
 --
+-- Name: event_causality event_causality_triggered_disaster_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.event_causality
+    ADD CONSTRAINT event_causality_triggered_disaster_event_id_fkey FOREIGN KEY (triggered_disaster_event_id) REFERENCES public.disaster_event(id) ON DELETE CASCADE;
+
+
+--
+-- Name: event_causality event_causality_triggered_hazardous_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.event_causality
+    ADD CONSTRAINT event_causality_triggered_hazardous_event_id_fkey FOREIGN KEY (triggered_hazardous_event_id) REFERENCES public.hazardous_event(id) ON DELETE CASCADE;
+
+
+--
+-- Name: event_causality event_causality_triggering_disaster_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.event_causality
+    ADD CONSTRAINT event_causality_triggering_disaster_event_id_fkey FOREIGN KEY (triggering_disaster_event_id) REFERENCES public.disaster_event(id) ON DELETE CASCADE;
+
+
+--
+-- Name: event_causality event_causality_triggering_hazardous_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.event_causality
+    ADD CONSTRAINT event_causality_triggering_hazardous_event_id_fkey FOREIGN KEY (triggering_hazardous_event_id) REFERENCES public.hazardous_event(id) ON DELETE CASCADE;
+
+
+--
 -- Name: event_relationship event_relationship_child_id_event_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3425,6 +4643,14 @@ ALTER TABLE ONLY public.event_relationship
 
 ALTER TABLE ONLY public.event_relationship
     ADD CONSTRAINT event_relationship_parent_id_event_id_fk FOREIGN KEY (parent_id) REFERENCES public.event(id);
+
+
+--
+-- Name: disaster_event fk_disaster_event_recording_org; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disaster_event
+    ADD CONSTRAINT fk_disaster_event_recording_org FOREIGN KEY (recording_organization_id, country_accounts_id) REFERENCES public.organization(id, country_accounts_id);
 
 
 --
@@ -3465,6 +4691,30 @@ ALTER TABLE ONLY public.hazardous_event
 
 ALTER TABLE ONLY public.hazardous_event
     ADD CONSTRAINT hazardous_event_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES public."user"(id) NOT VALID;
+
+
+--
+-- Name: hazardous_event_division hazardous_event_division_division_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_division
+    ADD CONSTRAINT hazardous_event_division_division_id_fkey FOREIGN KEY (division_id) REFERENCES public.division(id);
+
+
+--
+-- Name: hazardous_event_division hazardous_event_division_hazardous_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_division
+    ADD CONSTRAINT hazardous_event_division_hazardous_event_id_fkey FOREIGN KEY (hazardous_event_id) REFERENCES public.hazardous_event(id) ON DELETE CASCADE;
+
+
+--
+-- Name: hazardous_event_geom hazardous_event_geom_hazardous_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_geom
+    ADD CONSTRAINT hazardous_event_geom_hazardous_event_id_fkey FOREIGN KEY (hazardous_event_id) REFERENCES public.hazardous_event(id) ON DELETE CASCADE;
 
 
 --
@@ -3588,6 +4838,30 @@ ALTER TABLE ONLY public.instance_system_settings
 
 
 --
+-- Name: losses_division losses_division_division_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.losses_division
+    ADD CONSTRAINT losses_division_division_id_fkey FOREIGN KEY (division_id) REFERENCES public.division(id);
+
+
+--
+-- Name: losses_division losses_division_loss_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.losses_division
+    ADD CONSTRAINT losses_division_loss_id_fkey FOREIGN KEY (loss_id) REFERENCES public.losses(id) ON DELETE CASCADE;
+
+
+--
+-- Name: losses_geom losses_geom_loss_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.losses_geom
+    ADD CONSTRAINT losses_geom_loss_id_fkey FOREIGN KEY (loss_id) REFERENCES public.losses(id) ON DELETE CASCADE;
+
+
+--
 -- Name: losses losses_record_id_disaster_records_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3628,11 +4902,11 @@ ALTER TABLE ONLY public.noneco_losses
 
 
 --
--- Name: organization organization_country_accounts_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: notices notices_country_accounts_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organization
-    ADD CONSTRAINT organization_country_accounts_id_fkey FOREIGN KEY (country_accounts_id) REFERENCES public.country_accounts(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.notices
+    ADD CONSTRAINT notices_country_accounts_id_fk FOREIGN KEY (country_accounts_id) REFERENCES public.country_accounts(id) ON DELETE CASCADE;
 
 
 --

@@ -53,6 +53,7 @@ cp -f scripts/dts_database/upgrade_from_0.1.3_to_0.2.0.sql dts_shared_binary/dts
 cp -f scripts/dts_database/upgrade_from_0.2.0_to_0.2.1.sql dts_shared_binary/dts_database/upgrade_from_0.2.0_to_0.2.1.sql
 cp -f scripts/dts_database/upgrade_from_0.2.1_to_0.2.2.sql dts_shared_binary/dts_database/upgrade_from_0.2.1_to_0.2.2.sql
 cp -f scripts/dts_database/upgrade_from_0.2.2_to_0.2.3.sql dts_shared_binary/dts_database/upgrade_from_0.2.2_to_0.2.3.sql
+cp -f scripts/dts_database/upgrade_from_0.2.3_to_0.3.0.sql dts_shared_binary/dts_database/upgrade_from_0.2.3_to_0.3.0.sql
 
 # Step 8: Copy shell and batch scripts into dts_shared_binary
 next_step "Copying shell scripts into dts_shared_binary"

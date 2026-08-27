@@ -309,6 +309,13 @@
       "when": 1787139000000,
       "tag": "20260819113000_drop_disaster_event_recording_institution",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1787803100442,
+      "tag": "20260827035820_update_version_no_to_0_3_0",
+      "breakpoints": true
     }
   ]
 }
