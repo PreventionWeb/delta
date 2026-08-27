@@ -12,9 +12,10 @@ The initial sequence is:
 2. Adminer database administration interface
 3. Delta application
 4. Complete application validation
-5. Preparation for deployment to AKS
+5. Container image build and developer workflow review
+6. Preparation for deployment to AKS
 
-This approach makes it easier to identify whether issues originate from the application, container configuration, Kubernetes networking, or dependencies between components.
+This approach makes it easier to identify whether issues originate from the application, container configuration, Kubernetes networking, image distribution, or dependencies between components.
 
 ## 2. What is Kubernetes?
 
@@ -62,7 +63,7 @@ Provides a stable network endpoint through which Pods can be reached.
 
 Pods may be replaced and their IP addresses may change. Services therefore provide stable names and addresses that other application components can use.
 
-For example, Adminer connects to the database using the Kubernetes Service name `delta-local-db` rather than the IP address of the current database Pod.
+For example, Adminer and Delta connect to the database using the Kubernetes Service name `delta-local-db` rather than the IP address of the current database Pod.
 
 ### ConfigMap
 
@@ -72,7 +73,7 @@ Stores non-sensitive application configuration independently from the container 
 
 Stores sensitive configuration such as credentials or keys.
 
-For the initial local PoC, test database credentials are defined directly in the Deployment configuration for simplicity. Production credentials should be handled using an appropriate secrets-management mechanism.
+For the initial local PoC, test database credentials and development-only values are defined directly in the Deployment configuration for simplicity. Production credentials should be handled using an appropriate secrets-management mechanism.
 
 ### Port forwarding
 
@@ -90,9 +91,9 @@ The forwarding exists only while the `kubectl port-forward` command is running.
 
 ## 5. Existing Delta architecture and baseline
 
-Before starting the migration, the latest `dev` branch was pulled and the existing Delta Docker environment was restored and validated.
+Before starting the migration, the latest `dev` branch was restored and the existing Delta Docker environment was validated.
 
-The existing Docker Compose environment contains three services:
+The existing local Docker Compose environment contains three services:
 
 | Service   | Image                    | Host port | Container port | Purpose                           |
 | --------- | ------------------------ | --------: | -------------: | --------------------------------- |
@@ -102,9 +103,92 @@ The existing Docker Compose environment contains three services:
 
 The existing Docker-based environment remains operational during the Kubernetes PoC. The Kubernetes configuration must not interfere with the existing Docker Desktop environment or other Docker-based development environments.
 
+### Delta container models
+
+Review of the repository identified three container/deployment models serving different purposes.
+
+#### Local development
+
+The standard `docker-compose.yml` uses `Dockerfile.app` to create the local development runtime image:
+
+```text
+delta/local-app
+```
+
+This image does not contain the Delta application source code itself. Docker Compose bind-mounts the local source directory into `/delta` inside the running container.
+
+Conceptually:
+
+```text
+Local source code
+      ↓
+bind mount
+      ↓
+/delta inside container
+      ↓
+Node development runtime
+```
+
+This provides a convenient development workflow because developers can modify source files locally without rebuilding and publishing a new container image after each change.
+
+The image is therefore primarily a **local development runtime image** rather than a self-contained deployable Delta application image.
+
+#### Deployable development image
+
+The repository also contains `Dockerfile.dev`, which builds a self-contained development image.
+
+Unlike `Dockerfile.app`, it installs the application dependencies and copies the Delta source code into the image. The existing shared development environment uses:
+
+```text
+ghcr.io/preventionweb/delta-country:dev-latest
+```
+
+This image can therefore be executed without mounting the source tree from the developer workstation and is more appropriate for Kubernetes.
+
+#### Production image
+
+A separate `Dockerfile.prod` provides the production build. It uses a multi-stage build process in which the application is built in a builder stage and the required runtime artifacts are copied into the final production image.
+
+The existing production environment uses:
+
+```text
+ghcr.io/preventionweb/delta-country:prod-latest
+```
+
+The overall distinction is:
+
+```text
+Local development
+Dockerfile.app + docker-compose.yml
+        ↓
+source mounted from developer workstation
+        ↓
+fast edit/test workflow
+
+Shared development environment
+Dockerfile.dev
+        ↓
+self-contained development image
+        ↓
+container registry
+        ↓
+deployed development environment
+
+Production environment
+Dockerfile.prod
+        ↓
+optimized self-contained production image
+        ↓
+container registry
+        ↓
+production environment
+```
+
+For the Kubernetes PoC, the existing self-contained development image is used initially rather than reproducing the local Docker Compose bind-mount model.
+
 ### Performance baseline
 
-The first Delta page currently takes approximately **2.2 minutes** to load in the existing local Docker environment.
+The first Delta page was observed taking approximately **2.2 minutes** to load in the existing local Docker environment, with a later measured request reaching approximately **287 seconds** before returning HTTP 200.
 
 This is recorded as a baseline so that existing application performance is not incorrectly attributed to Kubernetes during subsequent testing.
 
@@ -127,11 +211,7 @@ A simple nginx Deployment was initially used to validate basic Kubernetes functi
 - Service
 - port forwarding
 
-The Kubernetes PoC work is maintained in a dedicated Git branch:
-
-```bash
-git checkout -b kubernetes-poc
-```
+The Kubernetes PoC work is maintained in a dedicated Git branch. After the Delta repository moved to the new GitHub organization, the PoC commit was reapplied on a branch based on the new repository's `dev` branch.
 
 Kubernetes manifests are stored separately under:
 
@@ -139,17 +219,7 @@ Kubernetes manifests are stored separately under:
 k8s/
 ```
 
-The initial structure is:
-
-```text
-k8s/
-├── db-deployment.yaml
-├── db-service.yaml
-├── adminer-deployment.yaml
-└── adminer-service.yaml
-```
-
-Additional manifests will be added as further Delta components are migrated.
+The manifests are separated by component so that each Kubernetes resource remains easy to understand and maintain.
 
 ## 7. Migration steps
 
@@ -301,17 +371,240 @@ A successful login to the PostgreSQL/PostGIS database through Adminer confirmed 
 - Adminer could communicate with the database Service;
 - the database Service correctly routed traffic to the PostGIS Pod.
 
-At this stage, two components of the Delta environment are running and communicating successfully inside Kubernetes.
+### Step 4 - Review the Delta image build model
+
+Before deploying the Delta application, the existing image build process was reviewed.
+
+An initial inspection of the locally built image showed that `/delta` was empty when the image was run without Docker Compose:
+
+```bash
+docker run --rm delta/local-app ls -la /delta
+```
+
+This confirmed that the local `delta/local-app` image depends on the Docker Compose bind mount and is not self-contained.
+
+Review of `Dockerfile.dev`, `Dockerfile.prod`, `docker-compose.dev.yml` and `docker-compose.prod.yml` showed that Delta already has separate self-contained images for deployed development and production environments.
+
+This avoided unnecessarily redesigning the existing container build process as part of the Kubernetes PoC.
+
+### Step 5 - Create the Delta application Service
+
+A Kubernetes Service was created for the Delta application:
+
+```yaml
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: delta-local-app
+
+spec:
+  selector:
+    app: delta-local-app
+
+  ports:
+    - port: 3000
+      targetPort: 3000
+```
+
+The Service provides a stable internal endpoint for the Delta application independently of the individual application Pod.
+
+### Step 6 - Create the Delta application Deployment
+
+The application was configured to connect to PostgreSQL through the Kubernetes database Service:
+
+```yaml
+env:
+  - name: DATABASE_URL
+    value: "postgresql://postgres:postgres@delta-local-db:5432/dts-shared-01"
+
+  - name: SESSION_SECRET
+    value: "not-random-dev-secret"
+
+  - name: EMAIL_TRANSPORT
+    value: "file"
+
+  - name: AUTHENTICATION_SUPPORTED
+    value: "form"
+
+  - name: PUBLIC_URL
+    value: "http://localhost:13000"
+
+  - name: EMAIL_FROM
+    value: '"Example (from Kubernetes PoC)" <no-reply@example.com>'
+
+  - name: TZ
+    value: "UTC"
+```
+
+The important networking difference from Docker Compose is the database hostname.
+
+Docker Compose uses:
+
+```text
+db
+```
+
+Kubernetes uses:
+
+```text
+delta-local-db
+```
+
+because `delta-local-db` is the Kubernetes Service providing access to PostgreSQL.
+
+The resulting path is:
+
+```text
+Delta application Pod
+        ↓
+delta-local-db:5432
+        ↓
+Database Service
+        ↓
+PostGIS Pod
+```
+
+### Step 7 - Diagnose application image availability
+
+The first application Deployment used the locally built image:
+
+```text
+delta/local-app
+```
+
+Kubernetes attempted to retrieve this image from Docker Hub and returned:
+
+```text
+ImagePullBackOff
+```
+
+The Deployment was temporarily changed to:
+
+```yaml
+imagePullPolicy: Never
+```
+
+which resulted in:
+
+```text
+ErrImageNeverPull
+```
+
+This demonstrated that the locally built Docker image was not available in the Kubernetes node image store.
+
+More importantly, the earlier image inspection had already shown that `delta/local-app` was not the appropriate deployable image because it depends on the local source-code bind mount.
+
+The Deployment was therefore changed to the existing self-contained development image:
+
+```yaml
+image: ghcr.io/preventionweb/delta-country:dev-latest
+```
+
+Kubernetes successfully retrieved this image from the container registry.
+
+### Step 8 - Validate the self-contained image
+
+Before starting Delta itself, the application Deployment was temporarily configured with a diagnostic command:
+
+```yaml
+command:
+  - sh
+  - -c
+  - |
+    echo "Delta Kubernetes diagnostic container started"
+    echo "Contents of /delta:"
+    ls -la /delta
+    sleep 3600
+```
+
+The Pod successfully reached:
+
+```text
+1/1 Running
+```
+
+Inspection of `/delta` confirmed that the image contains the complete Delta application, including the application source, `package.json`, `yarn.lock` and installed dependencies.
+
+The temporary diagnostic command was then removed so that the image could execute its normal startup command.
+
+### Step 9 - Start the Delta application in Kubernetes
+
+After removing the diagnostic command, the Deployment was reapplied:
+
+```bash
+kubectl apply -f delta-app-deployment.yml
+```
+
+The application Pod successfully started.
+
+The logs showed that the database migrations were applied:
+
+```text
+Using 'pg' driver for database querying
+migrations applied successfully!
+Done in 3.56s.
+```
+
+The Delta development server then started successfully:
+
+```text
+$ /delta/node_modules/.bin/react-router dev --host 0.0.0.0 --port 3000
+
+[timer] vite config resolved: 0.52s
+[timer] build start (dep scan begins): 0.70s
+[timer] server LISTENING: 0.86s
+
+Local:   http://localhost:3000/
+Network: http://<pod-ip>:3000/
+```
+
+At this stage, Kubernetes reported all three Delta components as running:
+
+```text
+delta-adminer-app    1/1 Running
+delta-local-app      1/1 Running
+delta-local-db       1/1 Running
+```
+
+This represents the first complete startup of the Delta application stack inside the local Kubernetes cluster.
+
+### Step 10 - Expose Delta locally for browser validation
+
+The Delta Service can be temporarily exposed to the workstation using:
+
+```bash
+kubectl port-forward service/delta-local-app 13000:3000
+```
+
+The Kubernetes-hosted application can then be accessed at:
+
+```text
+http://localhost:13000
+```
+
+This keeps the existing Docker Compose and Kubernetes environments separate:
+
+```text
+Docker Compose Delta     http://localhost:3000
+Kubernetes Delta         http://localhost:13000
+```
+
+This provides a convenient mechanism for direct functional and performance comparison between the existing local Docker development environment and the Kubernetes PoC.
 
 ## 8. Issues and resolutions
 
-| Issue                                                               | Cause                                                                         | Resolution                                                                                                                            |
-| ------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| PostGIS Pod started and immediately terminated                      | Required PostgreSQL environment variables were missing                        | Added `POSTGRES_USER`, `POSTGRES_PASSWORD` and `POSTGRES_DB` to the database Deployment                                               |
-| Database was initially configured with port 15432 inside Kubernetes | Host ports and Kubernetes internal ports were initially treated as equivalent | Restored PostgreSQL to its standard internal port 5432 and used port forwarding to map workstation port 15432 to Kubernetes port 5432 |
-| Initial Service still referenced `delta-web`                        | Service configuration originated from the initial nginx/web test              | Removed the obsolete Service and created `delta-local-db` with the correct selector                                                   |
-| Adminer initially used Docker-style database hostname `db`          | Kubernetes workloads should use the Kubernetes Service name                   | Configured `ADMINER_DEFAULT_SERVER` as `delta-local-db`                                                                               |
-| Existing Docker services already use ports 5432 and 8080            | Docker host ports must remain available during the PoC                        | Used local ports 15432 and 18080 for Kubernetes port-forward testing                                                                  |
+| Issue                                                                          | Cause                                                                               | Resolution                                                                                                                            |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| PostGIS Pod started and immediately terminated                                 | Required PostgreSQL environment variables were missing                              | Added `POSTGRES_USER`, `POSTGRES_PASSWORD` and `POSTGRES_DB` to the database Deployment                                               |
+| Database was initially configured with port 15432 inside Kubernetes            | Host ports and Kubernetes internal ports were initially treated as equivalent       | Restored PostgreSQL to its standard internal port 5432 and used port forwarding to map workstation port 15432 to Kubernetes port 5432 |
+| Initial Service still referenced `delta-web`                                   | Service configuration originated from the initial nginx/web test                    | Removed the obsolete Service and created `delta-local-db` with the correct selector                                                   |
+| Adminer initially used Docker-style database hostname `db`                     | Kubernetes workloads should use the Kubernetes Service name                         | Configured Adminer to use `delta-local-db`                                                                                            |
+| Existing Docker services already use ports 5432, 8080 and 3000                 | Docker host ports must remain available during the PoC                              | Used ports 15432, 18080 and 13000 respectively for Kubernetes port-forward testing                                                    |
+| Kubernetes returned `ImagePullBackOff` for `delta/local-app`                   | Kubernetes attempted to retrieve the locally named image from Docker Hub            | Investigated the Delta image build architecture                                                                                       |
+| Kubernetes returned `ErrImageNeverPull` after setting `imagePullPolicy: Never` | The image was not available in the Kubernetes node image store                      | Switched to the existing self-contained `ghcr.io/preventionweb/delta-country:dev-latest` image                                        |
+| `delta/local-app` did not contain the Delta source code                        | It is designed for local Docker Compose development and relies on a host bind mount | Used the existing self-contained development image built using `Dockerfile.dev`                                                       |
+| Initial Delta Kubernetes Pod ran but did not start Delta                       | A temporary diagnostic `command` overrode the image startup command                 | Removed the diagnostic command after validating the image contents                                                                    |
 
 ## 9. Validation
 
@@ -344,6 +637,41 @@ http://localhost:18080
 
 and successfully connected to the PostgreSQL/PostGIS database using the internal Kubernetes Service `delta-local-db`.
 
+### Delta application
+
+The Delta application Pod successfully starts using:
+
+```text
+ghcr.io/preventionweb/delta-country:dev-latest
+```
+
+Application startup successfully:
+
+1. connects to the Kubernetes-hosted PostgreSQL database;
+2. applies the required database migrations;
+3. starts the React Router/Vite development server;
+4. listens on port 3000 inside the Pod.
+
+The complete Kubernetes stack reports:
+
+```text
+delta-adminer-app    1/1 Running
+delta-local-app      1/1 Running
+delta-local-db       1/1 Running
+```
+
+Browser-level application validation is performed by forwarding the Delta Service:
+
+```bash
+kubectl port-forward service/delta-local-app 13000:3000
+```
+
+and accessing:
+
+```text
+http://localhost:13000
+```
+
 ### Existing Docker environment
 
 The existing Docker-based Delta environment remains operational independently of the Kubernetes environment.
@@ -352,7 +680,7 @@ This allows direct comparison between the existing deployment and the Kubernetes
 
 ## 10. Current status and next steps
 
-The following components have been migrated and validated:
+The following components have now been migrated:
 
 - [x] Local Kubernetes cluster
 - [x] PostgreSQL/PostGIS Deployment
@@ -361,16 +689,126 @@ The following components have been migrated and validated:
 - [x] Adminer Deployment
 - [x] Adminer Service
 - [x] Adminer-to-database communication through Kubernetes networking
-- [ ] Delta application Deployment
-- [ ] Delta application Service
-- [ ] Delta application configuration
-- [ ] Complete application validation
+- [x] Delta application Deployment
+- [x] Delta application Service
+- [x] Delta application database configuration
+- [x] Delta application container successfully started
+- [x] Database migrations successfully executed from the Delta application
+- [x] Delta development server successfully started inside Kubernetes
+- [ ] Complete browser-level application validation
+- [ ] Validate core application functionality against the Kubernetes database
 - [ ] Compare Kubernetes performance with the Docker baseline
-- [ ] Review configuration and secrets management
-- [ ] Commit completed Kubernetes configuration to the PoC branch
+- [ ] Review persistent storage requirements, particularly `/delta/uploads`
+- [ ] Review ConfigMap and Secret usage
+- [ ] Review readiness and liveness probes
+- [ ] Review resource requests and limits
+- [ ] Document the Delta development and production image build process in detail
+- [ ] Reproduce the Delta image build locally
+- [ ] Document a developer-friendly local Kubernetes workflow
+- [ ] Commit and push completed Kubernetes configuration to the PoC branch
+- [ ] Review container registry strategy for Azure
 - [ ] Prepare Azure Kubernetes Service deployment
 - [ ] Deploy and validate the PoC on AKS
+- [ ] Assess future CI/CD integration
 
-The next implementation step is to migrate the **Delta application itself**.
+### Current architecture
 
-Unlike the database and Adminer, this component has additional dependencies and application configuration. The existing Docker Compose configuration should therefore be reviewed before creating the Kubernetes Deployment so that environment variables, database connectivity and other application-specific requirements are reproduced correctly.
+The local Kubernetes PoC currently consists of:
+
+```text
+                         Local workstation
+                                │
+                  kubectl port-forward :13000
+                                │
+                                ▼
+                     delta-local-app Service
+                                │
+                                ▼
+                      Delta application Pod
+                                │
+                         DATABASE_URL
+                                │
+                                ▼
+                      delta-local-db Service
+                                │
+                                ▼
+                         PostGIS Pod
+
+
+                     delta-adminer Service
+                                │
+                                ▼
+                          Adminer Pod
+                                │
+                                └──────► delta-local-db Service
+```
+
+### Image build and deployment work
+
+The PoC identified an important distinction between Delta's local development and deployment container models.
+
+The current local Docker Compose workflow prioritizes rapid development by bind-mounting the developer's source tree into the container.
+
+The existing development and production deployment workflows instead use self-contained container images.
+
+The next phase of the PoC will document and validate the complete image lifecycle:
+
+```text
+Delta source
+     ↓
+Dockerfile.dev / Dockerfile.prod
+     ↓
+container build
+     ↓
+tagged image
+     ↓
+container registry
+     ↓
+Kubernetes
+     ↓
+AKS
+```
+
+This is important so that the Kubernetes PoC remains reproducible and does not depend on an image whose build process is treated as an external prerequisite.
+
+### Local Kubernetes development
+
+The PoC will also assess how developers can efficiently work with a local Kubernetes environment.
+
+The existing Docker Compose development workflow provides a fast feedback loop because application source code is mounted directly from the developer workstation.
+
+A Kubernetes development workflow should ideally preserve a reasonably fast edit/build/test cycle without requiring developers to manually publish every development image to a remote registry after each code change.
+
+Possible approaches will be evaluated after the basic Kubernetes deployment is complete.
+
+### Future CI/CD integration
+
+The Delta project is transitioning toward automated container build and deployment rather than relying only on the existing hosting process.
+
+The Kubernetes PoC should therefore consider how the architecture could eventually support a CI/CD workflow such as:
+
+```text
+Developer commit
+       ↓
+Source repository
+       ↓
+CI pipeline
+       ↓
+Build and test Delta image
+       ↓
+Publish versioned image
+       ↓
+Container registry
+       ↓
+Deployment pipeline
+       ↓
+AKS
+```
+
+Implementing the complete CI/CD pipeline is not required for the initial Kubernetes PoC, but the Kubernetes manifests and image strategy should avoid design decisions that would prevent this evolution.
+
+### Next milestone
+
+The immediate next milestone is to complete browser-level validation of the Delta application through the Kubernetes Service and confirm that the application operates correctly against the PostgreSQL/PostGIS database running inside Kubernetes.
+
+After successful local validation, the PoC can move from **application migration** toward **deployment engineering**: image builds, configuration management, persistent storage, health checks, registry integration, local Kubernetes developer workflow and preparation for AKS.
