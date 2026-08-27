@@ -313,6 +313,13 @@
     {
       "idx": 44,
       "version": "7",
+      "when": 1787803100400,
+      "tag": "20260827035819_clean_invalid_spatialdata",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
       "when": 1787803100442,
       "tag": "20260827035820_update_version_no_to_0_3_0",
       "breakpoints": true
