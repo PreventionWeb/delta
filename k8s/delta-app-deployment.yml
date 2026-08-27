@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: delta-local-app
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: delta-local-app
+
+  template:
+    metadata:
+      labels:
+        app: delta-local-app
+
+    spec:
+      containers:
+        - name: delta-local-app
+          image: ghcr.io/preventionweb/delta-country:dev-latest
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://postgres:postgres@delta-local-db:5432/dts-shared-01"
+            - name: SESSION_SECRET
+              value: "not-random-dev-secret"
+            - name: EMAIL_TRANSPORT
+              value: "file"
+            - name: AUTHENTICATION_SUPPORTED
+              value: "form"
+            - name: PUBLIC_URL
+              value: "http://localhost:13000"
+            - name: EMAIL_FROM
+              value: '"Example (from Kubernetes PoC)" <no-reply@example.com>'
+            - name: TZ
+              value: "UTC"
+          ports:
+            - containerPort: 3000
