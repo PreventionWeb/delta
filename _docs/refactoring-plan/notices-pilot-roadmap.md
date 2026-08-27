@@ -293,10 +293,43 @@ the `DRIZZLE_CLIENT` token and returns the Drizzle instance.
 
 ---
 
+### 🔷 3c — NestJS HTTP Server Bootstrap
+
+**Branch:** `feature/ca-nestjs-http-server`
+
+**Intent for `/opsx:propose`:**
+```bash
+Enable NestFactory.create(CoreModule) in app/init.server.tsx on process.env.API_PORT
+(default 3001) alongside the existing applicationContext so Remix loaders are unaffected —
+set global prefix /api/v2, register a global DomainErrorFilter that maps each DomainError
+subtype to the correct HTTP status code and ErrorResponse envelope per ADR-003, and log
+the API server start with a structured info event including the port
+```
+
+**Files touched:**
+- `app/init.server.tsx` (update — add HTTP app bootstrap, keep existing applicationContext)
+- `app/infrastructure/DomainErrorFilter.server.ts` (new — NestJS exception filter)
+- `app/infrastructure/CoreModule.server.ts` (update — register `DomainErrorFilter` as APP_FILTER global)
+
+**Test tier:** Integration — HTTP app starts; `DomainErrorFilter` maps `NotFoundError` → 404,
+`ValidationError` → 422, `AuthorizationError` → 403, `ConflictError` → 409 — each with the
+correct `ErrorResponse` shape including a `traceId` field.
+
+**Why now:** All three REST API endpoints (5c) depend on the HTTP server and the global error
+filter being live. Must complete before 5c begins.
+
+**Depends on:** 3b (already merged to dev)
+
+---
+
 ### 🏁 Phase 3 Gate
 
 `yarn dev` starts without error. NestJS application context bootstrap log line is
 visible in console output. `yarn tsc` clean.
+
+> **Updated gate (after 3c):** Both the application context and the HTTP API server start
+> without error. `curl http://localhost:3001/api/v2` returns a 404 (no routes yet — server
+> is live). `yarn tsc` clean.
 
 ---
 
@@ -509,7 +542,7 @@ for the Notices domain pass on `dev`.
 
 ---
 
-## Phase 5 — Route Adapter and Presentation
+## Phase 5 — Route Adapter, Presentation and REST API
 
 ### 🔷 5a — Notices Route Adapter
 
@@ -561,14 +594,105 @@ the error boundary renders with a visible, copyable error reference ID.
 
 ---
 
+### 🔷 5c — Notices REST API Controller
+
+**Branch:** `feature/ca-notices-rest-controller`
+
+**Depends on:** 3c (HTTP server) + 4h (NoticesModule wired into DI)
+
+**Intent for `/opsx:propose`:**
+```typescript
+Add NoticesController in app/domains/notices/presentation/NoticesController.ts as a
+NestJS @Controller('notices') registered in NoticesModule — five endpoints:
+GET / (ListNoticesUseCase), GET /:id (GetNoticeByIdUseCase), POST / (CreateNoticeUseCase),
+PUT /:id (UpdateNoticeUseCase), DELETE /:id (DeleteNoticeUseCase) — each endpoint extracts
+tenantId from an auth guard, resolves locale from the Accept-Language header (syntactically
+invalid tag → 400; unsupported-but-valid tag → silent fallback to user.preferredLocale →
+tenant.defaultLocale → "en"), maps NoticeDto LocaleMap fields to resolved strings before
+returning, wraps execution in withRequestContext({ traceId, tenantId }), and lets
+DomainErrorFilter handle all DomainError mapping; validate the :id path param as a UUID on
+GET/PUT/DELETE and the request body on POST/PUT — all via zod schemas and nestjs-zod's
+ZodValidationPipe, not class-validator, since zod is already DELTA's established validation
+library (see app/utils/geoValidation.ts); wire @nestjs/swagger + nestjs-zod's schema patch
+so the same zod schemas generate an OpenAPI document, served at /api/v2/docs
+```
+
+**Two new use cases required (not built in Phase 4):** Phase 4 (4d/4e/4f) only scoped
+`CreateNoticeUseCase`, `ListNoticesUseCase`, `GetNoticeByIdUseCase`. `PUT`/`DELETE` need
+`UpdateNoticeUseCase` and `DeleteNoticeUseCase` in
+`app/domains/notices/application/use-cases/`. No repository or schema changes are needed —
+`INoticeRepository.save()` (upsert) and `.delete()` (4b/4g, already merged) already support
+both operations.
+
+**Validation library (settled — do not re-open in spec):** `zod` + `nestjs-zod`, not
+`class-validator`/`class-transformer` — neither is installed anywhere in the repo, and
+introducing them would create a second, redundant validation stack alongside zod's existing
+use in `app/utils/geoValidation.ts`. `nestjs-zod`'s `createZodDto` doubles as the OpenAPI
+schema source via `patchNestJsSwagger()`, so validation rules and API docs never drift apart.
+
+**Locale resolution (settled — do not re-open in spec):**
+- `Accept-Language` absent → ADR-001 default chain: `user.preferredLocale` → `tenant.defaultLocale` → `"en"`
+- Valid BCP 47 tag, unsupported by DELTA → silent fallback to default chain (RFC 7231 / industry standard)
+- Syntactically invalid tag → 400 Bad Request with `ErrorResponse` listing supported locales
+- Controller maps `NoticeDto.titleJson[resolvedLocale] ?? titleJson["en"] ?? ""` before returning — a shared `resolveLocale()` utility in `app/shared/i18n/` must be introduced here
+- `Accept-Language` is a real HTTP list (`en-US,en;q=0.9`), not a single tag — parse accordingly, with primary-subtag folding (`en-US` → `en`)
+
+**Response shape (settled per [ADR-007](../decisions/ADR-007-success-response-shape.md) — do not re-open in spec):** every success response returns the resource or collection directly, no `{ success, data }` envelope; the error envelope from ADR-003 is unchanged and applies only to errors.
+
+**Files touched:**
+- `app/domains/notices/application/use-cases/UpdateNotice.ts` (new)
+- `app/domains/notices/application/use-cases/UpdateNotice.test.ts` (new)
+- `app/domains/notices/application/use-cases/DeleteNotice.ts` (new)
+- `app/domains/notices/application/use-cases/DeleteNotice.test.ts` (new)
+- `app/domains/notices/presentation/NoticesController.ts` (new)
+- `app/domains/notices/presentation/dto/CreateNoticeRequest.ts` (new — zod schema + `createZodDto`)
+- `app/domains/notices/presentation/dto/UpdateNoticeRequest.ts` (new — zod schema + `createZodDto`)
+- `app/domains/notices/presentation/dto/NoticeIdParam.ts` (new — zod UUID param schema + `createZodDto`)
+- `app/shared/i18n/resolveLocale.ts` (new — shared locale resolution utility)
+- `app/infrastructure/CoreModule.server.ts` or app bootstrap (update — `patchNestJsSwagger()` + mount Swagger UI at `/api/v2/docs`)
+- `app/domains/notices/infrastructure/NoticesModule.server.ts` (update — add controller + two new use cases)
+- `tests/integration/domains/notices/NoticesController.test.ts` (new)
+
+**Test tier:** Integration — NestJS supertest: `GET /api/v2/notices` returns 200 + locale-resolved
+response; `POST /api/v2/notices` returns 201 + `NoticeDto`; invalid POST/PUT body returns 422 +
+`ErrorResponse`; `PUT /api/v2/notices/:id` returns 200 + updated `NoticeDto`; `DELETE
+/api/v2/notices/:id` returns 204; a non-UUID `:id` on GET/PUT/DELETE returns 400; `GET
+/api/v2/notices/:id` with wrong tenant returns 404; unauthenticated request returns 401; invalid
+`Accept-Language` tag returns 400; unsupported-but-valid locale falls back silently;
+`/api/v2/docs` serves a valid OpenAPI document.
+
+> **Note on auth:** The pilot auth guard reuses the existing session infrastructure.
+> Bearer token / JWT support for mobile clients is deferred to a future intent when the
+> mobile channel is scoped. A broader session/IdP revocation hardening effort is tracked
+> separately in [ADR-006](../decisions/ADR-006-session-revocation-and-idp-trust.md) and
+> `auth-session-hardening-roadmap.md` — independent of this intent, currently a draft.
+
+---
+
 ### 🏁 Pilot Complete Gate
 
 All of the following must pass on `dev` before the pilot is declared done:
 
+**Web channel (5a + 5b):**
 - [ ] Notices list page renders at `/:lang/notices` for an authenticated user
 - [ ] Notices are scoped strictly to the authenticated user's tenant
 - [ ] Unauthenticated user is redirected to login
 - [ ] Unknown notice ID renders the `NoticeErrorBoundary` with a `traceId`
+
+**REST API channel (5c):**
+- [ ] `GET /api/v2/notices` returns 200 + `NoticeDto[]` for an authenticated tenant
+- [ ] `POST /api/v2/notices` with a valid body returns 201 + `NoticeDto`
+- [ ] `POST /api/v2/notices` / `PUT /api/v2/notices/:id` with an invalid body returns 422 +
+  `ErrorResponse` including `traceId`
+- [ ] `PUT /api/v2/notices/:id` with a valid body returns 200 + updated `NoticeDto`
+- [ ] `DELETE /api/v2/notices/:id` returns 204, and a subsequent `GET` for the same id returns 404
+- [ ] A non-UUID `:id` on `GET`/`PUT`/`DELETE` returns 400, not 500
+- [ ] `GET /api/v2/notices/:id` for a notice belonging to another tenant returns 404
+- [ ] Unauthenticated request to any `/api/v2/notices` endpoint returns 401
+- [ ] `GET /api/v2/docs` serves the interactive Swagger UI; `GET /api/v2/docs-json` serves a
+  valid OpenAPI document covering all five endpoints
+
+**Quality gates (both channels):**
 - [ ] All `yarn test:run2` tests green
 - [ ] All `yarn test:e2e` Playwright tests green
 - [ ] `yarn tsc` zero errors
@@ -585,7 +709,7 @@ Phase 1 (parallel):  P1-8 │ P1-10 │ P1-14
 Phase 2:             2a (dirs) ──────────────────────────────────► 3a (yarn add)
                      2b (DomainError) │ 2c (ILogger)
 
-Phase 3:             3a → 3b (CoreModule bootstrap)
+Phase 3:             3a → 3b (CoreModule bootstrap) → 3c (HTTP server + DomainErrorFilter)
 
 Phase 4:             4a (schema)
                      ├─► 4b (INoticeRepository port)
@@ -596,32 +720,35 @@ Phase 4:             4a (schema)
                      │   └─► 4g (DrizzleNoticeRepository)
                      └─────────────────────────────► 4h (NoticesModule)
 
-Phase 5:             5a (route adapter) → 5b (ErrorBoundary)
+Phase 5:             5a (route adapter) → 5b (ErrorBoundary)   [web channel]
+                     3c + 4h ──────────────────────► 5c (REST controller)  [API channel]
 ```
 
 ---
 
 ## All OpenSpec Intents at a Glance
 
-| #     | Intent                               | Branch                                 | Test tier    |
-| ----- | ------------------------------------ | -------------------------------------- | ------------ |
-| P1-8  | Dual layout routes (auth + public)   | `feature/ca-dual-layout-routes`        | Integration  |
-| P1-10 | ViewContext → useViewContext hook    | `feature/ca-view-context-hook`         | Unit         |
-| P1-12 | Props-down page component contract   | `feature/ca-props-down-contract`       | Unit         |
-| P1-14 | Session memoization + RequestContext | `feature/ca-session-memoization`       | Unit         |
-| 2b    | DomainError hierarchy                | `feature/ca-domain-error-hierarchy`    | Unit         |
-| 2c    | ILogger port + NoOpLogger            | `feature/ca-ilogger-port`              | tsc          |
-| 3b    | CoreModule NestJS bootstrap          | `feature/ca-nestjs-core-bootstrap`     | Integration  |
-| 4a    | Notices schema + migration           | `feature/ca-notices-schema-migration`  | PGlite       |
-| 4b    | INoticeRepository port               | `feature/ca-inotice-repository-port`   | tsc          |
-| 4c    | Notice domain entity                 | `feature/ca-notice-entity`             | Unit         |
-| 4d    | CreateNotice use case                | `feature/ca-create-notice-use-case`    | Unit         |
-| 4e    | ListNotices use case                 | `feature/ca-list-notices-use-case`     | Unit         |
-| 4f    | GetNoticeById use case               | `feature/ca-get-notice-by-id-use-case` | Unit         |
-| 4g    | DrizzleNoticeRepository              | `feature/ca-drizzle-notice-repository` | PGlite       |
-| 4h    | NoticesModule wiring                 | `feature/ca-notices-module`            | Integration  |
-| 5a    | Notices route adapter                | `feature/ca-notices-route-adapter`     | PGlite + E2E |
-| 5b    | Notices ErrorBoundary                | `feature/ca-notices-error-boundary`    | E2E          |
+| # | Intent | Branch | Test tier |
+|---|--------|--------|-----------|
+| P1-8 | Dual layout routes (auth + public) | `feature/ca-dual-layout-routes` | Integration |
+| P1-10 | ViewContext → useViewContext hook | `feature/ca-view-context-hook` | Unit |
+| P1-12 | Props-down page component contract | `feature/ca-props-down-contract` | Unit |
+| P1-14 | Session memoization + RequestContext | `feature/ca-session-memoization` | Unit |
+| 2b | DomainError hierarchy | `feature/ca-domain-error-hierarchy` | Unit |
+| 2c | ILogger port + NoOpLogger | `feature/ca-ilogger-port` | tsc |
+| 3b | CoreModule NestJS bootstrap | `feature/ca-nestjs-core-bootstrap` | Integration |
+| 3c | NestJS HTTP server + DomainErrorFilter | `feature/ca-nestjs-http-server` | Integration |
+| 4a | Notices schema + migration | `feature/ca-notices-schema-migration` | PGlite |
+| 4b | INoticeRepository port | `feature/ca-inotice-repository-port` | tsc |
+| 4c | Notice domain entity | `feature/ca-notice-entity` | Unit |
+| 4d | CreateNotice use case | `feature/ca-create-notice-use-case` | Unit |
+| 4e | ListNotices use case | `feature/ca-list-notices-use-case` | Unit |
+| 4f | GetNoticeById use case | `feature/ca-get-notice-by-id-use-case` | Unit |
+| 4g | DrizzleNoticeRepository | `feature/ca-drizzle-notice-repository` | PGlite |
+| 4h | NoticesModule wiring | `feature/ca-notices-module` | Integration |
+| 5a | Notices route adapter (web) | `feature/ca-notices-route-adapter` | PGlite + E2E |
+| 5b | Notices ErrorBoundary (web) | `feature/ca-notices-error-boundary` | E2E |
+| 5c | Notices REST API controller | `feature/ca-notices-rest-controller` | Integration |
 
 ---
 

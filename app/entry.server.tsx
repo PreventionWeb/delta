@@ -1,16 +1,22 @@
+import "reflect-metadata";
 import { PassThrough } from "node:stream";
 
-import type { EntryContext } from "react-router";
+import type { EntryContext, RouterContextProvider } from "react-router";
 import { createReadableStreamFromReadable } from "@react-router/node";
 import { ServerRouter } from "react-router";
 import * as isbotModule from "isbot";
 import { renderToPipeableStream } from "react-dom/server";
+import { I18nextProvider } from "react-i18next";
+import { getInstance } from "~/middleware/i18next.server";
 
 // OUR CODE
 
 import { initServer } from "./init.server";
 console.log("entry.server.tsx starting...");
-initServer();
+initServer().catch((err) => {
+	console.error("[initServer] Fatal bootstrap failure — halting process:", err);
+	process.exit(1);
+});
 
 // END OF OUR CODE
 
@@ -24,6 +30,8 @@ export default function handleRequest(
 	responseStatusCode: number,
 	responseHeaders: Headers,
 	reactRouterContext: EntryContext,
+	// present because future.v8_middleware is enabled — used for the i18next SSR provider below
+	routerContext: RouterContextProvider,
 ) {
 	let prohibitOutOfOrderStreaming =
 		isBotRequest(request.headers.get("user-agent")) ||
@@ -35,12 +43,14 @@ export default function handleRequest(
 				responseStatusCode,
 				responseHeaders,
 				reactRouterContext,
+				routerContext,
 			)
 		: handleBrowserRequest(
 				request,
 				responseStatusCode,
 				responseHeaders,
 				reactRouterContext,
+				routerContext,
 			);
 }
 
@@ -70,11 +80,14 @@ function handleBotRequest(
 	responseStatusCode: number,
 	responseHeaders: Headers,
 	reactRouterContext: EntryContext,
+	routerContext: RouterContextProvider,
 ) {
 	return new Promise((resolve, reject) => {
 		let shellRendered = false;
 		const { pipe, abort } = renderToPipeableStream(
-			<ServerRouter context={reactRouterContext} url={request.url} />,
+			<I18nextProvider i18n={getInstance(routerContext)}>
+				<ServerRouter context={reactRouterContext} url={request.url} />
+			</I18nextProvider>,
 			{
 				onAllReady() {
 					shellRendered = true;
@@ -129,11 +142,14 @@ function handleBrowserRequest(
 	responseStatusCode: number,
 	responseHeaders: Headers,
 	reactRouterContext: EntryContext,
+	routerContext: RouterContextProvider,
 ) {
 	return new Promise((resolve, reject) => {
 		let shellRendered = false;
 		const { pipe, abort } = renderToPipeableStream(
-			<ServerRouter context={reactRouterContext} url={request.url} />,
+			<I18nextProvider i18n={getInstance(routerContext)}>
+				<ServerRouter context={reactRouterContext} url={request.url} />
+			</I18nextProvider>,
 			{
 				onShellReady() {
 					shellRendered = true;

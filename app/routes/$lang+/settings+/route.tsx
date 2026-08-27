@@ -4,7 +4,7 @@ import { authLoader } from "~/utils/auth";
 import { getLanguage } from "~/utils/lang.backend";
 
 export const loader = authLoader(async (loaderArgs) => {
-	const url = new URL(loaderArgs.request.url);
+	const url = loaderArgs.url;
 	const lang = getLanguage(loaderArgs);
 
 	if (

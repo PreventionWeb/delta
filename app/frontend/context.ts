@@ -4,37 +4,85 @@ import { UserForFrontend } from "~/utils/auth";
 import {
 	createTranslator,
 	parseLanguageAndDebugFlag,
-	TranslationGetter,
 	Translator,
 } from "~/utils/translator";
 import { DContext } from "~/utils/dcontext";
 import { CommonData } from "~/backend.server/handlers/commondata";
 import type {} from "~/types/createTranslationGetter.d";
 
-export class ViewContext implements DContext {
+export interface ViewContextResult extends DContext {
+	user: UserForFrontend | null;
+}
+
+type ViewContextInit = {
+	lang: string;
+	user?: UserForFrontend | null;
+};
+
+function createViewContextFromInit(init: ViewContextInit): ViewContextResult {
+	const lang = init.lang;
+	const user = init.user ?? null;
+
+	const { baseLang, isDebug } = parseLanguageAndDebugFlag(lang);
+	const translationGetter = globalThis.createTranslationGetter(baseLang);
+	const t = createTranslator(translationGetter, baseLang, isDebug);
+
+	return {
+		t,
+		lang,
+		user,
+		url: (path: string) => urlLang(lang, path),
+	};
+}
+
+/**
+ * Custom React hook that reads root loader data and returns a fully resolved
+ * view context.  All presentation-layer components should call this hook
+ * directly rather than instantiating ViewContext with `new`.
+ *
+ * Throws if root loader data is absent or the lang field is empty, which
+ * mirrors the guard that existed in the original ViewContext constructor.
+ */
+export function useViewContext(): ViewContextResult {
+	const rootData = useRouteLoaderData("root") as CommonData;
+	// Accessing .common will throw a TypeError if rootData is undefined/null,
+	// which is the correct behaviour — callers must not receive silent undefined fields.
+	const commonData = rootData.common;
+
+	if (!commonData.lang) {
+		throw new Error("lang not passed to ViewContext");
+	}
+
+	return createViewContextFromInit({
+		lang: commonData.lang,
+		user: commonData.user,
+	});
+}
+
+/**
+ * @deprecated Use useViewContext() instead.
+ *
+ * Backward-compatible shim retained so that the 101 existing `new ViewContext()`
+ * callsites continue to compile and run without modification.  The constructor
+ * delegates entirely to useViewContext() and copies all returned fields onto
+ * `this`.  Migrate callsites incrementally to `useViewContext()` as part of the
+ * P1-12 follow-up sweep.
+ *
+ * NOTE: calling a hook inside a constructor still violates React's Rules of Hooks.
+ * This shim is intentionally temporary; it will be removed once all callsites
+ * have migrated to the hook.
+ */
+export class ViewContext implements ViewContextResult {
 	t: Translator;
 	lang: string;
 	user: UserForFrontend | null;
+	url: (path: string) => string;
 
-	constructor() {
-		const rootData = useRouteLoaderData("root") as CommonData;
-		const commonData = rootData.common;
-		if (!rootData.common.lang)
-			throw new Error("lang not passed to ViewContext");
-		this.lang = commonData.lang;
-		this.user = commonData.user;
-
-		{
-			const { baseLang, isDebug } = parseLanguageAndDebugFlag(this.lang);
-
-			let translationGetter: TranslationGetter;
-			translationGetter = globalThis.createTranslationGetter(baseLang);
-
-			this.t = createTranslator(translationGetter, baseLang, isDebug);
-		}
-	}
-
-	url(path: string): string {
-		return urlLang(this.lang, path);
+	constructor(init?: ViewContextInit) {
+		const ctx = init ? createViewContextFromInit(init) : useViewContext();
+		this.t = ctx.t;
+		this.lang = ctx.lang;
+		this.user = ctx.user;
+		this.url = ctx.url;
 	}
 }

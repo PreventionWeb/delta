@@ -215,7 +215,9 @@ export function LossesForm(props: LossesFormProps) {
 					divisions={divisionGeoJSON}
 					ctryIso3={ctryIso3 || ""}
 					treeData={treeData ?? []}
-					initialData={props?.fields?.spatialFootprint}
+					initialData={
+						((props?.fields as any)?.spatialFootprint as any[]) || []
+					}
 					geographicLevel={false}
 				/>
 			</Field>
@@ -306,7 +308,7 @@ export function LossesView(props: LossesViewProps) {
 		spatialFootprint: (
 			<SpatialFootprintView
 				ctx={ctx}
-				initialData={(props?.item?.spatialFootprint as any[]) || []}
+				initialData={((props?.item as any)?.spatialFootprint as any[]) || []}
 				mapViewerOption={0}
 				mapViewerDataSources={[]}
 			/>

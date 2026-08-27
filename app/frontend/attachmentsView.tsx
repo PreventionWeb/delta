@@ -18,13 +18,13 @@ export function AttachmentsView({
 	if (initialData) {
 		return (
 			<>
-				<p>
+				<p><strong>
 					{ctx.t({
 						code: "attachments",
 						msg: "Attachments",
 					})}
 					:
-				</p>
+				</strong></p>
 				{(() => {
 					try {
 						let attachments: any[] = []; // Ensure it's always an array

@@ -75,6 +75,10 @@ export function NavSettings({ ctx, userRole = "" }: NavSettingsProps) {
                     link: "settings/assets",
                     text: ctx.t({ code: "nav.assets", msg: "Assets" }),
                 },
+                {
+                    link: "settings/human-effects-dsg",
+                    text: ctx.t({ code: "nav.human_effects", msg: "Human effects" }),
+                },
             ];
         }
 
@@ -105,6 +109,10 @@ export function NavSettings({ ctx, userRole = "" }: NavSettingsProps) {
                 {
                     link: "about/support",
                     text: ctx.t({ code: "nav.support", msg: "Support" }),
+                },
+                {
+                    link: "about/faq",
+                    text: ctx.t({ code: "nav.faq", msg: "FAQ" }),
                 },
             ];
         }

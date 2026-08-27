@@ -55,7 +55,6 @@ test.beforeAll(async () => {
 			originatorRecorderInst: "1",
 			validatedBy: "1",
 			legacyData: [null],
-			spatialFootprint: [],
 			attachments: [],
 		});
 	});

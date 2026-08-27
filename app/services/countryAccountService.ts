@@ -7,7 +7,7 @@ import {
 	sendInviteForExistingCountryAccountAdminUser,
 	sendInviteForNewCountryAccountAdminUser,
 } from "~/backend.server/models/user/invite";
-import { dr } from "~/db.server";
+import { dr, Tx } from "~/db.server";
 import { AffectedRepository } from "~/db/queries/affectedRepository";
 import { ApiKeyRepository } from "~/db/queries/apiKeyRepository";
 import { AssetRepository } from "~/db/queries/assetRepository";
@@ -15,23 +15,35 @@ import { AuditLogsRepository } from "~/db/queries/auditLogsRepository";
 import { CountryRepository } from "~/db/queries/countriesRepository";
 import { CountryAccountsRepository } from "~/db/queries/countryAccountsRepository";
 import { DamagesRepository } from "~/db/queries/damagesRepository";
+import { DamagesGeomRepository } from "~/db/queries/damagesGeomRepository";
+import { DamagesDivisionRepository } from "~/db/queries/damagesDivisionRepository";
 import { DeathRepository } from "~/db/queries/deathRepository";
+import { DisasterEventAttachmentRepository } from "~/db/queries/disasterEventAttachmentRepository";
+import { DisasterEventLinkRepository } from "~/db/queries/disasterEventLinkRepository";
 import { DisasterEventRepository } from "~/db/queries/disasterEventRepository";
 import { DisasterRecordsRepository } from "~/db/queries/disasterRecordsRepository";
+import { DisasterRecordsGeomRepository } from "~/db/queries/disasterRecordsGeomRepository";
+import { DisasterRecordsDivisionRepository } from "~/db/queries/disasterRecordsDivisionRepository";
 import { DisplacedRepository } from "~/db/queries/displacedRepository";
 import { DisruptionRepository } from "~/db/queries/disruptionRepository";
+import { DisruptionGeomRepository } from "~/db/queries/disruptionGeomRepository";
+import { DisruptionDivisionRepository } from "~/db/queries/disruptionDivisionRepository";
 import { DivisionRepository } from "~/db/queries/divisonRepository";
 import { EntityValidationAssignmentRepository } from "~/db/queries/entityValidationAssignmentRepository";
 import { EventRepository } from "~/db/queries/eventRepository";
 import { EventRelationshipRepository } from "~/db/queries/eventRelationshipRepository";
 import { EntityValidationRejectionRepository } from "~/db/queries/entityValidationRejectionRepository";
 import { HazardousEventRepository } from "~/db/queries/hazardousEventRepository";
+import { HazardousEventGeomRepository } from "~/db/queries/hazardousEventGeomRepository";
+import { HazardousEventDivisionRepository } from "~/db/queries/hazardousEventDivisionRepository";
 import { HumanCategoryPresenceRepository } from "~/db/queries/humanCategoryPresenceRepository";
 import { HumanDsgConfigRepository } from "~/db/queries/humanDsgConfigRepository";
 import { HumanDsgRepository } from "~/db/queries/humanDsgRepository";
 import { InjuredRepository } from "~/db/queries/injuredRepository";
 import { InstanceSystemSettingRepository } from "~/db/queries/instanceSystemSettingRepository";
 import { LossesRepository } from "~/db/queries/lossesRepository";
+import { LossesGeomRepository } from "~/db/queries/lossesGeomRepository";
+import { LossesDivisionRepository } from "~/db/queries/lossesDivisionRepository";
 import { MissingRepository } from "~/db/queries/missingRepository";
 import { NonEcoLossesRepository } from "~/db/queries/nonEcoLossesRepository";
 import { OrganizationRepository } from "~/db/queries/organizationRepository";
@@ -73,6 +85,60 @@ function getMappedId(
 
 function getMappedIdOrOriginal(idMap: Map<string, string>, sourceId: string) {
 	return idMap.get(sourceId) ?? sourceId;
+}
+
+type SpatialCloneSpec = {
+	sourceIds: string[];
+	idMap: Map<string, string>;
+	sourceIdKey: string;
+	targetIdKey: string;
+	entityLabel: string;
+	tx: Tx;
+	getGeomRows: (ids: string[], tx?: Tx) => Promise<any[]>;
+	getDivisionRows: (ids: string[], tx?: Tx) => Promise<any[]>;
+	createGeomRows: (rows: any[], tx?: Tx) => Promise<any>;
+	createDivisionRows: (rows: any[], tx?: Tx) => Promise<any>;
+};
+
+async function cloneSpatialFootprintForEntity(spec: SpatialCloneSpec) {
+	if (spec.sourceIds.length === 0) {
+		return;
+	}
+
+	const [geomRows, divisionRows] = await Promise.all([
+		spec.getGeomRows(spec.sourceIds, spec.tx),
+		spec.getDivisionRows(spec.sourceIds, spec.tx),
+	]);
+
+	if (geomRows.length > 0) {
+		await spec.createGeomRows(
+			geomRows.map((row: any) => ({
+				...row,
+				id: randomUUID(),
+				[spec.targetIdKey]: getMappedId(
+					spec.idMap,
+					row[spec.sourceIdKey],
+					spec.entityLabel,
+				),
+			})),
+			spec.tx,
+		);
+	}
+
+	if (divisionRows.length > 0) {
+		await spec.createDivisionRows(
+			divisionRows.map((row: any) => ({
+				...row,
+				id: randomUUID(),
+				[spec.targetIdKey]: getMappedId(
+					spec.idMap,
+					row[spec.sourceIdKey],
+					spec.entityLabel,
+				),
+			})),
+			spec.tx,
+		);
+	}
 }
 
 function toPosixPath(filePath: string) {
@@ -178,6 +244,45 @@ function cloneAttachmentFileReference(
 			tenantPath: `${BASE_UPLOAD_PATH}/tenant-${targetCountryAccountId}`,
 		},
 	};
+}
+
+function cloneFileKeyForCountryAccount(
+	fileKey: string,
+	targetCountryAccountId: string,
+) {
+	if (!fileKey) {
+		return fileKey;
+	}
+
+	const resolved = resolveSourceAndDestinationRelativePaths(
+		String(fileKey),
+		targetCountryAccountId,
+	);
+
+	if (!resolved) {
+		return fileKey;
+	}
+
+	const sourceAbsolutePath = path.resolve(
+		process.cwd(),
+		resolved.sourceRelative,
+	);
+	const destinationAbsolutePath = path.resolve(
+		process.cwd(),
+		resolved.destinationRelative,
+	);
+
+	if (!fs.existsSync(sourceAbsolutePath)) {
+		console.warn(
+			`Attachment file not found during clone: ${sourceAbsolutePath}`,
+		);
+		return fileKey;
+	}
+
+	fs.mkdirSync(path.dirname(destinationAbsolutePath), { recursive: true });
+	fs.copyFileSync(sourceAbsolutePath, destinationAbsolutePath);
+
+	return `/${toPosixPath(resolved.destinationRelative)}`;
 }
 
 function cloneAttachmentsForCountryAccount(
@@ -749,6 +854,20 @@ export const CountryAccountService = {
 					})),
 					tx,
 				);
+
+				await cloneSpatialFootprintForEntity({
+					sourceIds: hazardousEvents.map((row) => row.id),
+					idMap: eventIdMap,
+					sourceIdKey: "hazardousEventId",
+					targetIdKey: "hazardousEventId",
+					entityLabel: "hazardous event",
+					tx,
+					getGeomRows: HazardousEventGeomRepository.getByHazardousEventIds,
+					getDivisionRows:
+						HazardousEventDivisionRepository.getByHazardousEventIds,
+					createGeomRows: HazardousEventGeomRepository.createMany,
+					createDivisionRows: HazardousEventDivisionRepository.createMany,
+				});
 			}
 
 			if (disasterEvents.length > 0) {
@@ -757,10 +876,6 @@ export const CountryAccountService = {
 						...row,
 						id: getMappedId(eventIdMap, row.id, "disaster event"),
 						countryAccountsId: newCountryAccountId,
-						attachments: cloneAttachmentsForCountryAccount(
-							row.attachments,
-							newCountryAccountId,
-						),
 						hazardousEventId: row.hazardousEventId
 							? getMappedId(eventIdMap, row.hazardousEventId, "hazardous event")
 							: null,
@@ -770,6 +885,59 @@ export const CountryAccountService = {
 					})),
 					tx,
 				);
+			}
+
+			const disasterEventIds = disasterEvents.map((row) => row.id);
+			if (disasterEventIds.length > 0) {
+				const disasterEventAttachments =
+					await DisasterEventAttachmentRepository.getByDisasterEventIds(
+						disasterEventIds,
+						tx,
+					);
+
+				if (disasterEventAttachments.length > 0) {
+					await DisasterEventAttachmentRepository.createMany(
+						disasterEventAttachments.map((row) => {
+							const mappedDisasterEventId = row.disasterEventId
+								? getMappedId(eventIdMap, row.disasterEventId, "disaster event")
+								: null;
+							const clonedFileKey = cloneFileKeyForCountryAccount(
+								row.fileKey,
+								newCountryAccountId,
+							);
+
+							return {
+								...row,
+								id: randomUUID(),
+								disasterEventId: mappedDisasterEventId,
+								fileKey: clonedFileKey,
+								fileName: clonedFileKey
+									? path.posix.basename(toPosixPath(clonedFileKey))
+									: row.fileName,
+							};
+						}),
+						tx,
+					);
+				}
+
+				const disasterEventLinks =
+					await DisasterEventLinkRepository.getByDisasterEventIds(
+						disasterEventIds,
+						tx,
+					);
+
+				if (disasterEventLinks.length > 0) {
+					await DisasterEventLinkRepository.createMany(
+						disasterEventLinks.map((row) => ({
+							...row,
+							id: randomUUID(),
+							disasterEventId: row.disasterEventId
+								? getMappedId(eventIdMap, row.disasterEventId, "disaster event")
+								: null,
+						})),
+						tx,
+					);
+				}
 			}
 
 			if (oldEventIds.length > 0) {
@@ -819,6 +987,20 @@ export const CountryAccountService = {
 					})),
 					tx,
 				);
+
+				await cloneSpatialFootprintForEntity({
+					sourceIds: disasterRecords.map((row) => row.id),
+					idMap: disasterRecordIdMap,
+					sourceIdKey: "disasterRecordId",
+					targetIdKey: "disasterRecordId",
+					entityLabel: "disaster record",
+					tx,
+					getGeomRows: DisasterRecordsGeomRepository.getByDisasterRecordIds,
+					getDivisionRows:
+						DisasterRecordsDivisionRepository.getByDisasterRecordIds,
+					createGeomRows: DisasterRecordsGeomRepository.createMany,
+					createDivisionRows: DisasterRecordsDivisionRepository.createMany,
+				});
 			}
 
 			const disasterRecordIds = disasterRecords.map((row) => row.id);
@@ -961,6 +1143,19 @@ export const CountryAccountService = {
 						})),
 						tx,
 					);
+
+					await cloneSpatialFootprintForEntity({
+						sourceIds: disruptionRows.map((row) => row.id),
+						idMap: disruptionIdMap,
+						sourceIdKey: "disruptionId",
+						targetIdKey: "disruptionId",
+						entityLabel: "disruption",
+						tx,
+						getGeomRows: DisruptionGeomRepository.getByDisruptionIds,
+						getDivisionRows: DisruptionDivisionRepository.getByDisruptionIds,
+						createGeomRows: DisruptionGeomRepository.createMany,
+						createDivisionRows: DisruptionDivisionRepository.createMany,
+					});
 				}
 
 				const humanCategoryPresenceRows =
@@ -1057,6 +1252,19 @@ export const CountryAccountService = {
 						})),
 						tx,
 					);
+
+					await cloneSpatialFootprintForEntity({
+						sourceIds: lossRows.map((row) => row.id),
+						idMap: lossIdMap,
+						sourceIdKey: "lossId",
+						targetIdKey: "lossId",
+						entityLabel: "loss",
+						tx,
+						getGeomRows: LossesGeomRepository.getByLossIds,
+						getDivisionRows: LossesDivisionRepository.getByLossIds,
+						createGeomRows: LossesGeomRepository.createMany,
+						createDivisionRows: LossesDivisionRepository.createMany,
+					});
 				}
 
 				const damageRows = await DamagesRepository.getByRecordIds(
@@ -1087,6 +1295,19 @@ export const CountryAccountService = {
 						})),
 						tx,
 					);
+
+					await cloneSpatialFootprintForEntity({
+						sourceIds: damageRowsWithAssetId.map((row) => row.id),
+						idMap: damageIdMap,
+						sourceIdKey: "damageId",
+						targetIdKey: "damageId",
+						entityLabel: "damage",
+						tx,
+						getGeomRows: DamagesGeomRepository.getByDamageIds,
+						getDivisionRows: DamagesDivisionRepository.getByDamageIds,
+						createGeomRows: DamagesGeomRepository.createMany,
+						createDivisionRows: DamagesDivisionRepository.createMany,
+					});
 				}
 
 				const entityIds = [
@@ -1271,36 +1492,46 @@ export const CountryAccountService = {
 				await LossesRepository.deleteByRecordIds(recordIds, tx);
 				await DamagesRepository.deleteByRecordIds(recordIds, tx);
 
-				EntityValidationAssignmentRepository.deleteByEntityIdsAndEntityType(
+				await EntityValidationAssignmentRepository.deleteByEntityIdsAndEntityType(
 					recordIds,
 					"disaster_records",
+					tx,
 				);
-				EntityValidationRejectionRepository.deleteByEntityIdsAndEntityType(
+				await EntityValidationRejectionRepository.deleteByEntityIdsAndEntityType(
 					recordIds,
 					"disaster_records",
 					tx,
 				);
 			}
 			if (hazardousEventIds.length > 0) {
-				EntityValidationAssignmentRepository.deleteByEntityIdsAndEntityType(
-					recordIds,
+				await EntityValidationAssignmentRepository.deleteByEntityIdsAndEntityType(
+					hazardousEventIds,
 					"hazardous_event",
 					tx,
 				);
-				EntityValidationRejectionRepository.deleteByEntityIdsAndEntityType(
-					recordIds,
+				await EntityValidationRejectionRepository.deleteByEntityIdsAndEntityType(
+					hazardousEventIds,
 					"hazardous_event",
 					tx,
 				);
 			}
 			if (disasterEventIds.length > 0) {
-				EntityValidationAssignmentRepository.deleteByEntityIdsAndEntityType(
-					recordIds,
+				await DisasterEventLinkRepository.deleteByDisasterEventIds(
+					disasterEventIds,
+					tx,
+				);
+				await DisasterEventAttachmentRepository.deleteByDisasterEventIds(
+					disasterEventIds,
+					tx,
+				);
+
+				await EntityValidationAssignmentRepository.deleteByEntityIdsAndEntityType(
+					disasterEventIds,
 					"disaster_event",
 					tx,
 				);
-				EntityValidationRejectionRepository.deleteByEntityIdsAndEntityType(
-					recordIds,
+				await EntityValidationRejectionRepository.deleteByEntityIdsAndEntityType(
+					disasterEventIds,
 					"disaster_event",
 					tx,
 				);

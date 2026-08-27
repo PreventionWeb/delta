@@ -96,12 +96,27 @@ Proceed only when all artifacts required for apply (`applyRequires`) show `statu
 - Covers both happy path and all meaningful failure paths
 - References the exact function or route being specified by name
 - Describes observable behaviour only — no implementation details
+- **Concurrent access rule:** For any requirement involving shared mutable state accessed
+  by async operations (caches, counters, stores, queues), always include a "concurrent
+  callers" scenario: what happens when two callers invoke the operation simultaneously
+  before the first resolves? State the expected outcome explicitly (e.g. "exactly one DB
+  query fires; both callers receive the same result"). Sequential scenarios alone do not
+  cover this class of bug — the concurrent scenario is mandatory whenever the state can
+  be observed by more than one async caller at the same time.
 
 **design.md**
 - Names every TypeScript type, interface, or Drizzle schema change
 - Justifies technical decisions with project conventions as the reference
 - Identifies test infrastructure needed (PGlite setup, real DB, mocks)
 - Notes any fieldsDef / Form-CSV-API pipeline impact
+- **If this change adds or modifies anything under `app/domains/*/presentation/` or a route's
+  rendered output:** name a real, existing reference page of the same page-type (list, detail,
+  form) already in the app, and state explicitly whether the new page matches that reference's
+  (a) page-header/layout wrapper (e.g. `MainContainer`) and (b) navigation affordances a user
+  would expect (e.g. a list page needs a way to reach its own detail page — cite how the
+  reference page solves this). Component-library choice (e.g. "uses DataTable") is not
+  sufficient on its own — layout wrapper and interaction affordances are separate decisions that
+  must each be named, not left for the implementer to infer.
 
 **tasks.md**
 - Ordered by TDD: failing test first, then implementation, then refactor
@@ -109,7 +124,7 @@ Proceed only when all artifacts required for apply (`applyRequires`) show `statu
 - Test files use `*.test.ts` naming — never `*_test.ts`
 - Setup import: `import "./setup"` for files in `tests/integration/db/`;
   `import "../setup"` for files in subdirectories (e.g. `tests/integration/db/queries/`)
-- The verification section MUST include all 7 quality gates in this order:
+- The verification section MUST include all quality gates in this order:
   1. `yarn vitest run <test-file>` — tests still green
   2. `yarn tsc` — zero TypeScript errors
   3. `yarn format:check` — Prettier clean
@@ -117,7 +132,11 @@ Proceed only when all artifacts required for apply (`applyRequires`) show `statu
   5. SOLID review — invoke `solid-reviewer` agent
   6. Documentation review — comments explain WHY not WHAT
   7. Project conventions review — check `.github/copilot-instructions.md`
-- After all 7 gates: add a final task to run `opsx:archive` on the same branch before raising the PR
+  8. Code review — run `.github/skills/code-review/SKILL.md` in full
+  9. Visual/UX parity review — render the page vs. a named reference page, required for any
+     presentation-layer change
+- After all 8 gates: add a mandatory regression task — `yarn test:run2` (full PGlite suite) MUST pass with no new failures before archiving. Pre-existing failures must be confirmed as pre-existing (not introduced by this change).
+- After the regression task: add a final task to run `opsx:archive` on the same branch before raising the PR
 - DB migrations listed explicitly as `yarn dbsync` — never drizzle-kit push
 
 ## Done condition

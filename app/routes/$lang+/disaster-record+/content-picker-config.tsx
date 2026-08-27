@@ -146,53 +146,7 @@ export function contentPickerConfig(ctx: DContext) {
 				},
 
 				{
-					column: disasterEventTable.disasterDeclarationTypeAndEffect1,
-					placeholder: "[safeSearchPattern]",
-				},
-				{
-					column: disasterEventTable.disasterDeclarationTypeAndEffect2,
-					placeholder: "[safeSearchPattern]",
-				},
-				{
-					column: disasterEventTable.disasterDeclarationTypeAndEffect3,
-					placeholder: "[safeSearchPattern]",
-				},
-				{
-					column: disasterEventTable.disasterDeclarationTypeAndEffect4,
-					placeholder: "[safeSearchPattern]",
-				},
-				{
-					column: disasterEventTable.disasterDeclarationTypeAndEffect5,
-					placeholder: "[safeSearchPattern]",
-				},
-
-				{
 					column: disasterEventTable.officialWarningAffectedAreas,
-					placeholder: "[safeSearchPattern]",
-				},
-				{
-					column: disasterEventTable.earlyActionDescription1,
-					placeholder: "[safeSearchPattern]",
-				},
-				{
-					column: disasterEventTable.earlyActionDescription2,
-					placeholder: "[safeSearchPattern]",
-				},
-				{
-					column: disasterEventTable.earlyActionDescription3,
-					placeholder: "[safeSearchPattern]",
-				},
-				{
-					column: disasterEventTable.earlyActionDescription4,
-					placeholder: "[safeSearchPattern]",
-				},
-				{
-					column: disasterEventTable.earlyActionDescription5,
-					placeholder: "[safeSearchPattern]",
-				},
-
-				{
-					column: disasterEventTable.responseOperations,
 					placeholder: "[safeSearchPattern]",
 				},
 
@@ -202,8 +156,13 @@ export function contentPickerConfig(ctx: DContext) {
 				},
 
 				{
-					column: disasterEventTable.recordingInstitution,
-					placeholder: "[safeSearchPattern]",
+					sql: (query: string) =>
+						sql`EXISTS (
+							SELECT 1 FROM organization o
+							WHERE o.id = ${disasterEventTable.recordingOrganizationId}
+								AND o.country_accounts_id = ${disasterEventTable.countryAccountsId}
+								AND o.name ILIKE ${query}
+						)`,
 				},
 
 				{

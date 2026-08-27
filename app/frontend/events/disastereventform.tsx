@@ -1,5 +1,3 @@
-import { useMatches } from "react-router";
-
 import { useEffect, useState, ReactElement, useRef } from "react";
 
 import {
@@ -15,7 +13,6 @@ import { LangLink } from "~/utils/link";
 import {
 	UserFormProps,
 	FormInputDef,
-	FieldsView,
 	FormView,
 	FieldErrors,
 	Field,
@@ -24,15 +21,9 @@ import {
 } from "~/frontend/form";
 import { approvalStatusField2 } from "../approval";
 import { formatDate } from "~/utils/date";
-import AuditLogHistory from "~/components/AuditLogHistory";
 import { HazardPicker, Hip } from "~/frontend/hip/hazardpicker";
-import { HipHazardInfo } from "~/frontend/hip/hip";
 
 import { SpatialFootprintFormView } from "~/frontend/spatialFootprintFormView";
-import { SpatialFootprintView } from "~/frontend/spatialFootprintView";
-import { AttachmentsFormView } from "~/frontend/attachmentsFormView";
-import { AttachmentsView } from "~/frontend/attachmentsView";
-import { TEMP_UPLOAD_PATH } from "~/utils/paths";
 import { ViewContext } from "../context";
 import { DContext } from "~/utils/dcontext";
 import { HazardousEventPickerType } from "~/routes/$lang+/hazardous-event+/picker";
@@ -46,8 +37,32 @@ import {
 	UserValidator,
 } from "~/frontend/components/approval-workflow/SaveSubmitDialog";
 import { ViewComponentMainDataCollection } from "../components/data-collection/View";
+import DisasterEventReviewStep from "~/frontend/disaster-event/DisasterEventReviewStep";
 
 export const route = "/disaster-event";
+
+export function formatAssessmentSectorSummary(sectorNames: string[]): string {
+	return sectorNames
+		.map((name) => name.trim())
+		.filter((name) => name.length > 0)
+		.filter((name, index, values) => values.indexOf(name) === index)
+		.join(", ");
+}
+
+export function resolveAssessmentSectorNames(
+	sectorIds: string[],
+	sectorNamesById: Map<string, string>,
+): string[] {
+	const seen = new Set<string>();
+	return sectorIds.flatMap((sectorId) => {
+		const name = sectorNamesById.get(sectorId);
+		if (!name || seen.has(name)) {
+			return [];
+		}
+		seen.add(name);
+		return [name];
+	});
+}
 
 function repeatOtherIds(
 	ctx: DContext,
@@ -66,197 +81,6 @@ function repeatOtherIds(
 			uiRow: i == 0 ? {} : undefined,
 			repeatable: { group: "otherId", index: i },
 		});
-	}
-	return res as FormInputDef<DisasterEventFields>[];
-}
-
-function repeatEarlyActions(
-	ctx: DContext,
-	n: number,
-): FormInputDef<DisasterEventFields>[] {
-	let res = [];
-	for (let i = 0; i < n; i++) {
-		res.push(
-			{
-				key: `earlyActionDescription` + (i + 1),
-				label: ctx.t({
-					code: "common.description",
-					msg: "Description",
-				}),
-				type: "textarea",
-				uiRow: {
-					label:
-						ctx.t({
-							code: "disaster_event.early_action",
-							msg: "Early action",
-						}) + ` (${i + 1})`,
-				},
-				repeatable: { group: "earlyAction", index: i },
-			},
-			{
-				key: `earlyActionDate` + (i + 1),
-				label: ctx.t({
-					code: "common.date",
-					msg: "Date",
-				}),
-				type: "date",
-				repeatable: { group: "earlyAction", index: i },
-			},
-		);
-	}
-	return res as FormInputDef<DisasterEventFields>[];
-}
-
-function repeatDisasterDeclarations(
-	ctx: DContext,
-	n: number,
-): FormInputDef<DisasterEventFields>[] {
-	let res = [];
-	for (let i = 0; i < n; i++) {
-		let j = i + 1;
-		res.push(
-			{
-				key: "disasterDeclarationTypeAndEffect" + j,
-				label: ctx.t({
-					code: "disaster_event.disaster_declaration_type_and_effect",
-					desc: "Label for type and effect field in disaster declaration",
-					msg: "Type and Effect",
-				}),
-				type: "textarea",
-				uiRow: {
-					label:
-						ctx.t({
-							code: "disaster_event.disaster_declaration",
-							msg: "Disaster declaration",
-						}) + ` (${j})`,
-				},
-				repeatable: { group: "disasterDeclaration", index: i },
-			},
-			{
-				key: "disasterDeclarationDate" + j,
-				label: ctx.t({
-					code: "common.date",
-					msg: "Date",
-				}),
-				type: "date",
-				repeatable: { group: "disasterDeclaration", index: i },
-			},
-		);
-	}
-	return res as FormInputDef<DisasterEventFields>[];
-}
-
-function repeatRapidOrPreliminaryAssesments(
-	ctx: DContext,
-	n: number,
-): FormInputDef<DisasterEventFields>[] {
-	let res = [];
-	for (let i = 0; i < n; i++) {
-		let j = i + 1;
-
-		res.push(
-			{
-				key: "rapidOrPreliminaryAssessmentDescription" + j,
-				label: ctx.t({
-					code: "common.description",
-					msg: "Description",
-				}),
-				type: "textarea",
-				uiRow: {
-					label:
-						ctx.t({
-							code: "disaster_event.rapid_preliminary_assessment",
-							msg: "Rapid/Preliminary assessment",
-						}) + ` (${j})`,
-				},
-				repeatable: { group: "rapidOrPreliminaryAssessment", index: i },
-			},
-			{
-				key: "rapidOrPreliminaryAssessmentDate" + j,
-				label: ctx.t({
-					code: "common.date",
-					msg: "Date",
-				}),
-				type: "date",
-				repeatable: { group: "rapidOrPreliminaryAssessment", index: i },
-			},
-		);
-	}
-	return res as FormInputDef<DisasterEventFields>[];
-}
-
-function repeatPostDisasterAssesments(
-	ctx: DContext,
-	n: number,
-): FormInputDef<DisasterEventFields>[] {
-	let res = [];
-	for (let i = 0; i < n; i++) {
-		let j = i + 1;
-		res.push(
-			{
-				key: "postDisasterAssessmentDescription" + j,
-				label: ctx.t({
-					code: "common.description",
-					msg: "Description",
-				}),
-				type: "textarea",
-				uiRow: {
-					label:
-						ctx.t({
-							code: "disaster_event.post_disaster_assessment",
-							msg: "Post‑disaster assessment",
-						}) + ` (${j})`,
-				},
-				repeatable: { group: "postDisasterAssessment", index: i },
-			},
-			{
-				key: "postDisasterAssessmentDate" + j,
-				label: ctx.t({
-					code: "common.date",
-					msg: "Date",
-				}),
-				type: "date",
-				repeatable: { group: "postDisasterAssessment", index: i },
-			},
-		);
-	}
-	return res as FormInputDef<DisasterEventFields>[];
-}
-
-function repeatOtherAssesments(
-	ctx: DContext,
-	n: number,
-): FormInputDef<DisasterEventFields>[] {
-	let res = [];
-	for (let i = 0; i < n; i++) {
-		let j = i + 1;
-		res.push(
-			{
-				key: "otherAssessmentDescription" + j,
-				label: ctx.t({
-					code: "common.description",
-					msg: "Description",
-				}),
-				type: "textarea",
-				uiRow: {
-					label:
-						ctx.t({
-							code: "disaster_event.other_assessment",
-							msg: "Other assessment",
-						}) + ` (${j})`,
-				},
-				repeatable: { group: "otherAssessment", index: i },
-			},
-			{
-				key: "otherAssessmentDate" + j,
-				label: ctx.t({
-					code: "common.date",
-					msg: "Date",
-				}),
-				type: "date",
-				repeatable: { group: "otherAssessment", index: i },
-			},
-		);
 	}
 	return res as FormInputDef<DisasterEventFields>[];
 }
@@ -324,12 +148,28 @@ export function fieldsDefCommon(
 			uiRow: {},
 		},
 		{
+			key: "startDateTime",
+			label: ctx.t({
+				code: "start_time",
+				msg: "Start time",
+			}),
+			type: "other",
+		},
+		{
 			key: "endDate",
 			label: ctx.t({
 				code: "common.end_date",
 				msg: "End date",
 			}),
 			type: "date_optional_precision",
+		},
+		{
+			key: "endDateTime",
+			label: ctx.t({
+				code: "end_time",
+				msg: "End time",
+			}),
+			type: "other",
 		},
 		{
 			key: "startDateLocal",
@@ -362,48 +202,6 @@ export function fieldsDefCommon(
 			uiRow: {},
 		},
 		{
-			// field definition
-			key: "disasterDeclaration",
-			label: ctx.t({
-				code: "disaster_event.disaster_declaration",
-				msg: "Disaster declaration",
-			}),
-			type: "enum",
-			required: true,
-			enumData: [
-				{
-					key: "unknown",
-					label: ctx.t({
-						code: "common.unknown",
-						msg: "Unknown",
-					}),
-				},
-				{
-					key: "yes",
-					label: ctx.t({
-						code: "common.yes",
-						desc: "Yes (true)",
-						msg: "Yes",
-					}),
-				},
-				{
-					key: "no",
-					label: ctx.t({
-						code: "common.no",
-						desc: "No (false)",
-						msg: "No",
-					}),
-				},
-			],
-			uiRow: {
-				label: ctx.t({
-					code: "disaster_event.disaster_declaration",
-					msg: "Disaster declaration",
-				}),
-			},
-		},
-		...repeatDisasterDeclarations(ctx, 5),
-		{
 			key: "hadOfficialWarningOrWeatherAdvisory",
 			label: ctx.t({
 				code: "disaster_event.had_official_warning_or_weather_advisory",
@@ -429,22 +227,6 @@ export function fieldsDefCommon(
 			type: "textarea",
 		},
 
-		...repeatEarlyActions(ctx, 5),
-		...repeatRapidOrPreliminaryAssesments(ctx, 5),
-
-		{
-			key: "responseOperations",
-			label: ctx.t({
-				code: "disaster_event.response_operations",
-				msg: "Response operations",
-			}),
-			type: "textarea",
-			uiRow: {},
-		},
-
-		...repeatPostDisasterAssesments(ctx, 5),
-		...repeatOtherAssesments(ctx, 5),
-
 		{
 			key: "dataSource",
 			label: ctx.t({
@@ -458,14 +240,6 @@ export function fieldsDefCommon(
 					msg: "Data source",
 				}),
 			},
-		},
-		{
-			key: "recordingInstitution",
-			label: ctx.t({
-				code: "disaster_event.recording_institution",
-				msg: "Recording institution",
-			}),
-			type: "text",
 		},
 		{
 			key: "effectsTotalUsd",
@@ -620,25 +394,6 @@ export function fieldsDefCommon(
 			type: "json",
 			uiRow: { colOverride: 1 },
 		},
-		{
-			key: "attachments",
-			label: ctx.t({
-				code: "common.attachments",
-				msg: "Attachments",
-			}),
-			type: "other",
-			psqlType: "jsonb",
-			uiRowNew: true,
-		},
-		{
-			key: "spatialFootprint",
-			label: ctx.t({
-				code: "spatial_footprint",
-				msg: "Spatial footprint",
-			}),
-			type: "other",
-			psqlType: "jsonb",
-		},
 	];
 }
 
@@ -646,6 +401,7 @@ export function fieldsDef(ctx: DContext): FormInputDef<DisasterEventFields>[] {
 	return [
 		{ key: "hazardousEventId", label: "", type: "uuid" },
 		{ key: "disasterEventId", label: "", type: "uuid" },
+		{ key: "recordingOrganizationId", label: "", type: "uuid" },
 		{ key: "hipHazardId", label: "", type: "other", uiRow: { colOverride: 1 } },
 		{ key: "hipClusterId", label: "", type: "other" },
 		{ key: "hipTypeId", label: "", type: "other" },
@@ -659,6 +415,7 @@ export function fieldsDefApi(
 	return [
 		{ key: "hazardousEventId", label: "", type: "uuid" },
 		{ key: "disasterEventId", label: "", type: "uuid" },
+		{ key: "recordingOrganizationId", label: "", type: "uuid" },
 		{ key: "hipHazardId", label: "", type: "other" },
 		{ key: "hipClusterId", label: "", type: "other" },
 		{ key: "hipTypeId", label: "", type: "other" },
@@ -671,6 +428,17 @@ export function fieldsDefApi(
 export function fieldsDefView(
 	ctx: DContext,
 ): FormInputDef<DisasterEventViewModel>[] {
+	const commonViewFields = fieldsDefCommon(ctx).map((field) => {
+		if (field.key === "startDateTime" || field.key === "endDateTime") {
+			return {
+				...field,
+				type: "text",
+			} as FormInputDef<DisasterEventViewModel>;
+		}
+
+		return field as FormInputDef<DisasterEventViewModel>;
+	});
+
 	return [
 		{
 			key: "hazardousEventId",
@@ -682,7 +450,7 @@ export function fieldsDefView(
 		},
 		{ key: "disasterEventId", label: "", type: "uuid" },
 		{ key: "hipHazard", label: "", type: "other" },
-		...(fieldsDefCommon(ctx) as FormInputDef<DisasterEventViewModel>[]),
+		...commonViewFields,
 		{ key: "createdAt", label: "", type: "other" },
 		{ key: "updatedAt", label: "", type: "other" },
 	];
@@ -722,6 +490,7 @@ interface DisasterEventFormProps extends UserFormProps<DisasterEventFields> {
 export function DisasterEventForm(props: DisasterEventFormProps) {
 	const ctx = props.ctx;
 	const fields = props.fields;
+	const spatialFootprint = (fields as any)?.spatialFootprint ?? [];
 
 	const [selectedHazardousEvent, setSelectedHazardousEvent] = useState(
 		props.hazardousEvent,
@@ -770,11 +539,12 @@ export function DisasterEventForm(props: DisasterEventFormProps) {
 		let frmElement = null;
 		if (props.id) {
 			frmElement = document.getElementById(props.id) as HTMLFormElement | null;
+		} else {
+			frmElement = document.getElementById(
+				"form-new",
+			) as HTMLFormElement | null;
 		}
-		else {
-			frmElement = document.getElementById("form-new") as HTMLFormElement | null;
-		}
-		
+
 		if (frmElement) {
 			if (!frmElement.checkValidity()) {
 				// Show native validation tooltips; keep the modal open so they stay visible
@@ -841,13 +611,12 @@ export function DisasterEventForm(props: DisasterEventFormProps) {
 
 	useEffect(() => {
 		const handleMessage = (event: any) => {
-			console.log("got message from another window", event.data);
-			if (event.data?.type == "select_hazard") {
+			if (event.data?.type === "select_hazard") {
 				if (event.data?.selected) {
 					setSelectedHazardousEvent(event.data.selected);
 				}
 			}
-			if (event.data?.type == "select_disaster") {
+			if (event.data?.type === "select_disaster") {
 				if (event.data?.selected) {
 					setSelectedDisasterEvent(event.data.selected);
 				}
@@ -997,11 +766,12 @@ export function DisasterEventForm(props: DisasterEventFormProps) {
 		let frmElement = null;
 		if (props.id) {
 			frmElement = document.getElementById(props.id) as HTMLFormElement | null;
+		} else {
+			frmElement = document.getElementById(
+				"form-new",
+			) as HTMLFormElement | null;
 		}
-		else {
-			frmElement = document.getElementById("form-new") as HTMLFormElement | null;
-		}
-		
+
 		if (frmElement) {
 			if (!frmElement.checkValidity()) {
 				// Show native validation tooltips; keep the modal open so they stay visible
@@ -1015,9 +785,6 @@ export function DisasterEventForm(props: DisasterEventFormProps) {
 		}
 		return true;
 	}
-
-	// const rootData = useRouteLoaderData<typeof rootLoader>("root");
-	// console.log("Root loader data in HazardousEventForm:", rootData.common);
 
 	const footerDialogDiscard = (
 		<>
@@ -1267,27 +1034,11 @@ export function DisasterEventForm(props: DisasterEventFormProps) {
 								divisions={divisionGeoJSON}
 								ctryIso3={ctryIso3 || ""}
 								treeData={treeData ?? []}
-								initialData={props.fields?.spatialFootprint}
+								initialData={spatialFootprint}
 							/>
 						</Field>
 					) : (
 						<Field key="spatialFootprint" label="">
-							<></>
-						</Field>
-					),
-					attachments: props.edit ? (
-						<Field key="attachments" label="">
-							<AttachmentsFormView
-								ctx={ctx}
-								save_path_temp={TEMP_UPLOAD_PATH}
-								file_viewer_temp_url="/disaster-event/file-temp-viewer"
-								file_viewer_url="/disaster-event/file-viewer"
-								api_upload_url="/disaster-event/file-pre-upload"
-								initialData={props?.fields?.attachments}
-							/>
-						</Field>
-					) : (
-						<Field key="attachments" label="">
 							<></>
 						</Field>
 					),
@@ -1306,128 +1057,490 @@ interface DisasterEventViewProps {
 
 export function DisasterEventView(props: DisasterEventViewProps) {
 	const ctx = props.ctx;
+	const { item } = props;
 
-	const matches = useMatches();
-	// Find the route where the loader returned `env`
-	const rootData = matches.find(
-		(match: any) => match.id === "root", // 👈 or the actual route ID if not in root
-	)?.data as { env?: { DTS_INSTANCE_CTRY_ISO3?: string } };
-	const ctryIso3 = rootData?.env?.DTS_INSTANCE_CTRY_ISO3;
-
-	const { item, auditLogs } = props;
-
-	let calculationOverrides: Record<string, ReactElement | undefined | null> =
-		{};
-
-	const messages = [
-		ctx.t({
-			code: "disaster_events.rehabilitation_costs",
-			msg: "Rehabilitation costs",
-		}),
-		ctx.t({
-			code: "disaster_events.repair_costs",
-			msg: "Repair costs",
-		}),
-		ctx.t({
-			code: "disaster_events.replacement_costs",
-			msg: "Replacement costs",
-		}),
-		ctx.t({
-			code: "disaster_events.recovery_needs",
-			msg: "Recovery needs",
-		}),
-	];
-
-	const messagesWithLocalCurrency = messages.map((label) =>
-		ctx.t(
+	const itemAny = item as any;
+	const formatReviewDate = (value: unknown): string => {
+		if (!value) {
+			return "-";
+		}
+		const formatted = formatDate(value as any);
+		return formatted || "-";
+	};
+	const formatReviewDateTime = (
+		dateValue: unknown,
+		timeValue: unknown,
+	): string => {
+		const dateText = formatReviewDate(dateValue);
+		const timeText =
+			typeof timeValue === "string" && timeValue.trim().length > 0
+				? timeValue.trim().slice(0, 5)
+				: "-";
+		return ctx.t(
 			{
-				code: "common.with_local_currency",
-				msg: "{label} local currency",
+				code: "disaster_event.review.date_at_time",
+				msg: "{date} at {time}",
 			},
-			{ label },
+			{
+				date: dateText,
+				time: timeText,
+			},
+		);
+	};
+	const hipName = (value: any): string => {
+		if (!value) {
+			return "";
+		}
+		if (typeof value?.name === "string") {
+			return value.name;
+		}
+		if (value?.name && typeof value.name === "object") {
+			return (value.name?.en ||
+				Object.values(value.name).find((v) => typeof v === "string") ||
+				"") as string;
+		}
+		return "";
+	};
+	const selectedDivisionItems = ((itemAny?.spatialFootprint as any[]) || [])
+		.filter((entry) => entry?.map_option === "Geographic level")
+		.map((entry, index) => ({
+			key:
+				typeof entry?.id === "string" && entry.id.length > 0
+					? entry.id
+					: `division-${index}`,
+			label:
+				typeof entry?.geographic_level === "string" &&
+				entry.geographic_level.trim().length > 0
+					? entry.geographic_level
+					: typeof entry?.title === "string"
+						? entry.title
+						: "",
+		}));
+	const reviewSpatialFootprintItems = (
+		(itemAny?.spatialFootprint as any[]) || []
+	)
+		.filter((entry) => {
+			const mapOption =
+				typeof entry?.map_option === "string" ? entry.map_option : "";
+			if (mapOption === "Geographic level") {
+				return false;
+			}
+			if (mapOption === "Map coordinates") {
+				return true;
+			}
+			return Boolean(entry?.geojson);
+		})
+		.map((entry, index) => {
+			const title = typeof entry?.title === "string" ? entry.title.trim() : "";
+			return (
+				title ||
+				ctx.t(
+					{
+						code: "disaster_event.review.spatial_footprint_index",
+						msg: "Spatial footprint {index}",
+					},
+					{ index: index + 1 },
+				)
+			);
+		});
+	const buildAttachmentViewerName = (attachment: any): string => {
+		const eventId = String(itemAny?.id || "").trim();
+		const rawFileKey = String(attachment?.fileKey || "").trim();
+		const rawFileName = String(
+			attachment?.fileName || attachment?.name || "Attachment",
+		).trim();
+
+		if (!eventId) {
+			return rawFileName;
+		}
+
+		if (!rawFileKey) {
+			return `${eventId}/${rawFileName}`;
+		}
+
+		const normalized = rawFileKey.replace(/\\/g, "/");
+		const exactMarker = `/disaster-event/${eventId}/`;
+		const exactMarkerIndex = normalized.lastIndexOf(exactMarker);
+		if (exactMarkerIndex >= 0) {
+			const fileNameOnly = normalized.slice(
+				exactMarkerIndex + exactMarker.length,
+			);
+			return `${eventId}/${fileNameOnly}`;
+		}
+
+		const genericMatch = normalized.match(/\/disaster-event\/([^/]+)\/(.+)$/);
+		if (genericMatch) {
+			return `${genericMatch[1]}/${genericMatch[2]}`;
+		}
+
+		const cleaned = normalized.replace(/^\/+/, "");
+		if (cleaned.startsWith(`${eventId}/`)) {
+			return cleaned;
+		}
+
+		const parts = cleaned.split("/").filter(Boolean);
+		const baseName = parts.length > 0 ? parts[parts.length - 1] : rawFileName;
+		return `${eventId}/${baseName}`;
+	};
+	const reviewAttachments = ((itemAny?.attachments as any[]) || []).map(
+		(attachment: any, index: number) => ({
+			id: String(attachment?.id || `attachment-${index}`),
+			fileName: String(
+				attachment?.fileName || attachment?.name || "Attachment",
+			),
+			fileKey: String(attachment?.fileKey || ""),
+			href: ctx.url(
+				`${route}/file-viewer?name=${encodeURIComponent(
+					buildAttachmentViewerName(attachment),
+				)}`,
+			),
+			fileType: attachment?.fileType,
+			fileSize:
+				typeof attachment?.fileSize === "number"
+					? attachment.fileSize
+					: undefined,
+		}),
+	);
+	const reviewLinks = ((itemAny?.links as any[]) || []).map(
+		(link: any, index: number) => ({
+			id: String(link?.id || `link-${index}`),
+			url: String(link?.url || ""),
+			title: String(link?.title || ""),
+		}),
+	);
+	const responseAttachmentCountByResponseId = (
+		(itemAny?.responseAttachments as any[]) || []
+	)
+		.filter(
+			(attachment: any) =>
+				typeof attachment?.disasterEventResponseId === "string" &&
+				attachment.disasterEventResponseId.trim().length > 0,
+		)
+		.reduce<Record<string, number>>((counts, attachment: any) => {
+			const responseId = String(attachment.disasterEventResponseId);
+			counts[responseId] = (counts[responseId] ?? 0) + 1;
+			return counts;
+		}, {});
+	const responseAttachmentsByResponseId = (
+		(itemAny?.responseAttachments as any[]) || []
+	)
+		.filter(
+			(attachment: any) =>
+				typeof attachment?.disasterEventResponseId === "string" &&
+				attachment.disasterEventResponseId.trim().length > 0,
+		)
+		.reduce<Record<string, any[]>>(
+			(grouped, attachment: any, index: number) => {
+				const responseId = String(attachment.disasterEventResponseId);
+				const existing = grouped[responseId] ?? [];
+				existing.push({
+					id: String(attachment?.id || `${responseId}-attachment-${index}`),
+					title: String(
+						attachment?.title || attachment?.fileName || "Attachment",
+					),
+					fileKey: String(attachment?.fileKey || ""),
+					fileName: String(
+						attachment?.fileName || attachment?.name || "Attachment",
+					),
+					fileType: attachment?.fileType,
+					fileSize:
+						typeof attachment?.fileSize === "number" ? attachment.fileSize : 0,
+					href: ctx.url(
+						`${route}/file-viewer?name=${encodeURIComponent(
+							buildAttachmentViewerName(attachment),
+						)}`,
+					),
+				});
+				grouped[responseId] = existing;
+				return grouped;
+			},
+			{},
+		);
+	const declarationAttachmentCountByDeclarationId = (
+		(itemAny?.declarationAttachments as any[]) || []
+	)
+		.filter(
+			(attachment: any) =>
+				typeof attachment?.disasterEventDeclarationId === "string" &&
+				attachment.disasterEventDeclarationId.trim().length > 0,
+		)
+		.reduce<Record<string, number>>((counts, attachment: any) => {
+			const declarationId = String(attachment.disasterEventDeclarationId);
+			counts[declarationId] = (counts[declarationId] ?? 0) + 1;
+			return counts;
+		}, {});
+	const declarationAttachmentsByDeclarationId = (
+		(itemAny?.declarationAttachments as any[]) || []
+	)
+		.filter(
+			(attachment: any) =>
+				typeof attachment?.disasterEventDeclarationId === "string" &&
+				attachment.disasterEventDeclarationId.trim().length > 0,
+		)
+		.reduce<Record<string, any[]>>(
+			(grouped, attachment: any, index: number) => {
+				const declarationId = String(attachment.disasterEventDeclarationId);
+				const existing = grouped[declarationId] ?? [];
+				existing.push({
+					id: String(attachment?.id || `${declarationId}-attachment-${index}`),
+					title: String(
+						attachment?.title || attachment?.fileName || "Attachment",
+					),
+					fileKey: String(attachment?.fileKey || ""),
+					fileName: String(
+						attachment?.fileName || attachment?.name || "Attachment",
+					),
+					fileType: attachment?.fileType,
+					fileSize:
+						typeof attachment?.fileSize === "number" ? attachment.fileSize : 0,
+					href: ctx.url(
+						`${route}/file-viewer?name=${encodeURIComponent(
+							buildAttachmentViewerName(attachment),
+						)}`,
+					),
+				});
+				grouped[declarationId] = existing;
+				return grouped;
+			},
+			{},
+		);
+
+	const normalizedResponses = ((itemAny?.responses as any[]) || []).map(
+		(response: any, index: number) => {
+			const responseId = String(response?.id || `response-${index + 1}`);
+			const responseType = String(
+				response?.responseType ?? response?.type ?? "",
+			).trim();
+			const description = String(response?.description ?? "").trim();
+			const coverage = String(response?.coverage ?? "").trim();
+
+			return {
+				id: responseId,
+				type: responseType,
+				date: formatReviewDate(response?.responseDate),
+				coverage,
+				description,
+				attachmentCount: responseAttachmentCountByResponseId[responseId] ?? 0,
+				attachments: responseAttachmentsByResponseId[responseId] ?? [],
+			};
+		},
+	);
+
+	const legacyResponses: {
+		id: string;
+		type: string;
+		date: string;
+		description: string;
+	}[] = [];
+	if (
+		typeof itemAny?.responseOperationsDescription === "string" &&
+		itemAny.responseOperationsDescription.trim().length > 0
+	) {
+		legacyResponses.push({
+			id: "response-operation-1",
+			type: "response_operation",
+			date: "",
+			description: itemAny.responseOperationsDescription,
+		});
+	}
+
+	const responses =
+		normalizedResponses.length > 0 ? normalizedResponses : legacyResponses;
+
+	const assessmentAttachmentsByAssessmentId = (
+		(itemAny?.assessmentAttachments as any[]) || []
+	).reduce(
+		(accumulator, attachment: any) => {
+			const assessmentId = String(attachment?.disasterEventAssessmentId || "");
+			if (!assessmentId) {
+				return accumulator;
+			}
+			const existing = accumulator[assessmentId] || [];
+			existing.push({
+				id: String(attachment?.id || ""),
+				title: String(attachment?.title || attachment?.fileName || ""),
+				fileName: String(attachment?.fileName || ""),
+				fileKey: String(attachment?.fileKey || ""),
+				fileType: String(attachment?.fileType || ""),
+				fileSize: Number(attachment?.fileSize || 0),
+				href: ctx.url(
+					`${route}/file-viewer?name=${encodeURIComponent(
+						buildAttachmentViewerName(attachment),
+					)}`,
+				),
+			});
+			accumulator[assessmentId] = existing;
+			return accumulator;
+		},
+		{} as Record<string, any[]>,
+	);
+
+	const assessmentSectorsByAssessmentId = (
+		(itemAny?.assessmentSectors as any[]) || []
+	).reduce(
+		(accumulator, link: any) => {
+			const assessmentId = String(link?.disasterEventAssessmentId || "");
+			const sectorId = String(link?.sectorId || "");
+			if (!assessmentId || !sectorId) {
+				return accumulator;
+			}
+			const existing = accumulator[assessmentId] || [];
+			existing.push(sectorId);
+			accumulator[assessmentId] = existing;
+			return accumulator;
+		},
+		{} as Record<string, string[]>,
+	);
+
+	const sectorNamesById = new Map<string, string>(
+		Object.entries(
+			(itemAny?.assessmentSectorNamesById as Record<string, string>) ?? {},
 		),
 	);
 
-	let names = ["rehabilitation", "repair", "replacement", "recovery"];
-	for (let i = 0; i < names.length; i++) {
-		let name = names[i];
-		let mod = name != "recovery" ? "Costs" : "Needs";
-		let nameOverride = name + mod + "LocalCurrencyOverride";
-		let nameCalc = name + mod + "LocalCurrencyCalc";
-		let valueOverride = (props.item as any)[nameOverride] as string;
-		let valueCalc = (props.item as any)[nameCalc] as string;
-		let value =
-			valueOverride !== "" && valueOverride !== null
-				? valueOverride
-				: valueCalc;
-		if (value === "" || value === null) {
-			value = "0";
-		}
-		calculationOverrides[nameOverride] = (
-			<p key={nameOverride}>
-				{messagesWithLocalCurrency[i]}: {value}
-			</p>
-		);
-	}
+	const assessments = ((itemAny?.assessments as any[]) || []).map(
+		(assessment: any, index: number) => {
+			const assessmentId = String(assessment?.id || `assessment-${index + 1}`);
+			const coverage = String(assessment?.coverage ?? "").trim();
+			const description = String(assessment?.description ?? "").trim();
+			const otherSectors = String(assessment?.otherSectors ?? "").trim();
+			const sectorIds = assessmentSectorsByAssessmentId[assessmentId] || [];
+			const sectorNames = resolveAssessmentSectorNames(
+				sectorIds,
+				sectorNamesById,
+			);
 
-	let override = {
-		...calculationOverrides,
-		hazardousEventId: item.hazardousEvent && (
-			<p key="hazardousEventId">
-				{ctx.t({
-					code: "hazardous_event",
-					msg: "Hazardous event",
-				})}
-				: {hazardousEventLink(ctx, item.hazardousEvent)}
-			</p>
-		),
-		disasterEventId: item.disasterEvent && (
-			<p key="disasterEventId">
-				{ctx.t({
-					code: "disaster_event",
-					msg: "Disaster event",
-				})}
-				: {disasterEventLink(ctx, item.disasterEvent)}
-			</p>
-		),
-		hipHazard: <HipHazardInfo ctx={ctx} key="hazard" model={item} />,
-		createdAt: (
-			<p key="createdAt">
-				{ctx.t({
-					code: "common.created_at",
-					msg: "Created at",
-				})}
-				: {formatDate(item.createdAt)}
-			</p>
-		),
-		updatedAt: (
-			<p key="updatedAt">
-				{ctx.t({
-					code: "common.updated_at",
-					msg: "Updated at",
-				})}
-				: {formatDate(item.updatedAt)}
-			</p>
-		),
-		spatialFootprint: (
-			<SpatialFootprintView
-				ctx={ctx}
-				initialData={(item?.spatialFootprint as any[]) || []}
-				mapViewerOption={2}
-				mapViewerDataSources={
-					((item as any)?.spatialFootprintsDataSource as any[]) || []
-				}
-				ctryIso3={ctryIso3}
-			/>
-		),
-		attachments: (
-			<AttachmentsView
-				ctx={ctx}
-				id={item.id}
-				initialData={(item?.attachments as any[]) || []}
-				file_viewer_url="/disaster-event/file-viewer"
-			/>
-		),
+			const descriptionParts = [description].filter(
+				(value) => value.trim().length > 0,
+			);
+
+			return {
+				id: assessmentId,
+				type: String(
+					assessment?.assessmentType ||
+						ctx.t({
+							code: "disaster_event.review.assessment",
+							msg: "Assessment",
+						}),
+				),
+				date: formatReviewDate(assessment?.assessmentDate),
+				coverage,
+				description: descriptionParts.join("\n"),
+				meta: {
+					sectorIds: sectorNames,
+					otherSectors: otherSectors || undefined,
+				},
+				attachments: assessmentAttachmentsByAssessmentId[assessmentId] || [],
+			};
+		},
+	);
+
+	const normalizedDeclarations = ((itemAny?.declarations as any[]) || []).map(
+		(declaration: any, index: number) => {
+			const declarationId = String(
+				declaration?.id || `declaration-${index + 1}`,
+			);
+			const declarationType = String(declaration?.type ?? "").trim();
+			const effects = String(declaration?.effects ?? "").trim();
+			const coverage = String(declaration?.coverage ?? "").trim();
+			const declarationStatus = String(
+				declaration?.declarationStatus ?? "",
+			).trim();
+			const issuingOrganization = String(
+				declaration?.issuingOrganization ?? "",
+			).trim();
+
+			return {
+				id: declarationId,
+				type:
+					declarationType ||
+					ctx.t({
+						code: "disaster_event.review.declaration",
+						msg: "Declaration",
+					}),
+				date: formatReviewDate(declaration?.declarationDate),
+				coverage,
+				description: effects,
+				meta: {
+					declarationStatusId: declaration?.declarationStatusId ?? undefined,
+					declarationStatus: declarationStatus || undefined,
+					issuingOrganization: issuingOrganization || undefined,
+				},
+				attachmentCount:
+					declarationAttachmentCountByDeclarationId[declarationId] ?? 0,
+				attachments: declarationAttachmentsByDeclarationId[declarationId] ?? [],
+			};
+		},
+	);
+
+	const declarations = normalizedDeclarations;
+
+	const getDetailTypeLabel = (value: string) => {
+		switch (value) {
+			case "early_action":
+				return ctx.t({
+					code: "disaster_event.early_action",
+					msg: "Early action",
+				});
+			case "response_operation":
+				return ctx.t({
+					code: "disaster_event.review.response_operation",
+					msg: "Response operation",
+				});
+			case "rapid_preliminary_assessment":
+				return ctx.t({
+					code: "disaster_event.rapid_preliminary_assessment",
+					msg: "Rapid/Preliminary assessment",
+				});
+			case "post_disaster_assessment":
+				return ctx.t({
+					code: "disaster_event.post_disaster_assessment",
+					msg: "Post-disaster assessment",
+				});
+			case "other_assessment":
+				return ctx.t({
+					code: "disaster_event.other_assessment",
+					msg: "Other assessment",
+				});
+			case "disaster_declaration":
+				return ctx.t({
+					code: "disaster_event.disaster_declaration",
+					msg: "Disaster declaration",
+				});
+			case "disaster_declaration_effects":
+				return ctx.t({
+					code: "disaster_event.review.disaster_declaration_effects",
+					msg: "Disaster declaration effects",
+				});
+			case "official_warning":
+				return ctx.t({
+					code: "common.official_warning",
+					msg: "Official Warning",
+				});
+			default:
+				return value;
+		}
+	};
+
+	const getDetailDescriptionValue = (detail: any): string => {
+		if (detail?.type === "disaster_declaration") {
+			return detail?.meta?.declarationStatus || "";
+		}
+		if (
+			typeof detail?.coverage === "string" &&
+			detail.coverage.trim().length > 0
+		) {
+			return [
+				`${ctx.t({
+					code: "disaster_event.review.coverage",
+					msg: "Coverage",
+				})}: ${detail.coverage.trim()}`,
+				typeof detail?.description === "string" ? detail.description : "",
+			]
+				.filter((value) => value.trim().length > 0)
+				.join("\n");
+		}
+		return detail?.description || "";
 	};
 
 	return (
@@ -1438,31 +1551,83 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 			path={route}
 			id={item.id}
 			returnAssigneeOptions={(item as any).returnAssignees}
+			hideTopSummary={true}
+			hideEditButton={true}
+			extraInfo={
+				<div className="mb-4">
+					<Button
+						type="button"
+						outlined
+						icon="pi pi-arrow-left"
+						iconPos="left"
+						label={ctx.t({
+							code: "disaster_events.back_to_list",
+							msg: "Back to Disaster events",
+						})}
+						className="p-button-sm"
+						onClick={() => {
+							document.location.href = ctx.url(route);
+						}}
+					/>
+				</div>
+			}
 			title={ctx.t({
 				code: "disaster_events",
 				msg: "Disaster events",
 			})}
 		>
-			<FieldsView
-				def={fieldsDefView(ctx)}
-				fields={item}
-				override={override}
-				user={ctx.user || undefined}
+			<DisasterEventReviewStep
+				ctx={ctx}
+				form={{
+					nameNational: itemAny?.nameNational || "",
+					nameGlobalOrRegional: itemAny?.nameGlobalOrRegional || "",
+					nationalDisasterId: itemAny?.nationalDisasterId || "",
+					glide: itemAny?.glide || "",
+					id: itemAny?.id || "",
+					recordingOrganizationName: itemAny?.recordOriginator || "",
+				}}
+				selectedHazardTypeName={hipName(itemAny?.hipType)}
+				selectedHazardClusterName={hipName(itemAny?.hipCluster)}
+				selectedSpecificHazardName={hipName(itemAny?.hipHazard)}
+				startTimingValue={formatReviewDateTime(
+					itemAny?.startDate,
+					itemAny?.startDateTime,
+				)}
+				endTimingValue={formatReviewDateTime(
+					itemAny?.endDate,
+					itemAny?.endDateTime,
+				)}
+				selectedDivisionItems={selectedDivisionItems}
+				reviewSpatialFootprintItems={reviewSpatialFootprintItems}
+				reviewSpatialFootprintData={(itemAny?.spatialFootprint as any[]) || []}
+				reviewLinks={reviewLinks}
+				reviewAttachments={reviewAttachments}
+				triggeringHazardousEventTarget={
+					(itemAny?.linkedTriggeringHazardousEvents as any[]) || []
+				}
+				triggeredHazardousEventTarget={
+					(itemAny?.linkedTriggeredHazardousEvents as any[]) || []
+				}
+				triggeringDisasterEventTarget={
+					(itemAny?.linkedTriggeringDisasterEvents as any[]) || []
+				}
+				triggeredDisasterEventTarget={
+					(itemAny?.linkedTriggeredDisasterEvents as any[]) || []
+				}
+				linkedDisasterRecordTarget={
+					(itemAny?.linkedDisasterRecords as any[]) || []
+				}
+				responses={responses}
+				assessments={assessments}
+				declarations={declarations}
+				getDetailTypeLabel={getDetailTypeLabel}
+				getDetailDescriptionValue={getDetailDescriptionValue}
+				showHeader={false}
+				showActions={false}
+				onCancel={() => undefined}
+				onBack={() => undefined}
+				onSendForValidation={() => undefined}
 			/>
-
-			{/* Add Audit log history at the end */}
-			<br />
-			{auditLogs && auditLogs.length > 0 && (
-				<>
-					<h3>
-						{ctx.t({
-							code: "audit_log_history",
-							msg: "Audit log history",
-						})}
-					</h3>
-					<AuditLogHistory ctx={ctx} auditLogs={auditLogs} />
-				</>
-			)}
 		</ViewComponentMainDataCollection>
 	);
 }

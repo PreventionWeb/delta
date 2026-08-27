@@ -107,7 +107,7 @@ export function FieldView(props: FieldViewProps) {
 	}
 
 	if (props.value === null || props.value === undefined) {
-		return <p>{props.def.label}: -</p>;
+		return <p><strong>{props.def.label}:</strong> -</p>;
 	}
 	switch (props.def.type) {
 		default:
@@ -118,14 +118,14 @@ export function FieldView(props: FieldViewProps) {
 			let b = props.value as boolean;
 			return (
 				<p>
-					{props.def.label}: {String(b)}
+					<strong>{props.def.label}:</strong> {String(b)}
 				</p>
 			);
 		case "number":
 			let n = props.value as number;
 			return (
 				<p>
-					{props.def.label}: {String(n)}
+					<strong>{props.def.label}:</strong> {String(n)}
 				</p>
 			);
 		case "uuid":
@@ -140,18 +140,18 @@ export function FieldView(props: FieldViewProps) {
 			}
 			let str = props.value as string;
 			if (!str.trim()) {
-				return <p>{props.def.label}: -</p>;
+				return <p><strong>{props.def.label}:</strong> -</p>;
 			}
 			return (
 				<p>
-					{props.def.label}: {str}
+					<strong>{props.def.label}:</strong> {str}
 				</p>
 			);
 		case "date": {
 			let date = props.value as Date;
 			return (
 				<p>
-					{props.def.label}: {formatDate(date)}
+					<strong>{props.def.label}:</strong> {formatDate(date)}
 				</p>
 			);
 		}
@@ -159,7 +159,7 @@ export function FieldView(props: FieldViewProps) {
 			let date = props.value as Date;
 			return (
 				<p>
-					{props.def.label}: {formatDateTimeUTC(date)}
+					<strong>{props.def.label}:</strong> {formatDateTimeUTC(date)}
 				</p>
 			);
 		}
@@ -171,13 +171,13 @@ export function FieldView(props: FieldViewProps) {
 			if (!enumItem) {
 				return (
 					<p>
-						{props.def.label}: {enumId}
+						<strong>{props.def.label}:</strong> {enumId}
 					</p>
 				);
 			}
 			return (
 				<p>
-					{props.def.label}: {enumItem.label}
+					<strong>{props.def.label}:</strong> {enumItem.label}
 				</p>
 			);
 		}
@@ -186,14 +186,14 @@ export function FieldView(props: FieldViewProps) {
 				let data = JSON.stringify(props.value);
 				return (
 					<>
-						<p>{props.def.label}</p>
+						<p><strong>{props.def.label}:</strong></p>
 						<pre>{data}</pre>
 					</>
 				);
 			}
 			return (
 				<>
-					<p>{props.def.label}</p>
+					<p><strong>{props.def.label}:</strong></p>
 					<JsonView
 						data={props.value}
 						shouldExpandNode={allExpanded}

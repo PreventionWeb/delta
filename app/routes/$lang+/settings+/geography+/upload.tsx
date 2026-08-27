@@ -1,22 +1,36 @@
 import { authActionWithPerm, authLoaderWithPerm } from "~/utils/auth";
 
-import { useActionData, useNavigate } from "react-router";
+import { useActionData, useLoaderData, useNavigate } from "react-router";
 import { Button } from "primereact/button";
-import { Card } from "primereact/card";
 import { Column } from "primereact/column";
 import { DataTable } from "primereact/datatable";
+import { Dialog } from "primereact/dialog";
 import { Message } from "primereact/message";
 
-import { NavSettings } from "~/frontend/components/NavSettings";
-import { MainContainer } from "~/frontend/container";
 import { handleRequest } from "~/backend.server/handlers/geography_upload";
 
 import { getCountryAccountsIdFromSession } from "~/utils/session";
 
 import { ViewContext } from "~/frontend/context";
 
-export const loader = authLoaderWithPerm("ManageCountrySettings", async () => {
-	return {};
+function listPathWithQuery(
+	divisionParentId: string | null,
+	searchParams: URLSearchParams,
+) {
+	const params = new URLSearchParams();
+	params.set("view", searchParams.get("view") || "table");
+	const parent = searchParams.get("parent") || divisionParentId;
+	if (parent) {
+		params.set("parent", parent);
+	}
+	return `/settings/geography?${params.toString()}`;
+}
+
+export const loader = authLoaderWithPerm("ManageCountrySettings", async (loaderArgs) => {
+	const url = new URL(loaderArgs.request.url);
+	return {
+		backPath: listPathWithQuery(null, url.searchParams),
+	};
 });
 
 export const action = authActionWithPerm(
@@ -31,6 +45,7 @@ export const action = authActionWithPerm(
 export default function Screen() {
 	const ctx = new ViewContext();
 	const navigate = useNavigate();
+	const ld = useLoaderData<typeof loader>();
 
 	let error = "";
 	const actionData = useActionData<typeof action>();
@@ -57,17 +72,17 @@ export default function Screen() {
 		}),
 	);
 
-	const navSettings = <NavSettings ctx={ctx} userRole={ctx.user?.role} />;
-
 	return (
-		<MainContainer
-			title={ctx.t({
-				code: "geographies.geographic_levels",
-				msg: "Geographic levels",
+		<Dialog
+			visible
+			header={ctx.t({
+				code: "common.upload_zip",
+				msg: "Upload ZIP",
 			})}
-			headerExtra={navSettings}
+			onHide={() => navigate(ctx.url(ld.backPath))}
+			style={{ width: "min(960px, 96vw)" }}
 		>
-			<Card className="w-full">
+			<div className="w-full">
 				<form method="post" encType="multipart/form-data" className="flex flex-col gap-4">
 					{submitted && (
 						<>
@@ -140,21 +155,23 @@ export default function Screen() {
 
 					<div className="flex justify-end gap-2">
 						<Button
+							type="button"
+							outlined
+							icon="pi pi-times"
+							label={ctx.t({ code: "common.cancel", msg: "Cancel" })}
+							onClick={() => navigate(ctx.url(ld.backPath))}
+						/>
+						<Button
 							type="submit"
+							icon="pi pi-upload"
 							label={ctx.t({
 								code: "common.upload_and_import",
 								msg: "Upload and import",
 							})}
 						/>
-						<Button
-							type="button"
-							outlined
-							label={ctx.t({ code: "common.back_to_list", msg: "Back to list" })}
-							onClick={() => navigate(ctx.url("/settings/geography?view=table"))}
-						/>
 					</div>
 				</form>
-			</Card>
-		</MainContainer>
+			</div>
+		</Dialog>
 	);
 }

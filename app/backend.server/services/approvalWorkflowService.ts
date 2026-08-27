@@ -5,7 +5,7 @@ import {
 	disasterEventTable,
 	disasterRecordsTable,
 } from "~/drizzle/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import {
 	entityValidationAssignmentCreate,
 	entityValidationAssignmentDeleteByEntityId,
@@ -13,6 +13,30 @@ import {
 } from "../models/entity_validation_assignment";
 import { emailAssignedValidators } from "./emailValidationWorkflowService";
 import { getUserCountryAccountsByUserIdAndCountryAccountsId } from "~/db/queries/userCountryAccountsRepository";
+
+async function ensureDisasterEventHasApprovedDisasterRecords(
+	tx: Tx,
+	entityId: string,
+	countryAccountsId: string,
+): Promise<void> {
+	const rows = await tx
+		.select({ id: disasterRecordsTable.id })
+		.from(disasterRecordsTable)
+		.where(
+			and(
+				eq(disasterRecordsTable.disasterEventId, entityId),
+				eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
+				sql`${disasterRecordsTable.approvalStatus} IN ('validated', 'published')`,
+			),
+		)
+		.limit(1);
+
+	if (rows.length === 0) {
+		throw new Error(
+			"A validated or published disaster event must have at least one associated published or validated disaster record.",
+		);
+	}
+}
 
 export type ApprovalAction =
 	| "submit-validation"
@@ -134,6 +158,7 @@ export async function handleApprovalWorkflowService(
 						entityId,
 						entityType,
 						submittedByUserId,
+						countryAccountsId,
 					);
 					break;
 
@@ -144,6 +169,7 @@ export async function handleApprovalWorkflowService(
 						entityId,
 						entityType,
 						submittedByUserId,
+						countryAccountsId,
 					);
 					break;
 
@@ -210,7 +236,8 @@ async function handleSubmitForValidation(
 		.set({
 			approvalStatus: "waiting-for-validation",
 			submittedByUserId: submittedByUserId,
-			submittedAt: new Date(),
+			submittedAt: sql`CURRENT_TIMESTAMP`,
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(table.id, entityId));
 
@@ -253,6 +280,7 @@ async function handleSubmitAsDraft(
 			validatedAt: null,
 			publishedByUserId: null,
 			publishedAt: null,
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(table.id, entityId));
 
@@ -270,22 +298,30 @@ async function handleSubmitAsValidated(
 	entityId: string,
 	entityType: EntityType,
 	submittedByUserId: string,
+	countryAccountsId: string,
 ): Promise<void> {
+	if (entityType === "disaster_event") {
+		await ensureDisasterEventHasApprovedDisasterRecords(
+			tx,
+			entityId,
+			countryAccountsId,
+		);
+	}
+
 	const table = getTableForEntityType(entityType);
 
 	ctx.url("/"); // do nothing
 
-	// Update the entity to published status
 	await tx
 		.update(table)
 		.set({
 			approvalStatus: "validated",
 			validatedByUserId: submittedByUserId,
-			validatedAt: new Date(),
+			validatedAt: sql`CURRENT_TIMESTAMP`,
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(table.id, entityId));
 
-	// Remove any existing validation assignments
 	await entityValidationAssignmentDeleteByEntityId(entityId, entityType);
 }
 
@@ -295,24 +331,32 @@ async function handleSubmitAsPublished(
 	entityId: string,
 	entityType: EntityType,
 	submittedByUserId: string,
+	countryAccountsId: string,
 ): Promise<void> {
+	if (entityType === "disaster_event") {
+		await ensureDisasterEventHasApprovedDisasterRecords(
+			tx,
+			entityId,
+			countryAccountsId,
+		);
+	}
+
 	const table = getTableForEntityType(entityType);
 
 	ctx.url("/"); // do nothing
 
-	// Update the entity to published status
 	await tx
 		.update(table)
 		.set({
 			approvalStatus: "published",
 			validatedByUserId: submittedByUserId,
-			validatedAt: new Date(),
+			validatedAt: sql`CURRENT_TIMESTAMP`,
 			publishedByUserId: submittedByUserId,
-			publishedAt: new Date(),
+			publishedAt: sql`CURRENT_TIMESTAMP`,
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(table.id, entityId));
 
-	// Remove any existing validation assignments
 	await entityValidationAssignmentDeleteByEntityId(entityId, entityType);
 }
 
@@ -332,7 +376,8 @@ async function handleSubmitAsReturned(
 		.set({
 			approvalStatus: "needs-revision",
 			submittedByUserId: submittedByUserId,
-			submittedAt: new Date(),
+			submittedAt: sql`CURRENT_TIMESTAMP`,
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(table.id, entityId));
 }

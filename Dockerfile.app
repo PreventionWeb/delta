@@ -1,5 +1,5 @@
 # Use the official Node.js 22 image as the base
-FROM node:22-bookworm-slim
+FROM node:24-bookworm-slim
 
 # Set the working directory to /delta
 WORKDIR /delta

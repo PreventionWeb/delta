@@ -45,7 +45,7 @@ The DELTA Resilience Shared Instance uses a **Single Database Multi-Tenancy** ar
 
 #### Option B: Manual Installation
 
-- **Node.js**: v22.x
+- **Node.js**: v24.18.0
 - **PostgreSQL**: v17 with PostGIS extension
 - **Git**: For source code management
 - **Yarn**: Package manager
@@ -145,8 +145,8 @@ The DELTA Resilience Shared Instance uses a **Single Database Multi-Tenancy** ar
 1. **Install Dependencies**
 
    ```bash
-   # Install Node.js v22
-   curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+   # Install Node.js v24.18.0
+   curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
    sudo apt-get install -y nodejs
 
    # Install PostgreSQL 17 with PostGIS

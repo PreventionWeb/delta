@@ -1,28 +1,46 @@
 import { authActionWithPerm, authLoaderWithPerm } from "~/utils/auth";
 
 import { InsertDivision } from "~/drizzle/schema/divisionTable";
+import { dr } from "~/db.server";
 
 import {
 	DivisionBreadcrumbRow,
 } from "~/backend.server/models/division";
 import { DivisionRepository } from "~/db/queries/divisonRepository";
 
-import { useLoaderData, useActionData, useNavigation, Form as RRForm } from "react-router";
-import { Card } from "primereact/card";
+import {
+	useLoaderData,
+	useActionData,
+	useNavigation,
+	useNavigate,
+	Form as RRForm,
+} from "react-router";
 import { Button } from "primereact/button";
+import { Dialog } from "primereact/dialog";
 import { Message } from "primereact/message";
 import { InputText } from "primereact/inputtext";
 import { Divider } from "primereact/divider";
 import { BreadCrumb as PrimeBreadCrumb } from "primereact/breadcrumb";
 import { MenuItem } from "primereact/menuitem";
 import { formStringData } from "~/utils/httputil";
-import { NavSettings } from "~/frontend/components/NavSettings";
-
-import { MainContainer } from "~/frontend/container";
+import { normalizeGeoJSONToFeature } from "~/utils/geoValidation";
 import { getCountryAccountsIdFromSession } from "~/utils/session";
 
 import { ViewContext } from "~/frontend/context";
 import { LangLink } from "~/utils/link";
+
+function listPathWithQuery(
+	divisionParentId: string | null,
+	searchParams: URLSearchParams,
+) {
+	const params = new URLSearchParams();
+	params.set("view", searchParams.get("view") || "table");
+	const parent = searchParams.get("parent") || divisionParentId;
+	if (parent) {
+		params.set("parent", parent);
+	}
+	return `/settings/geography?${params.toString()}`;
+}
 
 type DivisionBreadcrumbSourceRow = {
 	id: string;
@@ -119,6 +137,7 @@ export const loader = authLoaderWithPerm(
 	async (loaderArgs) => {
 		const { id } = loaderArgs.params;
 		const { request } = loaderArgs;
+		const url = new URL(request.url);
 		if (!id) {
 			throw new Response("Missing item ID", { status: 400 });
 		}
@@ -142,6 +161,7 @@ export const loader = authLoaderWithPerm(
 		return {
 			data: item,
 			breadcrumbs: breadcrumbs,
+			backPath: listPathWithQuery(item.parentId, url.searchParams),
 		};
 	},
 );
@@ -157,8 +177,10 @@ export const action = authActionWithPerm(
 		}
 
 		const countryAccountsId = await getCountryAccountsIdFromSession(request);
-
-		const rawForm = formStringData(await request.formData());
+		const formData = await request.formData();
+		const rawForm = formStringData(formData);
+		const geometryFile = formData.get("geometryFile");
+		const nationalId = (rawForm.nationalId || "").trim();
 		const { parentId, ...nameFields } = rawForm;
 		const names = Object.entries(nameFields)
 			.filter(([key]) => key.startsWith("names[") && key.endsWith("]"))
@@ -172,9 +194,18 @@ export const action = authActionWithPerm(
 
 		let data: InsertDivision = {
 			parentId: parentId || null,
+			nationalId,
 			name: names,
 			countryAccountsId,
 		};
+
+		if (!nationalId) {
+			return {
+				ok: false,
+				data,
+				errors: ["National ID is required."],
+			};
+		}
 
 		if (data.parentId) {
 			const parentRecord = await DivisionRepository.getById(data.parentId, countryAccountsId);
@@ -183,20 +214,73 @@ export const action = authActionWithPerm(
 			data.level = 1;
 		}
 
-		const res = await DivisionRepository.update(id, data, countryAccountsId);
+		try {
+			const result = await dr.transaction(async (tx) => {
+				const current = await DivisionRepository.getById(id, countryAccountsId, tx);
+				if (!current) {
+					throw new Error("Division not found");
+				}
 
-		if (!res.ok) {
+				const updateRes = await DivisionRepository.update(
+					id,
+					data,
+					countryAccountsId,
+					tx,
+				);
+				if (!updateRes.ok) {
+					throw new Error(updateRes.errors?.[0] || "Failed to update the division");
+				}
+
+				let geometryUploaded = false;
+				if (geometryFile instanceof File && geometryFile.size > 0) {
+					if (current.geom) {
+						throw new Error(
+							"Geometry already exists for this division and cannot be overwritten.",
+						);
+					}
+
+					const textContent = await geometryFile.text();
+					let parsedGeoJSON: any;
+					try {
+						parsedGeoJSON = JSON.parse(textContent);
+					} catch {
+						throw new Error("Uploaded geometry file is not valid JSON");
+					}
+
+					const normalizedGeoJSON = normalizeGeoJSONToFeature(parsedGeoJSON);
+					const geometryRes = await DivisionRepository.updateGeometryIfMissing(
+						id,
+						countryAccountsId,
+						normalizedGeoJSON.feature,
+						normalizedGeoJSON.geometry,
+						tx,
+					);
+
+					if (!geometryRes.ok) {
+						throw new Error(
+							geometryRes.errors?.[0] ||
+								"Failed to update geometry for this division",
+						);
+					}
+
+					geometryUploaded = true;
+				}
+
+				return { geometryUploaded };
+			});
+
+			return {
+				ok: true,
+				data,
+				geometryUploaded: result.geometryUploaded,
+			};
+		} catch (error) {
 			return {
 				ok: false,
-				data: data,
-				errors: res.errors,
+				data,
+				errors: [error instanceof Error ? error.message : "Failed to update the division"],
 			};
 		}
-
-		return {
-			ok: true,
-			data: data,
-		};
 	},
 );
 
@@ -204,77 +288,98 @@ export default function Screen() {
 	const loaderData = useLoaderData<typeof loader>();
 	const actionData = useActionData<typeof action>();
 	const navigation = useNavigation();
+	const navigate = useNavigate();
 	const ctx = new ViewContext();
 
 	const isSubmitting = navigation.state === "submitting";
 	const saved = actionData?.ok === true;
 	const hasError = actionData?.ok === false;
+	const geometryUploaded = actionData?.ok === true && actionData?.geometryUploaded === true;
 
 	const fields: InsertDivision = actionData?.data ?? loaderData.data;
 	const nameMap = (fields.name ?? {}) as Record<string, string>;
 	const langs = Object.keys(nameMap).sort();
+	const canUploadGeometry = !loaderData.data.geom && !geometryUploaded;
+	const canDownloadGeoJSON = Boolean(loaderData.data.geom && loaderData.data.geojson);
 
-	const navSettings = <NavSettings ctx={ctx} userRole={ctx.user?.role} />;
+	const handleDownloadGeoJSON = () => {
+		if (!loaderData.data.geojson) {
+			return;
+		}
+
+		const blob = new Blob([
+			JSON.stringify(loaderData.data.geojson, null, 2),
+		], { type: "application/geo+json" });
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement("a");
+		const baseName = loaderData.data.importId || loaderData.data.id;
+		link.href = url;
+		link.download = `${baseName}.geojson`;
+		link.click();
+		URL.revokeObjectURL(url);
+	};
 
 	return (
-		<MainContainer
-			title={ctx.t({
-				code: "geographies.geographic_levels",
-				msg: "Geographic levels",
+		<Dialog
+			visible
+			header={ctx.t({
+				code: "geographies.edit_division",
+				msg: "Edit division",
 			})}
-			headerExtra={navSettings}
+			onHide={() => navigate(ctx.url(loaderData.backPath))}
+			style={{ width: "min(720px, 96vw)" }}
 		>
 			<div className="mx-auto w-full max-w-2xl">
 				<Breadcrumb ctx={ctx} rows={loaderData.breadcrumbs} linkLast={true} />
 
-				<Card className="shadow-sm">
-					{/* Header */}
-					<div className="mb-1 flex items-center gap-3">
-						<div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-							<i className="pi pi-map-marker text-lg text-primary" />
-						</div>
-						<div>
-							<h2 className="text-lg font-semibold text-gray-800">
-								{ctx.t({
-									code: "geographies.edit_division",
-									msg: "Edit division",
-								})}
-							</h2>
-							<p className="text-sm text-gray-500">
-								{ctx.t({
-									code: "geographies.edit_division_subtitle",
-									msg: "Update the details for this administrative division.",
-								})}
-							</p>
-						</div>
+				{/* Header */}
+				<div className="mb-1 flex items-center gap-3">
+					<div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+						<i className="pi pi-map-marker text-lg text-primary" />
 					</div>
-
-					<Divider className="my-4" />
-
-					{/* Status messages */}
-					{saved && (
-						<Message
-							className="mb-4 w-full"
-							severity="success"
-							text={ctx.t({
-								code: "common.data_updated",
-								msg: "The data was updated.",
+					<div>
+						<p className="text-sm text-gray-500">
+							{ctx.t({
+								code: "geographies.edit_division_subtitle",
+								msg: "Update the details for this administrative division.",
 							})}
-						/>
-					)}
-					{hasError && (
-						<Message
-							className="mb-4 w-full"
-							severity="error"
-							text={ctx.t({
+						</p>
+					</div>
+				</div>
+
+				<Divider className="my-4" />
+
+				{/* Status messages */}
+				{saved && (
+					<Message
+						className="mb-4 w-full"
+						severity="success"
+						text={ctx.t({
+							code: "common.data_updated",
+							msg: "The data was updated.",
+						})}
+					/>
+				)}
+				{hasError && (
+					<Message
+						className="mb-4 w-full"
+						severity="error"
+						text={
+							actionData?.errors?.[0] ||
+							ctx.t({
 								code: "common.save_error",
 								msg: "There was an error saving the data. Please try again.",
-							})}
-						/>
-					)}
+							})
+						}
+					/>
+				)}
 
-					{/* Form */}
-					<RRForm method="post" className="flex flex-col gap-5">
+				{/* Form */}
+				<RRForm
+					method="post"
+					encType="multipart/form-data"
+					className="flex flex-col gap-5"
+				>
 						{/* Parent ID */}
 						<div className="flex flex-col gap-1">
 							<label
@@ -321,50 +426,116 @@ export default function Screen() {
 												},
 												{ lang },
 											)}
+											<span className="text-red-500" aria-hidden="true">*</span>
 										</label>
 										<InputText
 											id={`field-name-${lang}`}
 											name={`names[${lang}]`}
 											defaultValue={nameMap[lang] || ""}
 											className="w-full"
+											required
 										/>
 									</div>
 								))}
 							</div>
 						)}
 
+						<div className="flex flex-col gap-1">
+							<label
+								htmlFor="field-nationalId"
+								className="text-sm font-medium text-gray-700"
+							>
+								{ctx.t({ code: "common.national_id", msg: "National ID" })}
+								<span className="text-red-500" aria-hidden="true">*</span>
+							</label>
+							<InputText
+								id="field-nationalId"
+								name="nationalId"
+								defaultValue={fields.nationalId || ""}
+								className="w-full"
+								required
+							/>
+						</div>
+
+						{canDownloadGeoJSON && (
+							<div className="flex flex-col gap-1">
+								<p className="text-sm font-medium text-gray-700">
+									{ctx.t({
+										code: "geographies.download_geometry",
+										msg: "Download geometry",
+									})}
+								</p>
+								<div>
+									<Button
+										type="button"
+										outlined
+										icon="pi pi-download"
+										label={ctx.t({
+											code: "geographies.download_geometry",
+											msg: "Download geometry",
+										})}
+										onClick={handleDownloadGeoJSON}
+									/>
+								</div>
+							</div>
+						)}
+
+						{canUploadGeometry && (
+							<div className="flex flex-col gap-1">
+								<label
+									htmlFor="field-geometry-file"
+									className="text-sm font-medium text-gray-700"
+								>
+									{ctx.t({
+										code: "geographies.upload_geometry",
+										msg: "Upload geometry",
+									})}
+								</label>
+								<input
+									id="field-geometry-file"
+									name="geometryFile"
+									type="file"
+									accept=".geojson,.json,application/geo+json,application/json"
+									className="p-inputtext w-full"
+								/>
+								<p className="text-xs text-gray-500">
+									{ctx.t({
+										code: "geographies.upload_geometry_hint",
+										msg: "Geometry upload is available only when this division has no geometry yet.",
+									})}
+								</p>
+							</div>
+						)}
+
 						<Divider className="my-1" />
 
 						{/* Actions */}
-						<div className="flex items-center justify-between gap-3">
-							<LangLink
-								lang={ctx.lang}
-								to={`/settings/geography${fields.parentId ? "?parent=" + fields.parentId + "&view=table" : "?view=table"}`}
-							>
-								<Button
-									type="button"
-									outlined
-									icon="pi pi-arrow-left"
-									label={ctx.t({
-										code: "common.back_to_list",
-										msg: "Back to list",
-									})}
-								/>
-							</LangLink>
+						<div className="flex flex-wrap items-center justify-end gap-2">
 							<Button
-								type="submit"
-								icon="pi pi-check"
+								type="button"
+								outlined
+								icon="pi pi-times"
 								label={ctx.t({
-									code: "geographies.update_division",
-									msg: "Update division",
+									code: "common.close",
+									msg: "Close",
 								})}
-								loading={isSubmitting}
-								disabled={isSubmitting}
+								onClick={() => navigate(ctx.url(loaderData.backPath))}
 							/>
+							<div className="flex flex-wrap items-center gap-2">
+								<Button
+									type="submit"
+									icon="pi pi-check"
+									label={ctx.t({
+										code: "geographies.update_division",
+										msg: "Update division",
+									})}
+									loading={isSubmitting}
+									disabled={isSubmitting}
+								/>
+							</div>
 						</div>
-					</RRForm>
-				</Card>
+				</RRForm>
 			</div>
-		</MainContainer>
+		</Dialog>
 	);
 }

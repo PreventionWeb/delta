@@ -80,6 +80,9 @@ export type PermissionId =
 	| "InviteUsers"
 	| "EditAPIKeys"
 	| "ViewData"
+	| "ViewDisasterEvents"
+	| "DeleteDisasterEvent"
+	| "EditDisasterEvent"
 	| "EditData"
 	| "ViewApiDocs"
 	| "EditHumanEffectsCustomDsg"
@@ -146,6 +149,30 @@ export function permissions(ctx: DContext): PermissionOption[] {
 			label: ctx.t({
 				code: "user.permission.view_data.label",
 				msg: "View data",
+			}),
+		},
+		{
+			id: "ViewDisasterEvents",
+			role: "data-viewer",
+			label: ctx.t({
+				code: "user.permission.disaster_event_list.label",
+				msg: "Disaster event list",
+			}),
+		},
+		{
+			id: "DeleteDisasterEvent",
+			role: "data-collector",
+			label: ctx.t({
+				code: "user.permission.delete_disaster_event.label",
+				msg: "Delete disaster event",
+			}),
+		},
+		{
+			id: "EditDisasterEvent",
+			role: "data-collector",
+			label: ctx.t({
+				code: "user.permission.edit_disaster_event.label",
+				msg: "Edit disaster event",
 			}),
 		},
 		{
@@ -309,11 +336,21 @@ export function permissionsMap(ctx: DContext): Record<PermissionId, RoleId> {
 export const roles: {
 	[K in RoleId]: PermissionId[];
 } = {
-	"data-viewer": ["ViewData", "ViewApiDocs"],
-	"data-collector": ["ViewData", "ViewApiDocs", "EditData"],
+	"data-viewer": ["ViewData", "ViewApiDocs", "ViewDisasterEvents"],
+	"data-collector": [
+		"ViewData",
+		"ViewApiDocs",
+		"ViewDisasterEvents",
+		"DeleteDisasterEvent",
+		"EditDisasterEvent",
+		"EditData",
+	],
 	"data-validator": [
 		"ViewData",
 		"ViewApiDocs",
+		"ViewDisasterEvents",
+		"DeleteDisasterEvent",
+		"EditDisasterEvent",
 		"EditData",
 		"ValidateData",
 		"DeleteValidatedData",
@@ -321,6 +358,9 @@ export const roles: {
 	admin: [
 		"ViewData",
 		"ViewApiDocs",
+		"ViewDisasterEvents",
+		"DeleteDisasterEvent",
+		"EditDisasterEvent",
 		"EditData",
 		"ValidateData",
 		"DeleteValidatedData",
@@ -460,7 +500,7 @@ export function canEditDataCollectionRecord(
 		return false;
 	}
 
-	// published or validated records cannot be modified 
+	// published or validated records cannot be modified
 	if (
 		approvalStatus &&
 		(approvalStatus.toLowerCase() === "published" ||

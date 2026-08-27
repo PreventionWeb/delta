@@ -1,10 +1,12 @@
 services:
   app:
     container_name: delta-dev-app
-    image: ghcr.io/unisdr/delta-country:dev-latest
+    image: ghcr.io/preventionweb/delta-country:dev-latest
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      - ./uploads:/delta/uploads
     ports:
       - "3000:3000"
     environment:
@@ -19,6 +21,7 @@ services:
       - AUTHENTICATION_SUPPORTED=${AUTHENTICATION_SUPPORTED}
       - PUBLIC_URL=${PUBLIC_URL}
       - EMAIL_FROM=${EMAIL_FROM}
+      - TZ=${TZ:-UTC}
     restart: on-failure
 
   db:
@@ -28,6 +31,7 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
+      - TZ=${TZ:-UTC}
     ports:
       - "5432:5432"
     volumes:

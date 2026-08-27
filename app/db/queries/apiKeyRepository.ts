@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { dr, Tx } from "../../db.server";
 import { apiKeyTable, InsertApiKey } from "~/drizzle/schema/apiKeyTable";
 import { randomBytes } from "crypto";
@@ -34,7 +34,7 @@ export const ApiKeyRepository = {
 		return (tx ?? dr)
 			.insert(apiKeyTable)
 			.values({
-				createdAt: new Date(),
+				createdAt: sql`CURRENT_TIMESTAMP`,
 				name: data.name,
 				managedByUserId: data.managedByUserId!,
 				secret: generateSecret(),
@@ -47,7 +47,7 @@ export const ApiKeyRepository = {
 	update: (id: string, name: string, tx?: Tx) => {
 		return (tx ?? dr)
 			.update(apiKeyTable)
-			.set({ updatedAt: new Date(), name })
+			.set({ updatedAt: sql`CURRENT_TIMESTAMP`, name })
 			.where(eq(apiKeyTable.id, id))
 			.execute();
 	},

@@ -57,11 +57,7 @@ export function ActionLinks(props: ActionLinksProps) {
 					title={props.deleteTitle}
 					confirmLabel={props.confirmDeleteLabel}
 					cancelLabel={props.cancelDeleteLabel}
-					confirmIcon={
-						<svg aria-hidden="true" focusable="false" role="img">
-							<use href="/assets/icons/trash-alt.svg#delete" />
-						</svg>
-					}
+					confirmIcon="pi pi-trash"
 					confirmButtonFirst={false}
 				/>
 			)}

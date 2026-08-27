@@ -162,7 +162,7 @@ export const OrganizationService = {
 
 				const existing = await OrganizationRepository.getById(id);
 				if (!existing || existing.countryAccountsId !== countryAccountsId) {
-				throw new Response("Unauthorized access", { status: 403 });
+					throw new Response("Unauthorized access", { status: 403 });
 				}
 
 				const result = await OrganizationRepository.deleteById(id);
@@ -190,7 +190,7 @@ export const OrganizationService = {
 					ok: false,
 					error: backendCtx.t({
 						code: "organization.delete_blocked_by_dependencies",
-						msg: "This organization cannot be deleted because it is still being used by one or more users. Remove those assignments first.",
+						msg: "This organization cannot be deleted because it is still being used by one or more records. Remove those assignments first.",
 					}),
 				};
 			}

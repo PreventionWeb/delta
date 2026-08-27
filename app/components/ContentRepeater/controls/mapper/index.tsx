@@ -435,14 +435,8 @@ export const renderMapperDialog = (
 
 										if (debug) console.log("Field passed to dialog:", field);
 
-										const targetElement = field.domElement;
-
 										const saveGeoJSON = (geoJSON: string) => {
 											if (field?.mapperGeoJSONField) {
-												const geoJSONField = document.getElementById(
-													`${id}_${field?.mapperGeoJSONField}`,
-												) as HTMLInputElement;
-												geoJSONField.value = geoJSON;
 												const setField = {
 													id: field?.mapperGeoJSONField,
 													value: geoJSON,
@@ -496,11 +490,11 @@ export const renderMapperDialog = (
 												if (getDivisionsCheck !== "") {
 													const userConfirmed = confirm(
 														getDivisionsCheck +
-															"\n\n" +
-															ctx.t({
-																code: "geodata.do_you_want_to_continue",
-																msg: "Do you want to continue?",
-															}),
+														"\n\n" +
+														ctx.t({
+															code: "geodata.do_you_want_to_continue",
+															msg: "Do you want to continue?",
+														}),
 													);
 
 													if (!userConfirmed) {
@@ -555,11 +549,11 @@ export const renderMapperDialog = (
 												if (getDivisionsCheck !== "") {
 													const userConfirmed = confirm(
 														getDivisionsCheck +
-															"\n\n" +
-															ctx.t({
-																code: "common.do_you_want_to_continue",
-																msg: "Do you want to continue?",
-															}),
+														"\n\n" +
+														ctx.t({
+															code: "common.do_you_want_to_continue",
+															msg: "Do you want to continue?",
+														}),
 													);
 													if (!userConfirmed) {
 														return false; // Stop execution if the user clicks "No"
@@ -819,9 +813,6 @@ export const renderMapperDialog = (
 											if (debug) console.log("No shape created yet.");
 										}
 
-										// Update the textarea value
-										targetElement.value = updatedValue;
-
 										// Trigger the field's onChange handler
 										handleFieldChange(field, JSON.parse(updatedValue));
 
@@ -916,9 +907,8 @@ export const previewMap = (items: any) => {
         }
 
         window.onload = () => {
-            document.getElementById("map").style.height = "${
-							window.outerHeight - 100
-						}px";
+            document.getElementById("map").style.height = "${window.outerHeight - 100
+		}px";
 
             const map = L.map("map", { preferCanvas: true }); //.setView([43.833, 87.616], 2);
 

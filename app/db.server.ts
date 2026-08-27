@@ -27,8 +27,8 @@ export function initDB() {
 	}
 }
 
-export function endDB() {
-	pool.end();
+export async function endDB() {
+	await pool.end();
 }
 
 export async function testDbConnection() {

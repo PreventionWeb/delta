@@ -1,7 +1,7 @@
 import { UpdateResult } from "~/backend.server/handlers/form/form";
 import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
 import { dr } from "~/db.server";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { approvalStatusIds } from "~/frontend/approval";
 import type { HazardousEventFields } from "./hazardous_event_create_update";
 
@@ -11,7 +11,7 @@ export async function hazardousEventUpdateApprovalStatus(
 ): Promise<UpdateResult<HazardousEventFields>> {
 	await dr
 		.update(hazardousEventTable)
-		.set({ approvalStatus: status, updatedAt: new Date() })
+		.set({ approvalStatus: status, updatedAt: sql`CURRENT_TIMESTAMP` })
 		.where(eq(hazardousEventTable.id, id))
 		.returning();
 
@@ -32,7 +32,7 @@ export async function hazardousEventUpdateApprovalStatusOnGoing(
 			validatedAt: null,
 			publishedByUserId: null,
 			publishedAt: null,
-			updatedAt: new Date(),
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(hazardousEventTable.id, id))
 		.returning();
@@ -51,7 +51,7 @@ export async function hazardousEventUpdateApprovalStatusNeedRevision(
 			validatedAt: null,
 			publishedByUserId: null,
 			publishedAt: null,
-			updatedAt: new Date(),
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(hazardousEventTable.id, id))
 		.returning();
@@ -68,10 +68,10 @@ export async function hazardousEventUpdateApprovalStatusValidate(
 		.set({
 			approvalStatus: "validated",
 			validatedByUserId: validatedByUserId,
-			validatedAt: new Date(),
+			validatedAt: sql`CURRENT_TIMESTAMP`,
 			publishedByUserId: null,
 			publishedAt: null,
-			updatedAt: new Date(),
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(hazardousEventTable.id, id))
 		.returning();
@@ -88,10 +88,10 @@ export async function hazardousEventUpdateApprovalStatusPublish(
 		.set({
 			approvalStatus: "published",
 			validatedByUserId: publishedByUserId,
-			validatedAt: new Date(),
+			validatedAt: sql`CURRENT_TIMESTAMP`,
 			publishedByUserId: publishedByUserId,
-			publishedAt: new Date(),
-			updatedAt: new Date(),
+			publishedAt: sql`CURRENT_TIMESTAMP`,
+			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(hazardousEventTable.id, id))
 		.returning();

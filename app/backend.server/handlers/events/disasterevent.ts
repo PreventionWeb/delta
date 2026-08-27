@@ -1,6 +1,13 @@
 import { disasterRecordsTable } from "~/drizzle/schema/disasterRecordsTable";
+import { declarationStatusTable } from "~/drizzle/schema/declarationStatusTable";
+import { disasterEventDeclarationTable } from "~/drizzle/schema/disasterEventDeclarationTable";
+import { disasterEventAssessmentTable } from "~/drizzle/schema/disasterEventAssessmentTable";
+import { disasterEventResponseTable } from "~/drizzle/schema/disasterEventResponseTable";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
+import { organizationTable } from "~/drizzle/schema/organizationTable";
+import { responseTypeTable } from "~/drizzle/schema/responseTypeTable";
+import { assessmentTypeTable } from "~/drizzle/schema/assessmentTypeTable";
 
 import { authLoaderIsPublic } from "~/utils/auth";
 
@@ -44,7 +51,7 @@ export async function disasterEventsLoader(args: disasterEventLoaderArgs) {
 
 		// New filter parameters
 		disasterEventName?: string;
-		recordingInstitution?: string;
+		recordingOrganization?: string;
 		fromDate?: string;
 		toDate?: string;
 		recordStatus?: string;
@@ -57,7 +64,8 @@ export async function disasterEventsLoader(args: disasterEventLoaderArgs) {
 
 		// New filters
 		disasterEventName: url.searchParams.get("disasterEventName") || "",
-		recordingInstitution: url.searchParams.get("recordingInstitution") || "",
+		recordingOrganization:
+			url.searchParams.get("recordingOrganization") || "",
 		fromDate: url.searchParams.get("fromDate") || "",
 		toDate: url.searchParams.get("toDate") || "",
 		recordStatus: url.searchParams.get("recordStatus") || "",
@@ -80,7 +88,7 @@ export async function disasterEventsLoader(args: disasterEventLoaderArgs) {
 
 	let searchIlike = "%" + filters.search + "%";
 	let disasterEventNameIlike = "%" + filters.disasterEventName + "%";
-	let recordingInstitutionIlike = "%" + filters.recordingInstitution + "%";
+	let recordingOrganizationIlike = "%" + filters.recordingOrganization + "%";
 
 	const countryAccountsId = await getCountryAccountsIdFromSession(request);
 	let instanceName = "DELTA Resilience";
@@ -103,8 +111,13 @@ export async function disasterEventsLoader(args: disasterEventLoaderArgs) {
 					sql`${disasterEventTable.nameGlobalOrRegional}::text ILIKE ${disasterEventNameIlike}`,
 				)
 			: undefined,
-		filters.recordingInstitution
-			? sql`${disasterEventTable.recordingInstitution}::text ILIKE ${recordingInstitutionIlike}`
+		filters.recordingOrganization
+			? sql`EXISTS (
+					SELECT 1 FROM ${organizationTable}
+					WHERE ${organizationTable.id} = ${disasterEventTable.recordingOrganizationId}
+						AND ${organizationTable.countryAccountsId} = ${disasterEventTable.countryAccountsId}
+						AND ${organizationTable.name} ILIKE ${recordingOrganizationIlike}
+				)`
 			: undefined,
 		filters.recordStatus
 			? sql`${disasterEventTable.approvalStatus}::text ILIKE ${filters.recordStatus}`
@@ -198,98 +211,56 @@ export async function disasterEventsLoader(args: disasterEventLoaderArgs) {
 								ilike(disasterEventTable.endDate, searchIlike),
 								ilike(disasterEventTable.startDateLocal, searchIlike),
 								ilike(disasterEventTable.endDateLocal, searchIlike),
-								ilike(
-									disasterEventTable.disasterDeclarationTypeAndEffect1,
-									searchIlike,
-								),
-								ilike(
-									disasterEventTable.disasterDeclarationTypeAndEffect2,
-									searchIlike,
-								),
-								ilike(
-									disasterEventTable.disasterDeclarationTypeAndEffect3,
-									searchIlike,
-								),
-								ilike(
-									disasterEventTable.disasterDeclarationTypeAndEffect4,
-									searchIlike,
-								),
-								ilike(
-									disasterEventTable.disasterDeclarationTypeAndEffect5,
-									searchIlike,
-								),
+								sql`EXISTS (
+									SELECT 1
+									FROM ${disasterEventDeclarationTable} ded
+									LEFT JOIN ${declarationStatusTable} ds
+										ON ds.id = ded.declaration_status_id
+									WHERE ded.disaster_event_id = ${disasterEventTable.id}
+									AND (
+										COALESCE(ded.type, '') ILIKE ${searchIlike}
+										OR COALESCE(ded.effects, '') ILIKE ${searchIlike}
+										OR COALESCE(ded.coverage, '') ILIKE ${searchIlike}
+										OR COALESCE(ded.issuing_organization, '') ILIKE ${searchIlike}
+										OR COALESCE(ds.status, '') ILIKE ${searchIlike}
+									)
+								)`,
 								ilike(
 									disasterEventTable.officialWarningAffectedAreas,
 									searchIlike,
 								),
-								ilike(disasterEventTable.earlyActionDescription1, searchIlike),
-								ilike(disasterEventTable.earlyActionDescription2, searchIlike),
-								ilike(disasterEventTable.earlyActionDescription3, searchIlike),
-								ilike(disasterEventTable.earlyActionDescription4, searchIlike),
-								ilike(disasterEventTable.earlyActionDescription5, searchIlike),
-								ilike(
-									disasterEventTable.rapidOrPreliminaryAssessmentDescription1,
-									searchIlike,
-								),
-								ilike(
-									disasterEventTable.rapidOrPreliminaryAssessmentDescription2,
-									searchIlike,
-								),
-								ilike(
-									disasterEventTable.rapidOrPreliminaryAssessmentDescription3,
-									searchIlike,
-								),
-								ilike(
-									disasterEventTable.rapidOrPreliminaryAssessmentDescription4,
-									searchIlike,
-								),
-								ilike(
-									disasterEventTable.rapidOrPreliminaryAssessmentDescription5,
-									searchIlike,
-								),
-								ilike(disasterEventTable.responseOperations, searchIlike),
-								ilike(
-									disasterEventTable.postDisasterAssessmentDescription1,
-									searchIlike,
-								),
-								ilike(
-									disasterEventTable.postDisasterAssessmentDescription2,
-									searchIlike,
-								),
-								ilike(
-									disasterEventTable.postDisasterAssessmentDescription3,
-									searchIlike,
-								),
-								ilike(
-									disasterEventTable.postDisasterAssessmentDescription4,
-									searchIlike,
-								),
-								ilike(
-									disasterEventTable.postDisasterAssessmentDescription5,
-									searchIlike,
-								),
-								ilike(
-									disasterEventTable.otherAssessmentDescription1,
-									searchIlike,
-								),
-								ilike(
-									disasterEventTable.otherAssessmentDescription2,
-									searchIlike,
-								),
-								ilike(
-									disasterEventTable.otherAssessmentDescription3,
-									searchIlike,
-								),
-								ilike(
-									disasterEventTable.otherAssessmentDescription4,
-									searchIlike,
-								),
-								ilike(
-									disasterEventTable.otherAssessmentDescription5,
-									searchIlike,
-								),
+								sql`EXISTS (
+									SELECT 1
+									FROM ${disasterEventResponseTable} der
+									INNER JOIN ${responseTypeTable} rt
+										ON rt.id = der.response_type_id
+									WHERE der.disaster_event_id = ${disasterEventTable.id}
+									AND (
+										COALESCE(der.description, '') ILIKE ${searchIlike}
+										OR COALESCE(der.coverage, '') ILIKE ${searchIlike}
+										OR rt.type ILIKE ${searchIlike}
+									)
+								)`,
+								sql`EXISTS (
+									SELECT 1
+									FROM ${disasterEventAssessmentTable} dea
+									INNER JOIN ${assessmentTypeTable} at
+										ON at.id = dea.assessment_type_id
+									WHERE dea.disaster_event_id = ${disasterEventTable.id}
+									AND (
+										COALESCE(dea.description, '') ILIKE ${searchIlike}
+										OR COALESCE(dea.coverage, '') ILIKE ${searchIlike}
+										OR COALESCE(dea.other_sectors, '') ILIKE ${searchIlike}
+										OR at.type ILIKE ${searchIlike}
+									)
+								)`,
 								ilike(disasterEventTable.dataSource, searchIlike),
-								ilike(disasterEventTable.recordingInstitution, searchIlike),
+								sql`EXISTS (
+									SELECT 1 FROM ${organizationTable}
+									WHERE ${organizationTable.id} = ${disasterEventTable.recordingOrganizationId}
+										AND ${organizationTable.countryAccountsId} = ${disasterEventTable.countryAccountsId}
+										AND ${organizationTable.name} ILIKE ${searchIlike}
+								)`,
 								ilike(disasterEventTable.nonEconomicLosses, searchIlike),
 								ilike(
 									disasterEventTable.responseOperationsDescription,
@@ -306,11 +277,14 @@ export async function disasterEventsLoader(args: disasterEventLoaderArgs) {
 	);
 
 	// in case of data viewer role, force the filter on approvalStatus to validated and published
-	if (userRole === 'data-viewer') {
-		condition = and(condition, or(
-			eq(disasterEventTable.approvalStatus, "validated"),
-			eq(disasterEventTable.approvalStatus, "published")
-		));
+	if (userRole === "data-viewer") {
+		condition = and(
+			condition,
+			or(
+				eq(disasterEventTable.approvalStatus, "validated"),
+				eq(disasterEventTable.approvalStatus, "published"),
+			),
+		);
 	}
 
 	const count = await dr.$count(disasterEventTable, condition);

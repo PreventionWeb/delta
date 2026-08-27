@@ -1,6 +1,6 @@
 import { redirect, useLoaderData } from "react-router";
 import type { LoaderFunctionArgs } from "react-router";
-import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { BackendContext } from "~/backend.server/context";
 
 import { formSave } from "~/backend.server/handlers/form/form";
@@ -10,7 +10,6 @@ import {
 } from "~/backend.server/models/event";
 import { dataForHazardPicker } from "~/backend.server/models/hip_hazard_picker";
 import { handleApprovalWorkflowService } from "~/backend.server/services/approvalWorkflowService";
-import { buildTree } from "~/components/TreeView";
 import { dr } from "~/db.server";
 import {
 	getUserCountryAccountsWithValidatorRole,
@@ -60,6 +59,8 @@ export async function loader(loaderArgs: LoaderFunctionArgs) {
 
 	const hip = await dataForHazardPicker(ctx);
 	const u = new URL(request.url);
+	const settings = await getCountrySettingsFromSession(request);
+	const ctryIso3 = settings?.dtsInstanceCtryIso3 || "";
 
 	const parentId = u.searchParams.get("parent") || "";
 
@@ -99,36 +100,12 @@ export async function loader(loaderArgs: LoaderFunctionArgs) {
 			parentId,
 			parent,
 			treeData: [],
-			ctryIso3: [],
+			ctryIso3,
 			user,
 			countryAccountsId,
 			filteredUsersWithValidatorRole,
 		};
 	}
-
-	// Load divisions filtered by tenant context
-	const rawData = await dr
-		.select({
-			id: divisionTable.id,
-			parentId: divisionTable.parentId,
-			name: divisionTable.name,
-			importId: divisionTable.importId,
-			nationalId: divisionTable.nationalId,
-			level: divisionTable.level,
-		})
-		.from(divisionTable)
-		.where(sql`country_accounts_id = ${countryAccountsId}`);
-
-	const treeData = buildTree(rawData, "id", "parentId", "name", "en", [
-		"importId",
-		"nationalId",
-		"level",
-		"name",
-	]);
-
-	// Use tenant's ISO3
-	const settings = await getCountrySettingsFromSession(request);
-	const ctryIso3 = settings.crtyIso3;
 
 	// Load top-level divisions with geojson, filtered by tenant context
 	const divisionGeoJSON = await dr
@@ -148,7 +125,7 @@ export async function loader(loaderArgs: LoaderFunctionArgs) {
 
 	return {
 		hip,
-		treeData,
+		treeData: [],
 		ctryIso3,
 		divisionGeoJSON: divisionGeoJSON || [],
 		user,

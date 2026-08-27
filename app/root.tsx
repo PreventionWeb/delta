@@ -8,6 +8,7 @@ import {
 	Outlet,
 	Scripts,
 	useLocation,
+	useMatches,
 } from "react-router";
 
 import {
@@ -19,7 +20,8 @@ import {
 	getCountryAccountsIdFromSession,
 } from "~/utils/session";
 
-import { useEffect, useRef } from "react";
+import { useContext, useEffect, useRef } from "react";
+import { I18nContext } from "react-i18next";
 
 import allStylesHref from "./styles/all.css?url";
 
@@ -39,11 +41,22 @@ import { Toast } from "primereact/toast";
 import RegularMenuBar from "./components/RegularMenuBar";
 import SuperAdminMenuBar from "./components/SuperAdminMenuBar";
 import InactivityWarning from "./components/InactivityWarning";
-import { isRouteErrorResponse, useRouteError, useRouteLoaderData } from "react-router";
+import {
+	isRouteErrorResponse,
+	useRouteError,
+	useRouteLoaderData,
+} from "react-router";
 import { Footer } from "./frontend/footer/footer";
 
 import { getUserRoleFromSession } from "~/utils/session";
 import { UserCountryAccountRepository } from "~/db/queries/userCountryAccountsRepository";
+import { requestContextMiddleware } from "~/middleware/requestContext.server";
+import { i18nextMiddleware } from "~/middleware/i18next.server";
+
+// Runs before any loader/action in the matched route tree, for every request
+// See openspec/changes/archive/2026-07-02-ca-request-context-middleware/design.md Decision 3.
+// i18nextMiddleware appended after requestContextMiddleware for future step-2 (user.preferredLocale) use; no current dependency.
+export const middleware = [requestContextMiddleware, i18nextMiddleware];
 
 export const links: LinksFunction = () => [
 	{ rel: "stylesheet", href: "/assets/css/style-dts.css?asof=20250630" },
@@ -64,7 +77,9 @@ export const loader = async (
 	);
 	const message = getFlashMessage(session);
 	const userForRoute = onAdminRoute ? undefined : user;
-	const superAdminSessionForRoute = onAdminRoute ? superAdminSession : undefined;
+	const superAdminSessionForRoute = onAdminRoute
+		? superAdminSession
+		: undefined;
 
 	const userRole = await getUserRoleFromSession(request);
 	const isCountryAccountSelected = onAdminRoute
@@ -76,7 +91,10 @@ export const loader = async (
 
 	let activeInstanceCount = 0;
 	if (userForRoute) {
-		activeInstanceCount = await UserCountryAccountRepository.countActiveByUserId(userForRoute.user.id);
+		activeInstanceCount =
+			await UserCountryAccountRepository.countActiveByUserId(
+				userForRoute.user.id,
+			);
 	}
 
 	// Admin routes only honor super admin sessions.
@@ -114,10 +132,10 @@ export const loader = async (
 	const userForFrontend = onAdminRoute
 		? isSuperAdmin
 			? {
-				role: "super_admin",
-				firstName: "Super",
-				lastName: "Admin",
-			}
+					role: "super_admin",
+					firstName: "Super",
+					lastName: "Admin",
+				}
 			: null
 		: await authLoaderGetOptionalUserForFrontend(routeArgs);
 
@@ -159,8 +177,15 @@ export const loader = async (
 export default function Screen() {
 	const loaderData = useLoaderData();
 	const location = useLocation();
+	const matches = useMatches();
 	let ctx = new ViewContext();
 	const onAdminRoute = location.pathname.startsWith(ctx.url("/admin/"));
+	const hideMainNavigation = matches.some((match) => {
+		const routeHandle = match.handle as
+			| { hideMainNavigation?: boolean }
+			| undefined;
+		return routeHandle?.hideMainNavigation === true;
+	});
 
 	const {
 		isLoggedIn,
@@ -175,11 +200,15 @@ export default function Screen() {
 		lang,
 		translations,
 		isCountryAccountSelected,
-		activeInstanceCount
+		activeInstanceCount,
 	} = loaderData;
 	const firstName = loaderData.common?.user?.firstName || "";
 	const lastName = loaderData.common?.user?.lastName || "";
 	const toast = useRef<Toast>(null);
+	// Read at render time, not in the loader — avoids a race with child-route loadNamespaces() loaders.
+	const i18nResourceBundle =
+		useContext(I18nContext)?.i18n.getDataByLanguage(loaderData.common.lang) ??
+		{};
 
 	useEffect(() => {
 		if (flashMessage) {
@@ -195,6 +224,7 @@ export default function Screen() {
 		<html
 			lang={loaderData.common.lang}
 			dir={loaderData.common.lang === "ar" ? "rtl" : "ltr"}
+			suppressHydrationWarning
 		>
 			<head>
 				<meta charSet="utf-8" />
@@ -207,40 +237,51 @@ export default function Screen() {
 						__html: createTranslationScript(lang, translations),
 					}}
 				/>
+				<script
+					type="application/json"
+					id="i18n-resource-bundle"
+					dangerouslySetInnerHTML={{
+						__html: JSON.stringify(i18nResourceBundle),
+					}}
+				/>
 			</head>
 			<body>
-				<Toast ref={toast} position={loaderData.common.lang === "ar" ? "top-left" : "top-right"} />
+				<Toast
+					ref={toast}
+					position={loaderData.common.lang === "ar" ? "top-left" : "top-right"}
+				/>
 				<PrimeReactProvider
 					value={{
 						ripple: true,
 					}}
 				>
 					<InactivityWarning ctx={ctx} loggedIn={isLoggedIn} />
-					<div className="min-h-screen flex flex-col  bg-gray-50">
-
+					<div className="min-h-screen flex flex-col bg-white">
 						{/* Header */}
-						<header className="w-full bg-white border-b border-gray-200">
-							<div className="mx-auto max-w-8xl px-4 md:px-6 lg:px-8 py-4">
-								{onAdminRoute ? (
-									<SuperAdminMenuBar
-										isLoggedIn={isLoggedIn}
-										siteName={confSiteName}
-										firstName={firstName}
-										lastName={lastName}
-									/>
-								) : (
-									<RegularMenuBar
-										isLoggedIn={isLoggedIn}
-										userRole={userRole}
-										isCountryAccountSelected={isCountryAccountSelected}
-										activeInstanceCount={activeInstanceCount}
-										siteName={confSiteName}
-										firstName={firstName}
-										lastName={lastName}
-									/>
-								)}
-							</div>
-						</header>
+						{!hideMainNavigation ? (
+							<header className="w-full bg-white border-b border-gray-200">
+								<div className="mx-auto max-w-8xl px-4 md:px-6 lg:px-8 py-4">
+									{onAdminRoute ? (
+										<SuperAdminMenuBar
+											isLoggedIn={isLoggedIn}
+											siteName={confSiteName}
+											firstName={firstName}
+											lastName={lastName}
+										/>
+									) : (
+										<RegularMenuBar
+											isLoggedIn={isLoggedIn}
+											userRole={userRole}
+											isCountryAccountSelected={isCountryAccountSelected}
+											activeInstanceCount={activeInstanceCount}
+											siteName={confSiteName}
+											firstName={firstName}
+											lastName={lastName}
+										/>
+									)}
+								</div>
+							</header>
+						) : null}
 
 						{/* Main Content */}
 						<main className="flex-1 w-full">
@@ -250,17 +291,17 @@ export default function Screen() {
 						</main>
 
 						{/* Footer */}
-						<footer>
-							<Footer
-								ctx={ctx}
-								siteName={confSiteName}
-								urlPrivacyPolicy={confFooterURLPrivPolicy}
-								urlTermsConditions={confFooterURLTermsConds}
-							/>
-						</footer>
+						{!hideMainNavigation ? (
+							<footer>
+								<Footer
+									ctx={ctx}
+									siteName={confSiteName}
+									urlPrivacyPolicy={confFooterURLPrivPolicy}
+									urlTermsConditions={confFooterURLTermsConds}
+								/>
+							</footer>
+						) : null}
 					</div>
-
-
 				</PrimeReactProvider>
 				<Scripts />
 			</body>
@@ -292,7 +333,7 @@ export function ErrorBoundary() {
 	}
 
 	return (
-		<html>
+		<html suppressHydrationWarning>
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -303,7 +344,6 @@ export function ErrorBoundary() {
 			<body>
 				<div className="min-h-screen bg-gray-50 px-8 py-12">
 					<div className="w-full bg-white shadow-sm border border-gray-200 rounded-xl p-8">
-
 						<div className="flex items-start gap-4 mb-6">
 							<i className="pi pi-exclamation-triangle text-3xl text-red-500"></i>
 
@@ -312,9 +352,7 @@ export function ErrorBoundary() {
 									{title}
 								</h1>
 
-								<p className="text-gray-600 mt-2">
-									{message}
-								</p>
+								<p className="text-gray-600 mt-2">{message}</p>
 							</div>
 						</div>
 
@@ -344,7 +382,6 @@ export function ErrorBoundary() {
 								{error.stack}
 							</pre>
 						)}
-
 					</div>
 				</div>
 

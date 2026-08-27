@@ -3,6 +3,7 @@ import { MultiSelect } from "primereact/multiselect";
 import { Dialog } from "primereact/dialog";
 import { Checkbox } from "primereact/checkbox";
 import { InputTextarea } from "primereact/inputtextarea";
+import { Toast } from "primereact/toast";
 import { useFetcher } from "react-router";
 import { useState, useEffect, useRef } from "react";
 import {
@@ -21,6 +22,8 @@ interface ViewComponentMainDataCollectionProps {
 	listUrl?: string;
 	id: any;
 	title: string;
+	hideTopSummary?: boolean;
+	hideEditButton?: boolean;
 	extraActions?: React.ReactNode;
 	extraInfo?: React.ReactNode;
 	children?: React.ReactNode;
@@ -43,6 +46,7 @@ export function ViewComponentMainDataCollection(
 	const [checked, setChecked] = useState(false);
 
 	const btnRefSubmit = useRef(null);
+	const toast = useRef<Toast>(null);
 	const actionLabels: Record<string, string> = {
 		"submit-validate": ctx.t({
 			code: "common.validate_record",
@@ -105,7 +109,15 @@ export function ViewComponentMainDataCollection(
 
 		// Client-side validation only for submit-reject action
 		if (!rejectionComments && selectedAction === "submit-reject") {
-			alert("Provide comments for changes needed for this record");
+			toast.current?.show({
+				severity: "error",
+				summary: ctx.t({ code: "common.error", msg: "Error" }),
+				detail: ctx.t({
+					code: "common.provide_comments_for_return",
+					msg: "Provide comments for changes needed for this record",
+				}),
+				life: 6000,
+			});
 			return false;
 		}
 
@@ -129,7 +141,17 @@ export function ViewComponentMainDataCollection(
 			} else {
 				// Perform failure action
 				console.error("Error:", fetcher.data.message);
-				alert("Something went wrong.");
+				toast.current?.show({
+					severity: "error",
+					summary: ctx.t({ code: "common.error", msg: "Error" }),
+					detail:
+						fetcher.data.message ||
+						ctx.t({
+							code: "common.something_went_wrong",
+							msg: "Something went wrong.",
+						}),
+					life: 8000,
+				});
 			}
 		}
 	}, [fetcher.state, fetcher.data]);
@@ -138,6 +160,10 @@ export function ViewComponentMainDataCollection(
 
 	return (
 		<>
+			<Toast
+				ref={toast}
+				position={ctx.lang === "ar" ? "top-left" : "top-right"}
+			/>
 			<fetcher.Form method="post" ref={formRef}>
 				<div className="card flex justify-content-center">
 					<Dialog
@@ -178,7 +204,9 @@ export function ViewComponentMainDataCollection(
 							{props.recordDate && <p>{props.recordDate}</p>}
 
 							<p>
-								{ctx.t({ code: "common.status", msg: "Status" })}:{" "}
+								<strong>
+									{ctx.t({ code: "common.status", msg: "Status" })}:
+								</strong>{" "}
 								<span
 									className={`dts-status dts-status--${props.approvalStatus}`}
 								></span>{" "}
@@ -583,29 +611,33 @@ export function ViewComponentMainDataCollection(
 			<MainContainer title={props.title}>
 				<>
 					<form className="dts-form">
-						<p>
-							<LangLink lang={ctx.lang} to={props.listUrl || props.path}>
-								{props.title}
-							</LangLink>
-						</p>
+						{!props.hideTopSummary && (
+							<p>
+								<LangLink lang={ctx.lang} to={props.listUrl || props.path}>
+									{props.title}
+								</LangLink>
+							</p>
+						)}
 						{!props.isPublic && (
 							<>
 								<div style={{ textAlign: "right" }}>
-									<LangLink
-										visible={canEditDataCollectionRecord(
-											ctx.user?.role ?? null,
-											props.approvalStatus,
-										)}
-										lang={ctx.lang}
-										to={`${props.path}/edit/${String(props.id)}`}
-										className="mg-button mg-button-secondary"
-										style={{ margin: "5px" }}
-									>
-										{ctx.t({
-											code: "common.edit",
-											msg: "Edit",
-										})}
-									</LangLink>
+									{!props.hideEditButton && (
+										<LangLink
+											visible={canEditDataCollectionRecord(
+												ctx.user?.role ?? null,
+												props.approvalStatus,
+											)}
+											lang={ctx.lang}
+											to={`${props.path}/edit/${String(props.id)}`}
+											className="mg-button mg-button-secondary"
+											style={{ margin: "5px" }}
+										>
+											{ctx.t({
+												code: "common.edit",
+												msg: "Edit",
+											})}
+										</LangLink>
+									)}
 
 									{props.approvalStatus === "waiting-for-validation" && (
 										<>
@@ -665,14 +697,18 @@ export function ViewComponentMainDataCollection(
 								</div>
 							</>
 						)}
-						<h2>{props.title}</h2>
-						<p>
-							{ctx.t({
-								code: "common.id",
-								msg: "ID",
-							})}
-							: {String(props.id)}
-						</p>
+						{!props.hideTopSummary && (
+							<>
+								<h2>{props.title}</h2>
+								<p>
+									{ctx.t({
+										code: "common.id",
+										msg: "ID",
+									})}
+									: {String(props.id)}
+								</p>
+							</>
+						)}
 						{props.extraInfo}
 						{props.children}
 					</form>

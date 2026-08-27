@@ -60,6 +60,10 @@ change — not just at archival.
 Work through `tasks.md` in the specified order. Each task should be small and independently
 verifiable. After each task, run the relevant test to confirm progress.
 
+**Checkbox discipline:** After completing each task, update its checkbox in `tasks.md` from
+`- [ ]` to `- [x]` BEFORE proceeding to the next task. Do not batch updates at the end.
+An unticked checkbox means the task is not done — even if the code exists.
+
 **If tasks.md includes test-writing tasks and no test file exists yet:** invoke the
 `tdd-test-writer` agent first. Do not begin the Green phase until failing tests exist and are
 confirmed to fail for the right reason.
@@ -102,9 +106,14 @@ and re-run from that gate. Loop until all pass:
 5. SOLID review                                  — invoke solid-reviewer agent
 6. documentation review (see below)             — comments balanced and purposeful
 7. project conventions review (see below)       — DELTA-specific rules followed
+8. code review                                   — invoke code-review skill at high effort
+9. visual/UX parity review (see below)          — REQUIRED if this change touches
+                                                    app/domains/*/presentation/ or app/routes/
 ```
 
-Only exit the loop when all seven gates pass without changes needed.
+Only exit the loop when every applicable gate passes without changes needed. Gate 9 is not
+applicable to changes with no rendered output (pure backend/API changes) — skip it only in
+that case, and say so explicitly rather than silently omitting it.
 
 ## Gate details
 
@@ -125,11 +134,67 @@ on every tenant query, `authLoaderWithPerm` on every loader, `yarn dbsync` for m
 new tests under `tests/` — Vitest for unit/integration, Playwright for routing/auth/
 request-lifecycle changes (see test tier check above).
 
+**Visual/UX parity review (Gate 9):** Passing tests and `tsc` prove code correctness, not
+feature correctness — they do not catch a missing page-header wrapper, an unstyled heading,
+or a list with no way to reach its own detail page. Presentation-layer styling and layout must
+be in-line with other pages in the app — use the same shared layout components, heading
+classes, and navigation patterns as existing pages, not a page-specific invention. Do this for
+real, don't just assert you did:
+1. Name a real, existing reference page of the same page-type already in the app (a list page
+   for a new list page, a detail/form page for a new detail/form page) — not a hypothetical.
+2. Start `yarn dev`, seed minimal real data if the page needs it to render meaningfully, and
+   actually render both the new page and the reference page — via a real browser screenshot
+   (Playwright: `chromium.launch()` + `page.screenshot()`), not a mental simulation.
+3. Read the screenshot image yourself (the `Read` tool renders images) and compare: page-header/
+   layout wrapper present, headings using the app's real typography classes (not bare `<h1>`),
+   and any navigation affordance a user would expect (e.g. a list page needs a way to reach its
+   detail view — check how the cited reference page solves this, copy that exact pattern).
+4. If you don't have a login session handy, create one: insert a temporary user row (bcrypt
+   password hash) tied to an existing tenant directly via SQL/the DB client, log in through the
+   real `/en/user/login` form with Playwright, take your screenshots, then delete the temporary
+   user afterward. Do not skip this step because "the tests already cover the behavior" — tests
+   assert on text content, not layout.
+5. Fix anything that doesn't match, citing the real precedent you compared against (not an
+   invented pattern) — same rigor as any other design decision: verify against real code, don't
+   guess.
+
+**Code review:** Before invoking the `code-review` skill, explicitly switch cognitive mode.
+You are no longer the implementer whose goal is to make the code work — you are a skeptical
+reviewer whose only goal is to find what is wrong. Re-read your own implementation as if you
+are encountering it for the first time and have no stake in defending any of the choices.
+Then invoke the `code-review` skill at `high` effort on the changed files.
+Treat every finding as a potential gate failure — classify each one (see Review comment
+resolution below) and act accordingly before exiting the loop.
+
+## Review comment resolution
+
+When Gate 8 (or an external PR review) produces findings, classify each before acting:
+
+| Finding type | Examples | Action |
+|---|---|---|
+| **Spec gap / missing scenario** | Race condition not in spec; edge case uncovered | Invoke `spec-writer` to update the spec, then re-implement and re-run gates 1–8 |
+| **Architectural / design flaw** | Wrong abstraction, SRP violation, rejected alternative used | Update `design.md`, invoke `spec-writer` if behaviour changes, re-implement, re-run gates 1–8 |
+| **Documentation / artifact inaccuracy** | TBD Purpose in spec, inaccurate migration note | Fix the artifact directly; re-run gate 1 (tests) + gate 2 (tsc) only |
+| **Nitpick / style** | Missing language tag, wrong type shape in example | Fix directly; re-run gate 1 (tests) + gate 2 (tsc) only |
+
+**Loop limit:** Track a fix-attempt counter per finding. If a finding is not resolved after
+**3 fix attempts**, stop and escalate to the user: describe the finding, what was tried, and
+why it remains unresolved. Do not loop indefinitely.
+
 ## Done criteria
 
-All seven gates pass, `yarn test:run2` (full PGlite suite) shows no regressions, and
-`opsx:archive` has been run to move the change artifacts to `openspec/changes/archive/`.
-Archive on the same branch as a final commit before raising the PR — no separate branch needed.
+All eight gates pass and `yarn test:run2` (full PGlite suite) shows no regressions.
+
+**Archive and PR tasks are user-controlled — stop when you reach them.** Any task whose
+body invokes `opsx:archive` (or `openspec archive`) or asks to raise a PR is outside your
+scope, regardless of its task number. When you reach the first such task: mark the regression
+gate task `[x]`, report the final state (gates passed, files changed, regression comparison),
+and stop. Do not attempt the archive or PR.
+
+**Regression rule:** Run `yarn test:run2` on the base branch (before your changes) to establish
+a baseline failure count. After implementation, run it again. Any failure present after your
+changes that was NOT present on the base branch is a regression introduced by this change and
+MUST be fixed before archiving. Pre-existing failures are documented and excluded.
 
 If the test tier check required Playwright: `yarn playwright test tests/e2e/<affected-spec>`
-passes with no regressions before archiving.
+passes with no regressions before stopping.

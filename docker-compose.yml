@@ -14,6 +14,7 @@ services:
       - AUTHENTICATION_SUPPORTED=form
       - PUBLIC_URL=${PUBLIC_URL}
       - EMAIL_FROM=${EMAIL_FROM}
+      - TZ=${TZ:-UTC}
     volumes:
       - .:/delta
     depends_on:
@@ -28,6 +29,7 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
+      - TZ=${TZ:-UTC}
     volumes:
       - db-data:/var/lib/postgresql/data
     ports:
@@ -47,10 +49,12 @@ services:
     ports:
       - 8080:8080
     environment:
-      ADMINER_DEFAULT_DB_DRIVER: pgsql
-      ADMINER_DEFAULT_DB_HOST: db
-      ADMINER_DEFAULT_DB_PORT: 5432
-      ADMINER_DEFAULT_DB_NAME: ${POSTGRES_DB}
+      - ADMINER_DEFAULT_DB_DRIVER=pgsql
+      - ADMINER_DEFAULT_DB_HOST=db
+      - ADMINER_DEFAULT_DB_PORT=5432
+      - ADMINER_DEFAULT_DB_NAME=${POSTGRES_DB}
+      - TZ=${TZ:-UTC}
+    # volumes:     
     restart: on-failure
 
 volumes:

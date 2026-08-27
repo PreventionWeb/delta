@@ -34,6 +34,103 @@ function normalizeTenantRelativePath(inputPath: string): string {
 }
 
 class ContentRepeaterUploadFile {
+	private static buildDeleteCandidates(
+		item: any,
+		publicPath: string,
+		countryAccountsId?: string,
+	): string[] {
+		if (!item.file?.name) {
+			return [];
+		}
+
+		const fileName = item.file.name;
+		const tenantPathFromItem = item.file.tenantPath;
+		const candidates: string[] = [];
+
+		if (tenantPathFromItem) {
+			const cleanPath = tenantPathFromItem.startsWith("/")
+				? tenantPathFromItem.slice(1)
+				: tenantPathFromItem;
+			const fullPath = path.resolve(publicPath, cleanPath, fileName);
+			candidates.push(fullPath);
+		}
+
+		if (countryAccountsId) {
+			const tenantDir = path.join(
+				BASE_UPLOAD_PATH,
+				`tenant-${countryAccountsId}`,
+			);
+			candidates.push(path.resolve(publicPath, tenantDir, fileName));
+		}
+
+		candidates.push(
+			path.resolve(
+				publicPath,
+				`tenant-${countryAccountsId || "unknown"}`,
+				fileName,
+			),
+		);
+
+		candidates.push(
+			path.resolve(
+				publicPath,
+				fileName.startsWith("/") ? fileName.slice(1) : fileName,
+			),
+		);
+
+		return candidates;
+	}
+
+	static deleteEmptyParentDirectoriesForFiles(
+		itemsData: any[],
+		publicPath: string = path.join(process.cwd()),
+		countryAccountsId?: string,
+	): void {
+		const processedDirectories = new Set<string>();
+
+		for (const item of itemsData) {
+			const candidateDirectories = this.buildDeleteCandidates(
+				item,
+				publicPath,
+				countryAccountsId,
+			).map((filePath) => path.dirname(filePath));
+
+			for (const candidateDirectory of candidateDirectories) {
+				let currentDirectory = candidateDirectory;
+				while (true) {
+					const normalizedDirectory = path.normalize(currentDirectory);
+					if (processedDirectories.has(normalizedDirectory)) {
+						break;
+					}
+
+					processedDirectories.add(normalizedDirectory);
+
+					if (!fs.existsSync(normalizedDirectory)) {
+						break;
+					}
+
+					const relativeDirectory = path
+						.relative(publicPath, normalizedDirectory)
+						.replace(/\\/g, "/");
+					if (!relativeDirectory.includes("/disaster-event/")) {
+						break;
+					}
+
+					try {
+						if (fs.readdirSync(normalizedDirectory).length > 0) {
+							break;
+						}
+
+						fs.rmdirSync(normalizedDirectory);
+						currentDirectory = path.dirname(normalizedDirectory);
+					} catch {
+						break;
+					}
+				}
+			}
+		}
+	}
+
 	/**
 	 * Delete files from disk based on items data
 	 */
@@ -47,49 +144,12 @@ class ContentRepeaterUploadFile {
 		items.forEach((item) => {
 			if (!item.file?.name) return;
 
-			const fileName = item.file.name;
-			const tenantPathFromItem = item.file.tenantPath;
-
-			// Build possible absolute paths to delete
-			const candidates: string[] = [];
-
-			// 1. Use tenantPath from item if present (most reliable)
-			if (tenantPathFromItem) {
-				const cleanPath = tenantPathFromItem.startsWith("/")
-					? tenantPathFromItem.slice(1)
-					: tenantPathFromItem;
-				const fullPath = path.resolve(publicPath, cleanPath, fileName);
-				candidates.push(fullPath);
-			}
-
-			// 2. Build path using current countryAccountsId
-			if (countryAccountsId) {
-				const tenantDir = path.join(
-					BASE_UPLOAD_PATH,
-					`tenant-${countryAccountsId}`,
-				);
-				candidates.push(path.resolve(publicPath, tenantDir, fileName));
-			}
-
-			// 3. Legacy: try root-level tenant folder (for old files)
-			candidates.push(
-				path.resolve(
-					publicPath,
-					`tenant-${countryAccountsId || "unknown"}`,
-					fileName,
-				),
-			);
-
-			// 4. Fallback: direct path
-			candidates.push(
-				path.resolve(
-					publicPath,
-					fileName.startsWith("/") ? fileName.slice(1) : fileName,
-				),
-			);
-
 			// Try to delete from first existing path
-			for (const filePath of candidates) {
+			for (const filePath of this.buildDeleteCandidates(
+				item,
+				publicPath,
+				countryAccountsId,
+			)) {
 				if (fs.existsSync(filePath)) {
 					try {
 						fs.unlinkSync(filePath);

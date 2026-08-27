@@ -1,7 +1,9 @@
 import { dr, Tx } from "~/db.server";
 import { disasterRecordsTable } from "~/drizzle/schema/disasterRecordsTable";
+import { divisionTable } from "~/drizzle/schema/divisionTable";
+import { lossesGeomTable } from "~/drizzle/schema/lossesGeomTable";
 import { lossesTable, InsertLosses } from "~/drizzle/schema/lossesTable";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import {
 	CreateResult,
@@ -11,14 +13,276 @@ import {
 import { Errors, FormInputDef, hasErrors } from "~/frontend/form";
 import { unitsEnum } from "~/frontend/unit_picker";
 import {
+	lossesTypeCategoryEnum,
 	typeEnumAgriculture,
 	typeEnumNotAgriculture,
 } from "~/frontend/losses_enums";
 import { DisasterRecordsRepository } from "~/db/queries/disasterRecordsRepository";
+import { LossesGeomRepository } from "~/db/queries/lossesGeomRepository";
+import { LossesDivisionRepository } from "~/db/queries/lossesDivisionRepository";
 import { BackendContext } from "../context";
 import { DContext } from "~/utils/dcontext";
 
-export interface LossesFields extends Omit<InsertLosses, "id"> {}
+export interface LossesFields extends Omit<InsertLosses, "id"> {
+	spatialFootprint?: unknown;
+}
+
+type SpatialFootprintItem = {
+	id?: string;
+	title?: string;
+	map_option?: string;
+	geojson?: any;
+	geographic_level?: string;
+	[key: string]: unknown;
+};
+
+type GeoJsonLike = {
+	type?: string;
+	geometry?: unknown;
+	features?: unknown;
+	geometries?: unknown;
+	[key: string]: unknown;
+};
+
+function parseSpatialFootprintItems(value: unknown): SpatialFootprintItem[] {
+	if (Array.isArray(value)) {
+		return value.filter((item): item is SpatialFootprintItem => !!item);
+	}
+
+	if (typeof value === "string") {
+		try {
+			const parsed = JSON.parse(value);
+			return Array.isArray(parsed)
+				? parsed.filter((item): item is SpatialFootprintItem => !!item)
+				: [];
+		} catch {
+			return [];
+		}
+	}
+
+	return [];
+}
+
+function isGeoJsonObject(value: unknown): value is GeoJsonLike {
+	return !!value && typeof value === "object";
+}
+
+function isGeoJsonGeometry(value: unknown): value is GeoJsonLike {
+	return isGeoJsonObject(value) && typeof value.type === "string";
+}
+
+function extractGeojsonGeometry(item: SpatialFootprintItem) {
+	if (!isGeoJsonObject(item?.geojson)) {
+		return null;
+	}
+
+	const geojson = item.geojson;
+
+	if (geojson.type === "FeatureCollection") {
+		const features = Array.isArray(geojson.features) ? geojson.features : [];
+		const geometries = features
+			.map((feature) => {
+				if (!isGeoJsonObject(feature)) {
+					return null;
+				}
+
+				return isGeoJsonGeometry(feature.geometry) ? feature.geometry : null;
+			})
+			.filter((geometry): geometry is GeoJsonLike => geometry !== null);
+
+		if (geometries.length === 0) {
+			return null;
+		}
+
+		if (geometries.length === 1) {
+			return geometries[0];
+		}
+
+		return {
+			type: "GeometryCollection",
+			geometries,
+		};
+	}
+
+	if (geojson.type === "Feature") {
+		return isGeoJsonGeometry(geojson.geometry) ? geojson.geometry : null;
+	}
+
+	if (isGeoJsonGeometry(geojson.geometry)) {
+		return geojson.geometry;
+	}
+
+	if (isGeoJsonGeometry(geojson)) {
+		return geojson;
+	}
+
+	return null;
+}
+
+async function syncLossesSpatialFootprint(
+	tx: Tx,
+	lossId: string,
+	spatialFootprintValue: unknown,
+) {
+	const items = parseSpatialFootprintItems(spatialFootprintValue);
+	const mapCoordinateItems = items.filter(
+		(item) => item.map_option === "Map coordinates",
+	);
+	const geographicItems = items.filter(
+		(item) => item.map_option === "Geographic level",
+	);
+
+	await LossesGeomRepository.deleteByLossId(lossId, tx);
+	await LossesDivisionRepository.deleteByLossId(lossId, tx);
+
+	if (mapCoordinateItems.length > 0) {
+		await LossesGeomRepository.createMany(
+			mapCoordinateItems
+				.map((item) => {
+					const geometry = extractGeojsonGeometry(item);
+					if (!geometry) {
+						return null;
+					}
+
+					return {
+						lossId,
+						title: typeof item.title === "string" ? item.title : null,
+						geom: sql`ST_MakeValid(ST_GeomFromGeoJSON(${JSON.stringify(geometry)}))`,
+					};
+				})
+				.filter((item): item is NonNullable<typeof item> => item !== null),
+			tx,
+		);
+	}
+
+	if (geographicItems.length > 0) {
+		const divisionIds = Array.from(
+			new Set(
+				geographicItems
+					.map((item) => String(item?.geojson?.properties?.division_id ?? ""))
+					.filter((value) => value.length > 0),
+			),
+		);
+
+		if (divisionIds.length > 0) {
+			const validDivisions = await tx
+				.select({ id: divisionTable.id })
+				.from(divisionTable)
+				.where(inArray(divisionTable.id, divisionIds));
+
+			const validDivisionIds = new Set(validDivisions.map((row) => row.id));
+			const rows = geographicItems
+				.map((item) => String(item?.geojson?.properties?.division_id ?? ""))
+				.filter((value) => validDivisionIds.has(value))
+				.map((divisionId) => ({
+					lossId,
+					divisionId,
+				}));
+
+			if (rows.length > 0) {
+				await LossesDivisionRepository.createMany(rows, tx);
+			}
+		}
+	}
+}
+
+async function loadLossesSpatialFootprint(tx: Tx, lossId: string) {
+	const [geomRows, divisionRows] = await Promise.all([
+		tx
+			.select({
+				id: lossesGeomTable.id,
+				title: lossesGeomTable.title,
+				geom: sql<string>`ST_AsGeoJSON(${lossesGeomTable.geom})`,
+			})
+			.from(lossesGeomTable)
+			.where(eq(lossesGeomTable.lossId, lossId)),
+		LossesDivisionRepository.getByLossId(lossId, tx),
+	]);
+
+	const divisionIds = divisionRows.map(
+		(row: { divisionId: string }) => row.divisionId,
+	);
+	const divisionDetails = divisionIds.length
+		? await tx
+				.select({
+					id: divisionTable.id,
+					name: divisionTable.name,
+					geojson: divisionTable.geojson,
+					importId: divisionTable.importId,
+					nationalId: divisionTable.nationalId,
+					level: divisionTable.level,
+				})
+				.from(divisionTable)
+				.where(inArray(divisionTable.id, divisionIds))
+		: [];
+
+	const divisionsById = new Map(
+		divisionDetails.map((row: (typeof divisionDetails)[number]) => [
+			row.id,
+			row,
+		]),
+	);
+
+	const mapCoordinates = geomRows
+		.map((row: (typeof geomRows)[number]) => {
+			if (!row.geom || typeof row.geom !== "string") {
+				return null;
+			}
+
+			try {
+				const geometry = JSON.parse(row.geom);
+				return {
+					id: row.id,
+					title: row.title,
+					map_option: "Map coordinates",
+					geojson: {
+						type: "Feature",
+						geometry,
+						properties: {},
+					},
+				};
+			} catch {
+				return null;
+			}
+		})
+		.filter((item): item is NonNullable<typeof item> => item !== null);
+
+	const geographic = divisionRows
+		.map((row: { divisionId: string }) => divisionsById.get(row.divisionId))
+		.filter((division): division is NonNullable<typeof division> => !!division)
+		.map((division: NonNullable<(typeof divisionDetails)[number]>) => {
+			const geojson = division.geojson as any;
+			const nameObject = division.name as Record<string, string> | null;
+			const title =
+				nameObject?.en || Object.values(nameObject || {})[0] || division.id;
+
+			return {
+				id: `geographic-${division.id}`,
+				title,
+				map_option: "Geographic level",
+				geographic_level: title,
+				geojson:
+					geojson && typeof geojson === "object"
+						? {
+								...(geojson.type === "Feature"
+									? geojson
+									: { type: "Feature", geometry: geojson, properties: {} }),
+								properties: {
+									...((geojson as any)?.properties || {}),
+									division_id: division.id,
+									division_ids: [division.id],
+									import_id: division.importId,
+									national_id: division.nationalId,
+									level: division.level,
+									name: division.name,
+								},
+							}
+						: null,
+			};
+		});
+
+	return [...mapCoordinates, ...geographic];
+}
 
 export function fieldsForPubOrPriv(
 	ctx: DContext,
@@ -91,107 +355,14 @@ export const createFieldsDef = (ctx: DContext, currencies: string[]) => {
 			key: "typeNotAgriculture",
 			label: ctx.t({ code: "common.type", msg: "Type" }),
 			type: "enum",
-			enumData: [
-				{
-					key: "infrastructure_temporary",
-					label: ctx.t({
-						code: "disaster_records.losses.infrastructure_temporary",
-						msg: "Infrastructure- temporary for service/production continuity",
-					}),
-				},
-				{
-					key: "production_service_delivery_and_availability",
-					label: ctx.t({
-						code: "disaster_records.losses.production_service_delivery_and_availability",
-						msg: "Production, Service delivery and availability of/access to goods and services",
-					}),
-				},
-				{
-					key: "governance_and_decision_making",
-					label: ctx.t({
-						code: "disaster_records.losses.governance_and_decision_making",
-						msg: "Governance and decision-making",
-					}),
-				},
-				{
-					key: "risk_and_vulnerabilities",
-					label: ctx.t({
-						code: "disaster_records.losses.risk_and_vulnerabilities",
-						msg: "Risk and vulnerabilities",
-					}),
-				},
-				{
-					key: "other_losses",
-					label: ctx.t({
-						code: "disaster_records.losses.other_losses",
-						msg: "Other losses",
-					}),
-				},
-				{
-					key: "employment_and_livelihoods_losses",
-					label: ctx.t({
-						code: "disaster_records.losses.employment_and_livelihoods_losses",
-						msg: "Employment and Livelihoods losses",
-					}),
-				},
-			],
+			enumData: lossesTypeCategoryEnum(ctx, false),
 			uiRow: {},
 		},
 		{
 			key: "typeAgriculture",
 			label: ctx.t({ code: "common.type", msg: "Type" }),
 			type: "enum",
-			enumData: [
-				{
-					key: "infrastructure_temporary",
-					label: ctx.t({
-						code: "disaster_records.losses.infrastructure_temporary",
-						msg: "Infrastructure- temporary for service/production continuity",
-					}),
-				},
-				{
-					key: "production_losses",
-					label: ctx.t({
-						code: "disaster_records.losses.production_losses",
-						msg: "Production losses",
-					}),
-				},
-				{
-					key: "production_service_delivery_and_availability",
-					label: ctx.t({
-						code: "disaster_records.losses.production_service_delivery_and_availability",
-						msg: "Production, Service delivery and availability of/access to goods and services",
-					}),
-				},
-				{
-					key: "governance_and_decision_making",
-					label: ctx.t({
-						code: "disaster_records.losses.governance_and_decision_making",
-						msg: "Governance and decision-making",
-					}),
-				},
-				{
-					key: "risk_and_vulnerabilities",
-					label: ctx.t({
-						code: "disaster_records.losses.risk_and_vulnerabilities",
-						msg: "Risk and vulnerabilities",
-					}),
-				},
-				{
-					key: "other_losses",
-					label: ctx.t({
-						code: "disaster_records.losses.other_losses",
-						msg: "Other losses",
-					}),
-				},
-				{
-					key: "employment_and_livelihoods_losses",
-					label: ctx.t({
-						code: "disaster_records.losses.employment_and_livelihoods_losses",
-						msg: "Employment and Livelihoods losses",
-					}),
-				},
-			],
+			enumData: lossesTypeCategoryEnum(ctx, true),
 			uiRow: {},
 		},
 		{
@@ -229,11 +400,10 @@ export const createFieldsDef = (ctx: DContext, currencies: string[]) => {
 		...fieldsForPubOrPriv(ctx, true, currencies),
 		// Private
 		...fieldsForPubOrPriv(ctx, false, currencies),
-
 		{
 			key: "spatialFootprint",
 			label: ctx.t({
-				code: "common.spatial_footprint",
+				code: "spatial_footprint",
 				msg: "Spatial footprint",
 			}),
 			type: "other",
@@ -245,6 +415,7 @@ export const createFieldsDef = (ctx: DContext, currencies: string[]) => {
 			label: ctx.t({ code: "common.attachments", msg: "Attachments" }),
 			type: "other",
 			psqlType: "jsonb",
+			uiRowNew: true,
 		},
 	];
 	return fieldsDef;
@@ -304,10 +475,16 @@ export async function lossesCreate(
 		fields.relatedToAgriculture = null;
 	}
 
+	const spatialFootprintValue = (fields as any).spatialFootprint;
+	const { spatialFootprint: _ignoredSpatialFootprint, ...insertValues } =
+		fields as any;
+
 	const res = await tx
 		.insert(lossesTable)
-		.values({ ...fields })
+		.values({ ...insertValues })
 		.returning({ id: lossesTable.id });
+
+	await syncLossesSpatialFootprint(tx, res[0].id, spatialFootprintValue);
 	return { ok: true, id: res[0].id };
 }
 
@@ -328,10 +505,18 @@ export async function lossesUpdate(
 		}
 	}
 
+	const spatialFootprintValue = (fields as any).spatialFootprint;
+	const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
+		fields as any;
+
 	await tx
 		.update(lossesTable)
-		.set({ ...fields })
+		.set({ ...updateValues })
 		.where(eq(lossesTable.id, id));
+
+	if ("spatialFootprint" in fields) {
+		await syncLossesSpatialFootprint(tx, id, spatialFootprintValue);
+	}
 	return { ok: true };
 }
 
@@ -369,10 +554,18 @@ export async function lossesUpdateByIdAndCountryAccountsId(
 		}
 	}
 
+	const spatialFootprintValue = (fields as any).spatialFootprint;
+	const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
+		fields as any;
+
 	await tx
 		.update(lossesTable)
-		.set({ ...fields })
+		.set({ ...updateValues })
 		.where(eq(lossesTable.id, id));
+
+	if ("spatialFootprint" in fields) {
+		await syncLossesSpatialFootprint(tx, id, spatialFootprintValue);
+	}
 	return { ok: true };
 }
 
@@ -431,7 +624,12 @@ export async function lossesByIdTx(_ctx: BackendContext, tx: Tx, id: string) {
 		where: eq(lossesTable.id, id),
 	});
 	if (!res) return null;
-	return res;
+
+	const spatialFootprint = await loadLossesSpatialFootprint(tx, id);
+	return {
+		...res,
+		spatialFootprint,
+	};
 }
 
 export async function lossesByIdAndCountryAccountsId(
@@ -458,7 +656,12 @@ export async function lossesByIdAndCountryAccountsIdTx(
 	});
 	if (!res) return null;
 	if (res.disasterRecord.countryAccountsId !== countryAccountsId) return null;
-	return res;
+
+	const spatialFootprint = await loadLossesSpatialFootprint(tx, id);
+	return {
+		...res,
+		spatialFootprint,
+	};
 }
 
 export async function lossesDeleteById(

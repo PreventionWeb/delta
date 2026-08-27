@@ -1,4 +1,5 @@
-import { DisasterRecordsView } from "~/frontend/disaster-record/form";
+﻿import { DisasterRecordsView } from "~/frontend/disaster-record/form";
+import { SectorEffectsTable } from "~/frontend/disaster-record/SectorEffectsTable";
 
 import {
 	createViewLoaderPublicApproved,
@@ -12,14 +13,10 @@ import { sectorsFilterByDisasterRecordId } from "~/backend.server/models/disaste
 import { getAffectedByDisasterRecord } from "~/backend.server/models/analytics/affected-people-by-disaster-record";
 import AuditLogHistory from "~/components/AuditLogHistory";
 import { disasterRecordsTable } from "~/drizzle/schema/disasterRecordsTable";
-import { lossesTable } from "~/drizzle/schema/lossesTable";
-import { damagesTable } from "~/drizzle/schema/damagesTable";
-import { disruptionTable } from "~/drizzle/schema/disruptionTable";
 import { getTableName } from "drizzle-orm";
 
 import { dr } from "~/db.server";
 import { contentPickerConfig } from "./content-picker-config";
-import { sql, eq } from "drizzle-orm";
 import {
 	authActionGetAuth,
 	authActionWithPerm,
@@ -28,6 +25,7 @@ import {
 import { getCountryAccountsIdFromSession } from "~/utils/session";
 import { getUserIdFromSession } from "~/utils/session";
 import { useLoaderData } from "react-router";
+import { Fragment } from "react";
 import { ViewContext } from "~/frontend/context";
 
 import { LoaderFunctionArgs } from "react-router";
@@ -35,6 +33,17 @@ import { BackendContext } from "~/backend.server/context";
 import { processApprovalStatusActionService } from "~/services/approvalStatusWorkflowService";
 import { getReturnAssigneeUsers } from "~/db/queries/userCountryAccountsRepository";
 import { queryHipEntity } from "~/backend.server/models/hip";
+import { DisasterRecordsGeomRepository } from "~/db/queries/disasterRecordsGeomRepository";
+import { DisasterRecordsDivisionRepository } from "~/db/queries/disasterRecordsDivisionRepository";
+import { DisruptionRepository } from "~/db/queries/disruptionRepository";
+import { DisruptionGeomRepository } from "~/db/queries/disruptionGeomRepository";
+import { DisruptionDivisionRepository } from "~/db/queries/disruptionDivisionRepository";
+import { LossesRepository } from "~/db/queries/lossesRepository";
+import { LossesGeomRepository } from "~/db/queries/lossesGeomRepository";
+import { LossesDivisionRepository } from "~/db/queries/lossesDivisionRepository";
+import { DamagesRepository } from "~/db/queries/damagesRepository";
+import { DamagesGeomRepository } from "~/db/queries/damagesGeomRepository";
+import { DamagesDivisionRepository } from "~/db/queries/damagesDivisionRepository";
 
 export const loader = async (args: LoaderFunctionArgs) => {
 	const { request, params } = args;
@@ -77,52 +86,93 @@ export const loader = async (args: LoaderFunctionArgs) => {
 			dr,
 			result.item.disasterEventId,
 		)) ?? "";
+	const [disasterRecordGeoms, disasterRecordDivisions] = await Promise.all([
+		DisasterRecordsGeomRepository.getByDisasterRecordId(id),
+		DisasterRecordsDivisionRepository.getByDisasterRecordId(id),
+	]);
+	const [
+		disruptions,
+		losses,
+		damages,
+	] = await Promise.all([
+		DisruptionRepository.getByRecordIdWithInfo(id, ctx.lang),
+		LossesRepository.getByRecordIdWithInfo(id, ctx.lang),
+		DamagesRepository.getByRecordIdWithInfo(id, ctx.lang),
+	]);
 
-	const disasterId = id;
-	const disasterRecord = await dr
-		.select({
-			disaster_id: disasterRecordsTable.id,
-			disaster_spatial_footprint: disasterRecordsTable.spatialFootprint,
-			disruptions: sql`
-				COALESCE(
-					jsonb_agg(
-						jsonb_build_object(
-						'id', ${disruptionTable.id},
-						'spatial_footprint', ${disruptionTable.spatialFootprint}
-						)
-					) FILTER (WHERE ${disruptionTable.id} IS NOT NULL), '[]'::jsonb
-				)
-			`.as("disruptions"),
-			losses: sql`
-				COALESCE(
-					jsonb_agg(
-						jsonb_build_object(
-						'id', ${lossesTable.id},
-						'spatial_footprint', ${lossesTable.spatialFootprint}
-						)
-					) FILTER (WHERE ${lossesTable.id} IS NOT NULL), '[]'::jsonb
-				)
-			`.as("losses"),
-			damages: sql`
-				COALESCE(
-					jsonb_agg(
-						jsonb_build_object(
-						'id', ${damagesTable.id},
-						'spatial_footprint', ${damagesTable.spatialFootprint}
-						)
-					) FILTER (WHERE ${damagesTable.id} IS NOT NULL), '[]'::jsonb
-				)
-			`.as("damages"),
-		})
-		.from(disasterRecordsTable)
-		.leftJoin(
-			disruptionTable,
-			eq(disasterRecordsTable.id, disruptionTable.recordId),
-		)
-		.leftJoin(lossesTable, eq(disasterRecordsTable.id, lossesTable.recordId))
-		.leftJoin(damagesTable, eq(disasterRecordsTable.id, damagesTable.recordId))
-		.where(eq(disasterRecordsTable.id, disasterId))
-		.groupBy(disasterRecordsTable.id, disasterRecordsTable.spatialFootprint);
+	const [
+		disruptionGeoms,
+		disruptionDivisions,
+		lossesGeoms,
+		lossesDivisions,
+		damagesGeoms,
+		damagesDivisions,
+	] = await Promise.all([
+		DisruptionGeomRepository.getByDisruptionIds(
+			((result.item as any).children || []).map((child: any) => child.id),
+		),
+		DisruptionDivisionRepository.getByDisruptionIds(
+			((result.item as any).children || []).map((child: any) => child.id),
+		),
+		LossesGeomRepository.getByLossIds(
+			((result.item as any).losses || []).map((item: any) => item.id),
+		),
+		LossesDivisionRepository.getByLossIds(
+			((result.item as any).losses || []).map((item: any) => item.id),
+		),
+		DamagesGeomRepository.getByDamageIds(
+			((result.item as any).damages || []).map((item: any) => item.id),
+		),
+		DamagesDivisionRepository.getByDamageIds(
+			((result.item as any).damages || []).map((item: any) => item.id),
+		),
+	]);
+	const disasterRecord = [
+		...disasterRecordGeoms.map((row) => ({
+			kind: "disaster_record_geom",
+			...row,
+		})),
+		...disasterRecordDivisions.map((row) => ({
+			kind: "disaster_record_division",
+			...row,
+		})),
+		...disruptions.map((row) => ({
+			kind: "disruption",
+			...row,
+		})),
+		...disruptionGeoms.map((row) => ({
+			kind: "disruption_geom",
+			...row,
+		})),
+		...disruptionDivisions.map((row) => ({
+			kind: "disruption_division",
+			...row,
+		})),
+		...losses.map((row) => ({
+			kind: "losses",
+			...row,
+		})),
+		...lossesGeoms.map((row) => ({
+			kind: "losses_geom",
+			...row,
+		})),
+		...lossesDivisions.map((row) => ({
+			kind: "losses_division",
+			...row,
+		})),
+		...damages.map((row) => ({
+			kind: "damages",
+			...row,
+		})),
+		...damagesGeoms.map((row) => ({
+			kind: "damages_geom",
+			...row,
+		})),
+		...damagesDivisions.map((row) => ({
+			kind: "damages_division",
+			...row,
+		})),
+	];
 
 	const returnAssignees = userSession
 		? (await getReturnAssigneeUsers(countryAccountsId, userId)).map((user) => ({
@@ -179,7 +229,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
 };
 
 export const action = authActionWithPerm("EditData", async (actionArgs) => {
-	const { request } = actionArgs;
+	const { request, params } = actionArgs;
 	const ctx = new BackendContext(actionArgs);
 	const countryAccountsId = await getCountryAccountsIdFromSession(request);
 	const userSession = authActionGetAuth(actionArgs);
@@ -189,6 +239,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 		ctx,
 		request,
 		formData,
+		routeRecordId: params.id,
 		countryAccountsId,
 		userId: userSession.user.id,
 		recordType: "disaster_records",
@@ -318,123 +369,14 @@ export default function Screen() {
 
 								<div className="border-0">
 									<div className="overflow-x-auto">
-										<table className="w-full border border-gray-300 text-sm">
-											<thead className="bg-gray-50 text-gray-700">
-												<tr>
-													<th
-														className="border border-gray-300 px-3 py-2"
-														colSpan={2}
-													/>
-													<th
-														className="border border-gray-300 px-3 py-2 text-center"
-														colSpan={3}
-													>
-														{ctx.t({
-															code: "sector_effects.damage",
-															msg: "Damage",
-														})}
-													</th>
-													<th
-														className="border border-gray-300 px-3 py-2 text-center"
-														colSpan={2}
-													>
-														{ctx.t({
-															code: "sector_effects.losses",
-															msg: "Losses",
-														})}
-													</th>
-													<th
-														className="border border-gray-300 px-3 py-2"
-														colSpan={1}
-													/>
-												</tr>
-												<tr>
-													{[
-														{ code: "common.id", msg: "ID" },
-														{ code: "sector_effects.sector", msg: "Sector" },
-														{ code: "sector_effects.damage", msg: "Damage" },
-														{
-															code: "sector_effects.recovery_cost",
-															msg: "Recovery cost",
-														},
-														{ code: "sector_effects.cost", msg: "Cost" },
-														{ code: "sector_effects.losses", msg: "Losses" },
-														{ code: "sector_effects.cost", msg: "Cost" },
-														{
-															code: "sector_effects.disruption",
-															msg: "Disruption",
-														},
-													].map(({ code, msg }, i) => (
-														<th
-															key={`${code}-${i}`}
-															className="border border-gray-300 px-3 py-2 font-medium text-left"
-														>
-															{ctx.t({ code, msg })}
-														</th>
-													))}
-												</tr>
-											</thead>
-											<tbody>
-												{Array.isArray(ld.recordsDisRecSectors) &&
-													ld.recordsDisRecSectors.map((item, index) => (
-														<tr key={index} className="hover:bg-gray-50">
-															<td className="border border-gray-300 px-3 py-2 text-gray-500 font-mono text-xs">
-																{item.disRecSectorsId.slice(0, 8)}
-															</td>
-															<td className="border border-gray-300 px-3 py-2">
-																{item.sectorTreeDisplay}
-															</td>
-															<td className="border border-gray-300 px-3 py-2">
-																{item.disRecSectorsWithDamage && (
-																	<span>
-																		{ctx.t({ code: "common.yes", msg: "Yes" })}
-																	</span>
-																)}
-															</td>
-															<td className="border border-gray-300 px-3 py-2">
-																{item.disRecSectorsDamageRecoveryCost && (
-																	<span>
-																		{item.disRecSectorsDamageRecoveryCost}{" "}
-																		{
-																			item.disRecSectorsDamageRecoveryCostCurrency
-																		}
-																	</span>
-																)}
-															</td>
-															<td className="border border-gray-300 px-3 py-2">
-																{item.disRecSectorsDamageCost && (
-																	<span>
-																		{item.disRecSectorsDamageCost}{" "}
-																		{item.disRecSectorsDamageCostCurrency}
-																	</span>
-																)}
-															</td>
-															<td className="border border-gray-300 px-3 py-2">
-																{item.disRecSectorsWithLosses && (
-																	<span>
-																		{ctx.t({ code: "common.yes", msg: "Yes" })}
-																	</span>
-																)}
-															</td>
-															<td className="border border-gray-300 px-3 py-2">
-																{item.disRecSectorsLossesCost && (
-																	<span>
-																		{item.disRecSectorsLossesCost}{" "}
-																		{item.disRecSectorsLossesCostCurrency}
-																	</span>
-																)}
-															</td>
-															<td className="border border-gray-300 px-3 py-2">
-																{item.disRecSectorsWithDisruption && (
-																	<span>
-																		{ctx.t({ code: "common.yes", msg: "Yes" })}
-																	</span>
-																)}
-															</td>
-														</tr>
-													))}
-											</tbody>
-										</table>
+										{Array.isArray(ld.recordsDisRecSectors) &&
+											ld.recordsDisRecSectors.map((item, index) => (<Fragment key={item.catId ?? index}>
+												<SectorEffectsTable
+													item={item}
+													disasterRecord={ld.item.disasterRecord ?? []}
+													ctx={ctx}
+												/>
+										</Fragment>))}
 									</div>
 								</div>
 							</fieldset>
@@ -458,7 +400,6 @@ export default function Screen() {
 											<thead className="bg-gray-50 text-gray-700">
 												<tr>
 													{[
-														{ code: "common.id", msg: "ID" },
 														{ code: "common.category", msg: "Category" },
 														{ code: "common.description", msg: "Description" },
 													].map(({ code, msg }) => (
@@ -475,9 +416,6 @@ export default function Screen() {
 												{Array.isArray(ld.recordsNonecoLosses) &&
 													ld.recordsNonecoLosses.map((item, index) => (
 														<tr key={index} className="hover:bg-gray-50">
-															<td className="border border-gray-300 px-3 py-2 text-gray-500 font-mono text-xs">
-																{item.noneccoId.slice(0, 8)}
-															</td>
 															<td className="border border-gray-300 px-3 py-2">
 																{item.categoryTreeDisplay}
 															</td>

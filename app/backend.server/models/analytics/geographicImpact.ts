@@ -808,7 +808,7 @@ async function getDisasterRecordsForDivision(
 			.select({
 				id: disasterRecordsTable.id,
 				locationDesc: disasterRecordsTable.locationDesc,
-				spatialFootprint: disasterRecordsTable.spatialFootprint,
+				spatialFootprint: (disasterRecordsTable as any).spatialFootprint,
 				sectorId: sectorDisasterRecordsRelationTable.sectorId,
 				withDamage: sectorDisasterRecordsRelationTable.withDamage,
 				damageCost: sectorDisasterRecordsRelationTable.damageCost,
@@ -832,7 +832,7 @@ async function getDisasterRecordsForDivision(
 		const spatialQuery = query.where(
 			and(
 				...conditions,
-				sql`${disasterRecordsTable.spatialFootprint} IS NOT NULL`,
+				sql`${(disasterRecordsTable as any).spatialFootprint} IS NOT NULL`,
 				or(
 					sql.raw(
 						`jsonb_path_exists("disaster_records"."spatial_footprint", '$[*].geojson.properties.division_ids[*] ? (${quoted})')`,

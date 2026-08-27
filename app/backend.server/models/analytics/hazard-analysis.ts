@@ -1,6 +1,7 @@
 import { and, eq, gte, lte, SQL, sql } from "drizzle-orm";
 import { dr } from "~/db.server";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
+import { disasterRecordsDivisionTable } from "~/drizzle/schema/disasterRecordsDivisionTable";
 
 interface HazardFilters {
 	countryAccountsId: string;
@@ -49,14 +50,12 @@ export async function getDisasterEventCount(
 
 	if (geographicLevelId) {
 		conditions.push(
-			sql`jsonb_path_exists(
-          ${disasterEventTable.spatialFootprint},
-          concat(
-            '$[*].geojson.properties.division_id ? (@ == "',
-            ${geographicLevelId}::text,
-            '")'
-          )::jsonpath
-        )`,
+			sql`EXISTS (
+				SELECT 1
+				FROM disaster_event_division ded
+				WHERE ded.disaster_event_id = ${disasterEventTable.id}
+					AND ded.division_id = ${geographicLevelId}::uuid
+			)`,
 		);
 	}
 
@@ -115,14 +114,12 @@ export async function getDisasterEventCountByYear(
 
 	if (geographicLevelId) {
 		conditions.push(
-			sql`jsonb_path_exists(
-        ${disasterEventTable.spatialFootprint},
-        concat(
-          '$[*].geojson.properties.division_id ? (@ == "',
-          ${geographicLevelId}::text,
-          '")'
-        )::jsonpath
-      )`,
+			sql`EXISTS (
+				SELECT 1
+				FROM disaster_event_division ded
+				WHERE ded.disaster_event_id = ${disasterEventTable.id}
+					AND ded.division_id = ${geographicLevelId}::uuid
+			)`,
 		);
 	}
 
@@ -258,7 +255,7 @@ export async function getAffectedPeopleByHazardFilters(
 		// WITH geographic filtering
 		const geoConditions = [
 			...whereConditions,
-			sql`(sf->'geojson'->'properties'->>'division_id' IS NOT NULL OR sf->'geojson'->'properties'->'division_ids' IS NOT NULL)`,
+			sql`drd."division_id" IS NOT NULL`,
 			sql`dh.level1_id IN (
                 SELECT level1_id 
                 FROM division_hierarchy 
@@ -281,14 +278,10 @@ export async function getAffectedPeopleByHazardFilters(
           filtered_records AS (
             SELECT DISTINCT dr."id" AS record_id
             FROM "disaster_records" dr
-            LEFT JOIN LATERAL jsonb_array_elements(dr."spatial_footprint") AS sf ON true
+			LEFT JOIN "disaster_records_division" drd
+			  ON dr."id" = drd."disaster_record_id"
             LEFT JOIN division_hierarchy dh 
-              ON (sf->'geojson'->'properties'->>'division_id') = dh.id::text 
-              OR EXISTS (
-                SELECT 1 
-                FROM jsonb_array_elements_text(sf->'geojson'->'properties'->'division_ids') AS div_id 
-                WHERE div_id = dh.id::text
-              )
+			  ON drd."division_id" = dh.id
             ${combinedWhereClause}
           )
           SELECT 
@@ -445,7 +438,7 @@ export async function getGenderTotalsByHazardFilters(
 		// WITH geographic filtering
 		const geoConditions = [
 			...whereConditions,
-			sql`(sf->'geojson'->'properties'->>'division_id' IS NOT NULL OR sf->'geojson'->'properties'->'division_ids' IS NOT NULL)`,
+			sql`drd."division_id" IS NOT NULL`,
 			sql`dh.level1_id IN (
                 SELECT level1_id 
                 FROM division_hierarchy 
@@ -468,38 +461,28 @@ export async function getGenderTotalsByHazardFilters(
           filtered_records AS (
             SELECT DISTINCT dr."id" AS record_id
             FROM "disaster_records" dr
-            LEFT JOIN LATERAL jsonb_array_elements(dr."spatial_footprint") AS sf ON true
+			LEFT JOIN "disaster_records_division" drd
+			  ON dr."id" = drd."disaster_record_id"
             LEFT JOIN division_hierarchy dh 
-              ON (sf->'geojson'->'properties'->>'division_id') = dh.id::text 
-              OR EXISTS (
-                SELECT 1 
-                FROM jsonb_array_elements_text(sf->'geojson'->'properties'->'division_ids') AS div_id 
-                WHERE div_id = dh.id::text
-              )
+			  ON drd."division_id" = dh.id
             ${combinedWhereClause}
           )
           SELECT 
             COALESCE(SUM(CASE WHEN hd.sex = 'm' THEN (
-              COALESCE(dth.deaths, 0) + 
               COALESCE(mis.missing, 0) + 
               COALESCE(aff.direct, 0) + 
-              COALESCE(aff.indirect, 0) + 
               COALESCE(inj.injured, 0) + 
               COALESCE(dsp.displaced, 0)
             ) ELSE 0 END), 0) AS total_men,
             COALESCE(SUM(CASE WHEN hd.sex = 'f' THEN (
-              COALESCE(dth.deaths, 0) + 
               COALESCE(mis.missing, 0) + 
               COALESCE(aff.direct, 0) + 
-              COALESCE(aff.indirect, 0) + 
               COALESCE(inj.injured, 0) + 
               COALESCE(dsp.displaced, 0)
             ) ELSE 0 END), 0) AS total_women,
             COALESCE(SUM(CASE WHEN hd.sex = 'o' THEN (
-              COALESCE(dth.deaths, 0) + 
               COALESCE(mis.missing, 0) + 
               COALESCE(aff.direct, 0) + 
-              COALESCE(aff.indirect, 0) + 
               COALESCE(inj.injured, 0) + 
               COALESCE(dsp.displaced, 0)
             ) ELSE 0 END), 0) AS total_non_binary
@@ -531,26 +514,20 @@ export async function getGenderTotalsByHazardFilters(
           )
           SELECT 
             COALESCE(SUM(CASE WHEN hd.sex = 'm' THEN (
-              COALESCE(dth.deaths, 0) + 
               COALESCE(mis.missing, 0) + 
               COALESCE(aff.direct, 0) + 
-              COALESCE(aff.indirect, 0) + 
               COALESCE(inj.injured, 0) + 
               COALESCE(dsp.displaced, 0)
             ) ELSE 0 END), 0) AS total_men,
             COALESCE(SUM(CASE WHEN hd.sex = 'f' THEN (
-              COALESCE(dth.deaths, 0) + 
               COALESCE(mis.missing, 0) + 
               COALESCE(aff.direct, 0) + 
-              COALESCE(aff.indirect, 0) + 
               COALESCE(inj.injured, 0) + 
               COALESCE(dsp.displaced, 0)
             ) ELSE 0 END), 0) AS total_women,
             COALESCE(SUM(CASE WHEN hd.sex = 'o' THEN (
-              COALESCE(dth.deaths, 0) + 
               COALESCE(mis.missing, 0) + 
               COALESCE(aff.direct, 0) + 
-              COALESCE(aff.indirect, 0) + 
               COALESCE(inj.injured, 0) + 
               COALESCE(dsp.displaced, 0)
             ) ELSE 0 END), 0) AS total_non_binary
@@ -657,7 +634,7 @@ export async function getAgeTotalsByHazardFilters(
 		// WITH geographic filtering
 		const geoConditions = [
 			...whereConditions,
-			sql`(sf->'geojson'->'properties'->>'division_id' IS NOT NULL OR sf->'geojson'->'properties'->'division_ids' IS NOT NULL)`,
+			sql`drd."division_id" IS NOT NULL`,
 			sql`dh.level1_id IN (
                 SELECT level1_id 
                 FROM division_hierarchy 
@@ -680,38 +657,28 @@ export async function getAgeTotalsByHazardFilters(
           filtered_records AS (
             SELECT DISTINCT dr."id" AS record_id
             FROM "disaster_records" dr
-            LEFT JOIN LATERAL jsonb_array_elements(dr."spatial_footprint") AS sf ON true
+			LEFT JOIN "disaster_records_division" drd
+			  ON dr."id" = drd."disaster_record_id"
             LEFT JOIN division_hierarchy dh 
-              ON (sf->'geojson'->'properties'->>'division_id') = dh.id::text 
-              OR EXISTS (
-                SELECT 1 
-                FROM jsonb_array_elements_text(sf->'geojson'->'properties'->'division_ids') AS div_id 
-                WHERE div_id = dh.id::text
-              )
+			  ON drd."division_id" = dh.id
             ${combinedWhereClause}
           )
           SELECT 
             COALESCE(SUM(CASE WHEN hd.age = '0-14' THEN (
-              COALESCE(dth.deaths, 0) + 
               COALESCE(mis.missing, 0) + 
               COALESCE(aff.direct, 0) + 
-              COALESCE(aff.indirect, 0) + 
               COALESCE(inj.injured, 0) + 
               COALESCE(dsp.displaced, 0)
             ) ELSE 0 END), 0) AS total_children,
             COALESCE(SUM(CASE WHEN hd.age = '15-64' THEN (
-              COALESCE(dth.deaths, 0) + 
               COALESCE(mis.missing, 0) + 
               COALESCE(aff.direct, 0) + 
-              COALESCE(aff.indirect, 0) + 
               COALESCE(inj.injured, 0) + 
               COALESCE(dsp.displaced, 0)
             ) ELSE 0 END), 0) AS total_adults,
             COALESCE(SUM(CASE WHEN hd.age = '65+' THEN (
-              COALESCE(dth.deaths, 0) + 
               COALESCE(mis.missing, 0) + 
               COALESCE(aff.direct, 0) + 
-              COALESCE(aff.indirect, 0) + 
               COALESCE(inj.injured, 0) + 
               COALESCE(dsp.displaced, 0)
             ) ELSE 0 END), 0) AS total_seniors
@@ -737,26 +704,20 @@ export async function getAgeTotalsByHazardFilters(
 		rawQuery = sql`
           SELECT 
             COALESCE(SUM(CASE WHEN hd.age = '0-14' THEN (
-              COALESCE(dth.deaths, 0) + 
               COALESCE(mis.missing, 0) + 
               COALESCE(aff.direct, 0) + 
-              COALESCE(aff.indirect, 0) + 
               COALESCE(inj.injured, 0) + 
               COALESCE(dsp.displaced, 0)
             ) ELSE 0 END), 0) AS total_children,
             COALESCE(SUM(CASE WHEN hd.age = '15-64' THEN (
-              COALESCE(dth.deaths, 0) + 
               COALESCE(mis.missing, 0) + 
               COALESCE(aff.direct, 0) + 
-              COALESCE(aff.indirect, 0) + 
               COALESCE(inj.injured, 0) + 
               COALESCE(dsp.displaced, 0)
             ) ELSE 0 END), 0) AS total_adults,
             COALESCE(SUM(CASE WHEN hd.age = '65+' THEN (
-              COALESCE(dth.deaths, 0) + 
               COALESCE(mis.missing, 0) + 
               COALESCE(aff.direct, 0) + 
-              COALESCE(aff.indirect, 0) + 
               COALESCE(inj.injured, 0) + 
               COALESCE(dsp.displaced, 0)
             ) ELSE 0 END), 0) AS total_seniors
@@ -855,7 +816,7 @@ export async function getDisabilityTotalByHazardFilters(
 		// WITH geographic filtering
 		const geoConditions = [
 			...whereConditions,
-			sql`(sf->'geojson'->'properties'->>'division_id' IS NOT NULL OR sf->'geojson'->'properties'->'division_ids' IS NOT NULL)`,
+			sql`drd."division_id" IS NOT NULL`,
 			sql`dh.level1_id IN (
                 SELECT level1_id 
                 FROM division_hierarchy 
@@ -878,22 +839,16 @@ export async function getDisabilityTotalByHazardFilters(
           filtered_records AS (
             SELECT DISTINCT dr."id" AS record_id
             FROM "disaster_records" dr
-            LEFT JOIN LATERAL jsonb_array_elements(dr."spatial_footprint") AS sf ON true
+			LEFT JOIN "disaster_records_division" drd
+			  ON dr."id" = drd."disaster_record_id"
             LEFT JOIN division_hierarchy dh 
-              ON (sf->'geojson'->'properties'->>'division_id') = dh.id::text 
-              OR EXISTS (
-                SELECT 1 
-                FROM jsonb_array_elements_text(sf->'geojson'->'properties'->'division_ids') AS div_id 
-                WHERE div_id = dh.id::text
-              )
+			  ON drd."division_id" = dh.id
             ${combinedWhereClause}
           )
           SELECT 
             COALESCE(SUM(
-              COALESCE(dth.deaths, 0) + 
               COALESCE(mis.missing, 0) + 
               COALESCE(aff.direct, 0) + 
-              COALESCE(aff.indirect, 0) + 
               COALESCE(inj.injured, 0) + 
               COALESCE(dsp.displaced, 0)
             ), 0) AS total_disability
@@ -921,10 +876,8 @@ export async function getDisabilityTotalByHazardFilters(
 		rawQuery = sql`
           SELECT 
             COALESCE(SUM(
-              COALESCE(dth.deaths, 0) + 
               COALESCE(mis.missing, 0) + 
               COALESCE(aff.direct, 0) + 
-              COALESCE(aff.indirect, 0) + 
               COALESCE(inj.injured, 0) + 
               COALESCE(dsp.displaced, 0)
             ), 0) AS total_disability
@@ -1020,7 +973,7 @@ export async function getInternationalPovertyTotalByHazardFilters(
 		// WITH geographic filtering
 		const geoConditions = [
 			...whereConditions,
-			sql`(sf->'geojson'->'properties'->>'division_id' IS NOT NULL OR sf->'geojson'->'properties'->'division_ids' IS NOT NULL)`,
+			sql`drd."division_id" IS NOT NULL`,
 			sql`dh.level1_id IN (
                 SELECT level1_id 
                 FROM division_hierarchy 
@@ -1043,22 +996,16 @@ export async function getInternationalPovertyTotalByHazardFilters(
           filtered_records AS (
             SELECT DISTINCT dr."id" AS record_id
             FROM "disaster_records" dr
-            LEFT JOIN LATERAL jsonb_array_elements(dr."spatial_footprint") AS sf ON true
+			LEFT JOIN "disaster_records_division" drd
+			  ON dr."id" = drd."disaster_record_id"
             LEFT JOIN division_hierarchy dh 
-              ON (sf->'geojson'->'properties'->>'division_id') = dh.id::text 
-              OR EXISTS (
-                SELECT 1 
-                FROM jsonb_array_elements_text(sf->'geojson'->'properties'->'division_ids') AS div_id 
-                WHERE div_id = dh.id::text
-              )
+			  ON drd."division_id" = dh.id
             ${combinedWhereClause}
           )
           SELECT 
             COALESCE(SUM(
-              COALESCE(dth.deaths, 0) + 
               COALESCE(mis.missing, 0) + 
               COALESCE(aff.direct, 0) + 
-              COALESCE(aff.indirect, 0) + 
               COALESCE(inj.injured, 0) + 
               COALESCE(dsp.displaced, 0)
             ), 0) AS total_poverty
@@ -1085,10 +1032,8 @@ export async function getInternationalPovertyTotalByHazardFilters(
 		rawQuery = sql`
           SELECT 
             COALESCE(SUM(
-              COALESCE(dth.deaths, 0) + 
               COALESCE(mis.missing, 0) + 
               COALESCE(aff.direct, 0) + 
-              COALESCE(aff.indirect, 0) + 
               COALESCE(inj.injured, 0) + 
               COALESCE(dsp.displaced, 0)
             ), 0) AS total_poverty
@@ -1182,7 +1127,7 @@ export async function getNationalPovertyTotalByHazardFilters(
 		// WITH geographic filtering
 		const geoConditions = [
 			...whereConditions,
-			sql`(sf->'geojson'->'properties'->>'division_id' IS NOT NULL OR sf->'geojson'->'properties'->'division_ids' IS NOT NULL)`,
+			sql`drd."division_id" IS NOT NULL`,
 			sql`dh.level1_id IN (
                 SELECT level1_id 
                 FROM division_hierarchy 
@@ -1205,22 +1150,16 @@ export async function getNationalPovertyTotalByHazardFilters(
           filtered_records AS (
             SELECT DISTINCT dr."id" AS record_id
             FROM "disaster_records" dr
-            LEFT JOIN LATERAL jsonb_array_elements(dr."spatial_footprint") AS sf ON true
+			LEFT JOIN "disaster_records_division" drd
+			  ON dr."id" = drd."disaster_record_id"
             LEFT JOIN division_hierarchy dh 
-              ON (sf->'geojson'->'properties'->>'division_id') = dh.id::text 
-              OR EXISTS (
-                SELECT 1 
-                FROM jsonb_array_elements_text(sf->'geojson'->'properties'->'division_ids') AS div_id 
-                WHERE div_id = dh.id::text
-              )
+			  ON drd."division_id" = dh.id
             ${combinedWhereClause}
           )
           SELECT 
             COALESCE(SUM(
-              COALESCE(dth.deaths, 0) + 
               COALESCE(mis.missing, 0) + 
               COALESCE(aff.direct, 0) + 
-              COALESCE(aff.indirect, 0) + 
               COALESCE(inj.injured, 0) + 
               COALESCE(dsp.displaced, 0)
             ), 0) AS total_poverty
@@ -1247,10 +1186,8 @@ export async function getNationalPovertyTotalByHazardFilters(
 		rawQuery = sql`
           SELECT 
             COALESCE(SUM(
-              COALESCE(dth.deaths, 0) + 
               COALESCE(mis.missing, 0) + 
               COALESCE(aff.direct, 0) + 
-              COALESCE(aff.indirect, 0) + 
               COALESCE(inj.injured, 0) + 
               COALESCE(dsp.displaced, 0)
             ), 0) AS total_poverty
@@ -1368,6 +1305,7 @@ export async function getFilteredDisasterRecords(filters: HazardFilters) {
 		hazardTypeId,
 		hazardClusterId,
 		specificHazardId,
+		geographicLevelId,
 		fromDate,
 		toDate,
 	} = filters;
@@ -1383,21 +1321,56 @@ export async function getFilteredDisasterRecords(filters: HazardFilters) {
 		whereConditions.push(sql`"hip_cluster_id" = ${hazardClusterId}`);
 	if (specificHazardId)
 		whereConditions.push(sql`"hip_hazard_id" = ${specificHazardId}`);
+	if (geographicLevelId) {
+		whereConditions.push(sql`EXISTS (
+			WITH RECURSIVE division_tree AS (
+				SELECT id
+				FROM division
+				WHERE id = ${geographicLevelId}::uuid
+				UNION ALL
+				SELECT d.id
+				FROM division d
+				INNER JOIN division_tree dt ON d.parent_id = dt.id
+			)
+			SELECT 1
+			FROM disaster_records_division drd
+			WHERE drd.disaster_record_id = disaster_records.id
+				AND drd.division_id IN (SELECT id FROM division_tree)
+		)`);
+	}
 
 	if (fromDate || toDate) {
 		const from = fromDate || "0001-01-01";
 		const to = toDate || "9999-12-31";
 		whereConditions.push(sql`
-      (
-        CASE 
-          WHEN "start_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE("start_date", 'YYYY-MM-DD')
-          WHEN "start_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE("start_date" || '-01', 'YYYY-MM-DD')
-          WHEN "start_date" ~ '^[0-9]{4}$' THEN TO_DATE("start_date" || '-01-01', 'YYYY-MM-DD')
-          ELSE NULL
-        END 
-        BETWEEN ${from}::date AND ${to}::date
-      )
-    `);
+			(
+				CASE 
+					WHEN "start_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE("start_date", 'YYYY-MM-DD')
+					WHEN "start_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE("start_date", 'YYYY-MM')
+					WHEN "start_date" ~ '^[0-9]{4}$' THEN TO_DATE("start_date", 'YYYY')
+					ELSE NULL
+				END IS NULL OR 
+				CASE 
+					WHEN "start_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE("start_date", 'YYYY-MM-DD')
+					WHEN "start_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE("start_date", 'YYYY-MM')
+					WHEN "start_date" ~ '^[0-9]{4}$' THEN TO_DATE("start_date", 'YYYY')
+					ELSE NULL
+				END <= ${to}::date
+			) AND (
+				CASE 
+					WHEN "end_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE("end_date", 'YYYY-MM-DD')
+					WHEN "end_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE("end_date", 'YYYY-MM')
+					WHEN "end_date" ~ '^[0-9]{4}$' THEN TO_DATE("end_date", 'YYYY')
+					ELSE NULL
+				END IS NULL OR 
+				CASE 
+					WHEN "end_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE("end_date", 'YYYY-MM-DD')
+					WHEN "end_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE("end_date", 'YYYY-MM')
+					WHEN "end_date" ~ '^[0-9]{4}$' THEN TO_DATE("end_date", 'YYYY')
+					ELSE NULL
+				END >= ${from}::date
+			)
+		`);
 	}
 
 	const whereClause = whereConditions.length
@@ -1406,7 +1379,7 @@ export async function getFilteredDisasterRecords(filters: HazardFilters) {
 
 	// Fetch matching disaster_records
 	const query = sql`
-    SELECT id, spatial_footprint, hip_type_id, hip_cluster_id, hip_hazard_id, start_date, end_date
+	SELECT id, hip_type_id, hip_cluster_id, hip_hazard_id, start_date, end_date
     FROM disaster_records
     ${whereClause}
   `;
@@ -1812,28 +1785,56 @@ export async function getTotalDamagesByDivision(
 	// 5. Accumulate totals by division
 	const divisionTotals = new Map<string, number>();
 
-	for (const record of disasterRecords) {
-		// Extract division IDs from spatial_footprint
-		const divisions: string[] = [];
+	const recordDivisionRows = await dr
+		.select({
+			recordId: disasterRecordsDivisionTable.disasterRecordId,
+			divisionId: disasterRecordsDivisionTable.divisionId,
+		})
+		.from(disasterRecordsDivisionTable)
+		.where(
+			sql`${disasterRecordsDivisionTable.disasterRecordId} = ANY(ARRAY[${sql.raw(disasterIdsList)}]::uuid[])`,
+		);
 
-		try {
-			const spatial = record.spatial_footprint;
-			if (spatial && Array.isArray(spatial)) {
-				for (const feature of spatial) {
-					const divId =
-						feature?.geojson?.properties?.division_id ??
-						feature?.properties?.division_id;
-					if (divId) divisions.push(String(divId));
-				}
-			} else if (typeof spatial === "object") {
-				const divId =
-					spatial?.geojson?.properties?.division_id ??
-					spatial?.properties?.division_id;
-				if (divId) divisions.push(String(divId));
-			}
-		} catch {
-			// ignore malformed spatial data
+	const divisionsByRecord = new Map<string, string[]>();
+	for (const row of recordDivisionRows) {
+		const rid = String(row.recordId);
+		const list = divisionsByRecord.get(rid) ?? [];
+		list.push(String(row.divisionId));
+		divisionsByRecord.set(rid, list);
+	}
+
+	const uniqueDivisionIds = Array.from(
+		new Set(recordDivisionRows.map((row) => String(row.divisionId))),
+	);
+	const divisionToLevel1 = new Map<string, string>();
+
+	if (uniqueDivisionIds.length > 0) {
+		const divisionIdsList = uniqueDivisionIds.map((id) => `'${id}'`).join(",");
+		const level1MapRes = await dr.execute(sql`
+			WITH RECURSIVE division_hierarchy AS (
+				SELECT id, parent_id, id AS level1_id
+				FROM division
+				WHERE parent_id IS NULL
+				UNION ALL
+				SELECT d.id, d.parent_id, dh.level1_id
+				FROM division d
+				INNER JOIN division_hierarchy dh ON d.parent_id = dh.id
+			)
+			SELECT id::text AS division_id, level1_id::text AS level1_id
+			FROM division_hierarchy
+			WHERE id = ANY(ARRAY[${sql.raw(divisionIdsList)}]::uuid[])
+		`);
+
+		for (const row of level1MapRes.rows as Array<{
+			division_id: string;
+			level1_id: string;
+		}>) {
+			divisionToLevel1.set(String(row.division_id), String(row.level1_id));
 		}
+	}
+
+	for (const record of disasterRecords) {
+		const divisions = divisionsByRecord.get(record.id) ?? [];
 
 		if (!divisions.length) continue;
 
@@ -1849,14 +1850,23 @@ export async function getTotalDamagesByDivision(
 			}
 		}
 
-		// Distribute total damage equally across divisions for this record
-		const perDivisionDamage =
-			divisions.length > 0 ? recordDamage / divisions.length : 0;
+		const level1Divisions = Array.from(
+			new Set(
+				divisions
+					.map((divId) => divisionToLevel1.get(divId))
+					.filter((level1Id): level1Id is string => Boolean(level1Id)),
+			),
+		);
 
-		for (const divId of divisions) {
+		if (!level1Divisions.length) continue;
+
+		// Distribute damage across distinct level-1 divisions only.
+		const perLevel1Damage = recordDamage / level1Divisions.length;
+
+		for (const divId of level1Divisions) {
 			divisionTotals.set(
 				divId,
-				(divisionTotals.get(divId) ?? 0) + perDivisionDamage,
+				(divisionTotals.get(divId) ?? 0) + perLevel1Damage,
 			);
 		}
 	}
@@ -1956,28 +1966,56 @@ export async function getTotalLossesByDivision(
 	// 5. Accumulate totals by division
 	const divisionTotals = new Map<string, number>();
 
-	for (const record of disasterRecords) {
-		// Extract division IDs from spatial_footprint
-		const divisions: string[] = [];
+	const recordDivisionRows = await dr
+		.select({
+			recordId: disasterRecordsDivisionTable.disasterRecordId,
+			divisionId: disasterRecordsDivisionTable.divisionId,
+		})
+		.from(disasterRecordsDivisionTable)
+		.where(
+			sql`${disasterRecordsDivisionTable.disasterRecordId} = ANY(ARRAY[${sql.raw(disasterIdsList)}]::uuid[])`,
+		);
 
-		try {
-			const spatial = record.spatial_footprint;
-			if (spatial && Array.isArray(spatial)) {
-				for (const feature of spatial) {
-					const divId =
-						feature?.geojson?.properties?.division_id ??
-						feature?.properties?.division_id;
-					if (divId) divisions.push(String(divId));
-				}
-			} else if (typeof spatial === "object") {
-				const divId =
-					spatial?.geojson?.properties?.division_id ??
-					spatial?.properties?.division_id;
-				if (divId) divisions.push(String(divId));
-			}
-		} catch {
-			// ignore malformed spatial data
+	const divisionsByRecord = new Map<string, string[]>();
+	for (const row of recordDivisionRows) {
+		const rid = String(row.recordId);
+		const list = divisionsByRecord.get(rid) ?? [];
+		list.push(String(row.divisionId));
+		divisionsByRecord.set(rid, list);
+	}
+
+	const uniqueDivisionIds = Array.from(
+		new Set(recordDivisionRows.map((row) => String(row.divisionId))),
+	);
+	const divisionToLevel1 = new Map<string, string>();
+
+	if (uniqueDivisionIds.length > 0) {
+		const divisionIdsList = uniqueDivisionIds.map((id) => `'${id}'`).join(",");
+		const level1MapRes = await dr.execute(sql`
+			WITH RECURSIVE division_hierarchy AS (
+				SELECT id, parent_id, id AS level1_id
+				FROM division
+				WHERE parent_id IS NULL
+				UNION ALL
+				SELECT d.id, d.parent_id, dh.level1_id
+				FROM division d
+				INNER JOIN division_hierarchy dh ON d.parent_id = dh.id
+			)
+			SELECT id::text AS division_id, level1_id::text AS level1_id
+			FROM division_hierarchy
+			WHERE id = ANY(ARRAY[${sql.raw(divisionIdsList)}]::uuid[])
+		`);
+
+		for (const row of level1MapRes.rows as Array<{
+			division_id: string;
+			level1_id: string;
+		}>) {
+			divisionToLevel1.set(String(row.division_id), String(row.level1_id));
 		}
+	}
+
+	for (const record of disasterRecords) {
+		const divisions = divisionsByRecord.get(record.id) ?? [];
 
 		if (!divisions.length) continue;
 
@@ -1993,14 +2031,23 @@ export async function getTotalLossesByDivision(
 			}
 		}
 
-		// Distribute total losses equally across divisions for this record
-		const perDivisionLoss =
-			divisions.length > 0 ? recordLosses / divisions.length : 0;
+		const level1Divisions = Array.from(
+			new Set(
+				divisions
+					.map((divId) => divisionToLevel1.get(divId))
+					.filter((level1Id): level1Id is string => Boolean(level1Id)),
+			),
+		);
 
-		for (const divId of divisions) {
+		if (!level1Divisions.length) continue;
+
+		// Distribute losses across distinct level-1 divisions only.
+		const perLevel1Loss = recordLosses / level1Divisions.length;
+
+		for (const divId of level1Divisions) {
 			divisionTotals.set(
 				divId,
-				(divisionTotals.get(divId) ?? 0) + perDivisionLoss,
+				(divisionTotals.get(divId) ?? 0) + perLevel1Loss,
 			);
 		}
 	}
@@ -2034,61 +2081,68 @@ export async function getTotalDeathsByDivision(
 
 	// Build WHERE conditions for disaster_records as SQL objects
 	const whereConditions: SQL[] = [];
-	whereConditions.push(sql`"approvalStatus" IN ('published', 'validated')`);
-	whereConditions.push(sql`"country_accounts_id" = ${countryAccountsId}`);
-	if (hazardTypeId) whereConditions.push(sql`"hip_type_id" = ${hazardTypeId}`);
+	whereConditions.push(sql`dr."approvalStatus" IN ('published', 'validated')`);
+	whereConditions.push(sql`dr."country_accounts_id" = ${countryAccountsId}`);
+	if (hazardTypeId)
+		whereConditions.push(sql`dr."hip_type_id" = ${hazardTypeId}`);
 	if (hazardClusterId)
-		whereConditions.push(sql`"hip_cluster_id" = ${hazardClusterId}`);
+		whereConditions.push(sql`dr."hip_cluster_id" = ${hazardClusterId}`);
 	if (specificHazardId)
-		whereConditions.push(sql`"hip_hazard_id" = ${specificHazardId}`);
+		whereConditions.push(sql`dr."hip_hazard_id" = ${specificHazardId}`);
+	if (geographicLevelId) {
+		whereConditions.push(sql`EXISTS (
+			WITH RECURSIVE division_tree AS (
+				SELECT id
+				FROM division
+				WHERE id = ${geographicLevelId}::uuid
+				UNION ALL
+				SELECT d.id
+				FROM division d
+				INNER JOIN division_tree dt ON d.parent_id = dt.id
+			)
+			SELECT 1
+			FROM disaster_records_division drd
+			WHERE drd.disaster_record_id = dr.id
+				AND drd.division_id IN (SELECT id FROM division_tree)
+		)`);
+	}
 	if (fromDate || toDate) {
 		const from = fromDate || "0001-01-01";
 		const to = toDate || "9999-12-31";
 		whereConditions.push(sql`
 		(
 		  CASE 
-			WHEN "start_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE("start_date", 'YYYY-MM-DD')
-			WHEN "start_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE("start_date", 'YYYY-MM')
-			WHEN "start_date" ~ '^[0-9]{4}$' THEN TO_DATE("start_date", 'YYYY')
+			WHEN dr."start_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(dr."start_date", 'YYYY-MM-DD')
+			WHEN dr."start_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE(dr."start_date", 'YYYY-MM')
+			WHEN dr."start_date" ~ '^[0-9]{4}$' THEN TO_DATE(dr."start_date", 'YYYY')
 			ELSE NULL
 		  END IS NULL OR 
 		  CASE 
-			WHEN "start_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE("start_date", 'YYYY-MM-DD')
-			WHEN "start_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE("start_date", 'YYYY-MM')
-			WHEN "start_date" ~ '^[0-9]{4}$' THEN TO_DATE("start_date", 'YYYY')
+			WHEN dr."start_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(dr."start_date", 'YYYY-MM-DD')
+			WHEN dr."start_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE(dr."start_date", 'YYYY-MM')
+			WHEN dr."start_date" ~ '^[0-9]{4}$' THEN TO_DATE(dr."start_date", 'YYYY')
 			ELSE NULL
 		  END <= ${to}::date
 		) AND (
 		  CASE 
-			WHEN "end_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE("end_date", 'YYYY-MM-DD')
-			WHEN "end_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE("end_date", 'YYYY-MM')
-			WHEN "end_date" ~ '^[0-9]{4}$' THEN TO_DATE("end_date", 'YYYY')
+			WHEN dr."end_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(dr."end_date", 'YYYY-MM-DD')
+			WHEN dr."end_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE(dr."end_date", 'YYYY-MM')
+			WHEN dr."end_date" ~ '^[0-9]{4}$' THEN TO_DATE(dr."end_date", 'YYYY')
 			ELSE NULL
 		  END IS NULL OR 
 		  CASE 
-			WHEN "end_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE("end_date", 'YYYY-MM-DD')
-			WHEN "end_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE("end_date", 'YYYY-MM')
-			WHEN "end_date" ~ '^[0-9]{4}$' THEN TO_DATE("end_date", 'YYYY')
+			WHEN dr."end_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(dr."end_date", 'YYYY-MM-DD')
+			WHEN dr."end_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE(dr."end_date", 'YYYY-MM')
+			WHEN dr."end_date" ~ '^[0-9]{4}$' THEN TO_DATE(dr."end_date", 'YYYY')
 			ELSE NULL
 		  END >= ${from}::date
 		)
 	  `);
 	}
 
-	// Conditions for human_dsg: all specified fields are NULL and custom is {}
-	const humanDsgConditions = sql`
-	  "human_dsg"."sex" IS NULL AND
-	  "human_dsg"."age" IS NULL AND
-	  "human_dsg"."disability" IS NULL AND
-	  "human_dsg"."global_poverty_line" IS NULL AND
-	  "human_dsg"."national_poverty_line" IS NULL AND
-	  "human_dsg"."custom" = '{}'::jsonb
-	`;
+	const recordsWhereClause =
+		whereConditions.length > 0 ? sql`WHERE ${and(...whereConditions)}` : sql``;
 
-	// Combine all conditions into a single WHERE clause for the subquery
-	const subqueryWhereClause = sql`WHERE ${and(...whereConditions)} AND ${humanDsgConditions}`;
-
-	// Construct the full raw SQL query
 	const rawQuery = sql`
 	  WITH RECURSIVE division_hierarchy AS (
 		SELECT id, parent_id, id AS level1_id
@@ -2098,33 +2152,70 @@ export async function getTotalDeathsByDivision(
 		SELECT d.id, d.parent_id, dh.level1_id
 		FROM "division" d
 		INNER JOIN division_hierarchy dh ON d.parent_id = dh.id
+	  ),
+	  filtered_records AS (
+		SELECT dr."id" AS record_id
+		FROM "disaster_records" dr
+		${recordsWhereClause}
+	  ),
+	  deaths_by_record AS (
+		SELECT
+		  fr.record_id,
+		  COALESCE(SUM(COALESCE(dth.deaths, 0)), 0) AS total_deaths
+		FROM filtered_records fr
+		LEFT JOIN "human_dsg" hd
+		  ON fr.record_id = hd."record_id"
+		  AND hd."sex" IS NULL
+		  AND hd."age" IS NULL
+		  AND hd."disability" IS NULL
+		  AND hd."global_poverty_line" IS NULL
+		  AND hd."national_poverty_line" IS NULL
+		LEFT JOIN "deaths" dth ON hd."id" = dth."dsg_id"
+		GROUP BY fr.record_id
+	  ),
+	  record_level1 AS (
+		SELECT DISTINCT
+		  drd."disaster_record_id" AS record_id,
+		  dh.level1_id::text AS level1_id
+		FROM "disaster_records_division" drd
+		INNER JOIN filtered_records fr
+		  ON fr.record_id = drd."disaster_record_id"
+		INNER JOIN division_hierarchy dh
+		  ON dh.id = drd."division_id"
+		UNION
+		SELECT DISTINCT
+		  fr.record_id,
+		  dh.level1_id::text AS level1_id
+		FROM filtered_records fr
+		INNER JOIN "disaster_records" dr
+		  ON dr."id" = fr.record_id
+		INNER JOIN "disaster_event_division" ded
+		  ON ded."disaster_event_id" = dr."disaster_event_id"
+		INNER JOIN division_hierarchy dh
+		  ON dh.id = ded."division_id"
+		WHERE NOT EXISTS (
+			SELECT 1
+			FROM "disaster_records_division" drd
+			WHERE drd."disaster_record_id" = fr.record_id
+		)
+	  ),
+	  record_level1_counts AS (
+		SELECT record_id, COUNT(*) AS level1_count
+		FROM record_level1
+		GROUP BY record_id
 	  )
 	  SELECT 
-		dh.level1_id::text AS division_id,
-		COALESCE(SUM(ds.deaths), 0) AS total_deaths
-	  FROM (
-		SELECT 
-		  "disaster_records"."id" AS record_id, 
-		  jsonb_array_elements("disaster_records"."spatial_footprint")->'geojson'->'properties'->>'division_id' AS division_id,
-		  "deaths"."deaths" AS deaths
-		FROM "disaster_records"
-		LEFT JOIN "human_dsg" ON "disaster_records"."id" = "human_dsg"."record_id"
-		LEFT JOIN "deaths" ON "human_dsg"."id" = "deaths"."dsg_id"
-		${subqueryWhereClause}
-	  ) ds
-	  LEFT JOIN division_hierarchy dh 
-		ON ds.division_id = dh.id::text
-	  WHERE ds.division_id IS NOT NULL
-	  ${
-			geographicLevelId
-				? sql`AND dh.level1_id IN (
-		SELECT level1_id 
-		FROM division_hierarchy 
-		WHERE id = ${geographicLevelId}
-	  )`
-				: sql``
-		}
-	  GROUP BY dh.level1_id
+		rl.level1_id AS division_id,
+		COALESCE(
+			SUM(dbr.total_deaths / NULLIF(rlc.level1_count, 0)),
+			0
+		) AS total_deaths
+	  FROM deaths_by_record dbr
+	  INNER JOIN record_level1 rl
+		on rl.record_id = dbr.record_id
+	  INNER JOIN record_level1_counts rlc
+		on rlc.record_id = dbr.record_id
+	  GROUP BY rl.level1_id
 	`;
 
 	// Execute the query
@@ -2154,63 +2245,90 @@ export async function getTotalAffectedPeopleByDivision(
 		toDate,
 	} = filters;
 
-	// Build WHERE conditions for disaster_records as SQL objects
+	// Build WHERE conditions for disaster_event as SQL objects
 	const whereConditions: SQL[] = [];
-	whereConditions.push(sql`"approvalStatus" IN ('published', 'validated')`);
-	whereConditions.push(sql`"country_accounts_id" = ${countryAccountsId}`);
-	if (hazardTypeId) whereConditions.push(sql`"hip_type_id" = ${hazardTypeId}`);
+	whereConditions.push(sql`de."approvalStatus" IN ('published', 'validated')`);
+	whereConditions.push(sql`de."country_accounts_id" = ${countryAccountsId}`);
+	if (hazardTypeId)
+		whereConditions.push(sql`de."hip_type_id" = ${hazardTypeId}`);
 	if (hazardClusterId)
-		whereConditions.push(sql`"hip_cluster_id" = ${hazardClusterId}`);
+		whereConditions.push(sql`de."hip_cluster_id" = ${hazardClusterId}`);
 	if (specificHazardId)
-		whereConditions.push(sql`"hip_hazard_id" = ${specificHazardId}`);
+		whereConditions.push(sql`de."hip_hazard_id" = ${specificHazardId}`);
+	if (geographicLevelId) {
+		whereConditions.push(sql`(
+			EXISTS (
+			WITH RECURSIVE division_tree AS (
+				SELECT id
+				FROM division
+				WHERE id = ${geographicLevelId}::uuid
+				UNION ALL
+				SELECT d.id
+				FROM division d
+				INNER JOIN division_tree dt ON d.parent_id = dt.id
+			)
+			SELECT 1
+			FROM disaster_event_division ded
+			WHERE ded.disaster_event_id = de.id
+				AND ded.division_id IN (SELECT id FROM division_tree)
+			)
+			OR EXISTS (
+				WITH RECURSIVE division_tree AS (
+					SELECT id
+					FROM division
+					WHERE id = ${geographicLevelId}::uuid
+					UNION ALL
+					SELECT d.id
+					FROM division d
+					INNER JOIN division_tree dt ON d.parent_id = dt.id
+				)
+				SELECT 1
+				FROM disaster_records dr
+				INNER JOIN disaster_records_division drd
+					ON drd.disaster_record_id = dr.id
+				WHERE dr.disaster_event_id = de.id
+					AND dr."approvalStatus" IN ('published', 'validated')
+					AND drd.division_id IN (SELECT id FROM division_tree)
+			)
+		)`);
+	}
 	if (fromDate || toDate) {
 		const from = fromDate || "0001-01-01";
 		const to = toDate || "9999-12-31";
 		whereConditions.push(sql`
 		(
 		  CASE 
-			WHEN "start_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE("start_date", 'YYYY-MM-DD')
-			WHEN "start_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE("start_date", 'YYYY-MM')
-			WHEN "start_date" ~ '^[0-9]{4}$' THEN TO_DATE("start_date", 'YYYY')
+			WHEN de."start_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(de."start_date", 'YYYY-MM-DD')
+			WHEN de."start_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE(de."start_date", 'YYYY-MM')
+			WHEN de."start_date" ~ '^[0-9]{4}$' THEN TO_DATE(de."start_date", 'YYYY')
 			ELSE NULL
 		  END IS NULL OR 
 		  CASE 
-			WHEN "start_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE("start_date", 'YYYY-MM-DD')
-			WHEN "start_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE("start_date", 'YYYY-MM')
-			WHEN "start_date" ~ '^[0-9]{4}$' THEN TO_DATE("start_date", 'YYYY')
+			WHEN de."start_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(de."start_date", 'YYYY-MM-DD')
+			WHEN de."start_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE(de."start_date", 'YYYY-MM')
+			WHEN de."start_date" ~ '^[0-9]{4}$' THEN TO_DATE(de."start_date", 'YYYY')
 			ELSE NULL
 		  END <= ${to}::date
 		) AND (
 		  CASE 
-			WHEN "end_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE("end_date", 'YYYY-MM-DD')
-			WHEN "end_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE("end_date", 'YYYY-MM')
-			WHEN "end_date" ~ '^[0-9]{4}$' THEN TO_DATE("end_date", 'YYYY')
+			WHEN de."end_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(de."end_date", 'YYYY-MM-DD')
+			WHEN de."end_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE(de."end_date", 'YYYY-MM')
+			WHEN de."end_date" ~ '^[0-9]{4}$' THEN TO_DATE(de."end_date", 'YYYY')
 			ELSE NULL
 		  END IS NULL OR 
 		  CASE 
-			WHEN "end_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE("end_date", 'YYYY-MM-DD')
-			WHEN "end_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE("end_date", 'YYYY-MM')
-			WHEN "end_date" ~ '^[0-9]{4}$' THEN TO_DATE("end_date", 'YYYY')
+			WHEN de."end_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(de."end_date", 'YYYY-MM-DD')
+			WHEN de."end_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE(de."end_date", 'YYYY-MM')
+			WHEN de."end_date" ~ '^[0-9]{4}$' THEN TO_DATE(de."end_date", 'YYYY')
 			ELSE NULL
 		  END >= ${from}::date
 		)
 	  `);
 	}
 
-	// Conditions for human_dsg: all specified fields are NULL and custom is {}
-	const humanDsgConditions = sql`
-	  "human_dsg"."sex" IS NULL AND
-	  "human_dsg"."age" IS NULL AND
-	  "human_dsg"."disability" IS NULL AND
-	  "human_dsg"."global_poverty_line" IS NULL AND
-	  "human_dsg"."national_poverty_line" IS NULL AND
-	  "human_dsg"."custom" = '{}'::jsonb
-	`;
+	const eventWhereClause =
+		whereConditions.length > 0 ? sql`WHERE ${and(...whereConditions)}` : sql``;
 
-	// Combine all conditions into a single WHERE clause for the subquery
-	const subqueryWhereClause = sql`WHERE ${and(...whereConditions)} AND ${humanDsgConditions}`;
-
-	// Construct the full raw SQL query
 	const rawQuery = sql`
 	  WITH RECURSIVE division_hierarchy AS (
 		SELECT id, parent_id, id AS level1_id
@@ -2220,39 +2338,82 @@ export async function getTotalAffectedPeopleByDivision(
 		SELECT d.id, d.parent_id, dh.level1_id
 		FROM "division" d
 		INNER JOIN division_hierarchy dh ON d.parent_id = dh.id
-	  )
-	  SELECT 
-		dh.level1_id::text AS division_id,
-		COALESCE(SUM(ds.total_affected), 0) AS total_affected
-	  FROM (
+	  ),
+	  filtered_events AS (
+		SELECT de."id"
+		FROM "disaster_event" de
+		${eventWhereClause}
+	  ),
+	  filtered_records AS (
+		SELECT dr."id" AS record_id, dr."disaster_event_id" AS event_id
+		FROM "disaster_records" dr
+		WHERE dr."approvalStatus" IN ('published', 'validated')
+		  AND dr."disaster_event_id" IN (SELECT fe."id" FROM filtered_events fe)
+	  ),
+	  affected_by_record AS (
 		SELECT 
-		  "disaster_records"."id" AS record_id, 
-		  jsonb_array_elements("disaster_records"."spatial_footprint")->'geojson'->'properties'->>'division_id' AS division_id,
-		  COALESCE("injured"."injured", 0) +
-		  COALESCE("missing"."missing", 0) +
-		  COALESCE("displaced"."displaced", 0) +
-		  COALESCE("affected"."direct", 0) AS total_affected
-		FROM "disaster_records"
-		LEFT JOIN "human_dsg" ON "disaster_records"."id" = "human_dsg"."record_id"
+		  fr.record_id,
+		  COALESCE(SUM(
+			COALESCE("injured"."injured", 0) +
+			COALESCE("missing"."missing", 0) +
+			COALESCE("displaced"."displaced", 0) +
+			COALESCE("affected"."direct", 0)
+		  ), 0) AS total_affected
+		FROM filtered_records fr
+		LEFT JOIN "human_dsg"
+		  ON fr.record_id = "human_dsg"."record_id"
+		  AND "human_dsg"."sex" IS NULL
+		  AND "human_dsg"."age" IS NULL
+		  AND "human_dsg"."disability" IS NULL
+		  AND "human_dsg"."global_poverty_line" IS NULL
+		  AND "human_dsg"."national_poverty_line" IS NULL
 		LEFT JOIN "injured" ON "human_dsg"."id" = "injured"."dsg_id"
 		LEFT JOIN "missing" ON "human_dsg"."id" = "missing"."dsg_id"
 		LEFT JOIN "displaced" ON "human_dsg"."id" = "displaced"."dsg_id"
 		LEFT JOIN "affected" ON "human_dsg"."id" = "affected"."dsg_id"
-		${subqueryWhereClause}
-	  ) ds
-	  LEFT JOIN division_hierarchy dh 
-		ON ds.division_id = dh.id::text
-	  WHERE ds.division_id IS NOT NULL
-	  ${
-			geographicLevelId
-				? sql`AND dh.level1_id IN (
-		SELECT level1_id 
-		FROM division_hierarchy 
-		WHERE id = ${geographicLevelId}
-	  )`
-				: sql``
-		}
-	  GROUP BY dh.level1_id
+		GROUP BY fr.record_id
+	  ),
+	  record_level1 AS (
+		SELECT DISTINCT
+		  drd."disaster_record_id" AS record_id,
+		  dh.level1_id::text AS level1_id
+		FROM "disaster_records_division" drd
+		INNER JOIN filtered_records fr
+		  ON fr.record_id = drd."disaster_record_id"
+		INNER JOIN division_hierarchy dh
+		  ON dh.id = drd."division_id"
+		UNION
+		SELECT DISTINCT
+		  fr.record_id,
+		  dh.level1_id::text AS level1_id
+		FROM filtered_records fr
+		INNER JOIN "disaster_event_division" ded
+		  ON ded."disaster_event_id" = fr.event_id
+		INNER JOIN division_hierarchy dh
+		  ON dh.id = ded."division_id"
+		WHERE NOT EXISTS (
+			SELECT 1
+			FROM "disaster_records_division" drd
+			WHERE drd."disaster_record_id" = fr.record_id
+		)
+	  ),
+	  record_level1_counts AS (
+		SELECT record_id, COUNT(*) AS level1_count
+		FROM record_level1
+		GROUP BY record_id
+	  )
+	  SELECT 
+		rl.level1_id AS division_id,
+		COALESCE(
+			SUM(COALESCE(abr.total_affected, 0) / NULLIF(rlc.level1_count, 0)),
+			0
+		) AS total_affected
+	  FROM record_level1 rl
+	  INNER JOIN record_level1_counts rlc
+		on rlc.record_id = rl.record_id
+	  LEFT JOIN affected_by_record abr
+		on abr.record_id = rl.record_id
+	  GROUP BY rl.level1_id
 	`;
 
 	// Execute the query
@@ -2284,52 +2445,68 @@ export async function getDisasterEventCountByDivision(
 
 	// Build WHERE conditions for disaster_event as SQL objects
 	const whereConditions: SQL[] = [];
-	whereConditions.push(sql`"approvalStatus" IN ('published', 'validated')`);
-	whereConditions.push(sql`"country_accounts_id" = ${countryAccountsId}`);
-	if (hazardTypeId) whereConditions.push(sql`"hip_type_id" = ${hazardTypeId}`);
+	whereConditions.push(sql`de."approvalStatus" IN ('published', 'validated')`);
+	whereConditions.push(sql`de."country_accounts_id" = ${countryAccountsId}`);
+	if (hazardTypeId)
+		whereConditions.push(sql`de."hip_type_id" = ${hazardTypeId}`);
 	if (hazardClusterId)
-		whereConditions.push(sql`"hip_cluster_id" = ${hazardClusterId}`);
+		whereConditions.push(sql`de."hip_cluster_id" = ${hazardClusterId}`);
 	if (specificHazardId)
-		whereConditions.push(sql`"hip_hazard_id" = ${specificHazardId}`);
+		whereConditions.push(sql`de."hip_hazard_id" = ${specificHazardId}`);
+	if (geographicLevelId) {
+		whereConditions.push(sql`EXISTS (
+			WITH RECURSIVE division_tree AS (
+				SELECT id
+				FROM division
+				WHERE id = ${geographicLevelId}::uuid
+				UNION ALL
+				SELECT d.id
+				FROM division d
+				INNER JOIN division_tree dt ON d.parent_id = dt.id
+			)
+			SELECT 1
+			FROM disaster_event_division ded
+			WHERE ded.disaster_event_id = de.id
+				AND ded.division_id IN (SELECT id FROM division_tree)
+		)`);
+	}
 	if (fromDate || toDate) {
 		const from = fromDate || "0001-01-01";
 		const to = toDate || "9999-12-31";
 		whereConditions.push(sql`
 		(
 		  CASE 
-			WHEN "start_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE("start_date", 'YYYY-MM-DD')
-			WHEN "start_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE("start_date", 'YYYY-MM')
-			WHEN "start_date" ~ '^[0-9]{4}$' THEN TO_DATE("start_date", 'YYYY')
+			WHEN de."start_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(de."start_date", 'YYYY-MM-DD')
+			WHEN de."start_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE(de."start_date", 'YYYY-MM')
+			WHEN de."start_date" ~ '^[0-9]{4}$' THEN TO_DATE(de."start_date", 'YYYY')
 			ELSE NULL
 		  END IS NULL OR 
 		  CASE 
-			WHEN "start_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE("start_date", 'YYYY-MM-DD')
-			WHEN "start_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE("start_date", 'YYYY-MM')
-			WHEN "start_date" ~ '^[0-9]{4}$' THEN TO_DATE("start_date", 'YYYY')
+			WHEN de."start_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(de."start_date", 'YYYY-MM-DD')
+			WHEN de."start_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE(de."start_date", 'YYYY-MM')
+			WHEN de."start_date" ~ '^[0-9]{4}$' THEN TO_DATE(de."start_date", 'YYYY')
 			ELSE NULL
 		  END <= ${to}::date
 		) AND (
 		  CASE 
-			WHEN "end_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE("end_date", 'YYYY-MM-DD')
-			WHEN "end_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE("end_date", 'YYYY-MM')
-			WHEN "end_date" ~ '^[0-9]{4}$' THEN TO_DATE("end_date", 'YYYY')
+			WHEN de."end_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(de."end_date", 'YYYY-MM-DD')
+			WHEN de."end_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE(de."end_date", 'YYYY-MM')
+			WHEN de."end_date" ~ '^[0-9]{4}$' THEN TO_DATE(de."end_date", 'YYYY')
 			ELSE NULL
 		  END IS NULL OR 
 		  CASE 
-			WHEN "end_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE("end_date", 'YYYY-MM-DD')
-			WHEN "end_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE("end_date", 'YYYY-MM')
-			WHEN "end_date" ~ '^[0-9]{4}$' THEN TO_DATE("end_date", 'YYYY')
+			WHEN de."end_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(de."end_date", 'YYYY-MM-DD')
+			WHEN de."end_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE(de."end_date", 'YYYY-MM')
+			WHEN de."end_date" ~ '^[0-9]{4}$' THEN TO_DATE(de."end_date", 'YYYY')
 			ELSE NULL
 		  END >= ${from}::date
 		)
 	  `);
 	}
 
-	// Combine conditions into a single WHERE clause for the subquery
-	const subqueryWhereClause =
+	const eventWhereClause =
 		whereConditions.length > 0 ? sql`WHERE ${and(...whereConditions)}` : sql``;
 
-	// Construct the full raw SQL query
 	const rawQuery = sql`
 	  WITH RECURSIVE division_hierarchy AS (
 		SELECT id, parent_id, id AS level1_id
@@ -2339,28 +2516,27 @@ export async function getDisasterEventCountByDivision(
 		SELECT d.id, d.parent_id, dh.level1_id
 		FROM "division" d
 		INNER JOIN division_hierarchy dh ON d.parent_id = dh.id
+	  ),
+	  filtered_events AS (
+		SELECT de."id" AS event_id
+		FROM "disaster_event" de
+		${eventWhereClause}
+	  ),
+	  event_level1 AS (
+		SELECT DISTINCT
+		  ded."disaster_event_id" AS event_id,
+		  dh.level1_id::text AS level1_id
+		FROM "disaster_event_division" ded
+		INNER JOIN filtered_events fe
+		  ON fe.event_id = ded."disaster_event_id"
+		INNER JOIN division_hierarchy dh
+		  ON dh.id = ded."division_id"
 	  )
 	  SELECT 
-		dh.level1_id::text AS division_id,
-		COUNT(DISTINCT ds.record_id) AS event_count
-	  FROM (
-		SELECT "id" AS record_id, jsonb_array_elements("spatial_footprint")->'geojson'->'properties'->>'division_id' AS division_id
-		FROM "disaster_event"
-		${subqueryWhereClause}
-	  ) ds
-	  LEFT JOIN division_hierarchy dh 
-		ON ds.division_id = dh.id::text
-	  WHERE ds.division_id IS NOT NULL
-	  ${
-			geographicLevelId
-				? sql`AND dh.level1_id IN (
-		SELECT level1_id 
-		FROM division_hierarchy 
-		WHERE id = ${geographicLevelId}
-	  )`
-				: sql``
-		}
-	  GROUP BY dh.level1_id
+		el.level1_id AS division_id,
+		COUNT(*) AS event_count
+	  FROM event_level1 el
+	  GROUP BY el.level1_id
 	`;
 
 	// Execute the query
@@ -2391,7 +2567,7 @@ export async function getDisasterSummary(
 		hazardTypeId,
 		hazardClusterId,
 		specificHazardId,
-		// geographicLevelId,
+		geographicLevelId,
 		fromDate,
 		toDate,
 	} = filters;
@@ -2405,17 +2581,53 @@ export async function getDisasterSummary(
 		whereConditions.push(sql`"hip_cluster_id" = ${hazardClusterId}`);
 	if (specificHazardId)
 		whereConditions.push(sql`"hip_hazard_id" = ${specificHazardId}`);
+	if (geographicLevelId) {
+		whereConditions.push(sql`EXISTS (
+			SELECT 1
+			FROM disaster_event_division ded
+			WHERE ded.disaster_event_id = disaster_event.id
+				AND ded.division_id = ${geographicLevelId}::uuid
+		)`);
+	}
 	if (fromDate || toDate) {
 		const from = fromDate || "0001-01-01";
 		const to = toDate || "9999-12-31";
-		whereConditions.push(sql`"start_date" >= ${from} AND "end_date" <= ${to}`);
+		whereConditions.push(sql`
+			(
+				CASE 
+					WHEN "start_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE("start_date", 'YYYY-MM-DD')
+					WHEN "start_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE("start_date", 'YYYY-MM')
+					WHEN "start_date" ~ '^[0-9]{4}$' THEN TO_DATE("start_date", 'YYYY')
+					ELSE NULL
+				END IS NULL OR 
+				CASE 
+					WHEN "start_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE("start_date", 'YYYY-MM-DD')
+					WHEN "start_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE("start_date", 'YYYY-MM')
+					WHEN "start_date" ~ '^[0-9]{4}$' THEN TO_DATE("start_date", 'YYYY')
+					ELSE NULL
+				END <= ${to}::date
+			) AND (
+				CASE 
+					WHEN "end_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE("end_date", 'YYYY-MM-DD')
+					WHEN "end_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE("end_date", 'YYYY-MM')
+					WHEN "end_date" ~ '^[0-9]{4}$' THEN TO_DATE("end_date", 'YYYY')
+					ELSE NULL
+				END IS NULL OR 
+				CASE 
+					WHEN "end_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE("end_date", 'YYYY-MM-DD')
+					WHEN "end_date" ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE("end_date", 'YYYY-MM')
+					WHEN "end_date" ~ '^[0-9]{4}$' THEN TO_DATE("end_date", 'YYYY')
+					ELSE NULL
+				END >= ${from}::date
+			)
+		`);
 	}
 
 	const whereClause =
 		whereConditions.length > 0 ? sql`WHERE ${and(...whereConditions)}` : sql``;
 
 	const disasterEventsRes = await dr.execute(sql`
-    SELECT id, name_national, start_date, end_date, spatial_footprint
+	SELECT id, name_national, start_date, end_date
     FROM disaster_event
     ${whereClause}
   `);
@@ -2425,7 +2637,6 @@ export async function getDisasterSummary(
 		name_national: string | null;
 		start_date: string;
 		end_date: string;
-		spatial_footprint: any;
 	}>;
 
 	if (!disasterEvents.length) return [];
@@ -2586,12 +2797,18 @@ export async function getDisasterSummary(
              COALESCE(aff.direct, 0)
            ), 0) AS total_affected
     FROM "disaster_records" dr
-    LEFT JOIN "human_dsg" hd ON dr."id" = hd."record_id"
+		LEFT JOIN "human_dsg" hd
+			ON dr."id" = hd."record_id"
+			AND hd."sex" IS NULL
+			AND hd."age" IS NULL
+			AND hd."disability" IS NULL
+			AND hd."global_poverty_line" IS NULL
+			AND hd."national_poverty_line" IS NULL
     LEFT JOIN "missing" mis ON hd."id" = mis."dsg_id"
     LEFT JOIN "displaced" dsp ON hd."id" = dsp."dsg_id"
     LEFT JOIN "injured" inj ON hd."id" = inj."dsg_id"
     LEFT JOIN "affected" aff ON hd."id" = aff."dsg_id"
-    WHERE dr."approvalStatus" IN ('published', 'validated')
+		WHERE dr."id" = ANY(ARRAY[${sql.raw(recordIdsList)}]::uuid[])
     GROUP BY dr."disaster_event_id"
   `);
 	const affectedByEvent = new Map<string, number>();

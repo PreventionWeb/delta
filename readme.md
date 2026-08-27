@@ -9,7 +9,7 @@ DELTA Resilience is a comprehensive system, not just an open-source software. Co
 
 It supports nationally owned Disaster Tracking Systems to monitor hazardous events and record losses and damages at national and subnational levels—whether countries use the DELTA Resilience software interface or strengthen their existing national platforms.
 
-Visit the [project website for more details](https://www.undrr.org/building-risk-knowledge/disaster-losses-and-damages-tracking-system-delta-resilience). See [CHANGELOG.md](CHANGELOG.md) for release history.
+Visit the [project website for more details](https://www.undrr.org/building-risk-knowledge/disaster-losses-and-damages-tracking-system-delta-resilience). See [CHANGELOG.md](CHANGELOG.md) for release history, and [ARCHITECTURE.md](ARCHITECTURE.md) for how the system is designed and how to contribute to it structurally.
 
 ## Features
 
@@ -24,7 +24,7 @@ Visit the [project website for more details](https://www.undrr.org/building-risk
 ## Technology stack
 
 - TypeScript
-- Node.js (v22 recommended)
+- Node.js (v24.18.0 recommended)
 - React Router v7 (React)
 - Vite
 - Tailwind CSS v4
@@ -74,6 +74,8 @@ Notes:
 
 - `build/`, `uploads/`, and `logs/` are generated at build/runtime and are not committed to the repository.
 
+- DELTA is migrating toward a Clean Architecture / Domain-Driven Design layout (`app/domain/`, `app/application/`, `app/infrastructure/`) one bounded context at a time. This tree reflects the current layout; see [ARCHITECTURE.md](ARCHITECTURE.md) for the target structure and which parts have migrated so far.
+
 ## Quick start (local development)
 
 ### Docker (recommended)
@@ -92,7 +94,7 @@ Open http://localhost:3000. Use `docker-compose logs -f app` to tail logs.
 
 Prerequisites:
 
-- Node.js (22.x recommended)
+- Node.js (v24.18.0 recommended)
 - Yarn (or use npm)
 - PostgreSQL 17 with PostGIS
 
@@ -210,7 +212,7 @@ yarn test:e2e
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for branch naming, commit style, and PR conventions. Full developer documentation is in [`_docs/`](_docs/index.md) — start there for architecture guides, code conventions, and feature-specific references.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for branch naming, commit style, and PR conventions, and [ARCHITECTURE.md](ARCHITECTURE.md) for the system design and rules to follow when adding a feature or a new bounded context. Full developer documentation is in [`_docs/`](_docs/index.md) — start there for code conventions and feature-specific references. Found a security issue instead? See [SECURITY.md](SECURITY.md).
 
 ## Acknowledgements
 
@@ -220,4 +222,3 @@ DELTA Resilience is built with and supported by the following open-source and OS
 | -------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------- |
 | [CodeRabbit](https://coderabbit.ai)                      | Code review                              | AI-assisted PR reviews, free for open-source projects          |
 | [GitHub](https://github.com/open-source)                 | Source control & CI/CD                   | Source control, Actions, and GHCR free for public repositories |
-| [BrowserStack](https://www.browserstack.com/open-source) | This project is tested with BrowserStack | Cross-browser testing via open-source sponsorship              |

@@ -6,6 +6,8 @@ import { eventRelationshipTable } from "~/drizzle/schema/eventRelationshipTable"
 import { dr } from "~/db.server";
 import { eq, and } from "drizzle-orm";
 import type { BackendContext } from "../../context";
+import { entityValidationAssignmentDeleteByEntityId } from "../entity_validation_assignment";
+import { entityValidationRejectionDeleteByEntityId } from "../entity_validation_rejection";
 
 export async function hazardousEventDelete(
 	ctx: BackendContext,
@@ -48,6 +50,17 @@ export async function hazardousEventDelete(
 		}
 
 		await dr.transaction(async (tx) => {
+			await entityValidationAssignmentDeleteByEntityId(
+				id,
+				"hazardous_event",
+				tx,
+			);
+			await entityValidationRejectionDeleteByEntityId(
+				id,
+				"hazardous_event",
+				tx,
+			);
+
 			await tx
 				.delete(hazardousEventTable)
 				.where(and(eq(hazardousEventTable.id, id)));
@@ -76,5 +89,3 @@ export async function hazardousEventDelete(
 	}
 	return { ok: true };
 }
-
-

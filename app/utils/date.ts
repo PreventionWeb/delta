@@ -19,11 +19,40 @@ export function getMonthName(ctx: DContext, month: number) {
 	return monthNames[month - 1];
 }
 
-export function formatDate(date: Date | null): string {
-	if (!date) {
+export function formatDate(
+	date: Date | string | number | null | undefined,
+): string {
+	if (date == null || date === "") {
 		return "";
 	}
-	return date.toISOString().split("T")[0];
+
+	if (typeof date === "string") {
+		const trimmed = date.trim();
+		if (!trimmed) {
+			return "";
+		}
+		if (/^\d{4}$/.test(trimmed) || /^\d{4}-\d{2}$/.test(trimmed)) {
+			return trimmed;
+		}
+		if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+			return trimmed;
+		}
+		const parsed = new Date(trimmed);
+		return isNaN(parsed.getTime()) ? "" : parsed.toISOString().split("T")[0];
+	}
+
+	const parsed =
+		date instanceof Date
+			? date
+			: typeof date === "number"
+				? new Date(date)
+				: null;
+
+	if (!parsed || isNaN(parsed.getTime())) {
+		return "";
+	}
+
+	return parsed.toISOString().split("T")[0];
 }
 
 export function formatDateTimeUTC(date: Date | null): string {

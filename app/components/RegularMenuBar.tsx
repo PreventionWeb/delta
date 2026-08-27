@@ -212,7 +212,7 @@ export default function RegularMenuBar({
                 <Button
                     label={ctx.t({
                         code: "common.signin",
-												msg: "Sign-in"
+                        msg: "Sign-in"
                     })}
                 />
             </Link>
@@ -228,16 +228,6 @@ export default function RegularMenuBar({
                     items: [
                         {
                             label: ctx.t({
-                                code: "nav.disaster_events",
-                                msg: "Disaster events",
-                            }),
-                            icon: "pi pi-database",
-                            description: "View all disaster events",
-                            template: itemRenderer,
-                            command: () => navigate(ctx.url("/disaster-event")),
-                        },
-                        {
-                            label: ctx.t({
                                 code: "nav.hazardous_events",
                                 msg: "Hazardous events",
                             }),
@@ -245,6 +235,16 @@ export default function RegularMenuBar({
                             description: "Monitor hazardous situations",
                             template: itemRenderer,
                             command: () => navigate(ctx.url("/hazardous-event")),
+                        },
+                        {
+                            label: ctx.t({
+                                code: "nav.disaster_events",
+                                msg: "Disaster events",
+                            }),
+                            icon: "pi pi-database",
+                            description: "View all disaster events",
+                            template: itemRenderer,
+                            command: () => navigate(ctx.url("/disaster-event")),
                         },
                         {
                             label: ctx.t({
@@ -341,7 +341,7 @@ export default function RegularMenuBar({
                 {
                     label: ctx.t({ code: "nav.faq", msg: "FAQ" }),
                     icon: "pi pi-question-circle",
-                    command: () => navigate(ctx.url("/faq")),
+                    command: () => navigate(ctx.url("/about/faq")),
                     template: itemRenderer,
                 },
             ],
@@ -407,6 +407,13 @@ export default function RegularMenuBar({
                             label: ctx.t({ code: "nav.assets", msg: "Assets" }),
                             icon: "pi pi-box",
                             command: () => navigate(ctx.url("/settings/assets")),
+                            template: itemRenderer,
+                        },
+                        {
+                            label: ctx.t({ code: "nav.human_effects", msg: "Human effects" }),
+                            description: "Manage disaggregations",
+                            icon: "pi pi-user",
+                            command: () => navigate(ctx.url("/settings/human-effects-dsg")),
                             template: itemRenderer,
                         },
                     ],

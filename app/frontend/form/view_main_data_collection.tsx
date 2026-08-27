@@ -6,7 +6,10 @@ import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
 import { Checkbox } from "primereact/checkbox";
 import { ViewContext } from "../context";
-import { approvalStatusIds, approvalStatusKeyToLabel } from "~/frontend/approval";
+import {
+	approvalStatusIds,
+	approvalStatusKeyToLabel,
+} from "~/frontend/approval";
 import { canEditRecord } from "../user/roles";
 
 interface ViewComponentMainDataCollectionProps {
@@ -16,6 +19,7 @@ interface ViewComponentMainDataCollectionProps {
 	listUrl?: string;
 	id: any;
 	title: string;
+	hideTopSummary?: boolean;
 	extraActions?: React.ReactNode;
 	extraInfo?: React.ReactNode;
 	children?: React.ReactNode;
@@ -107,13 +111,13 @@ export function ViewComponentMainDataCollection(
 						header={
 							selectedAction === "submit-reject"
 								? ctx.t({
-									code: "common.returned_with_comments",
-									msg: "Returned with comments",
-								})
+										code: "common.returned_with_comments",
+										msg: "Returned with comments",
+									})
 								: ctx.t({
-									code: "common.successfully_validated",
-									msg: "Successfully validated",
-								})
+										code: "common.successfully_validated",
+										msg: "Successfully validated",
+									})
 						}
 						style={{ width: "50rem" }}
 						onHide={() => {
@@ -125,13 +129,13 @@ export function ViewComponentMainDataCollection(
 							<p>
 								{selectedAction === "submit-reject"
 									? ctx.t({
-										code: "common.returned_to_submitter_for_changes",
-										msg: "The event below has been returned to the submitter for changes",
-									})
+											code: "common.returned_to_submitter_for_changes",
+											msg: "The event below has been returned to the submitter for changes",
+										})
 									: ctx.t({
-										code: "common.validated_and_ready_to_publish",
-										msg: "The event below has been validated and is ready to be published",
-									})}
+											code: "common.validated_and_ready_to_publish",
+											msg: "The event below has been validated and is ready to be published",
+										})}
 							</p>
 
 							{props.recordTitle && <p>{props.recordTitle}</p>}
@@ -398,11 +402,13 @@ export function ViewComponentMainDataCollection(
 			<MainContainer title={props.title}>
 				<>
 					<form className="dts-form">
-						<p>
-							<LangLink lang={ctx.lang} to={props.listUrl || props.path}>
-								{props.title}
-							</LangLink>
-						</p>
+						{!props.hideTopSummary && (
+							<p>
+								<LangLink lang={ctx.lang} to={props.listUrl || props.path}>
+									{props.title}
+								</LangLink>
+							</p>
+						)}
 						{!props.isPublic && (
 							<>
 								<div style={{ textAlign: "right" }}>
@@ -449,14 +455,18 @@ export function ViewComponentMainDataCollection(
 								</div>
 							</>
 						)}
-						<h2>{props.title}</h2>
-						<p>
-							{ctx.t({
-								code: "common.id",
-								msg: "ID",
-							})}
-							: {String(props.id)}
-						</p>
+						{!props.hideTopSummary && (
+							<>
+								<h2 className="dts-heading-2">{props.title}</h2>
+								<p>
+									{ctx.t({
+										code: "common.id",
+										msg: "ID",
+									})}
+									: {String(props.id)}
+								</p>
+							</>
+						)}
 						{props.extraInfo}
 						{props.children}
 					</form>
@@ -465,4 +475,3 @@ export function ViewComponentMainDataCollection(
 		</>
 	);
 }
-

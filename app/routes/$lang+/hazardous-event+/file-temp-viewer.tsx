@@ -5,12 +5,12 @@ import { getCountryAccountsIdFromSession } from "~/utils/session";
 
 export const loader = authLoaderPublicOrWithPerm(
 	"ViewData",
-	async ({ request, userSession }: any) => {
-		const url = new URL(request.url);
-		const download = url.searchParams.get("download") === "true"; // Parse `download` as a boolean
+	async ({ request, userSession, url: routeUrl }: any) => {
+		const requestUrl = new URL(request.url);
+		const download = requestUrl.searchParams.get("download") === "true"; // Parse `download` as a boolean
 
 		// Get tenant ID from URL or user session
-		let tenantPath = url.searchParams.get("tenantPath");
+		let tenantPath = requestUrl.searchParams.get("tenantPath");
 
 		// Get the country accounts ID directly from the session
 		const directCountryAccountsId =
@@ -35,7 +35,7 @@ export const loader = authLoaderPublicOrWithPerm(
 					`Tenant mismatch: URL tenant ${urlTenantId[1]} doesn't match user tenant ${effectiveUserSession.countryAccountsId}`,
 				);
 				// Redirect to language-scoped unauthorized page
-				const lang = url.pathname.split("/").filter(Boolean)[0] || "en";
+				const lang = routeUrl.pathname.split("/").filter(Boolean)[0] || "en";
 				const unauthorizedUrl = `/${lang}/error/unauthorized?reason=access-denied`;
 				return new Response(null, {
 					status: 302,
@@ -51,8 +51,8 @@ export const loader = authLoaderPublicOrWithPerm(
 			tenantPath = `/tenant-${effectiveUserSession.countryAccountsId}`;
 
 			// Add the tenant path to the URL for the file handler
-			url.searchParams.set("tenantPath", tenantPath);
-			request = new Request(url.toString(), request);
+			requestUrl.searchParams.set("tenantPath", tenantPath);
+			request = new Request(requestUrl.toString(), request);
 		}
 
 		// For temp files, we can't easily verify ownership by event ID, but we can enforce tenant isolation

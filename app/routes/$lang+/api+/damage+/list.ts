@@ -73,7 +73,6 @@ export const loader = async (args: LoaderFunctionArgs) => {
 					tdDisruptionUsersAffected: true,
 					tdDisruptionPeopleAffected: true,
 					tdDisruptionDescription: true,
-					spatialFootprint: true,
 					attachments: true,
 				},
 				where: (damages, { eq, and, inArray }) =>

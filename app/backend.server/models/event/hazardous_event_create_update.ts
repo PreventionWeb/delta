@@ -9,7 +9,7 @@ import { eventTable, EventInsert } from "~/drizzle/schema/eventTable";
 import { eventRelationshipTable } from "~/drizzle/schema/eventRelationshipTable";
 import { checkConstraintError } from "../common";
 import { Tx } from "~/db.server";
-import { eq, and, getTableName } from "drizzle-orm";
+import { eq, and, getTableName, sql } from "drizzle-orm";
 import { logAudit } from "../auditLogs";
 import { getRequiredAndSetToNullHipFields } from "../hip_hazard_picker";
 import type { BackendContext } from "../../context";
@@ -175,7 +175,7 @@ export async function hazardousEventCreate(
 			.values({
 				...values,
 				id: eventId,
-				createdAt: new Date(),
+				createdAt: sql`CURRENT_TIMESTAMP`,
 			})
 			.returning();
 
@@ -391,7 +391,7 @@ export async function hazardousEventUpdate(
 				.update(hazardousEventTable)
 				.set({
 					...fields,
-					updatedAt: new Date(),
+					updatedAt: sql`CURRENT_TIMESTAMP`,
 				})
 				.where(eq(hazardousEventTable.id, id))
 				.returning();
@@ -460,6 +460,7 @@ export async function hazardousEventUpdate(
 						approvalStatus: "draft",
 						submittedByUserId: null,
 						submittedAt: null,
+						updatedAt: sql`CURRENT_TIMESTAMP`,
 					})
 					.where(eq(hazardousEventTable.id, id))
 					.execute();
@@ -612,7 +613,7 @@ export async function hazardousEventUpdateByIdAndCountryAccountsId(
 				.update(hazardousEventTable)
 				.set({
 					...fields,
-					updatedAt: new Date(),
+					updatedAt: sql`CURRENT_TIMESTAMP`,
 				})
 				.where(eq(hazardousEventTable.id, id))
 				.returning();

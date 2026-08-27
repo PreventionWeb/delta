@@ -20,7 +20,7 @@ interface CurrencyOptions {
 
 export const useDefaultCurrency = (): string => {
 	const matches = useMatches();
-	const rootData = matches[0]?.data as RootLoaderData;
+	const rootData = matches[0]?.loaderData as RootLoaderData;
 	return rootData?.env?.CURRENCY_CODES?.split(",")[0]?.trim() || "USD";
 };
 

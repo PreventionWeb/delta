@@ -1,10 +1,11 @@
-
 import { DeleteResult } from "~/backend.server/handlers/form/form";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import { eventTable } from "~/drizzle/schema/eventTable";
 import { dr } from "~/db.server";
 import { eq, and } from "drizzle-orm";
 import type { BackendContext } from "../../context";
+import { entityValidationAssignmentDeleteByEntityId } from "../entity_validation_assignment";
+import { entityValidationRejectionDeleteByEntityId } from "../entity_validation_rejection";
 
 export async function disasterEventDelete(
 	ctx: BackendContext,
@@ -33,6 +34,9 @@ export async function disasterEventDelete(
 	}
 
 	await dr.transaction(async (tx) => {
+		await entityValidationAssignmentDeleteByEntityId(id, "disaster_event", tx);
+		await entityValidationRejectionDeleteByEntityId(id, "disaster_event", tx);
+
 		await tx
 			.delete(disasterEventTable)
 			.where(
@@ -46,4 +50,3 @@ export async function disasterEventDelete(
 	});
 	return { ok: true };
 }
-

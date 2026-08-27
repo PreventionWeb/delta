@@ -81,7 +81,7 @@ The external API (`/api/v2/...`) does **not** include lang in the URL path. Loca
 Two parallel extraction pipelines:
 
 - **Old system**: custom `scripts/extractor-i18n.ts` (scans `t({code, msg})` syntax). Fixed to exit non-zero on duplicate keys (P1-36).
-- **New domains**: `i18next-parser` (scans `t('key')` syntax). Runs in CI alongside the custom extractor, targeting `locales/` namespace files.
+- **New domains**: `i18next-cli` (scans `t('key')` syntax). Runs in CI alongside the custom extractor, targeting `locales/` namespace files.
 
 ### Formatting
 

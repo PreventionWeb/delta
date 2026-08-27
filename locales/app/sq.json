@@ -6778,5 +6778,1055 @@
         "id": "notices.updated_at",
         "description": "File: app/domains/notices/presentation/NoticeListPage.tsx:52",
         "translation": "Përditësuar së fundi"
+    },
+    {
+        "id": "admin.clone_country_account_timeout",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/clone.$id.tsx:60",
+        "translation": "Klonimi zgjati shumë për këtë rast. Ju lutemi provoni përsëri, ose klononi një grup të dhënash më të vogël."
+    },
+    {
+        "id": "admin.currency_lock_notice",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/edit.$id.tsx:321",
+        "translation": "Monedha fiksohet pas konfigurimit dhe mund të ndryshohet vetëm kur konvertimi i monedhës është i disponueshëm."
+    },
+    {
+        "id": "admin.select_currency",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/new.tsx:329",
+        "translation": "Zgjidhni një monedhë"
+    },
+    {
+        "id": "common.cannot_save_record",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3694",
+        "translation": "Nuk mund të ruhet ky regjistër"
+    },
+    {
+        "id": "common.choose_file",
+        "description": "File: app/components/ContentRepeater/index.tsx:2766",
+        "translation": "Zgjidh skedarin"
+    },
+    {
+        "id": "common.no_users_available",
+        "description": "File: app/frontend/components/data-collection/View.tsx:337",
+        "translation": "Nuk ka përdorues të disponueshëm për caktim."
+    },
+    {
+        "id": "common.notify",
+        "description": "File: app/frontend/components/data-collection/View.tsx:311",
+        "translation": "Njoftoni"
+    },
+    {
+        "id": "common.opening",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4179",
+        "translation": "Hapje..."
+    },
+    {
+        "id": "common.return",
+        "description": "File: app/frontend/components/data-collection/View.tsx:231",
+        "translation": "Kthehu"
+    },
+    {
+        "id": "common.return_with_comments_description_to_user",
+        "description": "File: app/frontend/components/data-collection/View.tsx:278",
+        "translation": "Kjo do të kthehet me një koment për të bërë ndryshime dhe për ta riasubmituar për miratim."
+    },
+    {
+        "id": "common.select_users",
+        "description": "File: app/frontend/components/data-collection/View.tsx:325",
+        "translation": "Zgjidh përdoruesit"
+    },
+    {
+        "id": "common.total",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:241",
+        "translation": "Gjithsej"
+    },
+    {
+        "id": "common.upload_zip",
+        "description": "File: app/routes/$lang+/settings+/geography+/_layout.tsx:564",
+        "translation": "Ngarko ZIP"
+    },
+    {
+        "id": "copied",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3434",
+        "translation": "Kopjuar"
+    },
+    {
+        "id": "could_not_copy_to_clipboard",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3443",
+        "translation": "Nuk mund të kopjohet në clipboard"
+    },
+    {
+        "id": "disaster_event.attachments.error.file_too_large",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:155",
+        "translation": "Madhësia e skedarit tejkalon 10 MB."
+    },
+    {
+        "id": "disaster_event.attachments.error.total_size_exceeded",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:189",
+        "translation": "Madhësia totale e bashkëngjitjes tejkalon 10 MB."
+    },
+    {
+        "id": "disaster_event.attachments.error.unsupported_type",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:144",
+        "translation": "Lloj skedari i papërkrahur."
+    },
+    {
+        "id": "disaster_event.attachments.total_size",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:508",
+        "translation": "Madhësia totale"
+    },
+    {
+        "id": "disaster_event.cycle_conflicts",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.tsx:764",
+        "translation": "Ngjarje të kundërta:"
+    },
+    {
+        "id": "disaster_event.form.add_affected_areas",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4183",
+        "translation": "Shto zonat e prekura"
+    },
+    {
+        "id": "disaster_event.form.add_assessment",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4779",
+        "translation": "Shto vlerësimin"
+    },
+    {
+        "id": "disaster_event.form.add_declaration",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4830",
+        "translation": "Shto deklaratën"
+    },
+    {
+        "id": "disaster_event.form.add_response",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4728",
+        "translation": "Shto përgjigjen"
+    },
+    {
+        "id": "disaster_event.form.additional_details",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4681",
+        "translation": "Detaje shtesë"
+    },
+    {
+        "id": "disaster_event.form.additional_details_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4700",
+        "translation": "Dokumentoni përgjigjet, vlerësimet dhe deklaratat zyrtare që lidhen me këtë ngjarje katastrofike."
+    },
+    {
+        "id": "disaster_event.form.assessments_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4770",
+        "translation": "Dokumento vlerësimet dhe nevojat"
+    },
+    {
+        "id": "disaster_event.form.copy_uuid",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3926",
+        "translation": "Kopjo UUID-in e ngjarjes së katastrofës"
+    },
+    {
+        "id": "disaster_event.form.date_format_label",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:976",
+        "translation": "{label} format"
+    },
+    {
+        "id": "disaster_event.form.declarations_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4821",
+        "translation": "Regjistro deklaratat zyrtare të emergjencës"
+    },
+    {
+        "id": "disaster_event.form.define_spatial_footprint",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4261",
+        "translation": "Përcaktoni gjurmën hapësinore"
+    },
+    {
+        "id": "disaster_event.form.enter_coverage",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4993",
+        "translation": "Futni mbulimin"
+    },
+    {
+        "id": "disaster_event.form.enter_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5049",
+        "translation": "Futni përshkrimin"
+    },
+    {
+        "id": "disaster_event.form.enter_issuing_organization",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5018",
+        "translation": "Futni organizatën lëshuese"
+    },
+    {
+        "id": "disaster_event.form.enter_other_sectors",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5152",
+        "translation": "Futni sektorë të tjerë (nëse nuk janë të listuar)"
+    },
+    {
+        "id": "disaster_event.form.enter_type",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4887",
+        "translation": "Hyrni llojin"
+    },
+    {
+        "id": "disaster_event.form.event_basics",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3781",
+        "translation": "Bazat e ngjarjes"
+    },
+    {
+        "id": "disaster_event.form.event_basics_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3787",
+        "translation": "Informacione të përgjithshme rreth ngjarjes së katastrofës."
+    },
+    {
+        "id": "disaster_event.form.geographic_level_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4169",
+        "translation": "Zgjidhni zonat administrative ku u përjetua ngjarja e katastrofës."
+    },
+    {
+        "id": "disaster_event.form.hazard_and_timing",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3965",
+        "translation": "Rreziku dhe koha"
+    },
+    {
+        "id": "disaster_event.form.hazard_and_timing_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3971",
+        "translation": "Informacione të detajuara në lidhje me rreziqet e vëzhguara dhe kohën."
+    },
+    {
+        "id": "disaster_event.form.hazard_cluster_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4023",
+        "translation": "Grumbull rreziku (i vërejtur)"
+    },
+    {
+        "id": "disaster_event.form.hazard_type_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3984",
+        "translation": "Lloji i rrezikut (i vërejtur)"
+    },
+    {
+        "id": "disaster_event.form.linked_disaster_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4482",
+        "translation": "Ngjarje katastrofash të lidhura"
+    },
+    {
+        "id": "disaster_event.form.linked_disaster_events_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4488",
+        "translation": "Lidheni këtë ngjarje katastrofike me shkakun e saj ose me pasojat e saj."
+    },
+    {
+        "id": "disaster_event.form.linked_disaster_records_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4599",
+        "translation": "Lidheni këtë ngjarje katastrofike me regjistrimet përkatëse të katastrofave."
+    },
+    {
+        "id": "disaster_event.form.linked_events_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4363",
+        "translation": "Përcaktoni marrëdhëniet midis këtij ngjarjeje dhe regjistrimeve të tjera të sistemit."
+    },
+    {
+        "id": "disaster_event.form.linked_hazardous_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4371",
+        "translation": "Ngjarje të rrezikshme të lidhura"
+    },
+    {
+        "id": "disaster_event.form.linked_hazardous_events_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4377",
+        "translation": "Lidheni këtë ngjarje katastrofike me ngjarje të tjera të rrezikshme të lidhura."
+    },
+    {
+        "id": "disaster_event.form.loading_affected_areas_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4196",
+        "translation": "Po ngarkohet përzgjedhësi i zonave të prekura"
+    },
+    {
+        "id": "disaster_event.form.loading_linked_disaster_records_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4623",
+        "translation": "Po ngarkohet përzgjedhësi i regjistrave të lidhur të fatkeqësive"
+    },
+    {
+        "id": "disaster_event.form.loading_linked_triggered_events_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4568",
+        "translation": "Po ngarkon selektorin e ngjarjeve të lidhura të shkaktuara"
+    },
+    {
+        "id": "disaster_event.form.loading_linked_triggered_hazardous_events_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4457",
+        "translation": "Po ngarkon selektorin e ngjarjeve të rrezikshme të shkaktuara nga lidhja"
+    },
+    {
+        "id": "disaster_event.form.loading_linked_triggering_events_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4521",
+        "translation": "Po ngarkohet selektori i ngjarjeve të lidhura që shkaktojnë aktivizim"
+    },
+    {
+        "id": "disaster_event.form.loading_linked_triggering_hazardous_events_selector",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4410",
+        "translation": "Po ngarkon përzgjedhësin e ngjarjeve të rrezikshme të shkaktuara nga lidhja"
+    },
+    {
+        "id": "disaster_event.form.loading_spatial_footprint_editor",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4274",
+        "translation": "Po ngarkohet redaktori i gjurmës hapësinore"
+    },
+    {
+        "id": "disaster_event.form.manage_linked_disaster_records",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4610",
+        "translation": "Menaxho regjistrimet e lidhura të fatkeqësive"
+    },
+    {
+        "id": "disaster_event.form.manage_linked_triggered_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4444",
+        "translation": "Menaxho ngjarjet e lidhura të shkaktuara"
+    },
+    {
+        "id": "disaster_event.form.manage_linked_triggering_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4397",
+        "translation": "Menaxho ngjarjet e lidhura të aktivizimit"
+    },
+    {
+        "id": "disaster_event.form.name_global_other",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3829",
+        "translation": "Emri i katastrofës - Tjetër (Globale ose Rajonale)"
+    },
+    {
+        "id": "disaster_event.form.no_spatial_footprint_items",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4292",
+        "translation": "Ende nuk janë shtuar asnjë element i gjurmës hapësinore"
+    },
+    {
+        "id": "disaster_event.form.other_sectors_help",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5138",
+        "translation": "Sektorë të tjerë ndihmojnë"
+    },
+    {
+        "id": "disaster_event.form.placeholder.add_event_id",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3860",
+        "translation": "Shto ID-në e ngjarjes"
+    },
+    {
+        "id": "disaster_event.form.placeholder.add_event_name",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3838",
+        "translation": "Shto emrin e ngjarjes"
+    },
+    {
+        "id": "disaster_event.form.placeholder.add_glide_number",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3888",
+        "translation": "Shto numrin GLIDE"
+    },
+    {
+        "id": "disaster_event.form.placeholder.name_national",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3810",
+        "translation": "Për shembull, Uragani Mitch"
+    },
+    {
+        "id": "disaster_event.form.placeholder.yyyy",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1146",
+        "translation": "Viti, Viti, Viti"
+    },
+    {
+        "id": "disaster_event.form.placeholder.yyyy_mm",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1109",
+        "translation": "Viti-Muaji"
+    },
+    {
+        "id": "disaster_event.form.placeholder.yyyy_mm_dd",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1062",
+        "translation": "Viti-Muaji-Dita"
+    },
+    {
+        "id": "disaster_event.form.remove_named",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3189",
+        "translation": "Hiqni {name}"
+    },
+    {
+        "id": "disaster_event.form.responses_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4719",
+        "translation": "Ndjekni veprimet e hershme dhe operacionet e reagimit"
+    },
+    {
+        "id": "disaster_event.form.select_format",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1002",
+        "translation": "Zgjidhni formatin"
+    },
+    {
+        "id": "disaster_event.form.select_hazard_cluster",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4041",
+        "translation": "Zgjidh klasterin e rrezikut"
+    },
+    {
+        "id": "disaster_event.form.select_hazard_type",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4002",
+        "translation": "Zgjidhni llojin e rrezikut"
+    },
+    {
+        "id": "disaster_event.form.select_sectors",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5068",
+        "translation": "Zgjidh sektorë"
+    },
+    {
+        "id": "disaster_event.form.select_status",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4961",
+        "translation": "Zgjidh statusin"
+    },
+    {
+        "id": "disaster_event.form.select_type",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4906",
+        "translation": "Zgjidhni llojin"
+    },
+    {
+        "id": "disaster_event.form.spatial_footprint_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4247",
+        "translation": "Përcaktoni zonën gjeografike specifike të prekur duke përdorur koordinatat e hartës interaktive ose futje manuale."
+    },
+    {
+        "id": "disaster_event.form.spatial_footprint_items_added",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4285",
+        "translation": "{count} sende me gjurmë hapësinore të shtuar"
+    },
+    {
+        "id": "disaster_event.form.spatial_footprint_numbered",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2414",
+        "translation": "Gjurma hapësinore {count}"
+    },
+    {
+        "id": "disaster_event.form.spatial_information",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4142",
+        "translation": "Informacion hapësinor për ngjarje katastrofash"
+    },
+    {
+        "id": "disaster_event.form.spatial_information_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4148",
+        "translation": "Tregoni zonat gjeografike ku u përjetua ngjarja e katastrofës."
+    },
+    {
+        "id": "disaster_event.form.specific_hazard_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4062",
+        "translation": "Rrezik i veçantë (i vërejtur)"
+    },
+    {
+        "id": "disaster_event.form.tooltip.glide_number",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3711",
+        "translation": "Një identifikues unik global i përdorur për të kryqëzuar referencat e këtij ngjarjeje nëpër sistemet ndërkombëtare të rrezikut nga fatkeqësitë."
+    },
+    {
+        "id": "disaster_event.form.tooltip.hazard_cluster_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3729",
+        "translation": "Grumbulli i rrezikut të vërejtur"
+    },
+    {
+        "id": "disaster_event.form.tooltip.hazard_type_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3720",
+        "translation": "Lloji i rrezikut të vërejtur para konfirmimit të plotë"
+    },
+    {
+        "id": "disaster_event.form.tooltip.other_sectors",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3747",
+        "translation": "Shkruani një emër sektori që nuk është i disponueshëm në menunë e lëshuar më sipër, p.sh., Menaxhimi i mbetjeve, Ndihma humanitare."
+    },
+    {
+        "id": "disaster_event.form.tooltip.specific_hazard_observed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3738",
+        "translation": "Rreziku i veçantë i vërejtur"
+    },
+    {
+        "id": "disaster_event.form.validation.end_date_before_start_date",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2011",
+        "translation": "Data e përfundimit nuk mund të jetë para datës së fillimit"
+    },
+    {
+        "id": "disaster_event.form.validation.end_time_before_start_time",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2021",
+        "translation": "Ora e fundit nuk mund të jetë para kohës së fillimit"
+    },
+    {
+        "id": "disaster_event.form.validation.end_time_requires_full_end_date",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1988",
+        "translation": "Koha e përfundimit kërkon një datë të plotë përfundimi (AAAA-MM-DD)"
+    },
+    {
+        "id": "disaster_event.form.validation.is_invalid",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:909",
+        "translation": "{label} është i pavlefshëm"
+    },
+    {
+        "id": "disaster_event.form.validation.month_invalid",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:873",
+        "translation": "{label} muaj është i pavlefshëm"
+    },
+    {
+        "id": "disaster_event.form.validation.national_name_required",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1952",
+        "translation": "Emri i katastrofës (kombëtar) është i kërkuar"
+    },
+    {
+        "id": "disaster_event.form.validation.requires_complete_date",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:890",
+        "translation": "{label} kërkon një datë të plotë"
+    },
+    {
+        "id": "disaster_event.form.validation.requires_year_and_month",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:862",
+        "translation": "{label} kërkon vitin dhe muajin"
+    },
+    {
+        "id": "disaster_event.form.validation.start_date_required_when_end_date_has_value",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1995",
+        "translation": "Data e fillimit është e nevojshme kur data e përfundimit ka një vlerë."
+    },
+    {
+        "id": "disaster_event.form.validation.start_time_requires_full_start_date",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1978",
+        "translation": "Ora e fillimit kërkon një datë të plotë fillimi (AAAA-MM-DD)"
+    },
+    {
+        "id": "disaster_event.form.validation.year_must_be_4_digits",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:849",
+        "translation": "{label} vjet duhet të jenë 4 shifra"
+    },
+    {
+        "id": "disaster_event.invalid_hazardous_event_reference",
+        "description": "File: app/backend.server/models/event.ts:1989",
+        "translation": "Referencë e pavlefshme e ngjarjes së rrezikshme për këtë instancë"
+    },
+    {
+        "id": "disaster_event.review.assessment",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1793",
+        "translation": "Vlerësim"
+    },
+    {
+        "id": "disaster_event.review.assessments",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1770",
+        "translation": "Vlerësimet"
+    },
+    {
+        "id": "disaster_event.review.basic_information",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3767",
+        "translation": "Informacion bazë"
+    },
+    {
+        "id": "disaster_event.review.coverage",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3152",
+        "translation": "Mbulim"
+    },
+    {
+        "id": "disaster_event.review.date_at_time",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2497",
+        "translation": "{date} në {time}"
+    },
+    {
+        "id": "disaster_event.review.declaration",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1440",
+        "translation": "Deklaratë"
+    },
+    {
+        "id": "disaster_event.review.disaster_declaration_effects",
+        "description": "File: app/frontend/events/disastereventform.tsx:1503",
+        "translation": "Efektet e shpalljes së fatkeqësisë"
+    },
+    {
+        "id": "disaster_event.review.hazard_details",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:796",
+        "translation": "Detajet e rrezikut"
+    },
+    {
+        "id": "disaster_event.review.issuing_organization",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5005",
+        "translation": "Organizatë lëshuese"
+    },
+    {
+        "id": "disaster_event.review.linked_disaster_records",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4593",
+        "translation": "Regjistrat e lidhur të fatkeqësive"
+    },
+    {
+        "id": "disaster_event.review.linked_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4344",
+        "translation": "Ngjarje të lidhura"
+    },
+    {
+        "id": "disaster_event.review.links",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:901",
+        "translation": "Lidhjet"
+    },
+    {
+        "id": "disaster_event.review.location",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:830",
+        "translation": "Vendndodhja"
+    },
+    {
+        "id": "disaster_event.review.map",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:391",
+        "translation": "Harta"
+    },
+    {
+        "id": "disaster_event.review.no_assessments",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4799",
+        "translation": "Ende nuk janë regjistruar vlerësime"
+    },
+    {
+        "id": "disaster_event.review.no_attachments_selected",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:945",
+        "translation": "Nuk janë zgjedhur asnjë bashkëngjitje"
+    },
+    {
+        "id": "disaster_event.review.no_declarations",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4850",
+        "translation": "Ende nuk janë regjistruar deklarata"
+    },
+    {
+        "id": "disaster_event.review.no_geographic_levels",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:860",
+        "translation": "Nuk janë zgjedhur asnjë nivel gjeografik"
+    },
+    {
+        "id": "disaster_event.review.no_linked_disaster_records",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:1109",
+        "translation": "Ende nuk janë lidhur asnjë regjistër katastrofe"
+    },
+    {
+        "id": "disaster_event.review.no_linked_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:1007",
+        "translation": "Ende nuk janë zgjedhur ngjarje të lidhura me rreziqe ose katastrofa"
+    },
+    {
+        "id": "disaster_event.review.no_linked_records",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4638",
+        "translation": "Asnjë rekord i lidhur"
+    },
+    {
+        "id": "disaster_event.review.no_links_selected",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:903",
+        "translation": "Asnjë lidhje e përzgjedhur"
+    },
+    {
+        "id": "disaster_event.review.no_location_details",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:835",
+        "translation": "Nuk ka detaje të disponueshme për vendndodhjen"
+    },
+    {
+        "id": "disaster_event.review.no_responses",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4748",
+        "translation": "Ende nuk ka përgjigje të regjistruara"
+    },
+    {
+        "id": "disaster_event.review.no_spatial_data",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:883",
+        "translation": "Nuk janë përcaktuar të dhëna hapësinore"
+    },
+    {
+        "id": "disaster_event.review.no_triggered_disaster_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4581",
+        "translation": "Asnjë ngjarje katastrofike e lidhur e shkaktuar (pasuese)"
+    },
+    {
+        "id": "disaster_event.review.no_triggered_hazardous_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4470",
+        "translation": "Nuk ka ngjarje të lidhura të shkaktuara (të mëvonshme) të rrezikshme"
+    },
+    {
+        "id": "disaster_event.review.no_triggering_disaster_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4534",
+        "translation": "Asnjë ngjarje katastrofike të lidhur shkakësisht (triggering)"
+    },
+    {
+        "id": "disaster_event.review.no_triggering_hazardous_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4423",
+        "translation": "Nuk ka ngjarje të rrezikshme të lidhura shkakësisht (të shkaktuara)"
+    },
+    {
+        "id": "disaster_event.review.official_declarations",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1775",
+        "translation": "Deklarata zyrtare"
+    },
+    {
+        "id": "disaster_event.review.other_sectors",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5131",
+        "translation": "Sektorë të tjerë"
+    },
+    {
+        "id": "disaster_event.review.response_operation",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1788",
+        "translation": "Operacioni i përgjigjes"
+    },
+    {
+        "id": "disaster_event.review.responses",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1765",
+        "translation": "Përgjigjet"
+    },
+    {
+        "id": "disaster_event.review.review_and_save",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5303",
+        "translation": "Rishiko dhe ruaj"
+    },
+    {
+        "id": "disaster_event.review.spatial_footprint_index",
+        "description": "File: app/frontend/events/disastereventform.tsx:1129",
+        "translation": "Gjurma hapësinore {index}"
+    },
+    {
+        "id": "disaster_event.review.triggered_disaster_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4544",
+        "translation": "Ngjarjet e fatkeqësive të shkaktuara (të mëvonshme)"
+    },
+    {
+        "id": "disaster_event.review.triggered_hazardous_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4433",
+        "translation": "Ngjarjet e rrezikshme të shkaktuara (të mëvonshme)"
+    },
+    {
+        "id": "disaster_event.review.triggering_disaster_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4497",
+        "translation": "Shkaktimi i ngjarjeve katastrofike (shkakësore)"
+    },
+    {
+        "id": "disaster_event.review.triggering_hazardous_events",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4386",
+        "translation": "Shkaktimi i ngjarjeve të rrezikshme (shkakore)"
+    },
+    {
+        "id": "disaster_event.review.verify_before_saving",
+        "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:725",
+        "translation": "Verifikoni informacionin para se ta ruani."
+    },
+    {
+        "id": "disaster_events.back_to_list",
+        "description": "File: app/frontend/events/disastereventform.tsx:1555",
+        "translation": "Kthehu te ngjarjet e fatkeqësive"
+    },
+    {
+        "id": "disaster_record.damages.total_repair_cost",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:252",
+        "translation": "Kostoja totale e riparimit"
+    },
+    {
+        "id": "disaster_record.damages.unit_repair_cost",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:249",
+        "translation": "Kostoja e riparimit të njësisë"
+    },
+    {
+        "id": "disaster_record.losses.unit_value",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:364",
+        "translation": "Vlera e njësisë"
+    },
+    {
+        "id": "disruption.duration_days",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:419",
+        "translation": "Koha (ditë)"
+    },
+    {
+        "id": "disruption.duration_hours",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:420",
+        "translation": "Koha (orë)"
+    },
+    {
+        "id": "disruption.people_affected",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:422",
+        "translation": "Njerëzit e prekur"
+    },
+    {
+        "id": "disruption.response_operation",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:423",
+        "translation": "Operacioni i përgjigjes"
+    },
+    {
+        "id": "disruption.users_affected",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:421",
+        "translation": "Përdoruesit e prekur"
+    },
+    {
+        "id": "email.assigned_validators.body_html",
+        "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:117",
+        "translation": "I dashur {validatorName},\nNjë {recordType} i ri po pret veprim nga ju. Klikoni lidhjen më poshtë për të parë ngjarjen.\nEmri i ngjarjes: {recordEventName} \u003cbr /\u003eData e ngjarjes: {recordDate} \u003cbr /\u003eDërguar nga: {recordSubmitterName}\n\u003ca href=\"{recordUrl}\"\u003eShiko ngjarjen"
+    },
+    {
+        "id": "email.assigned_validators.body_text",
+        "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:137",
+        "translation": "I dashur {validatorName},\n\nNjë {recordType} i ri po pret veprim nga ju. Klikoni lidhjen më poshtë për të parë ngjarjen.\n\nEmri i ngjarjes: {recordEventName}\nData e ngjarjes: {recordDate}\nDërguar nga: {recordSubmitterName}\n\nShiko ngjarjen: {recordUrl}"
+    },
+    {
+        "id": "email.assigned_validators.subject",
+        "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:49",
+        "translation": "Vërtetimi i ngjarjes"
+    },
+    {
+        "id": "email.assignees_notification.body_returned_html",
+        "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:504",
+        "translation": "I dashur {assigneeName},\nNjë {recordType} është kthyer për rishikim.\nKthyer nga: {recordSubmitterName}\nKomente: {rejectionMessage}\n\u003ca href=\"{recordUrl}\"\u003eShiko"
+    },
+    {
+        "id": "email.assignees_notification.body_returned_text",
+        "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:524",
+        "translation": "I dashur {assigneeName},\n\nNjë {recordType} është kthyer për rishikim.\n\nKthyer nga: {recordSubmitterName}\n\nKomente: {rejectionMessage}\n\nShiko: {recordUrl}"
+    },
+    {
+        "id": "email.assignees_notification.subject_returned",
+        "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:467",
+        "translation": "Regjistër i kthyer - nevojitet veprim"
+    },
+    {
+        "id": "end_time",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:962",
+        "translation": "Fund i kohës"
+    },
+    {
+        "id": "failed",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3442",
+        "translation": "Dështoi"
+    },
+    {
+        "id": "geographies.add_division",
+        "description": "File: app/routes/$lang+/settings+/geography+/new.tsx:338",
+        "translation": "Shto ndarjen"
+    },
+    {
+        "id": "geographies.add_division_subtitle",
+        "description": "File: app/routes/$lang+/settings+/geography+/new.tsx:354",
+        "translation": "Krijoni një ndarje administrative të re."
+    },
+    {
+        "id": "geographies.cannot_delete_division_linked_children",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:56",
+        "translation": "Një ose më shumë nëndarje fëmijësh janë të lidhura me regjistrat gjeohapësinorë ekzistues."
+    },
+    {
+        "id": "geographies.cannot_delete_linked_division",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:49",
+        "translation": "Kjo ndarje është e lidhur me regjistrat gjeohapësinorë ekzistues dhe nuk mund të fshihet."
+    },
+    {
+        "id": "geographies.cannot_delete_parent_division",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:40",
+        "translation": "Kjo ndarje ka nëndarje. Fshini ose zhvendosni së pari nëndarjet."
+    },
+    {
+        "id": "geographies.delete_division_confirmation",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:287",
+        "translation": "Këto të dhëna nuk mund të rikuperohen pasi të jenë fshirë."
+    },
+    {
+        "id": "geographies.delete_division_title",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:106",
+        "translation": "Fshi divizionin"
+    },
+    {
+        "id": "geographies.division_deleted_successfully",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:223",
+        "translation": "Divizioni u fshi me sukses."
+    },
+    {
+        "id": "geographies.download_geometry",
+        "description": "File: app/routes/$lang+/settings+/geography+/edit.$id.tsx:463",
+        "translation": "Shkarko gjeometrinë"
+    },
+    {
+        "id": "geographies.failed_delete_division",
+        "description": "File: app/routes/$lang+/settings+/geography+/delete.$id.tsx:180",
+        "translation": "Nuk mund të fshihet ky divizion për shkak të të dhënave të lidhura. Hiqni së pari lidhjet ose divizionet fëmijë."
+    },
+    {
+        "id": "geographies.upload_geometry",
+        "description": "File: app/routes/$lang+/settings+/geography+/edit.$id.tsx:489",
+        "translation": "Ngarko gjeometrinë"
+    },
+    {
+        "id": "geographies.upload_geometry_hint",
+        "description": "File: app/routes/$lang+/settings+/geography+/edit.$id.tsx:502",
+        "translation": "Ngarkimi i gjeometrisë është i disponueshëm vetëm kur kjo ndarje nuk ka ende gjeometri."
+    },
+    {
+        "id": "human_effects.error.subtotal_larger_than_total_unset",
+        "description": "No total has been set for this metric. {group} is the group name(s), {column} is the metric name. File: app/frontend/editabletable/validate.ts:272",
+        "translation": "Nuk ka grup të plotë për grupin ({group}), kolona \"{column}\""
+    },
+    {
+        "id": "nav.human_effects",
+        "description": "File: app/components/RegularMenuBar.tsx:413",
+        "translation": "Efektet njerëzore"
+    },
+    {
+        "id": "no_disaster_events_found",
+        "description": "File: app/frontend/disaster-event/DisasterEventsPage.tsx:856",
+        "translation": "Nuk u gjetën ngjarje katastrofash"
+    },
+    {
+        "id": "of",
+        "description": "File: app/frontend/disaster-event/DisasterEventsPage.tsx:979",
+        "translation": "e"
+    },
+    {
+        "id": "recovery_cost.sector",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:124",
+        "translation": "Kostoja e rikuperimit"
+    },
+    {
+        "id": "rows_per_page",
+        "description": "File: app/frontend/disaster-event/DisasterEventsPage.tsx:973",
+        "translation": "Rreshtat për faqe"
+    },
+    {
+        "id": "sector_effects.cost",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:129",
+        "translation": "Kosto"
+    },
+    {
+        "id": "sector_effects.disruption",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:137",
+        "translation": "Çrregullim"
+    },
+    {
+        "id": "sector_effects.sector",
+        "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:119",
+        "translation": "Sektori"
+    },
+    {
+        "id": "spatial_footprint.define_specific_geographic_area",
+        "description": "Help text for spatial footprint section File: app/frontend/spatialFootprintFormView2.tsx:61",
+        "translation": "Përcaktoni zonën gjeografike specifike të prekur duke përdorur koordinatat e hartës interaktive ose futje manuale."
+    },
+    {
+        "id": "start_time",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:961",
+        "translation": "Ora e fillimit"
+    },
+    {
+        "id": "time_placeholder_24h",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:963",
+        "translation": "Koha (24h, p.sh. 14:30)"
+    },
+    {
+        "id": "unit.centimeters",
+        "description": "File: app/frontend/unit_picker.tsx:164",
+        "translation": "Centimetra (cm)"
+    },
+    {
+        "id": "unit.feet",
+        "description": "File: app/frontend/unit_picker.tsx:172",
+        "translation": "Këmbë (ft)"
+    },
+    {
+        "id": "unit.kilometers",
+        "description": "File: app/frontend/unit_picker.tsx:160",
+        "translation": "Kilometra (km)"
+    },
+    {
+        "id": "unit.length",
+        "description": "File: app/frontend/unit_picker.tsx:76",
+        "translation": "Gjatësi"
+    },
+    {
+        "id": "unit.meters",
+        "description": "File: app/frontend/unit_picker.tsx:156",
+        "translation": "Metra (m)"
+    },
+    {
+        "id": "unit.miles",
+        "description": "File: app/frontend/unit_picker.tsx:180",
+        "translation": "Milje (mi)"
+    },
+    {
+        "id": "unit.millimeters",
+        "description": "File: app/frontend/unit_picker.tsx:168",
+        "translation": "Millimetra (mm)"
+    },
+    {
+        "id": "unit.nautical_miles",
+        "description": "File: app/frontend/unit_picker.tsx:184",
+        "translation": "Milje detare (NM)"
+    },
+    {
+        "id": "unit.yards",
+        "description": "File: app/frontend/unit_picker.tsx:176",
+        "translation": "Jardë (yd)"
+    },
+    {
+        "id": "user.permission.delete_disaster_event.label",
+        "description": "File: app/frontend/user/roles.ts:165",
+        "translation": "Fshi ngjarjen e katastrofës"
+    },
+    {
+        "id": "user.permission.disaster_event_list.label",
+        "description": "File: app/frontend/user/roles.ts:157",
+        "translation": "Lista e ngjarjeve të fatkeqësive"
+    },
+    {
+        "id": "user.permission.edit_disaster_event.label",
+        "description": "File: app/frontend/user/roles.ts:173",
+        "translation": "Redakto ngjarjen e katastrofës"
+    },
+    {
+        "id": "uuid_copied_to_clipboard",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3435",
+        "translation": "UUID {shortUuid}… kopjuar në clipboard"
+    },
+    {
+        "id": "common_err_msg.event_requires_linked_record",
+        "description": "File: app/services/disasterEventService.ts:78",
+        "translation": "Një ngjarje katastrofe e verifikuar ose e publikuar duhet të ketë të paktën një regjistër katastrofe të lidhur, të verifikuar ose të publikuar."
+    },
+    {
+        "id": "common_err_msg.record_requires_linked_event",
+        "description": "File: app/services/disasterRecordService.ts:110",
+        "translation": "Ky është i vetmi regjistër i katastrofës i botuar ose i verifikuar që lidhet me një ngjarje katastrofe të verifikuar ose të botuar. Ai nuk mund të kthehet për redaktim."
+    },
+    {
+        "id": "common.provide_comments_for_return",
+        "description": "File: app/frontend/components/data-collection/View.tsx:115",
+        "translation": "Jepni komente për ndryshimet e nevojshme për këtë regjistër"
+    },
+    {
+        "id": "common.something_went_wrong",
+        "description": "File: app/frontend/components/data-collection/View.tsx:149",
+        "translation": "Diçka shkoi keq."
+    },
+    {
+        "id": "disaster_event.attachments.cta_click_to_upload",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:293",
+        "translation": "Kliko për të ngarkuar"
+    },
+    {
+        "id": "disaster_event.attachments.cta_drag_and_drop",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:302",
+        "translation": "ose tërhiq dhe lësho"
+    },
+    {
+        "id": "disaster_event.form.add_link",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:145",
+        "translation": "Shto lidhjen"
+    },
+    {
+        "id": "disaster_event.form.cancel",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:278",
+        "translation": "Shfuqizo"
+    },
+    {
+        "id": "disaster_event.form.edit_link",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:211",
+        "translation": "Redakto lidhjen"
+    },
+    {
+        "id": "disaster_event.form.label",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:260",
+        "translation": "Etiketë"
+    },
+    {
+        "id": "disaster_event.form.links_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:137",
+        "translation": "Shto URL-të e lidhura për këtë ngjarje katastrofike."
+    },
+    {
+        "id": "disaster_event.form.no_links_added_yet",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:160",
+        "translation": "Ende nuk janë shtuar lidhje"
+    },
+    {
+        "id": "disaster_event.form.save_link",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:288",
+        "translation": "Lidhje me veten tënde"
+    },
+    {
+        "id": "disaster_event.form.stepper_status.optional",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1768",
+        "translation": "Opsional"
+    },
+    {
+        "id": "disaster_event.form.stepper_status.required",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1764",
+        "translation": "E kërkuar"
+    },
+    {
+        "id": "disaster_event.form.url",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:234",
+        "translation": "Adresa e uebit"
     }
 ]

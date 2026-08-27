@@ -32,7 +32,6 @@ import {
 	getUserRoleFromSession,
 } from "~/utils/session";
 import { divisionTable } from "~/drizzle/schema/divisionTable";
-import { buildTree } from "~/components/TreeView";
 import { dr } from "~/db.server";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { ViewContext } from "~/frontend/context";
@@ -58,7 +57,7 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 
 	// Permission check
 	const userRole = await getUserRoleFromSession(request) as string;
-	
+
 	if (canEditDataCollectionRecord(userRole, item.approvalStatus) === false) {
 		throw new Response("Access forbidden", { status: 403 });
 	}
@@ -104,28 +103,6 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 		};
 	}
 
-	// Define Keys Mapping (Make it Adaptable)
-	const idKey = "id";
-	const parentKey = "parentId";
-	const nameKey = "name";
-	const rawData = await dr
-		.select({
-			id: divisionTable.id,
-			parentId: divisionTable.parentId,
-			name: divisionTable.name,
-			importId: divisionTable.importId,
-			nationalId: divisionTable.nationalId,
-			level: divisionTable.level,
-		})
-		.from(divisionTable)
-		.where(eq(divisionTable.countryAccountsId, countryAccountsId));
-	const treeData = buildTree(rawData, idKey, parentKey, nameKey, "en", [
-		"importId",
-		"nationalId",
-		"level",
-		"name",
-	]);
-
 	const divisionGeoJSON = await dr
 		.select({
 			id: divisionTable.id,
@@ -147,7 +124,7 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 	return {
 		hip: hip,
 		item: item,
-		treeData: treeData,
+		treeData: [],
 		ctryIso3: ctryIso3,
 		divisionGeoJSON: divisionGeoJSON || [],
 		user,

@@ -31,9 +31,12 @@ interface FiltersProps {
 	specificHazards: SpecificHazard[];
 	geographicLevels: PartialDivision[];
 	onClearFilters: () => void;
+	selectedHazardTypeId: string | null;
 	selectedHazardClusterId: string | null;
 	selectedSpecificHazardId: string | null;
 	selectedGeographicLevelId: string | null;
+	selectedFromDate: string | null;
+	selectedToDate: string | null;
 }
 
 const HazardFilters: React.FC<FiltersProps> = ({
@@ -43,9 +46,12 @@ const HazardFilters: React.FC<FiltersProps> = ({
 	specificHazards,
 	geographicLevels,
 	onClearFilters,
+	selectedHazardTypeId,
 	selectedHazardClusterId,
 	selectedSpecificHazardId,
 	selectedGeographicLevelId,
+	selectedFromDate,
+	selectedToDate,
 }) => {
 	const toast = useRef<Toast>(null);
 
@@ -57,15 +63,17 @@ const HazardFilters: React.FC<FiltersProps> = ({
 		});
 	};
 
-	const [hazardTypeId, setHazardTypeId] = useState<string | null>(null);
+	const [hazardTypeId, setHazardTypeId] = useState<string | null>(
+		selectedHazardTypeId,
+	);
 	const [hazardClusterId, setHazardClusterId] = useState<string | null>(
 		selectedHazardClusterId,
 	);
 	const [specificHazardId, setSpecificHazardId] = useState<string | null>(
 		selectedSpecificHazardId,
 	);
-	const [fromDate, setFromDate] = useState<string | null>(null);
-	const [toDate, setToDate] = useState<string | null>(null);
+	const [fromDate, setFromDate] = useState<string | null>(selectedFromDate);
+	const [toDate, setToDate] = useState<string | null>(selectedToDate);
 	const [geographicLevelId, setGeographicLevelId] = useState<string | null>(
 		selectedGeographicLevelId,
 	);
@@ -86,6 +94,30 @@ const HazardFilters: React.FC<FiltersProps> = ({
 	useEffect(() => {
 		setNodes(buildPrimeReactTreeNodes(geographicLevels));
 	}, [geographicLevels]);
+
+	useEffect(() => {
+		setHazardTypeId(selectedHazardTypeId);
+	}, [selectedHazardTypeId]);
+
+	useEffect(() => {
+		setHazardClusterId(selectedHazardClusterId);
+	}, [selectedHazardClusterId]);
+
+	useEffect(() => {
+		setSpecificHazardId(selectedSpecificHazardId);
+	}, [selectedSpecificHazardId]);
+
+	useEffect(() => {
+		setGeographicLevelId(selectedGeographicLevelId);
+	}, [selectedGeographicLevelId]);
+
+	useEffect(() => {
+		setFromDate(selectedFromDate);
+	}, [selectedFromDate]);
+
+	useEffect(() => {
+		setToDate(selectedToDate);
+	}, [selectedToDate]);
 
 	const handleApply = (e: React.FormEvent) => {
 		if (!hazardTypeId) {
@@ -143,13 +175,13 @@ const HazardFilters: React.FC<FiltersProps> = ({
 			>
 				{/* First Row */}
 				<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
 					<div className="dts-form-component">
 						<label htmlFor="hazard-type" className="block mb-0.5">
 							{ctx.t({
 								code: "hip.hazard_type",
 								msg: "Hazard type",
-							})} *
+							})}{" "}
+							*
 						</label>
 
 						<select
@@ -235,12 +267,10 @@ const HazardFilters: React.FC<FiltersProps> = ({
 							))}
 						</select>
 					</div>
-
 				</div>
 
 				{/* Second Row */}
 				<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-
 					<div className="dts-form-component">
 						<label htmlFor="geographicLevelId" className="block mb-0.5">
 							{ctx.t({
@@ -301,7 +331,6 @@ const HazardFilters: React.FC<FiltersProps> = ({
 							className="w-full"
 						/>
 					</div>
-
 				</div>
 
 				{/* Hidden Input */}
@@ -313,7 +342,6 @@ const HazardFilters: React.FC<FiltersProps> = ({
 
 				{/* Buttons */}
 				<div className="flex justify-end gap-2 mt-6">
-
 					<button
 						type="button"
 						onClick={handleClear}
@@ -333,17 +361,15 @@ const HazardFilters: React.FC<FiltersProps> = ({
 					>
 						{isSubmitting
 							? ctx.t({
-								code: "analysis.applying_filters",
-								msg: "Applying...",
-							})
+									code: "analysis.applying_filters",
+									msg: "Applying...",
+								})
 							: ctx.t({
-								code: "common.apply_filters",
-								msg: "Apply filters",
-							})}
+									code: "common.apply_filters",
+									msg: "Apply filters",
+								})}
 					</button>
-
 				</div>
-
 			</Form>
 		</div>
 	);
