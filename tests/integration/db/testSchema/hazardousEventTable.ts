@@ -43,7 +43,6 @@ export const hazardousEventTable = pgTable(
 		description: zeroText("description"),
 		chainsExplanation: zeroText("chains_explanation"),
 		magnitude: zeroText("magniture"),
-		spatialFootprint: jsonb("spatial_footprint"),
 		attachments: jsonb("attachments"),
 		recordOriginator: zeroText("record_originator"),
 		hazardousEventStatus: text("hazardous_event_status", {
@@ -62,6 +61,8 @@ export const hazardousEventTable = pgTable(
 export const hazardousEventTableConstraits = {
 	apiImportId: "hazardous_event_apiImportId_unique",
 	hipHazardId: "hazardous_event_hip_hazard_id_hip_hazard_id_fk",
+	hipClusterId: "hazardous_event_hip_cluster_id_hip_cluster_id_fk",
+	hipTypeId: "hazardous_event_hip_type_id_hip_type_id_fk",
 };
 
 export type SelectHazardousEvent = typeof hazardousEventTable.$inferSelect;
