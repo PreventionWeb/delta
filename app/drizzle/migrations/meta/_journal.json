@@ -257,64 +257,64 @@
     {
       "idx": 36,
       "version": "7",
+      "when": 1785385572400,
+      "tag": "20260730042600_clean_invalid_spatialdata",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
       "when": 1785385572454,
       "tag": "20260730042612_migration_spatial_footprint_columns_to_new_tables",
       "breakpoints": true
     },
     {
-      "idx": 37,
+      "idx": 38,
       "version": "7",
       "when": 1785395601635,
       "tag": "20260730071321_remove_spatial_footprint_columns",
       "breakpoints": true
     },
     {
-      "idx": 38,
+      "idx": 39,
       "version": "7",
       "when": 1786334181876,
       "tag": "20260810035621_migrate_disaster_event_response_to_new_tables",
       "breakpoints": true
     },
     {
-      "idx": 39,
+      "idx": 40,
       "version": "7",
       "when": 1786419746071,
       "tag": "20260811034226_migrate_disaster_event_declaration_to_new_tables",
       "breakpoints": true
     },
     {
-      "idx": 40,
+      "idx": 41,
       "version": "7",
       "when": 1786594106691,
       "tag": "20260813040826_migrate_disaster_event_assessment_to_new_tables",
       "breakpoints": true
     },
     {
-      "idx": 41,
+      "idx": 42,
       "version": "7",
       "when": 1786948175892,
       "tag": "20260817062935_drop_attachments_column_from_disaster_event_table",
       "breakpoints": true
     },
     {
-      "idx": 42,
+      "idx": 43,
       "version": "7",
       "when": 1786968000000,
       "tag": "20260817120000_migrate_recording_institution_to_organization",
       "breakpoints": true
     },
     {
-      "idx": 43,
+      "idx": 44,
       "version": "7",
       "when": 1787139000000,
       "tag": "20260819113000_drop_disaster_event_recording_institution",
-      "breakpoints": true
-    },
-    {
-      "idx": 44,
-      "version": "7",
-      "when": 1787803100400,
-      "tag": "20260827035819_clean_invalid_spatialdata",
       "breakpoints": true
     },
     {

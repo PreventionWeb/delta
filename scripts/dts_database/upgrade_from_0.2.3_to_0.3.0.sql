@@ -256,6 +256,24 @@ ALTER TABLE "notices" ADD COLUMN "body" text;
 ALTER TABLE "notices" ADD COLUMN "locale" text NOT NULL;
 
 
+
+----
+-- Source: 20260730042600_clean_invalid_spatialdata.sql
+----
+
+UPDATE hazardous_event
+SET spatial_footprint = NULL
+WHERE jsonb_typeof(spatial_footprint) = 'string';
+
+UPDATE disaster_event
+SET spatial_footprint = NULL
+WHERE jsonb_typeof(spatial_footprint) = 'string';
+
+UPDATE disaster_records
+SET spatial_footprint = NULL
+WHERE jsonb_typeof(spatial_footprint) = 'string';
+
+
 ----
 -- Source: 20260730042612_migration_spatial_footprint_columns_to_new_tables.sql
 ----
@@ -1367,23 +1385,6 @@ WHERE de.id = mo.disaster_event_id
 
 ALTER TABLE disaster_event
 DROP COLUMN IF EXISTS recording_institution;
-
-
-----
--- Source: 20260827035819_clean_invalid_spatialdata.sql
-----
-
-UPDATE hazardous_event
-SET spatial_footprint = NULL
-WHERE jsonb_typeof(spatial_footprint) = 'string';
-
-UPDATE disaster_event
-SET spatial_footprint = NULL
-WHERE jsonb_typeof(spatial_footprint) = 'string';
-
-UPDATE disaster_records
-SET spatial_footprint = NULL
-WHERE jsonb_typeof(spatial_footprint) = 'string';
 
 
 ----
