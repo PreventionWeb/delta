@@ -80,6 +80,49 @@ part of this track since accurate characterization tests require an accurate tes
 
 ---
 
-## 0b–0f
+## 0b — Causal chain
+
+**Test file:** `tests/integration/db/models/hazardousEventCausalChain.test.ts` (9 tests, all
+green). Shared seed helpers extracted from 0a into `hazardousEventTestHelpers.ts` (0a updated to
+import from it, no behavior change — re-verified green after the extraction).
+
+### Real bug found — confirmed empirically, not inferred from reading the code
+
+1. **Cycle detection has a hard blind spot beyond its recursion cap, and a genuine cycle gets
+   silently persisted.** `checkForCycle`'s recursive CTE stops walking a chain's ancestry once
+   the accumulated path already has 10 elements. Built a 20-node `caused_by` chain and attempted
+   to close a cycle across its full length (`chain[0]`'s parent set to `chain[19]`, the far end
+   of its own descendant chain) — **the update succeeds**, and an actual cycle is written into
+   `event_relationship`: `chain[0] → chain[1] → ... → chain[19] → chain[0]`. A shorter 8-node
+   chain, well under the cap, is correctly rejected. This is a real data-integrity gap in the
+   current system, not a hypothetical — it's directly relevant to the "event-relationship graph
+   integrity" resilience driver named for the new schema (roadmap Phase 2, Section D: whether
+   the new causality table gets a DB-level cycle-prevention constraint instead of this app-layer
+   depth-capped check).
+
+### Confirmed quirks
+
+2. **Multi-hop (indirect) cycle detection works correctly for chains under the cap** — a 4-hop
+   chain closing a cycle is correctly rejected with `ErrRelationCycle`, not just the trivial
+   direct 2-node case already covered in 0a.
+3. **Temporal comparison at exactly equal start dates is allowed** (`<=`, not `<`) — confirmed as
+   a deliberate boundary, not accidentally permissive.
+4. **Mixed date-granularity comparison normalizes month/year-only dates to the 1st of the
+   period**, which is an optimistic approximation for the parent side: a parent dated only
+   `"2020-06"` normalizes to `2020-06-01` and will pass against any child date in June or later,
+   even though the parent's real (unknown, day-level) date could plausibly be later in the month
+   than the child's. Not a bug relative to the code's own logic — it's an inherent property of
+   comparing dates at mismatched precision — but worth naming explicitly since a redesigned
+   schema/validation could choose a stricter (or looser) rule here.
+5. **`hazardousEventCreate`'s parent-handling never runs cycle or temporal checks at all** — only
+   parent-existence and same-tenant checks (already covered in 0a). This is correct and doesn't
+   need porting as a bug: a brand-new event cannot already be an ancestor of anything, so no
+   cycle is possible at creation time. Confirmed explicitly rather than assumed, since it's a
+   real asymmetry with `hazardousEventUpdate`'s parent-handling that a naive port might
+   "fix" unnecessarily.
+
+---
+
+## 0c–0f
 
 Not yet started.
