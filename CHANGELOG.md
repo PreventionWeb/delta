@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.3.0 - 2026-08-27
+
+### Added
+- DeepL-backed translations and new language support (Serbian, plus expanded Arabic/Spanish/French/Chinese/Russian/Serbian translations via Weblate) with an ADR-001 i18n SSR stack (react-i18next/remix-i18next, React Router 8 compat).
+- Notices module: table schema/migration, create/list/get use cases, multilingual API with swagger, web channel (list + detail routes), and Drizzle data-layer adapter.
+- NestJS backend foundation: HTTP server (Express platform + supertest), CoreModule bootstrap, domain errors, request-scoped session memoization via AsyncLocalStorage, and pino logging with logged i18n/ilogger abstraction.
+- Nested disaster-event REST APIs for attachments (with cumulative 10MB limit), declarations (multipart attachment support), and responses (multipart attachment support); pluralized data endpoints for assessment, declaration, and response types; reference API docs.
+- Normalized data model: spatial footprint refactored into relation/geometry tables (12 new schema tables) with backfill migration; disaster-event assessments/declarations/responses normalized to dedicated tables; `disaster_event.recording_institution` moved to ref-resolving table `orgs`; attachments migrated to `disaster_event_attachment` table with `disaster_event_link` for links.
+- Disaster event links management (add/manage links, view on Step 4 and view page).
+- Administrative levels and spatial footprint displayed on disaster event view page; Step 4 repurposed as the Disaster Event View.
+- User-friendly error when removing a geography level with foreign-key associations.
+- Advanced filters, search by name/organization, pagination, and "View my records"/"Pending my actions" filtering on disaster event listings; records vs. discrete filtering for users without EditDisasterEvent permission.
+- OpenSpec changes/ADRs for i18n, API response/auth management, and system architecture blueprint (ARCHITECTURE.md).
+- Clean Architecture directory structure scaffold; PageProps<T> props-down refactor contract with HazardousEventListPage reference implementation.
+### Changed
+- Upgraded React Router 7.12 → 7.16 → 7.18 (then 8) and Node to 24 (container 24.18.0); aligned app with `match.loaderData` and v8 trailing-slash-aware data requests.
+- Refactored main DB code for linked disaster records into repository files; UI alignment with PrimeReact and stepper flow.
+- Disaster event form reworked onto a multi-step stepper (steps 1–4) wired to backend data, links, geospatial location, and the approval workflow; sector names shown instead of UUIDs across steps.
+- Disaster creation/editing moved to a modal-based linked-record flow with approval status shown in modal search.
+- Disaggregation totals now computed for damages, losses, disruption; HIPS names shown rather than UUIDs.
+- Spatial footprint dialog redesigned with PrimeReact components (incl. Safari fixes), scrollbar, auto-zoom, geometry upload on edit, and division add/remove; geometry saves normalized to FeatureCollection inputs.
+- Validation workflow modal restyled with the new UI; record deletes clean up validation assignment/rejection and unlink records before disaster event deletion; publisher/validator guard rails and cyclic checks on disaster events.
+- Update timestamp now uses current time; default sort order updated for disaster events.
+- Ops/deployment updates: GHCR lowercase fixes, prod Docker Compose/scripts, container prod deployment fixes, and UNOG auto-deployment prep for the training server.
+- Dependency security: cleared ~40 npm/yarn audit vulnerabilities and 6 package vulnerabilities.
+### Fixed
+- Hydration/browser-runtime warnings (Meta hook order, root hydration mismatches from browser-extension attributes).
+- Validation/publish rules: requires at least one validated/published disaster record, prevents deleting/returning the sole record of a published/validated event.
+- Date-precision preservation on drafts, end-date validation, save-order/migration conflicts, and missing required fields when creating new records.
+- Attachments upload/save/delete consistency (upload on save, add+delete simultaneously, deletion alongside record deletion, list in review step), file type restrictions, and attachment dialog radio-button/confirm-modal issues (incl. Safari).
+- Mobile RTL appearance, button alignment/placement, and responsive layouts across listings.
+- Hazard analysis and Analysis dashboard rendering errors for disaster events/hazards.
+
 ## v0.2.2 - 2026-05-06
 
 ### Added
