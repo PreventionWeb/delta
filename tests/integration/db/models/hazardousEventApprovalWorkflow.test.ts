@@ -2,7 +2,7 @@
 import "../setup";
 import { describe, it, expect } from "vitest";
 import { dr } from "~/db.server";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { hazardousEventTable } from "../testSchema/hazardousEventTable";
 import { entityValidationAssignmentTable } from "../testSchema/entityValidationAssignmentTable";
 import {
@@ -10,9 +10,20 @@ import {
 	hazardousEventUpdateApprovalStatusNeedRevision,
 	hazardousEventUpdateApprovalStatusValidate,
 	hazardousEventUpdateApprovalStatusPublish,
-} from "~/backend.server/models/event/hazardous_event_approval";
-import { processValidationAssignmentWorkflow } from "~/backend.server/models/event/validation_workflow";
-import { ctx, seedUser, seedHazardousEvent } from "./hazardousEventTestHelpers";
+} from "~/backend.server/models/event";
+import { handleApprovalWorkflowService } from "~/backend.server/services/approvalWorkflowService";
+import {
+	seedUser,
+	seedUserWithCountryAccountRole,
+	seedHazardousEvent,
+} from "./hazardousEventTestHelpers";
+
+// handleApprovalWorkflowService's internal handlers call ctx.url(), unlike the direct
+// hazardous_event_approval.ts functions above which only need ctx.t().
+const workflowCtx = {
+	t: ({ msg }: { msg: string }) => msg,
+	url: (path: string) => path,
+} as any;
 
 async function getRecord(id: string) {
 	const [row] = await dr
@@ -41,14 +52,10 @@ describe("hazardousEventUpdateApprovalStatusNeedRevision()", () => {
 	it("sets needs-revision and clears validated/published, but not submitted", async () => {
 		const record = await seedHazardousEvent();
 		const userId = await seedUser();
-		await processValidationAssignmentWorkflow(
-			ctx,
-			dr as any,
-			record.id,
-			[userId],
-			userId,
-			{},
-		);
+		await dr
+			.update(hazardousEventTable)
+			.set({ submittedByUserId: userId, submittedAt: sql`CURRENT_TIMESTAMP` })
+			.where(eq(hazardousEventTable.id, record.id));
 
 		await hazardousEventUpdateApprovalStatusNeedRevision(record.id);
 		const row = await getRecord(record.id);
@@ -92,20 +99,29 @@ describe("hazardousEventUpdateApprovalStatusPublish()", () => {
 	});
 });
 
-describe("processValidationAssignmentWorkflow()", () => {
+// handleApprovalWorkflowService is the LIVE "submit for validation" path — the orphaned
+// processValidationAssignmentWorkflow it replaces is dead code, see audit findings doc.
+describe("handleApprovalWorkflowService() — submit-validation (live path)", () => {
 	it("assigns validators, moves the record to waiting-for-validation, and stamps submittedBy/At", async () => {
 		const record = await seedHazardousEvent();
+		const submitter = await seedUserWithCountryAccountRole(
+			record.countryAccountsId,
+		);
 		const validatorA = await seedUser();
 		const validatorB = await seedUser();
-		const submitter = await seedUser();
 
-		await processValidationAssignmentWorkflow(
-			ctx,
+		// Not wrapped in dr.transaction() — see audit findings doc (deadlocks PGlite's single connection).
+		await handleApprovalWorkflowService(
+			workflowCtx,
 			dr as any,
 			record.id,
-			[validatorA, validatorB],
-			submitter,
-			{},
+			"hazardous_event",
+			{
+				updatedByUserId: submitter,
+				countryAccountsId: record.countryAccountsId,
+				tempAction: "submit-validation",
+				tempValidatorUserIds: `${validatorA},${validatorB}`,
+			},
 		);
 
 		const row = await getRecord(record.id);
@@ -123,18 +139,67 @@ describe("processValidationAssignmentWorkflow()", () => {
 		);
 	});
 
-	it("BUG: the falsy-submittedByUserId email-skip guard is unreachable — the unconditional DB write crashes first on an empty string", async () => {
+	it("is a silent no-op when the record isn't in draft/needs-revision (e.g. already waiting-for-validation)", async () => {
+		const record = await seedHazardousEvent();
+		const submitter = await seedUserWithCountryAccountRole(
+			record.countryAccountsId,
+		);
+		await dr
+			.update(hazardousEventTable)
+			.set({ approvalStatus: "waiting-for-validation" })
+			.where(eq(hazardousEventTable.id, record.id));
+		const anotherValidator = await seedUser();
+
+		await handleApprovalWorkflowService(
+			workflowCtx,
+			dr as any,
+			record.id,
+			"hazardous_event",
+			{
+				updatedByUserId: submitter,
+				countryAccountsId: record.countryAccountsId,
+				tempAction: "submit-validation",
+				tempValidatorUserIds: anotherValidator,
+			},
+		);
+
+		const row = await getRecord(record.id);
+		expect(row.approvalStatus).toBe("waiting-for-validation"); // unchanged, no error either
+	});
+});
+
+describe("handleApprovalWorkflowService() — submit-publish (live path)", () => {
+	it("BUG (same as the detail-page path): also overwrites validatedByUserId/validatedAt with the publisher's identity", async () => {
 		const record = await seedHazardousEvent();
 		const validator = await seedUser();
-		await expect(
-			processValidationAssignmentWorkflow(
-				ctx,
-				dr as any,
-				record.id,
-				[validator],
-				"",
-				{},
-			),
-		).rejects.toThrow(); // see audit findings doc — not reachable with the intended empty-submitter case
+		const publisher = await seedUserWithCountryAccountRole(
+			record.countryAccountsId,
+			"admin", // required role, per the shouldProcess gate
+		);
+		// shouldProcess only allows submit-publish from draft/needs-revision, not "validated" —
+		// so simulate validatedByUserId already set while status is still draft (see doc).
+		await dr
+			.update(hazardousEventTable)
+			.set({
+				validatedByUserId: validator,
+				validatedAt: sql`CURRENT_TIMESTAMP`,
+			})
+			.where(eq(hazardousEventTable.id, record.id));
+
+		await handleApprovalWorkflowService(
+			workflowCtx,
+			dr as any,
+			record.id,
+			"hazardous_event",
+			{
+				updatedByUserId: publisher,
+				countryAccountsId: record.countryAccountsId,
+				tempAction: "submit-publish",
+			},
+		);
+
+		const row = await getRecord(record.id);
+		expect(row.approvalStatus).toBe("published");
+		expect(row.validatedByUserId).toBe(publisher); // the original validator's id is gone here too
 	});
 });

@@ -9,9 +9,10 @@ import { hipTypeTable } from "../testSchema/hipTypeTable";
 import { hipClusterTable } from "../testSchema/hipClusterTable";
 import { hipHazardTable } from "../testSchema/hipHazardTable";
 import { userTable } from "../testSchema/userTable";
+import { userCountryAccounts } from "../testSchema/userCountryAccounts";
 import { eventTable } from "../testSchema/eventTable";
 import { hazardousEventTable } from "../testSchema/hazardousEventTable";
-import { HazardousEventFields } from "~/backend.server/models/event/hazardous_event_create_update";
+import { HazardousEventFields } from "~/backend.server/models/event";
 import { createTestBackendContext } from "~/backend.server/context";
 
 // The real BackendContext needs globalThis.createTranslationGetter wired up (app bootstrap
@@ -20,6 +21,7 @@ import { createTestBackendContext } from "~/backend.server/context";
 // createTestBackendContext().
 export const ctx = {
 	t: ({ msg }: { msg: string }) => msg,
+	lang: "en",
 } as unknown as ReturnType<typeof createTestBackendContext>;
 
 export async function seedCountryAccount() {
@@ -69,6 +71,19 @@ export async function seedUser() {
 		.values({ email: `user-${randomUUID()}@test.com` })
 		.returning();
 	return user.id;
+}
+
+/** Seeds a user and links them to a country account with the given role — required for
+ * handleApprovalWorkflowService, which looks this up before dispatching any action. */
+export async function seedUserWithCountryAccountRole(
+	countryAccountsId: string,
+	role: string = "data-collector",
+) {
+	const userId = await seedUser();
+	await dr
+		.insert(userCountryAccounts)
+		.values({ userId, countryAccountsId, role });
+	return userId;
 }
 
 export async function baseFields(

@@ -15,8 +15,8 @@ import {
 	hazardousEventCreate,
 	hazardousEventUpdate,
 	hazardousEventUpdateByIdAndCountryAccountsId,
-} from "~/backend.server/models/event/hazardous_event_create_update";
-import { hazardousEventDelete } from "~/backend.server/models/event/hazardous_event_delete";
+	hazardousEventDelete,
+} from "~/backend.server/models/event";
 import {
 	ctx,
 	seedCountryAccount,
@@ -180,6 +180,31 @@ describe("hazardousEventUpdate()", () => {
 		);
 	});
 
+	it("rejects a parent that does not exist (live-only guard, absent from the orphaned split file)", async () => {
+		const record = await seedHazardousEvent();
+		const result = await hazardousEventUpdate(ctx, dr as any, record.id, {
+			countryAccountsId: record.countryAccountsId,
+			parent: randomUUID(),
+		});
+		expect(result.ok).toBe(false);
+		expect(result.ok || (result.errors.fields?.parent?.[0] as any)?.code).toBe(
+			"ErrParentNotFound",
+		);
+	});
+
+	it("rejects a parent belonging to a different tenant (live-only guard, absent from the orphaned split file)", async () => {
+		const record = await seedHazardousEvent();
+		const otherTenantParent = await seedHazardousEvent();
+		const result = await hazardousEventUpdate(ctx, dr as any, record.id, {
+			countryAccountsId: record.countryAccountsId,
+			parent: otherTenantParent.id,
+		});
+		expect(result.ok).toBe(false);
+		expect(result.ok || (result.errors.fields?.parent?.[0] as any)?.code).toBe(
+			"ErrCrossTenantReference",
+		);
+	});
+
 	it("blocks a cyclic parent assignment", async () => {
 		const countryAccountsId = await seedCountryAccount();
 		const a = await seedHazardousEvent({ countryAccountsId });
@@ -305,6 +330,31 @@ describe("hazardousEventUpdateByIdAndCountryAccountsId()", () => {
 			randomUUID(),
 			await seedCountryAccount(),
 			{ recordOriginator: "x" },
+		);
+		expect(result.ok).toBe(false);
+	});
+
+	it("rejects a parent that does not exist", async () => {
+		const record = await seedHazardousEvent();
+		const result = await hazardousEventUpdateByIdAndCountryAccountsId(
+			ctx,
+			dr as any,
+			record.id,
+			record.countryAccountsId,
+			{ parent: randomUUID() },
+		);
+		expect(result.ok).toBe(false);
+	});
+
+	it("rejects a parent belonging to a different tenant", async () => {
+		const record = await seedHazardousEvent();
+		const otherTenantParent = await seedHazardousEvent();
+		const result = await hazardousEventUpdateByIdAndCountryAccountsId(
+			ctx,
+			dr as any,
+			record.id,
+			record.countryAccountsId,
+			{ parent: otherTenantParent.id },
 		);
 		expect(result.ok).toBe(false);
 	});
