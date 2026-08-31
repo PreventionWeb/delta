@@ -3,7 +3,6 @@
 import "../setup";
 import { describe, it, expect } from "vitest";
 import { dr } from "~/db.server";
-import { eq } from "drizzle-orm";
 import { eventTable } from "../testSchema/eventTable";
 import { disasterEventTable } from "../testSchema/disasterEventTable";
 import { eventCausalityTable } from "../testSchema/eventCausalityTable";
