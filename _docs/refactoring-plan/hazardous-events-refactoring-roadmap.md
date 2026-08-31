@@ -13,9 +13,9 @@ roadmap's schema phase once it lands.
 
 **Pass 2 update (2026-08-21):** the target ER diagram has been reviewed (source: `draw.io`,
 "Hazardous Event ER Diagram — Manage actual hazardous event not forecasted"). Phase 2 (schema)
-is now detailed below. Phase 0 (behavior audit) remains fully detailed and ER-diagram-independent
-(unchanged from Pass 1). Phases 3–7 (domain layer, presentation) stay stubbed pending Phase 0's
-completion and a couple of remaining implementation-level decisions noted inline.
+is now detailed below. **Phase 0 (behavior audit) is now complete** (2026-08-31) — see below.
+Phases 3–7 (domain layer, presentation) stay stubbed pending the still-open decisions carried
+forward from Phase 0, noted inline and consolidated at the end of this document.
 
 Shared Clean-Architecture infrastructure from the Notices pilot — NestJS application-context
 bootstrap, `DomainError` hierarchy, `ILogger` + `AsyncLocalStorage` request context, the i18n
@@ -34,12 +34,12 @@ same way any two bounded contexts talk to each other in this architecture — it
 
 ## Reading this document
 
-| Symbol | Meaning |
-|--------|---------|
-| 🔷 **OpenSpec Intent** | Invoke `/opsx:propose "<text>"` to generate spec artifacts; implement via `/opsx:apply` |
-| ⬜ **Non-OpenSpec task** | Mechanical / unambiguous; create files, write tests, or run commands directly |
-| 🏁 **Phase gate** | Explicit "done" criteria before the next phase begins |
-| 🧱 **Stubbed** | Not yet detailed — waiting on Phase 0's findings and/or remaining open decisions |
+| Symbol                   | Meaning                                                                                 |
+| ------------------------ | --------------------------------------------------------------------------------------- |
+| 🔷 **OpenSpec Intent**   | Invoke `/opsx:propose "<text>"` to generate spec artifacts; implement via `/opsx:apply` |
+| ⬜ **Non-OpenSpec task** | Mechanical / unambiguous; create files, write tests, or run commands directly           |
+| 🏁 **Phase gate**        | Explicit "done" criteria before the next phase begins                                   |
+| 🧱 **Stubbed**           | Not yet detailed — waiting on Phase 0's findings and/or remaining open decisions        |
 
 Each OpenSpec Intent lives on its own branch and its own PR to `dev`, kept small enough for one
 person to review — this is an explicit requirement for this migration, not a preference.
@@ -54,29 +54,56 @@ is the first example).
 ### 1. Characterization-first
 
 Before any schema change lands, HE's current behavior — including its quirks — must be pinned by
-tests. This is the parity contract for "no end-user-visible behavior change." Known quirks to
-preserve exactly (confirmed via the Herbrand model refresh and code reading; the Phase 0 audit
-below will complete this list):
+tests. This is the parity contract for "no end-user-visible behavior change." **Phase 0 is now
+complete** (`hazardous-events-phase0-audit-findings.md`); the list below is the confirmed,
+corrected version of what this section originally described from the Herbrand model refresh and
+code reading alone — differences from the original are called out explicitly, not silently fixed:
 
-- Cycle detection on parent-linking is an app-layer recursive query capped at depth 10 — not an
-  exhaustive graph traversal, and not a database-level guarantee.
-- Delete's dependent-check is enforced two different ways for what the Herbrand model calls "the
-  same kind of rule": disaster events that link to this hazardous event are pre-checked
-  explicitly with a clear error; other hazardous events that list this one as their parent are
-  only caught reactively via a foreign-key violation (`23503`) on the relationship table. Do not
-  silently reconcile this during the refactor — decide explicitly, per item, whether to preserve
-  or fix, the same way the cost-rollup change treated its own found bugs.
-- The temporal-order check on parent-linking only fires when **both** events have a start date
-  set — an undated event never blocks the link.
-- HIP hierarchy consistency (hazard/cluster/type) is validated by a helper
-  (`getRequiredAndSetToNullHipFields`) shared with disaster-record's own compose policy. Where
-  this logic lives after the refactor (duplicated into the HE domain layer vs. kept as a shared
-  legacy helper both domains call) is an open decision — Phase 0 output, not assumed here.
-- `validation_workflow.ts` currently appears hardcoded to `hazardousEventTable` only, with no
-  disaster-event equivalent found — Phase 0 should still catalogue its exact current behavior for
-  the characterization tests, but this no longer decides architecture: the target design (ER
-  diagram) is a shared, polymorphic workflow system regardless of what today's code does — see
-  `app/domains/validation-workflow/` below.
+- **Cycle detection on parent-linking is an app-layer recursive query capped at depth 10 — not an
+  exhaustive graph traversal, and not a database-level guarantee.** Confirmed, and stronger than
+  originally stated: 0b built a 20-node causal chain and closed a cycle across its full length —
+  **the update succeeds and the cycle is persisted**, not merely "an untested edge case." Directly
+  informs open decision #7 below.
+- **Delete's dependent-check is enforced three different ways, not two.** (a) Disaster events
+  linked via `disasterEventTable.hazardousEventId` are pre-checked explicitly with a clear error —
+  works correctly. (b) Other hazardous events listing this one as `parent` were intended to be
+  caught reactively via a foreign-key violation (`23503`) on the relationship table, but 0a found
+  the catch itself is dead code (`error?.code` is checked, but Drizzle nests the real code under
+  `error.cause.code`) — in practice this path is **unchecked**, a raw uncaught error propagates
+  instead of the intended message. (c) Disaster events linked via `event_causality` (the newer
+  "linked triggering/triggered hazardous events" mechanism) are **never checked at all** — deleting
+  a hazardous event referenced only this way succeeds silently and cascade-deletes the links with
+  no warning (0a finding #8, reconfirmed from the DE-read side in 0f). Do not silently reconcile
+  these during the refactor — decide explicitly, per item, whether to preserve or fix; note that
+  (b) has no working intended behavior to "preserve" today, only a broken attempt at one.
+- **The temporal-order check on parent-linking only fires when both events have a start date
+  set** — an undated event never blocks the link. Confirmed exactly. One added nuance: dates at
+  mixed granularity (e.g. a month-only date) normalize optimistically to the 1st of the period —
+  worth naming if this rule's precision gets revisited.
+- **HIP hierarchy consistency (hazard/cluster/type) is validated by a helper
+  (`getRequiredAndSetToNullHipFields`) shared with disaster-record's own compose policy.**
+  Confirmed, plus two behavioral properties that matter for open decision #6 below: it's
+  permissive on a fully-empty hierarchy in isolation (currently masked only by a DB-level
+  `NOT NULL` constraint, not by the helper's own logic), and it **mutates its input object in
+  place** as a side effect of computing its return value — a caller relying on the original
+  object's shape afterward would see it silently altered.
+- **`validation_workflow.ts`'s HE-only question — resolved definitively, not just architecturally
+  moot.** See the dedicated call-out immediately below.
+
+**`validation_workflow.ts` is not HE-only in the live system, and hasn't been for a while.** The
+dead file (`processValidationAssignmentWorkflow`, part of the orphaned, unreachable
+`app/backend.server/models/event/` split — confirmed via import-resolution trace, 0a) genuinely
+was hardcoded to `hazardousEventTable`. But its live replacement,
+`handleApprovalWorkflowService` (`approvalWorkflowService.ts`), is **already generic and already
+shared** — its own type is `EntityType = "hazardous_event" | "disaster_event" |
+"disaster_records"`, and real call sites confirm it: `disaster-event+/edit.$id.tsx` and
+`disaster-record+/edit.$id.tsx` already call it today, not just HE's edit routes. The same holds
+for the second live path (0c found three parallel mechanisms exist today, not one — see the
+findings doc) — `disaster-event+/$id.tsx` and `disaster-record+/$id.tsx` both call
+`processApprovalStatusActionService`, the structural twin of what HE's own detail page calls. So
+`app/domains/validation-workflow/` isn't introducing sharing where none existed — it's formalizing
+sharing that already exists today, just spread across two independently-duplicated generic
+services instead of one unified module.
 
 ### 2. Expand-only until cutover
 
@@ -114,25 +141,32 @@ a new one.
 
 ---
 
-## Phase 0 — Current-Behavior Audit + Characterization Tests
+## Phase 0 — Current-Behavior Audit + Characterization Tests ✅ (complete 2026-08-31)
 
-The first real work item. Fully unblocked. Structured as six sub-tracks — five are read-only
-investigation over disjoint files, one synthesizes their findings and depends on the other five.
-All are **non-OpenSpec**: investigation and test-writing against existing, unchanged behavior, not
-a new capability proposal.
+**Complete.** All seven sub-tracks (0a–0g) landed on `feature/ca-he-behavior-audit`, now merged
+into this branch (`feature/ca-hazardous-events-scaffold`). Full findings, confirmed bugs, quirks,
+and open-decision inputs live in the companion doc:
+`hazardous-events-phase0-audit-findings.md` — this section is kept as the historical scope
+record, with a **Found:** line added under each sub-track below pulling forward only what changes
+Phase 2 onward's plan. 74 characterization tests across 7 files, all green.
+
+Structured as seven sub-tracks — six were read-only investigation over disjoint files, one (0g)
+synthesized their findings and depended on the other six. All were **non-OpenSpec**: investigation
+and test-writing against existing, unchanged behavior, not a new capability proposal.
 
 **Decided (2026-08-21): solo execution, single branch.** Phase 0 is the quality gate the entire
 refactor leans on — getting current behavior wrong here propagates into every later phase. Rather
 than parallelizing 0a–0f across people (technically possible — they touch disjoint files), all six
-are done by one person (you) for tighter validation, on a single branch
+were done by one person for tighter validation, on a single branch
 (`feature/ca-he-behavior-audit`), with **one commit per completed track** rather than one PR per
-track. Parallelizing across the team starts at Phase 2 execution onward, once this foundation is
-solid. The "Branch:" line under each sub-track below is retained as the reviewable unit within
-that one branch — treat each track's commit with the same care as if it were its own PR.
+track — each track's commit was reviewed with the same care as if it were its own PR. That branch
+is now merged into this one. Parallelizing across the team starts at Phase 2 execution onward, now
+that this foundation is solid.
 
-**Gate this phase feeds:** Phase 2 *execution* (writing the actual schema/migrations) does not
-start until every sub-track's characterization tests are green on `dev` (Invariant 1). Phase 2
-*planning* (this document) doesn't wait on it, and hasn't.
+**Gate this phase fed:** Phase 2 _execution_ (writing the actual schema/migrations) does not start
+until every sub-track's characterization tests are green on `dev` (Invariant 1) — satisfied: 74
+tests, all green, `tsc --noEmit` clean on this merged branch. Phase 2 _planning_ (this document)
+didn't wait on it, and hadn't.
 
 ### 0a — Core CRUD
 
@@ -142,6 +176,12 @@ start until every sub-track's characterization tests are green on `dev` (Invaria
 dependent-guard styles on delete (explicit pre-check vs. reactive FK-violation catch), tenant
 scoping. Write PGlite characterization tests pinning each path, including both delete-guard styles
 as distinct, separately-asserted scenarios (Invariant 1 says don't silently reconcile them).
+**Found:** the live code is `app/backend.server/models/event.ts`, not the orphaned split-file
+directory every route actually imports past (confirmed via import-resolution trace, not assumed —
+this correction propagated to 0a–0c retroactively). Three real bugs (dead reactive FK-catch;
+`""`-instead-of-`null` crashes with a raw Postgres UUID error; delete leaves `event_causality`
+links completely unchecked) plus 5 confirmed quirks, incl. wholesale (not merge) parent-link
+replacement on update. 31 tests, all green.
 
 ### 0b — Causal chain
 
@@ -151,6 +191,11 @@ as distinct, separately-asserted scenarios (Invariant 1 says don't silently reco
 both-dates-required condition, and tenant-isolation on linking. Write PGlite characterization
 tests for: a cycle at exactly the cap boundary, one link with only one date set (must not block),
 cross-tenant link attempt.
+**Found:** the depth-10 cap is a real, empirically-reproduced data-integrity gap, not just a
+theoretical incompleteness — a 20-node chain closing a cycle across its own full length succeeds
+and gets persisted into `event_relationship`. Multi-hop detection under the cap, equal-date
+boundary handling, and mixed-granularity date normalization all confirmed working as designed.
+9 tests, all green.
 
 ### 0c — Approval / validation workflow
 
@@ -160,6 +205,11 @@ cross-tenant link attempt.
 HE-only, with no DE/DR equivalent" question definitively (architecturally moot per the confirmed
 target design, but Phase 0 still needs the exact current behavior for the parity tests). Write
 PGlite characterization tests for each transition.
+**Found:** three parallel mechanisms exist today for validation workflow, not one — see the
+`validation_workflow.ts` resolution above. Also found: publishing silently overwrites the original
+validator's attribution (`validatedByUserId`/`validatedAt` get replaced with the publisher's own)
+— flagged for a PM decision (open decision #9 below), not fixed as part of this refactor. 6 tests,
+all green.
 
 ### 0d — Attachments, HIP picker, spatial/division data
 
@@ -170,6 +220,12 @@ PGlite characterization tests for each transition.
 open decision #8 later (how it maps onto the new time-series `hazardous_event_spatial_observation`
 model). Write PGlite characterization tests for attachment CRUD, HIP picker filtering, and
 division/geom read/write.
+**Found:** linking a "Geographic level" division via `spatialFootprint` has no tenant check at all
+— same bug family as 0f's `event_causality` finding below, this time inside HE's own module (see
+action item 5). A "Geographic level" item is never snapshotted, only referenced live against
+`division_table` — directly answers open decision #8 (today's behavior is reference, not
+snapshot). `hazardousEventCreate` always performs real, unconditional filesystem writes on save
+with no injectable base path, even with zero attachments. 13 tests, all green.
 
 ### 0e — Presentation + CSV/API
 
@@ -182,6 +238,16 @@ characterization tests (per the P1-8 lesson from the Notices roadmap — request
 is only reliably verified end-to-end): compose, delete (both guard styles), link-parent
 (cycle/temporal/tenant), approval transitions, CSV import/export round-trip, each existing API
 route.
+**Found:** the most severe finding of Phase 0 — CSV import's tenant scoping is entirely broken by
+a function-signature mismatch that silently drops the session-derived tenant, letting a CSV row's
+own `countryAccountsId` column create or overwrite records in any tenant (action item 1). By
+contrast, the three JSON API write routes (`add`/`update`/`upsert`) are correctly tenant-safe.
+Also found, cross-cutting: `apiAuth`'s not-found guard is dead code (a JS truthiness gotcha on a
+Drizzle `.select()` result), affecting every API-key-gated route across every domain, not just HE
+(action item 2). The real-Postgres E2E tier proved too unstable in this environment to finish this
+track's full scope — remaining presentation-layer characterization (delete-guard variants,
+parent-linking via the UI, approval-transition variants) is **deferred, tracked, no fixed
+deadline** (action item 3); what's covered here was validated at the PGlite layer instead.
 
 ### 0f — Cross-boundary with Disaster Events
 
@@ -194,6 +260,13 @@ uses (`disaster.event.linked.to.hazardous.event`), the `eventRelationshipTable` 
 HE refactor — catalogue every place DE-side code reads from HE's tables so Phase 2/5 know exactly
 what must keep serving correct data through the transition. Write PGlite characterization tests
 asserting DE's delete-check and linking picker still see correct data.
+**Found:** `event_causality` HE↔DE linking (the "linked triggering/triggered hazardous events"
+picker) has no tenant check at all — unlike the singular `disasterEventTable.hazardousEventId`
+field, which the same file (`event.ts`) explicitly guards with a dedicated
+`hazardous_event.cannot_reference_other_tenant` error (action item 4). By contrast, the picker's
+own search/list query (`getLinkableOptionsData`) and its `blockedHazardousIds` exclusion are both
+correctly tenant-scoped. Also found a silent 200-record truncation with no search term and no
+pagination — events beyond the cap are simply invisible with no indication. 6 tests, all green.
 
 ### 0g — Synthesis (depends on 0a–0f)
 
@@ -201,6 +274,9 @@ asserting DE's delete-check and linking picker still see correct data.
 **Scope:** produce the audit note — confirm or correct every quirk listed under Invariant 1,
 resolve the `validation_workflow.ts` HE-only question with a definitive answer, and flag anything
 0a–0f found that isn't already captured in this roadmap's open decisions list.
+**Found:** this reconciliation pass — Invariant 1 above and the `validation_workflow.ts`
+resolution are 0g's direct output, folded in above rather than kept as a separate note. Open
+decisions #6–8 below are strengthened with concrete findings; #9 is new.
 
 **Test tier (all sub-tracks):** PGlite integration for model/repository-level behavior; Playwright
 E2E for anything request-lifecycle-shaped (0e is E2E-heavy, 0a–0d and 0f are primarily PGlite).
@@ -216,9 +292,9 @@ E2E for anything request-lifecycle-shaped (0e is E2E-heavy, 0a–0d and 0f are p
 0f (cross-boundary)    ─┘
 ```
 
-0a–0f are file-disjoint and technically parallelizable, but done solo and sequentially by design
-(see the decision above) — each still lands as its own commit on `feature/ca-he-behavior-audit`,
-in whatever order makes sense as you work through them.
+0a–0f were file-disjoint and technically parallelizable, but done solo and sequentially by design
+(see the decision above) — each landed as its own commit on `feature/ca-he-behavior-audit`, now
+merged into this branch.
 
 ---
 
@@ -335,9 +411,29 @@ Includes the `validation-workflow` domain module's own entity/ports (built gener
 DE/DR needing it), and HE's domain entity consuming it through a port — HE does not implement
 workflow logic itself.
 
+**Carried from Phase 0, fixed by construction — not separate tasks, just correctness requirements
+on this phase's own implementation:**
+
+- **Spatial-footprint division linking must be tenant-scoped from the start** (0d finding #1).
+  Today's `syncHazardousEventSpatialFootprint` checks division validity with no
+  `countryAccountsId` filter at all — the new domain entity's equivalent logic must scope it,
+  matching the guard `parent`-linking already gets right today (`ErrCrossTenantReference`).
+- **Type nullable fields as actually nullable.** `createdByUserId`/`updatedByUserId`/
+  `submittedByUserId` and similar attribution fields are typed non-nullable `string` today but a
+  real caller can pass `""`, which crashes on a raw Postgres UUID-parse error rather than a
+  graceful validation error — found independently at two call sites (0a finding #7, 0c finding
+  #2). Model these as `string | null` with boundary validation (per ADR-003's `DomainError`
+  hierarchy) so this closes structurally instead of needing a per-field patch.
+
 ## Phase 4 — Use Cases 🧱 (stubbed — depends on Phase 3)
 
 ## Phase 5 — Repository + Module Wiring 🧱 (stubbed — depends on Phase 2 + Phase 4)
+
+**Carried from Phase 0 (0f), DE-side scope — whichever of these two phases owns the new "link
+hazardous event to disaster event" use case:** today's `event_causality` HE↔DE linking has no
+tenant check at all, unlike the singular `disasterEventTable.hazardousEventId` field which the
+same code explicitly guards. Apply the same same-tenant check uniformly to both link mechanisms
+in the new implementation instead of inheriting today's split.
 
 ## Phase 6 — Presentation: New Hidden Route + CSV/API 🧱 (stubbed — depends on Phase 5)
 
@@ -345,7 +441,21 @@ Built fresh, not based on `feature/poc-react-aria-hazardous-event` (decided). Co
 authenticated, direct-URL-only route; CSV import/export migrating onto the new implementation in
 step with the route (per Invariant 2); the existing `/api+/hazardous-event+/` REST routes
 migrating in step as well, versus a new `/api/v2/hazardous-events` surface matching the Notices
-5c pattern — open decision #4 below, to be settled in Pass 3.
+5c pattern — open decision #5 below, to be settled in Pass 3.
+
+**Carried from Phase 0, two explicit deliverables for this phase:**
+
+- **CSV import tenant-scoping, fixed by construction (0e findings 1–2).** The new CSV import must
+  force `countryAccountsId` server-side before any create/update/upsert call, matching the pattern
+  the existing JSON API routes (`add.ts`/`upsert.ts`) already get right — not the pattern the
+  existing CSV import gets wrong (a function-signature mismatch that silently drops the
+  session-derived tenant entirely).
+- **`apiAuth`'s dead not-found guard, explicit deliverable, not automatic.** Unlike the item
+  above, this does **not** get fixed just by HE's new routes existing — `apiAuth`
+  (`app/backend.server/models/api_key.ts`) is shared infrastructure used by every API-key-gated
+  route across every domain, and HE's new routes will most likely call the same shared function.
+  Fix `if (!key)` → `if (key.length === 0)` (or equivalent) in `apiAuth` itself, verified against
+  both a missing and an invalid `X-Auth` header.
 
 ## Phase 7 — Sign-off, Cutover, and Cleanup 🧱 (stubbed — depends on Phase 6)
 
@@ -379,13 +489,11 @@ Phase 1 (CA scaffold: hazardous-events                  │
                                                       Phase 7 (sign-off, cutover, cleanup)
 ```
 
-Phase 0 and Phase 1 can run fully in parallel — two different people could start today. Phase 2 is
-no longer blocked (ER diagram reviewed 2026-08-21). Phase 3 onward still needs Phase 0's
-characterization tests to land first, plus the still-open decisions listed above. Pass 3 of this
-document will replace each 🧱 stub with a Notices-style intent breakdown (branch, `/opsx:propose`
-text, files touched, test tier) once Phase 0 completes and the remaining open decisions are
-settled — note `validation-workflow` and `hazardous-events` are two separate intent tracks from
-Phase 3 onward, not one.
+Phase 0 is complete and Phase 2 is no longer blocked (ER diagram reviewed 2026-08-21). Phase 3
+onward still needs the still-open decisions listed below settled first. Pass 3 of this document
+will replace each 🧱 stub with a Notices-style intent breakdown (branch, `/opsx:propose` text,
+files touched, test tier) once those decisions are settled — note `validation-workflow` and
+`hazardous-events` are two separate intent tracks from Phase 3 onward, not one.
 
 ---
 
@@ -395,10 +503,11 @@ Phase 3 onward, not one.
 
 1. ~~`eventRelationshipTable` → `eventCausalityTable` unification~~ — **decided: not in scope.**
    HE's new causality table replaces `eventRelationshipTable` only.
-2. ~~Is `validation_workflow.ts` genuinely HE-only?~~ — **superseded.** Regardless of what
-   today's code does, the target design is a shared, polymorphic workflow system
-   (`app/domains/validation-workflow/`), built generically now per your decision — not owned by
-   HE's domain module.
+2. ~~Is `validation_workflow.ts` genuinely HE-only?~~ — **superseded, and independently confirmed
+   by Phase 0 (0c/0g).** The dead file was HE-only; its live replacement,
+   `handleApprovalWorkflowService`, is already generic and already called for `disaster_event` and
+   `disaster_records` today — see the Invariant 1 call-out above. The target design formalizes
+   existing sharing, not new sharing.
 3. ~~Hazard-type vs. specific-hazard field-definition level~~ — **decided: hazard_type, settled,
    not to be re-opened.**
 4. ~~Naming inconsistencies (casuality/hazard_event_hazard_driver/country_account_id/hazard_driver
@@ -409,15 +518,38 @@ Phase 3 onward, not one.
 5. New `/api/v2/hazardous-events` REST surface (Notices 5c pattern) vs. migrating the existing
    `/api+/hazardous-event+/` routes in place — relevant now that CSV/API migrate in step with the
    new implementation (Invariant 2), not deferred to cutover. Decide once Phase 5/6 are detailed.
+   **Phase 0 input (0e):** the three JSON API write routes are already correctly tenant-safe by
+   design (`countryAccountsId` forced server-side, never from payload) — whichever surface wins,
+   preserve that pattern; it's the opposite of CSV import's broken one (action item 1).
 6. Where shared HIP-hierarchy validation logic lives post-refactor (duplicated into HE's domain
    layer vs. a shared helper both HE and disaster-record call) — Phase 0 output; may be partly
    resolved by Phase 2's finding that the new schema might not need this check at all (see
-   Phase 2, Section A).
+   Phase 2, Section A). **Phase 0 input (0a/0d):** whatever this decision lands on,
+   `getRequiredAndSetToNullHipFields`'s two behavioral properties need a deliberate call, not a
+   silent port — it's permissive on a fully-empty hierarchy (masked today only by a DB `NOT NULL`
+   constraint, not the helper's own logic) and it mutates its input object in place.
 7. Whether HE's new causality table gets a DB-level cycle-prevention constraint or keeps today's
    app-layer depth-10-capped check — Phase 3, informed by Phase 0's characterization tests.
+   **Phase 0 input (0b):** the current cap has already been shown, empirically, not to hold its
+   own guarantee — a full-length cycle across a 20-node chain is silently persisted today. This
+   pushes the balance toward a DB-level constraint being the safer default, not just "worth
+   considering."
 8. How CSV import/export and the existing API — which assume one geom/division set per event —
    map onto the new time-series `hazardous_event_spatial_observation` model (current/latest
-   observation, or must callers specify one) — Phase 2/6.
+   observation, or must callers specify one) — Phase 2/6. **Phase 0 input (0d):** confirmed
+   today's "Geographic level" spatial items are never snapshotted, only referenced live against
+   `division_table` — renaming/reshaping a division retroactively changes what every linked event
+   displays. A concrete data point for whichever way this decision goes.
+9. **New: publishing silently overwrites the original validator's attribution (0c finding #1) —
+   needs a PM/product decision, not a phase-mechanical fix.** `hazardousEventUpdateApprovalStatusPublish`
+   sets `validatedByUserId`/`validatedAt` to the _publisher's_ identity, losing the record of who
+   actually validated when a different user publishes than validated. No DB/schema change needed
+   either way — the four attribution columns already exist independently. Two candidate fixes
+   depend on the product answer: (a) if direct publish-without-prior-validation should stay
+   allowed, only backfill validated fields from the publisher when still null; (b) if it
+   shouldn't, add a state-transition guard requiring `approvalStatus === "validated"` before
+   `submit-publish`, which doesn't exist in either live workflow path today. Decide before Phase 3
+   designs the new workflow module's publish transition.
 
 ---
 
@@ -425,9 +557,9 @@ Phase 3 onward, not one.
 
 Reused from the Notices pilot, not re-decided:
 
-| ADR | Decision most relevant here |
-|-----|------------------------------|
-| ADR-001 (multilingual strategy) | JSONB i18n fields; locale resolution chain for the new API surface |
-| ADR-002 (timezone handling) | All new timestamp columns declared `{ withTimezone: true }` inline |
-| ADR-003 (error handling architecture) | `DomainError` hierarchy; `ErrorResponse` envelope; per-domain `ErrorBoundary` |
-| ADR-004 (logging and traceability) | `ILogger` port; `AsyncLocalStorage` request context; `traceId` in every log line |
+| ADR                                   | Decision most relevant here                                                      |
+| ------------------------------------- | -------------------------------------------------------------------------------- |
+| ADR-001 (multilingual strategy)       | JSONB i18n fields; locale resolution chain for the new API surface               |
+| ADR-002 (timezone handling)           | All new timestamp columns declared `{ withTimezone: true }` inline               |
+| ADR-003 (error handling architecture) | `DomainError` hierarchy; `ErrorResponse` envelope; per-domain `ErrorBoundary`    |
+| ADR-004 (logging and traceability)    | `ILogger` port; `AsyncLocalStorage` request context; `traceId` in every log line |
