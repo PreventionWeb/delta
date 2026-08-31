@@ -28,6 +28,8 @@ export * from "./entityValidationRejectionTable";
 export * from "./eventCausalityTable";
 export * from "./eventRelationshipTable";
 export * from "./eventTable";
+export * from "./hazardousEventDivisionTable";
+export * from "./hazardousEventGeomTable";
 export * from "./hazardousEventTable";
 export * from "./hipClusterTable";
 export * from "./hipHazardTable";

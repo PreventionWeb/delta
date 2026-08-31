@@ -8,7 +8,7 @@ import { eventRelationshipTable } from "../testSchema/eventRelationshipTable";
 import {
 	hazardousEventUpdate,
 	hazardousEventCreate,
-} from "~/backend.server/models/event/hazardous_event_create_update";
+} from "~/backend.server/models/event";
 import {
 	ctx,
 	seedCountryAccount,

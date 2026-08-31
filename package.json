@@ -104,7 +104,8 @@
 		"zod": "^3.24.1"
 	},
 	"devDependencies": {
-		"@electric-sql/pglite": "^0.4.4",
+		"@electric-sql/pglite": "^0.5.8",
+		"@electric-sql/pglite-postgis": "^0.2.8",
 		"@nestjs/testing": "^11.1.27",
 		"@playwright/test": "^1.58.2",
 		"@react-router/dev": "^8.3.0",
