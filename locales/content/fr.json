@@ -49,7 +49,7 @@
     },
     {
         "id": "asset.name.1a875652-53ab-4c79-b0f3-db16d599ab10.6a20b1",
-        "translation": "Autres légumes-fruits, n.c.a."
+        "translation": "Autres légumes-fruits, n.c.a"
     },
     {
         "id": "asset.name.1b46c86d-ce11-4b54-9a45-c0951b15cac6.e783e7",
@@ -69,15 +69,15 @@
     },
     {
         "id": "asset.name.1f0f97c2-adfc-4ea9-8d02-d4fc32c6f03f.f7935f",
-        "translation": "Autres légumes à feuilles ou à tiges, n.c.a."
+        "translation": "Autres légumes à feuilles ou à tiges, n.c.a"
     },
     {
         "id": "asset.name.1f3215e6-a108-49d0-b30e-ef9af195c003.52ccf8",
-        "translation": "Commissariats de police"
+        "translation": "Postes de police"
     },
     {
         "id": "asset.name.1fca46ba-0b92-41bf-8546-08dce39383ed.e0e9e2",
-        "translation": "Gazoducs gaz-gazoducs"
+        "translation": "Conduite de gaz / Canalisation de gaz"
     },
     {
         "id": "asset.name.2a3f01c1-5e3d-4d8d-b701-6107eed88337.e97e93",
@@ -101,7 +101,7 @@
     },
     {
         "id": "asset.name.2be3d877-a6b7-425e-bdf3-4aaebbbbb361.bf8d90",
-        "translation": "Public toilets"
+        "translation": "Toilettes publiques"
     },
     {
         "id": "asset.name.02c093f7-5d5e-4f6b-ab8b-3cd95f6aa554.3fe1b2",
@@ -141,7 +141,7 @@
     },
     {
         "id": "asset.name.3c8d47a4-25d8-462e-b7ee-b42dd42fc9d1.dd7be3",
-        "translation": "centres téléphoniques communautaires"
+        "translation": "Centres téléphoniques communautaires"
     },
     {
         "id": "asset.name.3cd27f3c-e992-4e42-b4e7-c87adf8a289a.38b0b9",
@@ -161,7 +161,7 @@
     },
     {
         "id": "asset.name.3f9dcebd-ed55-4fea-aeb7-105aa50f9f17.1b4f2e",
-        "translation": "forages"
+        "translation": "Forages"
     },
     {
         "id": "asset.name.3f603498-c258-4dfd-9eb7-d06eff817386.76b0af",
@@ -429,7 +429,7 @@
     },
     {
         "id": "asset.name.10b0d02e-7a60-4400-ab63-7db0716d018b.072021",
-        "translation": "systèmes d'alerte précoce et dispositifs de communication communautaires"
+        "translation": "Systèmes d'alerte précoce et équipements de communication à base communautaire"
     },
     {
         "id": "asset.name.11b6fb9e-0521-4292-9e65-183d3da17d6f.42f3d2",
@@ -437,7 +437,7 @@
     },
     {
         "id": "asset.name.12f35372-dcee-4d53-9739-52e7eced2a1d.8efb65",
-        "translation": "Plates-formes technologiques"
+        "translation": "Plateformes technologiques"
     },
     {
         "id": "asset.name.13a255b2-2b17-4a8d-b051-215877ecfa3c.387fe3",
@@ -445,11 +445,11 @@
     },
     {
         "id": "asset.name.14a7a88b-f82f-4e82-86d3-39dee58caf04.b078e8",
-        "translation": "cliniques spécialisées"
+        "translation": "Cliniques spécialisées"
     },
     {
         "id": "asset.name.14b32c3f-07c1-49fa-81f2-89407b1921e2.eaa175",
-        "translation": "Autres légumes-racines, bulbes ou tubercules, n.c.a."
+        "translation": "Autres légumes-racines, bulbes ou tubercules, n.c.a"
     },
     {
         "id": "asset.name.15de048d-11c7-4302-8d8c-64e0fe042433.e404aa",
@@ -457,7 +457,7 @@
     },
     {
         "id": "asset.name.17ab719c-4705-4665-a858-bf0f0c2c49fa.fad4d4",
-        "translation": "puits tubulaires profonds"
+        "translation": "Puits tubé profond"
     },
     {
         "id": "asset.name.18ba3340-f521-4b7c-b447-f307cc4f07cd.bd50dc",
@@ -493,11 +493,11 @@
     },
     {
         "id": "asset.name.32c682f4-1af5-4841-81e3-12eadbf6aab2.7320c1",
-        "translation": "Puits de forage"
+        "translation": "forage de puits"
     },
     {
         "id": "asset.name.32e469e1-35e2-411e-9cfd-d04cae4c0126.0a9b4d",
-        "translation": "Crics de pompe"
+        "translation": "Chevalet de pompage"
     },
     {
         "id": "asset.name.33e739db-4cc1-4e52-86f2-de871be86af2.500c5e",
@@ -521,7 +521,7 @@
     },
     {
         "id": "asset.name.39ea137c-61fd-41c2-8a46-bb27ced4a4ba.c50440",
-        "translation": "Furniture"
+        "translation": "Meubles"
     },
     {
         "id": "asset.name.40d0948c-e15a-49fa-b562-a83994b8e856.e0b1c3",
@@ -533,11 +533,11 @@
     },
     {
         "id": "asset.name.41ff479d-0357-4596-8f6b-3ffb7f54a19c.56c630",
-        "translation": "Conducteurs de pieux"
+        "translation": "Les marteaux-pilons"
     },
     {
         "id": "asset.name.42eb4a4c-2be7-4630-8dfc-d9003df3e4db.61ca7b",
-        "translation": "biogasseurs"
+        "translation": "Gazéificateur de biomasse"
     },
     {
         "id": "asset.name.43e4bc48-7700-4d51-8e11-0fb3ace947af.cca303",
@@ -709,11 +709,11 @@
     },
     {
         "id": "asset.name.139adf31-e6ef-4de9-b126-b72ac6f886fe.94e229",
-        "translation": "Centrales de production"
+        "translation": "Centrales électriques"
     },
     {
         "id": "asset.name.171eb06f-33dc-4002-97ab-8b84e3473d0c.8491fb",
-        "translation": "Véhicules de loisirs (VR) - caravanes de voyage"
+        "translation": "Véhicules de loisirs (VR) - caravanes ou roulotte de voyage"
     },
     {
         "id": "asset.name.173b19aa-49aa-4036-b633-2c18b4002d93.fd6a19",
@@ -733,7 +733,7 @@
     },
     {
         "id": "asset.name.281fba40-fb97-4df4-a959-5731964f3b27.b8d5ca",
-        "translation": "Autres cultures pour boissons, n.c.a."
+        "translation": "Autres plantes à boissons, n.c.a"
     },
     {
         "id": "asset.name.284e318d-dc1a-4950-87a2-44de2761a64d.1230f6",
@@ -781,7 +781,7 @@
     },
     {
         "id": "asset.name.455cfd32-1e1f-404b-9e49-14b0afaac038.fe352b",
-        "translation": "Pois Pigeno"
+        "translation": "pois d'Angole"
     },
     {
         "id": "asset.name.508ade0a-8088-415c-b019-2983da435218.c0db23",
@@ -1077,7 +1077,7 @@
     },
     {
         "id": "asset.name.182260b6-37be-4ee8-a57d-ed45f2e5b038.5be129",
-        "translation": "Bulldozers"
+        "translation": "Bouteur"
     },
     {
         "id": "asset.name.308939ef-17a0-4a9e-80dc-c4e20fa49be0.5059f6",
