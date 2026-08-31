@@ -25,6 +25,8 @@ import { eq } from "drizzle-orm";
 import { BackendContext } from "~/backend.server/context";
 import { getUsedBuiltinColumns } from "~/backend.server/models/human_effects";
 import Messages from "~/components/Messages";
+import { useEffect, useRef } from "react";
+import { Toast } from "primereact/toast";
 
 async function getConfig() {
 	let row = await dr.query.humanDsgConfigTable.findFirst();
@@ -99,6 +101,27 @@ export default function Screen() {
 	const actionData = useActionData<typeof action>();
 	const ctx = new ViewContext();
 	const humanEffectsLang = "default";
+	const toast = useRef<Toast>(null);
+
+	useEffect(() => {
+			if (actionData)
+				if (!actionData.ok) {
+					toast.current?.show({
+						severity: "error",
+						detail: actionData.error || "Server error",
+						life: 5000,
+					});
+				} else {
+					toast.current?.show({
+						severity: "info",
+						detail: ctx.t({
+							code: "human_effects.changes_saved",
+							msg: "Your changes have been saved",
+						}),
+						life: 5000,
+					});
+				}
+		}, [actionData]);
 
 	return (
 		<MainContainer
@@ -126,6 +149,7 @@ export default function Screen() {
 					messages={[actionData.error || "Server error"]}
 				/>
 			)}
+			<Toast ref={toast} position="top-center" />
 			<Form method="post" className="dts-form dts-page-section">
 				<h3>
 					{ctx.t({

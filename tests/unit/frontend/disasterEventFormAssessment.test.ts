@@ -4,7 +4,10 @@ import {
 	buildTreeSelectSelectionKeys,
 	filterParentOnlySectorIds,
 } from "~/frontend/disaster-event/DisasterEventForm";
-import { resolveAssessmentSectorNames } from "~/frontend/events/disastereventform";
+import {
+	formatAssessmentSectorSummary,
+	resolveAssessmentSectorNames,
+} from "~/frontend/events/disastereventform";
 
 describe("disaster event assessment sector helpers", () => {
 	it("builds a tree with nested sectors", () => {
@@ -105,5 +108,17 @@ describe("disaster event assessment sector helpers", () => {
 			"Other sectors:\nWater and sanitation",
 		);
 		expect(sectorNames).toEqual(["Health"]);
+	});
+
+	it("formats assessment sectors as a comma-separated summary", () => {
+		const sectorNames = [
+			"Disaster management",
+			"Disaster Recovery",
+			"Ecosystems",
+		];
+
+		expect(formatAssessmentSectorSummary(sectorNames)).toBe(
+			"Disaster management, Disaster Recovery, Ecosystems",
+		);
 	});
 });

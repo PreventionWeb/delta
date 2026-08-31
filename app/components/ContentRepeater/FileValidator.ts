@@ -2,59 +2,59 @@ class ContentRepeaterFileValidator {
 	static readonly allowedExtensions = [
 		// Images
 		"jpg",
-		"jpeg",
+		// "jpeg",
 		"png",
 		"gif",
 		"webp",
-		"bmp",
-		"svg",
-		"tiff",
-		"ico",
+		// "bmp",
+		// "svg",
+		// "tiff",
+		// "ico",
 
 		// Documents
 		"pdf",
 		"doc",
 		"docx",
-		"txt",
-		"md",
-		"odt",
-		"rtf",
+		// "txt",
+		// "md",
+		// "odt",
+		// "rtf",
 
 		// Spreadsheets
 		"xls",
 		"xlsx",
-		"ods",
-		"csv",
+		// "ods",
+		// "csv",
 
 		// Presentations
 		"ppt",
 		"pptx",
-		"odp",
+		// "odp",
 
 		// Audio
 		"mp3",
 		"wav",
-		"ogg",
+		// "ogg",
 		"m4a",
-		"aac",
-		"flac",
+		// "aac",
+		// "flac",
 
 		// Video
 		"mp4",
-		"avi",
-		"mkv",
+		// "avi",
+		// "mkv",
 		"mov",
-		"wmv",
-		"webm",
-		"flv",
+		// "wmv",
+		// "webm",
+		// "flv",
 
 		// Archives
-		"zip",
-		"rar",
-		"7z",
-		"tar",
-		"gz",
-		"tgz",
+		// "zip",
+		// "rar",
+		// "7z",
+		// "tar",
+		// "gz",
+		// "tgz",
 
 		// Programming and Markup
 		//"html", "htm", "css", "js", "json", "xml", "yml", "yaml",

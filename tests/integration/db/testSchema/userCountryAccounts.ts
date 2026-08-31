@@ -9,6 +9,7 @@ import {
 import { countryAccounts, SelectCountryAccounts } from "./countryAccounts";
 import { ourRandomUUID } from "~/utils/drizzleUtil";
 import { userTable, SelectUser } from "./userTable";
+import { organizationTable } from "./organizationTable";
 
 ////////////////////////////////////////////////////////////////
 
@@ -30,6 +31,9 @@ export const userCountryAccounts = pgTable("user_country_accounts", {
 	})
 		.notNull()
 		.defaultNow(),
+	organizationId: uuid("organization_id").references(
+		() => organizationTable.id,
+	),
 });
 
 export type SelectUserCountryAccounts = typeof userCountryAccounts.$inferSelect;

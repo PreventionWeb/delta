@@ -714,7 +714,10 @@ export default function DisasterEventsPage({
 										htmlFor="event-start-from-filter"
 										className="mb-2 block font-medium text-slate-900"
 									>
-										Event start from
+										{ctx.t({
+											code: "disaster_event.event_start_from",
+											msg: "Event start from",
+										})}
 									</label>
 									<Calendar
 										id="event-start-from-filter"
@@ -731,7 +734,10 @@ export default function DisasterEventsPage({
 										htmlFor="event-start-to-filter"
 										className="mb-2 block font-medium text-slate-900"
 									>
-										Event start to
+										{ctx.t({
+											code: "disaster_event.event_start_to",
+											msg: "Event start to",
+										})}
 									</label>
 									<Calendar
 										id="event-start-to-filter"

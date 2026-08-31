@@ -7748,5 +7748,85 @@
         "id": "uuid_copied_to_clipboard",
         "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3435",
         "translation": "UUID {shortUuid}… kopjuar në clipboard"
+    },
+    {
+        "id": "common_err_msg.event_requires_linked_record",
+        "description": "File: app/services/disasterEventService.ts:78",
+        "translation": "Një ngjarje katastrofe e verifikuar ose e publikuar duhet të ketë të paktën një regjistër katastrofe të lidhur, të verifikuar ose të publikuar."
+    },
+    {
+        "id": "common_err_msg.record_requires_linked_event",
+        "description": "File: app/services/disasterRecordService.ts:110",
+        "translation": "Ky është i vetmi regjistër i katastrofës i botuar ose i verifikuar që lidhet me një ngjarje katastrofe të verifikuar ose të botuar. Ai nuk mund të kthehet për redaktim."
+    },
+    {
+        "id": "common.provide_comments_for_return",
+        "description": "File: app/frontend/components/data-collection/View.tsx:115",
+        "translation": "Jepni komente për ndryshimet e nevojshme për këtë regjistër"
+    },
+    {
+        "id": "common.something_went_wrong",
+        "description": "File: app/frontend/components/data-collection/View.tsx:149",
+        "translation": "Diçka shkoi keq."
+    },
+    {
+        "id": "disaster_event.attachments.cta_click_to_upload",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:293",
+        "translation": "Kliko për të ngarkuar"
+    },
+    {
+        "id": "disaster_event.attachments.cta_drag_and_drop",
+        "description": "File: app/frontend/disaster-event/DisasterEventAttachment.tsx:302",
+        "translation": "ose tërhiq dhe lësho"
+    },
+    {
+        "id": "disaster_event.form.add_link",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:145",
+        "translation": "Shto lidhjen"
+    },
+    {
+        "id": "disaster_event.form.cancel",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:278",
+        "translation": "Shfuqizo"
+    },
+    {
+        "id": "disaster_event.form.edit_link",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:211",
+        "translation": "Redakto lidhjen"
+    },
+    {
+        "id": "disaster_event.form.label",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:260",
+        "translation": "Etiketë"
+    },
+    {
+        "id": "disaster_event.form.links_description",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:137",
+        "translation": "Shto URL-të e lidhura për këtë ngjarje katastrofike."
+    },
+    {
+        "id": "disaster_event.form.no_links_added_yet",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:160",
+        "translation": "Ende nuk janë shtuar lidhje"
+    },
+    {
+        "id": "disaster_event.form.save_link",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:288",
+        "translation": "Lidhje me veten tënde"
+    },
+    {
+        "id": "disaster_event.form.stepper_status.optional",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1768",
+        "translation": "Opsional"
+    },
+    {
+        "id": "disaster_event.form.stepper_status.required",
+        "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1764",
+        "translation": "E kërkuar"
+    },
+    {
+        "id": "disaster_event.form.url",
+        "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:234",
+        "translation": "Adresa e uebit"
     }
 ]

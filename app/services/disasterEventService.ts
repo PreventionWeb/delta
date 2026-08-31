@@ -8,6 +8,31 @@ import {
 import { approvalStatusIds } from "~/frontend/approval";
 import { BackendContext } from "~/backend.server/context";
 import { entityValidationAssignmentDeleteByEntityId } from "~/backend.server/models/entity_validation_assignment";
+import { dr } from "~/db.server";
+import { disasterRecordsTable } from "~/drizzle/schema/disasterRecordsTable";
+import { and, eq, inArray } from "drizzle-orm";
+
+async function hasApprovedDisasterRecordsForEvent(
+	eventId: string,
+	countryAccountsId: string,
+) {
+	const rows = await dr
+		.select({ id: disasterRecordsTable.id })
+		.from(disasterRecordsTable)
+		.where(
+			and(
+				eq(disasterRecordsTable.disasterEventId, eventId),
+				eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
+				inArray(disasterRecordsTable.approvalStatus, [
+					"validated",
+					"published",
+				]),
+			),
+		)
+		.limit(1);
+
+	return rows.length > 0;
+}
 
 export async function updateDisasterEventStatusService({
 	ctx,
@@ -40,6 +65,19 @@ export async function updateDisasterEventStatusService({
 			message: ctx.t({
 				code: "common_err_msg.not_allowed_to_update_record",
 				msg: "You are not allowed to update this record",
+			}),
+		};
+	}
+
+	if (
+		(approvalStatus === "validated" || approvalStatus === "published") &&
+		!(await hasApprovedDisasterRecordsForEvent(id, countryAccountsId))
+	) {
+		return {
+			ok: false,
+			message: ctx.t({
+				code: "common_err_msg.event_requires_linked_record",
+				msg: "A validated or published disaster event must have at least one associated published or validated disaster record.",
 			}),
 		};
 	}

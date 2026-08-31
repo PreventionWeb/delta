@@ -288,6 +288,24 @@ export default function DisasterEventAttachment({
 		[ctx],
 	);
 
+	const clickToUploadText = useMemo(
+		() =>
+			ctx.t({
+				code: "disaster_event.attachments.cta_click_to_upload",
+				msg: "Click to upload",
+			}),
+		[ctx],
+	);
+
+	const dragAndDropText = useMemo(
+		() =>
+			ctx.t({
+				code: "disaster_event.attachments.cta_drag_and_drop",
+				msg: "or drag and drop",
+			}),
+		[ctx],
+	);
+
 	const sizeLimitsText = useMemo(
 		() =>
 			ctx.t({
@@ -532,9 +550,9 @@ export default function DisasterEventAttachment({
 											onClick={openFilePicker}
 											className="cursor-pointer text-blue-600 underline underline-offset-2 hover:text-blue-700"
 										>
-											Click to upload
+											{clickToUploadText}
 										</button>
-										<span> or drag and drop</span>
+										<span> {dragAndDropText}</span>
 									</>
 								) : (
 									ctx.t({

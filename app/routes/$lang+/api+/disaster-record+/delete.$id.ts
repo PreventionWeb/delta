@@ -50,19 +50,32 @@ export const action: ActionFunction = async (args: ActionFunctionArgs) => {
 			statusHeader = 500;
 			return {
 				ok: false,
-				message:
+				error:
 					"Child records of this disaster record exist. Please delete them first.",
 			};
 		}
 
 		return {
 			ok: false,
-			message: err instanceof Error ? err.message : "Unknown error",
+			error: err instanceof Error ? err.message : "Unknown error",
 		};
 	});
 
 	if (!deleteRes.ok && statusHeader === 200) {
-		statusHeader = 404;
+		const errorMessage =
+			typeof (deleteRes as { error?: unknown }).error === "string"
+				? (deleteRes as { error: string }).error
+				: "";
+
+		if (
+			errorMessage.includes(
+				"only published or validated disaster record linked to a validated or published disaster event",
+			)
+		) {
+			statusHeader = 409;
+		} else {
+			statusHeader = 500;
+		}
 	}
 
 	return Response.json(deleteRes, { status: statusHeader });
