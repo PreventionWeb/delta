@@ -5,11 +5,11 @@
     },
     {
         "id": "asset.name.0a45eb42-0617-4755-9dbf-010d07c3dca0.eb123a",
-        "translation": "Pamplemousse et pomelo"
+        "translation": "Pamplemousse et pomélo"
     },
     {
         "id": "asset.name.0aeb5f6e-f69b-49ca-888e-d1c986797c01.c3f11b",
-        "translation": "Unité de santé des collègues"
+        "translation": "Unité de santé au travail"
     },
     {
         "id": "asset.name.0b3caa9c-71bb-467a-b1b4-82c9333aabc1.de2954",
@@ -17,7 +17,7 @@
     },
     {
         "id": "asset.name.0b5b8885-290f-42b3-a87c-9885f8f212bf.6ccf91",
-        "translation": "Plates-formes de forage en mer"
+        "translation": "Plateformes de forage en mer"
     },
     {
         "id": "asset.name.0c70f0c1-1a04-4198-a027-6617c0de227e.0bfe0c",
@@ -33,11 +33,11 @@
     },
     {
         "id": "asset.name.00dd23f2-abc9-4670-a34c-5b29b9737ec9.d12d16",
-        "translation": "Main-dug wells"
+        "translation": "Puits creusés à la main "
     },
     {
         "id": "asset.name.0e75023a-b773-4543-b3ca-5b6284982bb2.0a4aab",
-        "translation": "Matériel spécialisé"
+        "translation": "Equipement spécialisé"
     },
     {
         "id": "asset.name.0f467d81-867a-4850-ad3c-d4973681bfe5.efd2ff",
@@ -45,7 +45,7 @@
     },
     {
         "id": "asset.name.0ff0f328-2dba-406b-9d62-3ac01772302c.bcb231",
-        "translation": "petit barrage en terre"
+        "translation": "Digue"
     },
     {
         "id": "asset.name.1a875652-53ab-4c79-b0f3-db16d599ab10.6a20b1",
@@ -105,7 +105,7 @@
     },
     {
         "id": "asset.name.02c093f7-5d5e-4f6b-ab8b-3cd95f6aa554.3fe1b2",
-        "translation": "Élèves du primaire"
+        "translation": "niveleuses"
     },
     {
         "id": "asset.name.2dd927e8-3d6e-4122-91bc-0462c4e81508.88de62",
@@ -289,7 +289,7 @@
     },
     {
         "id": "asset.name.07bd10c3-5c78-45a4-8b23-e421d151b626.b04413",
-        "translation": "Institut Pollytecnic"
+        "translation": "Institut polytechnique"
     },
     {
         "id": "asset.name.7cf4f34a-7234-4031-8942-a6a967567304.917379",
@@ -301,7 +301,7 @@
     },
     {
         "id": "asset.name.07d5eb1a-3290-4b3a-b3fd-ffa8d701e6ad.4fc4e6",
-        "translation": "Appareils de cuisine"
+        "translation": "Appareils électroménagers de cuisine"
     },
     {
         "id": "asset.name.7dee4061-1ea9-4321-8369-c4cf3e9b8de4.871982",
@@ -389,7 +389,7 @@
     },
     {
         "id": "asset.name.09d80ac1-fb83-4724-b44b-146193ba1fdb.b3b323",
-        "translation": "Citrons et limes"
+        "translation": "Citrons et la lime (citron vert)"
     },
     {
         "id": "asset.name.9d685f6e-4798-4455-bb07-3ed74a91047f.7796bd",
@@ -1001,7 +1001,7 @@
     },
     {
         "id": "asset.name.09519eef-862a-44f6-95aa-31f9059d638d.543d76",
-        "translation": "Structures d'admission"
+        "translation": "Structures de prise d'eau"
     },
     {
         "id": "asset.name.9920d104-4fd6-4c6d-af38-7255092d812d.d4b22a",
@@ -1089,7 +1089,7 @@
     },
     {
         "id": "asset.name.0710307f-03e5-43b5-a317-d6b64a91c30d.14e163",
-        "translation": "Oléoducs pétrole - oléoducs"
+        "translation": "Pipelines pétroliers - oléoduc"
     },
     {
         "id": "asset.name.779562d9-347c-4be6-9a55-dc8344282877.b84bb8",
@@ -2409,7 +2409,7 @@
     },
     {
         "id": "hip_hazard.name.78504.bc9260",
-        "translation": "Salinité \u0026amp ; Sodicité"
+        "translation": "Salinité &amp ; Sodicité"
     },
     {
         "id": "hip_hazard.name.78505.1261e4",
@@ -2837,7 +2837,7 @@
     },
     {
         "id": "hip_hazard.name.78635.2fa2ec",
-        "translation": "Agents radioactifs \u0026amp ; Matériel"
+        "translation": "Agents radioactifs &amp ; Matériel"
     },
     {
         "id": "hip_hazard.name.78637.3eda4c",
