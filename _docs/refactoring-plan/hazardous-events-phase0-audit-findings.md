@@ -1,6 +1,6 @@
 # Hazardous Events Phase 0 — Audit Findings
 
-Companion to `hazardous-events-refactoring-roadmap.md` (Phase 0, sub-tracks 0a–0f). Written as a
+Companion to `hazardous-events-refactoring-roadmap.md` (Phase 0, sub-tracks 0a–0g). Written as a
 sibling doc rather than appended directly to the roadmap so this branch
 (`feature/ca-he-behavior-audit`) stays independently mergeable without needing
 `feature/ca-hazardous-events-scaffold` merged in first — see 0g for how this gets folded back
@@ -626,10 +626,104 @@ not this boundary.
 
 ---
 
+## 0g — Synthesis
+
+Per the roadmap's own spec for this track: confirm or correct every quirk listed under Invariant
+1, resolve the `validation_workflow.ts` HE-only question definitively, and flag anything 0a–0f
+found that isn't already captured in the roadmap's open-decisions list. This section is that audit
+note — it stays on this branch (per the roadmap: "each still lands as its own commit on
+`feature/ca-he-behavior-audit`"); the mechanical fold-back into the roadmap document itself is a
+separate, later step.
+
+### Invariant 1 quirks — confirmed and corrected against 0a–0f
+
+1. **Cycle detection, depth-10 cap — confirmed, but the roadmap's own framing undersells it.**
+   The roadmap describes this as "not an exhaustive graph traversal." 0b's finding #1 goes further:
+   this isn't just incomplete coverage, it's a proven, empirically-reproduced data-integrity gap —
+   a 20-node chain closing a cycle across its own full length **succeeds and gets persisted**, not
+   merely "might miss a hypothetical edge case." Strengthens open decision #7 (DB-level
+   cycle-prevention vs. keeping the app-layer check) from "worth considering" to "the current
+   approach has already been shown not to hold its own guarantee under a realistic construction."
+2. **Delete's dependent-check "two different ways" — confirmed, but actually undercounts by one.**
+   0a and 0f together establish there are **three** styles today, not two: (a) disaster events
+   linked via `disasterEventTable.hazardousEventId` — pre-checked explicitly, working correctly;
+   (b) other hazardous events listing this one as `parent` — intended to be a reactive
+   FK-violation catch, but 0a finding #6 shows the catch itself is dead code (checks
+   `error?.code`, but Drizzle nests the real code under `error.cause.code`) — so in practice this
+   is **unchecked**, not "checked reactively," a raw uncaught error propagates instead of the
+   intended friendly message; (c) disaster events linked via `event_causality` (0a finding #8, 0f)
+   — never checked at all, by design or oversight, cascade-deletes silently. Whoever makes the
+   "preserve or fix, per item" call the roadmap asks for needs this corrected count: (a) is a
+   genuine "preserve as designed" candidate, (b) is not actually "preserve as designed" since what
+   ships today isn't the intended behavior at all — only fixing the error-shape check would
+   restore the _original_ intent, which is itself a design choice to make, not a given — and (c)
+   has no existing intended behavior to preserve, it's a pure gap.
+3. **Temporal-order check, both-dates-required — confirmed exactly**, no correction. 0b adds one
+   relevant nuance not in the roadmap's original wording: mixed-granularity dates (e.g. a
+   month-only parent date) normalize optimistically to the 1st of the period (0b finding #4) —
+   worth naming explicitly if Phase 2/3 revisits this rule's precision.
+4. **HIP hierarchy consistency, shared helper — confirmed, with two behavioral properties the
+   open-decision write-up (#6) should carry forward.** `getRequiredAndSetToNullHipFields` (a) is
+   permissive on a fully-empty hierarchy in isolation, currently masked only by a DB-level
+   `NOT NULL` constraint rather than by the helper's own logic (0a finding #1's correction), and
+   (b) **mutates its input object in place** as a side effect of computing its return value (0d
+   finding #4) — a caller passing a fields object and relying on its original shape afterward would
+   see it silently altered. Both matter directly for "where this logic lives after the refactor"
+   (open decision #6): a shared helper with a masked validation gap and a mutating side effect is
+   exactly the kind of thing that shouldn't be duplicated or reused without deliberately deciding
+   whether to carry both properties forward.
+5. **`validation_workflow.ts` hardcoded to `hazardousEventTable` — confirmed, and now formally
+   superseded by a stronger finding, not just an architectural non-issue.** See the dedicated
+   section below — the file's actual current behavior no longer needs preserving as HE-only,
+   because the live replacement already isn't.
+
+### `validation_workflow.ts` HE-only question — resolved definitively
+
+**Not HE-only in the live system, and hasn't been for a while.** `validation_workflow.ts`'s
+`processValidationAssignmentWorkflow` (dead code, part of the orphaned `event/` directory — see
+the cross-cutting section above) genuinely was hardcoded to `hazardousEventTable`, matching the
+roadmap's original observation about that specific file. But its live functional replacement,
+`handleApprovalWorkflowService` (`approvalWorkflowService.ts`, dispatching
+`handleSubmitForValidation` internally for the `"submit-validation"` action), is **already
+generic and already shared** — confirmed via its own type (`EntityType = "hazardous_event" |
+"disaster_event" | "disaster_records"`) and, more importantly, via real call sites: both
+`disaster-event+/edit.$id.tsx` and `disaster-record+/edit.$id.tsx` already call
+`handleApprovalWorkflowService(ctx, tx, id, "disaster_event" | "disaster_records", ...)` today,
+not just HE's edit routes. The same is true of the second live path (0c's architecture finding,
+mechanism 3): `disaster-event+/$id.tsx` and `disaster-record+/$id.tsx` both call
+`processApprovalStatusActionService`, the exact structural twin of what HE's detail page calls via
+`updateHazardousEventStatusService`.
+
+Net effect for Phase 2/3: the roadmap's target design (a shared, polymorphic
+`app/domains/validation-workflow/` module) isn't introducing sharing where none existed — it's
+formalizing sharing that already exists today, just spread across two independently-duplicated
+generic services (0c's architecture finding) instead of one unified module. That duplication-of-
+generic-logic, not a false HE-only assumption, is the actual risk this phase needs to retire.
+
+### New/strengthened inputs for the roadmap's "Open decisions carried forward"
+
+- **Item 6** (shared HIP-hierarchy logic) — strengthen with the two behavioral properties above
+  (masked empty-hierarchy permissiveness; in-place mutation).
+- **Item 7** (DB-level cycle prevention vs. app-layer check) — strengthen with 0b's empirical
+  proof that the current cap is already broken in a realistic, non-contrived scenario, not just
+  theoretically incomplete.
+- **Item 8** (spatial observation model: snapshot vs. reference) — strengthen with 0d finding #3:
+  confirmed today's "Geographic level" items are never snapshotted, only referenced, and
+  retroactively change if the division is later renamed/reshaped — a concrete current-behavior
+  data point for whichever way this decision goes.
+- **Propose new item 9: publish silently overwrites the original validator's attribution (0c
+  finding #1).** Different in kind from items 5–8 — this isn't a Phase 0 architecture question,
+  it's a product/business-rule ambiguity (should `submit-publish` require prior validation, or is
+  direct publish a legitimate path that needs its own explicit attribution-preserving fix?) that
+  needs a PM decision before any phase can act on it. Not an "action item" below because there's no
+  known fix to schedule yet, only a decision to make first.
+
+---
+
 ## Action items for the refactor plan (safe to defer, not to lose)
 
-These three items are deliberately **not** being fixed on the current system, agreed with you
-given HE usage is already paused ahead of the new implementation going live — the risk window is
+These items are deliberately **not** being fixed on the current system, agreed with you given HE
+usage is already paused ahead of the new implementation going live — the risk window is
 effectively zero regardless of when within the refactor's timeline the fix actually lands, as long
 as it lands before real users return. Recorded here, not just left as findings, so 0g's synthesis
 carries them into the roadmap as concrete deliverables rather than something that has to be
@@ -663,3 +757,24 @@ rediscovered later.
    `disasterEventCreate`/`disasterEventUpdate` already apply to the singular `hazardousEventId`
    field today (`hazardous_event.cannot_reference_other_tenant`) — the new implementation should
    apply that same rule uniformly to both link mechanisms instead of inheriting today's split.
+5. **Spatial-footprint "Geographic level" division linking has no tenant check (0d finding #1) →
+   Phase 3 (Domain Entity + Ports), fixed by construction.** HE's own domain scope, unlike item 4.
+   `syncHazardousEventSpatialFootprint`'s division-validity check today is
+   `where(inArray(divisionTable.id, divisionIds))` with no `countryAccountsId` filter — same bug
+   family as items 1 and 4, just inside HE's own module this time. When the new domain entity's
+   spatial-linking logic is built, it must scope the division lookup by tenant from the start,
+   matching the guard `hazardousEventUpdate`'s `parent`-linking already gets right today
+   (`ErrCrossTenantReference`) — no separate task, just a correctness requirement on Phase 3's own
+   implementation.
+6. **Empty-string-instead-of-null crashes with a raw Postgres UUID error, recurring across two
+   independent call sites → Phase 3 (Domain Entity + Ports), fixed by construction.** Found twice
+   independently — `hazardousEventCreate`/`Update` spreading `createdByUserId`/etc. directly into
+   the insert (0a finding #7), and `processValidationAssignmentWorkflow` writing
+   `submittedByUserId` before its own "skip if empty" guard is even checked (0c finding #2) — both
+   root-caused to the same thing: `HazardousEventFields` types these columns as non-nullable
+   `string`, not reflecting that `""` is a real value some caller can pass, so nothing sanitizes it
+   before it hits the DB as a raw UUID-parse failure. Two independent occurrences of the identical
+   mistake is a signal this is a typing/boundary-validation gap, not a one-off. Phase 3's domain
+   entities, if properly typed (`string | null`, not `string`) with input validation at the
+   boundary (per ADR-003's `DomainError` hierarchy, already the plan for this phase), close this
+   off structurally rather than needing a per-field patch.
