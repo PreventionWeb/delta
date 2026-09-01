@@ -1,4 +1,4 @@
-# Hazardous Events Refactoring Roadmap — Clean Architecture Migration (Pass 2)
+# Hazardous Events Refactoring Roadmap — Clean Architecture Migration (Pass 3)
 
 ## Purpose
 
@@ -13,10 +13,14 @@ roadmap's schema phase once it lands.
 
 **Pass 2 update (2026-08-21):** the target ER diagram has been reviewed (source: `draw.io`,
 "Hazardous Event ER Diagram — Manage actual hazardous event not forecasted"). Phase 2 (schema)
-is now detailed below. **Phase 0 (behavior audit) is now complete** (2026-08-31) — see below.
-Phases 3–7 (domain layer, presentation) stay stubbed pending Pass 3's own intent breakdown; every
-decision carried forward from Phase 0 is resolved (2026-09-01) and folded inline below and into
-the Phase 3/4/6 stubs.
+was detailed at the section level (A–H). **Phase 0 (behavior audit) is complete** (2026-08-31).
+
+**Pass 3 update (2026-09-01):** every phase — 2 through 7, plus the newly-added Phase M (data
+migration) — now has a complete, Notices-style intent breakdown: branch name, `/opsx:propose`
+text, files touched, test tier, per intent. No 🧱 stubs remain anywhere in this document. Every
+decision carried forward from Phase 0 is resolved and folded directly into the intent that owns
+it, not left as a separate list. Execution has not started on any of it; this pass is planning
+only, same as Pass 2 was for Phase 2's own section-level detail.
 
 Shared Clean-Architecture infrastructure from the Notices pilot — NestJS application-context
 bootstrap, `DomainError` hierarchy, `ILogger` + `AsyncLocalStorage` request context, the i18n
@@ -45,8 +49,14 @@ same way any two bounded contexts talk to each other in this architecture — it
 Each OpenSpec Intent lives on its own branch and its own PR to `dev`, kept small enough for one
 person to review — this is an explicit requirement for this migration, not a preference.
 Branch naming: `feature/ca-he-<intent-slug>`. Non-OpenSpec tasks for a given phase are grouped
-into a single branch per phase (this document's own branch, `feature/ca-hazardous-events-scaffold`,
-is the first example).
+into a single branch per phase **by default** (Phase 0's 0a–0g is the reference example — a
+tightly sequential audit where each sub-track depends on the same accumulating context) — **unless
+the tasks have meaningfully different risk or review profiles**, in which case each gets its own
+branch instead, same as an OpenSpec intent would (Phase M's `Ma`/`Mb`/`Mc` and Phase 7's `7a`–`7e`
+are the examples: a SQL script, an agent definition, and a rollback script — or, in Phase 7, a nav
+change, a customer-gated API retirement, a dead-code deletion, and an irreversible schema drop —
+are different enough in kind that bundling them into one PR would hide a risky change inside a
+routine one).
 
 ---
 
@@ -334,16 +344,16 @@ Independent of Phase 0 — can proceed in parallel.
 
 ---
 
-## Phase 2 — Schema ✅ (target model reviewed 2026-08-21, ⬜/🔷 breakdown still to come in Pass 3)
-
-**Branch:** `feature/ca-he-schema` (or split further once Pass 3 breaks this into per-table
-intents — likely, given the size below)
+## Phase 2 — Schema ✅ (target model reviewed 2026-08-21; Pass 3 breakdown complete 2026-09-01)
 
 Source: `draw.io` ER diagram, "Hazardous Event ER Diagram (Manage actual hazardous event not
-forecasted)". Two sections of that diagram — "Monitoring and measurement" and "Forecast,
-monitoring and warning" — are explicitly marked not-yet-modeled by its author and are out of
-scope here; the spatial-observation redesign below (Section D) looks like it's laying the
-groundwork for them, without committing to them.
+forecasted)" — exported snapshot committed at
+[`diagrams/hazardous-events-er-diagram.png`](diagrams/hazardous-events-er-diagram.png) (the
+`.drawio`/`.json` sources stay in the gitignored `tmp/` working folder, not committed). Two
+sections of that diagram — "Monitoring and measurement" and "Forecast, monitoring and warning" —
+are explicitly marked not-yet-modeled by its author and are out of scope here; the
+spatial-observation redesign below (Section D) looks like it's laying the groundwork for them,
+without committing to them.
 
 **A. HIP hierarchy, restructured and versioned** — `specific_hazard → hazard_cluster →
 hazard_type → hips_version` (new). `hazardous_event` now needs only `specific_hazard_id`;
@@ -403,13 +413,281 @@ and `country_accounts_id` consistent everywhere including `division` (was `count
 
 **Invariant reminder:** every change here must be additive/backward-compatible until sign-off
 (Invariant 2) — old and new HE, plus migrated CSV/API, write the same tables during the
-transition.
+transition. Every table below is genuinely new — none of the intents drop or rename an existing
+column; that step is Phase 7's, not this phase's.
+
+Two tracks, same split as Phase 3–5 — Section G belongs to `validation-workflow`, everything else
+to `hazardous-events`. `2i` is last in Track B specifically because it adds a column to the
+existing `hazardous_event` table and needs `2b`'s new `specific_hazard` table to exist first — the
+only real ordering dependency among these; the rest are independent new tables, sequenceable in
+any order.
+
+### Track A — `validation-workflow`
+
+### 🔷 2a — Workflow Tables
+
+**Branch:** `feature/ca-workflow-schema`
+
+**Intent for `/opsx:propose`:**
+
+```
+Add workflow_instance (entity_id UUID, entity_type enum 'HE'|'DE'|'DR', status enum
+DRAFT|SUBMITTED|REVISION_REQUESTED|APPROVED|REJECTED|PUBLISHED, validated_by_user_id,
+validated_at, published_by_user_id, published_at, timestamps), workflow_history
+(instance_id FK, from_status, to_status, acting_user_id, timestamp), and
+workflow_notification (instance_id FK, recipient_user_id, sent_at, channel) Drizzle
+schemas in app/domains/validation-workflow/infrastructure/ — no countryAccountsId
+column on workflow_instance by design (3a/5a already assume this; tenant validation
+happens in the caller's own aggregate repository before reaching this table) — then
+generate migration with yarn dbsync.
+```
+
+**Files touched:**
+
+- `app/domains/validation-workflow/infrastructure/workflowInstanceTable.ts` (new)
+- `app/domains/validation-workflow/infrastructure/workflowHistoryTable.ts` (new)
+- `app/domains/validation-workflow/infrastructure/workflowNotificationTable.ts` (new)
+- `app/drizzle/migrations/<timestamp>_add_workflow_tables.sql` (generated)
+- `app/drizzle/migrations/meta/_journal.json` (updated by drizzle-kit)
+
+**Test tier:** PGlite — migration applies cleanly; tables have correct columns and
+constraints; the `entity_type` enum accepts exactly `'HE'|'DE'|'DR'`, nothing else.
+
+---
+
+### Track B — `hazardous-events`
+
+### 🔷 2b — HIP Hierarchy Tables (Section A)
+
+**Branch:** `feature/ca-he-hip-hierarchy-schema`
+
+**Intent for `/opsx:propose`:**
+
+```
+Add specific_hazard, hazard_cluster, hazard_type, and hips_version Drizzle schemas
+— specific_hazard → hazard_cluster → hazard_type → hips_version, replacing today's
+flatter hip_hazard/hip_cluster/hip_type shape. New tables only in this intent — no
+change yet to hazardous_event itself (that's 2i, additive, after this one). Generate
+migration with yarn dbsync.
+```
+
+**Files touched:**
+
+- `app/drizzle/schema/specificHazardTable.ts` (new)
+- `app/drizzle/schema/hazardClusterTable.ts` (new — restructured, not the same table
+  as today's `hipClusterTable`)
+- `app/drizzle/schema/hazardTypeTable.ts` (new — restructured, not today's
+  `hipTypeTable`)
+- `app/drizzle/schema/hipsVersionTable.ts` (new)
+- `app/drizzle/migrations/<timestamp>_add_hip_hierarchy_tables.sql` (generated)
+
+**Test tier:** PGlite — migration applies cleanly; the `specific_hazard →
+hazard_cluster → hazard_type` chain's FK constraints are enforced (an orphaned
+`specific_hazard` with no valid `hazard_cluster` is rejected at the DB level).
+
+---
+
+### 🔷 2c — Source Catalog Table (Section B)
+
+**Branch:** `feature/ca-he-source-catalog-schema`
+
+**Intent for `/opsx:propose`:**
+
+```
+Add source_catalog Drizzle schema (id, countryAccountsId, name, timestamps) — a
+tenant-scoped reference table replacing today's free-text data_source column
+(column itself stays on hazardous_event until Phase 7; this intent only adds the
+new table). Generate migration with yarn dbsync.
+```
+
+**Files touched:**
+
+- `app/drizzle/schema/sourceCatalogTable.ts` (new)
+- `app/drizzle/migrations/<timestamp>_add_source_catalog_table.sql` (generated)
+
+**Test tier:** PGlite — migration applies cleanly; tenant-scoping columns present.
+
+---
+
+### 🔷 2d — Hazard Driver Tables (Section C)
+
+**Branch:** `feature/ca-he-hazard-driver-schema`
+
+**Intent for `/opsx:propose`:**
+
+```
+Add hazard_driver (tenant-scoped reference table) and
+hazardous_event_hazard_driver (join table, hazard_driver_id FK — corrected naming
+per the 2026-08-21 review, not the earlier "hazard_driver" column typo) Drizzle
+schemas. New business capability, no existing table to reconcile against. Generate
+migration with yarn dbsync.
+```
+
+**Files touched:**
+
+- `app/drizzle/schema/hazardDriverTable.ts` (new)
+- `app/drizzle/schema/hazardousEventHazardDriverTable.ts` (new)
+- `app/drizzle/migrations/<timestamp>_add_hazard_driver_tables.sql` (generated)
+
+**Test tier:** PGlite — migration applies cleanly; join table's FK to both
+`hazardous_event` and `hazard_driver` enforced.
+
+---
+
+### 🔷 2e — Causality Table (Section D)
+
+**Branch:** `feature/ca-he-causality-schema`
+
+**Intent for `/opsx:propose`:**
+
+```
+Add hazardous_event_causality Drizzle schema (cause_event_id, effect_event_id,
+causality_explanation, timestamps) — replaces eventRelationshipTable for HE's own
+causal chain only (old table stays untouched, no absorption of eventCausalityTable
+per this document's own Non-Goals). No DB-level cycle-prevention constraint
+(resolved open decision #7 — cycle detection stays app-layer, in 3c). Generate
+migration with yarn dbsync.
+```
+
+**Files touched:**
+
+- `app/drizzle/schema/hazardousEventCausalityTable.ts` (new)
+- `app/drizzle/migrations/<timestamp>_add_hazardous_event_causality_table.sql`
+  (generated)
+
+**Test tier:** PGlite — migration applies cleanly; no CHECK constraint blocks a
+cycle at the DB level (confirms the app-layer-only decision is actually reflected
+in the schema, not accidentally more restrictive).
+
+---
+
+### 🔷 2f — Spatial Observation Table (Section E)
+
+**Branch:** `feature/ca-he-spatial-observation-schema`
+
+**Intent for `/opsx:propose`:**
+
+```
+Add hazardous_event_spatial_observation Drizzle schema (id, hazardous_event_id FK,
+observation_time TIMESTAMPTZ, geometry, timestamps) plus its own division join
+table — inserted between hazardous_event and today's geom/division tables,
+enabling multiple dated observations per event (today's
+hazardousEventGeomTable/hazardousEventDivisionTable stay untouched, superseded not
+replaced in this intent). Generate migration with yarn dbsync.
+```
+
+**Files touched:**
+
+- `app/drizzle/schema/hazardousEventSpatialObservationTable.ts` (new)
+- `app/drizzle/schema/hazardousEventSpatialObservationDivisionTable.ts` (new)
+- `app/drizzle/migrations/<timestamp>_add_spatial_observation_tables.sql`
+  (generated)
+
+**Test tier:** PGlite — migration applies cleanly; `observation_time` is
+`TIMESTAMPTZ` per ADR-002; multiple observation rows for the same
+`hazardous_event_id` are permitted (no unique constraint blocking the time-series
+model), a unique constraint on `(hazardous_event_id, observation_time)` prevents
+the exact-duplicate-timestamp case at the DB level too (defense in depth alongside
+3d/5e's application-layer conflict check).
+
+---
+
+### 🔷 2g — Attachment Table (Section F)
+
+**Branch:** `feature/ca-he-attachment-schema`
+
+**Intent for `/opsx:propose`:**
+
+```
+Add hazardous_event_attachment Drizzle schema (id, hazardous_event_id FK, title,
+file_key, file_name, file_type, file_size, timestamps) — matches Disaster Event's
+newer attachment-table pattern, replacing today's jsonb attachments column (column
+itself stays until Phase 7). Generate migration with yarn dbsync.
+```
+
+**Files touched:**
+
+- `app/drizzle/schema/hazardousEventAttachmentTable.ts` (new)
+- `app/drizzle/migrations/<timestamp>_add_hazardous_event_attachment_table.sql`
+  (generated)
+
+**Test tier:** PGlite — migration applies cleanly; matches Disaster Event's
+existing attachment table shape (columns compared directly, not just "looks
+similar").
+
+---
+
+### 🔷 2h — Hazard-Type Field Definition Tables (Section H)
+
+**Branch:** `feature/ca-he-hazard-type-fields-schema`
+
+**Intent for `/opsx:propose`:**
+
+```
+Add hazard_type_field_definition (global, keyed by hazard_type),
+hazard_type_custom_field_definition (tenant-custom, same shape +
+country_accounts_id), and hazardous_event_field_value Drizzle schemas — keyed by
+hazard_type, not specific_hazard (settled, per this document's own Non-Goals — do
+not re-open). Generate migration with yarn dbsync.
+```
+
+**Files touched:**
+
+- `app/drizzle/schema/hazardTypeFieldDefinitionTable.ts` (new)
+- `app/drizzle/schema/hazardTypeCustomFieldDefinitionTable.ts` (new)
+- `app/drizzle/schema/hazardousEventFieldValueTable.ts` (new)
+- `app/drizzle/migrations/<timestamp>_add_hazard_type_field_tables.sql` (generated)
+
+**Test tier:** PGlite — migration applies cleanly; a field value keyed to a
+`hazard_type` with no matching `hazard_type_field_definition` is rejected at the DB
+level.
+
+---
+
+### 🔷 2i — Additive `specific_hazard_id` Column on `hazardous_event`
+
+**Branch:** `feature/ca-he-specific-hazard-id-column`
+
+**Depends on:** 2b (`specific_hazard` table must exist first)
+
+**Intent for `/opsx:propose`:**
+
+```
+Add a nullable specific_hazard_id FK column to the existing hazardous_event table
+— additive only, per Invariant 2; today's hipHazardId/hipClusterId/hipTypeId
+columns are untouched and stay populated until Phase 7's cleanup. Nullable (not
+NOT NULL) specifically because existing rows have no value yet until Phase M backfills
+one — a NOT NULL constraint here would break on migration day, before Phase M has
+run. Generate migration with yarn dbsync.
+```
+
+**Files touched:**
+
+- `app/drizzle/schema/hazardousEventTable.ts` (modified — add column)
+- `app/drizzle/migrations/<timestamp>_add_specific_hazard_id_to_hazardous_event.sql`
+  (generated)
+
+**Test tier:** PGlite — migration applies cleanly against a table with existing
+rows (simulates real production data — the column arrives `NULL` on old rows, not
+a migration failure); a new row can set it once `2b`'s tables are populated.
+
+---
+
+### 🏁 Phase 2 Gate
+
+`yarn tsc` clean, all migrations apply cleanly against a PGlite snapshot seeded with
+representative existing HE data (not an empty DB — confirms the additive-only promise holds
+against real-shaped data, not just a fresh schema). Both `Phase 3` (domain layer) and `Phase M`
+(`Ma`, data migration scripts) can start once this gate passes — neither needs the other to be
+done first, only this phase.
+
+---
 
 ---
 
 ## Phase M — Data Migration: Backfill, Validation, Rollback ✅ (Pass 3 breakdown complete, 2026-09-01 — execution not started)
 
-**Named "M," not "2.5"** — deliberately not squeezed into the numeric sequence. Starts once Phase
+**Named "M"** — deliberately not squeezed into the numeric sequence. Starts once Phase
 2's schema exists; runs in **parallel** with Phase 3–6 (it only needs the target schema and the
 existing production data, not the new domain/use-case/presentation layers being built alongside
 it); must be **fully validated and signed off before Phase 7 begins** — cutover assumes the data
@@ -1483,13 +1761,13 @@ new web route are the only implementation — no dual-write, no hidden-route fla
 ## Dependency graph (phase-level)
 
 ```
-Phase 0 (behavior audit + characterization tests) ─────┐
+Phase 0 (behavior audit + characterization tests) ──────┐
 Phase 1 (CA scaffold: hazardous-events                  │
          + validation-workflow modules, this branch) ───┼──► Phase 2 (schema — reviewed ✅)
-                                                          │        │
-                                                          │        ├─────────────────────┐
-                                                          │        ▼                     ▼
-                                                          └──► Phase 3 (domain      Phase M (data
+                                                        │          │
+                                                        │          ├─────────────────────┐
+                                                        │          ▼                     ▼
+                                                        └────► Phase 3 (domain      Phase M (data
                                                                entities + ports,     migration: backfill,
                                                                both modules)         validator agent,
                                                                    │                 rollback — runs in
@@ -1512,14 +1790,15 @@ Phase 1 (CA scaffold: hazardous-events                  │
 ```
 
 Phase 0 is complete, Phase 2 is no longer blocked (ER diagram reviewed 2026-08-21), and every
-decision carried forward from Phase 0 is now resolved (2026-09-01, see below). Phase 3 onward and
-Phase M are both unblocked pending only the current PR (`feature/ca-hazardous-events-scaffold` →
-`dev`) landing, and can proceed in parallel with each other once it does — Phase M needs only the
-schema and existing production data, not Phase 3–6's own output. Pass 3 of this document replaced
-each 🧱 stub with a Notices-style intent breakdown (branch, `/opsx:propose` text, files touched,
-test tier) for Phases 3–6 and M — note `validation-workflow` and `hazardous-events` are two
-separate intent tracks from Phase 3 onward, not one, and Phase M is its own, non-OpenSpec track
-alongside both.
+decision carried forward from Phase 0 is now resolved (2026-09-01, see below). Every phase, 2
+through 7 plus M, has a completed Pass 3 breakdown as of 2026-09-01 — no 🧱 stubs remain anywhere
+in this document. Execution itself is pending only the current PR
+(`feature/ca-hazardous-events-scaffold` → `dev`) landing; Phase 2 and Phase M can then proceed in
+parallel with each other, since Phase M needs only the schema and existing production data, not
+Phase 3–6's own output. Pass 3 replaced each stub with a Notices-style intent breakdown (branch,
+`/opsx:propose` text, files touched, test tier) — note `validation-workflow` and
+`hazardous-events` are two separate intent tracks from Phase 2 onward, not one, and Phase M is its
+own, non-OpenSpec track alongside both.
 
 ---
 
