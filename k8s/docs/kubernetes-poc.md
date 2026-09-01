@@ -583,6 +583,18 @@ The Kubernetes-hosted application can then be accessed at:
 http://localhost:13000
 ```
 
+Browser-level validation confirmed that the Delta application is accessible through the Kubernetes Service and that application routes operate correctly. In particular, the authentication page was successfully validated at:
+
+```text
+http://localhost:13000/en/admin/login
+```
+
+The equivalent Docker Compose route is:
+
+```text
+http://localhost:3000/en/admin/login
+```
+
 This keeps the existing Docker Compose and Kubernetes environments separate:
 
 ```text
@@ -594,17 +606,18 @@ This provides a convenient mechanism for direct functional and performance compa
 
 ## 8. Issues and resolutions
 
-| Issue                                                                          | Cause                                                                               | Resolution                                                                                                                            |
-| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| PostGIS Pod started and immediately terminated                                 | Required PostgreSQL environment variables were missing                              | Added `POSTGRES_USER`, `POSTGRES_PASSWORD` and `POSTGRES_DB` to the database Deployment                                               |
-| Database was initially configured with port 15432 inside Kubernetes            | Host ports and Kubernetes internal ports were initially treated as equivalent       | Restored PostgreSQL to its standard internal port 5432 and used port forwarding to map workstation port 15432 to Kubernetes port 5432 |
-| Initial Service still referenced `delta-web`                                   | Service configuration originated from the initial nginx/web test                    | Removed the obsolete Service and created `delta-local-db` with the correct selector                                                   |
-| Adminer initially used Docker-style database hostname `db`                     | Kubernetes workloads should use the Kubernetes Service name                         | Configured Adminer to use `delta-local-db`                                                                                            |
-| Existing Docker services already use ports 5432, 8080 and 3000                 | Docker host ports must remain available during the PoC                              | Used ports 15432, 18080 and 13000 respectively for Kubernetes port-forward testing                                                    |
-| Kubernetes returned `ImagePullBackOff` for `delta/local-app`                   | Kubernetes attempted to retrieve the locally named image from Docker Hub            | Investigated the Delta image build architecture                                                                                       |
-| Kubernetes returned `ErrImageNeverPull` after setting `imagePullPolicy: Never` | The image was not available in the Kubernetes node image store                      | Switched to the existing self-contained `ghcr.io/preventionweb/delta-country:dev-latest` image                                        |
-| `delta/local-app` did not contain the Delta source code                        | It is designed for local Docker Compose development and relies on a host bind mount | Used the existing self-contained development image built using `Dockerfile.dev`                                                       |
-| Initial Delta Kubernetes Pod ran but did not start Delta                       | A temporary diagnostic `command` overrode the image startup command                 | Removed the diagnostic command after validating the image contents                                                                    |
+| Issue                                                                                                | Cause                                                                               | Resolution                                                                                                                                           |
+| ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PostGIS Pod started and immediately terminated                                                       | Required PostgreSQL environment variables were missing                              | Added `POSTGRES_USER`, `POSTGRES_PASSWORD` and `POSTGRES_DB` to the database Deployment                                                              |
+| Database was initially configured with port 15432 inside Kubernetes                                  | Host ports and Kubernetes internal ports were initially treated as equivalent       | Restored PostgreSQL to its standard internal port 5432 and used port forwarding to map workstation port 15432 to Kubernetes port 5432                |
+| Initial Service still referenced `delta-web`                                                         | Service configuration originated from the initial nginx/web test                    | Removed the obsolete Service and created `delta-local-db` with the correct selector                                                                  |
+| Adminer initially used Docker-style database hostname `db`                                           | Kubernetes workloads should use the Kubernetes Service name                         | Configured Adminer to use `delta-local-db`                                                                                                           |
+| Existing Docker services already use ports 5432, 8080 and 3000                                       | Docker host ports must remain available during the PoC                              | Used ports 15432, 18080 and 13000 respectively for Kubernetes port-forward testing                                                                   |
+| Kubernetes returned `ImagePullBackOff` for `delta/local-app`                                         | Kubernetes attempted to retrieve the locally named image from Docker Hub            | Investigated the Delta image build architecture                                                                                                      |
+| Kubernetes returned `ErrImageNeverPull` after setting `imagePullPolicy: Never`                       | The image was not available in the Kubernetes node image store                      | Switched to the existing self-contained `ghcr.io/preventionweb/delta-country:dev-latest` image                                                       |
+| `delta/local-app` did not contain the Delta source code                                              | It is designed for local Docker Compose development and relies on a host bind mount | Used the existing self-contained development image built using `Dockerfile.dev`                                                                      |
+| Initial Delta Kubernetes Pod ran but did not start Delta                                             | A temporary diagnostic `command` overrode the image startup command                 | Removed the diagnostic command after validating the image contents                                                                                   |
+| Delta application initially restarted after Kubernetes cluster startup with EAI_AGAIN delta-local-db | Application migrations started before the database Service was resolvable/ready     | Application recovered after the database became available; startup dependency handling should be improved using Kubernetes health/startup mechanisms |
 
 ## 9. Validation
 
@@ -695,7 +708,7 @@ The following components have now been migrated:
 - [x] Delta application container successfully started
 - [x] Database migrations successfully executed from the Delta application
 - [x] Delta development server successfully started inside Kubernetes
-- [ ] Complete browser-level application validation
+- [x] Complete browser-level application validation
 - [ ] Validate core application functionality against the Kubernetes database
 - [ ] Compare Kubernetes performance with the Docker baseline
 - [ ] Review persistent storage requirements, particularly `/delta/uploads`
@@ -809,6 +822,6 @@ Implementing the complete CI/CD pipeline is not required for the initial Kuberne
 
 ### Next milestone
 
-The immediate next milestone is to complete browser-level validation of the Delta application through the Kubernetes Service and confirm that the application operates correctly against the PostgreSQL/PostGIS database running inside Kubernetes.
+The basic local application migration is now operational. The Delta application, PostgreSQL/PostGIS database and Adminer are running successfully inside Kubernetes, and basic browser-level application routing has been validated against the equivalent Docker Compose environment.
 
-After successful local validation, the PoC can move from **application migration** toward **deployment engineering**: image builds, configuration management, persistent storage, health checks, registry integration, local Kubernetes developer workflow and preparation for AKS.
+The next milestone is to complete core functional validation and then move from **application migration** toward **deployment engineering**. This includes persistent storage, configuration and secret management, health and startup checks, resource requests and limits, image lifecycle and registry integration, local Kubernetes developer workflow, and preparation for deployment to AKS.
