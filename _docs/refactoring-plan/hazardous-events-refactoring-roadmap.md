@@ -14,8 +14,9 @@ roadmap's schema phase once it lands.
 **Pass 2 update (2026-08-21):** the target ER diagram has been reviewed (source: `draw.io`,
 "Hazardous Event ER Diagram — Manage actual hazardous event not forecasted"). Phase 2 (schema)
 is now detailed below. **Phase 0 (behavior audit) is now complete** (2026-08-31) — see below.
-Phases 3–7 (domain layer, presentation) stay stubbed pending the still-open decisions carried
-forward from Phase 0, noted inline and consolidated at the end of this document.
+Phases 3–7 (domain layer, presentation) stay stubbed pending Pass 3's own intent breakdown; every
+decision carried forward from Phase 0 is resolved (2026-09-01) and folded inline below and into
+the Phase 3/4/6 stubs.
 
 Shared Clean-Architecture infrastructure from the Notices pilot — NestJS application-context
 bootstrap, `DomainError` hierarchy, `ILogger` + `AsyncLocalStorage` request context, the i18n
@@ -81,12 +82,13 @@ code reading alone — differences from the original are called out explicitly, 
   mixed granularity (e.g. a month-only date) normalize optimistically to the 1st of the period —
   worth naming if this rule's precision gets revisited.
 - **HIP hierarchy consistency (hazard/cluster/type) is validated by a helper
-  (`getRequiredAndSetToNullHipFields`) shared with disaster-record's own compose policy.**
-  Confirmed, plus two behavioral properties that matter for open decision #6 below: it's
-  permissive on a fully-empty hierarchy in isolation (currently masked only by a DB-level
-  `NOT NULL` constraint, not by the helper's own logic), and it **mutates its input object in
-  place** as a side effect of computing its return value — a caller relying on the original
-  object's shape afterward would see it silently altered.
+  (`getRequiredAndSetToNullHipFields`) — corrected: this is not actually shared with
+  disaster-record.** The original assumption was wrong; confirmed via callers that HE's helper is
+  HE-only, and disaster-record has its own separate, internally-duplicated-twice implementation
+  (see open decision #6's resolution below). HE's own helper is permissive on a fully-empty
+  hierarchy in isolation (currently masked only by a DB-level `NOT NULL` constraint, not by the
+  helper's own logic), and it **mutates its input object in place** as a side effect of computing
+  its return value — moot going forward since the new schema eliminates the need for it in HE.
 - **`validation_workflow.ts`'s HE-only question — resolved definitively, not just architecturally
   moot.** See the dedicated call-out immediately below.
 
@@ -424,8 +426,26 @@ on this phase's own implementation:**
   graceful validation error — found independently at two call sites (0a finding #7, 0c finding
   #2). Model these as `string | null` with boundary validation (per ADR-003's `DomainError`
   hierarchy) so this closes structurally instead of needing a per-field patch.
+- **No HIP-hierarchy validation logic needed at all** (open decision #6, resolved). The
+  `specific_hazard_id`-only schema (Phase 2, Section A) makes the old precondition structurally
+  unrepresentable — don't port `getRequiredAndSetToNullHipFields` or reinvent it.
+- **Cycle detection: real path-membership check, not a depth cap** (open decision #7, resolved).
+  Track visited node IDs in the recursive query, stop on a repeat; keep a high value (e.g. 500) as
+  a runaway-query safety cap only, not the detection mechanism. No DB-level trigger.
+- **Publish transition: conditional validation backfill, not unconditional overwrite** (open
+  decision #9, resolved, PM decision). In the shared `validation-workflow` module's publish
+  transition: only backfill `validatedByUserId`/`validatedAt` from the publisher when those
+  fields are empty (direct publish, auto-marked validated); preserve an existing, separately-set
+  validator's attribution untouched otherwise.
 
 ## Phase 4 — Use Cases 🧱 (stubbed — depends on Phase 3)
+
+**Carried from Phase 0, open decision #8 (resolved) — the spatial-observation read/write rule:**
+one shared "current observation" query (latest by `observation_time`, not insertion order) backs
+every default read — UI, CSV export, and the API's default read with no `observationTime`
+supplied. Write-side: creating/replacing an observation at a duplicate `observationTime` returns a
+domain-level conflict (surfaced as HTTP 409 by the API adapter) rather than silently overwriting;
+an explicit `confirmReplace` flag on the use case's input is required to actually replace it.
 
 ## Phase 5 — Repository + Module Wiring 🧱 (stubbed — depends on Phase 2 + Phase 4)
 
@@ -439,11 +459,11 @@ in the new implementation instead of inheriting today's split.
 
 Built fresh, not based on `feature/poc-react-aria-hazardous-event` (decided). Covers: the new
 authenticated, direct-URL-only route; CSV import/export migrating onto the new implementation in
-step with the route (per Invariant 2); the existing `/api+/hazardous-event+/` REST routes
-migrating in step as well, versus a new `/api/v2/hazardous-events` surface matching the Notices
-5c pattern — open decision #5 below, to be settled in Pass 3.
+step with the route (per Invariant 2); and a **new `/api/v2/hazardous-events` NestJS controller**
+(open decision #5, resolved — not an in-place migration of the existing `/api+/hazardous-event+/`
+routes).
 
-**Carried from Phase 0, two explicit deliverables for this phase:**
+**Carried from Phase 0, explicit deliverables for this phase:**
 
 - **CSV import tenant-scoping, fixed by construction (0e findings 1–2).** The new CSV import must
   force `countryAccountsId` server-side before any create/update/upsert call, matching the pattern
@@ -456,6 +476,16 @@ migrating in step as well, versus a new `/api/v2/hazardous-events` surface match
   route across every domain, and HE's new routes will most likely call the same shared function.
   Fix `if (!key)` → `if (key.length === 0)` (or equivalent) in `apiAuth` itself, verified against
   both a missing and an invalid `X-Auth` header.
+- **`/api/v2/hazardous-events` gets full CRUD, not a 1:1 port** (open decision #5, resolved).
+  Today's surface is `add`/`update`/`upsert`/`list`/`fields` only — no `getById`, no `delete` —
+  confirmed via directory listing. The new controller adds both, and moves to the standard
+  ADR-003/ADR-007 response shape (the legacy `{ ok, res: [...] }` shape does not carry over).
+  Communicate both changes to the known low-volume external customers ahead of cutover.
+- **API-only `observationTime` field; CSV stays current-only** (open decision #8, resolved). The
+  `/api/v2/hazardous-events` payload gets an optional `observationTime` field for
+  historical/backfill writes to `hazardous_event_spatial_observation`; CSV import/export does not
+  gain a new column — it always targets the current/latest observation, matching Phase 4's shared
+  read rule.
 
 ## Phase 7 — Sign-off, Cutover, and Cleanup 🧱 (stubbed — depends on Phase 6)
 
@@ -489,10 +519,11 @@ Phase 1 (CA scaffold: hazardous-events                  │
                                                       Phase 7 (sign-off, cutover, cleanup)
 ```
 
-Phase 0 is complete and Phase 2 is no longer blocked (ER diagram reviewed 2026-08-21). Phase 3
-onward still needs the still-open decisions listed below settled first. Pass 3 of this document
-will replace each 🧱 stub with a Notices-style intent breakdown (branch, `/opsx:propose` text,
-files touched, test tier) once those decisions are settled — note `validation-workflow` and
+Phase 0 is complete, Phase 2 is no longer blocked (ER diagram reviewed 2026-08-21), and every
+decision carried forward from Phase 0 is now resolved (2026-09-01, see below). Phase 3 onward is
+unblocked pending only the current PR (`feature/ca-hazardous-events-scaffold` → `dev`) landing.
+Pass 3 of this document will replace each 🧱 stub with a Notices-style intent breakdown (branch,
+`/opsx:propose` text, files touched, test tier) — note `validation-workflow` and
 `hazardous-events` are two separate intent tracks from Phase 3 onward, not one.
 
 ---
@@ -513,43 +544,66 @@ files touched, test tier) once those decisions are settled — note `validation-
 4. ~~Naming inconsistencies (casuality/hazard_event_hazard_driver/country_account_id/hazard_driver
    FK)~~ — **fixed at the source**, confirmed in the updated `.drawio`.
 
-**Still open:**
+**Resolved (2026-09-01, engineering + PM decisions — closes every remaining open decision):**
 
-5. New `/api/v2/hazardous-events` REST surface (Notices 5c pattern) vs. migrating the existing
-   `/api+/hazardous-event+/` routes in place — relevant now that CSV/API migrate in step with the
-   new implementation (Invariant 2), not deferred to cutover. Decide once Phase 5/6 are detailed.
-   **Phase 0 input (0e):** the three JSON API write routes are already correctly tenant-safe by
-   design (`countryAccountsId` forced server-side, never from payload) — whichever surface wins,
-   preserve that pattern; it's the opposite of CSV import's broken one (action item 1).
-6. Where shared HIP-hierarchy validation logic lives post-refactor (duplicated into HE's domain
-   layer vs. a shared helper both HE and disaster-record call) — Phase 0 output; may be partly
-   resolved by Phase 2's finding that the new schema might not need this check at all (see
-   Phase 2, Section A). **Phase 0 input (0a/0d):** whatever this decision lands on,
-   `getRequiredAndSetToNullHipFields`'s two behavioral properties need a deliberate call, not a
-   silent port — it's permissive on a fully-empty hierarchy (masked today only by a DB `NOT NULL`
-   constraint, not the helper's own logic) and it mutates its input object in place.
-7. Whether HE's new causality table gets a DB-level cycle-prevention constraint or keeps today's
-   app-layer depth-10-capped check — Phase 3, informed by Phase 0's characterization tests.
-   **Phase 0 input (0b):** the current cap has already been shown, empirically, not to hold its
-   own guarantee — a full-length cycle across a 20-node chain is silently persisted today. This
-   pushes the balance toward a DB-level constraint being the safer default, not just "worth
-   considering."
-8. How CSV import/export and the existing API — which assume one geom/division set per event —
-   map onto the new time-series `hazardous_event_spatial_observation` model (current/latest
-   observation, or must callers specify one) — Phase 2/6. **Phase 0 input (0d):** confirmed
-   today's "Geographic level" spatial items are never snapshotted, only referenced live against
-   `division_table` — renaming/reshaping a division retroactively changes what every linked event
-   displays. A concrete data point for whichever way this decision goes.
-9. **New: publishing silently overwrites the original validator's attribution (0c finding #1) —
-   needs a PM/product decision, not a phase-mechanical fix.** `hazardousEventUpdateApprovalStatusPublish`
-   sets `validatedByUserId`/`validatedAt` to the _publisher's_ identity, losing the record of who
-   actually validated when a different user publishes than validated. No DB/schema change needed
-   either way — the four attribution columns already exist independently. Two candidate fixes
-   depend on the product answer: (a) if direct publish-without-prior-validation should stay
-   allowed, only backfill validated fields from the publisher when still null; (b) if it
-   shouldn't, add a state-transition guard requiring `approvalStatus === "validated"` before
-   `submit-publish`, which doesn't exist in either live workflow path today. Decide before Phase 3
-   designs the new workflow module's publish transition.
+5. ~~New `/api/v2/hazardous-events` REST surface vs. migrating the existing
+   `/api+/hazardous-event+/` routes in place~~ — **decided: new `/api/v2/hazardous-events` NestJS
+   controller**, matching Notices' pattern, not an in-place migration. The "few, rarely-used
+   customers" reality changes the calculus the Notices precedent alone didn't settle — low
+   migration cost, and it's the right moment to gain proper versioning, i18n, and traceability
+   (ADR-004) that the legacy routes never had. Two things ride along with this, deliberately, not
+   as afterthoughts: (a) the response shape moves to the standard ADR-003/ADR-007 convention
+   (plain resource on success, enveloped only on error) — the legacy `{ ok, res: [...] }` shape
+   confirmed in `add.ts` does **not** carry over; (b) today's surface is incomplete
+   (`add`/`update`/`upsert`/`list`/`fields` only — **no `getById`, no `delete`**, confirmed via
+   directory listing) — Phase 6 builds full CRUD, not a 1:1 port. Both changes get communicated to
+   the known customers ahead of cutover.
+6. ~~Where shared HIP-hierarchy validation logic lives post-refactor~~ — **decided: nowhere in the
+   new HE domain module; the question's premise doesn't survive Phase 0's audit.**
+   `getRequiredAndSetToNullHipFields` is **not actually shared with disaster-record** — confirmed
+   its only callers are HE's own files. Disaster-record has its own, separate, and **internally
+   duplicated twice** (`validate()` and `disasterRecordsUpdate` each have their own inline copy)
+   implementation, which is also more thorough than HE's (it does live DB lookups to verify the
+   hazard/cluster/type chain actually matches; HE's version only checks for gaps). None of this
+   matters going forward: the new `specific_hazard_id`-only schema (Phase 2, Section A)
+   structurally eliminates the precondition for HE. `getRequiredAndSetToNullHipFields` retires as
+   dead code at cutover with zero disaster-record impact. Disaster-record's own duplication is
+   filed as a discovered, out-of-scope finding for whenever DR's own refactor starts.
+7. ~~DB-level cycle-prevention constraint vs. app-layer depth-10-capped check~~ — **decided:
+   app-layer, but the algorithm itself gets fixed, in Phase 3.** A true DB-level cycle guarantee
+   needs a write-time trigger running a recursive query — a genuinely new, more complex mechanism
+   with no existing precedent anywhere in this codebase (the superficially-similar
+   `eventCausalityTable` CHECK constraints are entity-type/FK-shape checks, not cycle prevention —
+   corrected from this doc's earlier framing). 0b's proof that a full-length cycle silently
+   persists today is a bug in the _algorithm_ (a naive depth cap instead of real path-membership
+   detection), not proof the app layer is the wrong place. Fix: track visited node IDs in the
+   recursive CTE and stop on a repeat, with the depth value repurposed as a high runaway-query
+   safety cap (e.g. 500), not the detection mechanism itself. The one gap this doesn't close — two
+   concurrent requests racing to create a cycle simultaneously — is accepted as low-probability
+   given this isn't a high-concurrency write path.
+8. ~~How CSV import/export and the existing API map onto the new time-series
+   `hazardous_event_spatial_observation` model~~ — **decided: current/latest observation by
+   `observation_time` (not insertion order) is the default read everywhere — UI, CSV export, and
+   the API's default read with no `observationTime` supplied all share one query.** The API alone
+   gets an **optional** `observationTime` field on write, for historical/backfill cases; CSV stays
+   current-only (no new column) since nothing points to a real need there yet. A duplicate
+   `observationTime` submitted via the API returns **409 Conflict** with the existing observation
+   in the response body — not a silent overwrite — and requires an explicit `confirmReplace: true`
+   resubmission to actually replace it, the same two-round-trip pattern HTTP's own `If-Match`
+   optimistic-concurrency mechanism uses. Since CSV never supplies `observationTime`, it can never
+   hit this conflict at all.
+9. ~~Publishing silently overwrites the original validator's attribution~~ — **decided (PM):
+   option (a), conditional backfill — direct publish stays allowed.**
+   `hazardousEventUpdateApprovalStatusPublish`'s new equivalent only backfills
+   `validatedByUserId`/`validatedAt` from the publisher **when those fields are still empty** (a
+   record published directly, with no prior separate validation, is auto-marked validated using
+   the publisher's own identity). When a record was already validated by a different user earlier,
+   that original attribution is preserved, never overwritten by the publisher's. No state-transition
+   guard is added blocking direct publish — that path is confirmed legitimate, not a bug to close
+   off.
+
+No open decisions remain blocking Pass 3. The next decision point is whatever Pass 3's own intent
+breakdown surfaces once work on it starts.
 
 ---
 
