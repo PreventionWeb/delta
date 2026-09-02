@@ -51,3 +51,6 @@ export * from "./sessionTable";
 export * from "./superAdminUsersTable";
 export * from "./userCountryAccounts";
 export * from "./userTable";
+export * from "./workflowHistoryTable";
+export * from "./workflowInstanceTable";
+export * from "./workflowNotificationTable";
