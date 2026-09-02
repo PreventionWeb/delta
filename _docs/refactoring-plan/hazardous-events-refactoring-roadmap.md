@@ -994,8 +994,11 @@ directly from 0c's finding that today's system already made this mistake twice i
 ```
 Add ProcessWorkflowActionUseCase in
 app/domains/validation-workflow/application/use-cases/ProcessWorkflowAction.ts —
-accepts { entityId, entityType, action: 'submit-validation'|'validate'|'publish'|
-'reject'|'return', actingUserId }, loads the WorkflowInstance via IWorkflowRepository,
+accepts a ProcessWorkflowActionCommand { entityId, entityType, action:
+'submit-validation'|'validate'|'publish'|'reject'|'return', actingUserId } (Command/
+Query naming per Notices' precedent — CreateNoticeCommand, ListNoticesQuery, etc. —
+applied consistently across every use case in this phase, not just this one), loads
+the WorkflowInstance via IWorkflowRepository,
 calls its transition method (enforcing the publish backfill rule from 3a), persists,
 and triggers a notification via INotificationPort. One implementation for every
 entity type — replaces today's two independently-duplicated generic services
@@ -1024,8 +1027,9 @@ once per successful transition.
 **Intent for `/opsx:propose`:**
 
 ```
-Add CreateHazardousEventUseCase — constructs a HazardousEvent via
-HazardousEvent.create(), validates a supplied parent's existence and tenant match
+Add CreateHazardousEventUseCase — accepts a CreateHazardousEventCommand, constructs
+a HazardousEvent via HazardousEvent.create(), validates a supplied parent's
+existence and tenant match
 (no cycle/temporal check at create time — a brand-new event cannot already be an
 ancestor of anything, confirmed correct and not ported as a bug per 0b finding #5),
 persists via IHazardousEventRepository, and initializes a WorkflowInstance at DRAFT
@@ -1050,8 +1054,9 @@ via IWorkflowRepository. Returns HazardousEventDto.
 **Intent for `/opsx:propose`:**
 
 ```
-Add UpdateHazardousEventUseCase — applies field changes to an existing
-HazardousEvent; if the parent is being set/changed, runs CausalChain's cycle check
+Add UpdateHazardousEventUseCase — accepts an UpdateHazardousEventCommand, applies
+field changes to an existing HazardousEvent; if the parent is being set/changed,
+runs CausalChain's cycle check
 and the temporal-order check (both-dates-required, per 0b) before persisting; if a
 new spatial reading is included in the same submission, calls
 RecordSpatialObservationUseCase (4g) internally rather than duplicating its logic —
@@ -1077,8 +1082,8 @@ same-tenant, acyclic parent change succeeds; an included spatial reading delegat
 **Intent for `/opsx:propose`:**
 
 ```
-Add GetHazardousEventByIdUseCase — fetches the entity via
-IHazardousEventRepository.findById(), enriches the returned DTO with current
+Add GetHazardousEventByIdUseCase — accepts a GetHazardousEventByIdQuery, fetches
+the entity via IHazardousEventRepository.findById(), enriches the returned DTO with current
 workflow status (IWorkflowRepository) and the current spatial observation (latest by
 observationTime, per 3d's rule), throws NotFoundError for a missing id or a
 foreign-tenant match.
@@ -1103,8 +1108,8 @@ Notices' precedent).
 **Intent for `/opsx:propose`:**
 
 ```
-Add ListHazardousEventsUseCase — paginated, tenant-scoped list via
-IHazardousEventRepository.findAll(), then one batched
+Add ListHazardousEventsUseCase — accepts a ListHazardousEventsQuery, paginated,
+tenant-scoped list via IHazardousEventRepository.findAll(), then one batched
 IWorkflowRepository.findByEntityIds() call across every id on the page to attach
 current status — never a per-row lookup (N+1) and never a repository reaching
 across the module boundary into workflow_instance directly; the two repositories
@@ -1130,7 +1135,8 @@ per row; empty array for zero results.
 **Intent for `/opsx:propose`:**
 
 ```
-Add DeleteHazardousEventUseCase — one unified dependent-check, no special cases:
+Add DeleteHazardousEventUseCase — accepts a DeleteHazardousEventCommand, one
+unified dependent-check, no special cases:
 blocks the delete if the event is referenced by (a) a Disaster Event's
 hazardousEventId, (b) event_causality in either direction, or (c) another
 HazardousEvent's parent/causal link. Throws a single DomainError
@@ -1159,8 +1165,9 @@ populated `context`; an event with zero dependents deletes successfully.
 **Intent for `/opsx:propose`:**
 
 ```
-Add RecordSpatialObservationUseCase — accepts { hazardousEventId, observationTime?,
-geometry, divisionIds, confirmReplace? }; observationTime defaults to now() when
+Add RecordSpatialObservationUseCase — accepts a RecordSpatialObservationCommand
+{ hazardousEventId, observationTime?, geometry, divisionIds, confirmReplace? };
+observationTime defaults to now() when
 omitted. Composes SpatialObservation's (3d) current/conflict rules: a duplicate
 observationTime without confirmReplace throws a domain-level conflict (surfaced as
 HTTP 409 by the API adapter, per resolved open decision #8); with confirmReplace,
