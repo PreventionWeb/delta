@@ -398,11 +398,18 @@ though only HE consumes it initially.
 
 **H. Hazard-type field definitions (two subsystems)** — a global one
 (`hazard_type_field_definition`, keyed by `hazard_type`) and a tenant-custom one
-(`hazard_type_custom_field_definition`, same shape + `country_accounts_id`), both feeding
-`hazardous_event_field_value`. Keyed by `hazard_type`, not `specific_hazard` — confirmed settled
-despite the diagram's own note flagging a HIPs-2025-document tension; do not re-open in Phase 3.
-This is the hazard-type-specific-fields capability originally flagged as 3–4 months out — it's
-being brought forward because it's already in the target schema, not because the deferred
+(`hazard_type_custom_field_definition`, same shape + `country_accounts_id`), each feeding its
+own, distinctly-named value table — `hazardous_event_field_value` (global) and
+`hazardous_event_custom_field_value` (tenant-custom); the diagram draws both under the same
+"hazardous_event_field_value" label but with different FK targets, confirmed with the user to
+be two genuinely different tables, not one shared table. Both field-definition tables also
+reference two shared reference tables, `field_data_type` and `field_unit` — drawn twice in the
+diagram (once per section) but confirmed as one shared table each, same redrawn-for-grouping
+pattern as `hazard_type`/`country_accounts` elsewhere in the same diagram. Keyed by
+`hazard_type`, not `specific_hazard` — confirmed settled despite the diagram's own note
+flagging a HIPs-2025-document tension; do not re-open in Phase 3. This is the
+hazard-type-specific-fields capability originally flagged as 3–4 months out — it's being
+brought forward because it's already in the target schema, not because the deferred
 business-session work is being skipped.
 
 **Naming cleanup — done (2026-08-21):** the four inconsistencies flagged in the initial review
@@ -416,11 +423,23 @@ and `country_accounts_id` consistent everywhere including `division` (was `count
 transition. Every table below is genuinely new — none of the intents drop or rename an existing
 column; that step is Phase 7's, not this phase's.
 
+**Post-implementation correction (2026-09-02):** `2a`'s field lists (and, by the same root
+cause, `2c`/`2e`/`2f`/`2h` below, plus a wholly new `2j`) were originally transcribed from a
+paraphrased summary of the ER diagram rather than the diagram's own field-by-field text —
+caught in review after `2a` was already implemented, corrected there with the user's explicit
+sign-off (see `openspec/changes/ca-workflow-schema/design.md` Decisions 10/11), and corrected
+here in the roadmap text for the intents that had no implementation yet to fix. Verified this
+time against the exact source (`tmp/hazardous-events-er-diagram/hazardous-events.drawio`'s raw
+XML, not the compressed `.png` render, which itself produced one misreading during this same
+review). Lesson for every future intent in this document: verify field-level schema details
+directly against the diagram source at proposal time, not from this document's own prose.
+
 Two tracks, same split as Phase 3–5 — Section G belongs to `validation-workflow`, everything else
-to `hazardous-events`. `2i` is last in Track B specifically because it adds a column to the
-existing `hazardous_event` table and needs `2b`'s new `specific_hazard` table to exist first — the
-only real ordering dependency among these; the rest are independent new tables, sequenceable in
-any order.
+to `hazardous-events`. `2i`/`2j` are last in Track B specifically because they modify the
+existing `hazardous_event` table — `2i` needs `2b`'s new `specific_hazard` table to exist first
+(the only real cross-intent ordering dependency among these), `2j` needs nothing new but must
+still be sequenced relative to `2i` since both touch the same file/table. The rest are
+independent new tables, sequenceable in any order.
 
 ### Track A — `validation-workflow`
 
@@ -497,7 +516,10 @@ hazard_cluster → hazard_type` chain's FK constraints are enforced (an orphaned
 Add source_catalog Drizzle schema (id, countryAccountsId, name, timestamps) — a
 tenant-scoped reference table replacing today's free-text data_source column
 (column itself stays on hazardous_event until Phase 7; this intent only adds the
-new table). Generate migration with yarn dbsync.
+new table). Generate migration with yarn dbsync. Note: the ER diagram's
+source_catalog box shows no timestamp columns — createdAt/updatedAt here are a
+deliberate addition (standard audit columns), not a diagram-fidelity gap;
+confirm at proposal time rather than silently keep or drop them.
 ```
 
 **Files touched:**
@@ -541,12 +563,14 @@ migration with yarn dbsync.
 **Intent for `/opsx:propose`:**
 
 ```
-Add hazardous_event_causality Drizzle schema (cause_event_id, effect_event_id,
-causality_explanation, timestamps) — replaces eventRelationshipTable for HE's own
-causal chain only (old table stays untouched, no absorption of eventCausalityTable
-per this document's own Non-Goals). No DB-level cycle-prevention constraint
-(resolved open decision #7 — cycle detection stays app-layer, in 3c). Generate
-migration with yarn dbsync.
+Add hazardous_event_causality Drizzle schema (cause_hazardous_event_id,
+effect_hazardous_event_id — corrected field names, verified against the ER
+diagram's own field list, not the shorter cause_event_id/effect_event_id this
+document originally had — causality_explanation, timestamps) — replaces
+eventRelationshipTable for HE's own causal chain only (old table stays untouched,
+no absorption of eventCausalityTable per this document's own Non-Goals). No
+DB-level cycle-prevention constraint (resolved open decision #7 — cycle detection
+stays app-layer, in 3c). Generate migration with yarn dbsync.
 ```
 
 **Files touched:**
@@ -569,17 +593,28 @@ in the schema, not accidentally more restrictive).
 
 ```
 Add hazardous_event_spatial_observation Drizzle schema (id, hazardous_event_id FK,
-observation_time TIMESTAMPTZ, geometry, timestamps) plus its own division join
-table — inserted between hazardous_event and today's geom/division tables,
-enabling multiple dated observations per event (today's
-hazardousEventGeomTable/hazardousEventDivisionTable stay untouched, superseded not
-replaced in this intent). Generate migration with yarn dbsync.
+observation_time TIMESTAMPTZ, note text, timestamps — corrected against the ER
+diagram: note the geometry itself is NOT a column here) plus TWO child tables:
+hazardous_event_spatial_observation_division (the division join table — its own
+UQ is on (hazardous_event_spatial_observation_id, division_id); the diagram's UQ
+note literally says "admin_area_id" but the table's actual column is
+division_id — a stale label in the diagram, confirmed to ignore) and
+hazardous_event_geom (id, hazardous_event_spatial_observation_id FK, geom
+geometry(Geometry,4326), title — the diagram models geometry as its OWN child
+table, not a column on the observation row; this table was missing from this
+document's original 2f text entirely). Inserted between hazardous_event and
+today's geom/division tables, enabling multiple dated observations per event
+(today's hazardousEventGeomTable/hazardousEventDivisionTable stay untouched,
+superseded not replaced in this intent). Generate migration with yarn dbsync.
 ```
 
 **Files touched:**
 
 - `app/drizzle/schema/hazardousEventSpatialObservationTable.ts` (new)
 - `app/drizzle/schema/hazardousEventSpatialObservationDivisionTable.ts` (new)
+- `app/drizzle/schema/hazardousEventGeomNewTable.ts` (new — name TBD at proposal
+  time; must not collide with the existing, untouched `hazardousEventGeomTable.ts`
+  from today's schema)
 - `app/drizzle/migrations/<timestamp>_add_spatial_observation_tables.sql`
   (generated)
 
@@ -588,7 +623,8 @@ replaced in this intent). Generate migration with yarn dbsync.
 `hazardous_event_id` are permitted (no unique constraint blocking the time-series
 model), a unique constraint on `(hazardous_event_id, observation_time)` prevents
 the exact-duplicate-timestamp case at the DB level too (defense in depth alongside
-3d/5e's application-layer conflict check).
+3d/5e's application-layer conflict check); the new geom table's FK to its parent
+observation is enforced.
 
 ---
 
@@ -626,21 +662,42 @@ similar").
 ```
 Add hazard_type_field_definition (global, keyed by hazard_type),
 hazard_type_custom_field_definition (tenant-custom, same shape +
-country_accounts_id), and hazardous_event_field_value Drizzle schemas — keyed by
-hazard_type, not specific_hazard (settled, per this document's own Non-Goals — do
-not re-open). Generate migration with yarn dbsync.
+country_accounts_id) — both keyed by hazard_type, not specific_hazard (settled,
+per this document's own Non-Goals — do not re-open) — plus TWO shared reference
+tables the original version of this document's text omitted entirely:
+field_data_type and field_unit, each referenced by BOTH field-definition tables'
+data_type/unit columns. The diagram draws field_data_type/field_unit twice (once
+per section) with identical shape — confirmed with the user this means one
+shared table each, redrawn for visual grouping, not two physical tables (same
+pattern as hazard_type/country_accounts, which are obviously the same table
+redrawn elsewhere in the same diagram). Finally, TWO distinctly-named value
+tables, not one shared "hazardous_event_field_value" as originally written here:
+hazardous_event_field_value (FK to hazard_type_field_definition_id) and
+hazardous_event_custom_field_value (FK to hazard_type_custom_field_definition_id)
+— confirmed with the user these are genuinely different tables, since the
+diagram's two drawings of "hazardous_event_field_value" have different FK
+targets and different UQ constraints, unlike field_data_type/field_unit's
+identical redraws. Generate migration with yarn dbsync.
 ```
 
 **Files touched:**
 
 - `app/drizzle/schema/hazardTypeFieldDefinitionTable.ts` (new)
 - `app/drizzle/schema/hazardTypeCustomFieldDefinitionTable.ts` (new)
+- `app/drizzle/schema/fieldDataTypeTable.ts` (new — shared by both field-definition
+  tables)
+- `app/drizzle/schema/fieldUnitTable.ts` (new — shared by both field-definition
+  tables)
 - `app/drizzle/schema/hazardousEventFieldValueTable.ts` (new)
+- `app/drizzle/schema/hazardousEventCustomFieldValueTable.ts` (new)
 - `app/drizzle/migrations/<timestamp>_add_hazard_type_field_tables.sql` (generated)
 
 **Test tier:** PGlite — migration applies cleanly; a field value keyed to a
 `hazard_type` with no matching `hazard_type_field_definition` is rejected at the DB
-level.
+level; the tenant-custom equivalent is rejected the same way against
+`hazard_type_custom_field_definition`; both field-definition tables' `data_type`/
+`unit` FKs correctly resolve to the same shared `field_data_type`/`field_unit`
+rows, not duplicated per-table data.
 
 ---
 
@@ -670,6 +727,50 @@ run. Generate migration with yarn dbsync.
 **Test tier:** PGlite — migration applies cleanly against a table with existing
 rows (simulates real production data — the column arrives `NULL` on old rows, not
 a migration failure); a new row can set it once `2b`'s tables are populated.
+
+---
+
+### 🔷 2j — Additive `specific_hazard_local_name`/`specific_hazard_national_name`/`national_specification`/`status` Columns on `hazardous_event`
+
+**Branch:** `feature/ca-he-additional-hazardous-event-columns`
+
+**New intent, added during a post-implementation gap-analysis pass** — the ER diagram's
+`hazardous_event` box has four columns no original Phase 2 intent (including `2i`) ever
+covered: three new nullable text columns and a new `status` field distinct from the workflow
+approval status `workflow_instance` now owns. Missed because the original roadmap text was
+written from a paraphrased summary rather than the diagram's own field list — see `2a`'s
+`design.md` Decision 10 for the same root cause affecting the `validation-workflow` tables.
+
+**Depends on:** nothing new — modifies the existing `hazardous_event` table directly, same as
+`2i`, and can run independently of it (no ordering requirement between `2i` and `2j`).
+
+**Intent for `/opsx:propose`:**
+
+```
+Add four nullable columns to the existing hazardous_event table — additive only,
+per Invariant 2: specificHazardLocalName (text), specificHazardNationalName
+(text), nationalSpecification (text), and status (text, enum — diagram shows two
+values, 'Ongoing'/'Passed'; confirm at proposal time whether more are needed, and
+whether this needs a CHECK constraint matching Decision 6's pattern from 2a).
+This status is a hazard-lifecycle flag (is the event still ongoing or has it
+concluded) — NOT the workflow approval status, which workflow_instance (2a) now
+owns exclusively; naming the column carefully to avoid confusion with
+hazardousEventTable's existing approvalStatus column (untouched, stays until
+Phase 7) is worth explicit attention in the actual proposal. Generate migration
+with yarn dbsync.
+```
+
+**Files touched:**
+
+- `app/drizzle/schema/hazardousEventTable.ts` (modified — add four columns; same
+  file `2i` also touches, so these two intents' migrations must be sequenced
+  relative to each other even though neither depends on the other's column)
+- `app/drizzle/migrations/<timestamp>_add_hazardous_event_lifecycle_columns.sql`
+  (generated)
+
+**Test tier:** PGlite — migration applies cleanly against a table with existing rows (all
+four columns arrive `NULL`, not a migration failure, matching `2i`'s same discipline); if
+`status` gets a CHECK constraint, an invalid value is rejected at the DB level.
 
 ---
 
