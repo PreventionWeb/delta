@@ -330,6 +330,13 @@
       "when": 1788350400000,
       "tag": "20260902120000_add_workflow_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1788523200000,
+      "tag": "20260904120000_add_hip_hierarchy_tables",
+      "breakpoints": true
     }
   ]
 }
