@@ -492,17 +492,25 @@ migration with yarn dbsync.
 
 **Files touched:**
 
-- `app/drizzle/schema/specificHazardTable.ts` (new)
-- `app/drizzle/schema/hazardClusterTable.ts` (new — restructured, not the same table
-  as today's `hipClusterTable`)
-- `app/drizzle/schema/hazardTypeTable.ts` (new — restructured, not today's
-  `hipTypeTable`)
-- `app/drizzle/schema/hipsVersionTable.ts` (new)
+- `app/domains/hazardous-events/infrastructure/specificHazardTable.ts` (new)
+- `app/domains/hazardous-events/infrastructure/hazardClusterTable.ts` (new —
+  restructured, not the same table as today's `hipClusterTable`)
+- `app/domains/hazardous-events/infrastructure/hazardTypeTable.ts` (new —
+  restructured, not today's `hipTypeTable`)
+- `app/domains/hazardous-events/infrastructure/hipsVersionTable.ts` (new)
 - `app/drizzle/migrations/<timestamp>_add_hip_hierarchy_tables.sql` (generated)
 
 **Test tier:** PGlite — migration applies cleanly; the `specific_hazard →
 hazard_cluster → hazard_type` chain's FK constraints are enforced (an orphaned
 `specific_hazard` with no valid `hazard_cluster` is rejected at the DB level).
+
+**Schema location (post-implementation correction, 2026-09-04):** lives in HE's own
+`infrastructure/`, not the shared `app/drizzle/schema/` — per ADR-009 (infra nests inside
+the owning bounded context) and confirmed HE-exclusive-vs-shared consumer check below.
+**Shared with DE/DR** (both consume today's `hip_hazard`/`hip_cluster`/`hip_type`) — flagged
+for extraction to shared infra once Disaster Events gets its own CA migration; kept in HE's
+`infrastructure/` for now since no second CA domain exists yet. See
+`ca-he-hip-hierarchy-schema`'s `design.md` Decision 7.
 
 ---
 
@@ -524,10 +532,15 @@ confirm at proposal time rather than silently keep or drop them.
 
 **Files touched:**
 
-- `app/drizzle/schema/sourceCatalogTable.ts` (new)
+- `app/domains/hazardous-events/infrastructure/sourceCatalogTable.ts` (new)
 - `app/drizzle/migrations/<timestamp>_add_source_catalog_table.sql` (generated)
 
 **Test tier:** PGlite — migration applies cleanly; tenant-scoping columns present.
+
+**Schema location:** HE's own `infrastructure/`, not `app/drizzle/schema/` — same
+reasoning as `2b` (see its note above). **Shared with DE/DR** (`data_source` exists on
+`hazardousEventTable`, `disasterEventTable`, AND `disasterRecordsTable`) — flagged for
+extraction to shared infra once Disaster Events gets its own CA migration.
 
 ---
 
@@ -547,12 +560,15 @@ migration with yarn dbsync.
 
 **Files touched:**
 
-- `app/drizzle/schema/hazardDriverTable.ts` (new)
-- `app/drizzle/schema/hazardousEventHazardDriverTable.ts` (new)
+- `app/domains/hazardous-events/infrastructure/hazardDriverTable.ts` (new)
+- `app/domains/hazardous-events/infrastructure/hazardousEventHazardDriverTable.ts` (new)
 - `app/drizzle/migrations/<timestamp>_add_hazard_driver_tables.sql` (generated)
 
 **Test tier:** PGlite — migration applies cleanly; join table's FK to both
 `hazardous_event` and `hazard_driver` enforced.
+
+**Schema location:** HE's own `infrastructure/` (see `2b`'s note). **HE-exclusive** — no
+"driver" concept exists anywhere else in the schema; not flagged for later extraction.
 
 ---
 
@@ -575,13 +591,17 @@ stays app-layer, in 3c). Generate migration with yarn dbsync.
 
 **Files touched:**
 
-- `app/drizzle/schema/hazardousEventCausalityTable.ts` (new)
+- `app/domains/hazardous-events/infrastructure/hazardousEventCausalityTable.ts` (new)
 - `app/drizzle/migrations/<timestamp>_add_hazardous_event_causality_table.sql`
   (generated)
 
 **Test tier:** PGlite — migration applies cleanly; no CHECK constraint blocks a
 cycle at the DB level (confirms the app-layer-only decision is actually reflected
 in the schema, not accidentally more restrictive).
+
+**Schema location:** HE's own `infrastructure/` (see `2b`'s note). **HE-exclusive** —
+DE's own `eventCausalityTable` stays separate, no absorption (per this document's own
+Non-Goals); not flagged for later extraction.
 
 ---
 
@@ -610,13 +630,17 @@ superseded not replaced in this intent). Generate migration with yarn dbsync.
 
 **Files touched:**
 
-- `app/drizzle/schema/hazardousEventSpatialObservationTable.ts` (new)
-- `app/drizzle/schema/hazardousEventSpatialObservationDivisionTable.ts` (new)
-- `app/drizzle/schema/hazardousEventGeomNewTable.ts` (new — name TBD at proposal
+- `app/domains/hazardous-events/infrastructure/hazardousEventSpatialObservationTable.ts` (new)
+- `app/domains/hazardous-events/infrastructure/hazardousEventSpatialObservationDivisionTable.ts` (new)
+- `app/domains/hazardous-events/infrastructure/hazardousEventGeomNewTable.ts` (new — name TBD at proposal
   time; must not collide with the existing, untouched `hazardousEventGeomTable.ts`
   from today's schema)
 - `app/drizzle/migrations/<timestamp>_add_spatial_observation_tables.sql`
   (generated)
+
+**Schema location:** HE's own `infrastructure/` (see `2b`'s note). **HE-exclusive** —
+matches the existing per-domain pattern (DE, DR, losses, damages, disruption each already
+have their own separate geom/division table pair); not flagged for later extraction.
 
 **Test tier:** PGlite — migration applies cleanly; `observation_time` is
 `TIMESTAMPTZ` per ADR-002; multiple observation rows for the same
@@ -643,13 +667,17 @@ itself stays until Phase 7). Generate migration with yarn dbsync.
 
 **Files touched:**
 
-- `app/drizzle/schema/hazardousEventAttachmentTable.ts` (new)
+- `app/domains/hazardous-events/infrastructure/hazardousEventAttachmentTable.ts` (new)
 - `app/drizzle/migrations/<timestamp>_add_hazardous_event_attachment_table.sql`
   (generated)
 
 **Test tier:** PGlite — migration applies cleanly; matches Disaster Event's
 existing attachment table shape (columns compared directly, not just "looks
 similar").
+
+**Schema location:** HE's own `infrastructure/` (see `2b`'s note). **HE-exclusive** —
+DE already has its own separate attachment tables (4 of them); not flagged for later
+extraction.
 
 ---
 
@@ -682,15 +710,23 @@ identical redraws. Generate migration with yarn dbsync.
 
 **Files touched:**
 
-- `app/drizzle/schema/hazardTypeFieldDefinitionTable.ts` (new)
-- `app/drizzle/schema/hazardTypeCustomFieldDefinitionTable.ts` (new)
-- `app/drizzle/schema/fieldDataTypeTable.ts` (new — shared by both field-definition
-  tables)
-- `app/drizzle/schema/fieldUnitTable.ts` (new — shared by both field-definition
-  tables)
-- `app/drizzle/schema/hazardousEventFieldValueTable.ts` (new)
-- `app/drizzle/schema/hazardousEventCustomFieldValueTable.ts` (new)
+- `app/domains/hazardous-events/infrastructure/hazardTypeFieldDefinitionTable.ts` (new)
+- `app/domains/hazardous-events/infrastructure/hazardTypeCustomFieldDefinitionTable.ts` (new)
+- `app/domains/hazardous-events/infrastructure/fieldDataTypeTable.ts` (new — shared by
+  both field-definition tables)
+- `app/domains/hazardous-events/infrastructure/fieldUnitTable.ts` (new — shared by both
+  field-definition tables)
+- `app/domains/hazardous-events/infrastructure/hazardousEventFieldValueTable.ts` (new)
+- `app/domains/hazardous-events/infrastructure/hazardousEventCustomFieldValueTable.ts` (new)
 - `app/drizzle/migrations/<timestamp>_add_hazard_type_field_tables.sql` (generated)
+
+**Schema location:** HE's own `infrastructure/` (see `2b`'s note) for all six tables.
+**Split ownership** — `hazard_type_field_definition`/`hazard_type_custom_field_definition`/
+`field_data_type`/`field_unit` are keyed by `hazard_type`, the same shared taxonomy tier as
+`2b`: flagged for extraction to shared infra once Disaster Events gets its own CA
+migration. `hazardous_event_field_value`/`hazardous_event_custom_field_value` are
+HE-exclusive (no existing custom-field concept anywhere else in the schema) — not flagged
+for extraction.
 
 **Test tier:** PGlite — migration applies cleanly; a field value keyed to a
 `hazard_type` with no matching `hazard_type_field_definition` is rejected at the DB
