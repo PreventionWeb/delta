@@ -60,7 +60,7 @@ routine one).
 
 ---
 
-## Two invariants governing every phase
+## Three invariants governing every phase
 
 ### 1. Characterization-first
 
@@ -131,6 +131,24 @@ renames land only after the old implementation is retired. DELTA already has thi
 own history — the disaster-event assessment normalization did "migrate to new tables" as one
 commit series and "drop the old column" as a separate, later one. Follow that shape; don't invent
 a new one.
+
+### 3. DB constraints are defense-in-depth, not a substitute for domain-layer rules
+
+A rule that's cheap to express in static SQL (`NOT NULL`, `FK`, `UNIQUE`, a simple `CHECK`) is
+worth adding at the DB level as a safety net — but it never satisfies the rule on its own.
+Per DDD/Clean Architecture practice, the authoritative home for a business invariant is always
+the domain layer (an entity/aggregate validating itself); a rule enforced only in the database is,
+in the DDD community's own words, "cheating" — the domain model doesn't actually know or enforce
+its own rule. The DB constraint's job is narrower: catching bugs, bypassing callers, and race
+conditions a domain-layer check alone can't close atomically — "belt and suspenders," not either/or.
+
+Already applied repeatedly in Phase 2's schema intents: `2a`'s `UNIQUE(entity_id, entity_type)`,
+`2c`'s `UNIQUE(country_accounts_id, name)`, `2d`'s `UNIQUE(hazardous_event_id, hazard_driver_id)`
+plus FK indexes, `2e`'s `CHECK(cause_hazardous_event_id <> effect_hazardous_event_id)` — all
+added as the DB-level half of a rule that still needs (or will need) its own domain-layer
+expression in Phase 3+. When a later phase implements the domain entity that owns one of these
+rules, do not treat the existing DB constraint as already having satisfied it — write the
+domain-layer check too, with its own meaningful domain error, same as any other invariant.
 
 ---
 
@@ -584,9 +602,15 @@ effect_hazardous_event_id — corrected field names, verified against the ER
 diagram's own field list, not the shorter cause_event_id/effect_event_id this
 document originally had — causality_explanation, timestamps) — replaces
 eventRelationshipTable for HE's own causal chain only (old table stays untouched,
-no absorption of eventCausalityTable per this document's own Non-Goals). No
-DB-level cycle-prevention constraint (resolved open decision #7 — cycle detection
-stays app-layer, in 3c). Generate migration with yarn dbsync.
+no absorption of eventCausalityTable per this document's own Non-Goals). Both FKs
+notNull with onDelete cascade, each indexed, matching eventCausalityTable's
+pattern (the closer causality-specific precedent) rather than eventRelationshipTable's
+older no-cascade/no-index shape. No general DB-level cycle-prevention constraint
+(resolved open decision #7 — full n-length cycle detection stays app-layer, in 3c)
+— but a CHECK(cause_hazardous_event_id <> effect_hazardous_event_id) is added for
+the trivial 1-length case (an event causing itself), as the DB-level half of
+Invariant 3; 3c still must implement the same rule as a domain-layer invariant,
+not rely on this constraint alone. Generate migration with yarn dbsync.
 ```
 
 **Files touched:**
@@ -1046,6 +1070,18 @@ cycle.
 **Test tier:** Unit — a cycle of any length (including well beyond the old depth-10
 cap) is correctly rejected; a valid acyclic chain of any length is accepted. In-memory
 graph fixture, zero DB dependency.
+
+**Open question, not this intent's to solve:** `hazardous_event_causality` (`2e`) has no
+same-tenant constraint on its cause/effect pair, deliberately — real transboundary hazards
+(e.g. a flood originating in one country causing a disaster in a neighbouring one) require
+cross-tenant causality links. How a user in one tenant reliably, securely, and on-demand
+references a specific `hazardous_event` owned by another tenant is unsolved — no sharing/grant
+mechanism exists in this codebase, and no external DRR standard prescribes one (checked:
+Sendai Framework/UNDRR guidance treat transboundary cooperation as an emerging practice, not a
+settled technical pattern). The strongest general precedent is an explicit per-record sharing
+grant (Salesforce's `<Object>Share` model). Needs its own architecture decision — likely before
+`3c`/`5` builds real access control around this table — see `ca-he-causality-schema`'s
+`design.md` Decision 12.
 
 ---
 
