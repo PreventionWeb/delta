@@ -337,6 +337,13 @@
       "when": 1788523200000,
       "tag": "20260904120000_add_hip_hierarchy_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1788782400000,
+      "tag": "20260907120000_add_source_catalog_table",
+      "breakpoints": true
     }
   ]
 }
