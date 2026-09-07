@@ -351,6 +351,13 @@
       "when": 1788786000000,
       "tag": "20260907130000_add_hazard_driver_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1788789600000,
+      "tag": "20260907140000_add_hazardous_event_causality_table",
+      "breakpoints": true
     }
   ]
 }
