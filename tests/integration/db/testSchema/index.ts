@@ -28,6 +28,7 @@ export * from "./entityValidationRejectionTable";
 export * from "./eventCausalityTable";
 export * from "./eventRelationshipTable";
 export * from "./eventTable";
+export * from "./hazardousEventCausalityTable";
 export * from "./hazardousEventDivisionTable";
 export * from "./hazardousEventGeomTable";
 export * from "./hazardousEventHazardDriverTable";
