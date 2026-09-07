@@ -51,6 +51,7 @@ export * from "./responseTypeTable";
 export * from "./sectorDisasterRecordsRelationTable";
 export * from "./sectorTable";
 export * from "./sessionTable";
+export * from "./sourceCatalogTable";
 export * from "./specificHazardTable";
 export * from "./superAdminUsersTable";
 export * from "./userCountryAccounts";
