@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+  name: delta-local-app-config
+
+data:
+  EMAIL_TRANSPORT: "file"
+  AUTHENTICATION_SUPPORTED: "form"
+  PUBLIC_URL: "http://localhost:13000"
+  EMAIL_FROM: '"Example (from Kubernetes PoC)" <no-reply@example.com>'
+  TZ: "UTC"

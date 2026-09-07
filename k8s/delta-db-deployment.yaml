@@ -20,6 +20,7 @@ spec:
       containers:
         - name: delta-local-db
           image: postgis/postgis:17-3.5
+
           env:
             - name: POSTGRES_USER
               value: "postgres"
@@ -27,5 +28,28 @@ spec:
               value: "postgres"
             - name: POSTGRES_DB
               value: "dts-shared-01"
+
           ports:
             - containerPort: 5432
+
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+                - -d
+                - dts-shared-01
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          volumeMounts:
+            - name: db-data
+              mountPath: /var/lib/postgresql/data
+
+      volumes:
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: delta-local-db-data

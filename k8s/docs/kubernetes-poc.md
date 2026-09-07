@@ -2,30 +2,46 @@
 
 ## 1. Purpose
 
-This proof of concept evaluates the migration of the Delta application from its existing Docker-based local deployment model to Kubernetes, with the longer-term objective of assessing deployment to Azure Kubernetes Service (AKS).
+This proof of concept evaluates the migration of the Delta application
+from its existing Docker-based local deployment model to Kubernetes,
+with the longer-term objective of assessing deployment to Azure
+Kubernetes Service (AKS).
 
-The PoC follows an incremental approach. Rather than attempting to migrate the complete Delta stack at once, each component is migrated and validated independently before adding the next dependency.
+The PoC follows an incremental approach. Rather than attempting to
+migrate the complete Delta stack at once, each component is migrated and
+validated independently before adding the next dependency.
 
 The initial sequence is:
 
-1. PostgreSQL/PostGIS database
-2. Adminer database administration interface
-3. Delta application
-4. Complete application validation
-5. Container image build and developer workflow review
-6. Preparation for deployment to AKS
+1.  PostgreSQL/PostGIS database
+2.  Adminer database administration interface
+3.  Delta application
+4.  Complete application validation
+5.  Container image build and developer workflow review
+6.  Preparation for deployment to AKS
 
-This approach makes it easier to identify whether issues originate from the application, container configuration, Kubernetes networking, image distribution, or dependencies between components.
+This approach makes it easier to identify whether issues originate from
+the application, container configuration, Kubernetes networking, image
+distribution, or dependencies between components.
 
 ## 2. What is Kubernetes?
 
-Kubernetes is an open-source container orchestration platform used to deploy, manage and scale containerized applications.
+Kubernetes is an open-source container orchestration platform used to
+deploy, manage and scale containerized applications.
 
-Docker packages and runs individual application containers. Kubernetes adds an orchestration layer that manages how those containers are deployed, networked, restarted, scaled and updated.
+Docker packages and runs individual application containers. Kubernetes
+adds an orchestration layer that manages how those containers are
+deployed, networked, restarted, scaled and updated.
 
-A key Kubernetes principle is **desired state**: the required application state is declared in configuration, and Kubernetes continuously attempts to keep the running environment aligned with that declaration.
+A key Kubernetes principle is **desired state**: the required
+application state is declared in configuration, and Kubernetes
+continuously attempts to keep the running environment aligned with that
+declaration.
 
-For example, a Kubernetes Deployment can specify that one instance of the Delta application should be running. If the corresponding Pod fails, Kubernetes detects that the actual state no longer matches the desired state and attempts to create a replacement.
+For example, a Kubernetes Deployment can specify that one instance of
+the Delta application should be running. If the corresponding Pod fails,
+Kubernetes detects that the actual state no longer matches the desired
+state and attempts to create a replacement.
 
 ## 3. Why Kubernetes for Delta?
 
@@ -36,48 +52,74 @@ The PoC evaluates whether Kubernetes can provide Delta with:
 - scaling capabilities;
 - separation of application configuration from container images;
 - stable networking between application components;
-- portability between local environments and managed Kubernetes platforms;
+- portability between local environments and managed Kubernetes
+  platforms;
 - a deployment model compatible with Azure Kubernetes Service (AKS).
 
-The PoC does not assume that Kubernetes is necessarily the preferred production hosting solution. Operational complexity, architecture and cost are considered separately in the Delta hosting-options assessment.
+The PoC does not assume that Kubernetes is necessarily the preferred
+production hosting solution. Operational complexity, architecture and
+cost are considered separately in the Delta hosting-options assessment.
 
-The purpose of this document is therefore primarily to document the Kubernetes implementation and the practical migration process.
+The purpose of this document is therefore primarily to document the
+Kubernetes implementation and the practical migration process.
 
 ## 4. Key concepts
 
 ### Pod
 
-The smallest deployable workload in Kubernetes. A Pod normally contains one application container.
+The smallest deployable workload in Kubernetes. A Pod normally contains
+one application container.
 
-Pods are considered disposable. Kubernetes may replace a Pod as part of failure recovery, configuration changes or application updates.
+Pods are considered disposable. Kubernetes may replace a Pod as part of
+failure recovery, configuration changes or application updates.
 
 ### Deployment
 
-Defines and maintains the desired configuration and number of application Pods.
+Defines and maintains the desired configuration and number of
+application Pods.
 
-For example, the database Deployment defines the PostGIS container that Kubernetes should keep running.
+For example, the database Deployment defines the PostGIS container that
+Kubernetes should keep running.
 
 ### Service
 
 Provides a stable network endpoint through which Pods can be reached.
 
-Pods may be replaced and their IP addresses may change. Services therefore provide stable names and addresses that other application components can use.
+Pods may be replaced and their IP addresses may change. Services
+therefore provide stable names and addresses that other application
+components can use.
 
-For example, Adminer and Delta connect to the database using the Kubernetes Service name `delta-local-db` rather than the IP address of the current database Pod.
+For example, Adminer and Delta connect to the database using the
+Kubernetes Service name `delta-local-db` rather than the IP address of
+the current database Pod.
 
 ### ConfigMap
 
-Stores non-sensitive application configuration independently from the container image.
+Stores non-sensitive application configuration independently from the
+container image.
 
 ### Secret
 
-Stores sensitive configuration such as credentials or keys.
+Stores sensitive configuration such as credentials or keys independently
+from the application Deployment.
 
-For the initial local PoC, test database credentials and development-only values are defined directly in the Deployment configuration for simplicity. Production credentials should be handled using an appropriate secrets-management mechanism.
+For the local PoC, the Delta database connection string and development
+session secret are stored in a Kubernetes Secret named:
+
+`delta-local-app-secret`
+
+The PoC uses development-only values. Kubernetes Secrets separate
+sensitive values from the application Deployment, but they should not be
+treated as a complete production secrets-management solution. Production
+credentials should not be committed to the source repository.
+
+For AKS, an appropriate Azure secrets-management approach should be
+defined separately.
 
 ### Port forwarding
 
-`kubectl port-forward` provides temporary access from the local workstation to a Kubernetes resource.
+`kubectl port-forward` provides temporary access from the local
+workstation to a Kubernetes resource.
 
 For example:
 
@@ -85,37 +127,59 @@ For example:
 kubectl port-forward service/delta-local-db 15432:5432
 ```
 
-makes the Kubernetes database temporarily accessible from the workstation on `localhost:15432`, while PostgreSQL continues to use its normal port `5432` inside Kubernetes.
+makes the Kubernetes database temporarily accessible from the
+workstation on `localhost:15432`, while PostgreSQL continues to use its
+normal port `5432` inside Kubernetes.
 
-The forwarding exists only while the `kubectl port-forward` command is running.
+The forwarding exists only while the `kubectl port-forward` command is
+running.
 
 ## 5. Existing Delta architecture and baseline
 
-Before starting the migration, the latest `dev` branch was restored and the existing Delta Docker environment was validated.
+Before starting the migration, the latest `dev` branch was restored and
+the existing Delta Docker environment was validated.
 
 The existing local Docker Compose environment contains three services:
 
-| Service   | Image                    | Host port | Container port | Purpose                           |
-| --------- | ------------------------ | --------: | -------------: | --------------------------------- |
-| `db`      | `postgis/postgis:17-3.5` |      5432 |           5432 | PostgreSQL/PostGIS database       |
-| `app`     | `delta/local-app`        |      3000 |           3000 | Delta application                 |
-| `adminer` | `adminer`                |      8080 |           8080 | Database administration interface |
+---
 
-The existing Docker-based environment remains operational during the Kubernetes PoC. The Kubernetes configuration must not interfere with the existing Docker Desktop environment or other Docker-based development environments.
+Service Image Host Container Purpose
+port port
+
+---
+
+`db` `postgis/postgis:17-3.5` 5432 5432 PostgreSQL/PostGIS
+database
+
+`app` `delta/local-app` 3000 3000 Delta application
+
+`adminer` `adminer` 8080 8080 Database administration
+interface
+
+---
+
+The existing Docker-based environment remains operational during the
+Kubernetes PoC. The Kubernetes configuration must not interfere with the
+existing Docker Desktop environment or other Docker-based development
+environments.
 
 ### Delta container models
 
-Review of the repository identified three container/deployment models serving different purposes.
+Review of the repository identified three container/deployment models
+serving different purposes.
 
 #### Local development
 
-The standard `docker-compose.yml` uses `Dockerfile.app` to create the local development runtime image:
+The standard `docker-compose.yml` uses `Dockerfile.app` to create the
+local development runtime image:
 
 ```text
 delta/local-app
 ```
 
-This image does not contain the Delta application source code itself. Docker Compose bind-mounts the local source directory into `/delta` inside the running container.
+This image does not contain the Delta application source code itself.
+Docker Compose bind-mounts the local source directory into `/delta`
+inside the running container.
 
 Conceptually:
 
@@ -129,25 +193,35 @@ bind mount
 Node development runtime
 ```
 
-This provides a convenient development workflow because developers can modify source files locally without rebuilding and publishing a new container image after each change.
+This provides a convenient development workflow because developers can
+modify source files locally without rebuilding and publishing a new
+container image after each change.
 
-The image is therefore primarily a **local development runtime image** rather than a self-contained deployable Delta application image.
+The image is therefore primarily a **local development runtime image**
+rather than a self-contained deployable Delta application image.
 
 #### Deployable development image
 
-The repository also contains `Dockerfile.dev`, which builds a self-contained development image.
+The repository also contains `Dockerfile.dev`, which builds a
+self-contained development image.
 
-Unlike `Dockerfile.app`, it installs the application dependencies and copies the Delta source code into the image. The existing shared development environment uses:
+Unlike `Dockerfile.app`, it installs the application dependencies and
+copies the Delta source code into the image. The existing shared
+development environment uses:
 
 ```text
 ghcr.io/preventionweb/delta-country:dev-latest
 ```
 
-This image can therefore be executed without mounting the source tree from the developer workstation and is more appropriate for Kubernetes.
+This image can therefore be executed without mounting the source tree
+from the developer workstation and is more appropriate for Kubernetes.
 
 #### Production image
 
-A separate `Dockerfile.prod` provides the production build. It uses a multi-stage build process in which the application is built in a builder stage and the required runtime artifacts are copied into the final production image.
+A separate `Dockerfile.prod` provides the production build. It uses a
+multi-stage build process in which the application is built in a builder
+stage and the required runtime artifacts are copied into the final
+production image.
 
 The existing production environment uses:
 
@@ -184,13 +258,18 @@ container registry
 production environment
 ```
 
-For the Kubernetes PoC, the existing self-contained development image is used initially rather than reproducing the local Docker Compose bind-mount model.
+For the Kubernetes PoC, the existing self-contained development image is
+used initially rather than reproducing the local Docker Compose
+bind-mount model.
 
 ### Performance baseline
 
-The first Delta page was observed taking approximately **2.2 minutes** to load in the existing local Docker environment, with a later measured request reaching approximately **287 seconds** before returning HTTP 200.
+The first Delta page was observed taking approximately **2.2 minutes**
+to load in the existing local Docker environment, with a later measured
+request reaching approximately **287 seconds** before returning HTTP 200.
 
-This is recorded as a baseline so that existing application performance is not incorrectly attributed to Kubernetes during subsequent testing.
+This is recorded as a baseline so that existing application performance
+is not incorrectly attributed to Kubernetes during subsequent testing.
 
 ## 6. Local Kubernetes environment
 
@@ -204,14 +283,18 @@ kubectl get nodes
 kubectl get pods -A
 ```
 
-A simple nginx Deployment was initially used to validate basic Kubernetes functionality and understand the relationship between:
+A simple nginx Deployment was initially used to validate basic
+Kubernetes functionality and understand the relationship between:
 
 - Deployment
 - Pod
 - Service
 - port forwarding
 
-The Kubernetes PoC work is maintained in a dedicated Git branch. After the Delta repository moved to the new GitHub organization, the PoC commit was reapplied on a branch based on the new repository's `dev` branch.
+The Kubernetes PoC work is maintained in a dedicated Git branch. After
+the Delta repository moved to the new GitHub organization, the PoC
+commit was reapplied on a branch based on the new repository's `dev`
+branch.
 
 Kubernetes manifests are stored separately under:
 
@@ -219,15 +302,35 @@ Kubernetes manifests are stored separately under:
 k8s/
 ```
 
-The manifests are separated by component so that each Kubernetes resource remains easy to understand and maintain.
+The manifests are separated by component so that each Kubernetes
+resource remains easy to understand and maintain.
+
+Application configuration is also separated from the Deployment itself.
+Non-sensitive Delta configuration is stored in a ConfigMap, while
+sensitive application configuration is stored in a Secret.
+
+The local PoC therefore includes dedicated resources for:
+
+- Delta application Deployment and Service;
+- PostgreSQL/PostGIS Deployment, Service and persistent storage;
+- Adminer Deployment and Service;
+- `/delta/uploads` persistent storage;
+- Delta application ConfigMap;
+- Delta application Secret.
+
+This separation keeps the Deployment focused primarily on how the
+application runs rather than embedding all environment-specific
+configuration directly in the workload definition.
 
 ## 7. Migration steps
 
 ### Step 1 - Migrate the PostgreSQL/PostGIS database
 
-The database was selected as the first Delta component to migrate because the Delta application depends on it.
+The database was selected as the first Delta component to migrate
+because the Delta application depends on it.
 
-A Kubernetes Deployment was created using the same PostGIS image as the existing Docker Compose environment:
+A Kubernetes Deployment was created using the same PostGIS image as the
+existing Docker Compose environment:
 
 ```yaml
 image: postgis/postgis:17-3.5
@@ -242,7 +345,9 @@ kubectl describe pod <pod-name>
 kubectl logs <pod-name>
 ```
 
-The Kubernetes configuration initially contained no environment variables, while the PostGIS container requires PostgreSQL initialization parameters.
+The Kubernetes configuration initially contained no environment
+variables, while the PostGIS container requires PostgreSQL
+initialization parameters.
 
 The following configuration was therefore added:
 
@@ -267,7 +372,8 @@ The database Pod subsequently started successfully.
 
 ### Step 2 - Create the database Service
 
-A Kubernetes Service was created to provide a stable network endpoint for the database:
+A Kubernetes Service was created to provide a stable network endpoint
+for the database:
 
 ```yaml
 apiVersion: v1
@@ -291,7 +397,10 @@ This creates an internal Kubernetes endpoint named:
 delta-local-db:5432
 ```
 
-The existing Docker PostgreSQL instance already uses `localhost:5432`. This does not conflict with the Kubernetes Service because the Service port exists inside the Kubernetes network rather than on the workstation.
+The existing Docker PostgreSQL instance already uses `localhost:5432`.
+This does not conflict with the Kubernetes Service because the Service
+port exists inside the Kubernetes network rather than on the
+workstation.
 
 For testing from the workstation, a different local port was used:
 
@@ -315,11 +424,14 @@ Database connectivity was successfully validated using:
 psql -h localhost -p 15432 -U postgres -d dts-shared-01
 ```
 
-This confirmed that the PostGIS database was running successfully inside Kubernetes and accessible through the Kubernetes Service.
+This confirmed that the PostGIS database was running successfully inside
+Kubernetes and accessible through the Kubernetes Service.
 
 ### Step 3 - Migrate Adminer
 
-Adminer was selected as the second component because it depends on the database and provides a convenient way to validate communication between Kubernetes workloads.
+Adminer was selected as the second component because it depends on the
+database and provides a convenient way to validate communication between
+Kubernetes workloads.
 
 A separate Deployment was created using:
 
@@ -335,7 +447,9 @@ env:
     value: "delta-local-db"
 ```
 
-This demonstrates an important Kubernetes networking principle: application components communicate using stable Kubernetes Service names rather than Pod IP addresses.
+This demonstrates an important Kubernetes networking principle:
+application components communicate using stable Kubernetes Service names
+rather than Pod IP addresses.
 
 The communication path is:
 
@@ -351,7 +465,9 @@ PostGIS Pod :5432
 
 A separate Service was created for Adminer on port 8080.
 
-Because the existing Docker Adminer already uses `localhost:8080`, the Kubernetes Adminer was temporarily exposed on a different workstation port:
+Because the existing Docker Adminer already uses `localhost:8080`, the
+Kubernetes Adminer was temporarily exposed on a different workstation
+port:
 
 ```bash
 kubectl port-forward service/delta-adminer 18080:8080
@@ -363,7 +479,8 @@ Adminer was then accessed through:
 http://localhost:18080
 ```
 
-A successful login to the PostgreSQL/PostGIS database through Adminer confirmed that:
+A successful login to the PostgreSQL/PostGIS database through Adminer
+confirmed that:
 
 - the Adminer Pod was running;
 - the Adminer Service was working;
@@ -373,19 +490,26 @@ A successful login to the PostgreSQL/PostGIS database through Adminer confirmed 
 
 ### Step 4 - Review the Delta image build model
 
-Before deploying the Delta application, the existing image build process was reviewed.
+Before deploying the Delta application, the existing image build process
+was reviewed.
 
-An initial inspection of the locally built image showed that `/delta` was empty when the image was run without Docker Compose:
+An initial inspection of the locally built image showed that `/delta`
+was empty when the image was run without Docker Compose:
 
 ```bash
 docker run --rm delta/local-app ls -la /delta
 ```
 
-This confirmed that the local `delta/local-app` image depends on the Docker Compose bind mount and is not self-contained.
+This confirmed that the local `delta/local-app` image depends on the
+Docker Compose bind mount and is not self-contained.
 
-Review of `Dockerfile.dev`, `Dockerfile.prod`, `docker-compose.dev.yml` and `docker-compose.prod.yml` showed that Delta already has separate self-contained images for deployed development and production environments.
+Review of `Dockerfile.dev`, `Dockerfile.prod`, `docker-compose.dev.yml`
+and `docker-compose.prod.yml` showed that Delta already has separate
+self-contained images for deployed development and production
+environments.
 
-This avoided unnecessarily redesigning the existing container build process as part of the Kubernetes PoC.
+This avoided unnecessarily redesigning the existing container build
+process as part of the Kubernetes PoC.
 
 ### Step 5 - Create the Delta application Service
 
@@ -407,37 +531,66 @@ spec:
       targetPort: 3000
 ```
 
-The Service provides a stable internal endpoint for the Delta application independently of the individual application Pod.
+The Service provides a stable internal endpoint for the Delta
+application independently of the individual application Pod.
 
 ### Step 6 - Create the Delta application Deployment
 
-The application was configured to connect to PostgreSQL through the Kubernetes database Service:
+The Delta application requires several environment variables for
+database connectivity and application configuration.
+
+During the initial migration these values were defined directly in the
+Deployment so that application startup could be validated. Once the
+basic deployment was operational, the configuration was separated into
+Kubernetes configuration resources.
+
+Non-sensitive application settings are stored in the
+`delta-local-app-config` ConfigMap:
 
 ```yaml
-env:
-  - name: DATABASE_URL
-    value: "postgresql://postgres:postgres@delta-local-db:5432/dts-shared-01"
-
-  - name: SESSION_SECRET
-    value: "not-random-dev-secret"
-
-  - name: EMAIL_TRANSPORT
-    value: "file"
-
-  - name: AUTHENTICATION_SUPPORTED
-    value: "form"
-
-  - name: PUBLIC_URL
-    value: "http://localhost:13000"
-
-  - name: EMAIL_FROM
-    value: '"Example (from Kubernetes PoC)" <no-reply@example.com>'
-
-  - name: TZ
-    value: "UTC"
+data:
+  EMAIL_TRANSPORT: "file"
+  AUTHENTICATION_SUPPORTED: "form"
+  PUBLIC_URL: "http://localhost:13000"
+  EMAIL_FROM: '"Example (from Kubernetes PoC)" <no-reply@example.com>'
+  TZ: "UTC"
 ```
 
-The important networking difference from Docker Compose is the database hostname.
+Sensitive application settings are stored separately in the
+`delta-local-app-secret` Secret:
+
+```yaml
+stringData:
+  DATABASE_URL: "postgresql://postgres:postgres@delta-local-db:5432/dts-shared-01"
+  SESSION_SECRET: "not-random-dev-secret"
+```
+
+The Delta Deployment imports both resources:
+
+```yaml
+envFrom:
+  - configMapRef:
+      name: delta-local-app-config
+  - secretRef:
+      name: delta-local-app-secret
+```
+
+The resulting configuration model is:
+
+```text
+delta-local-app-config
+        │
+        │ non-sensitive configuration
+        ▼
+Delta application Pod
+        ▲
+        │ sensitive configuration
+        │
+delta-local-app-secret
+```
+
+The important networking difference from Docker Compose remains the
+database hostname.
 
 Docker Compose uses:
 
@@ -451,7 +604,8 @@ Kubernetes uses:
 delta-local-db
 ```
 
-because `delta-local-db` is the Kubernetes Service providing access to PostgreSQL.
+because `delta-local-db` is the Kubernetes Service providing access to
+PostgreSQL.
 
 The resulting path is:
 
@@ -473,7 +627,8 @@ The first application Deployment used the locally built image:
 delta/local-app
 ```
 
-Kubernetes attempted to retrieve this image from Docker Hub and returned:
+Kubernetes attempted to retrieve this image from Docker Hub and
+returned:
 
 ```text
 ImagePullBackOff
@@ -491,21 +646,27 @@ which resulted in:
 ErrImageNeverPull
 ```
 
-This demonstrated that the locally built Docker image was not available in the Kubernetes node image store.
+This demonstrated that the locally built Docker image was not available
+in the Kubernetes node image store.
 
-More importantly, the earlier image inspection had already shown that `delta/local-app` was not the appropriate deployable image because it depends on the local source-code bind mount.
+More importantly, the earlier image inspection had already shown that
+`delta/local-app` was not the appropriate deployable image because it
+depends on the local source-code bind mount.
 
-The Deployment was therefore changed to the existing self-contained development image:
+The Deployment was therefore changed to the existing self-contained
+development image:
 
 ```yaml
 image: ghcr.io/preventionweb/delta-country:dev-latest
 ```
 
-Kubernetes successfully retrieved this image from the container registry.
+Kubernetes successfully retrieved this image from the container
+registry.
 
 ### Step 8 - Validate the self-contained image
 
-Before starting Delta itself, the application Deployment was temporarily configured with a diagnostic command:
+Before starting Delta itself, the application Deployment was temporarily
+configured with a diagnostic command:
 
 ```yaml
 command:
@@ -524,9 +685,12 @@ The Pod successfully reached:
 1/1 Running
 ```
 
-Inspection of `/delta` confirmed that the image contains the complete Delta application, including the application source, `package.json`, `yarn.lock` and installed dependencies.
+Inspection of `/delta` confirmed that the image contains the complete
+Delta application, including the application source, `package.json`,
+`yarn.lock` and installed dependencies.
 
-The temporary diagnostic command was then removed so that the image could execute its normal startup command.
+The temporary diagnostic command was then removed so that the image
+could execute its normal startup command.
 
 ### Step 9 - Start the Delta application in Kubernetes
 
@@ -559,7 +723,8 @@ Local:   http://localhost:3000/
 Network: http://<pod-ip>:3000/
 ```
 
-At this stage, Kubernetes reported all three Delta components as running:
+At this stage, Kubernetes reported all three Delta components as
+running:
 
 ```text
 delta-adminer-app    1/1 Running
@@ -567,7 +732,8 @@ delta-local-app      1/1 Running
 delta-local-db       1/1 Running
 ```
 
-This represents the first complete startup of the Delta application stack inside the local Kubernetes cluster.
+This represents the first complete startup of the Delta application
+stack inside the local Kubernetes cluster.
 
 ### Step 10 - Expose Delta locally for browser validation
 
@@ -583,7 +749,10 @@ The Kubernetes-hosted application can then be accessed at:
 http://localhost:13000
 ```
 
-Browser-level validation confirmed that the Delta application is accessible through the Kubernetes Service and that application routes operate correctly. In particular, the authentication page was successfully validated at:
+Browser-level validation confirmed that the Delta application is
+accessible through the Kubernetes Service and that application routes
+operate correctly. In particular, the authentication page was
+successfully validated at:
 
 ```text
 http://localhost:13000/en/admin/login
@@ -595,14 +764,17 @@ The equivalent Docker Compose route is:
 http://localhost:3000/en/admin/login
 ```
 
-This keeps the existing Docker Compose and Kubernetes environments separate:
+This keeps the existing Docker Compose and Kubernetes environments
+separate:
 
 ```text
 Docker Compose Delta     http://localhost:3000
 Kubernetes Delta         http://localhost:13000
 ```
 
-This provides a convenient mechanism for direct functional and performance comparison between the existing local Docker development environment and the Kubernetes PoC.
+This provides a convenient mechanism for direct functional and
+performance comparison between the existing local Docker development
+environment and the Kubernetes PoC.
 
 ## 8. Issues and resolutions
 
@@ -634,7 +806,8 @@ kubectl get services
 
 ### Database
 
-The PostGIS Pod reports `Running` and database connectivity was successfully tested using:
+The PostGIS Pod reports `Running` and database connectivity was
+successfully tested using:
 
 ```bash
 psql -h localhost -p 15432 -U postgres -d dts-shared-01
@@ -648,7 +821,8 @@ Adminer was successfully accessed through:
 http://localhost:18080
 ```
 
-and successfully connected to the PostgreSQL/PostGIS database using the internal Kubernetes Service `delta-local-db`.
+and successfully connected to the PostgreSQL/PostGIS database using the
+internal Kubernetes Service `delta-local-db`.
 
 ### Delta application
 
@@ -660,10 +834,10 @@ ghcr.io/preventionweb/delta-country:dev-latest
 
 Application startup successfully:
 
-1. connects to the Kubernetes-hosted PostgreSQL database;
-2. applies the required database migrations;
-3. starts the React Router/Vite development server;
-4. listens on port 3000 inside the Pod.
+1.  connects to the Kubernetes-hosted PostgreSQL database;
+2.  applies the required database migrations;
+3.  starts the React Router/Vite development server;
+4.  listens on port 3000 inside the Pod.
 
 The complete Kubernetes stack reports:
 
@@ -673,7 +847,8 @@ delta-local-app      1/1 Running
 delta-local-db       1/1 Running
 ```
 
-Browser-level application validation is performed by forwarding the Delta Service:
+Browser-level application validation is performed by forwarding the
+Delta Service:
 
 ```bash
 kubectl port-forward service/delta-local-app 13000:3000
@@ -687,13 +862,350 @@ http://localhost:13000
 
 ### Existing Docker environment
 
-The existing Docker-based Delta environment remains operational independently of the Kubernetes environment.
+The existing Docker-based Delta environment remains operational
+independently of the Kubernetes environment.
 
-This allows direct comparison between the existing deployment and the Kubernetes PoC during the migration.
+This allows direct comparison between the existing deployment and the
+Kubernetes PoC during the migration.
 
-## 10. Current status and next steps
+## 10. Persistence, startup dependencies and application health
 
-The following components have now been migrated:
+Once the complete Delta stack was operational in Kubernetes, the PoC
+moved from basic application migration toward deployment resilience.
+
+A Kubernetes Pod is intentionally disposable. Application state must
+therefore not depend on the lifetime of an individual Pod, and
+Kubernetes must be able to determine whether application components are
+actually ready to provide their services.
+
+The PoC addresses these requirements through persistent storage,
+database readiness checking, an application init container, and
+application health probes.
+
+### 10.1 PostgreSQL persistent storage
+
+The initial PostgreSQL Deployment stored its database files inside the
+container filesystem. Replacement of the database Pod could therefore
+result in loss of the Kubernetes database.
+
+A `PersistentVolumeClaim` was created:
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+
+metadata:
+  name: delta-local-db-data
+
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+```
+
+The PostgreSQL Deployment mounts the claim at the PostgreSQL data
+location:
+
+```yaml
+volumeMounts:
+  - name: db-data
+    mountPath: /var/lib/postgresql/data
+
+volumes:
+  - name: db-data
+    persistentVolumeClaim:
+      claimName: delta-local-db-data
+```
+
+Docker Desktop's default Kubernetes StorageClass dynamically provisions
+the corresponding PersistentVolume.
+
+```text
+PostgreSQL Pod
+      ↓
+/var/lib/postgresql/data
+      ↓
+PersistentVolumeClaim
+      ↓
+PersistentVolume
+      ↓
+persistent storage
+```
+
+This separates the database lifecycle from the Pod lifecycle.
+
+Persistence was explicitly validated by creating test data in
+PostgreSQL, deleting the PostgreSQL Pod, allowing the Deployment to
+create a replacement Pod, and querying the database from the replacement
+Pod. The test data remained available after Pod replacement.
+
+This local storage configuration does **not** imply that PostgreSQL
+should necessarily run inside AKS. For the Azure architecture, a managed
+PaaS database such as Azure Database for PostgreSQL should be evaluated
+separately.
+
+### 10.2 PostgreSQL readiness
+
+A running container does not necessarily mean that PostgreSQL is ready
+to accept connections. The database Deployment therefore uses a
+readiness probe:
+
+```yaml
+readinessProbe:
+  exec:
+    command:
+      - pg_isready
+      - -U
+      - postgres
+      - -d
+      - dts-shared-01
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+```
+
+After an initial five-second delay, Kubernetes executes `pg_isready`
+every five seconds. An individual check may take at most three seconds,
+and three consecutive failures are tolerated before the Pod is
+considered not ready.
+
+```text
+PostgreSQL container running
+          ↓
+      pg_isready
+          ↓
+    ┌─────┴─────┐
+    ↓           ↓
+not ready      ready
+    ↓           ↓
+READY 0/1     READY 1/1
+```
+
+During testing, the readiness probe initially returned:
+
+```text
+/var/run/postgresql:5432 - no response
+```
+
+while PostgreSQL was starting. A subsequent probe succeeded and
+Kubernetes changed the Pod to `Ready`.
+
+This is the intended behavior: Kubernetes does not treat the database as
+available merely because its container process has started.
+
+### 10.3 Delta database startup dependency
+
+The initial PoC showed that Delta could start before the database was
+available, producing errors such as:
+
+```text
+EAI_AGAIN delta-local-db
+```
+
+Kubernetes does not provide Docker Compose-style `depends_on` ordering
+between Deployments. Delta therefore uses an `initContainer` to enforce
+the startup dependency:
+
+```yaml
+initContainers:
+  - name: wait-for-database
+    image: postgis/postgis:17-3.5
+    command:
+      - sh
+      - -c
+      - |
+        until pg_isready \
+          -h delta-local-db \
+          -p 5432 \
+          -U postgres \
+          -d dts-shared-01
+        do
+          echo "Waiting for PostgreSQL..."
+          sleep 2
+        done
+        echo "PostgreSQL is ready."
+```
+
+The startup sequence is:
+
+```text
+Delta Pod created
+       ↓
+wait-for-database init container
+       ↓
+pg_isready against delta-local-db
+       ↓
+database unavailable → wait and retry
+       ↓
+database available
+       ↓
+init container completes
+       ↓
+Delta application container starts
+```
+
+This was validated by deliberately deleting both the Delta and
+PostgreSQL Pods. The replacement Delta Pod remained in `Init:0/1` while
+PostgreSQL was starting. Once PostgreSQL became ready, Delta progressed
+through `PodInitializing` to `1/1 Running`.
+
+This confirms that Delta no longer relies on the database happening to
+start first.
+
+### 10.4 Delta startup, readiness and liveness probes
+
+The next hardening step is to add application probes so Kubernetes can
+distinguish between three conditions:
+
+- Delta is still starting;
+- Delta is running but should temporarily not receive traffic;
+- Delta is no longer functioning and should be restarted.
+
+The Delta Deployment uses the following probe configuration:
+
+```yaml
+startupProbe:
+  tcpSocket:
+    port: 3000
+  periodSeconds: 5
+  timeoutSeconds: 2
+  failureThreshold: 60
+
+readinessProbe:
+  tcpSocket:
+    port: 3000
+  periodSeconds: 5
+  timeoutSeconds: 2
+  failureThreshold: 3
+
+livenessProbe:
+  tcpSocket:
+    port: 3000
+  periodSeconds: 10
+  timeoutSeconds: 2
+  failureThreshold: 3
+```
+
+#### Startup probe
+
+The startup probe asks whether Delta has completed startup sufficiently
+to listen on port 3000. It checks every five seconds and permits up to
+60 consecutive failures:
+
+```text
+5 seconds × 60 failures = maximum 300-second startup allowance
+```
+
+The five-minute allowance is deliberately conservative because Delta has
+demonstrated slow application behavior during the PoC. While the startup
+probe has not succeeded, liveness checking is prevented from causing
+premature application restarts. Once startup succeeds, the startup probe
+has completed its role for that container lifecycle.
+
+#### Readiness probe
+
+The readiness probe asks whether the Delta Pod should currently receive
+traffic through its Kubernetes Service. It checks every five seconds and
+requires three consecutive failures before the Pod is considered not
+ready.
+
+A readiness failure does **not** restart the container:
+
+```text
+Delta running
+      ↓
+readiness probe fails repeatedly
+      ↓
+Pod marked Not Ready
+      ↓
+Kubernetes Service stops routing traffic to the Pod
+```
+
+This becomes particularly useful with multiple replicas because
+unhealthy replicas can be removed from Service endpoints while healthy
+replicas continue serving traffic.
+
+#### Liveness probe
+
+The liveness probe asks whether the Delta container is unhealthy enough
+that Kubernetes should restart it. It checks every ten seconds and
+requires three consecutive failures.
+
+Liveness is deliberately less aggressive than readiness because
+restarting a container is more disruptive than temporarily removing it
+from service:
+
+```text
+readiness failure → stop sending traffic
+liveness failure  → restart the container
+```
+
+#### Why TCP probes are used
+
+The PoC uses TCP probes against port 3000 rather than HTTP requests
+against a normal Delta application route. A TCP probe verifies that the
+Delta process is accepting connections without executing a potentially
+expensive application request.
+
+This is appropriate for the PoC because Delta has demonstrated unusually
+slow responses on some application pages. Using such a page as a
+liveness endpoint could cause Kubernetes to interpret application
+slowness as application failure and unnecessarily restart the container.
+
+A dedicated lightweight endpoint such as `/health` or `/healthz` would
+provide a stronger long-term health check because it could verify
+application-level responsiveness rather than only TCP connectivity. If
+such an endpoint is introduced, the AKS deployment should consider HTTP
+probes instead.
+
+### 10.5 Combined recovery model
+
+Together, persistence, dependency checking and health probes provide the
+following model:
+
+```text
+Kubernetes creates/recreates PostgreSQL
+        ↓
+persistent volume is reattached
+        ↓
+existing database remains available
+        ↓
+PostgreSQL starts
+        ↓
+readiness probe confirms PostgreSQL availability
+        ↓
+Delta init container confirms database connectivity
+        ↓
+Delta application container starts
+        ↓
+startup probe confirms port 3000 is listening
+        ↓
+readiness probe allows application traffic
+        ↓
+liveness probe continues monitoring the running container
+```
+
+Persistence, startup dependency handling and the Delta health probes
+have been implemented and validated. Kubernetes reports the Delta Pod as
+Ready with the startup, readiness and liveness probes active.
+
+The recovery model was also tested through deliberate Pod deletion
+rather than only by inspecting the Kubernetes configuration.
+
+## 11. Current status and next steps
+
+The basic Delta application stack is now operational in local
+Kubernetes. The remaining work is divided into three milestones:
+completing the local deployable Kubernetes configuration, providing a
+practical local development workflow, and preparing the configuration
+and requirements for AKS deployment.
+
+### Milestone 1 - Complete the local Kubernetes deployment
+
+Existing migration work:
 
 - [x] Local Kubernetes cluster
 - [x] PostgreSQL/PostGIS Deployment
@@ -706,22 +1218,91 @@ The following components have now been migrated:
 - [x] Delta application Service
 - [x] Delta application database configuration
 - [x] Delta application container successfully started
-- [x] Database migrations successfully executed from the Delta application
+- [x] Database migrations successfully executed from the Delta
+      application
 - [x] Delta development server successfully started inside Kubernetes
 - [x] Complete browser-level application validation
-- [ ] Validate core application functionality against the Kubernetes database
-- [ ] Compare Kubernetes performance with the Docker baseline
-- [ ] Review persistent storage requirements, particularly `/delta/uploads`
-- [ ] Review ConfigMap and Secret usage
-- [ ] Review readiness and liveness probes
-- [ ] Review resource requests and limits
-- [ ] Document the Delta development and production image build process in detail
-- [ ] Reproduce the Delta image build locally
-- [ ] Document a developer-friendly local Kubernetes workflow
-- [ ] Commit and push completed Kubernetes configuration to the PoC branch
-- [ ] Review container registry strategy for Azure
-- [ ] Prepare Azure Kubernetes Service deployment
-- [ ] Deploy and validate the PoC on AKS
+
+Deployment engineering still required:
+
+- [x] Add persistent storage for the PostgreSQL/PostGIS database
+- [x] Verify database data survives Pod deletion/recreation and
+      Kubernetes restart
+- [x] Review persistent storage requirements for `/delta/uploads`
+- [x] Implement persistent storage for `/delta/uploads` if required
+- [x] Add PostgreSQL readiness/health checking
+- [x] Prevent Delta application startup before required database
+      services are ready
+- [x] Add appropriate startup, readiness and liveness probes for Delta
+- [x] Move non-sensitive application configuration to ConfigMaps
+- [x] Move credentials and sensitive configuration to Kubernetes
+      Secrets
+- [x] Define initial CPU and memory resource requests and limits
+- [x] Validate core application functionality against the Kubernetes
+      database
+- [x] Test complete stack recovery by deleting/recreating Pods
+- [ ] Compare Kubernetes performance with the existing Docker baseline
+- [ ] Review image tagging and use versioned/immutable image
+      references for deployments
+- [ ] Verify the complete environment can be recreated from the
+      committed Kubernetes manifests
+- [ ] Commit and push the completed Kubernetes deployment
+      configuration to the PoC branch
+
+### Milestone 2 - Local Kubernetes developer workflow
+
+The deployable Kubernetes configuration uses a self-contained Delta
+image. A separate developer workflow should preserve the fast edit/test
+cycle currently provided by Docker Compose.
+
+- [ ] Document the existing Delta development and production image
+      build process
+- [ ] Reproduce the Delta development image build locally
+- [ ] Define a Kubernetes local-development configuration using the
+      developer's local source code
+- [ ] Provide source mounting or synchronization between the
+      workstation and development Pod
+- [ ] Verify source-code changes can be tested without publishing a
+      new remote image for every change
+- [ ] Keep the local-development configuration clearly separated from
+      the deployable/AKS configuration
+- [ ] Document commands required to start, stop and reset the local
+      Kubernetes development environment
+- [ ] Validate the complete local developer workflow
+
+### Milestone 3 - AKS preparation and handover
+
+Once the local Kubernetes configuration is stable, document the
+Azure-specific decisions and requirements needed to reproduce the
+deployment on Azure Kubernetes Service.
+
+- [ ] Define the proposed AKS cluster architecture
+- [ ] Define initial AKS node pool VM size and permitted scaling/cost
+      envelope
+- [ ] Define node count, availability-zone and resilience requirements
+- [ ] Define Kubernetes resource requests/limits to support AKS
+      capacity planning
+- [ ] Define Azure Container Registry (ACR) strategy and AKS access to
+      ACR
+- [ ] Identify Kubernetes configuration that must change between local
+      Kubernetes and AKS
+- [ ] Define Azure persistent-storage requirements for PostgreSQL and
+      `/delta/uploads`
+- [ ] Decide whether PostgreSQL remains inside Kubernetes for the PoC
+      or uses an Azure-managed database
+- [ ] Define ingress/public endpoint requirements
+- [ ] Define DNS and TLS/certificate requirements
+- [ ] Define AKS secrets-management approach
+- [ ] Define logging and monitoring requirements
+- [ ] Define database and persistent-volume backup requirements
+- [ ] Review autoscaling requirements
+- [ ] Document image deployment/update procedure
+- [ ] Identify required Azure resources, permissions and networking
+- [ ] Produce a concise AKS implementation/handover guide for the
+      colleague performing the Azure deployment
+- [ ] Deploy the PoC to AKS
+- [ ] Validate application functionality, persistence and recovery on
+      AKS
 - [ ] Assess future CI/CD integration
 
 ### Current architecture
@@ -758,13 +1339,17 @@ The local Kubernetes PoC currently consists of:
 
 ### Image build and deployment work
 
-The PoC identified an important distinction between Delta's local development and deployment container models.
+The PoC identified an important distinction between Delta's local
+development and deployment container models.
 
-The current local Docker Compose workflow prioritizes rapid development by bind-mounting the developer's source tree into the container.
+The current local Docker Compose workflow prioritizes rapid development
+by bind-mounting the developer's source tree into the container.
 
-The existing development and production deployment workflows instead use self-contained container images.
+The existing development and production deployment workflows instead use
+self-contained container images.
 
-The next phase of the PoC will document and validate the complete image lifecycle:
+The next phase of the PoC will document and validate the complete image
+lifecycle:
 
 ```text
 Delta source
@@ -782,23 +1367,34 @@ Kubernetes
 AKS
 ```
 
-This is important so that the Kubernetes PoC remains reproducible and does not depend on an image whose build process is treated as an external prerequisite.
+This is important so that the Kubernetes PoC remains reproducible and
+does not depend on an image whose build process is treated as an
+external prerequisite.
 
 ### Local Kubernetes development
 
-The PoC will also assess how developers can efficiently work with a local Kubernetes environment.
+The PoC will also assess how developers can efficiently work with a
+local Kubernetes environment.
 
-The existing Docker Compose development workflow provides a fast feedback loop because application source code is mounted directly from the developer workstation.
+The existing Docker Compose development workflow provides a fast
+feedback loop because application source code is mounted directly from
+the developer workstation.
 
-A Kubernetes development workflow should ideally preserve a reasonably fast edit/build/test cycle without requiring developers to manually publish every development image to a remote registry after each code change.
+A Kubernetes development workflow should ideally preserve a reasonably
+fast edit/build/test cycle without requiring developers to manually
+publish every development image to a remote registry after each code
+change.
 
-Possible approaches will be evaluated after the basic Kubernetes deployment is complete.
+Possible approaches will be evaluated after the basic Kubernetes
+deployment is complete.
 
 ### Future CI/CD integration
 
-The Delta project is transitioning toward automated container build and deployment rather than relying only on the existing hosting process.
+The Delta project is transitioning toward automated container build and
+deployment rather than relying only on the existing hosting process.
 
-The Kubernetes PoC should therefore consider how the architecture could eventually support a CI/CD workflow such as:
+The Kubernetes PoC should therefore consider how the architecture could
+eventually support a CI/CD workflow such as:
 
 ```text
 Developer commit
@@ -818,10 +1414,23 @@ Deployment pipeline
 AKS
 ```
 
-Implementing the complete CI/CD pipeline is not required for the initial Kubernetes PoC, but the Kubernetes manifests and image strategy should avoid design decisions that would prevent this evolution.
+Implementing the complete CI/CD pipeline is not required for the initial
+Kubernetes PoC, but the Kubernetes manifests and image strategy should
+avoid design decisions that would prevent this evolution.
 
 ### Next milestone
 
-The basic local application migration is now operational. The Delta application, PostgreSQL/PostGIS database and Adminer are running successfully inside Kubernetes, and basic browser-level application routing has been validated against the equivalent Docker Compose environment.
+The PoC has now completed the main **local deployment engineering**
+activities. Database and uploads persistence, PostgreSQL readiness,
+Delta database-startup dependency handling, application health probes,
+configuration and secret separation, initial resource requests and
+limits, stack recovery and core functional validation have been
+implemented and validated.
 
-The next milestone is to complete core functional validation and then move from **application migration** toward **deployment engineering**. This includes persistent storage, configuration and secret management, health and startup checks, resource requests and limits, image lifecycle and registry integration, local Kubernetes developer workflow, and preparation for deployment to AKS.
+The remaining local deployment work is to review image tagging and
+immutable image references, compare performance with the existing Docker
+baseline, and verify that the complete environment can be recreated from
+the committed Kubernetes manifests.
+
+The next major phase will then focus on the local Kubernetes developer
+workflow, followed by AKS architecture and handover preparation.
