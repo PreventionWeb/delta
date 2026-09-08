@@ -1353,40 +1353,52 @@ cycle currently provided by Docker Compose.
       Kubernetes development environment
 - [x] Validate the complete local developer workflow
 
-### Milestone 3 - AKS preparation and handover
+### Milestone 3A - Initial AKS architecture and handover
 
-Once the local Kubernetes configuration is stable, document the
-Azure-specific decisions and requirements needed to reproduce the
-deployment on Azure Kubernetes Service.
+The local Kubernetes phase has demonstrated that Delta can be deployed
+and operated using Kubernetes and has established the Kubernetes
+configuration required as a starting point for AKS.
 
-- [ ] Define the proposed AKS cluster architecture
+The objective of this milestone is to define enough of the initial AKS
+architecture for the Azure deployment work to begin. Detailed
+implementation decisions will then be validated and refined while the
+AKS environment is provisioned and Delta is deployed.
+
+- [ ] Define the proposed initial AKS cluster architecture
 - [ ] Define initial AKS node pool VM size and permitted scaling/cost
       envelope
-- [ ] Define node count, availability-zone and resilience requirements
-- [ ] Define Kubernetes resource requests/limits to support AKS
-      capacity planning
-- [ ] Define Azure Container Registry (ACR) strategy and AKS access to
-      ACR
 - [ ] Identify Kubernetes configuration that must change between local
       Kubernetes and AKS
-- [ ] Define Azure persistent-storage requirements for PostgreSQL and
-      `/delta/uploads`
+- [ ] Produce a concise initial AKS implementation/handover guide
+
+Completion of this milestone represents the initial handover point to
+the colleague performing the Azure deployment.
+
+### Milestone 3B - AKS implementation and PoC validation
+
+Following the initial architecture handover, the remaining activities
+correspond to the Azure deployment and validation phases of the PoC.
+Implementation details may be refined based on practical experience
+while provisioning and operating the AKS environment.
+
+- [ ] Provision the development AKS cluster and required Azure resources
+- [ ] Confirm node count, availability and resilience requirements
+- [ ] Validate Kubernetes resource requests/limits against AKS capacity
+- [ ] Configure container-registry access
+- [ ] Implement persistent storage for PostgreSQL and `/delta/uploads`
 - [ ] Decide whether PostgreSQL remains inside Kubernetes for the PoC
       or uses an Azure-managed database
-- [ ] Define ingress/public endpoint requirements
-- [ ] Define DNS and TLS/certificate requirements
-- [ ] Define AKS secrets-management approach
-- [ ] Define logging and monitoring requirements
-- [ ] Define database and persistent-volume backup requirements
-- [ ] Review autoscaling requirements
-- [ ] Document image deployment/update procedure
-- [ ] Identify required Azure resources, permissions and networking
-- [ ] Produce a concise AKS implementation/handover guide for the
-      colleague performing the Azure deployment
-- [ ] Deploy the PoC to AKS
-- [ ] Validate application functionality, persistence and recovery on
-      AKS
-- [ ] Assess future CI/CD integration
+- [ ] Configure ingress and the application public endpoint
+- [ ] Configure DNS and TLS/certificate requirements as applicable
+- [ ] Implement secrets and application configuration management
+- [ ] Deploy Delta to AKS
+- [ ] Validate application functionality and persistence
+- [ ] Validate basic deployment, recovery and rollback procedures
+- [ ] Demonstrate basic application and infrastructure monitoring
+- [ ] Assess resource utilization and initial AKS hosting costs
+- [ ] Compare estimated AKS costs with the current App Service model
+- [ ] Document operational observations, risks and lessons learned
+- [ ] Produce the final PoC findings and recommendation
 
 ### Current architecture
 
@@ -1761,9 +1773,11 @@ are handled by the synchronization script, while keeping this
 workstation-specific development configuration separate from the
 deployable Kubernetes configuration.
 
-The next major phase is **AKS architecture and handover preparation**.
-This will focus on translating the validated local Kubernetes model into
-an Azure architecture, including AKS-specific networking, ingress,
-persistent storage, secrets and configuration management, image
-distribution, scaling, availability, observability, deployment strategy,
-security and operational ownership.
+The next activity is **Milestone 3A - Initial AKS architecture and
+handover**. This will define the initial cluster architecture, node-pool
+sizing and cost envelope, identify the changes required to move the
+validated local Kubernetes configuration to AKS, and provide a concise
+handover guide for the Azure deployment.
+
+Following this handover, the remaining AKS implementation and PoC
+validation activities will continue under Milestone 3B.
