@@ -372,6 +372,13 @@
       "when": 1788796800000,
       "tag": "20260907160000_add_hazardous_event_attachment_table",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1788800400000,
+      "tag": "20260907170000_add_hazard_type_field_tables",
+      "breakpoints": true
     }
   ]
 }
