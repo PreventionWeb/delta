@@ -163,6 +163,32 @@ Kubernetes PoC. The Kubernetes configuration must not interfere with the
 existing Docker Desktop environment or other Docker-based development
 environments.
 
+### Immutable Delta image reference
+
+The initial Kubernetes Deployment referenced the Delta development image
+using the floating tag:
+
+```text
+ghcr.io/preventionweb/delta-country:dev-latest
+```
+
+A floating tag can reference a different image over time, meaning that
+reapplying an unchanged Kubernetes manifest would not necessarily
+reproduce the same application version.
+
+The running development image was therefore resolved to its immutable
+SHA-256 digest:
+
+```text
+ghcr.io/preventionweb/delta-country@sha256:e75a3572f394b79ede4ebf2877c4d76213b7c498029c7edb8901fe1099aee0c5
+```
+
+The Delta Deployment was updated to use this immutable reference and was
+successfully redeployed and validated.
+
+This ensures that the PoC manifests reproduce the same Delta application
+image even if the `dev-latest` tag subsequently changes.
+
 ### Delta container models
 
 Review of the repository identified three container/deployment models
@@ -791,6 +817,32 @@ environment and the Kubernetes PoC.
 | Initial Delta Kubernetes Pod ran but did not start Delta                                             | A temporary diagnostic `command` overrode the image startup command                 | Removed the diagnostic command after validating the image contents                                                                                   |
 | Delta application initially restarted after Kubernetes cluster startup with EAI_AGAIN delta-local-db | Application migrations started before the database Service was resolvable/ready     | Application recovered after the database became available; startup dependency handling should be improved using Kubernetes health/startup mechanisms |
 
+### Docker and Kubernetes performance comparison
+
+A direct performance comparison was performed against the same
+application route in the existing Docker Compose environment and the
+Kubernetes PoC:
+
+```text
+/en/admin/login
+```
+
+Three requests were measured against each environment.
+
+| Environment    | Request 1 | Request 2 | Request 3 |
+| -------------- | --------: | --------: | --------: |
+| Docker Compose |   1.398 s |   0.188 s |   0.254 s |
+| Kubernetes     |   1.133 s |   0.243 s |   0.342 s |
+
+Both environments showed a slower first request followed by substantially
+faster subsequent requests. The results are broadly comparable and do
+not indicate a material performance overhead introduced by Kubernetes
+in the local PoC.
+
+These measurements also suggest that the much slower responses observed
+earlier in the Delta environment were not inherently caused by
+Kubernetes.
+
 ## 9. Validation
 
 ### Kubernetes cluster
@@ -867,6 +919,35 @@ independently of the Kubernetes environment.
 
 This allows direct comparison between the existing deployment and the
 Kubernetes PoC during the migration.
+
+### Complete environment recreation
+
+Reproducibility of the Kubernetes configuration was validated by creating
+a new empty Kubernetes namespace and applying only the manifests stored
+under `k8s/`:
+
+```bash
+kubectl create namespace delta-poc-recreate
+kubectl apply -n delta-poc-recreate -f k8s
+```
+
+From these manifests Kubernetes successfully created:
+
+- the PostgreSQL/PostGIS Deployment, Service and persistent storage;
+- the Adminer Deployment and Service;
+- the Delta application Deployment and Service;
+- the uploads persistent storage;
+- the Delta ConfigMap;
+- the Delta Secret.
+
+All three application Pods started successfully in the new namespace.
+
+The recreated Delta application was then exposed independently and the
+`/en/admin/login` route returned HTTP 200.
+
+This confirms that the complete local Kubernetes environment can be
+recreated from the committed Kubernetes manifests without relying on
+manually created Delta resources.
 
 ## 10. Persistence, startup dependencies and application health
 
@@ -1241,12 +1322,12 @@ Deployment engineering still required:
 - [x] Validate core application functionality against the Kubernetes
       database
 - [x] Test complete stack recovery by deleting/recreating Pods
-- [ ] Compare Kubernetes performance with the existing Docker baseline
-- [ ] Review image tagging and use versioned/immutable image
+- [x] Compare Kubernetes performance with the existing Docker baseline
+- [x] Review image tagging and use versioned/immutable image
       references for deployments
-- [ ] Verify the complete environment can be recreated from the
+- [x] Verify the complete environment can be recreated from the
       committed Kubernetes manifests
-- [ ] Commit and push the completed Kubernetes deployment
+- [x] Commit and push the completed Kubernetes deployment
       configuration to the PoC branch
 
 ### Milestone 2 - Local Kubernetes developer workflow

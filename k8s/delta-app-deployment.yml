@@ -37,7 +37,11 @@ spec:
 
       containers:
         - name: delta-local-app
-          image: ghcr.io/preventionweb/delta-country:dev-latest
+          # Floating development tag used to identify the source image:
+          # image: ghcr.io/preventionweb/delta-country:dev-latest
+
+          # Immutable image reference used for reproducible deployments:
+          image: ghcr.io/preventionweb/delta-country@sha256:e75a3572f394b79ede4ebf2877c4d76213b7c498029c7edb8901fe1099aee0c5
           envFrom:
             - configMapRef:
                 name: delta-local-app-config
