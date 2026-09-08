@@ -365,6 +365,13 @@
       "when": 1788793200000,
       "tag": "20260907150000_add_hazardous_event_spatial_observation_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1788796800000,
+      "tag": "20260907160000_add_hazardous_event_attachment_table",
+      "breakpoints": true
     }
   ]
 }
