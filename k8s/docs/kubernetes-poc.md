@@ -1336,20 +1336,22 @@ The deployable Kubernetes configuration uses a self-contained Delta
 image. A separate developer workflow should preserve the fast edit/test
 cycle currently provided by Docker Compose.
 
-- [ ] Document the existing Delta development and production image
+### Milestone 2 - Developer workflow
+
+- [x] Document the existing Delta development and production image
       build process
-- [ ] Reproduce the Delta development image build locally
-- [ ] Define a Kubernetes local-development configuration using the
+- [x] Reproduce the Delta development image build locally
+- [x] Define a Kubernetes local-development configuration using the
       developer's local source code
-- [ ] Provide source mounting or synchronization between the
+- [x] Provide source mounting or synchronization between the
       workstation and development Pod
-- [ ] Verify source-code changes can be tested without publishing a
+- [x] Verify source-code changes can be tested without publishing a
       new remote image for every change
-- [ ] Keep the local-development configuration clearly separated from
+- [x] Keep the local-development configuration clearly separated from
       the deployable/AKS configuration
-- [ ] Document commands required to start, stop and reset the local
+- [x] Document commands required to start, stop and reset the local
       Kubernetes development environment
-- [ ] Validate the complete local developer workflow
+- [x] Validate the complete local developer workflow
 
 ### Milestone 3 - AKS preparation and handover
 
@@ -1420,54 +1422,291 @@ The local Kubernetes PoC currently consists of:
 
 ### Image build and deployment work
 
-The PoC identified an important distinction between Delta's local
-development and deployment container models.
+The Delta repository already contains separate Dockerfiles for the
+different image models:
 
-The current local Docker Compose workflow prioritizes rapid development
-by bind-mounting the developer's source tree into the container.
+- `Dockerfile.app` provides the lightweight runtime used by the
+  bind-mounted Docker Compose development workflow.
+- `Dockerfile.dev` creates a self-contained development image including
+  the Delta source code and Node dependencies.
+- `Dockerfile.prod` creates the optimized production image.
 
-The existing development and production deployment workflows instead use
-self-contained container images.
+As part of Milestone 2, the development image was successfully
+reproduced locally from the existing `Dockerfile.dev`:
 
-The next phase of the PoC will document and validate the complete image
-lifecycle:
-
-```text
-Delta source
-     ↓
-Dockerfile.dev / Dockerfile.prod
-     ↓
-container build
-     ↓
-tagged image
-     ↓
-container registry
-     ↓
-Kubernetes
-     ↓
-AKS
+```bash
+docker build -f Dockerfile.dev -t delta/dev-poc:local .
 ```
 
-This is important so that the Kubernetes PoC remains reproducible and
-does not depend on an image whose build process is treated as an
-external prerequisite.
+The build completed successfully and produced the local image
+`delta/dev-poc:local`. Inspection of the resulting container confirmed
+that it contains the Delta application source, `package.json`,
+`yarn.lock` and installed `node_modules`.
+
+This validates that the existing Delta development image can be built
+locally from the repository rather than relying only on the previously
+published `ghcr.io/preventionweb/delta-country:dev-latest` image.
+
+The deployable Kubernetes PoC continues to use the immutable
+digest-pinned development image validated during Milestone 1. The
+separate `k8s/dev/` configuration is intended for interactive local
+development and deliberately uses the developer's current workstation
+source instead.
 
 ### Local Kubernetes development
 
-The PoC will also assess how developers can efficiently work with a
-local Kubernetes environment.
+The deployable Kubernetes configuration uses a self-contained Delta
+container image. This is appropriate for deployment, but it does not
+provide the same development experience as the existing Docker Compose
+workflow, where the developer's local source tree is bind-mounted
+directly into the container.
 
-The existing Docker Compose development workflow provides a fast
-feedback loop because application source code is mounted directly from
-the developer workstation.
+A separate local-development configuration was therefore created under:
 
-A Kubernetes development workflow should ideally preserve a reasonably
-fast edit/build/test cycle without requiring developers to manually
-publish every development image to a remote registry after each code
-change.
+```text
+k8s/dev/
+```
 
-Possible approaches will be evaluated after the basic Kubernetes
-deployment is complete.
+This keeps workstation-specific development behavior separate from the
+deployable Kubernetes configuration that will later be adapted for AKS.
+
+The development Pod uses:
+
+```text
+node:24-bookworm-slim
+```
+
+rather than requiring a prebuilt Delta image. The Pod initially waits
+for source code to become available under `/delta`.
+
+The resulting development model is:
+
+```text
+Developer workstation
+        ↓
+local Delta source
+        ↓
+sync-source.ps1
+        ↓
+Kubernetes development Pod /delta
+        ↓
+yarn install
+        ↓
+database migrations
+        ↓
+React Router / Vite development server
+```
+
+#### Source synchronization
+
+Docker Compose can directly bind-mount the workstation source directory
+into the application container:
+
+```text
+.:/delta
+```
+
+The Docker Desktop Kubernetes cluster used for this PoC is based on a
+kind control-plane container. Kubernetes `hostPath` volumes refer to the
+filesystem of that Kubernetes node rather than directly to the Windows
+workstation filesystem.
+
+Direct access to the Windows Delta source directory from the Kubernetes
+node was investigated. Although Docker Desktop exposed a corresponding
+directory hierarchy under:
+
+```text
+/run/desktop/mnt/host/d/Remix/DELTA
+```
+
+the directory did not contain the workstation files. Inspection of the
+kind node mounts also confirmed that the Windows source directory was
+not mounted into the Kubernetes node.
+
+A custom kind cluster could technically be created with explicit
+additional mounts, but requiring developers to recreate or customize
+their Kubernetes cluster was considered undesirable for this PoC.
+
+Instead, a lightweight PowerShell source synchronization script was
+added:
+
+```text
+k8s/dev/sync-source.ps1
+```
+
+The script requires only PowerShell and `kubectl`, which are already
+available in the tested Windows development environment.
+
+When first started against a fresh development Pod, the script:
+
+1. waits until a usable development Pod is available;
+2. detects whether `/delta/package.json` already exists;
+3. performs a complete source bootstrap only when required;
+4. excludes workstation-specific directories such as `.git`,
+   `node_modules` and `uploads`;
+5. leaves the development container to install its Linux dependencies
+   and start the React Router/Vite development server;
+6. watches the workstation source tree for subsequent changes;
+7. automatically copies changed files into the running Pod.
+
+After the initial bootstrap, editing and saving a source file therefore
+follows this path:
+
+```text
+edit source locally
+        ↓
+PowerShell FileSystemWatcher detects save
+        ↓
+changed file copied through kubectl
+        ↓
+file updated under /delta in the Pod
+        ↓
+Vite detects change
+        ↓
+browser reflects the modification
+```
+
+This was validated by modifying the admin login page. The change was
+reflected directly in the Kubernetes-hosted application without:
+
+- rebuilding a Docker image;
+- publishing an image to a registry;
+- restarting the Deployment;
+- manually identifying a Pod;
+- manually running `kubectl cp`.
+
+The synchronization script also waits for a new Running Pod when a
+previous development Pod is being terminated, avoiding a race condition
+encountered during initial testing.
+
+#### Starting the local development environment
+
+The normal deployable Kubernetes resources can first be applied using:
+
+```bash
+kubectl apply -f k8s
+```
+
+The dedicated development resources are then applied separately:
+
+```bash
+kubectl apply -f k8s/dev
+```
+
+On workstations with limited memory, the normal deployable Delta
+application should be scaled down while the development application is
+being used:
+
+```bash
+kubectl scale deployment delta-local-app --replicas=0
+```
+
+Source synchronization is then started from the repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File k8s\dev\sync-source.ps1
+```
+
+A fresh Pod is bootstrapped automatically. If source code is already
+present, the complete bootstrap is skipped and the script immediately
+starts watching for changes.
+
+The development Service can be exposed in another terminal using:
+
+```bash
+kubectl port-forward service/delta-local-app-dev 15000:3000
+```
+
+The development application is then available at:
+
+```text
+http://localhost:15000
+```
+
+For example:
+
+```text
+http://localhost:15000/en/admin/login
+```
+
+#### Stopping local development
+
+The synchronization process and port-forward can be stopped using
+`Ctrl+C`.
+
+The development application can then be scaled down:
+
+```bash
+kubectl scale deployment delta-local-app-dev --replicas=0
+```
+
+If required, the normal deployable Delta application can be restored:
+
+```bash
+kubectl scale deployment delta-local-app --replicas=1
+```
+
+#### Resetting the development Pod
+
+The development source directory is intentionally ephemeral. To recreate
+the development Pod:
+
+```bash
+kubectl delete pod -l app=delta-local-app-dev
+```
+
+The Deployment creates a replacement Pod. Restarting
+`sync-source.ps1` then detects the new Pod, performs the initial source
+bootstrap and starts watching for changes again.
+
+#### Development performance and workstation resources
+
+During validation, the existing Docker Compose development environment
+itself showed a very slow first application compilation. Loading the
+admin login route took approximately five minutes during one controlled
+test, while application-container memory increased from approximately
+351 MiB to a peak of approximately 1.3 GiB.
+
+The Kubernetes development Pod also showed significant memory pressure.
+Linux cgroup analysis showed that most of the apparent memory usage was
+filesystem/page-cache accounting rather than Node process memory. A
+representative idle measurement was approximately:
+
+```text
+anon       ~590 MiB
+file       ~2.8 GiB
+```
+
+When both the deployable Delta Pod and the separate development Delta
+Pod were running on the 16 GB test workstation, the development Pod was
+eventually OOM-killed during application compilation.
+
+Scaling down the duplicate deployable Delta application while using the
+development Pod provided sufficient headroom. The development
+application then completed the same workflow without restarting, and
+live source modifications continued to work correctly.
+
+The PoC therefore recommends avoiding simultaneous execution of both
+Delta application variants on resource-constrained local workstations.
+The unusually slow initial development compilation is not specific to
+Kubernetes, since similar behavior was reproduced using the existing
+Docker Compose development environment.
+
+#### Portability
+
+The PowerShell synchronization implementation validates the complete
+workflow on the Windows/Docker Desktop environment used for this PoC.
+
+The Kubernetes development manifests themselves are not intended to be
+Windows-specific. Developers using Linux, macOS, another local
+Kubernetes implementation or a cluster configuration that supports
+direct host mounts may use a different source synchronization or
+mounting mechanism.
+
+Providing and validating every workstation-specific implementation is
+outside the scope of this PoC. The important requirement demonstrated
+here is that local source changes can be tested against Kubernetes
+without publishing a new container image for every edit.
 
 ### Future CI/CD integration
 
@@ -1501,17 +1740,30 @@ avoid design decisions that would prevent this evolution.
 
 ### Next milestone
 
-The PoC has now completed the main **local deployment engineering**
-activities. Database and uploads persistence, PostgreSQL readiness,
-Delta database-startup dependency handling, application health probes,
-configuration and secret separation, initial resource requests and
-limits, stack recovery and core functional validation have been
-implemented and validated.
+The PoC has now completed the main **local deployment engineering** and
+**local developer workflow** activities.
 
-The remaining local deployment work is to review image tagging and
-immutable image references, compare performance with the existing Docker
-baseline, and verify that the complete environment can be recreated from
-the committed Kubernetes manifests.
+The local Kubernetes deployment has been validated for database and
+uploads persistence, PostgreSQL readiness, Delta database-startup
+dependency handling, application health probes, configuration and secret
+separation, resource requests and limits, stack recovery, functional
+behavior and performance relative to the existing Docker baseline.
 
-The next major phase will then focus on the local Kubernetes developer
-workflow, followed by AKS architecture and handover preparation.
+The deployable Delta image is referenced using an immutable digest, and
+the complete Kubernetes environment has been successfully recreated from
+the committed manifests.
+
+The local developer workflow has also been validated. A separate
+`k8s/dev/` configuration allows developers to work with their current
+local Delta source without rebuilding and publishing a container image
+for every change. Initial source bootstrap and subsequent source changes
+are handled by the synchronization script, while keeping this
+workstation-specific development configuration separate from the
+deployable Kubernetes configuration.
+
+The next major phase is **AKS architecture and handover preparation**.
+This will focus on translating the validated local Kubernetes model into
+an Azure architecture, including AKS-specific networking, ingress,
+persistent storage, secrets and configuration management, image
+distribution, scaling, availability, observability, deployment strategy,
+security and operational ownership.

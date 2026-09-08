@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: delta-local-app-dev
+
+spec:
+  selector:
+    app: delta-local-app-dev
+
+  ports:
+    - port: 3000
+      targetPort: 3000

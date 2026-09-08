@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: delta-local-app-dev
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: delta-local-app-dev
+
+  template:
+    metadata:
+      labels:
+        app: delta-local-app-dev
+
+    spec:
+      initContainers:
+        - name: wait-for-database
+          image: postgis/postgis:17-3.5
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready \
+                -h delta-local-db \
+                -p 5432 \
+                -U postgres \
+                -d dts-shared-01
+              do
+                echo "Waiting for PostgreSQL..."
+                sleep 2
+              done
+              echo "PostgreSQL is ready."
+
+      containers:
+        - name: delta-local-app-dev
+          image: node:24-bookworm-slim
+
+          workingDir: /delta
+
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for source code..."
+              while [ ! -f /delta/package.json ]; do
+                sleep 2
+              done
+
+              echo "Source code found."
+
+              HUSKY=0 yarn install --frozen-lockfile
+              yarn dbsync
+              yarn react-router dev --host 0.0.0.0 --port 3000
+
+          envFrom:
+            - configMapRef:
+                name: delta-local-app-config
+            - secretRef:
+                name: delta-local-app-secret
+
+          ports:
+            - containerPort: 3000
+
+          volumeMounts:
+            - name: source
+              mountPath: /delta
+
+            - name: uploads
+              mountPath: /delta/uploads
+
+      volumes:
+        - name: source
+          emptyDir: {}
+
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: delta-local-uploads
