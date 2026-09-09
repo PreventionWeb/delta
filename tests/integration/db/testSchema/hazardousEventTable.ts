@@ -53,6 +53,9 @@ export const hazardousEventTable = pgTable(
 			enum: ["forecasted", "ongoing", "passed"],
 		}),
 		dataSource: zeroText("data_source"),
+		// Plain nullable text, not zeroText -- "unpopulated" must stay distinguishable from "empty string".
+		specificHazardLocalName: text("specific_hazard_local_name"),
+		specificHazardNationalName: text("specific_hazard_national_name"),
 	},
 	(table) => ({
 		// Composite unique constraint for tenant-scoped api_import_id
