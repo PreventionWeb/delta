@@ -21,6 +21,7 @@ import { hipHazardTable } from "./hipHazardTable";
 import { hipClusterTable } from "./hipClusterTable";
 import { hipTypeTable } from "./hipTypeTable";
 import { userTable } from "./userTable";
+import { specificHazardTable } from "~/domains/hazardous-events/infrastructure/specificHazardTable";
 
 export const hazardousEventTable = pgTable(
 	"hazardous_event",
@@ -35,6 +36,9 @@ export const hazardousEventTable = pgTable(
 			.primaryKey(),
 		countryAccountsId: uuid("country_accounts_id").references(
 			() => countryAccountsTable.id,
+		),
+		specificHazardId: uuid("specific_hazard_id").references(
+			() => specificHazardTable.id,
 		),
 		status: text("status").notNull().default("pending"),
 		nationalSpecification: zeroText("national_specification"),
@@ -63,6 +67,7 @@ export const hazardousEventTableConstraits = {
 	hipHazardId: "hazardous_event_hip_hazard_id_hip_hazard_id_fk",
 	hipClusterId: "hazardous_event_hip_cluster_id_hip_cluster_id_fk",
 	hipTypeId: "hazardous_event_hip_type_id_hip_type_id_fk",
+	specificHazardId: "hazardous_event_specific_hazard_id_specific_hazard_id_fk",
 };
 
 export type SelectHazardousEvent = typeof hazardousEventTable.$inferSelect;
@@ -88,6 +93,10 @@ export const hazardousEventRel = relations(hazardousEventTable, ({ one }) => ({
 	hipType: one(hipTypeTable, {
 		fields: [hazardousEventTable.hipTypeId],
 		references: [hipTypeTable.id],
+	}),
+	specificHazard: one(specificHazardTable, {
+		fields: [hazardousEventTable.specificHazardId],
+		references: [specificHazardTable.id],
 	}),
 	userSubmittedBy: one(userTable, {
 		fields: [hazardousEventTable.submittedByUserId],
