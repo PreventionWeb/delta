@@ -171,6 +171,37 @@ domain-layer check too, with its own meaningful domain error, same as any other 
 
 ---
 
+## Legacy file disposition
+
+This refactor reuses a number of existing `app/drizzle/schema/*` tables rather than
+recreating them, and until now this document never stated what ultimately happens to each
+one — the same missed-planning root cause that produced `2j` as a late addition (four
+columns the original text never covered). Decided once, here, so it isn't silently missed
+again table-by-table:
+
+- **Stays in `app/drizzle/schema/` permanently — genuinely shared, not HE-exclusive:**
+  `eventTable` (polymorphic parent both HE and Disaster Event reference), `countryAccountsTable`/
+  `userTable` (platform-wide, every domain uses these), `disasterEventTable`/
+  `disasterRecordsTable` (Disaster Event/Disaster Records' own domain, out of scope for this
+  roadmap), `eventCausalityTable` (explicit Non-Goal above — DE↔DE/DE↔HE linking untouched),
+  `hipHazardTable`/`hipClusterTable`/`hipTypeTable` (only the `hazardous_event` columns
+  referencing these are dropped, in `7e` — not the tables themselves; nothing establishes HE as
+  their only consumer).
+- **Dropped entirely, not moved:** `hazardousEventDivisionTable`/`hazardousEventGeomTable`
+  (replaced by `2f`'s `hazardous_event_spatial_observation`); `eventRelationshipTable` (replaced
+  by `2e`'s new causality table, pending `7e`'s own "no other consumer" check before the drop).
+- **Relocated to `app/domains/hazardous-events/infrastructure/` — HE-exclusive, survives the
+  refactor:** `hazardousEventTable` itself. Every other column/table on it either gets dropped or
+  was never HE-exclusive; this one table is both HE's own aggregate root and something that
+  outlives cutover, so per ADR-009 it belongs in the domain's own infrastructure folder, not the
+  shared legacy location. The physical move is scoped into `7e` (bundled with that step's own
+  column-drop edit to this same file, after `7d` has removed the only consumers that would
+  otherwise need a second, throwaway import-path update) rather than done earlier in Phase 2 —
+  moving it while the table still carries columns due to be dropped a few phases later would mean
+  editing this file's location twice.
+
+---
+
 ## Phase 0 — Current-Behavior Audit + Characterization Tests ✅ (complete 2026-08-31)
 
 **Complete.** All seven sub-tracks (0a–0g) landed on `feature/ca-he-behavior-audit`, now merged
@@ -1900,7 +1931,7 @@ removed files); `yarn test:run2` green (confirms no other test depended on them)
 
 ---
 
-### ⬜ 7e — Schema Cleanup (drops deferred under Invariant 2)
+### ⬜ 7e — Schema Cleanup (drops deferred under Invariant 2) + `hazardousEventTable` Relocation
 
 **Branch:** `feature/ca-he-schema-cleanup`
 
@@ -1917,15 +1948,35 @@ confirmed safe to drop here); hazardousEventGeomTable/hazardousEventDivisionTabl
 (replaced by the new attachment table). HE's own rows in eventRelationshipTable —
 verify no other consumer depends on this table before dropping it entirely, not
 just HE's rows, since this check wasn't part of Phase 0's scope.
+
+Also physically relocate app/drizzle/schema/hazardousEventTable.ts itself to
+app/domains/hazardous-events/infrastructure/hazardousEventTable.ts (pure file move +
+import-path update, no DB change — see "Legacy file disposition" near the top of this
+document for why this table, specifically, is the one legacy file that needs this and
+none of its siblings do). Bundled into this same step rather than done earlier because
+7d has just deleted the only remaining consumers that would otherwise need a second,
+throwaway import-path update (the old event.ts / hazardous_event_create_update.ts), and
+because this step already touches this file's contents to drop the legacy columns —
+one pass, not two. Update every surviving import path across the new domain code
+(DrizzleHazardousEventRepository.ts and anything else under
+app/domains/hazardous-events/ that imports it) to the new location. This also finally
+turns tests/integration/db/testSchema/hazardousEventTable.ts from a hand-duplicated
+mirror (flagged as a recurring manual-sync cost in 2i's design.md Decision 7) into a
+genuine one-line re-export, matching every other table's testSchema file.
 ```
 
 **Files touched:**
 
 - `app/drizzle/migrations/<timestamp>_drop_legacy_hazardous_event_columns.sql` (new)
+- `app/drizzle/schema/hazardousEventTable.ts` → `app/domains/hazardous-events/infrastructure/hazardousEventTable.ts` (moved)
+- `app/domains/hazardous-events/infrastructure/DrizzleHazardousEventRepository.ts` and any
+  other new-domain-code importer (updated — new import path)
+- `tests/integration/db/testSchema/hazardousEventTable.ts` (rewritten — hand duplicate
+  becomes a one-line re-export)
 
-**Test tier:** `yarn tsc` clean (Drizzle schema types updated to match); PGlite
-integration — new implementation's full test suite still green against the
-post-drop schema.
+**Test tier:** `yarn tsc` clean (Drizzle schema types updated to match, and confirms no
+stale import path was missed); PGlite integration — new implementation's full test suite
+still green against the post-drop, post-move schema.
 
 ---
 
