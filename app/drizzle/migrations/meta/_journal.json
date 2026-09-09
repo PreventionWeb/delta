@@ -386,6 +386,13 @@
       "when": 1788944400000,
       "tag": "20260909090000_add_specific_hazard_id_to_hazardous_event",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1788948000000,
+      "tag": "20260909100000_add_specific_hazard_names_to_hazardous_event",
+      "breakpoints": true
     }
   ]
 }
