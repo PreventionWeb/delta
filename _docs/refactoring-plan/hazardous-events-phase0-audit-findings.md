@@ -828,3 +828,30 @@ rediscovered later.
    that assertion likely passes vacuously today; "matching hazard included" is more likely the
    one that's actually broken) — re-verify from scratch against the new schema rather than reusing
    this assumption.
+9. **`hazardousEventTable` carries three overlapping status-shaped columns, and most of its text
+   columns use a null-avoidance convention that no longer fits this refactor's direction → Phase
+   7e, reconsidered during schema cleanup, not decided now.** Found during `2j`'s readiness check
+   (not part of 0a–0g's original scope; recorded here per the same pattern as items 1–8). Querying
+   the live DB directly (not just reading the TS schema) surfaced:
+   - Three distinct columns carry status-like meaning: the plain `status` column (`text`, `NOT
+     NULL`, `default 'pending'`, origin/purpose unclear from the code alone), `approvalStatus`
+     (the workflow concept `workflow_instance` now owns exclusively per `2a` — note its actual SQL
+     column name is the literal mixed-case `"approvalStatus"`, not snake_case, an existing
+     inconsistency), and `hazardousEventStatus` (`hazardous_event_status`, nullable, `forecasted`/
+     `ongoing`/`passed`) — confirmed genuinely live today via the hazard event list's filter
+     dropdown and the hazard event form (`app/frontend/events/hazardevent-filters.tsx`,
+     `hazardeventform.tsx`). `2j`'s roadmap text assumed a new `status` column was needed for the
+     diagram's "Ongoing/Passed" concept — it isn't; `hazardousEventStatus` already covers it.
+   - `nationalSpecification` and most of this table's other text columns (`startDate`, `endDate`,
+     `description`, `chainsExplanation`, `magniture`, `recordOriginator`, `dataSource`) use the
+     `zeroText()` pattern (`NOT NULL`, `default ''`) purely to avoid null-handling in the old
+     application code — not because empty string is a meaningful value. This predates and
+     conflicts with Invariant 3 (DB constraints are defense-in-depth, not a substitute for
+     domain-layer rules).
+
+   **Decided: reconsider both at `7e`, not now.** Neither is a bug — both are pre-existing,
+   working, live conventions on a table that isn't being touched for these concerns until schema
+   cleanup. Deciding which status column(s) survive, and whether any of these text columns should
+   become genuinely nullable, only makes sense once `7d` has removed the old model layer's
+   dependency on them, matching the same two-step (migrate first, decide/drop later) shape as
+   every other `7e` item.
