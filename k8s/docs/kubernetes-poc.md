@@ -1359,17 +1359,110 @@ The local Kubernetes phase has demonstrated that Delta can be deployed
 and operated using Kubernetes and has established the Kubernetes
 configuration required as a starting point for AKS.
 
-The objective of this milestone is to define enough of the initial AKS
-architecture for the Azure deployment work to begin. Detailed
-implementation decisions will then be validated and refined while the
-AKS environment is provisioned and Delta is deployed.
+The AKS phase should remain deliberately minimal because this is a PoC
+rather than a production architecture. The objective is to validate the
+Delta deployment on Azure while keeping the initial cost and operational
+complexity low.
 
-- [ ] Define the proposed initial AKS cluster architecture
-- [ ] Define initial AKS node pool VM size and permitted scaling/cost
+#### Initial AKS architecture
+
+The proposed starting architecture is:
+
+```text
+Internet / DNS / HTTPS
+          │
+        Ingress
+          │
+          ▼
+     Delta Service
+          │
+          ▼
+      Delta Pod
+       /      \
+      /        \
+     ▼          ▼
+Existing     Existing Azure
+Azure        Database for
+shared       PostgreSQL
+storage      Flexible Server
+```
+
+The application will run on an AKS Free tier cluster. For the initial
+PoC, a single system node is sufficient and the Delta workload may run
+on the same node. Additional nodes, a separate user node pool,
+availability-zone resilience and other production-oriented measures are
+not required for the initial validation and can be assessed separately
+if the PoC progresses toward a production architecture.
+
+#### Initial node sizing and cost envelope
+
+To minimize PoC cost, the initial cluster should use the lowest-cost
+AKS-supported Linux VM available in West Europe with at least 4 vCPU,
+targeting approximately 8 GiB RAM where possible. An example is
+`Standard_A4_v2`, advertised at public PAYG rates below approximately
+USD 100/month. The exact SKU and price should be confirmed in the Azure
+subscription when the cluster is created.
+
+Local testing demonstrated significant Delta memory usage under some
+development workloads, but the AKS environment will run only the
+deployable Delta workload and will use the existing Azure database
+rather than hosting PostgreSQL inside the cluster. An 8 GiB node is
+therefore considered a reasonable minimum-cost starting point for the
+PoC.
+
+If no suitable 4-vCPU/8-GiB SKU is available, or if Delta demonstrates
+insufficient memory during AKS testing, a 4-vCPU/16-GiB general-purpose
+D-series VM should be used as the fallback.
+
+The AKS Free tier does not add an AKS control-plane charge. The principal
+incremental PoC cost is therefore the underlying VM together with minor
+storage/network resources. The target is below approximately USD
+100/month for the initial node where a suitable SKU is available, and
+the actual PoC cost should be lower if the environment is operated only
+during the testing period rather than continuously for a full month.
+
+#### Changes from local Kubernetes to AKS
+
+The validated local manifests provide the starting point, but several
+local resources and values should be adapted for Azure rather than
+reproduced unchanged:
+
+- **Database:** the local PostgreSQL Deployment, Service and database PVC
+  are not required in AKS. Delta should connect to the existing Azure
+  Database for PostgreSQL Flexible Server using the appropriate Azure
+  connection details and secret.
+- **Uploads storage:** the local `/delta/uploads` PVC should be replaced
+  by the appropriate mount to the existing Azure shared storage.
+- **Application image:** AKS should use the self-contained deployable
+  Delta image from the container registry. The workstation-oriented
+  `k8s/dev/` configuration and `sync-source.ps1` are local-development
+  tooling and are not part of the AKS deployment.
+- **Configuration and secrets:** retain the separation between
+  ConfigMaps and Secrets, replacing local PoC values with the Azure
+  environment values and refining secrets management as appropriate
+  during implementation.
+- **Networking:** replace local `kubectl port-forward` access with an
+  AKS ingress/public endpoint, with DNS and TLS configured as required.
+- **Registry access:** ensure that AKS can retrieve the Delta image from
+  the existing container registry.
+- **Resources:** use the resource requests and limits established by the
+  local PoC as the starting point and adjust them based on observed AKS
+  utilization.
+
+Detailed Azure implementation choices do not need to be prescribed in
+this document. The colleague performing the AKS deployment can validate
+the existing Kubernetes PoC locally and adapt the configuration to the
+available Azure resources and environment during implementation.
+
+The following Milestone 3A activities are therefore complete:
+
+- [x] Define the proposed initial AKS cluster architecture
+- [x] Define initial AKS node pool VM size and permitted scaling/cost
       envelope
-- [ ] Identify Kubernetes configuration that must change between local
+- [x] Define initial node count, availability and resilience approach for the PoC
+- [x] Identify Kubernetes configuration that must change between local
       Kubernetes and AKS
-- [ ] Produce a concise initial AKS implementation/handover guide
+- [x] Define the concise initial AKS implementation/handover approach
 
 Completion of this milestone represents the initial handover point to
 the colleague performing the Azure deployment.
@@ -1382,12 +1475,12 @@ Implementation details may be refined based on practical experience
 while provisioning and operating the AKS environment.
 
 - [ ] Provision the development AKS cluster and required Azure resources
-- [ ] Confirm node count, availability and resilience requirements
+- [ ] Validate that the single-node PoC configuration provides sufficient capacity and stability for Delta
 - [ ] Validate Kubernetes resource requests/limits against AKS capacity
 - [ ] Configure container-registry access
-- [ ] Implement persistent storage for PostgreSQL and `/delta/uploads`
-- [ ] Decide whether PostgreSQL remains inside Kubernetes for the PoC
-      or uses an Azure-managed database
+- [ ] Configure the existing Azure shared storage for `/delta/uploads`
+- [ ] Configure connectivity to the existing Azure Database for
+      PostgreSQL Flexible Server
 - [ ] Configure ingress and the application public endpoint
 - [ ] Configure DNS and TLS/certificate requirements as applicable
 - [ ] Implement secrets and application configuration management
@@ -1750,34 +1843,32 @@ Implementing the complete CI/CD pipeline is not required for the initial
 Kubernetes PoC, but the Kubernetes manifests and image strategy should
 avoid design decisions that would prevent this evolution.
 
-### Next milestone
+### Next milestone - AKS implementation and PoC validation
 
-The PoC has now completed the main **local deployment engineering** and
-**local developer workflow** activities.
+The local Kubernetes phase and the initial AKS architecture assessment are now complete.
 
-The local Kubernetes deployment has been validated for database and
-uploads persistence, PostgreSQL readiness, Delta database-startup
-dependency handling, application health probes, configuration and secret
-separation, resource requests and limits, stack recovery, functional
-behavior and performance relative to the existing Docker baseline.
+The local Kubernetes deployment has been validated for database and uploads persistence, PostgreSQL readiness, Delta database-startup dependency handling, application health probes, configuration and secret separation, resource requests and limits, stack recovery, functional behavior and performance relative to the existing Docker baseline.
 
-The deployable Delta image is referenced using an immutable digest, and
-the complete Kubernetes environment has been successfully recreated from
-the committed manifests.
+The deployable Delta image is referenced using an immutable digest, and the complete Kubernetes environment has been successfully recreated from the committed manifests.
 
-The local developer workflow has also been validated. A separate
-`k8s/dev/` configuration allows developers to work with their current
-local Delta source without rebuilding and publishing a container image
-for every change. Initial source bootstrap and subsequent source changes
-are handled by the synchronization script, while keeping this
-workstation-specific development configuration separate from the
-deployable Kubernetes configuration.
+A separate local developer workflow is also available under `k8s/dev/`. This allows developers to test local source-code changes against Kubernetes without rebuilding and publishing a container image for every change. This configuration is intended only for local development and is not part of the AKS deployment.
 
-The next activity is **Milestone 3A - Initial AKS architecture and
-handover**. This will define the initial cluster architecture, node-pool
-sizing and cost envelope, identify the changes required to move the
-validated local Kubernetes configuration to AKS, and provide a concise
-handover guide for the Azure deployment.
+### Handover to AKS
 
-Following this handover, the remaining AKS implementation and PoC
-validation activities will continue under Milestone 3B.
+The next phase is to deploy and validate Delta on AKS.
+
+The proposed PoC architecture deliberately prioritizes simplicity and low cost rather than production-level resilience. The initial AKS environment should use the Free tier with a single system node, without a separate user node pool. The target is the lowest-cost supported Linux VM available in West Europe with at least 4 vCPU and approximately 8 GiB RAM where possible, with a 4-vCPU/16-GiB D-series VM available as a fallback if additional memory is required.
+
+The target cost for the initial single-node configuration is below approximately USD 100/month where a suitable 8-GiB VM is available. As the PoC environment does not need to operate continuously, the actual testing cost may be substantially lower.
+
+Ryan can use the existing local Kubernetes configuration as the starting point for the AKS implementation. The principal Azure-specific adaptations are:
+
+- do not deploy the local PostgreSQL Deployment, Service or database PVC; configure Delta to use the existing Azure Database for PostgreSQL Flexible Server;
+- configure the existing Azure shared storage for `/delta/uploads`;
+- use the deployable self-contained Delta image rather than the workstation-specific `k8s/dev/` configuration;
+- replace local PoC configuration and secrets with the appropriate Azure environment values;
+- configure AKS access to the container registry;
+- replace local `kubectl port-forward` access with the appropriate AKS ingress/public endpoint, DNS and TLS configuration;
+- retain the existing Kubernetes resource requests, limits and health checks as the initial baseline and adjust them if required based on AKS testing.
+
+The remaining work is therefore **Milestone 3B - AKS implementation and PoC validation**. This will validate the architecture in Azure, including deployment, connectivity, storage, application functionality, recovery, monitoring, resource utilization and cost. The results will then be used to document the final PoC findings and recommendation.
