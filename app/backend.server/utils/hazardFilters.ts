@@ -26,13 +26,13 @@ export async function applyHazardFilters(
 		filters.hazardClusterId != null
 			? String(filters.hazardClusterId).trim()
 			: null;
-	const specificHazardId =
+	const hipHazardIdFilter =
 		filters.specificHazardId != null
 			? String(filters.specificHazardId).trim()
 			: null;
 
 	const hazardFiltersExist =
-		hazardTypeId || hazardClusterId || specificHazardId;
+		hazardTypeId || hazardClusterId || hipHazardIdFilter;
 
 	// Always add the joins regardless of filters
 	query = query
@@ -58,7 +58,7 @@ export async function applyHazardFilters(
 		filtersToApply: {
 			hazardTypeId: !!hazardTypeId,
 			hazardClusterId: !!hazardClusterId,
-			specificHazardId: !!specificHazardId,
+			specificHazardId: !!hipHazardIdFilter,
 		},
 	});
 
@@ -77,10 +77,12 @@ export async function applyHazardFilters(
 		logger.debug("Applied hazard cluster filter", { hazardClusterId });
 	}
 
-	if (specificHazardId) {
-		baseConditions.push(eq(hazardousEventTable.hipHazardId, specificHazardId));
+	if (hipHazardIdFilter) {
+		baseConditions.push(eq(hazardousEventTable.hipHazardId, hipHazardIdFilter));
 		conditionsAdded++;
-		logger.debug("Applied specific hazard filter", { specificHazardId });
+		logger.debug("Applied specific hazard filter", {
+			specificHazardId: hipHazardIdFilter,
+		});
 	}
 
 	logger.info("Applied hazard filters to conditions", {
@@ -90,8 +92,10 @@ export async function applyHazardFilters(
 
 	// ✅ Hierarchical validation (non-blocking)
 	try {
-		if (specificHazardId) {
-			logger.debug("Starting specific hazard validation", { specificHazardId });
+		if (hipHazardIdFilter) {
+			logger.debug("Starting specific hazard validation", {
+				specificHazardId: hipHazardIdFilter,
+			});
 
 			const hazardValidation = await dr
 				.select({
@@ -105,7 +109,7 @@ export async function applyHazardFilters(
 					eq(hipHazardTable.clusterId, hipClusterTable.id),
 				)
 				.innerJoin(hipTypeTable, eq(hipClusterTable.typeId, hipTypeTable.id))
-				.where(eq(hipHazardTable.id, specificHazardId))
+				.where(eq(hipHazardTable.id, hipHazardIdFilter))
 				.limit(1);
 
 			const record = hazardValidation[0];
@@ -118,7 +122,7 @@ export async function applyHazardFilters(
 
 				if (hazardClusterId && record.clusterId !== hazardClusterId) {
 					logger.warn("Hazard cluster mismatch detected", {
-						specificHazardId,
+						specificHazardId: hipHazardIdFilter,
 						actualClusterId: record.clusterId,
 						expectedClusterId: hazardClusterId,
 						issue: "specificHazard does not belong to expected cluster",
@@ -127,7 +131,7 @@ export async function applyHazardFilters(
 
 				if (hazardTypeId && record.typeId !== hazardTypeId) {
 					logger.warn("Hazard type mismatch detected", {
-						specificHazardId,
+						specificHazardId: hipHazardIdFilter,
 						actualTypeId: record.typeId,
 						expectedTypeId: hazardTypeId,
 						issue: "specificHazard hierarchy does not match expected type",
@@ -135,14 +139,14 @@ export async function applyHazardFilters(
 				}
 
 				logger.info("Specific hazard validation completed", {
-					specificHazardId,
+					specificHazardId: hipHazardIdFilter,
 					validationPassed:
 						(!hazardClusterId || record.clusterId === hazardClusterId) &&
 						(!hazardTypeId || record.typeId === hazardTypeId),
 				});
 			} else {
 				logger.warn("Specific hazard not found in hierarchy", {
-					specificHazardId,
+					specificHazardId: hipHazardIdFilter,
 					issue: "hazard ID does not exist in database",
 				});
 			}
@@ -189,7 +193,7 @@ export async function applyHazardFilters(
 			stack: error instanceof Error ? error.stack : undefined,
 			hazardTypeId,
 			hazardClusterId,
-			specificHazardId,
+			specificHazardId: hipHazardIdFilter,
 		});
 	}
 
