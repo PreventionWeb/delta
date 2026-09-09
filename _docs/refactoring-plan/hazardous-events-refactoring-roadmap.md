@@ -1963,6 +1963,20 @@ app/domains/hazardous-events/ that imports it) to the new location. This also fi
 turns tests/integration/db/testSchema/hazardousEventTable.ts from a hand-duplicated
 mirror (flagged as a recurring manual-sync cost in 2i's design.md Decision 7) into a
 genuine one-line re-export, matching every other table's testSchema file.
+
+Also resolve two column-level questions surfaced during 2j's readiness check, both deliberately
+left open until this step rather than guessed at during Phase 2: (1) hazardousEventTable carries
+three distinct status-shaped columns — the plain status column (NOT NULL, default 'pending',
+unclear original purpose), approvalStatus (workflow_instance now owns this concept exclusively
+per 2a), and hazardousEventStatus (nullable, forecasted/ongoing/passed, genuinely live today via
+the hazard event list filter and form) — decide which of these the new implementation actually
+needs going forward and drop the rest, rather than carrying all three indefinitely. (2)
+nationalSpecification and most of this table's other text columns (startDate, endDate,
+description, chainsExplanation, magniture, recordOriginator, dataSource) use the zeroText()
+pattern (NOT NULL, default '') purely to avoid null-handling in old application code, not because
+"" is a meaningful value — reconsider whether these should become genuinely nullable once the old
+model layer (7d) no longer depends on them never being null, per Invariant 3 (DB constraints are
+defense-in-depth, not a substitute for domain-layer rules).
 ```
 
 **Files touched:**
