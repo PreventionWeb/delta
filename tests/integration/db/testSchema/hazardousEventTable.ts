@@ -21,6 +21,7 @@ import { hipHazardTable } from "./hipHazardTable";
 import { hipClusterTable } from "./hipClusterTable";
 import { hipTypeTable } from "./hipTypeTable";
 import { userTable } from "./userTable";
+import { specificHazardTable } from "./specificHazardTable";
 
 export const hazardousEventTable = pgTable(
 	"hazardous_event",
@@ -35,6 +36,9 @@ export const hazardousEventTable = pgTable(
 			.primaryKey(),
 		countryAccountsId: uuid("country_accounts_id").references(
 			() => countryAccounts.id,
+		),
+		specificHazardId: uuid("specific_hazard_id").references(
+			() => specificHazardTable.id,
 		),
 		status: text("status").notNull().default("pending"),
 		nationalSpecification: zeroText("national_specification"),
@@ -88,6 +92,10 @@ export const hazardousEventRel = relations(hazardousEventTable, ({ one }) => ({
 	hipType: one(hipTypeTable, {
 		fields: [hazardousEventTable.hipTypeId],
 		references: [hipTypeTable.id],
+	}),
+	specificHazard: one(specificHazardTable, {
+		fields: [hazardousEventTable.specificHazardId],
+		references: [specificHazardTable.id],
 	}),
 	userSubmittedBy: one(userTable, {
 		fields: [hazardousEventTable.submittedByUserId],
