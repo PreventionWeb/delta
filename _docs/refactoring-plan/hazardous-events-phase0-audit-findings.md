@@ -791,3 +791,40 @@ rediscovered later.
    consumers of `hazardousEventTableConstraits`) entirely, while Phase 3's fresh `DomainError`
    handling replaces it for the new code path — no dedicated fix branch needed, this one is moot
    the moment `7d` lands.
+8. **`effectDetails.ts`/`geographicImpact.ts` analytics filters are broken against the legacy HIP
+   hierarchy → Phase 6 or Phase 7 cleanup (exact phase not yet decided), rebuilt cleanly rather
+   than patched.** Found during the `ca-he-hazard-filter-fixes` branch's investigation of the `2i`
+   naming-collision risk (not part of 0a–0g's original scope; recorded here per the same pattern
+   as items 1–7). Two distinct, independently confirmed problems:
+   - `effectDetails.ts:198` maps its `specificHazardId` filter to
+     `hazardousEventTable.hipTypeId` instead of `hipHazardId` — a copy-paste bug (the block is
+     textually identical in shape to the `hazardTypeId` block immediately above it, with the
+     condition's left-hand side never updated). Confirmed by cross-referencing the correct
+     mapping already used by `applyHazardFilters` (`hazardFilters.ts:81`) and by
+     `geographicImpact.ts`'s own separate, correct inline usage (lines 716-720).
+   - `getEffectDetails` cannot be called at all today, by anyone, regardless of input — confirmed
+     empirically (a call with zero seeded rows and all filters null throws identically). Root
+     cause, confirmed via `git log`: commit `59f4558e` removed the `spatial_footprint` column
+     from `damages`/`losses`/`disruption`/`disasterRecords` tables (migration
+     `20260730071321_remove_spatial_footprint_columns.sql`), but left three `SELECT`-clause
+     references in `effectDetails.ts` (lines 298/353/392) patched only as
+     `(table as any).spatialFootprint` — silencing the type error while leaving the selected
+     value `undefined`, which Drizzle's query builder rejects at build time, before any DB
+     round-trip. `geographicImpact.ts`'s `getDisasterRecordsForDivision` (lines 811/835) has the
+     identical dead pattern and is equally unreachable. `mostDamagingEvents.ts` does not have
+     this pattern — confirmed clean.
+
+   **Decided: do not patch either problem.** Both files query against the legacy HIP hierarchy
+   (`hip_type`/`hip_cluster`/`hip_hazard`) and are due a full rewrite against the new
+   `hazard_type`/`hazard_cluster`/`specific_hazard` schema (`2b`) once analytics is picked up in
+   this refactor — patching the dead `spatialFootprint` references or the `hipTypeId`/
+   `hipHazardId` mapping now would fix code that gets thrown away regardless, the same
+   "wasted effort" reasoning as items 1/4/5/6/7. Unlike those items, this bug also appears to have
+   been silently broken for a while with zero report — analytics usage is confirmed paused,
+   reinforcing that a clean rebuild is the right call, not an urgent patch. Whoever picks this up:
+   the original characterization plan assumed the "sibling hazard excluded" scenario was the
+   pre-fix Red case — working through the actual ID values, this is probably backwards (`hipTypeId`
+   and `specificHazardId` are different ID namespaces that could never accidentally match, so
+   that assertion likely passes vacuously today; "matching hazard included" is more likely the
+   one that's actually broken) — re-verify from scratch against the new schema rather than reusing
+   this assumption.
