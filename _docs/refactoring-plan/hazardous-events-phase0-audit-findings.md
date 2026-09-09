@@ -778,3 +778,16 @@ rediscovered later.
    entities, if properly typed (`string | null`, not `string`) with input validation at the
    boundary (per ADR-003's `DomainError` hierarchy, already the plan for this phase), close this
    off structurally rather than needing a per-field patch.
+7. **Stale `hazardousEventTableConstraits.hipTypeId` constraint name → Phase 7d, fixed by
+   construction.** Found during `2i`'s independent code review (not part of 0a–0g's original
+   scope; recorded here rather than left as a review comment, same as items 1–6). The object's
+   hardcoded value is `"hazardous_event_hip_type_id_hip_type_id_fk"`, but the real constraint
+   (confirmed live: `hipTypeTable` maps to physical table `hip_class`, not `hip_type`) is
+   `hazardous_event_hip_type_id_hip_class_id_fk` — a real FK violation on `hip_type_id` never
+   string-matches in `checkConstraintError` (`app/backend.server/models/common.ts`), so it
+   silently falls through to the generic `"Database constraint failed: ..."` form-level error
+   instead of a field-level one. Same footing as items 1–6: safe to leave as-is given HE usage is
+   already paused, and `7d` deletes `event.ts`/`hazardous_event_create_update.ts` (the only
+   consumers of `hazardousEventTableConstraits`) entirely, while Phase 3's fresh `DomainError`
+   handling replaces it for the new code path — no dedicated fix branch needed, this one is moot
+   the moment `7d` lands.
