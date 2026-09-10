@@ -112,6 +112,12 @@ Never apply the SQL snapshot as a migration. Always run `yarn dbsync` / `drizzle
 
 When adding a column to the production schema, also update `tests/integration/db/testSchema/` until issue P1-42 is resolved.
 
+**Hand-authored multi-statement migrations need `--> statement-breakpoint`** between statements.
+
+### Formatting — never run bulk `yarn format`
+
+Scope to `npx prettier --check <files>`; preview `--write` on a copy first.
+
 ### Test infrastructure — four tiers, two orphaned
 
 | Suite                     | Runner        | Command          | CI?         |
