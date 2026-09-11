@@ -138,7 +138,9 @@ Proceed only when all artifacts required for apply (`applyRequires`) show `statu
   3. `yarn format:check` — Prettier clean
   4. Anti-pattern review — check `.github/skills/anti-pattern-check/SKILL.md`
   5. SOLID review — invoke `solid-reviewer` agent
-  6. Documentation review — comments explain WHY not WHAT
+  6. Documentation review — comments explain WHY not WHAT, compacted where possible without
+     losing meaning (not a fixed line-count limit); one full-diff sweep before the final
+     report, not just each round's delta
   7. Project conventions review — check `.github/copilot-instructions.md`
   8. Code review — run `.github/skills/code-review/SKILL.md` in full, via a fresh subagent
   9. Visual/UX parity review — render the page vs. a named reference page, required for any

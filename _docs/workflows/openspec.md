@@ -72,6 +72,10 @@ necessary, it generates:
 The project config at `openspec/config.yaml` injects DELTA's conventions and rules into every
 artifact automatically.
 
+**Before handing these to the user:** read every artifact yourself. A subagent's own
+completion summary is not verification — form your own judgment on correctness and
+consistency with the real schema/codebase first.
+
 ## Step 2 — Review
 
 Read each artifact before running apply. Check:
@@ -105,7 +109,7 @@ The `sdd-implementer` agent runs the full TDD loop:
    | 3    | `yarn format:check` — Prettier clean                                                                                                                                                              |
    | 4    | Anti-pattern review — `.github/skills/anti-pattern-check/SKILL.md`                                                                                                                                |
    | 5    | SOLID review — `solid-reviewer` agent (SRP and DIP focus)                                                                                                                                         |
-   | 6    | Documentation review — comments explain WHY, not WHAT                                                                                                                                             |
+   | 6    | Documentation review — comments explain WHY, not WHAT, and stay as compact as the code's actual complexity allows                                                                                 |
    | 7    | Project conventions — `.github/copilot-instructions.md`                                                                                                                                           |
    | 8    | Code review — repo's `code-review` skill, via a fresh subagent (DELTA/DDD/ADR-specific)                                                                                                           |
    | 9    | Visual/UX parity — required only for presentation-layer changes                                                                                                                                   |
@@ -115,6 +119,16 @@ The `sdd-implementer` agent runs the full TDD loop:
    `test-quality-auditor` runs mutation testing (Stryker) scoped to the changed files and
    reports whether the existing tests would actually catch a real regression — not just whether
    they pass. See `.claude/agents/test-quality-auditor.agent.md`.
+
+   **Gate 6 also requires one full pass over every comment in the change's entire diff** —
+   not just the current round's delta — immediately before the final report. A comment can
+   accrete length gradually across several refactor rounds without any single round's check
+   ever seeing the whole picture; only a full-diff sweep at the end catches that. Compact any
+   comment that says in several lines what fits in one, without losing real information. A
+   multi-line comment is not itself a defect — keep it when the code it documents is genuinely
+   non-trivial (a subtle invariant, an ordering dependency, a workaround whose reasoning
+   doesn't fit on one line). There is no fixed line-count limit; the bar is "no shorter without
+   losing meaning," not "no longer than N lines."
 
 4. **Keep all artifacts in sync** — `proposal.md` and `specs/` are living documents. When a
    design decision changes the scope, files, approach, or scenarios stated in either (different
