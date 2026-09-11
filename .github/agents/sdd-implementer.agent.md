@@ -135,6 +135,13 @@ summary here — the skill is the authoritative source.
   public cross-module function (one-line JSDoc is enough).
 - Skip when: function name and types already describe the contract, or logic is self-evident.
 - Balance rule: if comments outnumber code lines, refactor the code — don't explain harder.
+- Compact rule: before your final report, re-scan every comment across the change's **entire
+  diff so far — not just this round's delta**. Bloat can accrete gradually across several
+  refactor rounds without any single round's check catching it. Compact any comment that says
+  in several lines what fits in one, without losing real information. A multi-line comment is
+  not itself a defect — keep it when the code it documents is genuinely non-trivial (a subtle
+  invariant, an ordering dependency, a workaround whose reasoning doesn't fit on one line).
+  There is no fixed line-count limit to hit; the bar is "no shorter without losing meaning."
 
 **Project conventions:** See `.github/copilot-instructions.md`. Critical: `countryAccountsId`
 on every tenant query, `authLoaderWithPerm` on every loader, `yarn dbsync` for migrations,
