@@ -9,18 +9,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { userTable } from "~/drizzle/schema/userTable";
 import { ourRandomUUID } from "~/utils/drizzleUtil";
-
-// Shared with workflowHistoryTable.ts — single source of truth for the status domain.
-export const STATUS_VALUES = [
-	"DRAFT",
-	"SUBMITTED",
-	"REVISION_REQUESTED",
-	"APPROVED",
-	"REJECTED",
-	"PUBLISHED",
-] as const;
-
-export const ENTITY_TYPE_VALUES = ["HE", "DE", "DR"] as const;
+import { ENTITY_TYPE_VALUES, STATUS_VALUES } from "../domain/WorkflowInstance";
 
 // Builds a CHECK constraint's IN (...) list from a const array so it can't drift from the enum.
 export function sqlValueList(values: readonly string[]) {

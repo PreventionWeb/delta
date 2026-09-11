@@ -2,11 +2,8 @@ import { sql } from "drizzle-orm";
 import { check, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { userTable } from "~/drizzle/schema/userTable";
 import { ourRandomUUID } from "~/utils/drizzleUtil";
-import {
-	STATUS_VALUES,
-	sqlValueList,
-	workflowInstanceTable,
-} from "./workflowInstanceTable";
+import { STATUS_VALUES } from "../domain/WorkflowInstance";
+import { sqlValueList, workflowInstanceTable } from "./workflowInstanceTable";
 
 export const workflowHistoryTable = pgTable(
 	"workflow_history",
