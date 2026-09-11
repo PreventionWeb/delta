@@ -2,3 +2,6 @@ node_modules
 dist
 build
 .env
+
+# Wide table, edited row-by-row by agents — unrelated to rendered output.
+_docs/refactoring-plan/deferred-items-register.md
