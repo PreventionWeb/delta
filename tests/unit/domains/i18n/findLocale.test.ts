@@ -48,6 +48,16 @@ describe("findLocale", () => {
 		expect(result).toBe("fr");
 	});
 
+	it("returns the Albanian tenant default when the settings row language is sq (step 3)", async () => {
+		getCountrySettingsFromSessionMock.mockResolvedValue({ language: "sq" });
+
+		const result = await findLocale(
+			argsFor(new Request("http://localhost/some-route")),
+		);
+
+		expect(result).toBe("sq");
+	});
+
 	it("returns null when the URL segment is unsupported and no tenant setting is cached", async () => {
 		getCountrySettingsFromSessionMock.mockResolvedValue(undefined);
 

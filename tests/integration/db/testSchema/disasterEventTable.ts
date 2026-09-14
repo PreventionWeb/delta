@@ -4,12 +4,14 @@ import {
 	uuid,
 	AnyPgColumn,
 	text,
+	time,
 	jsonb,
 	unique,
 } from "drizzle-orm/pg-core";
 import {
 	createdUpdatedTimestamps,
 	approvalFields,
+	approvalWorkflowFields,
 	apiImportIdField,
 	hipRelationColumnsOptional,
 	zeroText,
@@ -29,6 +31,7 @@ export const disasterEventTable = pgTable(
 	{
 		...createdUpdatedTimestamps,
 		...approvalFields,
+		...approvalWorkflowFields,
 		...apiImportIdField(),
 		...hipRelationColumnsOptional(),
 		countryAccountsId: uuid("country_accounts_id").references(
@@ -46,6 +49,7 @@ export const disasterEventTable = pgTable(
 		disasterEventId: uuid("disaster_event_id").references(
 			(): AnyPgColumn => disasterEventTable.id,
 		),
+		recordingOrganizationId: uuid("recording_organization_id"),
 		nationalDisasterId: zeroText("national_disaster_id"),
 		// multiple other ids
 		otherId1: zeroText("other_id1"),
@@ -56,7 +60,9 @@ export const disasterEventTable = pgTable(
 		nameGlobalOrRegional: zeroText("name_global_or_regional"),
 		// yyyy or yyyy-mm or yyyy-mm-dd
 		startDate: zeroText("start_date"),
+		startDateTime: time("start_date_time"),
 		endDate: zeroText("end_date"),
+		endDateTime: time("end_date_time"),
 		startDateLocal: text("start_date_local"),
 		endDateLocal: text("end_date_local"),
 		durationDays: ourBigint("duration_days"),
@@ -111,8 +117,6 @@ export const disasterEventTable = pgTable(
 			"recovery_needs_local_currency_override",
 		),
 		//recoveryNeedsUSD: ourMoney("recovery_needs_usd"),
-		spatialFootprint: jsonb("spatial_footprint"),
-
 		legacyData: jsonb("legacy_data"),
 	},
 	(table) => ({

@@ -1,6 +1,7 @@
 ---
 name: sdd-implementer
-description: "Implements a DELTA code change following TDD Green→Refactor loop until all quality
+description:
+  "Implements a DELTA code change following TDD Green→Refactor loop until all quality
   gates pass. Trigger when: failing tests exist from tdd-test-writer and the change is ready to
   implement, or when /opsx:apply is invoked on a change that has an OpenSpec proposal and tests.
   Does not stop at Green — loops through Refactor until principal engineer quality bar is met."
@@ -20,13 +21,21 @@ may require others. If you edit an unlisted file, state the file, reason, and in
 doing so. Create as many test files under `tests/` as the change needs.
 
 **Destructive actions — stop and get explicit user approval every time:**
+
 - Deleting or renaming any file you did not create in this change
 - Any DB schema change not listed as a `yarn dbsync` task in `tasks.md`
 - Commands: `rm`, `git reset --hard`, `git clean -f`, `drizzle-kit push`, `DROP TABLE`,
   `TRUNCATE`, `DELETE FROM` without a `WHERE` clause
 - Overwriting `.env`, `*.key`, `*.pem`, or any file in `app/drizzle/migrations/`
 
+**Migration and formatting gotchas:**
+
+- Multi-statement hand-authored migrations need `--> statement-breakpoint` between statements.
+- Never run bulk `yarn format` — scope to `npx prettier --check <files>`; preview `--write` on
+  a copy first.
+
 **Design deviations — stop and get explicit user approval every time:**
+
 - Any implementation that contradicts a named decision in `design.md` (error types thrown,
   response shapes, function signatures, architectural choices, alternatives explicitly rejected)
 - Before deviating: state (1) what `design.md` specifies, (2) what you propose instead,
@@ -78,7 +87,7 @@ Before entering the Refactor loop, assess whether the change requires Playwright
 in addition to Vitest tests. Use this decision table:
 
 | The change touches…                                             | Playwright required? |
-|-----------------------------------------------------------------|----------------------|
+| --------------------------------------------------------------- | -------------------- |
 | Pure functions, utilities, domain logic                         | No                   |
 | Database queries, model or handler functions                    | No                   |
 | Route loaders / actions tested in isolation                     | No                   |
@@ -106,6 +115,7 @@ and re-run from that gate. Loop until all pass:
 8. code review                                   — invoke code-review skill at high effort
 9. visual/UX parity review (see below)          — REQUIRED if this change touches
                                                     app/domains/*/presentation/ or app/routes/
+10. independent second-opinion review (see below) — Claude Code only; other tools skip this gate
 ```
 
 Only exit the loop when every applicable gate passes without changes needed. Gate 9 is not
@@ -120,6 +130,7 @@ summary here — the skill is the authoritative source.
 **SOLID review:** Invoke the `solid-reviewer` agent. Primary concerns: SRP and DIP.
 
 **Documentation review:** Comments explain WHY, not WHAT.
+
 - Add when: complex/non-obvious logic, subtle invariant, workaround for a known constraint,
   public cross-module function (one-line JSDoc is enough).
 - Skip when: function name and types already describe the contract, or logic is self-evident.
@@ -136,6 +147,7 @@ or a list with no way to reach its own detail page. Presentation-layer styling a
 be in-line with other pages in the app — use the same shared layout components, heading
 classes, and navigation patterns as existing pages, not a page-specific invention. Do this for
 real, don't just assert you did:
+
 1. Name a real, existing reference page of the same page-type already in the app (a list page
    for a new list page, a detail/form page for a new detail/form page) — not a hypothetical.
 2. Start `yarn dev`, seed minimal real data if the page needs it to render meaningfully, and
@@ -154,24 +166,37 @@ real, don't just assert you did:
    invented pattern) — same rigor as any other design decision: verify against real code, don't
    guess.
 
-**Code review:** Before invoking the `code-review` skill, explicitly switch cognitive mode.
-You are no longer the implementer whose goal is to make the code work — you are a skeptical
-reviewer whose only goal is to find what is wrong. Re-read your own implementation as if you
-are encountering it for the first time and have no stake in defending any of the choices.
-Then invoke the `code-review` skill at `high` effort on the changed files.
+**Code review:** Invoke the `code-review` skill at `high` effort via a fresh subagent (`Agent`
+tool, not `fork`) with no prior context — same-context self-review is not a substitute.
 Treat every finding as a potential gate failure — classify each one (see Review comment
 resolution below) and act accordingly before exiting the loop.
+
+**Independent second-opinion review (Gate 10, Claude Code only):** After Gate 8 (repo-specific)
+and Gate 9 pass, if you are running as Claude Code, invoke its built-in `code-review` command at
+`high` effort via a second, separate fresh subagent — this is a distinct pass from Gate 8, not a
+repeat of it: generic correctness/security findings a DELTA-specific checklist doesn't target.
+Classify and act on findings the same way as Gate 8. If you are a different AI tool, this gate
+does not apply unless your own platform offers an equivalent independent review feature — use
+that if it exists, otherwise skip this gate and rely on Gate 8 plus the human review that
+follows. Either way, this runs before you report the final state, so the user's own review is
+the last checkpoint, not sandwiched before an automated pass that might reopen it.
+
+**Test quality check (mutation testing):** If this change added or modified anything under
+`app/domains/*/domain/`, invoke the `test-quality-auditor` agent, scoped to exactly the files
+this change touched. Treat a reported real gap as a Gate 8-style finding — write the missing
+test scenario, then re-run gates 1–2. Not required for `application/`/`infrastructure/`-only
+changes; invoke on request there instead.
 
 ## Review comment resolution
 
 When Gate 8 (or an external PR review) produces findings, classify each before acting:
 
-| Finding type | Examples | Action |
-|---|---|---|
-| **Spec gap / missing scenario** | Race condition not in spec; edge case uncovered | Invoke `spec-writer` to update the spec, then re-implement and re-run gates 1–8 |
-| **Architectural / design flaw** | Wrong abstraction, SRP violation, rejected alternative used | Update `design.md`, invoke `spec-writer` if behaviour changes, re-implement, re-run gates 1–8 |
-| **Documentation / artifact inaccuracy** | TBD Purpose in spec, inaccurate migration note | Fix the artifact directly; re-run gate 1 (tests) + gate 2 (tsc) only |
-| **Nitpick / style** | Missing language tag, wrong type shape in example | Fix directly; re-run gate 1 (tests) + gate 2 (tsc) only |
+| Finding type                            | Examples                                                    | Action                                                                                        |
+| --------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| **Spec gap / missing scenario**         | Race condition not in spec; edge case uncovered             | Invoke `spec-writer` to update the spec, then re-implement and re-run gates 1–8               |
+| **Architectural / design flaw**         | Wrong abstraction, SRP violation, rejected alternative used | Update `design.md`, invoke `spec-writer` if behaviour changes, re-implement, re-run gates 1–8 |
+| **Documentation / artifact inaccuracy** | TBD Purpose in spec, inaccurate migration note              | Fix the artifact directly; re-run gate 1 (tests) + gate 2 (tsc) only                          |
+| **Nitpick / style**                     | Missing language tag, wrong type shape in example           | Fix directly; re-run gate 1 (tests) + gate 2 (tsc) only                                       |
 
 **Loop limit:** Track a fix-attempt counter per finding. If a finding is not resolved after
 **3 fix attempts**, stop and escalate to the user: describe the finding, what was tried, and
@@ -179,7 +204,8 @@ why it remains unresolved. Do not loop indefinitely.
 
 ## Done criteria
 
-All eight gates pass and `yarn test:run2` (full PGlite suite) shows no regressions.
+All applicable gates pass (1–8 always; 9, 10, and the test quality check when applicable) and
+`yarn test:run2` (full PGlite suite) shows no regressions.
 
 **Archive and PR tasks are user-controlled — stop when you reach them.** Any task whose
 body invokes `opsx:archive` (or `openspec archive`) or asks to raise a PR is outside your

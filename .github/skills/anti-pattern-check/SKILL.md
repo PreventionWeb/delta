@@ -1,6 +1,7 @@
 ---
 name: anti-pattern-check
-description: "Quality gate checklist of known anti-patterns and code standards for DELTA.
+description:
+  "Quality gate checklist of known anti-patterns and code standards for DELTA.
   Reference during code review, the Refactor phase of TDD, or when implementing any change.
   Covers project-specific known bugs, DELTA conventions, and general code quality rules."
 ---
@@ -17,14 +18,14 @@ A finding means: stop, fix, re-run tests, re-check.
 These are confirmed bugs in the codebase. Do not copy these patterns, extend these functions,
 or use them as implementation templates.
 
-| ID | Anti-Pattern | Where it exists | Rule |
-|----|---|---|---|
-| AP-P0-2 | Missing `await` on Drizzle delete/insert/update | `common.ts deleteById` | Every Drizzle mutation MUST be awaited |
-| AP-P0-7 | Swallowing errors from sub-calls | `human_effects.ts deleteAllData` | Errors from called functions MUST be propagated or rethrown |
-| AP-P0-9 | Sentinel string for control flow | `common.ts handleTransaction` | Use typed `Error` subclasses, never magic strings |
-| AP-P0-10 | Type export in wrong schema file | `hipHazardTable.ts` (fixed) | Export `$inferSelect`/`$inferInsert` only from the file that defines the table |
-| AP-P0-12 | Logging env var values at startup | `env.ts` (fixed) | Never log env var values; log var names only if needed |
-| AP-P0-14 | Stripping meaningful characters from input | `security.ts sanitizeInput` | Never remove apostrophes, diacritics, or other valid user text |
+| ID       | Anti-Pattern                                    | Where it exists                  | Rule                                                                           |
+| -------- | ----------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------ |
+| AP-P0-2  | Missing `await` on Drizzle delete/insert/update | `common.ts deleteById`           | Every Drizzle mutation MUST be awaited                                         |
+| AP-P0-7  | Swallowing errors from sub-calls                | `human_effects.ts deleteAllData` | Errors from called functions MUST be propagated or rethrown                    |
+| AP-P0-9  | Sentinel string for control flow                | `common.ts handleTransaction`    | Use typed `Error` subclasses, never magic strings                              |
+| AP-P0-10 | Type export in wrong schema file                | `hipHazardTable.ts` (fixed)      | Export `$inferSelect`/`$inferInsert` only from the file that defines the table |
+| AP-P0-12 | Logging env var values at startup               | `env.ts` (fixed)                 | Never log env var values; log var names only if needed                         |
+| AP-P0-14 | Stripping meaningful characters from input      | `security.ts sanitizeInput`      | Never remove apostrophes, diacritics, or other valid user text                 |
 
 ---
 
@@ -53,6 +54,8 @@ or use them as implementation templates.
 - [ ] New columns also updated in `tests/integration/db/testSchema/` (until P1-42 resolved)
 - [ ] Primary keys use `ourRandomUUID()`, foreign key references use `uuid` type
 - [ ] `SelectX` and `InsertX` types exported from the file that defines the table, nowhere else
+- [ ] FK columns are not indexed by default — only when a real query or delete-check path needs it
+- [ ] New timestamp columns use `{ withTimezone: true }` inline, never the `createdUpdatedTimestamps` helper (ADR-002)
 
 ---
 
