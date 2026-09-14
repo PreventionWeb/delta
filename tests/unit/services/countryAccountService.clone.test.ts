@@ -71,7 +71,8 @@ vi.mock("~/db/queries/countryAccountsRepository", () => ({
 
 vi.mock("~/db/queries/instanceSystemSettingRepository", () => ({
 	InstanceSystemSettingRepository: {
-		getByCountryAccountId: instanceSystemSettingRepositoryGetByCountryAccountIdMock,
+		getByCountryAccountId:
+			instanceSystemSettingRepositoryGetByCountryAccountIdMock,
 		create: instanceSystemSettingRepositoryCreateMock,
 	},
 }));
@@ -85,7 +86,8 @@ vi.mock("~/db/queries/organizationRepository", () => ({
 
 vi.mock("~/db/queries/userCountryAccountsRepository", () => ({
 	UserCountryAccountRepository: {
-		getByCountryAccountsId: userCountryAccountRepositoryGetByCountryAccountsIdMock,
+		getByCountryAccountsId:
+			userCountryAccountRepositoryGetByCountryAccountsIdMock,
 		createMany: userCountryAccountRepositoryCreateManyMock,
 	},
 }));
@@ -113,7 +115,8 @@ vi.mock("~/db/queries/eventRepository", () => ({
 
 vi.mock("~/db/queries/disasterEventAttachmentRepository", () => ({
 	DisasterEventAttachmentRepository: {
-		getByDisasterEventIds: disasterEventAttachmentRepositoryGetByDisasterEventIdsMock,
+		getByDisasterEventIds:
+			disasterEventAttachmentRepositoryGetByDisasterEventIdsMock,
 		createMany: vi.fn(),
 	},
 }));
@@ -276,13 +279,19 @@ describe("CountryAccountService.clone", () => {
 			country: { type: "Fictional", iso3: "FIC" },
 		});
 		countryAccountsRepositoryCreateMock.mockResolvedValue({ id: "target-ca" });
-		instanceSystemSettingRepositoryGetByCountryAccountIdMock.mockResolvedValue(null);
-		instanceSystemSettingRepositoryCreateMock.mockResolvedValue({ id: "settings-1" });
+		instanceSystemSettingRepositoryGetByCountryAccountIdMock.mockResolvedValue(
+			null,
+		);
+		instanceSystemSettingRepositoryCreateMock.mockResolvedValue({
+			id: "settings-1",
+		});
 		organizationRepositoryGetByCountryAccountsIdMock.mockResolvedValue([
 			{ id: "old-org-1", countryAccountsId: "source-ca" },
 		]);
 		organizationRepositoryCreateManyMock.mockResolvedValue([]);
-		userCountryAccountRepositoryGetByCountryAccountsIdMock.mockResolvedValue([]);
+		userCountryAccountRepositoryGetByCountryAccountsIdMock.mockResolvedValue(
+			[],
+		);
 		humanDsgConfigRepositoryGetByCountryAccountsIdMock.mockResolvedValue([]);
 		humanDsgConfigRepositoryCreateManyMock.mockResolvedValue([]);
 		divisionRepositoryGetByCountryAccountsIdMock.mockResolvedValue([]);
@@ -305,7 +314,9 @@ describe("CountryAccountService.clone", () => {
 		eventRepositoryCreateManyMock.mockResolvedValue([]);
 		eventRelationshipRepositoryGetByEventIdsMock.mockResolvedValue([]);
 		disasterEventRepositoryCreateManyMock.mockResolvedValue([]);
-		disasterEventAttachmentRepositoryGetByDisasterEventIdsMock.mockResolvedValue([]);
+		disasterEventAttachmentRepositoryGetByDisasterEventIdsMock.mockResolvedValue(
+			[],
+		);
 		disasterEventLinkRepositoryGetByDisasterEventIdsMock.mockResolvedValue([]);
 		disasterRecordsRepositoryGetByCountryAccountsIdMock.mockResolvedValue([]);
 		disasterRecordsRepositoryCreateManyMock.mockResolvedValue([]);
@@ -327,30 +338,31 @@ describe("CountryAccountService.clone", () => {
 		humanCategoryPresenceRepositoryCreateManyMock.mockResolvedValue([]);
 		nonEcoLossesRepositoryGetByRecordIdsMock.mockResolvedValue([]);
 		nonEcoLossesRepositoryCreateManyMock.mockResolvedValue([]);
-		sectorDisasterRecordsRelationRepositoryGetByRecordIdsMock.mockResolvedValue([]);
+		sectorDisasterRecordsRelationRepositoryGetByRecordIdsMock.mockResolvedValue(
+			[],
+		);
 		sectorDisasterRecordsRelationRepositoryCreateManyMock.mockResolvedValue([]);
 		lossesRepositoryGetByRecordIdsMock.mockResolvedValue([]);
 		lossesRepositoryCreateManyMock.mockResolvedValue([]);
 		damagesRepositoryGetByRecordIdsMock.mockResolvedValue([]);
 		damagesRepositoryCreateManyMock.mockResolvedValue([]);
-		entityValidationAssignmentRepositoryGetByEntityIdsMock.mockResolvedValue([]);
+		entityValidationAssignmentRepositoryGetByEntityIdsMock.mockResolvedValue(
+			[],
+		);
 		entityValidationAssignmentRepositoryCreateManyMock.mockResolvedValue([]);
 		entityValidationRejectionRepositoryGetByEntityIdsMock.mockResolvedValue([]);
 		entityValidationRejectionRepositoryCreateManyMock.mockResolvedValue([]);
 		drTransactionMock.mockImplementation(async (cb) => cb({}));
 	});
 
-	it(
-		"maps recording organization IDs when cloning disaster events into the new country account",
-		async () => {
-			const { CountryAccountService } = await import("~/services/countryAccountService");
+	it("maps recording organization IDs when cloning disaster events into the new country account", async () => {
+		const { CountryAccountService } =
+			await import("~/services/countryAccountService");
 
-			await CountryAccountService.clone("source-ca", "Training copy");
+		await CountryAccountService.clone("source-ca", "Training copy");
 
-			const clonedRows = disasterEventRepositoryCreateManyMock.mock.calls[0][0];
-			expect(clonedRows[0].recordingOrganizationId).not.toBe("old-org-1");
-			expect(clonedRows[0].recordingOrganizationId).toEqual(expect.any(String));
-		},
-		20000,
-	);
+		const clonedRows = disasterEventRepositoryCreateManyMock.mock.calls[0][0];
+		expect(clonedRows[0].recordingOrganizationId).not.toBe("old-org-1");
+		expect(clonedRows[0].recordingOrganizationId).toEqual(expect.any(String));
+	}, 20000);
 });
