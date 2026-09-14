@@ -107,13 +107,16 @@ export default function SpatialFootprintModalRoute() {
 			>
 				<div className="mb-4 flex items-center justify-between">
 					<h3 className="text-[18px] font-semibold text-slate-800">
-						Edit spatial footprint
+						{ctx.t({
+							code: "disaster_event.form.edit_spatial_footprint",
+							msg: "Edit spatial footprint",
+						})}
 					</h3>
 					<Button
 						type="button"
 						icon="pi pi-times"
 						text
-						aria-label="Close"
+						aria-label={ctx.t({ code: "common.close", msg: "Close" })}
 						loading={pendingExitAction === "close"}
 						disabled={Boolean(pendingExitAction)}
 						onClick={handleClose}
@@ -133,7 +136,7 @@ export default function SpatialFootprintModalRoute() {
 				<div className="mt-4 flex justify-end gap-2">
 					<Button
 						type="button"
-						label="Cancel"
+						label={ctx.t({ code: "common.cancel", msg: "Cancel" })}
 						outlined
 						loading={pendingExitAction === "cancel"}
 						disabled={Boolean(pendingExitAction)}
@@ -141,13 +144,18 @@ export default function SpatialFootprintModalRoute() {
 					/>
 					<Button
 						type="button"
-						label="Apply"
+						label={ctx.t({ code: "common.apply", msg: "Apply" })}
 						loading={pendingExitAction === "apply"}
 						disabled={Boolean(pendingExitAction)}
 						onClick={handleSave}
 					/>
 					<span className="sr-only" aria-live="polite">
-						{pendingExitAction ? "Closing dialog" : ""}
+						{pendingExitAction
+							? ctx.t({
+									code: "disaster_event.form.closing_dialog",
+									msg: "Closing dialog",
+								})
+							: ""}
 					</span>
 				</div>
 			</div>
