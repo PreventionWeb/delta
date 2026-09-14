@@ -882,6 +882,13 @@ export const CountryAccountService = {
 						disasterEventId: row.disasterEventId
 							? getMappedId(eventIdMap, row.disasterEventId, "disaster event")
 							: null,
+						recordingOrganizationId: row.recordingOrganizationId
+							? getMappedId(
+									organizationIdMap,
+									row.recordingOrganizationId,
+									"organization",
+								)
+							: null,
 					})),
 					tx,
 				);
@@ -1548,12 +1555,7 @@ export const CountryAccountService = {
 				tx,
 			);
 			await DivisionRepository.deleteByCountryAccountId(countryAccountId, tx);
-			await UserCountryAccountRepository.deleteByCountryAccountIdAndIsPrimaryAdmin(
-				countryAccountId,
-				false,
-				tx,
-			);
-			await OrganizationRepository.deleteByCountryAccountId(
+			await UserCountryAccountRepository.deleteByCountryAccountId(
 				countryAccountId,
 				tx,
 			);
@@ -1567,6 +1569,10 @@ export const CountryAccountService = {
 				tx,
 			);
 			await HazardousEventRepository.deleteByCountryAccountId(
+				countryAccountId,
+				tx,
+			);
+			await OrganizationRepository.deleteByCountryAccountId(
 				countryAccountId,
 				tx,
 			);
