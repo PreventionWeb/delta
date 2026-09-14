@@ -1845,11 +1845,11 @@
     },
     {
         "id": "hip_cluster.name.1057.8abb82",
-        "translation": "المعادن الثقيلة والعناصر النادرة (Heavy Metals & Trace Elements)"
+        "translation": "المعادن الثقيلة والعناصر النادرة (Heavy Metals \u0026 Trace Elements)"
     },
     {
         "id": "hip_cluster.name.1058.8de84f",
-        "translation": "المخاطر الكيميائية في الغذاء والأعلاف (Chemical Hazards in Food & Feed)"
+        "translation": "المخاطر الكيميائية في الغذاء والأعلاف (Chemical Hazards in Food \u0026 Feed)"
     },
     {
         "id": "hip_cluster.name.1060.346cde",
@@ -1861,7 +1861,7 @@
     },
     {
         "id": "hip_cluster.name.1063.697a96",
-        "translation": "المخاطر الكيميائية والسموم الأخرى (Other Chemical Hazards & Toxins)"
+        "translation": "المخاطر الكيميائية والسموم الأخرى (Other Chemical Hazards \u0026 Toxins)"
     },
     {
         "id": "hip_cluster.name.1065.e6f90a",
@@ -1913,7 +1913,7 @@
     },
     {
         "id": "hip_cluster.name.1079.d3d0d3",
-        "translation": "متعلق بالرياح والضغط (Wind &Pressure-related)"
+        "translation": "متعلق بالرياح والضغط (Wind \u0026Pressure-related)"
     },
     {
         "id": "hip_cluster.name.1080.014659",
@@ -2369,7 +2369,7 @@
     },
     {
         "id": "hip_hazard.name.78494.ac7c5c",
-        "translation": "الإفراط في تناول الفلورايد واليود أو عدم كفايتهما (Fluoride & Iodine/Iodide Excess of Inadequate intake)"
+        "translation": "الإفراط في تناول الفلورايد واليود أو عدم كفايتهما (Fluoride \u0026 Iodine/Iodide Excess of Inadequate intake)"
     },
     {
         "id": "hip_hazard.name.78495.a090ce",
@@ -2537,7 +2537,7 @@
     },
     {
         "id": "hip_hazard.name.78546.293e4d",
-        "translation": "الغازات البركانية والهباء الجوي (Volcanic Gases & Aerosols)"
+        "translation": "الغازات البركانية والهباء الجوي (Volcanic Gases \u0026 Aerosols)"
     },
     {
         "id": "hip_hazard.name.78552.3ebf67",
@@ -2837,7 +2837,7 @@
     },
     {
         "id": "hip_hazard.name.78635.2fa2ec",
-        "translation": "العوامل والمواد المشعة (Radioactive Agents &Materials)"
+        "translation": "العوامل والمواد المشعة (Radioactive Agents \u0026Materials)"
     },
     {
         "id": "hip_hazard.name.78637.3eda4c",
@@ -2901,7 +2901,7 @@
     },
     {
         "id": "hip_hazard.name.78654.6c1a2f",
-        "translation": "اختراق البيانات و معلومات تحديد الهوية الشخصية (Data &PII Breach)"
+        "translation": "اختراق البيانات و معلومات تحديد الهوية الشخصية (Data \u0026PII Breach)"
     },
     {
         "id": "hip_hazard.name.78659.d29fe0",
