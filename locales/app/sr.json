@@ -7834,5 +7834,100 @@
         "id": "disaster_event.form.url",
         "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:234",
         "translation": "Веб адреса"
+    },
+    {
+        "id": "common.clear_all",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:304",
+        "translation": "Очисти све"
+    },
+    {
+        "id": "disaster_event.event_start_from",
+        "description": "File: app/frontend/disaster-event/DisasterEventsPage.tsx:717",
+        "translation": "Догађај почиње од"
+    },
+    {
+        "id": "disaster_event.event_start_to",
+        "description": "File: app/frontend/disaster-event/DisasterEventsPage.tsx:737",
+        "translation": "Почетак догађаја"
+    },
+    {
+        "id": "disaster_event.form.add_selected",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:284",
+        "translation": "Додај одабрано"
+    },
+    {
+        "id": "disaster_event.form.closing_dialog",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:355",
+        "translation": "Затварање дијалога"
+    },
+    {
+        "id": "disaster_event.form.edit_spatial_footprint",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.spatial-footprint-modal.tsx:110",
+        "translation": "Уреди просторни отисак"
+    },
+    {
+        "id": "disaster_event.form.latest_200_records",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:277",
+        "translation": "Најновијих 200 записа"
+    },
+    {
+        "id": "disaster_event.form.linked_records_search_description",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:249",
+        "translation": "Претражите и изаберите записе о катастрофама да бисте повезали овај догађај катастрофе."
+    },
+    {
+        "id": "disaster_event.form.linked_records_search_placeholder",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:260",
+        "translation": "Претрага по класификацији опасности, датуму (gggg-mm-dd), географском нивоу или UUID..."
+    },
+    {
+        "id": "disaster_event.form.locations_selected_multiple",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:294",
+        "translation": "{count} локације одабране"
+    },
+    {
+        "id": "disaster_event.form.locations_selected_single",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:287",
+        "translation": "{count} локација изабрана"
+    },
+    {
+        "id": "disaster_event.form.no_linked_records",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:328",
+        "translation": "Нема повезаних записа"
+    },
+    {
+        "id": "disaster_event.form.no_records_available",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:296",
+        "translation": "Нема доступних записа"
+    },
+    {
+        "id": "disaster_event.form.remove_selected",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:314",
+        "translation": "Уклоните одабрано"
+    },
+    {
+        "id": "disaster_event.form.search_locations",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:277",
+        "translation": "Претрага локација..."
+    },
+    {
+        "id": "disaster_event.form.search_results",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:273",
+        "translation": "Резултати претраге"
+    },
+    {
+        "id": "disaster_event.form.select_geographic_levels",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:250",
+        "translation": "Изаберите географске нивое"
+    },
+    {
+        "id": "disaster_event.form.select_geographic_levels_description",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:267",
+        "translation": "Изаберите један или више географских нивоа из хијерархијске структуре испод."
+    },
+    {
+        "id": "disaster_event.form.selected_linked_records",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:307",
+        "translation": "Изабрани повезани записи"
     }
 ]

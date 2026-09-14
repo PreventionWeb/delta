@@ -7828,5 +7828,100 @@
         "id": "disaster_event.form.url",
         "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:234",
         "translation": "Adresa e uebit"
+    },
+    {
+        "id": "common.clear_all",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:304",
+        "translation": "Pastro të gjitha"
+    },
+    {
+        "id": "disaster_event.event_start_from",
+        "description": "File: app/frontend/disaster-event/DisasterEventsPage.tsx:717",
+        "translation": "Ngjarja fillon nga"
+    },
+    {
+        "id": "disaster_event.event_start_to",
+        "description": "File: app/frontend/disaster-event/DisasterEventsPage.tsx:737",
+        "translation": "Ngjarja fillon të"
+    },
+    {
+        "id": "disaster_event.form.add_selected",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:284",
+        "translation": "Shto të përzgjedhurat"
+    },
+    {
+        "id": "disaster_event.form.closing_dialog",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:355",
+        "translation": "Dialogu i mbylljes"
+    },
+    {
+        "id": "disaster_event.form.edit_spatial_footprint",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.spatial-footprint-modal.tsx:110",
+        "translation": "Redakto gjurmën hapësinore"
+    },
+    {
+        "id": "disaster_event.form.latest_200_records",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:277",
+        "translation": "200 regjistrimet e fundit"
+    },
+    {
+        "id": "disaster_event.form.linked_records_search_description",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:249",
+        "translation": "Kërko dhe zgjidh regjistrimet e fatkeqësive për të lidhur këtë ngjarje fatkeqësie."
+    },
+    {
+        "id": "disaster_event.form.linked_records_search_placeholder",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:260",
+        "translation": "Kërko sipas klasifikimit të rrezikut, datës (vvvv-mm-dd), nivelit gjeografik ose UUID-së..."
+    },
+    {
+        "id": "disaster_event.form.locations_selected_multiple",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:294",
+        "translation": "{count} vende të përzgjedhura"
+    },
+    {
+        "id": "disaster_event.form.locations_selected_single",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:287",
+        "translation": "{count} vendndodhja e zgjedhur"
+    },
+    {
+        "id": "disaster_event.form.no_linked_records",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:328",
+        "translation": "Asnjë rekord i lidhur"
+    },
+    {
+        "id": "disaster_event.form.no_records_available",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:296",
+        "translation": "Nuk ka asnjë rekord të disponueshëm"
+    },
+    {
+        "id": "disaster_event.form.remove_selected",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:314",
+        "translation": "Hiq të zgjedhurit"
+    },
+    {
+        "id": "disaster_event.form.search_locations",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:277",
+        "translation": "Kërko vendndodhje..."
+    },
+    {
+        "id": "disaster_event.form.search_results",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:273",
+        "translation": "Rezultatet e kërkimit"
+    },
+    {
+        "id": "disaster_event.form.select_geographic_levels",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:250",
+        "translation": "Zgjidhni nivelet gjeografike"
+    },
+    {
+        "id": "disaster_event.form.select_geographic_levels_description",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:267",
+        "translation": "Zgjidhni një ose më shumë nivele gjeografike nga pema hierarkike më poshtë."
+    },
+    {
+        "id": "disaster_event.form.selected_linked_records",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:307",
+        "translation": "Regjistrat e lidhur të përzgjedhur"
     }
 ]

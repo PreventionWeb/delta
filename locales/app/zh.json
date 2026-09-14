@@ -7056,7 +7056,6 @@
         "id": "session.expiry_warning_minutes",
         "description": "File: app/components/InactivityWarning.tsx:102",
         "translation": {
-            "one": "出于安全考虑，由于您长时间未进行操作，您的会话将在 {n} 分钟后过期。",
             "other": "出于安全考虑，由于您长时间未进行操作，您的会话将在 {n} 分钟后过期。"
         }
     },
@@ -8351,5 +8350,100 @@
         "id": "disaster_event.form.url",
         "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:234",
         "translation": "网址"
+    },
+    {
+        "id": "common.clear_all",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:304",
+        "translation": "清除全部"
+    },
+    {
+        "id": "disaster_event.event_start_from",
+        "description": "File: app/frontend/disaster-event/DisasterEventsPage.tsx:717",
+        "translation": "活动从"
+    },
+    {
+        "id": "disaster_event.event_start_to",
+        "description": "File: app/frontend/disaster-event/DisasterEventsPage.tsx:737",
+        "translation": "活动开始时间至"
+    },
+    {
+        "id": "disaster_event.form.add_selected",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:284",
+        "translation": "添加所选内容"
+    },
+    {
+        "id": "disaster_event.form.closing_dialog",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:355",
+        "translation": "关闭对话框"
+    },
+    {
+        "id": "disaster_event.form.edit_spatial_footprint",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.spatial-footprint-modal.tsx:110",
+        "translation": "编辑空间占地面积"
+    },
+    {
+        "id": "disaster_event.form.latest_200_records",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:277",
+        "translation": "最新 200 条记录"
+    },
+    {
+        "id": "disaster_event.form.linked_records_search_description",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:249",
+        "translation": "搜索并选择灾害记录，以将该灾害事件与之关联。"
+    },
+    {
+        "id": "disaster_event.form.linked_records_search_placeholder",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:260",
+        "translation": "按危害分类、日期（yyyy-mm-dd）、地理层级或 UUID 搜索……"
+    },
+    {
+        "id": "disaster_event.form.locations_selected_multiple",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:294",
+        "translation": "已选择 {count} 个地点"
+    },
+    {
+        "id": "disaster_event.form.locations_selected_single",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:287",
+        "translation": "{count} 已选择位置"
+    },
+    {
+        "id": "disaster_event.form.no_linked_records",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:328",
+        "translation": "没有相关记录"
+    },
+    {
+        "id": "disaster_event.form.no_records_available",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:296",
+        "translation": "没有相关记录"
+    },
+    {
+        "id": "disaster_event.form.remove_selected",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:314",
+        "translation": "取消选中"
+    },
+    {
+        "id": "disaster_event.form.search_locations",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:277",
+        "translation": "搜索地点..."
+    },
+    {
+        "id": "disaster_event.form.search_results",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:273",
+        "translation": "搜索结果"
+    },
+    {
+        "id": "disaster_event.form.select_geographic_levels",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:250",
+        "translation": "选择地理层级"
+    },
+    {
+        "id": "disaster_event.form.select_geographic_levels_description",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:267",
+        "translation": "请从下方的层次结构树中选择一个或多个地理层级。"
+    },
+    {
+        "id": "disaster_event.form.selected_linked_records",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:307",
+        "translation": "选定的关联记录"
     }
 ]

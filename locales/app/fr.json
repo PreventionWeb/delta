@@ -7040,8 +7040,9 @@
         "id": "session.expiry_warning_minutes",
         "description": "File: app/components/InactivityWarning.tsx:102",
         "translation": {
+            "many": "Pour votre sécurité, votre session expirera dans {n} minutes en raison d'une inactivité prolongée.",
             "one": "Pour votre sécurité, votre session expirera dans {n} minute en raison d'une inactivité prolongée.",
-            "other": "Pour votre sécurité, votre session expirera dans {n} minutes en raison d'une inactivité prolongée."
+            "other": ""
         }
     },
     {
@@ -8335,5 +8336,100 @@
         "id": "disaster_event.form.url",
         "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:234",
         "translation": "Adresse Web"
+    },
+    {
+        "id": "common.clear_all",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:304",
+        "translation": "Tout effacer"
+    },
+    {
+        "id": "disaster_event.event_start_from",
+        "description": "File: app/frontend/disaster-event/DisasterEventsPage.tsx:717",
+        "translation": "Début de l'événement à partir de"
+    },
+    {
+        "id": "disaster_event.event_start_to",
+        "description": "File: app/frontend/disaster-event/DisasterEventsPage.tsx:737",
+        "translation": "Début de l'événement à"
+    },
+    {
+        "id": "disaster_event.form.add_selected",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:284",
+        "translation": "Ajouter les éléments sélectionnés"
+    },
+    {
+        "id": "disaster_event.form.closing_dialog",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:355",
+        "translation": "Boîte de dialogue de fermeture"
+    },
+    {
+        "id": "disaster_event.form.edit_spatial_footprint",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.spatial-footprint-modal.tsx:110",
+        "translation": "Modifier l'empreinte spatiale"
+    },
+    {
+        "id": "disaster_event.form.latest_200_records",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:277",
+        "translation": "Les 200 derniers enregistrements"
+    },
+    {
+        "id": "disaster_event.form.linked_records_search_description",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:249",
+        "translation": "Recherchez et sélectionnez les fiches relatives à la catastrophe afin de les associer à cet événement."
+    },
+    {
+        "id": "disaster_event.form.linked_records_search_placeholder",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:260",
+        "translation": "Recherche par classification des risques, date (aaaa-mm-jj), niveau géographique ou UUID..."
+    },
+    {
+        "id": "disaster_event.form.locations_selected_multiple",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:294",
+        "translation": "{count} lieux sélectionnés"
+    },
+    {
+        "id": "disaster_event.form.locations_selected_single",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:287",
+        "translation": "{count} lieu sélectionné"
+    },
+    {
+        "id": "disaster_event.form.no_linked_records",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:328",
+        "translation": "Aucun enregistrement associé"
+    },
+    {
+        "id": "disaster_event.form.no_records_available",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:296",
+        "translation": "Aucun enregistrement disponible"
+    },
+    {
+        "id": "disaster_event.form.remove_selected",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:314",
+        "translation": "Supprimer la sélection"
+    },
+    {
+        "id": "disaster_event.form.search_locations",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:277",
+        "translation": "Rechercher des lieux..."
+    },
+    {
+        "id": "disaster_event.form.search_results",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:273",
+        "translation": "Résultats de la recherche"
+    },
+    {
+        "id": "disaster_event.form.select_geographic_levels",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:250",
+        "translation": "Sélectionner les niveaux géographiques"
+    },
+    {
+        "id": "disaster_event.form.select_geographic_levels_description",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:267",
+        "translation": "Sélectionnez un ou plusieurs niveaux géographiques dans l'arborescence ci-dessous."
+    },
+    {
+        "id": "disaster_event.form.selected_linked_records",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:307",
+        "translation": "Enregistrements liés sélectionnés"
     }
 ]

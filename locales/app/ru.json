@@ -7056,8 +7056,9 @@
         "id": "session.expiry_warning_minutes",
         "description": "File: app/components/InactivityWarning.tsx:102",
         "translation": {
-            "one": "В целях безопасности ваша сессия будет закрыта через {n} минут из-за отсутствия активности.",
-            "other": "В целях безопасности ваша сессия будет закрыта через {n} минут из-за отсутствия активности."
+            "few": "В целях безопасности ваша сессия будет закрыта через {n} минут из-за отсутствия активности.",
+            "many": "",
+            "one": "В целях безопасности ваша сессия будет закрыта через {n} минут из-за отсутствия активности."
         }
     },
     {
@@ -8351,5 +8352,100 @@
         "id": "disaster_event.form.url",
         "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:234",
         "translation": "Веб-адрес"
+    },
+    {
+        "id": "common.clear_all",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:304",
+        "translation": "Очистить всё"
+    },
+    {
+        "id": "disaster_event.event_start_from",
+        "description": "File: app/frontend/disaster-event/DisasterEventsPage.tsx:717",
+        "translation": "Начало мероприятия с"
+    },
+    {
+        "id": "disaster_event.event_start_to",
+        "description": "File: app/frontend/disaster-event/DisasterEventsPage.tsx:737",
+        "translation": "Начало мероприятия в"
+    },
+    {
+        "id": "disaster_event.form.add_selected",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:284",
+        "translation": "Добавить выбранное"
+    },
+    {
+        "id": "disaster_event.form.closing_dialog",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:355",
+        "translation": "Диалоговое окно завершения работы"
+    },
+    {
+        "id": "disaster_event.form.edit_spatial_footprint",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.spatial-footprint-modal.tsx:110",
+        "translation": "Изменить площадь занимаемой территории"
+    },
+    {
+        "id": "disaster_event.form.latest_200_records",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:277",
+        "translation": "Последние 200 записей"
+    },
+    {
+        "id": "disaster_event.form.linked_records_search_description",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:249",
+        "translation": "Найдите и выберите записи о бедствии, чтобы связать их с данным событием."
+    },
+    {
+        "id": "disaster_event.form.linked_records_search_placeholder",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:260",
+        "translation": "Поиск по классификации опасности, дате (гггг-мм-дд), географическому уровню или UUID..."
+    },
+    {
+        "id": "disaster_event.form.locations_selected_multiple",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:294",
+        "translation": "Выбрано {count} мест"
+    },
+    {
+        "id": "disaster_event.form.locations_selected_single",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:287",
+        "translation": "{count} местоположение выбрано"
+    },
+    {
+        "id": "disaster_event.form.no_linked_records",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:328",
+        "translation": "Связанных записей нет"
+    },
+    {
+        "id": "disaster_event.form.no_records_available",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:296",
+        "translation": "Записей нет"
+    },
+    {
+        "id": "disaster_event.form.remove_selected",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:314",
+        "translation": "Удалить выделенное"
+    },
+    {
+        "id": "disaster_event.form.search_locations",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:277",
+        "translation": "Поиск мест..."
+    },
+    {
+        "id": "disaster_event.form.search_results",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:273",
+        "translation": "Результаты поиска"
+    },
+    {
+        "id": "disaster_event.form.select_geographic_levels",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:250",
+        "translation": "Выбрать географические уровни"
+    },
+    {
+        "id": "disaster_event.form.select_geographic_levels_description",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:267",
+        "translation": "Выберите один или несколько географических уровней из приведенного ниже иерархического дерева."
+    },
+    {
+        "id": "disaster_event.form.selected_linked_records",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:307",
+        "translation": "Выбранные связанные записи"
     }
 ]
