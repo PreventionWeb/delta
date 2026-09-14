@@ -93,7 +93,10 @@ export async function entityValidationAssignmentDeleteByEntityId(
 	entityType: entityType,
 	tx: Tx = dr,
 ): Promise<DeleteResult> {
-	const entityTypes = [entityType];
+	const entityTypes =
+		entityType === "disaster_records"
+			? ["disaster_records", "disaster_record"]
+			: [entityType];
 
 	await tx
 		.delete(entityValidationAssignmentTable)
