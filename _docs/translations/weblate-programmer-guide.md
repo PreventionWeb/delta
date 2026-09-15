@@ -57,6 +57,7 @@ Merge them into `dev`:
 
 ```bash
 git checkout dev
+git pull
 git merge origin/weblate
 git push
 ```
