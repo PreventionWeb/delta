@@ -1208,7 +1208,11 @@ export default function DisasterEventReviewStep({
 								type="button"
 								label={ctx.t({ code: "common.back", msg: "Back" })}
 								outlined
-								icon="pi pi-chevron-left"
+								icon={
+									ctx.lang === "ar"
+										? "pi pi-chevron-right"
+										: "pi pi-chevron-left"
+								}
 								iconPos="left"
 								onClick={onBack}
 							/>
