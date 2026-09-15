@@ -8445,5 +8445,70 @@
         "id": "disaster_event.form.selected_linked_records",
         "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:307",
         "translation": "选定的关联记录"
+    },
+    {
+        "id": "disaster_event.form.latest_200_events",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:375",
+        "translation": "最近的 200 场活动"
+    },
+    {
+        "id": "disaster_event.form.latest_200_hazardous_events",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:324",
+        "translation": "最近的 200 场活动"
+    },
+    {
+        "id": "disaster_event.form.linked_hazardous_events_search_description",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:296",
+        "translation": "搜索并选出导致此次灾害事件发生的危险事件。"
+    },
+    {
+        "id": "disaster_event.form.linked_hazardous_events_search_placeholder",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:307",
+        "translation": "按危害分类、日期（yyyy-mm-dd）、地理层级或 UUID 搜索……"
+    },
+    {
+        "id": "disaster_event.form.linked_triggered_disaster_events_search_description",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:347",
+        "translation": "搜索并选择由该事件触发的灾害事件。"
+    },
+    {
+        "id": "disaster_event.form.linked_triggered_disaster_events_search_placeholder",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:358",
+        "translation": "按名称、危险分类、日期（yyyy-mm-dd）、地理层级或 UUID 搜索……"
+    },
+    {
+        "id": "disaster_event.form.manage_linked_triggering_hazardous_events",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:279",
+        "translation": "管理相关联的（因果关系）危险事件"
+    },
+    {
+        "id": "disaster_event.form.no_disaster_events_available",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:394",
+        "translation": "没有可用活动"
+    },
+    {
+        "id": "disaster_event.form.no_hazardous_events_available",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:343",
+        "translation": "没有可用的活动"
+    },
+    {
+        "id": "disaster_event.form.no_triggered_events_linked",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:426",
+        "translation": "未关联任何触发事件"
+    },
+    {
+        "id": "disaster_event.form.no_triggering_hazardous_events_linked",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:375",
+        "translation": "未关联任何触发事件"
+    },
+    {
+        "id": "disaster_event.form.selected_triggered_events",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:405",
+        "translation": "选定的触发事件"
+    },
+    {
+        "id": "disaster_event.form.selected_triggering_hazardous_events",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:354",
+        "translation": "选定的触发事件"
     }
 ]

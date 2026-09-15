@@ -8447,5 +8447,70 @@
         "id": "disaster_event.form.selected_linked_records",
         "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:307",
         "translation": "Выбранные связанные записи"
+    },
+    {
+        "id": "disaster_event.form.latest_200_events",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:375",
+        "translation": "Последние 200 событий"
+    },
+    {
+        "id": "disaster_event.form.latest_200_hazardous_events",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:324",
+        "translation": "Последние 200 событий"
+    },
+    {
+        "id": "disaster_event.form.linked_hazardous_events_search_description",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:296",
+        "translation": "Найдите и выберите опасные события, которые стали непосредственной причиной данного стихийного бедствия."
+    },
+    {
+        "id": "disaster_event.form.linked_hazardous_events_search_placeholder",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:307",
+        "translation": "Поиск по классификации опасности, дате (гггг-мм-дд), географическому уровню или UUID..."
+    },
+    {
+        "id": "disaster_event.form.linked_triggered_disaster_events_search_description",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:347",
+        "translation": "Найдите и выберите чрезвычайные ситуации, которые были вызваны данным событием."
+    },
+    {
+        "id": "disaster_event.form.linked_triggered_disaster_events_search_placeholder",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:358",
+        "translation": "Поиск по названию, классификации опасности, дате (гггг-мм-дд), географическому уровню или UUID..."
+    },
+    {
+        "id": "disaster_event.form.manage_linked_triggering_hazardous_events",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:279",
+        "translation": "Управление связанными между собой триггерными (причинно-следственными) опасными событиями"
+    },
+    {
+        "id": "disaster_event.form.no_disaster_events_available",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:394",
+        "translation": "Событий нет"
+    },
+    {
+        "id": "disaster_event.form.no_hazardous_events_available",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:343",
+        "translation": "Событий нет"
+    },
+    {
+        "id": "disaster_event.form.no_triggered_events_linked",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:426",
+        "translation": "Связанных триггерных событий нет"
+    },
+    {
+        "id": "disaster_event.form.no_triggering_hazardous_events_linked",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:375",
+        "translation": "Связанных с этим событий нет"
+    },
+    {
+        "id": "disaster_event.form.selected_triggered_events",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:405",
+        "translation": "Выбранные триггерные события"
+    },
+    {
+        "id": "disaster_event.form.selected_triggering_hazardous_events",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:354",
+        "translation": "Выбранные события, вызывающие срабатывание"
     }
 ]

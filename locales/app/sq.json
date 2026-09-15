@@ -3547,7 +3547,7 @@
     {
         "id": "disaster_records.disruption.duration_days_must_be_gte_zero",
         "description": "File: app/backend.server/models/disruption.ts:153",
-        "translation": "Kohëzgjatja (ditë) duhet të jetë >= 0"
+        "translation": "Kohëzgjatja (ditë) duhet të jetë \u003e= 0"
     },
     {
         "id": "disaster_records.disruption.duration_hours",
@@ -3557,7 +3557,7 @@
     {
         "id": "disaster_records.disruption.duration_hours_must_be_gte_zero",
         "description": "File: app/backend.server/models/disruption.ts:160",
-        "translation": "Kohëzgjatja (orë) duhet të jetë >= 0"
+        "translation": "Kohëzgjatja (orë) duhet të jetë \u003e= 0"
     },
     {
         "id": "disaster_records.disruption.number_of_people_affected",
@@ -3577,7 +3577,7 @@
     {
         "id": "disaster_records.disruption.response_cost_must_be_gte_zero",
         "description": "File: app/backend.server/models/disruption.ts:174",
-        "translation": "Kostoja e përgjigjes/reagimit duhet të jetë >= 0"
+        "translation": "Kostoja e përgjigjes/reagimit duhet të jetë \u003e= 0"
     },
     {
         "id": "disaster_records.disruption.response_currency",
@@ -3597,7 +3597,7 @@
     {
         "id": "disaster_records.disruption.users_affected_must_be_gte_zero",
         "description": "File: app/backend.server/models/disruption.ts:167",
-        "translation": "Numri i përdoruesve të prekur duhet të jetë >= 0"
+        "translation": "Numri i përdoruesve të prekur duhet të jetë \u003e= 0"
     },
     {
         "id": "disaster_records.disruptions",
@@ -3862,7 +3862,7 @@
     {
         "id": "email.validation_workflow.body_needs_revision_html",
         "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:276",
-        "translation": "<p>I/E nderuar {submitterName},</p>\n<p>{recordTypeData} juaj është kthyer për rishikim.</p>\n<p>Komente: {rejectionComments}</p>\n<p><a href=\"{recordUrl}\">Shikoni dhe përditësoni regjistrimin</a></p>"
+        "translation": "\u003cp\u003eI/E nderuar {submitterName},\u003c/p\u003e\n\u003cp\u003e{recordTypeData} juaj është kthyer për rishikim.\u003c/p\u003e\n\u003cp\u003eKomente: {rejectionComments}\u003c/p\u003e\n\u003cp\u003e\u003ca href=\"{recordUrl}\"\u003eShikoni dhe përditësoni regjistrimin\u003c/a\u003e\u003c/p\u003e"
     },
     {
         "id": "email.validation_workflow.body_needs_revision_text",
@@ -3872,7 +3872,7 @@
     {
         "id": "email.validation_workflow.body_published_html",
         "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:230",
-        "translation": "<p>I/E nderuar {submitterName},</p>\n<p>{recordTypeData} juaj është publikuar dhe tani është i disponueshëm për publikun.</p>\n<p><a href=\"{recordUrl}\">View record</a></p>"
+        "translation": "\u003cp\u003eI/E nderuar {submitterName},\u003c/p\u003e\n\u003cp\u003e{recordTypeData} juaj është publikuar dhe tani është i disponueshëm për publikun.\u003c/p\u003e\n\u003cp\u003e\u003ca href=\"{recordUrl}\"\u003eView record\u003c/a\u003e\u003c/p\u003e"
     },
     {
         "id": "email.validation_workflow.body_published_text",
@@ -3882,7 +3882,7 @@
     {
         "id": "email.validation_workflow.body_validated_html",
         "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:330",
-        "translation": "<p>I/E nderuar {submitterName},</p>\n<p>{recordTypeData} juaj është verifikuar.</p>\n<p><a href=\"{recordUrl}\">Shikoni regjistrimin</a></p>"
+        "translation": "\u003cp\u003eI/E nderuar {submitterName},\u003c/p\u003e\n\u003cp\u003e{recordTypeData} juaj është verifikuar.\u003c/p\u003e\n\u003cp\u003e\u003ca href=\"{recordUrl}\"\u003eShikoni regjistrimin\u003c/a\u003e\u003c/p\u003e"
     },
     {
         "id": "email.validation_workflow.body_validated_text",
@@ -4727,7 +4727,7 @@
     {
         "id": "human_effects.error.subtotal_larger_than_total",
         "description": "The subtotal for a group exceeds the overall total. {group} is the group name(s), {column} is the metric name, {value} is the group total, {totalValue} is the overall total. File: app/frontend/editabletable/validate.ts:273",
-        "translation": "Totali për grupin ({group}), kolona \"{column}\" tejkalon totalin e përgjithshëm {value} > {totalValue}"
+        "translation": "Totali për grupin ({group}), kolona \"{column}\" tejkalon totalin e përgjithshëm {value} \u003e {totalValue}"
     },
     {
         "id": "human_effects.error.subtotal_larger_than_total_row",
@@ -5975,7 +5975,7 @@
     {
         "id": "user_forgot_password.reset_password_email_html",
         "description": "HTML version of the reset password email. File: app/utils/emailUtil.ts:30",
-        "translation": "<p>Është bërë një kërkesë për rivendosjen e fjalëkalimit tuaj. Nëse nuk e keni bërë këtë kërkesë, thjesht injorojeni këtë email.</p>\n<p>Klikoni lidhjen më poshtë për të rivendosur fjalëkalimin:\n<a href=\"{resetURL}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\">\nRivendos fjalëkalimin\n</a>\n</p>\n<p>Kjo lidhje do të skadojë pas 1 ore.</p>"
+        "translation": "\u003cp\u003eËshtë bërë një kërkesë për rivendosjen e fjalëkalimit tuaj. Nëse nuk e keni bërë këtë kërkesë, thjesht injorojeni këtë email.\u003c/p\u003e\n\u003cp\u003eKlikoni lidhjen më poshtë për të rivendosur fjalëkalimin:\n\u003ca href=\"{resetURL}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\"\u003e\nRivendos fjalëkalimin\n\u003c/a\u003e\n\u003c/p\u003e\n\u003cp\u003eKjo lidhje do të skadojë pas 1 ore.\u003c/p\u003e"
     },
     {
         "id": "user_forgot_password.reset_password_email_text",
@@ -5990,7 +5990,7 @@
     {
         "id": "user_invite.admin_email_html",
         "description": "File: app/backend.server/models/user/invite.ts:198",
-        "translation": "Jeni ftuar të bashkoheni me sistemin DELTA Resilience {siteName} si \n përdorues {role} për instancën e vendit {countryName} {countryAccountType}.\n\nKlikoni në lidhjen më poshtë për të krijuar llogarinë tuaj.\n<a href=\"{inviteURL}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\">\nHidhni llogarinë\n\n\n <a href=\"{inviteURL}\"> {inviteURL} "
+        "translation": "Jeni ftuar të bashkoheni me sistemin DELTA Resilience {siteName} si \n përdorues {role} për instancën e vendit {countryName} {countryAccountType}.\n\nKlikoni në lidhjen më poshtë për të krijuar llogarinë tuaj.\n\u003ca href=\"{inviteURL}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\"\u003e\nHidhni llogarinë\n\n\n \u003ca href=\"{inviteURL}\"\u003e {inviteURL} "
     },
     {
         "id": "user_invite.admin_email_text",
@@ -6000,7 +6000,7 @@
     {
         "id": "user_invite.existing_email_html",
         "description": "File: app/utils/emailUtil.ts:193",
-        "translation": "Jeni ftuar të bashkoheni në sistemin DELTA Resilience {siteName} si \n përdorues {role} për instancën e vendit {countryName} {countryAccountType}.\n\nKlikoni në lidhjen më poshtë për t'u kyçur në llogarinë tuaj.\n<a href=\"{rootUrl}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\">\nHyni\n\n\n <a href=\"{rootUrl}\"> {rootUrl} "
+        "translation": "Jeni ftuar të bashkoheni në sistemin DELTA Resilience {siteName} si \n përdorues {role} për instancën e vendit {countryName} {countryAccountType}.\n\nKlikoni në lidhjen më poshtë për t'u kyçur në llogarinë tuaj.\n\u003ca href=\"{rootUrl}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\"\u003e\nHyni\n\n\n \u003ca href=\"{rootUrl}\"\u003e {rootUrl} "
     },
     {
         "id": "user_invite.existing_email_text",
@@ -6010,7 +6010,7 @@
     {
         "id": "user_invite.new_email_html",
         "description": "File: app/utils/emailUtil.ts:130",
-        "translation": "Jeni ftuar të bashkoheni në sistemin DELTA Resilience {siteName} si \n përdorues {role} për instancën e vendit {countryName} {countryAccountType}.\n\nKlikoni në lidhjen më poshtë për të krijuar llogarinë tuaj.\n<a href=\"{inviteURL}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\">\nHidhni llogarinë\n\n\n <a href=\"{inviteURL}\"> {inviteURL} "
+        "translation": "Jeni ftuar të bashkoheni në sistemin DELTA Resilience {siteName} si \n përdorues {role} për instancën e vendit {countryName} {countryAccountType}.\n\nKlikoni në lidhjen më poshtë për të krijuar llogarinë tuaj.\n\u003ca href=\"{inviteURL}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\"\u003e\nHidhni llogarinë\n\n\n \u003ca href=\"{inviteURL}\"\u003e {inviteURL} "
     },
     {
         "id": "user_invite.new_email_subject",
@@ -6025,7 +6025,7 @@
     {
         "id": "user_invite.welcome_email_html",
         "description": "File: app/utils/emailUtil.ts:66",
-        "translation": "<p>I/E nderuar {firstName} {lastName},</p>\n<p> Mirë se vini në sistemin DELTA Resilience {siteName}. Llogaria juaj e përdoruesit është krijuar me sukses.</p>\n<p> Klikoni lidhjen më poshtë për të aksesuar llogarinë tuaj.</p>\n<p>\n<a href=\"{accessAccountURL}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\">\nAksesoni llogarinë\n</a>\n</p>"
+        "translation": "\u003cp\u003eI/E nderuar {firstName} {lastName},\u003c/p\u003e\n\u003cp\u003e Mirë se vini në sistemin DELTA Resilience {siteName}. Llogaria juaj e përdoruesit është krijuar me sukses.\u003c/p\u003e\n\u003cp\u003e Klikoni lidhjen më poshtë për të aksesuar llogarinë tuaj.\u003c/p\u003e\n\u003cp\u003e\n\u003ca href=\"{accessAccountURL}\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff; background-color: #007BFF; text-decoration: none; border-radius: 5px;\"\u003e\nAksesoni llogarinë\n\u003c/a\u003e\n\u003c/p\u003e"
     },
     {
         "id": "user_invite.welcome_email_subject",
@@ -7527,7 +7527,7 @@
     {
         "id": "email.assigned_validators.body_html",
         "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:117",
-        "translation": "I dashur {validatorName},\nNjë {recordType} i ri po pret veprim nga ju. Klikoni lidhjen më poshtë për të parë ngjarjen.\nEmri i ngjarjes: {recordEventName} <br />Data e ngjarjes: {recordDate} <br />Dërguar nga: {recordSubmitterName}\n<a href=\"{recordUrl}\">Shiko ngjarjen"
+        "translation": "I dashur {validatorName},\nNjë {recordType} i ri po pret veprim nga ju. Klikoni lidhjen më poshtë për të parë ngjarjen.\nEmri i ngjarjes: {recordEventName} \u003cbr /\u003eData e ngjarjes: {recordDate} \u003cbr /\u003eDërguar nga: {recordSubmitterName}\n\u003ca href=\"{recordUrl}\"\u003eShiko ngjarjen"
     },
     {
         "id": "email.assigned_validators.body_text",
@@ -7542,7 +7542,7 @@
     {
         "id": "email.assignees_notification.body_returned_html",
         "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:504",
-        "translation": "I dashur {assigneeName},\nNjë {recordType} është kthyer për rishikim.\nKthyer nga: {recordSubmitterName}\nKomente: {rejectionMessage}\n<a href=\"{recordUrl}\">Shiko"
+        "translation": "I dashur {assigneeName},\nNjë {recordType} është kthyer për rishikim.\nKthyer nga: {recordSubmitterName}\nKomente: {rejectionMessage}\n\u003ca href=\"{recordUrl}\"\u003eShiko"
     },
     {
         "id": "email.assignees_notification.body_returned_text",
@@ -7923,5 +7923,70 @@
         "id": "disaster_event.form.selected_linked_records",
         "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:307",
         "translation": "Regjistrat e lidhur të përzgjedhur"
+    },
+    {
+        "id": "disaster_event.form.latest_200_events",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:375",
+        "translation": "200 ngjarjet e fundit"
+    },
+    {
+        "id": "disaster_event.form.latest_200_hazardous_events",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:324",
+        "translation": "200 ngjarjet e fundit"
+    },
+    {
+        "id": "disaster_event.form.linked_hazardous_events_search_description",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:296",
+        "translation": "Kërko dhe zgjidh ngjarjet e rrezikshme që shkaktuan në mënyrë kauzale këtë ngjarje katastrofike."
+    },
+    {
+        "id": "disaster_event.form.linked_hazardous_events_search_placeholder",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:307",
+        "translation": "Kërko sipas klasifikimit të rrezikut, datës (vvvv-mm-dd), nivelit gjeografik ose UUID-së..."
+    },
+    {
+        "id": "disaster_event.form.linked_triggered_disaster_events_search_description",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:347",
+        "translation": "Kërko dhe zgjidh ngjarjet e fatkeqësive që u shkaktuan nga ky ngjarje."
+    },
+    {
+        "id": "disaster_event.form.linked_triggered_disaster_events_search_placeholder",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:358",
+        "translation": "Kërko sipas emrit, klasifikimit të rrezikut, datës (vvvv-mm-dd), nivelit gjeografik ose UUID-së..."
+    },
+    {
+        "id": "disaster_event.form.manage_linked_triggering_hazardous_events",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:279",
+        "translation": "Menaxhoni ngjarjet e rrezikshme të shkaktuara (shkakore) të lidhura"
+    },
+    {
+        "id": "disaster_event.form.no_disaster_events_available",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:394",
+        "translation": "Nuk ka ngjarje të disponueshme"
+    },
+    {
+        "id": "disaster_event.form.no_hazardous_events_available",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:343",
+        "translation": "Nuk ka ngjarje të disponueshme"
+    },
+    {
+        "id": "disaster_event.form.no_triggered_events_linked",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:426",
+        "translation": "Asnjë ngjarje e lidhur nuk është aktivizuar"
+    },
+    {
+        "id": "disaster_event.form.no_triggering_hazardous_events_linked",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:375",
+        "translation": "Asnjë ngjarje shkakëtuese e lidhur"
+    },
+    {
+        "id": "disaster_event.form.selected_triggered_events",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:405",
+        "translation": "Ngjarjet e përzgjedhura të aktivizuara"
+    },
+    {
+        "id": "disaster_event.form.selected_triggering_hazardous_events",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:354",
+        "translation": "Ngjarjet e përzgjedhura që shkaktojnë aktivizim"
     }
 ]
