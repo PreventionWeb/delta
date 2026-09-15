@@ -2,13 +2,12 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 17.5 (Debian 17.5-1.pgdg110+1)
--- Dumped by pg_dump version 17.5 (Debian 17.5-1.pgdg110+1)
+-- Dumped from database version 16.6
+-- Dumped by pg_dump version 16.6
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
-SET transaction_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
 SELECT pg_catalog.set_config('search_path', '', false);
@@ -264,21 +263,6 @@ END;
 $$;
 
 
-SET default_tablespace = '';
-
-SET default_table_access_method = heap;
-
---
--- Name: __drizzle_migrations__; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.__drizzle_migrations__ (
-    id integer NOT NULL,
-    hash text NOT NULL,
-    created_at bigint
-);
-
-
 --
 -- Name: __drizzle_migrations___id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
@@ -292,12 +276,9 @@ CREATE SEQUENCE public.__drizzle_migrations___id_seq
     CACHE 1;
 
 
---
--- Name: __drizzle_migrations___id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
+SET default_tablespace = '';
 
-ALTER SEQUENCE public.__drizzle_migrations___id_seq OWNED BY public.__drizzle_migrations__.id;
-
+SET default_table_access_method = heap;
 
 --
 -- Name: affected; Type: TABLE; Schema: public; Owner: -
@@ -398,7 +379,7 @@ CREATE TABLE public.countries (
     iso3 character varying(3),
     flag_url character varying(255) DEFAULT 'https://example.com/default-flag.png'::character varying NOT NULL,
     type character varying DEFAULT 'Real'::character varying NOT NULL,
-    CONSTRAINT countries_type_check CHECK (((type)::text = ANY ((ARRAY['Real'::character varying, 'Fictional'::character varying])::text[])))
+    CONSTRAINT countries_type_check CHECK (((type)::text = ANY (ARRAY[('Real'::character varying)::text, ('Fictional'::character varying)::text])))
 );
 
 
@@ -961,6 +942,96 @@ CREATE TABLE public.event_relationship (
 
 
 --
+-- Name: field_data_type; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.field_data_type (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    type text NOT NULL
+);
+
+
+--
+-- Name: field_unit; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.field_unit (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    unit text NOT NULL
+);
+
+
+--
+-- Name: hazard_cluster; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.hazard_cluster (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    name text NOT NULL,
+    hazard_type_id uuid NOT NULL
+);
+
+
+--
+-- Name: hazard_driver; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.hazard_driver (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    name text NOT NULL,
+    country_accounts_id uuid NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: hazard_type; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.hazard_type (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    name text NOT NULL,
+    hips_version_id uuid NOT NULL
+);
+
+
+--
+-- Name: hazard_type_custom_field_definition; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.hazard_type_custom_field_definition (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    country_accounts_id uuid NOT NULL,
+    hazard_type_id uuid NOT NULL,
+    field_key text NOT NULL,
+    label text NOT NULL,
+    data_type uuid NOT NULL,
+    required boolean NOT NULL,
+    unit uuid NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: hazard_type_field_definition; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.hazard_type_field_definition (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    hazard_type_id uuid NOT NULL,
+    field_key text NOT NULL,
+    label text NOT NULL,
+    data_type uuid NOT NULL,
+    required boolean NOT NULL,
+    unit uuid NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
 -- Name: hazardous_event; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -992,7 +1063,56 @@ CREATE TABLE public.hazardous_event (
     validated_by_user_id uuid,
     validated_at timestamp without time zone,
     published_by_user_id uuid,
-    published_at timestamp without time zone
+    published_at timestamp without time zone,
+    specific_hazard_id uuid,
+    specific_hazard_local_name text,
+    specific_hazard_national_name text
+);
+
+
+--
+-- Name: hazardous_event_attachment; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.hazardous_event_attachment (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    hazardous_event_id uuid NOT NULL,
+    title text NOT NULL,
+    file_key text NOT NULL,
+    file_name text NOT NULL,
+    file_type text NOT NULL,
+    file_size bigint NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: hazardous_event_causality; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.hazardous_event_causality (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    cause_hazardous_event_id uuid NOT NULL,
+    effect_hazardous_event_id uuid NOT NULL,
+    causality_explanation text,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT hazardous_event_causality_cause_effect_distinct_check CHECK ((cause_hazardous_event_id <> effect_hazardous_event_id))
+);
+
+
+--
+-- Name: hazardous_event_custom_field_value; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.hazardous_event_custom_field_value (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    hazardous_event_id uuid NOT NULL,
+    hazard_type_custom_field_definition_id uuid NOT NULL,
+    value text NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -1008,6 +1128,20 @@ CREATE TABLE public.hazardous_event_division (
 
 
 --
+-- Name: hazardous_event_field_value; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.hazardous_event_field_value (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    hazardous_event_id uuid NOT NULL,
+    hazard_type_field_definition_id uuid NOT NULL,
+    value text NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
 -- Name: hazardous_event_geom; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1016,6 +1150,60 @@ CREATE TABLE public.hazardous_event_geom (
     hazardous_event_id uuid NOT NULL,
     geom public.geometry(Geometry,4326) NOT NULL,
     title text
+);
+
+
+--
+-- Name: hazardous_event_hazard_driver; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.hazardous_event_hazard_driver (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    hazardous_event_id uuid NOT NULL,
+    hazard_driver_id uuid NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: hazardous_event_spatial_observation; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.hazardous_event_spatial_observation (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    hazardous_event_id uuid NOT NULL,
+    observation_time timestamp with time zone NOT NULL,
+    note text,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: hazardous_event_spatial_observation_division; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.hazardous_event_spatial_observation_division (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    hazardous_event_spatial_observation_id uuid NOT NULL,
+    division_id uuid NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: hazardous_event_spatial_observation_geom; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.hazardous_event_spatial_observation_geom (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    hazardous_event_spatial_observation_id uuid NOT NULL,
+    geom public.geometry(Geometry,4326) NOT NULL,
+    title text,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -1058,6 +1246,16 @@ CREATE TABLE public.hip_hazard (
     description jsonb DEFAULT '{}'::jsonb NOT NULL,
     CONSTRAINT description_en_not_empty CHECK ((((description ->> 'en'::text) IS NOT NULL) AND (TRIM(BOTH FROM COALESCE((description ->> 'en'::text), ''::text)) <> ''::text))),
     CONSTRAINT name_en_not_empty CHECK ((((name ->> 'en'::text) IS NOT NULL) AND (TRIM(BOTH FROM COALESCE((name ->> 'en'::text), ''::text)) <> ''::text)))
+);
+
+
+--
+-- Name: hips_version; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.hips_version (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    version_no text NOT NULL
 );
 
 
@@ -1320,6 +1518,31 @@ CREATE TABLE public.session (
 
 
 --
+-- Name: source_catalog; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.source_catalog (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    name text NOT NULL,
+    country_accounts_id uuid NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: specific_hazard; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.specific_hazard (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    name text NOT NULL,
+    code text NOT NULL,
+    hazard_cluster_id uuid NOT NULL
+);
+
+
+--
 -- Name: super_admin_users; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1370,6 +1593,62 @@ CREATE TABLE public.user_country_accounts (
     is_primary_admin boolean DEFAULT false NOT NULL,
     added_at timestamp without time zone DEFAULT now() NOT NULL,
     organization_id uuid
+);
+
+
+--
+-- Name: workflow_history; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.workflow_history (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    instance_id uuid NOT NULL,
+    from_status text,
+    to_status text NOT NULL,
+    acting_user_id uuid NOT NULL,
+    occurred_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    comment text,
+    CONSTRAINT workflow_history_from_status_check CHECK (((from_status IS NULL) OR (from_status = ANY (ARRAY['DRAFT'::text, 'SUBMITTED'::text, 'REVISION_REQUESTED'::text, 'APPROVED'::text, 'REJECTED'::text, 'PUBLISHED'::text])))),
+    CONSTRAINT workflow_history_to_status_check CHECK ((to_status = ANY (ARRAY['DRAFT'::text, 'SUBMITTED'::text, 'REVISION_REQUESTED'::text, 'APPROVED'::text, 'REJECTED'::text, 'PUBLISHED'::text])))
+);
+
+
+--
+-- Name: workflow_instance; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.workflow_instance (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    entity_id uuid NOT NULL,
+    entity_type text NOT NULL,
+    status text DEFAULT 'DRAFT'::text NOT NULL,
+    submitted_by_user_id uuid,
+    submitted_at timestamp with time zone,
+    validated_by_user_id uuid,
+    validated_at timestamp with time zone,
+    approved_by_user_id uuid,
+    approved_at timestamp with time zone,
+    published_by_user_id uuid,
+    published_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT workflow_instance_entity_type_check CHECK ((entity_type = ANY (ARRAY['HE'::text, 'DE'::text, 'DR'::text]))),
+    CONSTRAINT workflow_instance_status_check CHECK ((status = ANY (ARRAY['DRAFT'::text, 'SUBMITTED'::text, 'REVISION_REQUESTED'::text, 'APPROVED'::text, 'REJECTED'::text, 'PUBLISHED'::text])))
+);
+
+
+--
+-- Name: workflow_notification; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.workflow_notification (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    instance_id uuid NOT NULL,
+    notified_user_id uuid NOT NULL,
+    notified_by_user_id uuid,
+    notified_at timestamp with time zone,
+    notification_message text,
+    channel text
 );
 
 
@@ -1600,6 +1879,7 @@ INSERT INTO public.asset VALUES (NULL, 'b615f9f5-cbea-4efa-9bce-62aaef22a353', '
 INSERT INTO public.asset VALUES (NULL, 'a73f597b-c608-4a62-9a3c-42335581b8be', '5f00c4d2-12e0-4a89-9f35-5bbda1c3d904', true, 'Raw material', 'Inventory and stock', '', 'Commerce and Trade', NULL, '{"en": "Raw material"}', '{"en": "Inventory and stock"}', '{"en": "Commerce and Trade"}');
 INSERT INTO public.asset VALUES (NULL, '23a5fa57-b2b1-46eb-b30e-e57b95f03c1a', '5f00c4d2-12e0-4a89-9f35-5bbda1c3d904', true, 'Supplies ', 'Inventory and stock', '', 'Commerce and Trade', NULL, '{"en": "Supplies "}', '{"en": "Inventory and stock"}', '{"en": "Commerce and Trade"}');
 INSERT INTO public.asset VALUES (NULL, '8a7ceaaf-3f60-4e91-b941-7ee99da357bc', '5f00c4d2-12e0-4a89-9f35-5bbda1c3d904', true, 'E-commerce platforms', 'Technological assets', '', 'Commerce and Trade', NULL, '{"en": "E-commerce platforms"}', '{"en": "Technological assets"}', '{"en": "Commerce and Trade"}');
+INSERT INTO public.asset VALUES (NULL, '397b25a3-86ac-4569-af12-84facca40d78', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', true, 'Teacher training', 'Facilities', '', 'Education', NULL, '{"en": "Teacher training"}', '{"en": "Facilities"}', '{"en": "Education"}');
 INSERT INTO public.asset VALUES (NULL, 'a8ea231c-404b-4c91-8a2b-bad8185659fb', '5f00c4d2-12e0-4a89-9f35-5bbda1c3d904', true, 'Online storefronts', 'Technological assets', '', 'Commerce and Trade', NULL, '{"en": "Online storefronts"}', '{"en": "Technological assets"}', '{"en": "Commerce and Trade"}');
 INSERT INTO public.asset VALUES (NULL, '3115c3e2-5c77-499c-b2d2-155ecb932c07', 'ba8e2cf9-0d9a-49c1-814e-0a4d45d0726b,e9f80a3c-84b4-4fa6-92a0-324ae34f81fd,3910f40d-b1a1-4ac0-bfa6-52064d7d4e9f', true, 'Office space', '', '', 'Services', NULL, '{"en": "Office space"}', '{"en": ""}', '{"en": "Services"}');
 INSERT INTO public.asset VALUES (NULL, '12f35372-dcee-4d53-9739-52e7eced2a1d', 'ba8e2cf9-0d9a-49c1-814e-0a4d45d0726b', true, 'Technological platforms', '', '', 'Services', NULL, '{"en": "Technological platforms"}', '{"en": ""}', '{"en": "Services"}');
@@ -1639,7 +1919,6 @@ INSERT INTO public.asset VALUES (NULL, '0b3caa9c-71bb-467a-b1b4-82c9333aabc1', '
 INSERT INTO public.asset VALUES (NULL, '601b203a-e7ea-4ec8-ad40-a4d9dbfa4ba9', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', true, 'Middle school', 'Facilities', '', 'Education', NULL, '{"en": "Middle school"}', '{"en": "Facilities"}', '{"en": "Education"}');
 INSERT INTO public.asset VALUES (NULL, '22bf98c3-cee6-4df0-a592-b73ffd1fad2d', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', true, 'Junior high school', 'Facilities', '', 'Education', NULL, '{"en": "Junior high school"}', '{"en": "Facilities"}', '{"en": "Education"}');
 INSERT INTO public.asset VALUES (NULL, 'b197e924-f831-443c-a5bc-e6eeaba9eea7', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', true, 'Vocational training center', 'Facilities', '', 'Education', NULL, '{"en": "Vocational training center"}', '{"en": "Facilities"}', '{"en": "Education"}');
-INSERT INTO public.asset VALUES (NULL, '397b25a3-86ac-4569-af12-84facca40d78', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', true, 'Teacher training', 'Facilities', '', 'Education', NULL, '{"en": "Teacher training"}', '{"en": "Facilities"}', '{"en": "Education"}');
 INSERT INTO public.asset VALUES (NULL, '47553293-ab99-4bab-b970-fbe51e6aed8f', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', true, 'High school', 'Facilities', '', 'Education', NULL, '{"en": "High school"}', '{"en": "Facilities"}', '{"en": "Education"}');
 INSERT INTO public.asset VALUES (NULL, '970ebb47-b753-47fc-8dad-d3424d525441', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', true, 'College', 'Facilities', '', 'Education', NULL, '{"en": "College"}', '{"en": "Facilities"}', '{"en": "Education"}');
 INSERT INTO public.asset VALUES (NULL, '23bc380d-6b58-4f9d-bc5d-1ced0834b8d1', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', true, 'Community colleague', 'Facilities', '', 'Education', NULL, '{"en": "Community colleague"}', '{"en": "Facilities"}', '{"en": "Education"}');
@@ -2314,7 +2593,7 @@ INSERT INTO public.declaration_status VALUES ('80033fe6-cef6-435d-910e-a0396aaeb
 -- Data for Name: dts_system_info; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO public.dts_system_info VALUES ('73f0defb-4eba-4398-84b3-5e6737fec2b7', '0.3.0', NULL, '2026-08-27 05:49:32.201601', NULL);
+INSERT INTO public.dts_system_info VALUES ('73f0defb-4eba-4398-84b3-5e6737fec2b7', '0.3.1', NULL, '2026-09-15 16:01:28.401496', NULL);
 
 
 --
@@ -2348,7 +2627,67 @@ INSERT INTO public.dts_system_info VALUES ('73f0defb-4eba-4398-84b3-5e6737fec2b7
 
 
 --
+-- Data for Name: field_data_type; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: field_unit; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: hazard_cluster; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: hazard_driver; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: hazard_type; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: hazard_type_custom_field_definition; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: hazard_type_field_definition; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
 -- Data for Name: hazardous_event; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: hazardous_event_attachment; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: hazardous_event_causality; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: hazardous_event_custom_field_value; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
@@ -2360,7 +2699,37 @@ INSERT INTO public.dts_system_info VALUES ('73f0defb-4eba-4398-84b3-5e6737fec2b7
 
 
 --
+-- Data for Name: hazardous_event_field_value; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
 -- Data for Name: hazardous_event_geom; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: hazardous_event_hazard_driver; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: hazardous_event_spatial_observation; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: hazardous_event_spatial_observation_division; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: hazardous_event_spatial_observation_geom; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
@@ -2438,6 +2807,8 @@ INSERT INTO public.hip_hazard VALUES ('94015', 'CH0604', '1058', 'Opioids and Ot
 INSERT INTO public.hip_hazard VALUES ('94093', 'GH0300', '1742', 'Gravitational Mass Movement (‘Landslide’)', 'A gravitational mass movement (‘landslide’) is the downslope movement of soil, rock and organic materials under the effects of gravity, which occurs when the gravitational driving forces exceed the frictional resistance of the material resisting on the slope. Such movements may be terrestrial or submarine (GH0306) (cf. Cruden and Varnes, 1996).', '{"en": "Gravitational Mass Movement (‘Landslide’)"}', '{"en": "A gravitational mass movement (‘landslide’) is the downslope movement of soil, rock and organic materials under the effects of gravity, which occurs when the gravitational driving forces exceed the frictional resistance of the material resisting on the slope. Such movements may be terrestrial or submarine (GH0306) (cf. Cruden and Varnes, 1996)."}');
 INSERT INTO public.hip_hazard VALUES ('94337', 'CH0100', '1057', 'Heavy Metals and Other Trace Elements', 'Heavy metals are metallic trace elements with either high relative atomic weights or occurring in materials with high densities. Trace Elements is the term used for elements that are generally found in soil at low concentrations but can still have significant impacts on human health and ecosystems when their levels exceed safe limits, as in the case of many heavy metals. Trace element contaminants that have biological significance are generally found in soil at concentrations of less than 100 mg/kg, and sometimes in aquatic ecosystems or as particulates in the atmosphere. Biological significance would include elements that are essential or toxic to any organism; some elements can be both, depending on their concentration. Many of the trace elements of importance are metals, while others are metalloids, alloys, non-metals, actinoids, and halogens occurring in a variety of chemical states (elemental, cations, anions, oxyanions, methylated, etc.). This category can overlap or be used synonymously with terms such as potentially toxic elements, heavy metals, persistent inorganic contaminants, and inorganic contaminants, and halides, such as fluoride and iodide. For the clarity of this document, the term trace elements will be used (FAO and UNEP, 2021a).', '{"en": "Heavy Metals and Other Trace Elements"}', '{"en": "Heavy metals are metallic trace elements with either high relative atomic weights or occurring in materials with high densities. Trace Elements is the term used for elements that are generally found in soil at low concentrations but can still have significant impacts on human health and ecosystems when their levels exceed safe limits, as in the case of many heavy metals. Trace element contaminants that have biological significance are generally found in soil at concentrations of less than 100 mg/kg, and sometimes in aquatic ecosystems or as particulates in the atmosphere. Biological significance would include elements that are essential or toxic to any organism; some elements can be both, depending on their concentration. Many of the trace elements of importance are metals, while others are metalloids, alloys, non-metals, actinoids, and halogens occurring in a variety of chemical states (elemental, cations, anions, oxyanions, methylated, etc.). This category can overlap or be used synonymously with terms such as potentially toxic elements, heavy metals, persistent inorganic contaminants, and inorganic contaminants, and halides, such as fluoride and iodide. For the clarity of this document, the term trace elements will be used (FAO and UNEP, 2021a)."}');
 INSERT INTO public.hip_hazard VALUES ('94360', 'CH0300', '1056', 'Toxic Gases', 'Toxic gases are substances in the gaseous state that cause hazardous physiological effects when inhaled, affecting the respiratory, cardiovascular, and nervous systems, making them major public hazards (WHO 2000).', '{"en": "Toxic Gases"}', '{"en": "Toxic gases are substances in the gaseous state that cause hazardous physiological effects when inhaled, affecting the respiratory, cardiovascular, and nervous systems, making them major public hazards (WHO 2000)."}');
+INSERT INTO public.hip_hazard VALUES ('78387', 'BI0402', '1046', 'Locust upsurge', 'Widespread and heavy infestations of crops and natural vegetation by locusts causing significant threats to food security, livelihoods and natural habitats in multiple regions (adapted from FAO, 2009a).', '{"en": "Locust upsurge"}', '{"en": "Widespread and heavy infestations of crops and natural vegetation by locusts causing significant threats to food security, livelihoods and natural habitats in multiple regions (adapted from FAO, 2009a)."}');
+INSERT INTO public.hip_hazard VALUES ('78572', 'MH0604', '1072', 'Fluvial (Riverine) Flooding', 'Overflowing by water of the normal confines of a watercourse or other body of water (WMO, 2012).', '{"en": "Fluvial (Riverine) Flooding"}', '{"en": "Overflowing by water of the normal confines of a watercourse or other body of water (WMO, 2012)."}');
 INSERT INTO public.hip_hazard VALUES ('94366', 'CH0400', '1843', 'Asphyxiant ​​Gases', 'Asphyxiant gases are gases that can cause unconsciousness or death by suffocation by displacing oxygen from air. Asphyxiant gases that have no other health effects are considered as simple asphyxiants. Simple asphyxiant gases become harmful to humans at high concentrations by lowering the percentage of oxygen in air (regularly present at 21%) to 19.5% or lower. (CCOHS, 2024)', '{"en": "Asphyxiant ​​Gases"}', '{"en": "Asphyxiant gases are gases that can cause unconsciousness or death by suffocation by displacing oxygen from air. Asphyxiant gases that have no other health effects are considered as simple asphyxiants. Simple asphyxiant gases become harmful to humans at high concentrations by lowering the percentage of oxygen in air (regularly present at 21%) to 19.5% or lower. (CCOHS, 2024)"}');
 INSERT INTO public.hip_hazard VALUES ('94367', 'CH0500', '1060', 'Persistent Organic Pollutants', 'Persistent organic pollutants (POPs) are chemicals of global concern due to their potential for long-range transport, persistence in the environment, ability to bio-magnify and bio-accumulate in ecosystems, as well as their significant negative effects on human health and the environment.', '{"en": "Persistent Organic Pollutants"}', '{"en": "Persistent organic pollutants (POPs) are chemicals of global concern due to their potential for long-range transport, persistence in the environment, ability to bio-magnify and bio-accumulate in ecosystems, as well as their significant negative effects on human health and the environment."}');
 INSERT INTO public.hip_hazard VALUES ('94514', 'MH0708', '1074', 'Marine Heatwave', 'A period of extreme warm near-sea surface temperature (SST) that persists for days to months and can extend up to thousands of kilometres (IPCC, 2019).', '{"en": "Marine Heatwave"}', '{"en": "A period of extreme warm near-sea surface temperature (SST) that persists for days to months and can extend up to thousands of kilometres (IPCC, 2019)."}');
@@ -2446,6 +2817,7 @@ INSERT INTO public.hip_hazard VALUES ('94397', 'CH0901', '1063', 'Corrosive Subs
 INSERT INTO public.hip_hazard VALUES ('94400', 'CH0902', '1063', 'Ammonium Nitr​​ate', 'Ammonium nitrate (NH4NO3) is principally used as a high nitrogen content fertilizer in agricultural applications. It is also a major component of industrial explosives, and similar mixtures have been used as improvised explosive devices. Thousands of people have been killed in accidental ammonium nitrate explosions triggered either by a shock/explosion, or by fire spreading into a storage facility. Overuse as a fertilizer can lead to contamination of drinking water.', '{"en": "Ammonium Nitr​​ate"}', '{"en": "Ammonium nitrate (NH4NO3) is principally used as a high nitrogen content fertilizer in agricultural applications. It is also a major component of industrial explosives, and similar mixtures have been used as improvised explosive devices. Thousands of people have been killed in accidental ammonium nitrate explosions triggered either by a shock/explosion, or by fire spreading into a storage facility. Overuse as a fertilizer can lead to contamination of drinking water."}');
 INSERT INTO public.hip_hazard VALUES ('94403', 'GH0303', '1742', 'Debris and earth (mud)flows and rock avalanches', 'Flows are gravitational mass movements down a slope in the form of a fluid. Flows often leave behind a distinctive, fan-shaped deposit where the landslide material has stopped moving (cf. British Geological Survey 2024)Sub-categories of flows may be defined by the type and proportion of material (e.g., soil, debris, or earth and the velocity of the mass movement, cf. Cruden and Varnes, 1996; Hungr et al., 2014). Mud flows are here taken to be a sub-category of earth flows. The term rock avalanche implies extremely rapid, massive, flow-like motion of fragmented rock from a large rock slide or rock fall (Hungr. et al., 2014).', '{"en": "Debris and earth (mud)flows and rock avalanches"}', '{"en": "Flows are gravitational mass movements down a slope in the form of a fluid. Flows often leave behind a distinctive, fan-shaped deposit where the landslide material has stopped moving (cf. British Geological Survey 2024)Sub-categories of flows may be defined by the type and proportion of material (e.g., soil, debris, or earth and the velocity of the mass movement, cf. Cruden and Varnes, 1996; Hungr et al., 2014). Mud flows are here taken to be a sub-category of earth flows. The term rock avalanche implies extremely rapid, massive, flow-like motion of fragmented rock from a large rock slide or rock fall (Hungr. et al., 2014)."}');
 INSERT INTO public.hip_hazard VALUES ('94404', 'GH0304', '1742', 'Rock, debris and earth (mud) slide', 'A slide is a movement of a mass of rock, debris or earth on an individualized failure surface (adapted from Dennis and Didier, 2019).Sub-categories of slides may be defined by the type of material (e.g., rock, soil, debris, or earth) and the velocity of the mass movement (cf. Cruden and Varnes, 1996; Hungr et al., 2014). Mud slides are here taken to be a sub-category of earth slides.', '{"en": "Rock, debris and earth (mud) slide"}', '{"en": "A slide is a movement of a mass of rock, debris or earth on an individualized failure surface (adapted from Dennis and Didier, 2019).Sub-categories of slides may be defined by the type of material (e.g., rock, soil, debris, or earth) and the velocity of the mass movement (cf. Cruden and Varnes, 1996; Hungr et al., 2014). Mud slides are here taken to be a sub-category of earth slides."}');
+INSERT INTO public.hip_hazard VALUES ('78431', 'BI0228', '1844', 'Plague', 'Plague is caused by the bacteria Yersinia pestis, and can be a very severe disease in people, with a case-fatality ratio of 30% to 60% for the bubonic type and is always fatal for the pneumonic kind when left untreated (WHO, 2022).', '{"en": "Plague"}', '{"en": "Plague is caused by the bacteria Yersinia pestis, and can be a very severe disease in people, with a case-fatality ratio of 30% to 60% for the bubonic type and is always fatal for the pneumonic kind when left untreated (WHO, 2022)."}');
 INSERT INTO public.hip_hazard VALUES ('94405', 'GH0305', '1742', 'Rock, debris and earth topples', 'A topple is the forward rotation out of the slope of a mass of soil or rock about a point or axis below the center of gravity of the displaced mass (Cruden and Varnes, 1996).Sub-categories of topples may be defined by the type of material (e.g., rock, soil, debris, or earth, modes of toppling (Goodman and Bray, 1976) and the velocity of the mass movement (cf. Cruden and Varnes, 1996; Hungr et al., 2014).', '{"en": "Rock, debris and earth topples"}', '{"en": "A topple is the forward rotation out of the slope of a mass of soil or rock about a point or axis below the center of gravity of the displaced mass (Cruden and Varnes, 1996).Sub-categories of topples may be defined by the type of material (e.g., rock, soil, debris, or earth, modes of toppling (Goodman and Bray, 1976) and the velocity of the mass movement (cf. Cruden and Varnes, 1996; Hungr et al., 2014)."}');
 INSERT INTO public.hip_hazard VALUES ('94464', 'MH0402', '1076', 'Rain', 'Rain is precipitation of drops of water that falls from a cloud (WMO, 2017). While rain is essential for sustaining life and ecosystems, extreme rainfall is a primary trigger for some of the most devastating secondary hazards—flooding, landslides, and soil erosion—which result in widespread loss of life, damage to infrastructure, disruption of livelihoods, and environmental degradation (Rijal et al., 2024; Myhre et al., 2019).', '{"en": "Rain"}', '{"en": "Rain is precipitation of drops of water that falls from a cloud (WMO, 2017). While rain is essential for sustaining life and ecosystems, extreme rainfall is a primary trigger for some of the most devastating secondary hazards—flooding, landslides, and soil erosion—which result in widespread loss of life, damage to infrastructure, disruption of livelihoods, and environmental degradation (Rijal et al., 2024; Myhre et al., 2019)."}');
 INSERT INTO public.hip_hazard VALUES ('94492', 'MH0600', '1072', 'Flooding', 'Flooding is (1) an overflowing by water of the normal confines of a watercourse or other body of water; (2) an accumulation of drainage water over areas which are not normally submerged; (3) a controlled spreading of water for irrigation (WMO and UNESCO, 2012).', '{"en": "Flooding"}', '{"en": "Flooding is (1) an overflowing by water of the normal confines of a watercourse or other body of water; (2) an accumulation of drainage water over areas which are not normally submerged; (3) a controlled spreading of water for irrigation (WMO and UNESCO, 2012)."}');
@@ -2458,7 +2830,6 @@ INSERT INTO public.hip_hazard VALUES ('94770', 'TL0213', '1086', 'Tunnel Failure
 INSERT INTO public.hip_hazard VALUES ('95166', 'BI0220', '1844', 'Marburg virus disease', 'Marburg virus disease (MVD), formerly known as Marburg haemorrhagic fever, is a severe, often fatal illness in humans. The virus causes severe viral haemorrhagic fever in humans (WHO, 2025).', '{"en": "Marburg virus disease"}', '{"en": "Marburg virus disease (MVD), formerly known as Marburg haemorrhagic fever, is a severe, often fatal illness in humans. The virus causes severe viral haemorrhagic fever in humans (WHO, 2025)."}');
 INSERT INTO public.hip_hazard VALUES ('78385', 'BI0603', '1743', 'Harmful Algal Blooms', 'Harmful algal blooms result from noxious and/or toxic algae that cause direct and indirect negative impacts on aquatic ecosystems, coastal resources, and human health (Kudela et al., 2015).', '{"en": "Harmful Algal Blooms"}', '{"en": "Harmful algal blooms result from noxious and/or toxic algae that cause direct and indirect negative impacts on aquatic ecosystems, coastal resources, and human health (Kudela et al., 2015)."}');
 INSERT INTO public.hip_hazard VALUES ('78386', 'BI0401', '1046', 'Insect Pest Infestations', 'An insect pest infestation is a recently detected insect pest population, including an incursion, or a sudden significant increase of an established insect in an area leading to damage to plants in production fields, forests or natural habitats and causing substantial damage to productivity, biodiversity or natural resources (adapted from IPPC Secretariat, 2024).', '{"en": "Insect Pest Infestations"}', '{"en": "An insect pest infestation is a recently detected insect pest population, including an incursion, or a sudden significant increase of an established insect in an area leading to damage to plants in production fields, forests or natural habitats and causing substantial damage to productivity, biodiversity or natural resources (adapted from IPPC Secretariat, 2024)."}');
-INSERT INTO public.hip_hazard VALUES ('78387', 'BI0402', '1046', 'Locust upsurge', 'Widespread and heavy infestations of crops and natural vegetation by locusts causing significant threats to food security, livelihoods and natural habitats in multiple regions (adapted from FAO, 2009a).', '{"en": "Locust upsurge"}', '{"en": "Widespread and heavy infestations of crops and natural vegetation by locusts causing significant threats to food security, livelihoods and natural habitats in multiple regions (adapted from FAO, 2009a)."}');
 INSERT INTO public.hip_hazard VALUES ('78389', 'BI0403', '1046', 'Invasive Species, Including Weeds', '‘Invasive species’, also known as ‘alien invasive species’, are species whose introduction, establishment and spread into new areas threaten ecosystems, habitats or other species and cause social, economic or environmental harm, or harm to human health (FAO, 2007:82).', '{"en": "Invasive Species, Including Weeds"}', '{"en": "‘Invasive species’, also known as ‘alien invasive species’, are species whose introduction, establishment and spread into new areas threaten ecosystems, habitats or other species and cause social, economic or environmental harm, or harm to human health (FAO, 2007:82)."}');
 INSERT INTO public.hip_hazard VALUES ('78390', 'BI0605', '1743', 'Snakebite envenoming', 'A snakebite envenoming is a potentially life-threatening disease caused by toxins in the bite of a venomous snake (WHO, 2023).', '{"en": "Snakebite envenoming"}', '{"en": "A snakebite envenoming is a potentially life-threatening disease caused by toxins in the bite of a venomous snake (WHO, 2023)."}');
 INSERT INTO public.hip_hazard VALUES ('78391', 'BI0604', '1743', 'Human-Wildlife Conflict', 'Human-wildlife conflict is defined as struggles that emerge when the presence or behaviour of wildlife poses an actual or perceived, direct and recurring threat to human interests or needs, leading to disagreements between groups of people and negative impacts on people and/or wildlife (IUCN SSC, 2022).', '{"en": "Human-Wildlife Conflict"}', '{"en": "Human-wildlife conflict is defined as struggles that emerge when the presence or behaviour of wildlife poses an actual or perceived, direct and recurring threat to human interests or needs, leading to disagreements between groups of people and negative impacts on people and/or wildlife (IUCN SSC, 2022)."}');
@@ -2478,6 +2849,7 @@ INSERT INTO public.hip_hazard VALUES ('78406', 'BI0107', '1053', 'Vaccine-Preven
 INSERT INTO public.hip_hazard VALUES ('78407', 'BI0108', '1053', 'Vector-borne diseases (VBD)', 'Vector-borne diseases encompass a variety of illnesses that are caused by the spread of pathogens by living organisms known as vectors. These infectious diseases can be transmitted via vectors among humans (e.g. malaria, dengue), among animals (e.g. African swine fever, East Coast fever), or from animals to humans (e.g. Nipah virus disease). Many of these vectors are bloodsucking insects, and mosquitoes are the best-known disease vectors. Other vectors include ticks, flies, sandflies, fleas, triatomine bugs and some species of freshwater aquatic snails (adapted from WOAH, 2024a; WHO, 2024).', '{"en": "Vector-borne diseases (VBD)"}', '{"en": "Vector-borne diseases encompass a variety of illnesses that are caused by the spread of pathogens by living organisms known as vectors. These infectious diseases can be transmitted via vectors among humans (e.g. malaria, dengue), among animals (e.g. African swine fever, East Coast fever), or from animals to humans (e.g. Nipah virus disease). Many of these vectors are bloodsucking insects, and mosquitoes are the best-known disease vectors. Other vectors include ticks, flies, sandflies, fleas, triatomine bugs and some species of freshwater aquatic snails (adapted from WOAH, 2024a; WHO, 2024)."}');
 INSERT INTO public.hip_hazard VALUES ('78408', 'BI0109', '1053', 'Viral Haemorrhagic Fevers', 'Viral haemorrhagic fevers include a spectrum of relatively mild to severe life-threatening diseases characterized by sudden onset of muscle and joint pain, fever, bleeding and shock from loss of blood. In severe cases, one of the most prominent symptoms is bleeding, or haemorrhaging, from orifices and internal organs (WHO, no date a).', '{"en": "Viral Haemorrhagic Fevers"}', '{"en": "Viral haemorrhagic fevers include a spectrum of relatively mild to severe life-threatening diseases characterized by sudden onset of muscle and joint pain, fever, bleeding and shock from loss of blood. In severe cases, one of the most prominent symptoms is bleeding, or haemorrhaging, from orifices and internal organs (WHO, no date a)."}');
 INSERT INTO public.hip_hazard VALUES ('78410', 'BI0301', '1054', 'Infectious Animal Diseases (Not Zoonoses)', 'Non-zoonotic infectious animal diseases are not shared between animals and humans (WHO, FAO, & OIE, 2019).', '{"en": "Infectious Animal Diseases (Not Zoonoses)"}', '{"en": "Non-zoonotic infectious animal diseases are not shared between animals and humans (WHO, FAO, & OIE, 2019)."}');
+INSERT INTO public.hip_hazard VALUES ('78420', 'BI0225', '1844', 'Paratyphoid fever', 'Paratyphoid fever results from systemic infection with Salmonella enterica serotype Paratyphi. It is characterised by febrile illness and, in severe cases, gastrointestinal bleeding, altered mental status, intestinal perforation, and death (IHME 2021).', '{"en": "Paratyphoid fever"}', '{"en": "Paratyphoid fever results from systemic infection with Salmonella enterica serotype Paratyphi. It is characterised by febrile illness and, in severe cases, gastrointestinal bleeding, altered mental status, intestinal perforation, and death (IHME 2021)."}');
 INSERT INTO public.hip_hazard VALUES ('78411', 'BI0113', '1053', 'Zoonotic Diseases', 'Zoonotic diseases, or zoonoses, are diseases shared between animals – including livestock, wildlife, and pets – and people. They can pose serious risks to both animal and human health and may have far-reaching impacts on economies and livelihoods and represent a major public health problem. Zoonotic diseases are commonly spread at the human-animal-environment interface – where people and animals interact with each other in their shared environment (adapted from WHO, FAO, WOAH, 2019 & WHO, 2020).', '{"en": "Zoonotic Diseases"}', '{"en": "Zoonotic diseases, or zoonoses, are diseases shared between animals – including livestock, wildlife, and pets – and people. They can pose serious risks to both animal and human health and may have far-reaching impacts on economies and livelihoods and represent a major public health problem. Zoonotic diseases are commonly spread at the human-animal-environment interface – where people and animals interact with each other in their shared environment (adapted from WHO, FAO, WOAH, 2019 & WHO, 2020)."}');
 INSERT INTO public.hip_hazard VALUES ('78412', 'BI0103', '1053', 'Diarrhoeal Diseases', 'Diarrhoeal diseases are infectious diseases, contaminants and other causes of diarrhoea. Diarrhoea is defined as the passage of three or more loose or liquid stools per day, or more frequently than is normal for the individual. Diarrhoeal disease is the third leading cause of death in children 1–59 months of age. It is both preventable and treatable. (WHO, 2024a).', '{"en": "Diarrhoeal Diseases"}', '{"en": "Diarrhoeal diseases are infectious diseases, contaminants and other causes of diarrhoea. Diarrhoea is defined as the passage of three or more loose or liquid stools per day, or more frequently than is normal for the individual. Diarrhoeal disease is the third leading cause of death in children 1–59 months of age. It is both preventable and treatable. (WHO, 2024a)."}');
 INSERT INTO public.hip_hazard VALUES ('78413', 'BI0230', '1844', 'Prion Diseases', 'Prion diseases are a family of rare progressive neurodegenerative disorders that affect both humans and animals (Adapted from CDC, 2024, and WHO, no date).', '{"en": "Prion Diseases"}', '{"en": "Prion diseases are a family of rare progressive neurodegenerative disorders that affect both humans and animals (Adapted from CDC, 2024, and WHO, no date)."}');
@@ -2489,7 +2861,6 @@ INSERT INTO public.hip_hazard VALUES ('78416', 'BI0214', '1844', 'HIV and AIDS',
 INSERT INTO public.hip_hazard VALUES ('78417', 'BI0205', '1844', 'COVID-19 (SARS-CoV-2)', 'COVID-19 is an infectious disease caused by the SARS Coronavirus 2 (SARS-CoV-2), a virus first identified in human populations in late 2019 which caused a global outbreak of coronavirus – an infectious disease caused by the severe acute respiratory syndrome coronavirus 2 (SARS-CoV-2) (adapted from WHO, 2023 and WHO Euro, no date).', '{"en": "COVID-19 (SARS-CoV-2)"}', '{"en": "COVID-19 is an infectious disease caused by the SARS Coronavirus 2 (SARS-CoV-2), a virus first identified in human populations in late 2019 which caused a global outbreak of coronavirus – an infectious disease caused by the severe acute respiratory syndrome coronavirus 2 (SARS-CoV-2) (adapted from WHO, 2023 and WHO Euro, no date)."}');
 INSERT INTO public.hip_hazard VALUES ('78418', 'BI0204', '1844', 'Cholera', 'Cholera is an acute diarrhoeal infection caused by ingestion of food or water contaminated with the bacterium Vibrio cholerae. Cholera is a global threat to public health (WHO, 2024a).', '{"en": "Cholera"}', '{"en": "Cholera is an acute diarrhoeal infection caused by ingestion of food or water contaminated with the bacterium Vibrio cholerae. Cholera is a global threat to public health (WHO, 2024a)."}');
 INSERT INTO public.hip_hazard VALUES ('78419', 'BI0111', '1053', 'Cryptosporidium', 'Cryptosporidium is a microscopic parasite that can live in water, food, soil, or on surfaces that have been contaminated with infected faeces and causes the watery diarrhoeal disease cryptosporidiosis (adapted from CDC 2024 and Peletz et al., 2013).', '{"en": "Cryptosporidium"}', '{"en": "Cryptosporidium is a microscopic parasite that can live in water, food, soil, or on surfaces that have been contaminated with infected faeces and causes the watery diarrhoeal disease cryptosporidiosis (adapted from CDC 2024 and Peletz et al., 2013)."}');
-INSERT INTO public.hip_hazard VALUES ('78420', 'BI0225', '1844', 'Paratyphoid fever', 'Paratyphoid fever results from systemic infection with Salmonella enterica serotype Paratyphi. It is characterised by febrile illness and, in severe cases, gastrointestinal bleeding, altered mental status, intestinal perforation, and death (IHME 2021).', '{"en": "Paratyphoid fever"}', '{"en": "Paratyphoid fever results from systemic infection with Salmonella enterica serotype Paratyphi. It is characterised by febrile illness and, in severe cases, gastrointestinal bleeding, altered mental status, intestinal perforation, and death (IHME 2021)."}');
 INSERT INTO public.hip_hazard VALUES ('78421', 'BI0226', '1844', 'Typhoid Fever', 'Typhoid fever is a life-threatening infection caused by the bacterium Salmonella typhi. It is usually spread through contaminated food or water. As of 2019 estimates, there are 9 million cases of typhoid fever annually, resulting in about 110 000 deaths per year. (WHO, 2023).', '{"en": "Typhoid Fever"}', '{"en": "Typhoid fever is a life-threatening infection caused by the bacterium Salmonella typhi. It is usually spread through contaminated food or water. As of 2019 estimates, there are 9 million cases of typhoid fever annually, resulting in about 110 000 deaths per year. (WHO, 2023)."}');
 INSERT INTO public.hip_hazard VALUES ('78422', 'BI0211', '1844', 'Hepatitis A', 'Hepatitis A is an acute vaccine-preventable viral liver disease and can cause mild to severe illness. Hepatitis A occurs sporadically and in epidemics worldwide, with a tendency for cyclic recurrences, as the virus persists in the environment and can withstand food production processes routinely used to inactivate or control bacterial pathogens (WHO, 2025a).', '{"en": "Hepatitis A"}', '{"en": "Hepatitis A is an acute vaccine-preventable viral liver disease and can cause mild to severe illness. Hepatitis A occurs sporadically and in epidemics worldwide, with a tendency for cyclic recurrences, as the virus persists in the environment and can withstand food production processes routinely used to inactivate or control bacterial pathogens (WHO, 2025a)."}');
 INSERT INTO public.hip_hazard VALUES ('78423', 'BI0210', '1844', 'Escherichia Coli (STEC)', 'Escherichia coli (E. coli) is a bacterium commonly found in the gut. Some strains can cause serious food poisoning, leading to diarrhoea and sometimes to life-threatening complications including haemolytic uraemic syndrome (WHO, 2018a).', '{"en": "Escherichia Coli (STEC)"}', '{"en": "Escherichia coli (E. coli) is a bacterium commonly found in the gut. Some strains can cause serious food poisoning, leading to diarrhoea and sometimes to life-threatening complications including haemolytic uraemic syndrome (WHO, 2018a)."}');
@@ -2500,7 +2871,6 @@ INSERT INTO public.hip_hazard VALUES ('78427', 'BI0244', '1844', 'Pandemic Influ
 INSERT INTO public.hip_hazard VALUES ('78428', 'BI0243', '1844', 'Seasonal Influenza', 'Seasonal influenza is an acute respiratory infection caused by influenza viruses which circulate in all parts of the world with around a billion cases of seasonal influenza annually, including 3–5 million cases of severe illness. It causes 290,000 to 650,000 respiratory deaths annually (adapted from WHO, 2025).', '{"en": "Seasonal Influenza"}', '{"en": "Seasonal influenza is an acute respiratory infection caused by influenza viruses which circulate in all parts of the world with around a billion cases of seasonal influenza annually, including 3–5 million cases of severe illness. It causes 290,000 to 650,000 respiratory deaths annually (adapted from WHO, 2025)."}');
 INSERT INTO public.hip_hazard VALUES ('78429', 'BI0112', '1053', 'Cysticercosis', 'Cysticercosis is a preventable infection in humans and pigs caused by the larval stages of the parasite Taenia solium (pork tapeworm). Human cysticercosis can result in devastating effects when the larvae are located in the central nervous system, resulting in neurocysticercosis which may cause convulsions and epileptic seizures and can be fatal. It is the main cause of preventable epilepsy where the parasite is present, and it is estimated to affect between 2.56 and 8.30 million people (adapted from WHO, 2023).', '{"en": "Cysticercosis"}', '{"en": "Cysticercosis is a preventable infection in humans and pigs caused by the larval stages of the parasite Taenia solium (pork tapeworm). Human cysticercosis can result in devastating effects when the larvae are located in the central nervous system, resulting in neurocysticercosis which may cause convulsions and epileptic seizures and can be fatal. It is the main cause of preventable epilepsy where the parasite is present, and it is estimated to affect between 2.56 and 8.30 million people (adapted from WHO, 2023)."}');
 INSERT INTO public.hip_hazard VALUES ('78430', 'BI0217', '1844', 'Leptospirosis', 'Leptospirosis is an infectious disease caused by a pathogenic bacterium of the genus Leptospira. These bacteria called leptospires affect both humans and animals. Humans become infected through direct contact with the urine of infected animals or with a urine-contaminated environment which can lead to serious and sometimes fatal disease (adapted from WHO & ILS, 2003).', '{"en": "Leptospirosis"}', '{"en": "Leptospirosis is an infectious disease caused by a pathogenic bacterium of the genus Leptospira. These bacteria called leptospires affect both humans and animals. Humans become infected through direct contact with the urine of infected animals or with a urine-contaminated environment which can lead to serious and sometimes fatal disease (adapted from WHO & ILS, 2003)."}');
-INSERT INTO public.hip_hazard VALUES ('78431', 'BI0228', '1844', 'Plague', 'Plague is caused by the bacteria Yersinia pestis, and can be a very severe disease in people, with a case-fatality ratio of 30% to 60% for the bubonic type and is always fatal for the pneumonic kind when left untreated (WHO, 2022).', '{"en": "Plague"}', '{"en": "Plague is caused by the bacteria Yersinia pestis, and can be a very severe disease in people, with a case-fatality ratio of 30% to 60% for the bubonic type and is always fatal for the pneumonic kind when left untreated (WHO, 2022)."}');
 INSERT INTO public.hip_hazard VALUES ('78432', 'BI0216', '1844', 'Leprosy', 'Leprosy is a curable infectious disease, endemic in many countries, caused by the bacterium Mycobacterium leprae (M. leprae). It mainly affects the skin, peripheral nerves, mucosa of the upper respiratory tract and eyes. Untreated, it can lead to permanent disability (adapted from WHO, 2025).', '{"en": "Leprosy"}', '{"en": "Leprosy is a curable infectious disease, endemic in many countries, caused by the bacterium Mycobacterium leprae (M. leprae). It mainly affects the skin, peripheral nerves, mucosa of the upper respiratory tract and eyes. Untreated, it can lead to permanent disability (adapted from WHO, 2025)."}');
 INSERT INTO public.hip_hazard VALUES ('78433', 'BI0203', '1844', 'Chikungunya', 'Chikungunya is a mosquito-borne viral infection caused by the chikungunya virus. It causes fever and severe arthralgia (joint pain) which is often debilitating. The disease can be endemic and epidemic in countries (WHO, 2025).', '{"en": "Chikungunya"}', '{"en": "Chikungunya is a mosquito-borne viral infection caused by the chikungunya virus. It causes fever and severe arthralgia (joint pain) which is often debilitating. The disease can be endemic and epidemic in countries (WHO, 2025)."}');
 INSERT INTO public.hip_hazard VALUES ('78434', 'BI0242', '1844', 'Zika Virus', 'Zika virus disease is a disease transmitted primarily by Aedes mosquitoes which can lead to complications including microcephaly and other congenital malformations and neurodevelopmental disorders (WHO, 2022a).', '{"en": "Zika Virus"}', '{"en": "Zika virus disease is a disease transmitted primarily by Aedes mosquitoes which can lead to complications including microcephaly and other congenital malformations and neurodevelopmental disorders (WHO, 2022a)."}');
@@ -2552,6 +2922,7 @@ INSERT INTO public.hip_hazard VALUES ('78546', 'GH0206', '1069', 'Volcanic Gases
 INSERT INTO public.hip_hazard VALUES ('78487', 'CH0502', '1060', 'Dioxins and Dioxin-like Substances', 'Dioxins and dioxin-like substances, including polychlorinated biphenyls (PCBs), polychlorinated dibenzo-p-dioxins (PCDDs) and polychlorinated dibenzofurans (PCDFs) are ​​​​persistent organic pollutants (POPs, see CH0​500​) and are unwanted by-products of combustion and various industrial processes, such as chlorine bleaching of paper pulp and smelting. They can travel long distances from the source of emission, and bioaccumulate in food chains. These substances represent a major public health concern. They have been associated with a range of acute and long-term adverse health effects and diseases (WHO, 2019).', '{"en": "Dioxins and Dioxin-like Substances"}', '{"en": "Dioxins and dioxin-like substances, including polychlorinated biphenyls (PCBs), polychlorinated dibenzo-p-dioxins (PCDDs) and polychlorinated dibenzofurans (PCDFs) are ​​​​persistent organic pollutants (POPs, see CH0​500​) and are unwanted by-products of combustion and various industrial processes, such as chlorine bleaching of paper pulp and smelting. They can travel long distances from the source of emission, and bioaccumulate in food chains. These substances represent a major public health concern. They have been associated with a range of acute and long-term adverse health effects and diseases (WHO, 2019)."}');
 INSERT INTO public.hip_hazard VALUES ('78488', 'CH0504', '1060', 'Microplastics', 'Microplastics are small plastic pieces less than five millimetres in length which can be harmful to the environment, especially marine life. They originate from a variety of sources, including larger plastic debris that degrade into progressively smaller pieces (adapted from UNEP, 2016 and NOAA, 2023).', '{"en": "Microplastics"}', '{"en": "Microplastics are small plastic pieces less than five millimetres in length which can be harmful to the environment, especially marine life. They originate from a variety of sources, including larger plastic debris that degrade into progressively smaller pieces (adapted from UNEP, 2016 and NOAA, 2023)."}');
 INSERT INTO public.hip_hazard VALUES ('78517', 'EN0402', '1065', 'Sea Level Rise', 'Sea-level change (sea-level rise / sea-level fall) refers to a change in the height of sea level, both globally and locally (relative sea-level change), at seasonal, annual, or longer time scales. It results from a change in ocean volume due to a change in the mass of water in the ocean (e.g. melting of glaciers and ice sheets), changes in ocean water density (e.g. expansion under warmer conditions), changes in the shape of ocean basins, changes in the Earth''s gravitational and rotational fields, and local land subsidence or uplift (IPCC, 2019).', '{"en": "Sea Level Rise"}', '{"en": "Sea-level change (sea-level rise / sea-level fall) refers to a change in the height of sea level, both globally and locally (relative sea-level change), at seasonal, annual, or longer time scales. It results from a change in ocean volume due to a change in the mass of water in the ocean (e.g. melting of glaciers and ice sheets), changes in ocean water density (e.g. expansion under warmer conditions), changes in the shape of ocean basins, changes in the Earth''s gravitational and rotational fields, and local land subsidence or uplift (IPCC, 2019)."}');
+INSERT INTO public.hip_hazard VALUES ('78505', 'EN0501', '1065', 'Biodiversity Loss', 'Biodiversity loss refers to the reduction of any aspect of biological diversity (i.e. diversity at the genetic, species and ecosystem levels) in a particular area through death (including extinction), destruction or manual removal. It can occur at many scales, from global extinctions to local population extinctions, leading to a decline in total diversity at the same scale.', '{"en": "Biodiversity Loss"}', '{"en": "Biodiversity loss refers to the reduction of any aspect of biological diversity (i.e. diversity at the genetic, species and ecosystem levels) in a particular area through death (including extinction), destruction or manual removal. It can occur at many scales, from global extinctions to local population extinctions, leading to a decline in total diversity at the same scale."}');
 INSERT INTO public.hip_hazard VALUES ('78490', 'CH0203', '1061', 'Benzene and Hydrocarbons', 'Hydrocarbons are organic compounds composed entirely of hydrogen (H) and carbon (C) atoms. They are the simplest form of organic molecules and are the main components of fossil fuels such as coal, natural gas, and petroleum. Benzene is a clear, colourless, highly flammable and volatile, liquid aromatic hydrocarbon (molecular formula C6H6) with a gasoline-like odour, which can lead to major public hazards. Benzene is the simplest aromatic hydrocarbon, characterised by alternating single and double bonds between the carbon atoms, forming a delocalized π-electron system. (WHO, 2019) The release of hydrocarbon ground gases, such as methane, can lead to major public hazards.', '{"en": "Benzene and Hydrocarbons"}', '{"en": "Hydrocarbons are organic compounds composed entirely of hydrogen (H) and carbon (C) atoms. They are the simplest form of organic molecules and are the main components of fossil fuels such as coal, natural gas, and petroleum. Benzene is a clear, colourless, highly flammable and volatile, liquid aromatic hydrocarbon (molecular formula C6H6) with a gasoline-like odour, which can lead to major public hazards. Benzene is the simplest aromatic hydrocarbon, characterised by alternating single and double bonds between the carbon atoms, forming a delocalized π-electron system. (WHO, 2019) The release of hydrocarbon ground gases, such as methane, can lead to major public hazards."}');
 INSERT INTO public.hip_hazard VALUES ('78491', 'CH0903', '1063', 'Chemical Warfare Agents', 'Chemical agents or ‘chemical warfare agents’ (chemical weapons) are chemicals, including dual -use chemicals, used to cause intentional death or harm through their toxic properties, and are a major public hazard. (OPCW, 2024a, b, c).', '{"en": "Chemical Warfare Agents"}', '{"en": "Chemical agents or ‘chemical warfare agents’ (chemical weapons) are chemicals, including dual -use chemicals, used to cause intentional death or harm through their toxic properties, and are a major public hazard. (OPCW, 2024a, b, c)."}');
 INSERT INTO public.hip_hazard VALUES ('78492', 'CH0202', '1061', 'Asbestos', 'Asbestos is the term for a group of naturally occurring fibrous silicate minerals widely used historically in building materials and other products (WHO, 2018). All types of asbestos cause lung cancer, mesothelioma, cancer of the larynx and ovary, and asbestosis (fibrosis of the lungs) (WHO, 2018).', '{"en": "Asbestos"}', '{"en": "Asbestos is the term for a group of naturally occurring fibrous silicate minerals widely used historically in building materials and other products (WHO, 2018). All types of asbestos cause lung cancer, mesothelioma, cancer of the larynx and ovary, and asbestosis (fibrosis of the lungs) (WHO, 2018)."}');
@@ -2560,6 +2931,7 @@ INSERT INTO public.hip_hazard VALUES ('78494', 'CH0105', '1057', 'Fluoride and I
 INSERT INTO public.hip_hazard VALUES ('78495', 'CH0603', '1058', 'Methanol', 'Methanol is a colourless, volatile liquid. Categorized as an alcohol, methanol is commonly used as a solvent and reagent in an array of industrial applications. Outbreaks of methanol poisoning most commonly arise from the consumption of adulterated or informally produced spirit drinks (adapted from NCBI, 2024 and WHO, 2014).', '{"en": "Methanol"}', '{"en": "Methanol is a colourless, volatile liquid. Categorized as an alcohol, methanol is commonly used as a solvent and reagent in an array of industrial applications. Outbreaks of methanol poisoning most commonly arise from the consumption of adulterated or informally produced spirit drinks (adapted from NCBI, 2024 and WHO, 2014)."}');
 INSERT INTO public.hip_hazard VALUES ('78496', 'CH0602', '1058', 'Substandard and Falsified Medical Products', 'Substandard and falsified medical products are defined as those that may cause harm to patients and fail to treat the diseases for which they were intended (WHO, 2018).', '{"en": "Substandard and Falsified Medical Products"}', '{"en": "Substandard and falsified medical products are defined as those that may cause harm to patients and fail to treat the diseases for which they were intended (WHO, 2018)."}');
 INSERT INTO public.hip_hazard VALUES ('78497', 'CH0605', '1058', 'Marine Toxins', 'Marine toxins (biotoxins) are naturally occurring, toxic substances, mostly caused by certain types of marine organisms such as toxic algae, but also by bacteria. These toxins can accumulate in fish and shellfish, causing significant public health concerns due to their potential to cause a wide range of adverse health effects.', '{"en": "Marine Toxins"}', '{"en": "Marine toxins (biotoxins) are naturally occurring, toxic substances, mostly caused by certain types of marine organisms such as toxic algae, but also by bacteria. These toxins can accumulate in fish and shellfish, causing significant public health concerns due to their potential to cause a wide range of adverse health effects."}');
+INSERT INTO public.hip_hazard VALUES ('78511', 'EN0404', '1065', 'Coral Bleaching', 'Corals are subject to ‘bleaching’ when the seawater temperature is too high: they lose the symbiotic algae that give coral its colour and part of its nutrients. Severe, prolonged or repeated bleaching can lead to the death of coral colonies (United Nations, 2017).', '{"en": "Coral Bleaching"}', '{"en": "Corals are subject to ‘bleaching’ when the seawater temperature is too high: they lose the symbiotic algae that give coral its colour and part of its nutrients. Severe, prolonged or repeated bleaching can lead to the death of coral colonies (United Nations, 2017)."}');
 INSERT INTO public.hip_hazard VALUES ('78498', 'EN0101', '1065', 'Household Air Pollution', 'Household air pollution is pollution primarily resulting from the incomplete combustion of solid fuels (e.g. wood, dung, charcoal, coal, kerosene), resulting in the emission of potentially toxic pollutants, including particles of varying sizes, carbon monoxide (CO), nitrogen dioxide, volatile and semi-volatile organic compounds (e.g. formaldehyde and benzo[a]pyrene), methylene chloride and dioxins. It is one of the leading environmental risk factors for disease and premature death and is generated by the use of inefficient and polluting fuels and technologies in and around homes.', '{"en": "Household Air Pollution"}', '{"en": "Household air pollution is pollution primarily resulting from the incomplete combustion of solid fuels (e.g. wood, dung, charcoal, coal, kerosene), resulting in the emission of potentially toxic pollutants, including particles of varying sizes, carbon monoxide (CO), nitrogen dioxide, volatile and semi-volatile organic compounds (e.g. formaldehyde and benzo[a]pyrene), methylene chloride and dioxins. It is one of the leading environmental risk factors for disease and premature death and is generated by the use of inefficient and polluting fuels and technologies in and around homes."}');
 INSERT INTO public.hip_hazard VALUES ('78499', 'EN0102', '1065', 'Air Pollution (Point Source)', 'A point source of air pollution is an identifiable stationary location or fixed facility from which air pollutants are released, which may be human-made or natural in origin (adapted from Kibble and Harrison, 2005; Dunne et al., 2014).', '{"en": "Air Pollution (Point Source)"}', '{"en": "A point source of air pollution is an identifiable stationary location or fixed facility from which air pollutants are released, which may be human-made or natural in origin (adapted from Kibble and Harrison, 2005; Dunne et al., 2014)."}');
 INSERT INTO public.hip_hazard VALUES ('78500', 'EN0103', '1065', 'Ambient (Outdoor) Air Pollution', 'Ambient (outdoor) air pollution is pollution that is present at concentrations that affect human health, ecosystems and agriculture. It is primarily measured through the presence of particulate matter (PM10 and PM2.5), ozone, nitrogen dioxide, sulphur dioxide and carbon monoxide in the air. Ambient air pollution is one of the leading environmental risk factors affecting urban and rural populations around the world, resulting in an estimated 4.2 million premature deaths in 2019 (WHO, 2024).', '{"en": "Ambient (Outdoor) Air Pollution"}', '{"en": "Ambient (outdoor) air pollution is pollution that is present at concentrations that affect human health, ecosystems and agriculture. It is primarily measured through the presence of particulate matter (PM10 and PM2.5), ozone, nitrogen dioxide, sulphur dioxide and carbon monoxide in the air. Ambient air pollution is one of the leading environmental risk factors affecting urban and rural populations around the world, resulting in an estimated 4.2 million premature deaths in 2019 (WHO, 2024)."}');
@@ -2568,7 +2940,6 @@ INSERT INTO public.hip_hazard VALUES ('78502', 'GH0402', '1070', 'Soil Degradati
 INSERT INTO public.hip_hazard VALUES ('78575', 'MH0609', '1072', 'Ponding (Drainage) Flooding', 'A ponding flood is a flood that results from rainwater ponding at or near the point where it falls because it is falling faster than the drainage system (natural or man-made) can carry it away (WMO, 2006).', '{"en": "Ponding (Drainage) Flooding"}', '{"en": "A ponding flood is a flood that results from rainwater ponding at or near the point where it falls because it is falling faster than the drainage system (natural or man-made) can carry it away (WMO, 2006)."}');
 INSERT INTO public.hip_hazard VALUES ('78503', 'EN0106', '1065', 'Runoff / Nonpoint Source Pollution', 'Nonpoint sources of pollution refer to pollution that does not have a single point of origin or has not been introduced into a receiving freshwater or maritime environment from a specific outlet. The pollutants are generally carried off from the land by agricultural runoff, urban stormwater, atmospheric deposition or subaqueous groundwater discharges. The most common categories of nonpoint pollution are agriculture, forestry, urban areas, mining, construction, dams and channels, land disposal and saltwater intrusion.', '{"en": "Runoff / Nonpoint Source Pollution"}', '{"en": "Nonpoint sources of pollution refer to pollution that does not have a single point of origin or has not been introduced into a receiving freshwater or maritime environment from a specific outlet. The pollutants are generally carried off from the land by agricultural runoff, urban stormwater, atmospheric deposition or subaqueous groundwater discharges. The most common categories of nonpoint pollution are agriculture, forestry, urban areas, mining, construction, dams and channels, land disposal and saltwater intrusion."}');
 INSERT INTO public.hip_hazard VALUES ('78504', 'EN0303', '1065', 'Salinity &amp; Sodicity', 'Salt-affected soils consist of saline and sodic soils. Saline soils are those with an elevated amount of soluble salts, which reduces the ability of plants to take up water from soil due to the high osmotic pressure of the soil solution (FAO, 1985).The technical criteria used to distinguish saline soil from other soils is the electrical conductivity (ECe) of a soil paste saturation extract: ECe > 2 dS/m (slightly saline) or ECe > 4 dS/m (saline) at 25 C. The content of soluble salts should be higher than 0.1-0.2% (FAO, 2018). The threshold of salinity above which a plant will suffer deleterious effects varies according to plant species, type of ions in solution, soil health and soil fertility status.Sodic soils get their name from sodium ions (Na⁺) adsorbed on soil clays and organic matter. Sodic soils have elevated amounts of exchangeable Na⁺ compared to the amounts of Ca²⁺ and Mg²⁺, measured as sodium adsorption ratio (SAR) > 13 or exchangeable sodium percentage (ESP) > 15, and with relatively lower salinity (ECe', '{"en": "Salinity &amp; Sodicity"}', '{"en": "Salt-affected soils consist of saline and sodic soils. Saline soils are those with an elevated amount of soluble salts, which reduces the ability of plants to take up water from soil due to the high osmotic pressure of the soil solution (FAO, 1985).The technical criteria used to distinguish saline soil from other soils is the electrical conductivity (ECe) of a soil paste saturation extract: ECe > 2 dS/m (slightly saline) or ECe > 4 dS/m (saline) at 25 C. The content of soluble salts should be higher than 0.1-0.2% (FAO, 2018). The threshold of salinity above which a plant will suffer deleterious effects varies according to plant species, type of ions in solution, soil health and soil fertility status.Sodic soils get their name from sodium ions (Na⁺) adsorbed on soil clays and organic matter. Sodic soils have elevated amounts of exchangeable Na⁺ compared to the amounts of Ca²⁺ and Mg²⁺, measured as sodium adsorption ratio (SAR) > 13 or exchangeable sodium percentage (ESP) > 15, and with relatively lower salinity (ECe"}');
-INSERT INTO public.hip_hazard VALUES ('78505', 'EN0501', '1065', 'Biodiversity Loss', 'Biodiversity loss refers to the reduction of any aspect of biological diversity (i.e. diversity at the genetic, species and ecosystem levels) in a particular area through death (including extinction), destruction or manual removal. It can occur at many scales, from global extinctions to local population extinctions, leading to a decline in total diversity at the same scale.', '{"en": "Biodiversity Loss"}', '{"en": "Biodiversity loss refers to the reduction of any aspect of biological diversity (i.e. diversity at the genetic, species and ecosystem levels) in a particular area through death (including extinction), destruction or manual removal. It can occur at many scales, from global extinctions to local population extinctions, leading to a decline in total diversity at the same scale."}');
 INSERT INTO public.hip_hazard VALUES ('78506', 'EN0202', '1065', 'Forest Declines and Diebacks', 'Forest declines and diebacks are episodic events characterised by premature, progressive loss of tree and stand vigour and health over a given period without obvious evidence of a single clearly identifiable causal factor such as physical disturbance or attack by primary disease or insect (Ciesla & Donaubauer, 1994).Tree declines can be described as the gradual deterioration of plant tissues over time, triggered by a series of adverse events such as abiotic stress, climate deregulation, the emergence of new pathogens, biological invasions and agricultural strategies. Declines may also be seen as a long-term reduction of wood or fruit productivity, leading (or not) to sudden tree mortality, occasionally referred to as dieback (Bettenfeld et al., 2020).', '{"en": "Forest Declines and Diebacks"}', '{"en": "Forest declines and diebacks are episodic events characterised by premature, progressive loss of tree and stand vigour and health over a given period without obvious evidence of a single clearly identifiable causal factor such as physical disturbance or attack by primary disease or insect (Ciesla & Donaubauer, 1994).Tree declines can be described as the gradual deterioration of plant tissues over time, triggered by a series of adverse events such as abiotic stress, climate deregulation, the emergence of new pathogens, biological invasions and agricultural strategies. Declines may also be seen as a long-term reduction of wood or fruit productivity, leading (or not) to sudden tree mortality, occasionally referred to as dieback (Bettenfeld et al., 2020)."}');
 INSERT INTO public.hip_hazard VALUES ('78507', 'EN0203', '1065', 'Forest Disturbances', 'Forest disturbance is the damage caused by any factor (biotic or abiotic) that adversely affects the vigour and productivity of the forest, and which is not a direct result of human activities. It includes disturbance by insect pests, diseases, severe weather events and fires (FAO, 2018; 2020).', '{"en": "Forest Disturbances"}', '{"en": "Forest disturbance is the damage caused by any factor (biotic or abiotic) that adversely affects the vigour and productivity of the forest, and which is not a direct result of human activities. It includes disturbance by insect pests, diseases, severe weather events and fires (FAO, 2018; 2020)."}');
 INSERT INTO public.hip_hazard VALUES ('78508', 'EN0206', '1065', 'Desertification', 'Desertification refers to land degradation in arid, semi-arid and dry sub-humid areas resulting from various factors, including climatic variations and human activities (UNCCD, 2017).', '{"en": "Desertification"}', '{"en": "Desertification refers to land degradation in arid, semi-arid and dry sub-humid areas resulting from various factors, including climatic variations and human activities (UNCCD, 2017)."}');
@@ -2576,7 +2947,6 @@ INSERT INTO public.hip_hazard VALUES ('78516', 'EN0405', '1065', 'Sand Mining', 
 INSERT INTO public.hip_hazard VALUES ('78576', 'MH0610', '1072', 'Snowmelt Flooding', 'A snowmelt flood is a significant flood rise in a river caused by the melting of snowpack accumulated during the winter (WMO, 2012).', '{"en": "Snowmelt Flooding"}', '{"en": "A snowmelt flood is a significant flood rise in a river caused by the melting of snowpack accumulated during the winter (WMO, 2012)."}');
 INSERT INTO public.hip_hazard VALUES ('78509', 'EN0207', '1065', 'Loss of Mangroves', 'Mangroves are distinctive tropical and sub-tropical, woody plants that grow at the interface/intertidal zone between land and sea, where they exist in conditions of high salinity, extreme tides, strong winds, high temperatures and muddy, anaerobic soils (Kathiresan and Bingham, 2001). The destruction of mangrove habitat is caused by both human and natural causes. Humans have cleared mangrove forests to expand farmlands, aquaculture ponds or urban areas. Natural stressors, such as sediment erosion, extreme storm surges or drought have also resulted in mangrove habitat loss. The loss of mangroves has devastated coastal communities, which depend on them for socio-economic activities and environmental conservation, especially in regions with low mangrove diversity and coverage.', '{"en": "Loss of Mangroves"}', '{"en": "Mangroves are distinctive tropical and sub-tropical, woody plants that grow at the interface/intertidal zone between land and sea, where they exist in conditions of high salinity, extreme tides, strong winds, high temperatures and muddy, anaerobic soils (Kathiresan and Bingham, 2001). The destruction of mangrove habitat is caused by both human and natural causes. Humans have cleared mangrove forests to expand farmlands, aquaculture ponds or urban areas. Natural stressors, such as sediment erosion, extreme storm surges or drought have also resulted in mangrove habitat loss. The loss of mangroves has devastated coastal communities, which depend on them for socio-economic activities and environmental conservation, especially in regions with low mangrove diversity and coverage."}');
 INSERT INTO public.hip_hazard VALUES ('78510', 'EN0304', '1065', 'Wetland Loss/Degradation', 'Wetland loss/degradation is a negative trend in wetland condition, caused by physical or direct/indirect human-induced processes, expressed as a long-term reduction or loss of at least one of the following: biological productivity, ecological role or value to humans (Olsson et al., 2019). Wetlands are defined as areas of marsh, fen, peatland or water, whether natural or artificial, permanent or temporary, with water that is static or flowing, fresh, brackish or salt, including areas of marine water the depth of which at low tide does not exceed six metres (Convention on Wetlands, 1971: Article 1.1). Wetlands may incorporate riparian and coastal zones adjacent to the wetlands, and islands or bodies of marine water deeper than six metres at low tide lying within the wetlands (Convention on Wetlands, 1971: Article 2.1).', '{"en": "Wetland Loss/Degradation"}', '{"en": "Wetland loss/degradation is a negative trend in wetland condition, caused by physical or direct/indirect human-induced processes, expressed as a long-term reduction or loss of at least one of the following: biological productivity, ecological role or value to humans (Olsson et al., 2019). Wetlands are defined as areas of marsh, fen, peatland or water, whether natural or artificial, permanent or temporary, with water that is static or flowing, fresh, brackish or salt, including areas of marine water the depth of which at low tide does not exceed six metres (Convention on Wetlands, 1971: Article 1.1). Wetlands may incorporate riparian and coastal zones adjacent to the wetlands, and islands or bodies of marine water deeper than six metres at low tide lying within the wetlands (Convention on Wetlands, 1971: Article 2.1)."}');
-INSERT INTO public.hip_hazard VALUES ('78511', 'EN0404', '1065', 'Coral Bleaching', 'Corals are subject to ‘bleaching’ when the seawater temperature is too high: they lose the symbiotic algae that give coral its colour and part of its nutrients. Severe, prolonged or repeated bleaching can lead to the death of coral colonies (United Nations, 2017).', '{"en": "Coral Bleaching"}', '{"en": "Corals are subject to ‘bleaching’ when the seawater temperature is too high: they lose the symbiotic algae that give coral its colour and part of its nutrients. Severe, prolonged or repeated bleaching can lead to the death of coral colonies (United Nations, 2017)."}');
 INSERT INTO public.hip_hazard VALUES ('78512', 'GH0401', '1070', 'Compressive Soils', 'Compressive soils are prone to volumetric change when subject to mechanical loading (USDA, 1990:30). Collapsible soils are metastable in that they are prone to volumetric change (collapse) on wetting and loading (Rogers, 1995).', '{"en": "Compressive Soils"}', '{"en": "Compressive soils are prone to volumetric change when subject to mechanical loading (USDA, 1990:30). Collapsible soils are metastable in that they are prone to volumetric change (collapse) on wetting and loading (Rogers, 1995)."}');
 INSERT INTO public.hip_hazard VALUES ('78513', 'GH0403', '1070', 'Soil Erosion', 'Erosion is the wearing away of the land surface by water, wind, ice, gravity or other natural or anthropogenic agents that abrade, detach and remove soil particles from one point on the earth''s surface, for deposition elsewhere. Four main forms are recognized: water, wind, harvest and tillage. (FAO, 2020).', '{"en": "Soil Erosion"}', '{"en": "Erosion is the wearing away of the land surface by water, wind, ice, gravity or other natural or anthropogenic agents that abrade, detach and remove soil particles from one point on the earth''s surface, for deposition elsewhere. Four main forms are recognized: water, wind, harvest and tillage. (FAO, 2020)."}');
 INSERT INTO public.hip_hazard VALUES ('78514', 'GH0405', '1070', 'Coastal Erosion and Accretion', 'Coastal erosion is the process of removal of material at the shoreline which leads to the loss of land as the shoreline retreats landward. Coastal accretion is the product of deposition of material at the shoreline which leads to gain of land as the coast advances seaward (Gibb, 1978).', '{"en": "Coastal Erosion and Accretion"}', '{"en": "Coastal erosion is the process of removal of material at the shoreline which leads to the loss of land as the shoreline retreats landward. Coastal accretion is the product of deposition of material at the shoreline which leads to gain of land as the coast advances seaward (Gibb, 1978)."}');
@@ -2617,7 +2987,6 @@ INSERT INTO public.hip_hazard VALUES ('78567', 'MH0102', '1071', 'Lightning (Ele
 INSERT INTO public.hip_hazard VALUES ('78568', 'MH0103', '1071', 'Thunderstorm', 'A thunderstorm is defined as one or more sudden electrical discharges, manifested by a flash of light (lightning) and a sharp or rumbling sound (thunder) (WMO, no date).', '{"en": "Thunderstorm"}', '{"en": "A thunderstorm is defined as one or more sudden electrical discharges, manifested by a flash of light (lightning) and a sharp or rumbling sound (thunder) (WMO, no date)."}');
 INSERT INTO public.hip_hazard VALUES ('78569', 'MH0601', '1072', 'Coastal Flooding', 'Coastal flooding occurs from multiple sources, including storm surges, waves and swell, seiches, riverine and flash floods near the coast, tides, sea-level rise and tsunamis. It is most frequently the result of storm surges and high winds coinciding with high tides. The surge itself is the result of the raising of sea levels due to low atmospheric pressure. In particular configurations, such as major estuaries or confined sea areas, the piling up of water is amplified by a combination of the shallowing of the seabed and retarding of return flow (WMO, 2011; WMO, 2022).', '{"en": "Coastal Flooding"}', '{"en": "Coastal flooding occurs from multiple sources, including storm surges, waves and swell, seiches, riverine and flash floods near the coast, tides, sea-level rise and tsunamis. It is most frequently the result of storm surges and high winds coinciding with high tides. The surge itself is the result of the raising of sea levels due to low atmospheric pressure. In particular configurations, such as major estuaries or confined sea areas, the piling up of water is amplified by a combination of the shallowing of the seabed and retarding of return flow (WMO, 2011; WMO, 2022)."}');
 INSERT INTO public.hip_hazard VALUES ('78570', 'MH0602', '1072', 'Estuarine (Coastal) Flooding', 'Estuarine flooding is flooding over and near coastal areas caused by storm surges and high winds coincident with high tides, thereby obstructing the seaward river flow. Estuarine flooding can be caused by tsunamis in specific cases (WMO, 2011).', '{"en": "Estuarine (Coastal) Flooding"}', '{"en": "Estuarine flooding is flooding over and near coastal areas caused by storm surges and high winds coincident with high tides, thereby obstructing the seaward river flow. Estuarine flooding can be caused by tsunamis in specific cases (WMO, 2011)."}');
-INSERT INTO public.hip_hazard VALUES ('78572', 'MH0604', '1072', 'Fluvial (Riverine) Flooding', 'Overflowing by water of the normal confines of a watercourse or other body of water (WMO, 2012).', '{"en": "Fluvial (Riverine) Flooding"}', '{"en": "Overflowing by water of the normal confines of a watercourse or other body of water (WMO, 2012)."}');
 INSERT INTO public.hip_hazard VALUES ('78573', 'MH0605', '1072', 'Groundwater Flooding', 'A groundwater flood is the emergence of groundwater at the ground surface away from perennial river channels or the rising of groundwater into man-made ground, under conditions where the ‘normal’ ranges of groundwater level and groundwater flow are exceeded (BGS, 2010).', '{"en": "Groundwater Flooding"}', '{"en": "A groundwater flood is the emergence of groundwater at the ground surface away from perennial river channels or the rising of groundwater into man-made ground, under conditions where the ‘normal’ ranges of groundwater level and groundwater flow are exceeded (BGS, 2010)."}');
 INSERT INTO public.hip_hazard VALUES ('78574', 'MH0608', '1072', 'Ice-Jam Flooding Including Debris', 'An ice-jam flood including debris is defined as an accumulation of shuga including ice cakes, below ice cover. It is broken ice in a river which causes a narrowing of the river channel, a rise in water level and local floods (WMO, 2012).Shuga is defined as the accumulation of spongy white ice lumps, a few centimetres across, formed from grease ice or slush, and sometimes from anchor ice rising to the surface (WMO, 2012).', '{"en": "Ice-Jam Flooding Including Debris"}', '{"en": "An ice-jam flood including debris is defined as an accumulation of shuga including ice cakes, below ice cover. It is broken ice in a river which causes a narrowing of the river channel, a rise in water level and local floods (WMO, 2012).Shuga is defined as the accumulation of spongy white ice lumps, a few centimetres across, formed from grease ice or slush, and sometimes from anchor ice rising to the surface (WMO, 2012)."}');
 INSERT INTO public.hip_hazard VALUES ('78577', 'MH0606', '1072', 'Surface Water Flooding', 'Surface water flooding is that part of the rain which remains on the ground surface during rain and either runs off or infiltrates after the rain ends, not including depression storage (WMO, 2012).', '{"en": "Surface Water Flooding"}', '{"en": "Surface water flooding is that part of the rain which remains on the ground surface during rain and either runs off or infiltrates after the rain ends, not including depression storage (WMO, 2012)."}');
@@ -2647,6 +3016,7 @@ INSERT INTO public.hip_hazard VALUES ('78607', 'MH0504', '1077', 'Freeze', 'A fr
 INSERT INTO public.hip_hazard VALUES ('78608', 'MH0505', '1077', 'Frost (Hoar Frost)', 'A hoar frost is a deposit of ice produced by the deposition of water vapour from the surrounding air and is generally crystalline in appearance (WMO, 2017).', '{"en": "Frost (Hoar Frost)"}', '{"en": "A hoar frost is a deposit of ice produced by the deposition of water vapour from the surrounding air and is generally crystalline in appearance (WMO, 2017)."}');
 INSERT INTO public.hip_hazard VALUES ('78609', 'MH0506', '1077', 'Freezing Rain (Ice storm)', 'Freezing rain is rain where the temperature of the water droplets is below 0°C. Drops of supercooled rain may freeze on impact with the ground, in-flight aircraft or other objects (WMO, 2017).', '{"en": "Freezing Rain (Ice storm)"}', '{"en": "Freezing rain is rain where the temperature of the water droplets is below 0°C. Drops of supercooled rain may freeze on impact with the ground, in-flight aircraft or other objects (WMO, 2017)."}');
 INSERT INTO public.hip_hazard VALUES ('78610', 'MH0507', '1077', 'Glaze', 'Glaze is a smooth compact deposit of ice, generally transparent, formed by the freezing of super-cooled drizzle droplets or raindrops on objects with a surface temperature below or slightly above 0°C (WMO, 2017).', '{"en": "Glaze"}', '{"en": "Glaze is a smooth compact deposit of ice, generally transparent, formed by the freezing of super-cooled drizzle droplets or raindrops on objects with a surface temperature below or slightly above 0°C (WMO, 2017)."}');
+INSERT INTO public.hip_hazard VALUES ('78646', 'TL0208', '1086', 'Nuclear Plant Failure', 'Nuclear plant failure occurs when the accidental melting of the core of a nuclear reactor results in a complete or partial core collapse (adapted from USNRC, 1975).', '{"en": "Nuclear Plant Failure"}', '{"en": "Nuclear plant failure occurs when the accidental melting of the core of a nuclear reactor results in a complete or partial core collapse (adapted from USNRC, 1975)."}');
 INSERT INTO public.hip_hazard VALUES ('78611', 'MH0508', '1077', 'Ground Frost', 'Ground frost is a covering of ice, in one of its many forms, produced by the sublimation of the water vapour on objects colder than 0°C (WMO, 1992).Ground frost occurs when the temperature of the upper layer of the soil is less than 0°C (WMO, 1992).', '{"en": "Ground Frost"}', '{"en": "Ground frost is a covering of ice, in one of its many forms, produced by the sublimation of the water vapour on objects colder than 0°C (WMO, 1992).Ground frost occurs when the temperature of the upper layer of the soil is less than 0°C (WMO, 1992)."}');
 INSERT INTO public.hip_hazard VALUES ('78612', 'MH0501', '1077', 'Heatwave', 'A heatwave is a marked, unusual period of hot weather over a region persisting for at least two or three consecutive days and nights during the hot period of the year based on local climatological conditions, with thermal conditions recorded above given thresholds (WMO and WHO, 2015).', '{"en": "Heatwave"}', '{"en": "A heatwave is a marked, unusual period of hot weather over a region persisting for at least two or three consecutive days and nights during the hot period of the year based on local climatological conditions, with thermal conditions recorded above given thresholds (WMO and WHO, 2015)."}');
 INSERT INTO public.hip_hazard VALUES ('78613', 'MH0509', '1077', 'Icing (Including Ice)', 'Icing refers to any deposit or coating of ice on an object caused by the impact of liquid hydrometeors, usually supercooled (WMO, 1992).', '{"en": "Icing (Including Ice)"}', '{"en": "Icing refers to any deposit or coating of ice on an object caused by the impact of liquid hydrometeors, usually supercooled (WMO, 1992)."}');
@@ -2658,6 +3028,7 @@ INSERT INTO public.hip_hazard VALUES ('78622', 'MH0309', '1079', 'Tropical Cyclo
 INSERT INTO public.hip_hazard VALUES ('78624', 'MH0305', '1079', 'Tornado', 'A tornado is a rotating column of air extending from the base of a cumuliform cloud and often visible as a condensation funnel in contact with the ground, and/or attendant circulating dust or debris cloud at the ground (WMO, 2017).', '{"en": "Tornado"}', '{"en": "A tornado is a rotating column of air extending from the base of a cumuliform cloud and often visible as a condensation funnel in contact with the ground, and/or attendant circulating dust or debris cloud at the ground (WMO, 2017)."}');
 INSERT INTO public.hip_hazard VALUES ('78625', 'MH0301', '1079', 'Wind', 'Wind is air motion relative to the Earth’s surface. Unless otherwise specified, only the horizontal component is considered (WMO, 1992).', '{"en": "Wind"}', '{"en": "Wind is air motion relative to the Earth’s surface. Unless otherwise specified, only the horizontal component is considered (WMO, 1992)."}');
 INSERT INTO public.hip_hazard VALUES ('78626', 'SO0101', '1080', 'International Armed Conflict (IAC)', 'International armed conflict covers all cases of declared war and other de facto armed conflict between two or more States, even if the state of war is not recognised by one of them and/or the use of armed force is unilateral (ICRC, 2024).', '{"en": "International Armed Conflict (IAC)"}', '{"en": "International armed conflict covers all cases of declared war and other de facto armed conflict between two or more States, even if the state of war is not recognised by one of them and/or the use of armed force is unilateral (ICRC, 2024)."}');
+INSERT INTO public.hip_hazard VALUES ('78633', 'SO0401', '1083', 'Financial shock', 'A financial shock is an unexpected disturbance which originates from the financial sector and has a significant effect on an economy (e.g. national, regional, or global). The term is largely used to refer to events which have negative impacts (ECB, 2013).', '{"en": "Financial shock"}', '{"en": "A financial shock is an unexpected disturbance which originates from the financial sector and has a significant effect on an economy (e.g. national, regional, or global). The term is largely used to refer to events which have negative impacts (ECB, 2013)."}');
 INSERT INTO public.hip_hazard VALUES ('78627', 'SO0102', '1080', 'Non-International Armed Conflict (NIAC)', 'It is widely accepted today that two key conditions must be met for a situation of violence to be considered a Non-International Armed Conflict (NIAC) and therefore subject to International humanitarian law (IHL): the non-state party/parties must be organized, and the violence between the parties must be sufficiently intense. The existence of a NIAC is not predicated on any other threshold or condition. In particular, political or other motivations of the parties play no role in the classification of a conflict. (adapted from ICRC, 2024)', '{"en": "Non-International Armed Conflict (NIAC)"}', '{"en": "It is widely accepted today that two key conditions must be met for a situation of violence to be considered a Non-International Armed Conflict (NIAC) and therefore subject to International humanitarian law (IHL): the non-state party/parties must be organized, and the violence between the parties must be sufficiently intense. The existence of a NIAC is not predicated on any other threshold or condition. In particular, political or other motivations of the parties play no role in the classification of a conflict. (adapted from ICRC, 2024)"}');
 INSERT INTO public.hip_hazard VALUES ('78628', 'SO0103', '1080', 'Civil Unrest', 'Civil unrest is an umbrella term for a wide spectrum of social and/or political phenomena, and although there is no commonly agreed definition, the term is used widely among United Nations agencies, funds and programmes.A suggested definition for civil unrest is as follows: sporadic but continued collective physical violence in a context of social or political instability, that may result in deaths, injury and destruction. At times, non-violent collective action (such as protests, demonstrations, etc.) - exercising the right to peaceful assembly - or mass gatherings, when intersecting with external actors or factors, may lead to violence (Adapted from Kalyvas, 2000).', '{"en": "Civil Unrest"}', '{"en": "Civil unrest is an umbrella term for a wide spectrum of social and/or political phenomena, and although there is no commonly agreed definition, the term is used widely among United Nations agencies, funds and programmes.A suggested definition for civil unrest is as follows: sporadic but continued collective physical violence in a context of social or political instability, that may result in deaths, injury and destruction. At times, non-violent collective action (such as protests, demonstrations, etc.) - exercising the right to peaceful assembly - or mass gatherings, when intersecting with external actors or factors, may lead to violence (Adapted from Kalyvas, 2000)."}');
 INSERT INTO public.hip_hazard VALUES ('78638', 'TL0306', '1089', 'Explosive agents', 'An explosive substance or agent is a solid or liquid substance (or mixture of substances) which is in itself capable, by chemical reaction, of producing gas at such a temperature and pressure and at such a speed as to cause damage to the surroundings. Pyrotechnic substances and mixtures are included even when they do not evolve gases. Explosions can cause multiple severely injured casualties in a single incident (Adapted from UN 2023 and UK Parliament POSTNOTE 2011).', '{"en": "Explosive agents"}', '{"en": "An explosive substance or agent is a solid or liquid substance (or mixture of substances) which is in itself capable, by chemical reaction, of producing gas at such a temperature and pressure and at such a speed as to cause damage to the surroundings. Pyrotechnic substances and mixtures are included even when they do not evolve gases. Explosions can cause multiple severely injured casualties in a single incident (Adapted from UN 2023 and UK Parliament POSTNOTE 2011)."}');
@@ -2665,7 +3036,6 @@ INSERT INTO public.hip_hazard VALUES ('78629', 'SO0201', '1081', 'Explosive Ordn
 INSERT INTO public.hip_hazard VALUES ('78630', 'SO0202', '1081', 'Environmental Degradation from Conflict', 'Environmental degradation is both a driver and consequence of disasters and conflict, reducing the capacity of the environment to meet social and ecological needs (Adapted from UNDRR, 2022).', '{"en": "Environmental Degradation from Conflict"}', '{"en": "Environmental degradation is both a driver and consequence of disasters and conflict, reducing the capacity of the environment to meet social and ecological needs (Adapted from UNDRR, 2022)."}');
 INSERT INTO public.hip_hazard VALUES ('78631', 'SO0301', '1082', 'Violence', 'Violence is a social phenomenon that involves forceful acts or behaviour that are intended to cause harm. The injury or damage inflicted by violence to an individual or collective group may be physical, psychological, sexual, or deprivation, or combined. Violence is both intentional and forceful (Adapted from Jacquette, 2013).', '{"en": "Violence"}', '{"en": "Violence is a social phenomenon that involves forceful acts or behaviour that are intended to cause harm. The injury or damage inflicted by violence to an individual or collective group may be physical, psychological, sexual, or deprivation, or combined. Violence is both intentional and forceful (Adapted from Jacquette, 2013)."}');
 INSERT INTO public.hip_hazard VALUES ('78632', 'SO0302', '1082', 'Stampede or Crushing (Human)', 'Stampede or crushing is the surge of individuals in a crowd, in response to real or perceived danger or loss of physical space. It often disrupts the orderly movement of crowds resulting in movement for self-protection leading to increased localised crowd density and physical compression of the human bodies (Adapted from Burkle & Hsu, 2011; Illiyas et al., 2013; Ngai, et al., 2009).', '{"en": "Stampede or Crushing (Human)"}', '{"en": "Stampede or crushing is the surge of individuals in a crowd, in response to real or perceived danger or loss of physical space. It often disrupts the orderly movement of crowds resulting in movement for self-protection leading to increased localised crowd density and physical compression of the human bodies (Adapted from Burkle & Hsu, 2011; Illiyas et al., 2013; Ngai, et al., 2009)."}');
-INSERT INTO public.hip_hazard VALUES ('78633', 'SO0401', '1083', 'Financial shock', 'A financial shock is an unexpected disturbance which originates from the financial sector and has a significant effect on an economy (e.g. national, regional, or global). The term is largely used to refer to events which have negative impacts (ECB, 2013).', '{"en": "Financial shock"}', '{"en": "A financial shock is an unexpected disturbance which originates from the financial sector and has a significant effect on an economy (e.g. national, regional, or global). The term is largely used to refer to events which have negative impacts (ECB, 2013)."}');
 INSERT INTO public.hip_hazard VALUES ('78634', 'TL0601', '1084', 'Radioactive Waste', 'Radioactive waste is radioactive material for which no further use is foreseen but still contains, or is contaminated with, radionuclides. Radioactive waste can be in gas, liquid or solid form (IAEA, 2018). It may remain radioactive from a few hours to hundreds of thousands of years.For legal and regulatory purposes, material for which no further use is foreseen that contains, or is contaminated with, radionuclides at activity concentrations greater than clearance levels as established by the regulatory body (Adapted from IAEA, 2018 and IAEA 2022 a).', '{"en": "Radioactive Waste"}', '{"en": "Radioactive waste is radioactive material for which no further use is foreseen but still contains, or is contaminated with, radionuclides. Radioactive waste can be in gas, liquid or solid form (IAEA, 2018). It may remain radioactive from a few hours to hundreds of thousands of years.For legal and regulatory purposes, material for which no further use is foreseen that contains, or is contaminated with, radionuclides at activity concentrations greater than clearance levels as established by the regulatory body (Adapted from IAEA, 2018 and IAEA 2022 a)."}');
 INSERT INTO public.hip_hazard VALUES ('78635', 'TL0602', '1084', 'Radioactive Agents &amp; Material', 'A substance or a material emitting, or related to the emission of, ionizing radiation (either in the form of electro-magnetic waves or particle radiation) is radioactive. Depending on the magnitude of exposure, the radioactive substance may affect human health; as such it is subject to regulatory control by national laws and national regulatory authorities. Radioactive material may also be a hazard to animal health, other forms of life and the environment (IAEA, 2018).', '{"en": "Radioactive Agents &amp; Material"}', '{"en": "A substance or a material emitting, or related to the emission of, ionizing radiation (either in the form of electro-magnetic waves or particle radiation) is radioactive. Depending on the magnitude of exposure, the radioactive substance may affect human health; as such it is subject to regulatory control by national laws and national regulatory authorities. Radioactive material may also be a hazard to animal health, other forms of life and the environment (IAEA, 2018)."}');
 INSERT INTO public.hip_hazard VALUES ('78637', 'TL0603', '1084', 'Nuclear Agents', 'Nuclear agents are derived from neutron radiation (n) which is a neutron emitted by an unstable nucleus, in particular during atomic fission and nuclear fusion. Apart from a component in cosmic rays, neutrons are usually produced artificially. Because they are electrically neutral particles, neutrons can be very penetrating and when they interact with matter or tissue, they cause the emission of beta- and gamma-radiation. Neutron radiation therefore requires heavy shielding to reduce exposure (IAEA, 2004).', '{"en": "Nuclear Agents"}', '{"en": "Nuclear agents are derived from neutron radiation (n) which is a neutron emitted by an unstable nucleus, in particular during atomic fission and nuclear fusion. Apart from a component in cosmic rays, neutrons are usually produced artificially. Because they are electrically neutral particles, neutrons can be very penetrating and when they interact with matter or tissue, they cause the emission of beta- and gamma-radiation. Neutron radiation therefore requires heavy shielding to reduce exposure (IAEA, 2004)."}');
@@ -2675,7 +3045,6 @@ INSERT INTO public.hip_hazard VALUES ('78642', 'TL0204', '1086', 'Bridge Failure
 INSERT INTO public.hip_hazard VALUES ('78643', 'TL0205', '1086', 'Dam Failure', 'Dam failure is the uncontrolled release of water due to structural collapse, foundation instability, or overtopping, posing risks on people and property downstream (ICOLD, 2023, mentioned in Moreno-Rodenas et al., 2025).', '{"en": "Dam Failure"}', '{"en": "Dam failure is the uncontrolled release of water due to structural collapse, foundation instability, or overtopping, posing risks on people and property downstream (ICOLD, 2023, mentioned in Moreno-Rodenas et al., 2025)."}');
 INSERT INTO public.hip_hazard VALUES ('78644', 'TL0206', '1086', 'Supply Chain Failure', 'Supply chain failure refers to an event in the supply chain that disrupts the flow of materials on their journey from initial suppliers through to final customers (Walters, 2007).', '{"en": "Supply Chain Failure"}', '{"en": "Supply chain failure refers to an event in the supply chain that disrupts the flow of materials on their journey from initial suppliers through to final customers (Walters, 2007)."}');
 INSERT INTO public.hip_hazard VALUES ('78645', 'TL0207', '1086', 'Critical Infrastructure Failure', 'Critical Infrastructure failure is defined as the failure in one or more of the physical structures, facilities, networks and other assets which provide services that are essential to the social and economic functioning of a community or society (UNGA, 2016).Critical Infrastructures as described in the ANNEX of (CER - DIRECTIVE (EU) 2022/2557 of the European Parliament and of the council) can be defined as: Energy (e.g., Electricity, District heating and cooling, Oli, Gas, Hydrogen); Transport (Air, Rail, Water, Road, Public Transport); Banking; Financial market infrastructure; Health; Drinking water; Waste water; Digital Infrastructure; Public administration; Space (European Parliament 2022).', '{"en": "Critical Infrastructure Failure"}', '{"en": "Critical Infrastructure failure is defined as the failure in one or more of the physical structures, facilities, networks and other assets which provide services that are essential to the social and economic functioning of a community or society (UNGA, 2016).Critical Infrastructures as described in the ANNEX of (CER - DIRECTIVE (EU) 2022/2557 of the European Parliament and of the council) can be defined as: Energy (e.g., Electricity, District heating and cooling, Oli, Gas, Hydrogen); Transport (Air, Rail, Water, Road, Public Transport); Banking; Financial market infrastructure; Health; Drinking water; Waste water; Digital Infrastructure; Public administration; Space (European Parliament 2022)."}');
-INSERT INTO public.hip_hazard VALUES ('78646', 'TL0208', '1086', 'Nuclear Plant Failure', 'Nuclear plant failure occurs when the accidental melting of the core of a nuclear reactor results in a complete or partial core collapse (adapted from USNRC, 1975).', '{"en": "Nuclear Plant Failure"}', '{"en": "Nuclear plant failure occurs when the accidental melting of the core of a nuclear reactor results in a complete or partial core collapse (adapted from USNRC, 1975)."}');
 INSERT INTO public.hip_hazard VALUES ('78647', 'TL0209', '1086', 'Power Outage/ or Blackout', 'In the electric power domain, especially in power transmission and distribution, a power outage usually refers to a partial or total loss of power supply to some end user (e.g., population, enterprises, critical systems). Triggering factors may include accidents, equipment breakdowns, failure of control mechanisms, targeted attacks (physical or cyber), organisational errors, and natural hazards (adapted from Pescaroli et al., 2017; UK Cabinet Office, 2017; EIS Council, 2019; FEMA, 2018).', '{"en": "Power Outage/ or Blackout"}', '{"en": "In the electric power domain, especially in power transmission and distribution, a power outage usually refers to a partial or total loss of power supply to some end user (e.g., population, enterprises, critical systems). Triggering factors may include accidents, equipment breakdowns, failure of control mechanisms, targeted attacks (physical or cyber), organisational errors, and natural hazards (adapted from Pescaroli et al., 2017; UK Cabinet Office, 2017; EIS Council, 2019; FEMA, 2018)."}');
 INSERT INTO public.hip_hazard VALUES ('78648', 'TL0211', '1086', 'Emergency Telecommunications Failure', 'Emergency telecommunications failure is an umbrella term for telecommunications of an ‘extraordinary nature’ under abnormal and potentially adverse network conditions (ITU, 2007).', '{"en": "Emergency Telecommunications Failure"}', '{"en": "Emergency telecommunications failure is an umbrella term for telecommunications of an ‘extraordinary nature’ under abnormal and potentially adverse network conditions (ITU, 2007)."}');
 INSERT INTO public.hip_hazard VALUES ('78649', 'TL0210', '1086', 'Water Supply Failure', 'Water supply failure is the physical shortage or scarcity in access of water supply due to the failure of institutions to ensure a regular supply or due to a lack of adequate infrastructure (adapted from UN-Water, no date).Alternative definition: Water supply systems are networks whose edges and nodes are pressure pipes and either pipe junctions, water sources or end-users. Water supply systems are designed to protect the customer from natural biological contamination, and the same systems have potential efficacy against deliberate biological and chemical contamination (adapted from Franchin and Cavalieri, 2013; and Jain et al., 2014).', '{"en": "Water Supply Failure"}', '{"en": "Water supply failure is the physical shortage or scarcity in access of water supply due to the failure of institutions to ensure a regular supply or due to a lack of adequate infrastructure (adapted from UN-Water, no date).Alternative definition: Water supply systems are networks whose edges and nodes are pressure pipes and either pipe junctions, water sources or end-users. Water supply systems are designed to protect the customer from natural biological contamination, and the same systems have potential efficacy against deliberate biological and chemical contamination (adapted from Franchin and Cavalieri, 2013; and Jain et al., 2014)."}');
@@ -2685,6 +3054,7 @@ INSERT INTO public.hip_hazard VALUES ('78654', 'TL0102', '1088', 'Data Breach &a
 INSERT INTO public.hip_hazard VALUES ('78659', 'TL0106', '1088', 'Cyberbullying', 'Cyberbullying is bullying that takes place using digital devices such as cell/mobile phones, computers, and tablets. Cyberbullying can occur through SMS, e-mail, apps, social media, forums, or gaming when people view, participate in, or share content. Cyberbullying includes the deliberate sending, posting, or sharing of negative, harmful, false, or mean content about someone else. It can include sharing personal or private information about someone else causing embarrassment or humiliation. Some cyberbullying may also be unlawful or criminal behaviour (adapted from UNICEF, no date; PHE, 2014; US Government, no date).', '{"en": "Cyberbullying"}', '{"en": "Cyberbullying is bullying that takes place using digital devices such as cell/mobile phones, computers, and tablets. Cyberbullying can occur through SMS, e-mail, apps, social media, forums, or gaming when people view, participate in, or share content. Cyberbullying includes the deliberate sending, posting, or sharing of negative, harmful, false, or mean content about someone else. It can include sharing personal or private information about someone else causing embarrassment or humiliation. Some cyberbullying may also be unlawful or criminal behaviour (adapted from UNICEF, no date; PHE, 2014; US Government, no date)."}');
 INSERT INTO public.hip_hazard VALUES ('78661', 'TL0302', '1089', 'Pollution', 'Pollution is the presence of substances and heat in environmental media (air, water, land) whose nature, location, or quantity produces undesirable environmental effects; and the activities that generates pollutants. (UN data, no date).', '{"en": "Pollution"}', '{"en": "Pollution is the presence of substances and heat in environmental media (air, water, land) whose nature, location, or quantity produces undesirable environmental effects; and the activities that generates pollutants. (UN data, no date)."}');
 INSERT INTO public.hip_hazard VALUES ('78662', 'TL0304', '1089', 'Explosion', 'Explosion-related technological incidents can be defined as accidental or intentional rapid energetic events that result in the actual or potential exposure of responders and/or members of the public to a chemical hazard (adapted from WHO, no date).', '{"en": "Explosion"}', '{"en": "Explosion-related technological incidents can be defined as accidental or intentional rapid energetic events that result in the actual or potential exposure of responders and/or members of the public to a chemical hazard (adapted from WHO, no date)."}');
+INSERT INTO public.hip_hazard VALUES ('78671', 'TL0504', '1090', 'Hazardous Waste', 'Hazardous waste is waste that has physical, chemical, or biological characteristics such that it requires special handling and disposal procedures to avoid negative health effects, adverse environmental effects or both (Joint UNEP/OCHA Environment Unit, 2011).', '{"en": "Hazardous Waste"}', '{"en": "Hazardous waste is waste that has physical, chemical, or biological characteristics such that it requires special handling and disposal procedures to avoid negative health effects, adverse environmental effects or both (Joint UNEP/OCHA Environment Unit, 2011)."}');
 INSERT INTO public.hip_hazard VALUES ('78663', 'TL0301', '1089', 'Leaks and Spills', 'A leak or a spill is an incident involving the uncontrolled release of a toxic substance, potentially resulting in harm to public health and the environment. Chemical incidents can occur as a result of natural events, or as a result of accidental or intentional events. These incidents can be sudden and acute or have a slow onset when there is a ‘silent’ release of a chemical. Leaks and spills can range from small releases to full-scale major emergencies (adapted from WHO, no date).', '{"en": "Leaks and Spills"}', '{"en": "A leak or a spill is an incident involving the uncontrolled release of a toxic substance, potentially resulting in harm to public health and the environment. Chemical incidents can occur as a result of natural events, or as a result of accidental or intentional events. These incidents can be sudden and acute or have a slow onset when there is a ‘silent’ release of a chemical. Leaks and spills can range from small releases to full-scale major emergencies (adapted from WHO, no date)."}');
 INSERT INTO public.hip_hazard VALUES ('78664', 'TL0303', '1089', 'Soil Pollution', 'Soil pollution refers to the presence of a chemical or substance out of place and/or present in a soil at higher-than-normal concentration that has adverse effects on any non-targeted organism (Rodríguez-Eugenio et al., 2018).', '{"en": "Soil Pollution"}', '{"en": "Soil pollution refers to the presence of a chemical or substance out of place and/or present in a soil at higher-than-normal concentration that has adverse effects on any non-targeted organism (Rodríguez-Eugenio et al., 2018)."}');
 INSERT INTO public.hip_hazard VALUES ('78665', 'TL0305', '1089', 'Fire', 'Fire-related technological incidents can be defined as accidental or intentional events that result in the actual or potential physical damage to property and exposure of responders and/or members of the public to a chemical hazard (adapted from WHO, no date)', '{"en": "Fire"}', '{"en": "Fire-related technological incidents can be defined as accidental or intentional events that result in the actual or potential physical damage to property and exposure of responders and/or members of the public to a chemical hazard (adapted from WHO, no date)"}');
@@ -2694,7 +3064,6 @@ INSERT INTO public.hip_hazard VALUES ('78667', 'TL0308', '1089', 'Safety Hazards
 INSERT INTO public.hip_hazard VALUES ('78668', 'TL0501', '1090', 'Disaster and Conflict Waste', 'Disaster and conflict waste is the waste generated by the impact of a disaster or conflict, both as a direct effect of the disaster or conflict as well as in the post-disaster and post-conflict phase as a result of poor waste management (UNEP/OCHA, 2011).', '{"en": "Disaster and Conflict Waste"}', '{"en": "Disaster and conflict waste is the waste generated by the impact of a disaster or conflict, both as a direct effect of the disaster or conflict as well as in the post-disaster and post-conflict phase as a result of poor waste management (UNEP/OCHA, 2011)."}');
 INSERT INTO public.hip_hazard VALUES ('78669', 'TL0502', '1090', 'Solid Waste', 'Solid waste covers discarded materials that are no longer required by the owner or user. Solid waste includes materials that are in a solid or liquid state but excludes wastewater and small particulate matter released into the atmosphere (United Nations, 2014).', '{"en": "Solid Waste"}', '{"en": "Solid waste covers discarded materials that are no longer required by the owner or user. Solid waste includes materials that are in a solid or liquid state but excludes wastewater and small particulate matter released into the atmosphere (United Nations, 2014)."}');
 INSERT INTO public.hip_hazard VALUES ('78670', 'TL0503', '1090', 'Wastewater', 'Wastewater is regarded as a combination of one or more of the following materials: domestic effluent consisting of ‘blackwater’ (excreta, urine and faecal sludge, contaminants from pharmaceutical and personal care products) and ‘greywater’ (used water from washing and bathing); water from commercial establishments and institutions, including hospitals; industrial effluent, stormwater and other urban runoff; and agricultural, horticultural and aquaculture runoff (UNEP, 2023a).', '{"en": "Wastewater"}', '{"en": "Wastewater is regarded as a combination of one or more of the following materials: domestic effluent consisting of ‘blackwater’ (excreta, urine and faecal sludge, contaminants from pharmaceutical and personal care products) and ‘greywater’ (used water from washing and bathing); water from commercial establishments and institutions, including hospitals; industrial effluent, stormwater and other urban runoff; and agricultural, horticultural and aquaculture runoff (UNEP, 2023a)."}');
-INSERT INTO public.hip_hazard VALUES ('78671', 'TL0504', '1090', 'Hazardous Waste', 'Hazardous waste is waste that has physical, chemical, or biological characteristics such that it requires special handling and disposal procedures to avoid negative health effects, adverse environmental effects or both (Joint UNEP/OCHA Environment Unit, 2011).', '{"en": "Hazardous Waste"}', '{"en": "Hazardous waste is waste that has physical, chemical, or biological characteristics such that it requires special handling and disposal procedures to avoid negative health effects, adverse environmental effects or both (Joint UNEP/OCHA Environment Unit, 2011)."}');
 INSERT INTO public.hip_hazard VALUES ('78672', 'TL0505', '1090', 'Plastic Waste', 'Plastic Waste is defined as any discarded plastic (organic, or synthetic, material derived from polymers, resins or cellulose) generated by any industrial process, or by consumers. (Source: GEMET/APD).', '{"en": "Plastic Waste"}', '{"en": "Plastic Waste is defined as any discarded plastic (organic, or synthetic, material derived from polymers, resins or cellulose) generated by any industrial process, or by consumers. (Source: GEMET/APD)."}');
 INSERT INTO public.hip_hazard VALUES ('78673', 'TL0507', '1090', 'Electronic Waste (E-Waste)', 'Electrical and electronic waste, or E-waste, refers to electrical or electronic equipment that is waste, including all components, sub-assemblies and consumables that are part of the equipment at the time the equipment becomes waste (UNEP, 2019a).', '{"en": "Electronic Waste (E-Waste)"}', '{"en": "Electrical and electronic waste, or E-waste, refers to electrical or electronic equipment that is waste, including all components, sub-assemblies and consumables that are part of the equipment at the time the equipment becomes waste (UNEP, 2019a)."}');
 INSERT INTO public.hip_hazard VALUES ('78674', 'TL0508', '1090', 'Health-care Waste', 'Health-care waste is a by-product of health care that includes sharps, non-sharp blood contaminated items, blood, body parts and tissues, chemicals, pharmaceuticals and radioactive materials. Safe management of health-care waste protects health-care workers, waste handlers, patients and their families and the community to preventable infections, toxic effects and injuries (adapted from WHO, no date, and WHO, 2017).', '{"en": "Health-care Waste"}', '{"en": "Health-care waste is a by-product of health care that includes sharps, non-sharp blood contaminated items, blood, body parts and tissues, chemicals, pharmaceuticals and radioactive materials. Safe management of health-care waste protects health-care workers, waste handlers, patients and their families and the community to preventable infections, toxic effects and injuries (adapted from WHO, no date, and WHO, 2017)."}');
@@ -2708,6 +3077,12 @@ INSERT INTO public.hip_hazard VALUES ('78682', 'TL0402', '1093', 'Inland Water W
 INSERT INTO public.hip_hazard VALUES ('78683', 'TL0403', '1093', 'Maritime Accident', 'A maritime accident is an event, or a sequence of events, that has resulted in any of the following occurring directly in connection with the normal operation of a marine vessel: the death of, or serious injury to, a person; the loss of a person from a ship; the loss, presumed loss or abandonment of a marine vessel; material damage to a marine vessel; the stranding or disabling of a marine vessel, or the involvement of a marine vessel in a collision; material damage to the marine infrastructures external to a vessel, that could seriously endanger the safety of the vessel or another vessel or an individual; and severe damage to the environment, or the potential for severe damage to the environment, brought about by the damage of a marine vessel (United Nations, European Union and the International Transport Forum at the OECD, 2019).', '{"en": "Maritime Accident"}', '{"en": "A maritime accident is an event, or a sequence of events, that has resulted in any of the following occurring directly in connection with the normal operation of a marine vessel: the death of, or serious injury to, a person; the loss of a person from a ship; the loss, presumed loss or abandonment of a marine vessel; material damage to a marine vessel; the stranding or disabling of a marine vessel, or the involvement of a marine vessel in a collision; material damage to the marine infrastructures external to a vessel, that could seriously endanger the safety of the vessel or another vessel or an individual; and severe damage to the environment, or the potential for severe damage to the environment, brought about by the damage of a marine vessel (United Nations, European Union and the International Transport Forum at the OECD, 2019)."}');
 INSERT INTO public.hip_hazard VALUES ('78684', 'TL0404', '1093', 'Rail Accident', 'A rail accident is a sudden event or a specific chain of such events (occurring during train operation) which has harmful consequences (United Nations, European Union and the International Transport Forum at the OECD, 2019).', '{"en": "Rail Accident"}', '{"en": "A rail accident is a sudden event or a specific chain of such events (occurring during train operation) which has harmful consequences (United Nations, European Union and the International Transport Forum at the OECD, 2019)."}');
 INSERT INTO public.hip_hazard VALUES ('78685', 'TL0405', '1093', 'Road Traffic Accident', 'A road traffic accident involving at least one road vehicle in motion on a public road or private road to which the public has right of access, resulting in at least one injured or killed person. Approximately 1.19 million people die each year as a result of road traffic crashes, which are the leading cause of death for children and young adults aged 5-29 years with 92% of the world''s fatalities on the roads occurring in low- and middle-income countries, even though these countries have around 60% of the world''s vehicles (adapted from UNECE, Eurostat, ITF, 2019 and WHO, 2023a).', '{"en": "Road Traffic Accident"}', '{"en": "A road traffic accident involving at least one road vehicle in motion on a public road or private road to which the public has right of access, resulting in at least one injured or killed person. Approximately 1.19 million people die each year as a result of road traffic crashes, which are the leading cause of death for children and young adults aged 5-29 years with 92% of the world''s fatalities on the roads occurring in low- and middle-income countries, even though these countries have around 60% of the world''s vehicles (adapted from UNECE, Eurostat, ITF, 2019 and WHO, 2023a)."}');
+
+
+--
+-- Data for Name: hips_version; Type: TABLE DATA; Schema: public; Owner: -
+--
+
 
 
 --
@@ -2846,6 +3221,7 @@ INSERT INTO public.sector VALUES ('7fb35894-ff2a-48ce-bc13-18d8119a757e', 'fd53c
 INSERT INTO public.sector VALUES ('ccbfb4dd-cd8a-489f-876c-e20fea0f22e3', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', '2-3- Secondary', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "2-3- Secondary"}', '{}');
 INSERT INTO public.sector VALUES ('bc363efd-051b-402c-ae67-bdf14a122364', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', '4- Post secondary', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "4- Post secondary"}', '{}');
 INSERT INTO public.sector VALUES ('073072a3-7142-4fbb-a4c2-07c8934a356e', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', '5-8 Tertiary', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "5-8 Tertiary"}', '{}');
+INSERT INTO public.sector VALUES ('3b5ef14c-bc6e-4fca-b158-62f35e0c6820', '729c96be-d16b-4410-8dd5-bf775b15f5bc', 'Logging', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Logging"}', '{}');
 INSERT INTO public.sector VALUES ('0c2cc3f5-2780-4d16-8663-76c7315f1f94', 'fd53c0da-5ad6-4a7d-943b-089c7726a2bb', 'Others -Non-formal education', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Others -Non-formal education"}', '{}');
 INSERT INTO public.sector VALUES ('e25331d6-dca9-40da-bdd7-9f63979b353b', '6ac0b833-6218-49d0-9882-827c1b748d7a', 'Housing units', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Housing units"}', '{}');
 INSERT INTO public.sector VALUES ('13864003-2c42-454b-b723-f25eb0ae307d', '6ac0b833-6218-49d0-9882-827c1b748d7a', 'Collective living quarters', NULL, 3, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Collective living quarters"}', '{}');
@@ -2896,7 +3272,6 @@ INSERT INTO public.sector VALUES ('5a525ef1-592d-4808-977c-1e2cc2d2de8f', 'c7061
 INSERT INTO public.sector VALUES ('f26df827-9956-4f39-98e8-4597dd5c1b35', 'a4039693-5b26-4653-acac-c70e7e8322eb', 'Animal production', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Animal production"}', '{}');
 INSERT INTO public.sector VALUES ('ce23b2a5-506a-4b99-88d9-6ef1ff3e4a45', 'a4039693-5b26-4653-acac-c70e7e8322eb', 'Hunting and trapping', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Hunting and trapping"}', '{}');
 INSERT INTO public.sector VALUES ('a6ebba03-506c-49c2-92ca-eb219f680cc2', '729c96be-d16b-4410-8dd5-bf775b15f5bc', 'Silviculture', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Silviculture"}', '{}');
-INSERT INTO public.sector VALUES ('3b5ef14c-bc6e-4fca-b158-62f35e0c6820', '729c96be-d16b-4410-8dd5-bf775b15f5bc', 'Logging', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Logging"}', '{}');
 INSERT INTO public.sector VALUES ('101135ba-66c7-4cf2-8db4-67322f136dc2', '729c96be-d16b-4410-8dd5-bf775b15f5bc', 'Gathering forest products', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Gathering forest products"}', '{}');
 INSERT INTO public.sector VALUES ('db591f94-9a08-4dd8-95dd-39118e847ff4', 'cb6f79ed-4342-41e4-b744-245f8c2f48d8', 'Marine aquaculture', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Marine aquaculture"}', '{}');
 INSERT INTO public.sector VALUES ('29729176-a8f1-4772-bccf-2e8850bb4879', 'cb6f79ed-4342-41e4-b744-245f8c2f48d8', 'Freshwater aquaculture', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Freshwater aquaculture"}', '{}');
@@ -3020,6 +3395,7 @@ INSERT INTO public.sector VALUES ('503ad119-18f0-4d2d-b69a-80a5639e0cb8', 'bc363
 INSERT INTO public.sector VALUES ('3d080097-312a-4bb7-b7cb-46347a1f5b03', 'bc363efd-051b-402c-ae67-bdf14a122364', 'Vocational', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Vocational"}', '{}');
 INSERT INTO public.sector VALUES ('6890a2a3-2ac2-412c-9aa2-033b1e17a4e1', '073072a3-7142-4fbb-a4c2-07c8934a356e', '5 -Short-cycle tertiary education ( general or vocational)', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "5 -Short-cycle tertiary education ( general or vocational)"}', '{}');
 INSERT INTO public.sector VALUES ('e13d689c-a7b0-4719-b210-705bbfe18bb4', '073072a3-7142-4fbb-a4c2-07c8934a356e', '6,7,8-Bachelors, Master, Phd ( academic or professional)', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "6,7,8-Bachelors, Master, Phd ( academic or professional)"}', '{}');
+INSERT INTO public.sector VALUES ('30c2090f-5751-4920-a01f-9c80b3f225bd', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Natural Gas processing', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Natural Gas processing"}', '{}');
 INSERT INTO public.sector VALUES ('84441af0-7a3f-43c2-9c2c-321f87eec446', '0c2cc3f5-2780-4d16-8663-76c7315f1f94', 'Adult education/ literacy programs', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Adult education/ literacy programs"}', '{}');
 INSERT INTO public.sector VALUES ('4de62753-dbdd-4244-ba67-2428afefe2f7', '0c2cc3f5-2780-4d16-8663-76c7315f1f94', 'Community education', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Community education"}', '{}');
 INSERT INTO public.sector VALUES ('bf770f81-65dd-4d3e-bdda-78ec46c602ba', '0c2cc3f5-2780-4d16-8663-76c7315f1f94', 'Continuing professional development programs', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Continuing professional development programs"}', '{}');
@@ -3070,7 +3446,6 @@ INSERT INTO public.sector VALUES ('d1de06ce-4033-4071-82df-c91da1cf1bb0', '9090e
 INSERT INTO public.sector VALUES ('d115c081-ac1d-497a-a5e3-4a4420f8e91f', '9090ef1f-2abe-4623-8917-5b30cb6d0b5b', 'Industrial network', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Industrial network"}', '{}');
 INSERT INTO public.sector VALUES ('8e679607-2e01-4273-8b0a-04e9b6223b9e', '9090ef1f-2abe-4623-8917-5b30cb6d0b5b', 'Other specials network', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Other specials network"}', '{}');
 INSERT INTO public.sector VALUES ('dc0ae105-7763-4d82-bf41-99837730c503', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Natural gas- upstream', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Natural gas- upstream"}', '{}');
-INSERT INTO public.sector VALUES ('30c2090f-5751-4920-a01f-9c80b3f225bd', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Natural Gas processing', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Natural Gas processing"}', '{}');
 INSERT INTO public.sector VALUES ('c19f025d-dcd4-4f14-bbd3-755cf2809eba', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Natural Gas storage', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Natural Gas storage"}', '{}');
 INSERT INTO public.sector VALUES ('dfc398b4-ba68-4fcc-8dba-f14480ab9952', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Gas Distribution ', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Gas Distribution "}', '{}');
 INSERT INTO public.sector VALUES ('f88c345c-5085-4355-884a-168bad07108e', 'f0dc660e-3b3a-4de2-83ac-3cb481ab9b33', 'Oil Manufacture/ upstream', NULL, 4, '2026-08-27 05:49:32.201601', '2026-08-27 05:49:32.201601', '{"en": "Oil Manufacture/ upstream"}', '{}');
@@ -3176,6 +3551,18 @@ INSERT INTO public.sector VALUES ('b1dfc9d3-9b54-4d02-81d3-637988b4d0a2', '5b8d5
 
 
 --
+-- Data for Name: source_catalog; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: specific_hazard; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
 -- Data for Name: super_admin_users; Type: TABLE DATA; Schema: public; Owner: -
 --
 
@@ -3195,18 +3582,28 @@ INSERT INTO public.super_admin_users VALUES ('195c4df6-56bc-49a8-92b1-46e9875a39
 
 
 --
+-- Data for Name: workflow_history; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: workflow_instance; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: workflow_notification; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
 -- Name: __drizzle_migrations___id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.__drizzle_migrations___id_seq', 45, true);
-
-
---
--- Name: __drizzle_migrations__ __drizzle_migrations___pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.__drizzle_migrations__
-    ADD CONSTRAINT __drizzle_migrations___pkey PRIMARY KEY (id);
 
 
 --
@@ -3618,11 +4015,131 @@ ALTER TABLE ONLY public.event
 
 
 --
+-- Name: field_data_type field_data_type_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.field_data_type
+    ADD CONSTRAINT field_data_type_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: field_data_type field_data_type_type_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.field_data_type
+    ADD CONSTRAINT field_data_type_type_unique UNIQUE (type);
+
+
+--
+-- Name: field_unit field_unit_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.field_unit
+    ADD CONSTRAINT field_unit_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: field_unit field_unit_unit_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.field_unit
+    ADD CONSTRAINT field_unit_unit_unique UNIQUE (unit);
+
+
+--
+-- Name: hazard_cluster hazard_cluster_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazard_cluster
+    ADD CONSTRAINT hazard_cluster_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: hazard_driver hazard_driver_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazard_driver
+    ADD CONSTRAINT hazard_driver_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: hazard_type_custom_field_definition hazard_type_custom_field_definition_ca_ht_key_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazard_type_custom_field_definition
+    ADD CONSTRAINT hazard_type_custom_field_definition_ca_ht_key_unique UNIQUE (country_accounts_id, hazard_type_id, field_key);
+
+
+--
+-- Name: hazard_type_custom_field_definition hazard_type_custom_field_definition_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazard_type_custom_field_definition
+    ADD CONSTRAINT hazard_type_custom_field_definition_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: hazard_type_field_definition hazard_type_field_definition_hazard_type_id_field_key_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazard_type_field_definition
+    ADD CONSTRAINT hazard_type_field_definition_hazard_type_id_field_key_unique UNIQUE (hazard_type_id, field_key);
+
+
+--
+-- Name: hazard_type_field_definition hazard_type_field_definition_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazard_type_field_definition
+    ADD CONSTRAINT hazard_type_field_definition_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: hazard_type hazard_type_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazard_type
+    ADD CONSTRAINT hazard_type_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: hazardous_event hazardous_event_api_import_id_tenant_unique; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.hazardous_event
     ADD CONSTRAINT hazardous_event_api_import_id_tenant_unique UNIQUE (api_import_id, country_accounts_id);
+
+
+--
+-- Name: hazardous_event_attachment hazardous_event_attachment_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_attachment
+    ADD CONSTRAINT hazardous_event_attachment_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: hazardous_event_causality hazardous_event_causality_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_causality
+    ADD CONSTRAINT hazardous_event_causality_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: hazardous_event_custom_field_value hazardous_event_custom_field_value_evt_id_def_id_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_custom_field_value
+    ADD CONSTRAINT hazardous_event_custom_field_value_evt_id_def_id_unique UNIQUE (hazardous_event_id, hazard_type_custom_field_definition_id);
+
+
+--
+-- Name: hazardous_event_custom_field_value hazardous_event_custom_field_value_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_custom_field_value
+    ADD CONSTRAINT hazardous_event_custom_field_value_pkey PRIMARY KEY (id);
 
 
 --
@@ -3642,6 +4159,22 @@ ALTER TABLE ONLY public.hazardous_event_division
 
 
 --
+-- Name: hazardous_event_field_value hazardous_event_field_value_event_id_field_def_id_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_field_value
+    ADD CONSTRAINT hazardous_event_field_value_event_id_field_def_id_unique UNIQUE (hazardous_event_id, hazard_type_field_definition_id);
+
+
+--
+-- Name: hazardous_event_field_value hazardous_event_field_value_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_field_value
+    ADD CONSTRAINT hazardous_event_field_value_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: hazardous_event_geom hazardous_event_geom_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3650,11 +4183,67 @@ ALTER TABLE ONLY public.hazardous_event_geom
 
 
 --
+-- Name: hazardous_event_hazard_driver hazardous_event_hazard_driver_event_id_driver_id_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_hazard_driver
+    ADD CONSTRAINT hazardous_event_hazard_driver_event_id_driver_id_unique UNIQUE (hazardous_event_id, hazard_driver_id);
+
+
+--
+-- Name: hazardous_event_hazard_driver hazardous_event_hazard_driver_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_hazard_driver
+    ADD CONSTRAINT hazardous_event_hazard_driver_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: hazardous_event hazardous_event_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.hazardous_event
     ADD CONSTRAINT hazardous_event_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: hazardous_event_spatial_observation_division hazardous_event_spatial_observation_division_obs_div_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_spatial_observation_division
+    ADD CONSTRAINT hazardous_event_spatial_observation_division_obs_div_unique UNIQUE (hazardous_event_spatial_observation_id, division_id);
+
+
+--
+-- Name: hazardous_event_spatial_observation_division hazardous_event_spatial_observation_division_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_spatial_observation_division
+    ADD CONSTRAINT hazardous_event_spatial_observation_division_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: hazardous_event_spatial_observation hazardous_event_spatial_observation_event_id_time_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_spatial_observation
+    ADD CONSTRAINT hazardous_event_spatial_observation_event_id_time_unique UNIQUE (hazardous_event_id, observation_time);
+
+
+--
+-- Name: hazardous_event_spatial_observation_geom hazardous_event_spatial_observation_geom_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_spatial_observation_geom
+    ADD CONSTRAINT hazardous_event_spatial_observation_geom_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: hazardous_event_spatial_observation hazardous_event_spatial_observation_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_spatial_observation
+    ADD CONSTRAINT hazardous_event_spatial_observation_pkey PRIMARY KEY (id);
 
 
 --
@@ -3679,6 +4268,14 @@ ALTER TABLE ONLY public.hip_cluster
 
 ALTER TABLE ONLY public.hip_hazard
     ADD CONSTRAINT hip_hazard_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: hips_version hips_version_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hips_version
+    ADD CONSTRAINT hips_version_pkey PRIMARY KEY (id);
 
 
 --
@@ -3850,6 +4447,22 @@ ALTER TABLE ONLY public.session
 
 
 --
+-- Name: source_catalog source_catalog_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.source_catalog
+    ADD CONSTRAINT source_catalog_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: specific_hazard specific_hazard_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.specific_hazard
+    ADD CONSTRAINT specific_hazard_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: super_admin_users super_admin_users_email_unique; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3887,6 +4500,30 @@ ALTER TABLE ONLY public."user"
 
 ALTER TABLE ONLY public."user"
     ADD CONSTRAINT user_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: workflow_history workflow_history_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_history
+    ADD CONSTRAINT workflow_history_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: workflow_instance workflow_instance_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_instance
+    ADD CONSTRAINT workflow_instance_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: workflow_notification workflow_notification_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_notification
+    ADD CONSTRAINT workflow_notification_pkey PRIMARY KEY (id);
 
 
 --
@@ -4044,10 +4681,157 @@ CREATE INDEX event_causality_triggering_hazardous_event_id_idx ON public.event_c
 
 
 --
+-- Name: hazard_driver_country_accounts_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX hazard_driver_country_accounts_id_idx ON public.hazard_driver USING btree (country_accounts_id);
+
+
+--
+-- Name: hazard_type_custom_field_definition_country_accounts_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX hazard_type_custom_field_definition_country_accounts_id_idx ON public.hazard_type_custom_field_definition USING btree (country_accounts_id);
+
+
+--
+-- Name: hazard_type_custom_field_definition_data_type_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX hazard_type_custom_field_definition_data_type_idx ON public.hazard_type_custom_field_definition USING btree (data_type);
+
+
+--
+-- Name: hazard_type_custom_field_definition_hazard_type_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX hazard_type_custom_field_definition_hazard_type_id_idx ON public.hazard_type_custom_field_definition USING btree (hazard_type_id);
+
+
+--
+-- Name: hazard_type_custom_field_definition_unit_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX hazard_type_custom_field_definition_unit_idx ON public.hazard_type_custom_field_definition USING btree (unit);
+
+
+--
+-- Name: hazard_type_field_definition_data_type_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX hazard_type_field_definition_data_type_idx ON public.hazard_type_field_definition USING btree (data_type);
+
+
+--
+-- Name: hazard_type_field_definition_hazard_type_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX hazard_type_field_definition_hazard_type_id_idx ON public.hazard_type_field_definition USING btree (hazard_type_id);
+
+
+--
+-- Name: hazard_type_field_definition_unit_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX hazard_type_field_definition_unit_idx ON public.hazard_type_field_definition USING btree (unit);
+
+
+--
+-- Name: hazardous_event_attachment_hazardous_event_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX hazardous_event_attachment_hazardous_event_id_idx ON public.hazardous_event_attachment USING btree (hazardous_event_id);
+
+
+--
+-- Name: hazardous_event_causality_cause_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX hazardous_event_causality_cause_id_idx ON public.hazardous_event_causality USING btree (cause_hazardous_event_id);
+
+
+--
+-- Name: hazardous_event_causality_effect_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX hazardous_event_causality_effect_id_idx ON public.hazardous_event_causality USING btree (effect_hazardous_event_id);
+
+
+--
+-- Name: hazardous_event_custom_field_value_custom_field_def_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX hazardous_event_custom_field_value_custom_field_def_id_idx ON public.hazardous_event_custom_field_value USING btree (hazard_type_custom_field_definition_id);
+
+
+--
+-- Name: hazardous_event_custom_field_value_hazardous_event_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX hazardous_event_custom_field_value_hazardous_event_id_idx ON public.hazardous_event_custom_field_value USING btree (hazardous_event_id);
+
+
+--
+-- Name: hazardous_event_field_value_field_def_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX hazardous_event_field_value_field_def_id_idx ON public.hazardous_event_field_value USING btree (hazard_type_field_definition_id);
+
+
+--
+-- Name: hazardous_event_field_value_hazardous_event_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX hazardous_event_field_value_hazardous_event_id_idx ON public.hazardous_event_field_value USING btree (hazardous_event_id);
+
+
+--
 -- Name: hazardous_event_geom_geom_idx; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX hazardous_event_geom_geom_idx ON public.hazardous_event_geom USING gist (geom);
+
+
+--
+-- Name: hazardous_event_hazard_driver_driver_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX hazardous_event_hazard_driver_driver_id_idx ON public.hazardous_event_hazard_driver USING btree (hazard_driver_id);
+
+
+--
+-- Name: hazardous_event_hazard_driver_event_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX hazardous_event_hazard_driver_event_id_idx ON public.hazardous_event_hazard_driver USING btree (hazardous_event_id);
+
+
+--
+-- Name: hazardous_event_spatial_observation_division_division_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX hazardous_event_spatial_observation_division_division_id_idx ON public.hazardous_event_spatial_observation_division USING btree (division_id);
+
+
+--
+-- Name: hazardous_event_spatial_observation_division_observation_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX hazardous_event_spatial_observation_division_observation_id_idx ON public.hazardous_event_spatial_observation_division USING btree (hazardous_event_spatial_observation_id);
+
+
+--
+-- Name: hazardous_event_spatial_observation_geom_observation_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX hazardous_event_spatial_observation_geom_observation_id_idx ON public.hazardous_event_spatial_observation_geom USING btree (hazardous_event_spatial_observation_id);
+
+
+--
+-- Name: hazardous_event_spatial_observation_hazardous_event_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX hazardous_event_spatial_observation_hazardous_event_id_idx ON public.hazardous_event_spatial_observation USING btree (hazardous_event_id);
 
 
 --
@@ -4065,6 +4849,13 @@ CREATE INDEX parent_idx ON public.division USING btree (parent_id);
 
 
 --
+-- Name: source_catalog_country_accounts_id_name_unique; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX source_catalog_country_accounts_id_name_unique ON public.source_catalog USING btree (country_accounts_id, name);
+
+
+--
 -- Name: tenant_import_id_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4076,6 +4867,13 @@ CREATE UNIQUE INDEX tenant_import_id_idx ON public.division USING btree (country
 --
 
 CREATE UNIQUE INDEX tenant_national_id_idx ON public.division USING btree (country_accounts_id, national_id);
+
+
+--
+-- Name: workflow_instance_entity_id_entity_type_unique; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX workflow_instance_entity_id_entity_type_unique ON public.workflow_instance USING btree (entity_id, entity_type);
 
 
 --
@@ -4678,6 +5476,110 @@ ALTER TABLE ONLY public.entity_validation_rejection
 
 
 --
+-- Name: hazard_cluster hazard_cluster_hazard_type_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazard_cluster
+    ADD CONSTRAINT hazard_cluster_hazard_type_id_fk FOREIGN KEY (hazard_type_id) REFERENCES public.hazard_type(id);
+
+
+--
+-- Name: hazard_driver hazard_driver_country_accounts_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazard_driver
+    ADD CONSTRAINT hazard_driver_country_accounts_id_fk FOREIGN KEY (country_accounts_id) REFERENCES public.country_accounts(id) ON DELETE CASCADE;
+
+
+--
+-- Name: hazard_type_custom_field_definition hazard_type_custom_field_definition_country_accounts_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazard_type_custom_field_definition
+    ADD CONSTRAINT hazard_type_custom_field_definition_country_accounts_id_fk FOREIGN KEY (country_accounts_id) REFERENCES public.country_accounts(id) ON DELETE CASCADE;
+
+
+--
+-- Name: hazard_type_custom_field_definition hazard_type_custom_field_definition_data_type_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazard_type_custom_field_definition
+    ADD CONSTRAINT hazard_type_custom_field_definition_data_type_fk FOREIGN KEY (data_type) REFERENCES public.field_data_type(id);
+
+
+--
+-- Name: hazard_type_custom_field_definition hazard_type_custom_field_definition_hazard_type_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazard_type_custom_field_definition
+    ADD CONSTRAINT hazard_type_custom_field_definition_hazard_type_id_fk FOREIGN KEY (hazard_type_id) REFERENCES public.hazard_type(id);
+
+
+--
+-- Name: hazard_type_custom_field_definition hazard_type_custom_field_definition_unit_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazard_type_custom_field_definition
+    ADD CONSTRAINT hazard_type_custom_field_definition_unit_fk FOREIGN KEY (unit) REFERENCES public.field_unit(id);
+
+
+--
+-- Name: hazard_type_field_definition hazard_type_field_definition_data_type_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazard_type_field_definition
+    ADD CONSTRAINT hazard_type_field_definition_data_type_fk FOREIGN KEY (data_type) REFERENCES public.field_data_type(id);
+
+
+--
+-- Name: hazard_type_field_definition hazard_type_field_definition_hazard_type_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazard_type_field_definition
+    ADD CONSTRAINT hazard_type_field_definition_hazard_type_id_fk FOREIGN KEY (hazard_type_id) REFERENCES public.hazard_type(id);
+
+
+--
+-- Name: hazard_type_field_definition hazard_type_field_definition_unit_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazard_type_field_definition
+    ADD CONSTRAINT hazard_type_field_definition_unit_fk FOREIGN KEY (unit) REFERENCES public.field_unit(id);
+
+
+--
+-- Name: hazard_type hazard_type_hips_version_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazard_type
+    ADD CONSTRAINT hazard_type_hips_version_id_fk FOREIGN KEY (hips_version_id) REFERENCES public.hips_version(id);
+
+
+--
+-- Name: hazardous_event_attachment hazardous_event_attachment_hazardous_event_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_attachment
+    ADD CONSTRAINT hazardous_event_attachment_hazardous_event_id_fk FOREIGN KEY (hazardous_event_id) REFERENCES public.hazardous_event(id) ON DELETE CASCADE;
+
+
+--
+-- Name: hazardous_event_causality hazardous_event_causality_cause_hazardous_event_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_causality
+    ADD CONSTRAINT hazardous_event_causality_cause_hazardous_event_id_fk FOREIGN KEY (cause_hazardous_event_id) REFERENCES public.hazardous_event(id) ON DELETE CASCADE;
+
+
+--
+-- Name: hazardous_event_causality hazardous_event_causality_effect_hazardous_event_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_causality
+    ADD CONSTRAINT hazardous_event_causality_effect_hazardous_event_id_fk FOREIGN KEY (effect_hazardous_event_id) REFERENCES public.hazardous_event(id) ON DELETE CASCADE;
+
+
+--
 -- Name: hazardous_event hazardous_event_country_accounts_id_country_accounts_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4691,6 +5593,22 @@ ALTER TABLE ONLY public.hazardous_event
 
 ALTER TABLE ONLY public.hazardous_event
     ADD CONSTRAINT hazardous_event_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES public."user"(id) NOT VALID;
+
+
+--
+-- Name: hazardous_event_custom_field_value hazardous_event_custom_field_value_custom_field_def_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_custom_field_value
+    ADD CONSTRAINT hazardous_event_custom_field_value_custom_field_def_id_fk FOREIGN KEY (hazard_type_custom_field_definition_id) REFERENCES public.hazard_type_custom_field_definition(id) ON DELETE CASCADE;
+
+
+--
+-- Name: hazardous_event_custom_field_value hazardous_event_custom_field_value_hazardous_event_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_custom_field_value
+    ADD CONSTRAINT hazardous_event_custom_field_value_hazardous_event_id_fk FOREIGN KEY (hazardous_event_id) REFERENCES public.hazardous_event(id) ON DELETE CASCADE;
 
 
 --
@@ -4710,11 +5628,43 @@ ALTER TABLE ONLY public.hazardous_event_division
 
 
 --
+-- Name: hazardous_event_field_value hazardous_event_field_value_field_def_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_field_value
+    ADD CONSTRAINT hazardous_event_field_value_field_def_id_fk FOREIGN KEY (hazard_type_field_definition_id) REFERENCES public.hazard_type_field_definition(id) ON DELETE CASCADE;
+
+
+--
+-- Name: hazardous_event_field_value hazardous_event_field_value_hazardous_event_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_field_value
+    ADD CONSTRAINT hazardous_event_field_value_hazardous_event_id_fk FOREIGN KEY (hazardous_event_id) REFERENCES public.hazardous_event(id) ON DELETE CASCADE;
+
+
+--
 -- Name: hazardous_event_geom hazardous_event_geom_hazardous_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.hazardous_event_geom
     ADD CONSTRAINT hazardous_event_geom_hazardous_event_id_fkey FOREIGN KEY (hazardous_event_id) REFERENCES public.hazardous_event(id) ON DELETE CASCADE;
+
+
+--
+-- Name: hazardous_event_hazard_driver hazardous_event_hazard_driver_hazard_driver_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_hazard_driver
+    ADD CONSTRAINT hazardous_event_hazard_driver_hazard_driver_id_fk FOREIGN KEY (hazard_driver_id) REFERENCES public.hazard_driver(id) ON DELETE CASCADE;
+
+
+--
+-- Name: hazardous_event_hazard_driver hazardous_event_hazard_driver_hazardous_event_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_hazard_driver
+    ADD CONSTRAINT hazardous_event_hazard_driver_hazardous_event_id_fk FOREIGN KEY (hazardous_event_id) REFERENCES public.hazardous_event(id) ON DELETE CASCADE;
 
 
 --
@@ -4755,6 +5705,46 @@ ALTER TABLE ONLY public.hazardous_event
 
 ALTER TABLE ONLY public.hazardous_event
     ADD CONSTRAINT hazardous_event_published_by_user_id_fkey FOREIGN KEY (published_by_user_id) REFERENCES public."user"(id) NOT VALID;
+
+
+--
+-- Name: hazardous_event_spatial_observation_division hazardous_event_spatial_observation_division_division_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_spatial_observation_division
+    ADD CONSTRAINT hazardous_event_spatial_observation_division_division_id_fk FOREIGN KEY (division_id) REFERENCES public.division(id);
+
+
+--
+-- Name: hazardous_event_spatial_observation_division hazardous_event_spatial_observation_division_obs_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_spatial_observation_division
+    ADD CONSTRAINT hazardous_event_spatial_observation_division_obs_id_fk FOREIGN KEY (hazardous_event_spatial_observation_id) REFERENCES public.hazardous_event_spatial_observation(id) ON DELETE CASCADE;
+
+
+--
+-- Name: hazardous_event_spatial_observation_geom hazardous_event_spatial_observation_geom_obs_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_spatial_observation_geom
+    ADD CONSTRAINT hazardous_event_spatial_observation_geom_obs_id_fk FOREIGN KEY (hazardous_event_spatial_observation_id) REFERENCES public.hazardous_event_spatial_observation(id) ON DELETE CASCADE;
+
+
+--
+-- Name: hazardous_event_spatial_observation hazardous_event_spatial_observation_hazardous_event_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event_spatial_observation
+    ADD CONSTRAINT hazardous_event_spatial_observation_hazardous_event_id_fk FOREIGN KEY (hazardous_event_id) REFERENCES public.hazardous_event(id) ON DELETE CASCADE;
+
+
+--
+-- Name: hazardous_event hazardous_event_specific_hazard_id_specific_hazard_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.hazardous_event
+    ADD CONSTRAINT hazardous_event_specific_hazard_id_specific_hazard_id_fk FOREIGN KEY (specific_hazard_id) REFERENCES public.specific_hazard(id);
 
 
 --
@@ -4942,6 +5932,22 @@ ALTER TABLE ONLY public.session
 
 
 --
+-- Name: source_catalog source_catalog_country_accounts_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.source_catalog
+    ADD CONSTRAINT source_catalog_country_accounts_id_fk FOREIGN KEY (country_accounts_id) REFERENCES public.country_accounts(id) ON DELETE CASCADE;
+
+
+--
+-- Name: specific_hazard specific_hazard_hazard_cluster_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.specific_hazard
+    ADD CONSTRAINT specific_hazard_hazard_cluster_id_fk FOREIGN KEY (hazard_cluster_id) REFERENCES public.hazard_cluster(id);
+
+
+--
 -- Name: user_country_accounts user_country_accounts_country_accounts_id_country_accounts_id_f; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4963,6 +5969,78 @@ ALTER TABLE ONLY public.user_country_accounts
 
 ALTER TABLE ONLY public.user_country_accounts
     ADD CONSTRAINT user_country_accounts_user_id_user_id_fk FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: workflow_history workflow_history_acting_user_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_history
+    ADD CONSTRAINT workflow_history_acting_user_id_fk FOREIGN KEY (acting_user_id) REFERENCES public."user"(id);
+
+
+--
+-- Name: workflow_history workflow_history_instance_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_history
+    ADD CONSTRAINT workflow_history_instance_id_fk FOREIGN KEY (instance_id) REFERENCES public.workflow_instance(id) ON DELETE CASCADE;
+
+
+--
+-- Name: workflow_instance workflow_instance_approved_by_user_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_instance
+    ADD CONSTRAINT workflow_instance_approved_by_user_id_fk FOREIGN KEY (approved_by_user_id) REFERENCES public."user"(id);
+
+
+--
+-- Name: workflow_instance workflow_instance_published_by_user_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_instance
+    ADD CONSTRAINT workflow_instance_published_by_user_id_fk FOREIGN KEY (published_by_user_id) REFERENCES public."user"(id);
+
+
+--
+-- Name: workflow_instance workflow_instance_submitted_by_user_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_instance
+    ADD CONSTRAINT workflow_instance_submitted_by_user_id_fk FOREIGN KEY (submitted_by_user_id) REFERENCES public."user"(id);
+
+
+--
+-- Name: workflow_instance workflow_instance_validated_by_user_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_instance
+    ADD CONSTRAINT workflow_instance_validated_by_user_id_fk FOREIGN KEY (validated_by_user_id) REFERENCES public."user"(id);
+
+
+--
+-- Name: workflow_notification workflow_notification_instance_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_notification
+    ADD CONSTRAINT workflow_notification_instance_id_fk FOREIGN KEY (instance_id) REFERENCES public.workflow_instance(id) ON DELETE CASCADE;
+
+
+--
+-- Name: workflow_notification workflow_notification_notified_by_user_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_notification
+    ADD CONSTRAINT workflow_notification_notified_by_user_id_fk FOREIGN KEY (notified_by_user_id) REFERENCES public."user"(id);
+
+
+--
+-- Name: workflow_notification workflow_notification_notified_user_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_notification
+    ADD CONSTRAINT workflow_notification_notified_user_id_fk FOREIGN KEY (notified_user_id) REFERENCES public."user"(id);
 
 
 --
