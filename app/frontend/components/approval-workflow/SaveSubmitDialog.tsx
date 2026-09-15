@@ -94,15 +94,16 @@ export function SaveSubmitDialog(props: SaveSubmitDialogProps) {
 		background: "#ffffff",
 		outline: "none",
 		boxShadow: "none",
-		textAlign: "left" as const,
 		cursor: "default",
-		transition: "border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease",
+		transition:
+			"border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease",
 	};
 
 	const optionCardSelectedStyle = {
 		borderColor: "#1d66b1",
 		background: "#f7fbff",
-		boxShadow: "0 0 0 1px rgba(29, 102, 177, 0.08), 0 10px 24px rgba(29, 102, 177, 0.12)",
+		boxShadow:
+			"0 0 0 1px rgba(29, 102, 177, 0.08), 0 10px 24px rgba(29, 102, 177, 0.12)",
 	};
 
 	const optionIconWrapStyle = {
@@ -195,9 +196,20 @@ export function SaveSubmitDialog(props: SaveSubmitDialogProps) {
 				<span style={optionIconWrapStyle}>
 					<i className={optionMeta[action].icon} aria-hidden="true" />
 				</span>
-				<div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", flex: 1 }}>
-					<div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-						<span style={{ fontSize: "1.05rem", fontWeight: 600, color: "#24364b" }}>
+				<div
+					style={{
+						display: "flex",
+						flexDirection: "column",
+						gap: "0.35rem",
+						flex: 1,
+					}}
+				>
+					<div
+						style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+					>
+						<span
+							style={{ fontSize: "1.05rem", fontWeight: 600, color: "#24364b" }}
+						>
 							{title}
 						</span>
 					</div>
@@ -210,9 +222,7 @@ export function SaveSubmitDialog(props: SaveSubmitDialogProps) {
 	const footerContent = (
 		<Button
 			type="button"
-			data-testid={
-				selectedAction === "submit-draft" ? "save-draft" : undefined
-			}
+			data-testid={selectedAction === "submit-draft" ? "save-draft" : undefined}
 			disabled={isSubmitDisabled}
 			className="mg-button mg-button-primary"
 			label={actionLabels[selectedAction]}
@@ -285,9 +295,21 @@ export function SaveSubmitDialog(props: SaveSubmitDialogProps) {
 						"submit-validate",
 						ctx.t({ code: "common.validate", msg: "Validate" }),
 						<>
-							<div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+							<div
+								style={{
+									display: "flex",
+									flexDirection: "column",
+									gap: "0.75rem",
+								}}
+							>
 								<span>{optionMeta["submit-validate"].description}</span>
-								<div style={{ display: "flex", alignItems: "flex-start", gap: "0.9rem" }}>
+								<div
+									style={{
+										display: "flex",
+										alignItems: "flex-start",
+										gap: "0.9rem",
+									}}
+								>
 									<Checkbox
 										id="publish-checkbox"
 										name="publish-checkbox"
@@ -303,7 +325,13 @@ export function SaveSubmitDialog(props: SaveSubmitDialogProps) {
 										}}
 										checked={publishChecked}
 									/>
-									<div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+									<div
+										style={{
+											display: "flex",
+											flexDirection: "column",
+											gap: "0.25rem",
+										}}
+									>
 										<div style={{ fontWeight: 500, color: "#24364b" }}>
 											{ctx.t({
 												code: "common.publish_undrr_instance",
@@ -338,10 +366,17 @@ export function SaveSubmitDialog(props: SaveSubmitDialogProps) {
 							msg: "Submit for validation",
 						}),
 						<>
-							<div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+							<div
+								style={{
+									display: "flex",
+									flexDirection: "column",
+									gap: "0.75rem",
+								}}
+							>
 								<span>{optionMeta["submit-validation"].description}</span>
 								<div>
-									* {ctx.t({
+									*{" "}
+									{ctx.t({
 										code: "common.select_validators",
 										msg: "Select validator(s)",
 									})}

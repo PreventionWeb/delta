@@ -253,6 +253,11 @@ export async function updateUserCountryAccountsById(
 }
 
 export const UserCountryAccountRepository = {
+	deleteByCountryAccountId: (countryAccountsId: string, tx?: Tx) => {
+		return (tx ?? dr)
+			.delete(userCountryAccountsTable)
+			.where(eq(userCountryAccountsTable.countryAccountsId, countryAccountsId));
+	},
 	deleteByCountryAccountIdAndIsPrimaryAdmin: (
 		countryAccountsId: string,
 		isPrimaryAdmin: boolean,

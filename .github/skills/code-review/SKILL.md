@@ -1,6 +1,7 @@
 ---
 name: code-review
-description: "Pre-PR code review checklist for DELTA. Covers correctness, async/concurrency
+description:
+  "Pre-PR code review checklist for DELTA. Covers correctness, async/concurrency
   hazards, test scenario completeness, type safety, spec alignment, and documentation accuracy.
   Run as Gate 8 after all other quality gates pass. On Claude Code the built-in /code-review
   skill at high effort provides AI-powered diff analysis on top of this checklist."
@@ -20,7 +21,7 @@ regardless of which AI tool is in use.
 
 ## Adversarial Boundary Analysis
 
-This section is about *how to think*, not what to check. For each pattern below, reason about
+This section is about _how to think_, not what to check. For each pattern below, reason about
 the code the way a skeptical reviewer would — not the implementer who wants it to work. Ask
 the question for each applicable site in the changed code and look for cases that are not
 explicitly handled.
@@ -86,6 +87,10 @@ fallback that violates the API contract.
       a `Promise.all([fn(), fn()])` assertion that the expensive operation runs exactly once
 - [ ] Error / rejection paths are tested (what happens when the DB call throws?)
 - [ ] Sequential-only tests are not the sole coverage for state observable by parallel callers
+- [ ] Assertions check exact expected values, not just `toBeTruthy()`/`toBeDefined()` where the
+      real value is knowable
+- [ ] Fixtures use randomized/unique values, not hardcoded IDs that could collide across tests
+- [ ] `app/domains/*/domain/*.test.ts` files import no DB/HTTP/PGlite setup
 
 ---
 
@@ -116,6 +121,20 @@ fallback that violates the API contract.
 - [ ] Inline comments explain WHY; none merely restate what the code already expresses
 
 ---
+
+## DDD / Clean Architecture / ADR Alignment
+
+- [ ] `domain/` entities have zero framework/infrastructure imports (no Drizzle, no NestJS, no HTTP)
+- [ ] Ports (`application/ports/`) are the only way a use case reaches infrastructure — no direct table/repository access from domain or use-case code
+- [ ] Aggregate boundaries match the design's stated aggregate root — no repository per non-root entity
+- [ ] New files are placed per ADR-009 (context-first: `app/domains/<context>/{domain,application,infrastructure,presentation}`)
+- [ ] The change is checked against every ADR relevant to the area touched, not just the ones already named in `design.md`
+
+## Cross-Tool Compatibility (`.github/`-mirrored agent/skill files only)
+
+- [ ] No instruction names a specific AI tool's built-in feature (e.g. a Claude Code slash
+      command) without an explicit fallback or skip condition for other tools reading the same
+      file
 
 ## Code Simplification
 

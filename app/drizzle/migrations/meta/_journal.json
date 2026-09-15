@@ -323,6 +323,83 @@
       "when": 1787803100442,
       "tag": "20260827035820_update_version_no_to_0_3_0",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1788350400000,
+      "tag": "20260902120000_add_workflow_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1788523200000,
+      "tag": "20260904120000_add_hip_hierarchy_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1788782400000,
+      "tag": "20260907120000_add_source_catalog_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1788786000000,
+      "tag": "20260907130000_add_hazard_driver_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1788789600000,
+      "tag": "20260907140000_add_hazardous_event_causality_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1788793200000,
+      "tag": "20260907150000_add_hazardous_event_spatial_observation_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1788796800000,
+      "tag": "20260907160000_add_hazardous_event_attachment_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1788800400000,
+      "tag": "20260907170000_add_hazard_type_field_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1788944400000,
+      "tag": "20260909090000_add_specific_hazard_id_to_hazardous_event",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1788948000000,
+      "tag": "20260909100000_add_specific_hazard_names_to_hazardous_event",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1789455425961,
+      "tag": "20260915065705_update_version_no_to_0_3_1",
+      "breakpoints": true
     }
   ]
 }

@@ -1,13 +1,14 @@
-import { relations } from "drizzle-orm";
+import { sql, relations } from "drizzle-orm";
 import {
 	pgTable,
 	text,
 	uuid,
 	AnyPgColumn,
 	jsonb,
-	// customType,
+	customType,
 	index,
 	uniqueIndex,
+	check,
 } from "drizzle-orm/pg-core";
 import { ourRandomUUID, zeroStrMap, ourBigint } from "~/utils/drizzleUtil";
 import { countryAccounts } from "./countryAccounts";
@@ -26,13 +27,13 @@ export const divisionTable = pgTable(
 		geojson: jsonb("geojson"),
 		level: ourBigint("level"), // value is parent level + 1 otherwise 1
 
-		// geom: customType<{ data: unknown }>({
-		// 	dataType: () => "geometry(Geometry,4326)",
-		// })().$type<null>(),
+		geom: customType<{ data: unknown }>({
+			dataType: () => "geometry(Geometry,4326)",
+		})().$type<null>(),
 
-		// bbox: customType<{ data: unknown }>({
-		// 	dataType: () => "geometry(Geometry,4326)",
-		// })().$type<null>(),
+		bbox: customType<{ data: unknown }>({
+			dataType: () => "geometry(Geometry,4326)",
+		})().$type<null>(),
 
 		spatial_index: text("spatial_index").$type<null>(),
 	},
@@ -52,13 +53,11 @@ export const divisionTable = pgTable(
 			),
 
 			// Create GIST indexes via raw SQL since drizzle doesn't support USING clause directly
-			// NOTE: geom and bbox columns are commented out for PGlite compatibility
-			// sql`CREATE INDEX IF NOT EXISTS "division_geom_idx" ON "division" USING GIST ("geom")`,
-			// sql`CREATE INDEX IF NOT EXISTS "division_bbox_idx" ON "division" USING GIST ("bbox")`,
+			sql`CREATE INDEX IF NOT EXISTS "division_geom_idx" ON "division" USING GIST ("geom")`,
+			sql`CREATE INDEX IF NOT EXISTS "division_bbox_idx" ON "division" USING GIST ("bbox")`,
 
 			// Ensure all geometries are valid
-			// NOTE: geom column is commented out for PGlite compatibility
-			// check("valid_geom_check", sql`ST_IsValid(geom)`),
+			check("valid_geom_check", sql`ST_IsValid(geom)`),
 		];
 	},
 );

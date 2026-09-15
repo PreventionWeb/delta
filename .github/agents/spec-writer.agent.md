@@ -1,6 +1,7 @@
 ---
 name: spec-writer
-description: "Uses the OpenSpec CLI to generate a specification proposal for a described intent
+description:
+  "Uses the OpenSpec CLI to generate a specification proposal for a described intent
   in the DELTA codebase. Trigger when: the user describes a fix, feature, or refactor they want
   to make and asks for a spec, proposal, or wants to use /opsx:propose. Produces OpenSpec
   artifacts only — never touches source files in app/."
@@ -59,6 +60,7 @@ genuinely needed.
 ## Phase 1 — Generate artifacts using the OpenSpec CLI
 
 **Your first terminal action must be:**
+
 ```bash
 openspec new change "<kebab-case-name>"
 ```
@@ -67,6 +69,7 @@ This creates the scaffolded change at `openspec/changes/<name>/`. Do not create 
 artifact file before running this command.
 
 **Then for each artifact, get its instructions from the CLI:**
+
 ```bash
 openspec instructions <artifact> --change "<name>" --json
 ```
@@ -76,6 +79,7 @@ each artifact file. Work through artifacts in dependency order: `proposal` first
 `design` and `specs` in parallel, then `tasks` last.
 
 **Verify each artifact exists before moving to the next:**
+
 ```bash
 openspec status --change "<name>" --json
 ```
@@ -85,6 +89,7 @@ Proceed only when all artifacts required for apply (`applyRequires`) show `statu
 ## Artifact quality standards
 
 **proposal.md**
+
 - One clear problem statement
 - Explicit list of files to be changed with a one-line reason each
 - States whether a DB migration is required
@@ -92,6 +97,7 @@ Proceed only when all artifacts required for apply (`applyRequires`) show `statu
 - Flags any security or multi-tenancy implications
 
 **specs/**
+
 - Given/When/Then scenarios using RFC 2119 keywords (MUST, SHALL, SHOULD)
 - Covers both happy path and all meaningful failure paths
 - References the exact function or route being specified by name
@@ -105,6 +111,7 @@ Proceed only when all artifacts required for apply (`applyRequires`) show `statu
   be observed by more than one async caller at the same time.
 
 **design.md**
+
 - Names every TypeScript type, interface, or Drizzle schema change
 - Justifies technical decisions with project conventions as the reference
 - Identifies test infrastructure needed (PGlite setup, real DB, mocks)
@@ -119,6 +126,7 @@ Proceed only when all artifacts required for apply (`applyRequires`) show `statu
   must each be named, not left for the implementer to infer.
 
 **tasks.md**
+
 - Ordered by TDD: failing test first, then implementation, then refactor
 - Each task is independently executable with `yarn vitest run path/to/test.ts`
 - Test files use `*.test.ts` naming — never `*_test.ts`
@@ -132,16 +140,22 @@ Proceed only when all artifacts required for apply (`applyRequires`) show `statu
   5. SOLID review — invoke `solid-reviewer` agent
   6. Documentation review — comments explain WHY not WHAT
   7. Project conventions review — check `.github/copilot-instructions.md`
-  8. Code review — run `.github/skills/code-review/SKILL.md` in full
+  8. Code review — run `.github/skills/code-review/SKILL.md` in full, via a fresh subagent
   9. Visual/UX parity review — render the page vs. a named reference page, required for any
      presentation-layer change
-- After all 8 gates: add a mandatory regression task — `yarn test:run2` (full PGlite suite) MUST pass with no new failures before archiving. Pre-existing failures must be confirmed as pre-existing (not introduced by this change).
+  10. Independent second-opinion review, Claude Code only — invoke its built-in `code-review`
+      at `high` effort via a second, separate fresh subagent; resolve findings before archiving.
+      Other tools: use an equivalent platform feature if one exists, otherwise skip this task.
+- If this change adds or modifies anything under `app/domains/*/domain/`: add a test quality
+  task — invoke `test-quality-auditor` scoped to the changed files; resolve any real gap found
+- After all applicable gates: add a mandatory regression task — `yarn test:run2` (full PGlite suite) MUST pass with no new failures before archiving. Pre-existing failures must be confirmed as pre-existing (not introduced by this change).
 - After the regression task: add a final task to run `opsx:archive` on the same branch before raising the PR
 - DB migrations listed explicitly as `yarn dbsync` — never drizzle-kit push
 
 ## Done condition
 
 You are done when:
+
 1. `openspec status --change "<name>"` shows all artifacts complete
 2. You have summarised what was generated and what the implementer needs to do next
 3. You have NOT touched any source file outside `openspec/changes/`

@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { dr, Tx } from "~/db.server";
 import {
 	entityValidationRejectionTable,
@@ -28,12 +28,19 @@ export const EntityValidationRejectionRepository = {
 		entityType: string,
 		tx?: Tx,
 	) => {
+		const entityTypes =
+			entityType === "disaster_records"
+				? ["disaster_records", "disaster_record"]
+				: [entityType];
+
+		const entityTypeAsText = sql`${entityValidationRejectionTable.entityType}::text`;
+
 		return (tx ?? dr)
 			.delete(entityValidationRejectionTable)
 			.where(
 				and(
 					inArray(entityValidationRejectionTable.entityId, entityId),
-					eq(entityValidationRejectionTable.entityType, entityType),
+					inArray(entityTypeAsText, entityTypes),
 				),
 			);
 	},

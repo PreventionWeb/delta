@@ -11,6 +11,7 @@ import type {
 	DisasterEventFormOutletContext,
 	SelectedDivisionItem,
 } from "~/frontend/disaster-event/DisasterEventForm";
+import { ViewContext } from "~/frontend/context";
 import { authLoaderWithPerm } from "~/utils/auth";
 import { getCountryAccountsIdFromSession } from "~/utils/session";
 
@@ -154,6 +155,7 @@ export const loader = authLoaderWithPerm("EditData", async ({ request }) => {
 export default function AffectedAreasModalRoute() {
 	const ld = useLoaderData<typeof loader>();
 	const navigate = useNavigate();
+	const ctx = new ViewContext();
 	const { selectedDivisionItems, setSelectedDivisionItems } =
 		useOutletContext<DisasterEventFormOutletContext>();
 
@@ -245,13 +247,16 @@ export default function AffectedAreasModalRoute() {
 			<div className="w-full max-w-4xl rounded-xl bg-white p-5 shadow-xl">
 				<div className="mb-4 flex items-center justify-between">
 					<h3 className="text-[18px] font-semibold text-slate-800">
-						Select geographic levels
+						{ctx.t({
+							code: "disaster_event.form.select_geographic_levels",
+							msg: "Select geographic levels",
+						})}
 					</h3>
 					<Button
 						type="button"
 						icon="pi pi-times"
 						text
-						aria-label="Close"
+						aria-label={ctx.t({ code: "common.close", msg: "Close" })}
 						loading={pendingExitAction === "close"}
 						disabled={Boolean(pendingExitAction)}
 						onClick={handleClose}
@@ -259,24 +264,47 @@ export default function AffectedAreasModalRoute() {
 				</div>
 
 				<p className="mb-4 text-[13px] text-slate-500">
-					Select one or more geographic levels from the hierarchical tree below.
+					{ctx.t({
+						code: "disaster_event.form.select_geographic_levels_description",
+						msg: "Select one or more geographic levels from the hierarchical tree below.",
+					})}
 				</p>
 				<div className="mb-3 relative">
 					<i className="pi pi-search pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
 					<InputText
 						value={searchTerm}
 						onChange={(event) => setSearchTerm(event.target.value)}
-						placeholder="Search locations..."
+						placeholder={ctx.t({
+							code: "disaster_event.form.search_locations",
+							msg: "Search locations...",
+						})}
 						className="w-full pr-10"
 					/>
 				</div>
 				<div className="mb-3 flex items-center justify-between rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-slate-700">
 					<div>
-						{selectedCount} location{selectedCount === 1 ? " selected" : "s selected"}
+						{selectedCount === 1
+							? ctx.t(
+									{
+										code: "disaster_event.form.locations_selected_single",
+										msg: "{count} location selected",
+									},
+									{ count: selectedCount },
+								)
+							: ctx.t(
+									{
+										code: "disaster_event.form.locations_selected_multiple",
+										msg: "{count} locations selected",
+									},
+									{ count: selectedCount },
+								)}
 					</div>
 					<Button
 						type="button"
-						label="Clear all"
+						label={ctx.t({
+							code: "common.clear_all",
+							msg: "Clear all",
+						})}
 						text
 						size="small"
 						onClick={() => setSelectionKeys(null)}
@@ -295,7 +323,7 @@ export default function AffectedAreasModalRoute() {
 				<div className="mt-4 flex justify-end gap-2">
 					<Button
 						type="button"
-						label="Cancel"
+						label={ctx.t({ code: "common.cancel", msg: "Cancel" })}
 						outlined
 						loading={pendingExitAction === "cancel"}
 						disabled={Boolean(pendingExitAction)}
@@ -303,7 +331,7 @@ export default function AffectedAreasModalRoute() {
 					/>
 					<Button
 						type="button"
-						label="Apply"
+						label={ctx.t({ code: "common.apply", msg: "Apply" })}
 						loading={pendingExitAction === "apply"}
 						disabled={Boolean(pendingExitAction)}
 						onClick={handleSave}

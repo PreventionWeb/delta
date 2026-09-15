@@ -3,7 +3,7 @@ import {
 	entityValidationRejectionTable,
 	InsertEntityValidationRejection,
 } from "~/drizzle/schema/entityValidationRejectionTable";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { entityType } from "./entity_validation_assignment";
 
 export async function entityValidationRejectionInsert(
@@ -22,12 +22,19 @@ export async function entityValidationRejectionDeleteByEntityId(
 	entityType: entityType,
 	tx: Tx = dr,
 ): Promise<void> {
+	const entityTypes =
+		entityType === "disaster_records"
+			? ["disaster_records", "disaster_record"]
+			: [entityType];
+
+	const entityTypeAsText = sql`${entityValidationRejectionTable.entityType}::text`;
+
 	await tx
 		.delete(entityValidationRejectionTable)
 		.where(
 			and(
 				eq(entityValidationRejectionTable.entityId, entityId),
-				eq(entityValidationRejectionTable.entityType, entityType),
+				inArray(entityTypeAsText, entityTypes),
 			),
 		)
 		.execute();

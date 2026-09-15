@@ -46,6 +46,16 @@ export default mergeConfig(
 				],
 
 				reporter: ["text", "html", "lcov"],
+
+				// Legacy code is unthresholded; new Clean Architecture code is held to a real bar.
+				thresholds: {
+					"app/domains/**/*.{ts,tsx}": {
+						lines: 95,
+						functions: 95,
+						statements: 95,
+						branches: 90,
+					},
+				},
 			},
 		},
 	}),
