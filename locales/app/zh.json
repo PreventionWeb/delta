@@ -8510,5 +8510,20 @@
         "id": "disaster_event.form.selected_triggering_hazardous_events",
         "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:354",
         "translation": "选定的触发事件"
+    },
+    {
+        "id": "disaster_event.form.manage_linked_triggered_hazardous_events",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-hazardous-events-modal.tsx:279",
+        "translation": "管理相关联的（后续）危险事件"
+    },
+    {
+        "id": "disaster_event.form.no_triggering_events_linked",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-disaster-events-modal.tsx:430",
+        "translation": "未关联任何触发事件"
+    },
+    {
+        "id": "disaster_event.form.selected_triggering_events",
+        "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-disaster-events-modal.tsx:409",
+        "translation": "选定的触发事件"
     }
 ]
