@@ -55,6 +55,7 @@ copy scripts\dts_database\upgrade_from_0.2.0_to_0.2.1.sql dts_shared_binary\dts_
 copy scripts\dts_database\upgrade_from_0.2.1_to_0.2.2.sql dts_shared_binary\dts_database\upgrade_from_0.2.1_to_0.2.2.sql /Y
 copy scripts\dts_database\upgrade_from_0.2.2_to_0.2.3.sql dts_shared_binary\dts_database\upgrade_from_0.2.2_to_0.2.3.sql /Y
 copy scripts\dts_database\upgrade_from_0.2.3_to_0.3.0.sql dts_shared_binary\dts_database\upgrade_from_0.2.3_to_0.3.0.sql /Y
+copy scripts\dts_database\upgrade_from_0.3.0_to_0.3.1.sql dts_shared_binary\dts_database\upgrade_from_0.3.0_to_0.3.1.sql /Y
 
 set /A STEP+=1
 echo === Step !STEP!/%TOTAL_STEPS%!. Copying shell scripts into dts_shared_binary ===
