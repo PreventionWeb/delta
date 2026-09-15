@@ -14,6 +14,7 @@ import { dr } from "~/db.server";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import { eventCausalityTable } from "~/drizzle/schema/eventCausalityTable";
 import { queryLinkedDisasterEventOptions } from "~/backend.server/services/disaster-event/linkedDisasterEventOptions";
+import { ViewContext } from "~/frontend/context";
 import LinkedDisasterEventCard from "~/frontend/disaster-event/LinkedDisasterEventCard";
 import type { DisasterEventFormOutletContext } from "~/frontend/disaster-event/DisasterEventForm";
 import { authActionWithPerm, authLoaderWithPerm } from "~/utils/auth";
@@ -133,6 +134,7 @@ type LinkedEventItem =
 		const ld = useLoaderData<typeof loader>();
 		const fetcher = useFetcher<typeof action>();
 		const navigate = useNavigate();
+		const ctx = new ViewContext();
 		const {
 			triggeringDisasterEventTarget,
 			setTriggeringDisasterEventTarget,
@@ -329,13 +331,16 @@ type LinkedEventItem =
 				<div className="max-h-[calc(100vh-2rem)] w-full max-w-6xl overflow-y-auto rounded-xl bg-white p-5 shadow-xl">
 					<div className="mb-4 flex items-center justify-between">
 						<h3 className="text-[18px] font-semibold text-slate-800">
-							Manage linked triggering (causal) disaster events
+							{ctx.t({
+								code: "disaster_event.form.manage_linked_triggering_events",
+								msg: "Manage linked triggering (causal) disaster events",
+							})}
 						</h3>
 						<Button
 							type="button"
 							icon="pi pi-times"
 							text
-							aria-label="Close"
+							aria-label={ctx.t({ code: "common.close", msg: "Close" })}
 							loading={pendingExitAction === "close"}
 							disabled={Boolean(pendingExitAction)}
 							onClick={handleClose}
@@ -343,7 +348,10 @@ type LinkedEventItem =
 					</div>
 
 					<p className="mb-4 text-[13px] text-slate-500">
-						Search and select disaster events that causally triggered this event.
+						{ctx.t({
+							code: "disaster_event.form.linked_triggered_disaster_events_search_description",
+							msg: "Search and select disaster events that causally triggered this event.",
+						})}
 					</p>
 
 					<div className="mb-4 relative">
@@ -351,7 +359,10 @@ type LinkedEventItem =
 						<InputText
 							value={searchTerm}
 							onChange={(event) => setSearchTerm(event.target.value)}
-							placeholder="Search by name, hazard classification, date (yyyy-mm-dd), geographic level or UUID..."
+							placeholder={ctx.t({
+								code: "disaster_event.form.linked_triggered_disaster_events_search_placeholder",
+								msg: "Search by name, hazard classification, date (yyyy-mm-dd), geographic level or UUID...",
+							})}
 							className="w-full pr-10"
 						/>
 					</div>
@@ -361,12 +372,21 @@ type LinkedEventItem =
 							<div className="mb-3 flex items-center justify-between gap-2">
 								<h4 className="text-[14px] font-semibold text-slate-800">
 									{searchTerm.trim().length >= 3
-										? "Search results"
-										: "Latest 200 events"}
+										? ctx.t({
+												code: "disaster_event.form.search_results",
+												msg: "Search results",
+											})
+										: ctx.t({
+												code: "disaster_event.form.latest_200_events",
+												msg: "Latest 200 events",
+											})}
 								</h4>
 								<Button
 									type="button"
-									label="Add selected"
+									label={ctx.t({
+										code: "disaster_event.form.add_selected",
+										msg: "Add selected",
+									})}
 									onClick={addSelected}
 									disabled={selectedAvailableIds.length === 0}
 								/>
@@ -375,7 +395,10 @@ type LinkedEventItem =
 								<DataView
 									value={availableEvents}
 									itemTemplate={renderAvailableItem}
-									emptyMessage="No events available"
+									emptyMessage={ctx.t({
+										code: "disaster_event.form.no_disaster_events_available",
+										msg: "No events available",
+									})}
 								/>
 							</div>
 						</div>
@@ -383,11 +406,17 @@ type LinkedEventItem =
 						<div className="rounded-xl border border-slate-200 bg-white p-4">
 							<div className="mb-3 flex items-center justify-between gap-2">
 								<h4 className="text-[14px] font-semibold text-slate-800">
-									Selected triggering events
+									{ctx.t({
+										code: "disaster_event.form.selected_triggering_events",
+										msg: "Selected triggering events",
+									})}
 								</h4>
 								<Button
 									type="button"
-									label="Remove selected"
+									label={ctx.t({
+										code: "disaster_event.form.remove_selected",
+										msg: "Remove selected",
+									})}
 									severity="danger"
 									outlined
 									onClick={removeSelected}
@@ -398,7 +427,10 @@ type LinkedEventItem =
 								<DataView
 									value={draftTarget}
 									itemTemplate={renderLinkedItem}
-									emptyMessage="No triggering events linked"
+									emptyMessage={ctx.t({
+										code: "disaster_event.form.no_triggering_events_linked",
+										msg: "No triggering events linked",
+									})}
 								/>
 							</div>
 						</div>
@@ -407,7 +439,7 @@ type LinkedEventItem =
 					<div className="mt-4 flex justify-end gap-2">
 						<Button
 							type="button"
-							label="Cancel"
+							label={ctx.t({ code: "common.cancel", msg: "Cancel" })}
 							outlined
 							loading={pendingExitAction === "cancel"}
 							disabled={Boolean(pendingExitAction)}
@@ -415,14 +447,17 @@ type LinkedEventItem =
 						/>
 						<Button
 							type="button"
-							label="Apply"
+							label={ctx.t({ code: "common.apply", msg: "Apply" })}
 							loading={pendingExitAction === "apply"}
 							disabled={Boolean(pendingExitAction)}
 							onClick={handleApply}
 						/>
 						<span className="sr-only" aria-live="polite">
 							{pendingExitAction
-								? "Closing dialog"
+								? ctx.t({
+										code: "disaster_event.form.closing_dialog",
+										msg: "Closing dialog",
+									})
 								: ""}
 						</span>
 					</div>
