@@ -3240,6 +3240,16 @@
     "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:260"
   },
   {
+    "id": "disaster_event.form.latest_200_events",
+    "translation": "Latest 200 events",
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:375"
+  },
+  {
+    "id": "disaster_event.form.latest_200_hazardous_events",
+    "translation": "Latest 200 events",
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-hazardous-events-modal.tsx:324"
+  },
+  {
     "id": "disaster_event.form.latest_200_records",
     "translation": "Latest 200 records",
     "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:277"
@@ -3275,6 +3285,16 @@
     "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4393"
   },
   {
+    "id": "disaster_event.form.linked_hazardous_events_search_description",
+    "translation": "Search and select hazardous events that were triggered by this disaster event.",
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-hazardous-events-modal.tsx:296"
+  },
+  {
+    "id": "disaster_event.form.linked_hazardous_events_search_placeholder",
+    "translation": "Search by Hazard classification, date (yyyy-mm-dd), geographic level or UUID...",
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-hazardous-events-modal.tsx:307"
+  },
+  {
     "id": "disaster_event.form.linked_records_search_description",
     "translation": "Search and select disaster records to link this disaster event.",
     "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:249"
@@ -3283,6 +3303,16 @@
     "id": "disaster_event.form.linked_records_search_placeholder",
     "translation": "Search by Hazard classification, date (yyyy-mm-dd), geographic level or UUID...",
     "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:260"
+  },
+  {
+    "id": "disaster_event.form.linked_triggered_disaster_events_search_description",
+    "translation": "Search and select disaster events that were triggered by this event.",
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:347"
+  },
+  {
+    "id": "disaster_event.form.linked_triggered_disaster_events_search_placeholder",
+    "translation": "Search by name, hazard classification, date (yyyy-mm-dd), geographic level or UUID...",
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:358"
   },
   {
     "id": "disaster_event.form.links_description",
@@ -3345,14 +3375,34 @@
     "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4466"
   },
   {
+    "id": "disaster_event.form.manage_linked_triggered_hazardous_events",
+    "translation": "Manage linked triggered (subsequent) hazardous events",
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-hazardous-events-modal.tsx:279"
+  },
+  {
     "id": "disaster_event.form.manage_linked_triggering_events",
     "translation": "Manage linked triggering events",
     "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4416"
   },
   {
+    "id": "disaster_event.form.manage_linked_triggering_hazardous_events",
+    "translation": "Manage linked triggering (causal) hazardous events",
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:279"
+  },
+  {
     "id": "disaster_event.form.name_global_other",
     "translation": "Disaster name - Other (Global or Regional)",
     "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3840"
+  },
+  {
+    "id": "disaster_event.form.no_disaster_events_available",
+    "translation": "No events available",
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:394"
+  },
+  {
+    "id": "disaster_event.form.no_hazardous_events_available",
+    "translation": "No events available",
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-hazardous-events-modal.tsx:343"
   },
   {
     "id": "disaster_event.form.no_linked_records",
@@ -3373,6 +3423,21 @@
     "id": "disaster_event.form.no_spatial_footprint_items",
     "translation": "No spatial footprint items added yet",
     "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4306"
+  },
+  {
+    "id": "disaster_event.form.no_triggered_events_linked",
+    "translation": "No triggered events linked",
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:426"
+  },
+  {
+    "id": "disaster_event.form.no_triggering_events_linked",
+    "translation": "No triggering events linked",
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-disaster-events-modal.tsx:430"
+  },
+  {
+    "id": "disaster_event.form.no_triggering_hazardous_events_linked",
+    "translation": "No triggering events linked",
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:375"
   },
   {
     "id": "disaster_event.form.other_sectors_help",
@@ -3488,6 +3553,21 @@
     "id": "disaster_event.form.selected_linked_records",
     "translation": "Selected linked records",
     "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:307"
+  },
+  {
+    "id": "disaster_event.form.selected_triggered_events",
+    "translation": "Selected triggered events",
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:405"
+  },
+  {
+    "id": "disaster_event.form.selected_triggering_events",
+    "translation": "Selected triggering events",
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-disaster-events-modal.tsx:409"
+  },
+  {
+    "id": "disaster_event.form.selected_triggering_hazardous_events",
+    "translation": "Selected triggering events",
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:354"
   },
   {
     "id": "disaster_event.form.spatial_footprint_description",

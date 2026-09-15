@@ -10,6 +10,7 @@ import { Button } from "primereact/button";
 import { Checkbox } from "primereact/checkbox";
 import { DataView } from "primereact/dataview";
 import { queryLinkedHazardousEventOptions } from "~/backend.server/services/disaster-event/linkedHazardousEventOptions";
+import { ViewContext } from "~/frontend/context";
 import LinkedHazardousEventCard from "~/frontend/disaster-event/LinkedHazardousEventCard";
 import type { DisasterEventFormOutletContext } from "~/frontend/disaster-event/DisasterEventForm";
 import { authActionWithPerm, authLoaderWithPerm } from "~/utils/auth";
@@ -79,6 +80,7 @@ export default function LinkedTriggeredHazardousEventsModalRoute() {
 	const ld = useLoaderData<typeof loader>();
 	const fetcher = useFetcher<typeof action>();
 	const navigate = useNavigate();
+	const ctx = new ViewContext();
 	const {
 		triggeredHazardousEventTarget,
 		setTriggeredHazardousEventTarget,
@@ -274,13 +276,16 @@ export default function LinkedTriggeredHazardousEventsModalRoute() {
 			<div className="max-h-[calc(100vh-2rem)] w-full max-w-6xl overflow-y-auto rounded-xl bg-white p-5 shadow-xl">
 				<div className="mb-4 flex items-center justify-between">
 					<h3 className="text-[18px] font-semibold text-slate-800">
-						Manage linked triggered (subsequent) hazardous events
+						{ctx.t({
+							code: "disaster_event.form.manage_linked_triggered_hazardous_events",
+							msg: "Manage linked triggered (subsequent) hazardous events",
+						})}
 					</h3>
 					<Button
 						type="button"
 						icon="pi pi-times"
 						text
-						aria-label="Close"
+						aria-label={ctx.t({ code: "common.close", msg: "Close" })}
 						loading={pendingExitAction === "close"}
 						disabled={Boolean(pendingExitAction)}
 						onClick={handleClose}
@@ -288,8 +293,10 @@ export default function LinkedTriggeredHazardousEventsModalRoute() {
 				</div>
 
 				<p className="mb-4 text-[13px] text-slate-500">
-					Search and select hazardous events that were triggered by this disaster
-					event.
+					{ctx.t({
+						code: "disaster_event.form.linked_hazardous_events_search_description",
+						msg: "Search and select hazardous events that were triggered by this disaster event.",
+					})}
 				</p>
 
 				<div className="mb-4 relative">
@@ -297,7 +304,10 @@ export default function LinkedTriggeredHazardousEventsModalRoute() {
 					<InputText
 						value={searchTerm}
 						onChange={(event) => setSearchTerm(event.target.value)}
-						placeholder="Search by Hazard classification, date (yyyy-mm-dd), geographic level or UUID..."
+						placeholder={ctx.t({
+							code: "disaster_event.form.linked_hazardous_events_search_placeholder",
+							msg: "Search by Hazard classification, date (yyyy-mm-dd), geographic level or UUID...",
+						})}
 						className="w-full pr-10"
 					/>
 				</div>
@@ -307,12 +317,21 @@ export default function LinkedTriggeredHazardousEventsModalRoute() {
 						<div className="mb-3 flex items-center justify-between gap-2">
 							<h4 className="text-[14px] font-semibold text-slate-800">
 								{searchTerm.trim().length >= 3
-									? "Search results"
-									: "Latest 200 events"}
+									? ctx.t({
+											code: "disaster_event.form.search_results",
+											msg: "Search results",
+										})
+									: ctx.t({
+											code: "disaster_event.form.latest_200_hazardous_events",
+											msg: "Latest 200 events",
+										})}
 							</h4>
 							<Button
 								type="button"
-								label="Add selected"
+								label={ctx.t({
+									code: "disaster_event.form.add_selected",
+									msg: "Add selected",
+								})}
 								onClick={addSelected}
 								disabled={selectedAvailableIds.length === 0}
 							/>
@@ -321,7 +340,10 @@ export default function LinkedTriggeredHazardousEventsModalRoute() {
 							<DataView
 								value={availableEvents}
 								itemTemplate={renderAvailableItem}
-								emptyMessage="No events available"
+								emptyMessage={ctx.t({
+									code: "disaster_event.form.no_hazardous_events_available",
+									msg: "No events available",
+								})}
 							/>
 						</div>
 					</div>
@@ -329,11 +351,17 @@ export default function LinkedTriggeredHazardousEventsModalRoute() {
 					<div className="rounded-xl border border-slate-200 bg-white p-4">
 						<div className="mb-3 flex items-center justify-between gap-2">
 							<h4 className="text-[14px] font-semibold text-slate-800">
-								Selected triggered events
+								{ctx.t({
+									code: "disaster_event.form.selected_triggered_events",
+									msg: "Selected triggered events",
+								})}
 							</h4>
 							<Button
 								type="button"
-								label="Remove selected"
+								label={ctx.t({
+									code: "disaster_event.form.remove_selected",
+									msg: "Remove selected",
+								})}
 								severity="danger"
 								outlined
 								onClick={removeSelected}
@@ -344,7 +372,10 @@ export default function LinkedTriggeredHazardousEventsModalRoute() {
 							<DataView
 								value={draftTarget}
 								itemTemplate={renderLinkedItem}
-								emptyMessage="No triggered events linked"
+								emptyMessage={ctx.t({
+									code: "disaster_event.form.no_triggered_events_linked",
+									msg: "No triggered events linked",
+								})}
 							/>
 						</div>
 					</div>
@@ -353,7 +384,7 @@ export default function LinkedTriggeredHazardousEventsModalRoute() {
 				<div className="mt-4 flex justify-end gap-2">
 					<Button
 						type="button"
-						label="Cancel"
+						label={ctx.t({ code: "common.cancel", msg: "Cancel" })}
 						outlined
 						loading={pendingExitAction === "cancel"}
 						disabled={Boolean(pendingExitAction)}
@@ -361,14 +392,17 @@ export default function LinkedTriggeredHazardousEventsModalRoute() {
 					/>
 					<Button
 						type="button"
-						label="Apply"
+						label={ctx.t({ code: "common.apply", msg: "Apply" })}
 						loading={pendingExitAction === "apply"}
 						disabled={Boolean(pendingExitAction)}
 						onClick={handleApply}
 					/>
 					<span className="sr-only" aria-live="polite">
 						{pendingExitAction
-							? "Closing dialog"
+							? ctx.t({
+									code: "disaster_event.form.closing_dialog",
+									msg: "Closing dialog",
+								})
 							: ""}
 					</span>
 				</div>
