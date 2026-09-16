@@ -7,7 +7,7 @@
   {
     "id": "admin.add_country_account",
     "translation": "Add country account",
-    "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:266"
+    "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:264"
   },
   {
     "id": "admin.add_fictitious_country",
@@ -30,6 +30,11 @@
     "description": "File: app/routes/$lang+/admin+/country-accounts+/clone.$id.tsx:60"
   },
   {
+    "id": "admin.clone_instance",
+    "translation": "Clone instance",
+    "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:216"
+  },
+  {
     "id": "admin.country_account_cloned",
     "translation": "Country account cloned successfully",
     "description": "File: app/routes/$lang+/admin+/country-accounts+/clone.$id.tsx:31"
@@ -42,12 +47,12 @@
   {
     "id": "admin.country_account_type.official",
     "translation": "Official",
-    "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:87"
+    "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:84"
   },
   {
     "id": "admin.country_account_type.training",
     "translation": "Training",
-    "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:92"
+    "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:89"
   },
   {
     "id": "admin.country_account_updated",
@@ -73,6 +78,11 @@
     "id": "admin.db_connection_string_missing",
     "translation": "Database connection string is missing",
     "description": "File: app/routes/$lang+/admin+/login.tsx:133"
+  },
+  {
+    "id": "admin.delete_instance",
+    "translation": "Delete instance",
+    "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:233"
   },
   {
     "id": "admin.delete_instance_confirm_header",
@@ -147,7 +157,7 @@
   {
     "id": "admin.manage_country_accounts_super_admin",
     "translation": "Manage Country Accounts - Super Admin",
-    "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:257"
+    "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:255"
   },
   {
     "id": "admin.max_n_characters",
@@ -157,7 +167,7 @@
   {
     "id": "admin.primary_admin_email",
     "translation": "Primary admin's email",
-    "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:305"
+    "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:310"
   },
   {
     "id": "admin.required_config_missing_in_env_file",
@@ -1607,7 +1617,7 @@
   {
     "id": "common.active",
     "translation": "Active",
-    "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:123"
+    "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:120"
   },
   {
     "id": "common.add",
@@ -1662,7 +1672,7 @@
   {
     "id": "common.back",
     "translation": "Back",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4688"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4690"
   },
   {
     "id": "common.back_to_disaster_record",
@@ -1677,7 +1687,7 @@
   {
     "id": "common.cannot_save_record",
     "translation": "Could not save this record",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3704"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3702"
   },
   {
     "id": "common.category",
@@ -1687,7 +1697,7 @@
   {
     "id": "common.change",
     "translation": "Change",
-    "description": "File: app/frontend/events/disastereventform.tsx:952"
+    "description": "File: app/frontend/events/disastereventform.tsx:953"
   },
   {
     "id": "common.changes_saved",
@@ -1722,7 +1732,7 @@
   {
     "id": "common.close",
     "translation": "Close",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3689"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3687"
   },
   {
     "id": "common.collapse_all",
@@ -1772,7 +1782,7 @@
   {
     "id": "common.country_type",
     "translation": "Country Type",
-    "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:289"
+    "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:291"
   },
   {
     "id": "common.created",
@@ -1812,7 +1822,7 @@
   {
     "id": "common.data_source",
     "translation": "Data source",
-    "description": "File: app/frontend/events/disastereventform.tsx:232"
+    "description": "File: app/frontend/events/disastereventform.tsx:233"
   },
   {
     "id": "common.data_updated",
@@ -1822,22 +1832,22 @@
   {
     "id": "common.date",
     "translation": "Date",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4947"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4957"
   },
   {
     "id": "common.date_format_full_date",
     "translation": "Full date",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1742"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1732"
   },
   {
     "id": "common.date_format_year_month",
     "translation": "Year and month",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1749"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1739"
   },
   {
     "id": "common.date_format_year_only",
     "translation": "Year only",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1756"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1746"
   },
   {
     "id": "common.date_from",
@@ -1877,7 +1887,7 @@
   {
     "id": "common.discard_work_and_exit",
     "translation": "Discard work and exit",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3545"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3543"
   },
   {
     "id": "common.do_you_want_to_continue",
@@ -1907,7 +1917,7 @@
   {
     "id": "common.end_date",
     "translation": "End date",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4132"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4130"
   },
   {
     "id": "common.enter_email",
@@ -1937,7 +1947,7 @@
   {
     "id": "common.exit_confirmation",
     "translation": "Are you sure you want to exit?",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3518"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3516"
   },
   {
     "id": "common.expand_all",
@@ -2037,7 +2047,7 @@
   {
     "id": "common.inactive",
     "translation": "Inactive",
-    "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:129"
+    "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:126"
   },
   {
     "id": "common.invalid_action_provided",
@@ -2132,7 +2142,7 @@
   {
     "id": "common.modified_at",
     "translation": "Modified at",
-    "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:318"
+    "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:325"
   },
   {
     "id": "common.month",
@@ -2312,12 +2322,12 @@
   {
     "id": "common.official_warning",
     "translation": "Official Warning",
-    "description": "Row label for official warning data File: app/frontend/events/disastereventform.tsx:213"
+    "description": "File: app/frontend/disaster-event/detailTypeTranslation.ts:78"
   },
   {
     "id": "common.opening",
     "translation": "Opening...",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4193"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4191"
   },
   {
     "id": "common.option",
@@ -2342,7 +2352,7 @@
   {
     "id": "common.override_input",
     "translation": "Override",
-    "description": "Label for checkbox that allows inputing manual calculation (overriding) instead of using auto calculated ones File: app/frontend/events/disastereventform.tsx:715"
+    "description": "Label for checkbox that allows inputing manual calculation (overriding) instead of using auto calculated ones File: app/frontend/events/disastereventform.tsx:716"
   },
   {
     "id": "common.page_current_of_total",
@@ -2462,7 +2472,7 @@
   {
     "id": "common.request_entry_validation",
     "translation": "Request this entry to be validated",
-    "description": "File: app/frontend/components/approval-workflow/SaveSubmitDialog.tsx:145"
+    "description": "File: app/frontend/components/approval-workflow/SaveSubmitDialog.tsx:146"
   },
   {
     "id": "common.required_info",
@@ -2522,7 +2532,7 @@
   {
     "id": "common.save",
     "translation": "Save",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5291"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5301"
   },
   {
     "id": "common.save_changes",
@@ -2532,7 +2542,7 @@
   {
     "id": "common.save_draft",
     "translation": "Save as draft",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3537"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3535"
   },
   {
     "id": "common.save_error",
@@ -2577,7 +2587,7 @@
   {
     "id": "common.sectors",
     "translation": "Sectors",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5090"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5100"
   },
   {
     "id": "common.select",
@@ -2607,12 +2617,12 @@
   {
     "id": "common.select_validators",
     "translation": "Select validator(s)",
-    "description": "File: app/frontend/components/approval-workflow/SaveSubmitDialog.tsx:344"
+    "description": "File: app/frontend/components/approval-workflow/SaveSubmitDialog.tsx:379"
   },
   {
     "id": "common.short_description",
     "translation": "Short description",
-    "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:293"
+    "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:295"
   },
   {
     "id": "common.showing_n_items",
@@ -2637,12 +2647,12 @@
   {
     "id": "common.spatial_footprint",
     "translation": "Spatial footprint",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4254"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4252"
   },
   {
     "id": "common.start_date",
     "translation": "Start date",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4122"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4120"
   },
   {
     "id": "common.status",
@@ -2657,12 +2667,12 @@
   {
     "id": "common.store_for_future_editing",
     "translation": "Store this entry for future editing",
-    "description": "File: app/frontend/components/approval-workflow/SaveSubmitDialog.tsx:124"
+    "description": "File: app/frontend/components/approval-workflow/SaveSubmitDialog.tsx:125"
   },
   {
     "id": "common.submit_for_validation",
     "translation": "Submit for validation",
-    "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:1217"
+    "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:1221"
   },
   {
     "id": "common.success",
@@ -2757,7 +2767,7 @@
   {
     "id": "common.unsaved_changes_warning",
     "translation": "If you leave this page, your work will not be saved.",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3529"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3527"
   },
   {
     "id": "common.unset",
@@ -2927,12 +2937,12 @@
   {
     "id": "copied",
     "translation": "Copied",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3444"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3442"
   },
   {
     "id": "could_not_copy_to_clipboard",
     "translation": "Could not copy to clipboard",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3453"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3451"
   },
   {
     "id": "disaster_event",
@@ -2952,7 +2962,7 @@
   {
     "id": "disaster_event.add",
     "translation": "Add disaster event",
-    "description": "File: app/frontend/events/disastereventform.tsx:873"
+    "description": "File: app/frontend/events/disastereventform.tsx:874"
   },
   {
     "id": "disaster_event.all_disaster_events",
@@ -3022,12 +3032,12 @@
   {
     "id": "disaster_event.damages_subtotal_local_currency",
     "translation": "Damages (sub‑total) - in monetary terms - local currency",
-    "description": "Label for damages sub‑total in local currency File: app/frontend/events/disastereventform.tsx:270"
+    "description": "Label for damages sub‑total in local currency File: app/frontend/events/disastereventform.tsx:271"
   },
   {
     "id": "disaster_event.disaster_declaration",
     "translation": "Disaster declaration",
-    "description": "File: app/frontend/events/disastereventform.tsx:1506"
+    "description": "File: app/frontend/disaster-event/detailTypeTranslation.ts:68"
   },
   {
     "id": "disaster_event.disaster_record",
@@ -3037,37 +3047,37 @@
   {
     "id": "disaster_event.duration_days",
     "translation": "Duration (days)",
-    "description": "File: app/frontend/events/disastereventform.tsx:193"
+    "description": "File: app/frontend/events/disastereventform.tsx:194"
   },
   {
     "id": "disaster_event.duration_days_description",
     "translation": "Duration (of event direct effects) - in days",
-    "description": "File: app/frontend/events/disastereventform.tsx:197"
+    "description": "File: app/frontend/events/disastereventform.tsx:198"
   },
   {
     "id": "disaster_event.early_action",
     "translation": "Early action",
-    "description": "File: app/frontend/events/disastereventform.tsx:1481"
+    "description": "File: app/frontend/disaster-event/detailTypeTranslation.ts:43"
   },
   {
     "id": "disaster_event.edit",
     "translation": "Edit disaster event",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3680"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3678"
   },
   {
     "id": "disaster_event.effects",
     "translation": "Effects",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5060"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5070"
   },
   {
     "id": "disaster_event.effects_total_usd",
     "translation": "Effects (damages + losses) total (in monetary terms - USD)",
-    "description": "Label for total monetary effects (damages + losses) in USD File: app/frontend/events/disastereventform.tsx:246"
+    "description": "Label for total monetary effects (damages + losses) in USD File: app/frontend/events/disastereventform.tsx:247"
   },
   {
     "id": "disaster_event.end_date_local",
     "translation": "End date in local format",
-    "description": "File: app/frontend/events/disastereventform.tsx:185"
+    "description": "File: app/frontend/events/disastereventform.tsx:186"
   },
   {
     "id": "disaster_event.error_loading_events",
@@ -3092,17 +3102,17 @@
   {
     "id": "disaster_event.form.add_affected_areas",
     "translation": "Add affected areas",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4197"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4195"
   },
   {
     "id": "disaster_event.form.add_assessment",
     "translation": "Add assessment",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4808"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4818"
   },
   {
     "id": "disaster_event.form.add_declaration",
     "translation": "Add declaration",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4859"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4869"
   },
   {
     "id": "disaster_event.form.add_link",
@@ -3112,27 +3122,27 @@
   {
     "id": "disaster_event.form.add_response",
     "translation": "Add response",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4757"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4767"
   },
   {
     "id": "disaster_event.form.add_selected",
     "translation": "Add selected",
-    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:284"
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:292"
   },
   {
     "id": "disaster_event.form.additional_details",
     "translation": "Additional details",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4709"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4719"
   },
   {
     "id": "disaster_event.form.additional_details_description",
     "translation": "Document responses, assessments, and official declarations related to this disaster event.",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4729"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4739"
   },
   {
     "id": "disaster_event.form.assessments_description",
     "translation": "Document needs assessments and evaluations",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4799"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4809"
   },
   {
     "id": "disaster_event.form.cancel",
@@ -3142,27 +3152,27 @@
   {
     "id": "disaster_event.form.closing_dialog",
     "translation": "Closing dialog",
-    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:355"
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:363"
   },
   {
     "id": "disaster_event.form.copy_uuid",
     "translation": "Copy disaster event UUID",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3937"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3935"
   },
   {
     "id": "disaster_event.form.date_format_label",
     "translation": "{label} format",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:976"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:959"
   },
   {
     "id": "disaster_event.form.declarations_description",
     "translation": "Record official emergency declarations",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4850"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4860"
   },
   {
     "id": "disaster_event.form.define_spatial_footprint",
     "translation": "Define spatial footprint",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4275"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4273"
   },
   {
     "id": "disaster_event.form.edit_link",
@@ -3177,62 +3187,62 @@
   {
     "id": "disaster_event.form.enter_coverage",
     "translation": "Enter coverage",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5022"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5032"
   },
   {
     "id": "disaster_event.form.enter_description",
     "translation": "Enter description",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5078"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5088"
   },
   {
     "id": "disaster_event.form.enter_issuing_organization",
     "translation": "Enter issuing organization",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5047"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5057"
   },
   {
     "id": "disaster_event.form.enter_other_sectors",
     "translation": "Enter other sectors (if not listed)",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5181"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5191"
   },
   {
     "id": "disaster_event.form.enter_type",
     "translation": "Enter type",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4916"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4926"
   },
   {
     "id": "disaster_event.form.event_basics",
     "translation": "Event basics",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3792"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3790"
   },
   {
     "id": "disaster_event.form.event_basics_description",
     "translation": "General information about the disaster event.",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3798"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3796"
   },
   {
     "id": "disaster_event.form.geographic_level_description",
     "translation": "Select the administrative areas where the disaster event was experienced.",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4183"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4181"
   },
   {
     "id": "disaster_event.form.hazard_and_timing",
     "translation": "Hazard and timing",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3976"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3974"
   },
   {
     "id": "disaster_event.form.hazard_and_timing_description",
     "translation": "Detailed information regarding the observed hazards and timing.",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3982"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3980"
   },
   {
     "id": "disaster_event.form.hazard_cluster_observed",
     "translation": "Hazard cluster (observed)",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4034"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4032"
   },
   {
     "id": "disaster_event.form.hazard_type_observed",
     "translation": "Hazard type (observed)",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3995"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3993"
   },
   {
     "id": "disaster_event.form.label",
@@ -3252,37 +3262,37 @@
   {
     "id": "disaster_event.form.latest_200_records",
     "translation": "Latest 200 records",
-    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:277"
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:285"
   },
   {
     "id": "disaster_event.form.linked_disaster_events",
     "translation": "Linked disaster events",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4504"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4506"
   },
   {
     "id": "disaster_event.form.linked_disaster_events_description",
     "translation": "Link this disaster event to its cause or its consequences.",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4510"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4512"
   },
   {
     "id": "disaster_event.form.linked_disaster_records_description",
     "translation": "Link this disaster event to related disaster records.",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4627"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4629"
   },
   {
     "id": "disaster_event.form.linked_events_description",
     "translation": "Define relationships between this event and other system records.",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4379"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4381"
   },
   {
     "id": "disaster_event.form.linked_hazardous_events",
     "translation": "Linked hazardous events",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4387"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4389"
   },
   {
     "id": "disaster_event.form.linked_hazardous_events_description",
     "translation": "Link this disaster event to related hazardous events.",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4393"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4395"
   },
   {
     "id": "disaster_event.form.linked_hazardous_events_search_description",
@@ -3297,12 +3307,12 @@
   {
     "id": "disaster_event.form.linked_records_search_description",
     "translation": "Search and select disaster records to link this disaster event.",
-    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:249"
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:257"
   },
   {
     "id": "disaster_event.form.linked_records_search_placeholder",
     "translation": "Search by Hazard classification, date (yyyy-mm-dd), geographic level or UUID...",
-    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:260"
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:268"
   },
   {
     "id": "disaster_event.form.linked_triggered_disaster_events_search_description",
@@ -3322,37 +3332,37 @@
   {
     "id": "disaster_event.form.loading_affected_areas_selector",
     "translation": "Loading affected areas selector",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4210"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4208"
   },
   {
     "id": "disaster_event.form.loading_linked_disaster_records_selector",
     "translation": "Loading linked disaster records selector",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4651"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4653"
   },
   {
     "id": "disaster_event.form.loading_linked_triggered_events_selector",
     "translation": "Loading linked triggered events selector",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4596"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4598"
   },
   {
     "id": "disaster_event.form.loading_linked_triggered_hazardous_events_selector",
     "translation": "Loading linked triggered hazardous events selector",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4479"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4481"
   },
   {
     "id": "disaster_event.form.loading_linked_triggering_events_selector",
     "translation": "Loading linked triggering events selector",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4546"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4548"
   },
   {
     "id": "disaster_event.form.loading_linked_triggering_hazardous_events_selector",
     "translation": "Loading linked triggering hazardous events selector",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4429"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4431"
   },
   {
     "id": "disaster_event.form.loading_spatial_footprint_editor",
     "translation": "Loading spatial footprint editor",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4288"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4286"
   },
   {
     "id": "disaster_event.form.locations_selected_multiple",
@@ -3367,12 +3377,12 @@
   {
     "id": "disaster_event.form.manage_linked_disaster_records",
     "translation": "Manage linked disaster records",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4638"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4640"
   },
   {
     "id": "disaster_event.form.manage_linked_triggered_events",
     "translation": "Manage linked triggered events",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4466"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4468"
   },
   {
     "id": "disaster_event.form.manage_linked_triggered_hazardous_events",
@@ -3382,7 +3392,7 @@
   {
     "id": "disaster_event.form.manage_linked_triggering_events",
     "translation": "Manage linked triggering events",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4416"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4418"
   },
   {
     "id": "disaster_event.form.manage_linked_triggering_hazardous_events",
@@ -3392,7 +3402,7 @@
   {
     "id": "disaster_event.form.name_global_other",
     "translation": "Disaster name - Other (Global or Regional)",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3840"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3838"
   },
   {
     "id": "disaster_event.form.no_disaster_events_available",
@@ -3407,7 +3417,7 @@
   {
     "id": "disaster_event.form.no_linked_records",
     "translation": "No linked records",
-    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:328"
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:336"
   },
   {
     "id": "disaster_event.form.no_links_added_yet",
@@ -3417,12 +3427,12 @@
   {
     "id": "disaster_event.form.no_records_available",
     "translation": "No records available",
-    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:296"
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:304"
   },
   {
     "id": "disaster_event.form.no_spatial_footprint_items",
     "translation": "No spatial footprint items added yet",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4306"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4304"
   },
   {
     "id": "disaster_event.form.no_triggered_events_linked",
@@ -3442,57 +3452,57 @@
   {
     "id": "disaster_event.form.other_sectors_help",
     "translation": "Other sectors help",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5167"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5177"
   },
   {
     "id": "disaster_event.form.placeholder.add_event_id",
     "translation": "Add event ID",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3871"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3869"
   },
   {
     "id": "disaster_event.form.placeholder.add_event_name",
     "translation": "Add event name",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3849"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3847"
   },
   {
     "id": "disaster_event.form.placeholder.add_glide_number",
     "translation": "Add GLIDE number",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3899"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3897"
   },
   {
     "id": "disaster_event.form.placeholder.name_national",
     "translation": "For example, Hurricane Mitch",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3821"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3819"
   },
   {
     "id": "disaster_event.form.placeholder.yyyy",
     "translation": "YYYY",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1146"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1129"
   },
   {
     "id": "disaster_event.form.placeholder.yyyy_mm",
     "translation": "YYYY-MM",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1109"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1092"
   },
   {
     "id": "disaster_event.form.placeholder.yyyy_mm_dd",
     "translation": "YYYY-MM-DD",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1062"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1045"
   },
   {
     "id": "disaster_event.form.remove_named",
     "translation": "Remove {name}",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3199"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3197"
   },
   {
     "id": "disaster_event.form.remove_selected",
     "translation": "Remove selected",
-    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:314"
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:322"
   },
   {
     "id": "disaster_event.form.responses_description",
     "translation": "Track early actions and response operations",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4748"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4758"
   },
   {
     "id": "disaster_event.form.save_link",
@@ -3507,12 +3517,12 @@
   {
     "id": "disaster_event.form.search_results",
     "translation": "Search results",
-    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:273"
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:281"
   },
   {
     "id": "disaster_event.form.select_format",
     "translation": "Select format",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1002"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:985"
   },
   {
     "id": "disaster_event.form.select_geographic_levels",
@@ -3527,32 +3537,32 @@
   {
     "id": "disaster_event.form.select_hazard_cluster",
     "translation": "Select hazard cluster",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4052"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4050"
   },
   {
     "id": "disaster_event.form.select_hazard_type",
     "translation": "Select hazard type",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4013"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4011"
   },
   {
     "id": "disaster_event.form.select_sectors",
     "translation": "Select sectors",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5097"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5107"
   },
   {
     "id": "disaster_event.form.select_status",
     "translation": "Select status",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4990"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5000"
   },
   {
     "id": "disaster_event.form.select_type",
     "translation": "Select type",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4935"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4945"
   },
   {
     "id": "disaster_event.form.selected_linked_records",
     "translation": "Selected linked records",
-    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:307"
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:315"
   },
   {
     "id": "disaster_event.form.selected_triggered_events",
@@ -3572,67 +3582,67 @@
   {
     "id": "disaster_event.form.spatial_footprint_description",
     "translation": "Define the specific geographic area affected using interactive map coordinates or manual input.",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4261"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4259"
   },
   {
     "id": "disaster_event.form.spatial_footprint_items_added",
     "translation": "{count} spatial footprint item(s) added",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4299"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4297"
   },
   {
     "id": "disaster_event.form.spatial_footprint_numbered",
     "translation": "Spatial footprint {count}",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2424"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2414"
   },
   {
     "id": "disaster_event.form.spatial_information",
     "translation": "Disaster event spatial information",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4156"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4154"
   },
   {
     "id": "disaster_event.form.spatial_information_description",
     "translation": "Indicate the geographic areas where the disaster event was experienced.",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4162"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4160"
   },
   {
     "id": "disaster_event.form.specific_hazard_observed",
     "translation": "Specific hazard (observed)",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4073"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4071"
   },
   {
     "id": "disaster_event.form.stepper_status.optional",
     "translation": "Optional",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1768"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1758"
   },
   {
     "id": "disaster_event.form.stepper_status.required",
     "translation": "Required",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1764"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1754"
   },
   {
     "id": "disaster_event.form.tooltip.glide_number",
     "translation": "A globally unique identifier used to cross-reference this event across international disaster risk systems",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3721"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3719"
   },
   {
     "id": "disaster_event.form.tooltip.hazard_cluster_observed",
     "translation": "The observed hazard cluster",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3739"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3737"
   },
   {
     "id": "disaster_event.form.tooltip.hazard_type_observed",
     "translation": "The observed hazard type before full confirmation",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3730"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3728"
   },
   {
     "id": "disaster_event.form.tooltip.other_sectors",
     "translation": "Type a sector name not available in the dropdown above, e.g., Waste management, Humanitarian assistance.",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3757"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3755"
   },
   {
     "id": "disaster_event.form.tooltip.specific_hazard_observed",
     "translation": "The specific observed hazard",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3748"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3746"
   },
   {
     "id": "disaster_event.form.url",
@@ -3642,62 +3652,62 @@
   {
     "id": "disaster_event.form.validation.end_date_before_start_date",
     "translation": "End date cannot be before start date",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2021"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2011"
   },
   {
     "id": "disaster_event.form.validation.end_time_before_start_time",
     "translation": "End time cannot be before start time",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2031"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2021"
   },
   {
     "id": "disaster_event.form.validation.end_time_requires_full_end_date",
     "translation": "End time requires a complete end date (YYYY-MM-DD)",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1998"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1988"
   },
   {
     "id": "disaster_event.form.validation.is_invalid",
     "translation": "{label} is invalid",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:909"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:892"
   },
   {
     "id": "disaster_event.form.validation.month_invalid",
     "translation": "{label} month is invalid",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:873"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:856"
   },
   {
     "id": "disaster_event.form.validation.national_name_required",
     "translation": "Disaster name (national) is required",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1962"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1952"
   },
   {
     "id": "disaster_event.form.validation.requires_complete_date",
     "translation": "{label} requires a complete date",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:890"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:873"
   },
   {
     "id": "disaster_event.form.validation.requires_year_and_month",
     "translation": "{label} requires both year and month",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:862"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:845"
   },
   {
     "id": "disaster_event.form.validation.start_date_required_when_end_date_has_value",
     "translation": "Start date is required when end date has a value",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2005"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1995"
   },
   {
     "id": "disaster_event.form.validation.start_time_requires_full_start_date",
     "translation": "Start time requires a complete start date (YYYY-MM-DD)",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1988"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1978"
   },
   {
     "id": "disaster_event.form.validation.year_must_be_4_digits",
     "translation": "{label} year must be 4 digits",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:849"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:832"
   },
   {
     "id": "disaster_event.glide_number",
     "translation": "GLIDE number",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3885"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3883"
   },
   {
     "id": "disaster_event.global_regional_name",
@@ -3707,27 +3717,27 @@
   {
     "id": "disaster_event.global_regional_name_description",
     "translation": "Disaster event name in global or regional databases (if applicable)",
-    "description": "File: app/frontend/events/disastereventform.tsx:134"
+    "description": "File: app/frontend/events/disastereventform.tsx:135"
   },
   {
     "id": "disaster_event.had_official_warning_or_weather_advisory",
     "translation": "Was there an officially issued warning and/or weather advisory?",
-    "description": "Label for the warning/advisory boolean field File: app/frontend/events/disastereventform.tsx:206"
+    "description": "Label for the warning/advisory boolean field File: app/frontend/events/disastereventform.tsx:207"
   },
   {
     "id": "disaster_event.humanitarian_needs_description",
     "translation": "Humanitarian needs - description",
-    "description": "File: app/frontend/events/disastereventform.tsx:328"
+    "description": "File: app/frontend/events/disastereventform.tsx:329"
   },
   {
     "id": "disaster_event.humanitarian_needs_local_currency",
     "translation": "Humanitarian needs - total in local currency",
-    "description": "File: app/frontend/events/disastereventform.tsx:337"
+    "description": "File: app/frontend/events/disastereventform.tsx:338"
   },
   {
     "id": "disaster_event.humanitarian_needs_usd",
     "translation": "Humanitarian needs - total in USD",
-    "description": "File: app/frontend/events/disastereventform.tsx:346"
+    "description": "File: app/frontend/events/disastereventform.tsx:347"
   },
   {
     "id": "disaster_event.invalid_hazardous_event_reference",
@@ -3737,12 +3747,12 @@
   {
     "id": "disaster_event.linking_parameter",
     "translation": "Linking parameter",
-    "description": "File: app/frontend/events/disastereventform.tsx:894"
+    "description": "File: app/frontend/events/disastereventform.tsx:895"
   },
   {
     "id": "disaster_event.losses_subtotal_usd",
     "translation": "Losses (sub-total) - in monetary terms - USD",
-    "description": "Label for losses sub‑total in USD File: app/frontend/events/disastereventform.tsx:280"
+    "description": "Label for losses sub‑total in USD File: app/frontend/events/disastereventform.tsx:281"
   },
   {
     "id": "disaster_event.name",
@@ -3757,17 +3767,17 @@
   {
     "id": "disaster_event.national_disaster_id",
     "translation": "National disaster ID",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3862"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3860"
   },
   {
     "id": "disaster_event.national_name",
     "translation": "National name",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3812"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3810"
   },
   {
     "id": "disaster_event.national_name_description",
     "translation": "National disaster name (if any and applicable)",
-    "description": "National name for disaster event File: app/frontend/events/disastereventform.tsx:110"
+    "description": "National name for disaster event File: app/frontend/events/disastereventform.tsx:111"
   },
   {
     "id": "disaster_event.no_permission_delete",
@@ -3782,32 +3792,32 @@
   {
     "id": "disaster_event.non_economic_losses",
     "translation": "Non-economic losses",
-    "description": "File: app/frontend/events/disastereventform.tsx:261"
+    "description": "File: app/frontend/events/disastereventform.tsx:262"
   },
   {
     "id": "disaster_event.official_warning_affected_areas",
     "translation": "Which affected areas were covered by the warning?",
-    "description": "Label for textarea listing areas covered by the warning File: app/frontend/events/disastereventform.tsx:222"
+    "description": "Label for textarea listing areas covered by the warning File: app/frontend/events/disastereventform.tsx:223"
   },
   {
     "id": "disaster_event.other_assessment",
     "translation": "Other assessment",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1733"
+    "description": "File: app/frontend/disaster-event/detailTypeTranslation.ts:63"
   },
   {
     "id": "disaster_event.other_id",
     "translation": "Event ID in other system",
-    "description": "File: app/frontend/events/disastereventform.tsx:76"
+    "description": "File: app/frontend/events/disastereventform.tsx:77"
   },
   {
     "id": "disaster_event.post_disaster_assessment",
     "translation": "Post-disaster assessment",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1726"
+    "description": "File: app/frontend/disaster-event/detailTypeTranslation.ts:58"
   },
   {
     "id": "disaster_event.rapid_preliminary_assessment",
     "translation": "Rapid/Preliminary assessment",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1719"
+    "description": "File: app/frontend/disaster-event/detailTypeTranslation.ts:53"
   },
   {
     "id": "disaster_event.recording_organization",
@@ -3822,77 +3832,77 @@
   {
     "id": "disaster_event.recovery_needs_local_currency_override",
     "translation": "Recovery needs - total in local currency",
-    "description": "File: app/frontend/events/disastereventform.tsx:381"
+    "description": "File: app/frontend/events/disastereventform.tsx:382"
   },
   {
     "id": "disaster_event.rehabilitation_costs_local_currency_override",
     "translation": "Rehabilitation costs - total in local currency",
-    "description": "File: app/frontend/events/disastereventform.tsx:354"
+    "description": "File: app/frontend/events/disastereventform.tsx:355"
   },
   {
     "id": "disaster_event.repair_costs_local_currency_override",
     "translation": "Repair costs - total in local currency",
-    "description": "File: app/frontend/events/disastereventform.tsx:363"
+    "description": "File: app/frontend/events/disastereventform.tsx:364"
   },
   {
     "id": "disaster_event.replacement_costs_local_currency_override",
     "translation": "Replacement costs - total in local currency",
-    "description": "File: app/frontend/events/disastereventform.tsx:372"
+    "description": "File: app/frontend/events/disastereventform.tsx:373"
   },
   {
     "id": "disaster_event.response_cost_total_local_currency",
     "translation": "(Emergency) Response cost - total - in local currency",
-    "description": "Label for emergency response cost total in local currency File: app/frontend/events/disastereventform.tsx:309"
+    "description": "Label for emergency response cost total in local currency File: app/frontend/events/disastereventform.tsx:310"
   },
   {
     "id": "disaster_event.response_cost_total_usd",
     "translation": "(Emergency) Response cost - total - in USD",
-    "description": "Label for emergency response cost total in USD File: app/frontend/events/disastereventform.tsx:319"
+    "description": "Label for emergency response cost total in USD File: app/frontend/events/disastereventform.tsx:320"
   },
   {
     "id": "disaster_event.response_operations_costs_local_currency",
     "translation": "Response operations costs (total expenditure, in local currency)",
-    "description": "File: app/frontend/events/disastereventform.tsx:300"
+    "description": "File: app/frontend/events/disastereventform.tsx:301"
   },
   {
     "id": "disaster_event.response_operations_description",
     "translation": "(Emergency) Response operations (description)",
-    "description": "Label for response operations description field File: app/frontend/events/disastereventform.tsx:290"
+    "description": "Label for response operations description field File: app/frontend/events/disastereventform.tsx:291"
   },
   {
     "id": "disaster_event.review.assessment",
     "translation": "Assessment",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1803"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1793"
   },
   {
     "id": "disaster_event.review.assessments",
     "translation": "Assessments",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1780"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1770"
   },
   {
     "id": "disaster_event.review.basic_information",
     "translation": "Basic information",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3777"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3775"
   },
   {
     "id": "disaster_event.review.coverage",
     "translation": "Coverage",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3162"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3160"
   },
   {
     "id": "disaster_event.review.date_at_time",
     "translation": "{date} at {time}",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2507"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:2497"
   },
   {
     "id": "disaster_event.review.declaration",
     "translation": "Declaration",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1440"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1423"
   },
   {
     "id": "disaster_event.review.disaster_declaration_effects",
     "translation": "Disaster declaration effects",
-    "description": "File: app/frontend/events/disastereventform.tsx:1511"
+    "description": "File: app/frontend/disaster-event/detailTypeTranslation.ts:73"
   },
   {
     "id": "disaster_event.review.hazard_details",
@@ -3902,17 +3912,17 @@
   {
     "id": "disaster_event.review.issuing_organization",
     "translation": "Issuing organization",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5034"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5044"
   },
   {
     "id": "disaster_event.review.linked_disaster_records",
     "translation": "Linked disaster records",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4621"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4623"
   },
   {
     "id": "disaster_event.review.linked_events",
     "translation": "Linked events",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4359"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4361"
   },
   {
     "id": "disaster_event.review.links",
@@ -3932,7 +3942,7 @@
   {
     "id": "disaster_event.review.no_assessments",
     "translation": "No assessments recorded yet",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4828"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4838"
   },
   {
     "id": "disaster_event.review.no_attachments_selected",
@@ -3942,7 +3952,7 @@
   {
     "id": "disaster_event.review.no_declarations",
     "translation": "No declarations recorded yet",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4879"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4889"
   },
   {
     "id": "disaster_event.review.no_geographic_levels",
@@ -3962,7 +3972,7 @@
   {
     "id": "disaster_event.review.no_linked_records",
     "translation": "No linked records",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4666"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4668"
   },
   {
     "id": "disaster_event.review.no_links_selected",
@@ -3977,7 +3987,7 @@
   {
     "id": "disaster_event.review.no_responses",
     "translation": "No responses recorded yet",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4777"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4787"
   },
   {
     "id": "disaster_event.review.no_spatial_data",
@@ -3987,72 +3997,72 @@
   {
     "id": "disaster_event.review.no_triggered_disaster_events",
     "translation": "No linked triggered (subsequent) disaster events",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4609"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4611"
   },
   {
     "id": "disaster_event.review.no_triggered_hazardous_events",
     "translation": "No linked triggered (subsequent) hazardous events",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4492"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4494"
   },
   {
     "id": "disaster_event.review.no_triggering_disaster_events",
     "translation": "No linked triggering (causal) disaster events",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4559"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4561"
   },
   {
     "id": "disaster_event.review.no_triggering_hazardous_events",
     "translation": "No linked triggering (causal) hazardous events",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4442"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4444"
   },
   {
     "id": "disaster_event.review.official_declarations",
     "translation": "Official declarations",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1785"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1775"
   },
   {
     "id": "disaster_event.review.other_sectors",
     "translation": "Other sectors",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5160"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5170"
   },
   {
     "id": "disaster_event.review.response_operation",
     "translation": "Response operation",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1798"
+    "description": "File: app/frontend/disaster-event/detailTypeTranslation.ts:48"
   },
   {
     "id": "disaster_event.review.responses",
     "translation": "Responses",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1775"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1765"
   },
   {
     "id": "disaster_event.review.review_and_save",
     "translation": "Review and save",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5335"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5353"
   },
   {
     "id": "disaster_event.review.spatial_footprint_index",
     "translation": "Spatial footprint {index}",
-    "description": "File: app/frontend/events/disastereventform.tsx:1137"
+    "description": "File: app/frontend/events/disastereventform.tsx:1138"
   },
   {
     "id": "disaster_event.review.triggered_disaster_events",
     "translation": "Triggered (subsequent) disaster events",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4569"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4571"
   },
   {
     "id": "disaster_event.review.triggered_hazardous_events",
     "translation": "Triggered (subsequent) hazardous events",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4452"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4454"
   },
   {
     "id": "disaster_event.review.triggering_disaster_events",
     "translation": "Triggering (causal) disaster events",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4519"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4521"
   },
   {
     "id": "disaster_event.review.triggering_hazardous_events",
     "translation": "Triggering (causal) hazardous events",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4402"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4404"
   },
   {
     "id": "disaster_event.review.verify_before_saving",
@@ -4087,22 +4097,22 @@
   {
     "id": "disaster_event.start_date_local",
     "translation": "Start date in local format",
-    "description": "File: app/frontend/events/disastereventform.tsx:176"
+    "description": "File: app/frontend/events/disastereventform.tsx:177"
   },
   {
     "id": "disaster_event.uuid",
     "translation": "Disaster event UUID",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3912"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3910"
   },
   {
     "id": "disaster_events",
     "translation": "Disaster events",
-    "description": "File: app/frontend/events/disastereventform.tsx:865"
+    "description": "File: app/frontend/events/disastereventform.tsx:866"
   },
   {
     "id": "disaster_events.back_to_list",
     "translation": "Back to Disaster events",
-    "description": "File: app/frontend/events/disastereventform.tsx:1563"
+    "description": "File: app/frontend/events/disastereventform.tsx:1520"
   },
   {
     "id": "disaster_events.showing_filtered_of_total",
@@ -4897,12 +4907,12 @@
   {
     "id": "end_time",
     "translation": "End time",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:962"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:945"
   },
   {
     "id": "enter_hazard_name_or_hips_code",
     "translation": "Enter hazard name or HIPS code",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4101"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4099"
   },
   {
     "id": "event.add_new",
@@ -4952,7 +4962,7 @@
   {
     "id": "failed",
     "translation": "Failed",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3452"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3450"
   },
   {
     "id": "footer.privacy_policy",
@@ -6662,7 +6672,12 @@
   {
     "id": "session.expired_message",
     "translation": "Your session has expired due to inactivity. Please sign in again to continue.",
-    "description": "File: app/components/InactivityWarning.tsx:98"
+    "description": "File: app/components/InactivityWarning.tsx:106"
+  },
+  {
+    "id": "session.expired_title",
+    "translation": "Session expired",
+    "description": "File: app/components/InactivityWarning.tsx:91"
   },
   {
     "id": "session.expiry_warning_minutes",
@@ -6670,7 +6685,22 @@
       "one": "For your security, your session will expire in {n} minute due to inactivity.",
       "other": "For your security, your session will expire in {n} minutes due to inactivity."
     },
-    "description": "File: app/components/InactivityWarning.tsx:102"
+    "description": "File: app/components/InactivityWarning.tsx:110"
+  },
+  {
+    "id": "session.expiry_warning_title",
+    "translation": "Session expiration warning",
+    "description": "File: app/components/InactivityWarning.tsx:95"
+  },
+  {
+    "id": "session.go_to_sign_in",
+    "translation": "Go to Sign in",
+    "description": "File: app/components/InactivityWarning.tsx:139"
+  },
+  {
+    "id": "session.refresh",
+    "translation": "Refresh session",
+    "description": "File: app/components/InactivityWarning.tsx:127"
   },
   {
     "id": "settings.access_mgmnt.account_activated",
@@ -6880,12 +6910,12 @@
   {
     "id": "start_time",
     "translation": "Start time",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:961"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:944"
   },
   {
     "id": "time_placeholder_24h",
     "translation": "Time (24h, e.g. 14:30)",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:963"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:946"
   },
   {
     "id": "unit.acres",
@@ -7810,12 +7840,12 @@
   {
     "id": "uuid_copied_to_clipboard",
     "translation": "UUID {shortUuid}… copied to clipboard",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3445"
+    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3443"
   },
   {
     "id": "validationflow.savesubmitmodal.decide_action",
     "translation": "Decide what you'd like to do with this data that you've added or updated.",
-    "description": "File: app/frontend/components/approval-workflow/SaveSubmitDialog.tsx:262"
+    "description": "File: app/frontend/components/approval-workflow/SaveSubmitDialog.tsx:272"
   },
   {
     "id": "your_account_has_been_set_up_successfully.",

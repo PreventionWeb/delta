@@ -38,6 +38,7 @@ import {
 } from "~/frontend/components/approval-workflow/SaveSubmitDialog";
 import { ViewComponentMainDataCollection } from "../components/data-collection/View";
 import DisasterEventReviewStep from "~/frontend/disaster-event/DisasterEventReviewStep";
+import { resolveDetailTypeLabel } from "~/frontend/disaster-event/detailTypeTranslation";
 
 export const route = "/disaster-event";
 
@@ -1475,52 +1476,8 @@ export function DisasterEventView(props: DisasterEventViewProps) {
 
 	const declarations = normalizedDeclarations;
 
-	const getDetailTypeLabel = (value: string) => {
-		switch (value) {
-			case "early_action":
-				return ctx.t({
-					code: "disaster_event.early_action",
-					msg: "Early action",
-				});
-			case "response_operation":
-				return ctx.t({
-					code: "disaster_event.review.response_operation",
-					msg: "Response operation",
-				});
-			case "rapid_preliminary_assessment":
-				return ctx.t({
-					code: "disaster_event.rapid_preliminary_assessment",
-					msg: "Rapid/Preliminary assessment",
-				});
-			case "post_disaster_assessment":
-				return ctx.t({
-					code: "disaster_event.post_disaster_assessment",
-					msg: "Post-disaster assessment",
-				});
-			case "other_assessment":
-				return ctx.t({
-					code: "disaster_event.other_assessment",
-					msg: "Other assessment",
-				});
-			case "disaster_declaration":
-				return ctx.t({
-					code: "disaster_event.disaster_declaration",
-					msg: "Disaster declaration",
-				});
-			case "disaster_declaration_effects":
-				return ctx.t({
-					code: "disaster_event.review.disaster_declaration_effects",
-					msg: "Disaster declaration effects",
-				});
-			case "official_warning":
-				return ctx.t({
-					code: "common.official_warning",
-					msg: "Official Warning",
-				});
-			default:
-				return value;
-		}
-	};
+	const getDetailTypeLabel = (value: string) =>
+		resolveDetailTypeLabel(ctx, value, value);
 
 	const getDetailDescriptionValue = (detail: any): string => {
 		if (detail?.type === "disaster_declaration") {

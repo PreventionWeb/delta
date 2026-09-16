@@ -22,10 +22,14 @@ export const loader = authLoaderWithPerm("EditData", async ({ request, params })
 		throw new Response("Unauthorized", { status: 401 });
 	}
 
+	const rawItemId = String(params.id ?? "").trim();
+	const currentDisasterEventId =
+		rawItemId && rawItemId !== "new" ? rawItemId : undefined;
 	const lang = typeof params.lang === "string" && params.lang ? params.lang : "en";
 	const disasterRecordOptions = await queryLinkedDisasterRecordOptions(
 		countryAccountsId,
 		lang,
+		currentDisasterEventId,
 	);
 
 	return {
@@ -39,12 +43,16 @@ export const action = authActionWithPerm("EditData", async ({ request, params })
 		throw new Response("Unauthorized", { status: 401 });
 	}
 
+	const rawItemId = String(params.id ?? "").trim();
+	const currentDisasterEventId =
+		rawItemId && rawItemId !== "new" ? rawItemId : undefined;
 	const formData = await request.formData();
 	const keyword = String(formData.get("keyword") ?? "").trim();
 	const lang = typeof params.lang === "string" && params.lang ? params.lang : "en";
 	const disasterRecordOptions = await queryLinkedDisasterRecordOptions(
 		countryAccountsId,
 		lang,
+		currentDisasterEventId,
 		keyword,
 	);
 

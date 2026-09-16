@@ -59,7 +59,7 @@ export async function getLinkedDisasterData(
 	] = await Promise.all([
 		queryLinkedDisasterEventOptions(countryAccountsId, itemId, lang),
 		EventCausalityRepository.getLinkedDisasterEventIds(itemId),
-		queryLinkedDisasterRecordOptions(countryAccountsId, lang),
+		queryLinkedDisasterRecordOptions(countryAccountsId, lang, itemId),
 		DisasterRecordsRepository.getIdsByDisasterEventIdAndCountryAccountsId(
 			itemId,
 			countryAccountsId,

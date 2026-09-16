@@ -27,6 +27,10 @@ import { Toast } from "primereact/toast";
 import { TreeSelect } from "primereact/treeselect";
 import { ViewContext } from "~/frontend/context";
 import { copyTextToClipboardWithToast } from "~/frontend/utils/clipboard";
+import {
+	normalizeDetailTypeValue,
+	resolveDetailTypeLabel,
+} from "~/frontend/disaster-event/detailTypeTranslation";
 import DisasterEventAttachment from "~/frontend/disaster-event/DisasterEventAttachment";
 import DisasterEventLink, {
 	type DisasterEventLinkItem,
@@ -283,27 +287,6 @@ export function buildTreeSelectSelectionKeys(
 	}
 
 	return selectionKeys;
-}
-
-const legacyDetailTypeToKey: Record<string, string> = {
-	"Early action": "early_action",
-	"Response operation": "response_operation",
-	Coordination: "coordination",
-	Evacuation: "evacuation",
-	Assessment: "assessment",
-	"Rapid assessment": "rapid_assessment",
-	"Needs assessment": "needs_assessment",
-	"Sector assessment": "sector_assessment",
-	"Rapid/Preliminary assessment": "rapid_preliminary_assessment",
-	"Post-disaster assessment": "post_disaster_assessment",
-	"Other assessment": "other_assessment",
-	"Disaster declaration": "disaster_declaration",
-	"Disaster declaration effects": "disaster_declaration_effects",
-	"Official Warning": "official_warning",
-};
-
-function normalizeDetailTypeValue(value: string): string {
-	return legacyDetailTypeToKey[value] ?? value;
 }
 
 function extensionFromName(fileName: string): string {
@@ -1495,11 +1478,18 @@ function StepperValidation({
 	);
 	const responseTypeOptions = useMemo(
 		() =>
-			responseTypes.map((responseType) => ({
-				value: normalizeDetailTypeValue(responseType.type),
-				label: responseType.type,
-			})),
-		[responseTypes],
+			responseTypes.map((responseType) => {
+				const normalizedType = normalizeDetailTypeValue(responseType.type);
+				return {
+					value: normalizedType,
+					label: resolveDetailTypeLabel(
+						ctx,
+						normalizedType,
+						responseType.type,
+					),
+				};
+			}),
+		[ctx, responseTypes],
 	);
 	const assessmentCountByType = useMemo(() => {
 		return assessments.reduce<Record<string, number>>((counts, item) => {
@@ -2362,7 +2352,7 @@ function StepperValidation({
 				option.label,
 			]),
 		);
-	}, [responseTypeOptions]);
+	}, [assessmentTypeOptions, responseTypeOptions]);
 	const availableAssessmentTypeOptions = useMemo(
 		() =>
 			assessmentTypeOptions.filter(
@@ -2533,7 +2523,11 @@ function StepperValidation({
 		sortedHipHazards.find((item) => item.id === selectedHipHazardId)?.name ||
 		"";
 	const getDetailTypeLabel = (value: string) =>
-		detailTypeLabelByValue.get(normalizeDetailTypeValue(value)) ?? value;
+		resolveDetailTypeLabel(
+			ctx,
+			normalizeDetailTypeValue(value),
+			detailTypeLabelByValue.get(normalizeDetailTypeValue(value)) ?? value,
+		);
 
 	const openAddDetail = (category: AdditionalDetailCategory) => {
 		if (category === "response" && !canAddAnyResponse) {
@@ -2942,8 +2936,12 @@ function StepperValidation({
 					? "bg-violet-100 text-violet-700"
 					: "bg-amber-100 text-amber-700";
 		const typeLabel =
-			detailTypeLabelByValue.get(normalizeDetailTypeValue(item.type)) ??
-			item.type;
+			resolveDetailTypeLabel(
+				ctx,
+				normalizeDetailTypeValue(item.type),
+				detailTypeLabelByValue.get(normalizeDetailTypeValue(item.type)) ??
+					item.type,
+			);
 		const descriptionValue = getDetailDescriptionValue(item);
 		const assessmentSectorNames =
 			category === "assessment"

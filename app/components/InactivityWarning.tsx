@@ -87,7 +87,15 @@ export default function InactivityWarning(props: InactivityWarningProps) {
                             className={`pi ${isExpired ? "pi-times-circle text-red-600" : "pi-exclamation-triangle text-amber-600"}`}
                         />
                         <span className="font-semibold text-base text-gray-900">
-                            {isExpired ? "Session expired" : "Session expiration warning"}
+                            {isExpired
+                                ? ctx.t({
+                                    code: "session.expired_title",
+                                    msg: "Session expired",
+                                })
+                                : ctx.t({
+                                    code: "session.expiry_warning_title",
+                                    msg: "Session expiration warning",
+                                })}
                         </span>
                     </div>
                 }
@@ -116,7 +124,10 @@ export default function InactivityWarning(props: InactivityWarningProps) {
                         {!isExpired ? (
                             <Button
                                 type="button"
-                                label="Refresh session"
+                                label={ctx.t({
+                                    code: "session.refresh",
+                                    msg: "Refresh session",
+                                })}
                                 icon="pi pi-refresh"
                                 onClick={handleRefreshSession}
                                 loading={fetcher.state !== "idle"}
@@ -125,7 +136,10 @@ export default function InactivityWarning(props: InactivityWarningProps) {
                         ) : null}
                         <Button
                             type="button"
-                            label="Go to Sign in"
+                            label={ctx.t({
+                                code: "session.go_to_sign_in",
+                                msg: "Go to Sign in",
+                            })}
                             icon="pi pi-arrow-right"
                             onClick={handleGoToLogin}
                             outlined={!isExpired}
