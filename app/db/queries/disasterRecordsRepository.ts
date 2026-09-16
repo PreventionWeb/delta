@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import { dr, Tx } from "~/db.server";
 import { disasterRecordsTable } from "~/drizzle/schema/disasterRecordsTable";
 import { DisasterRecordsDivisionRepository } from "~/db/queries/disasterRecordsDivisionRepository";
@@ -90,6 +90,7 @@ export const DisasterRecordsRepository = {
 	},
 	getLinkableOptionsData: async (
 		countryAccountsId: string,
+		currentDisasterEventId?: string,
 		keyword?: string,
 		tx?: Tx,
 	) => {
@@ -97,11 +98,18 @@ export const DisasterRecordsRepository = {
 		const normalizedKeyword = keyword?.trim();
 		const shouldSearch = Boolean(normalizedKeyword);
 		const searchTerm = normalizedKeyword ? `%${normalizedKeyword}%` : "";
+		const linkableDisasterRecordsClause = currentDisasterEventId
+			? or(
+				isNull(disasterRecordsTable.disasterEventId),
+				eq(disasterRecordsTable.disasterEventId, currentDisasterEventId),
+			)
+			: isNull(disasterRecordsTable.disasterEventId);
 
-		const whereClause = shouldSearch
-			? and(
-				eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
-				or(
+		const whereClause = and(
+			eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
+			linkableDisasterRecordsClause,
+			shouldSearch
+				? or(
 					ilike(disasterRecordsTable.locationDesc, searchTerm),
 					ilike(disasterRecordsTable.startDate, searchTerm),
 					ilike(disasterRecordsTable.endDate, searchTerm),
@@ -142,9 +150,9 @@ export const DisasterRecordsRepository = {
 						and d.country_accounts_id = ${countryAccountsId}
 						and cast(d.name as text) ilike ${searchTerm}
 					)`,
-				),
-			)
-			: eq(disasterRecordsTable.countryAccountsId, countryAccountsId);
+				)
+				: undefined,
+		);
 
 		const disasterRecords = await db.query.disasterRecordsTable.findMany({
 			columns: {

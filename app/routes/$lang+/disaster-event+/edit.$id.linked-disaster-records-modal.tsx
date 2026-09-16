@@ -12,6 +12,7 @@ import { DataView } from "primereact/dataview";
 import { queryLinkedDisasterRecordOptions } from "~/backend.server/services/disaster-event/linkedDisasterRecordOptions";
 import LinkedDisasterRecordCard from "~/frontend/disaster-event/LinkedDisasterRecordCard";
 import type { DisasterEventFormOutletContext } from "~/frontend/disaster-event/DisasterEventForm";
+import { ViewContext } from "~/frontend/context";
 import { authActionWithPerm, authLoaderWithPerm } from "~/utils/auth";
 import { getCountryAccountsIdFromSession } from "~/utils/session";
 
@@ -21,10 +22,14 @@ export const loader = authLoaderWithPerm("EditData", async ({ request, params })
 		throw new Response("Unauthorized", { status: 401 });
 	}
 
+	const rawItemId = String(params.id ?? "").trim();
+	const currentDisasterEventId =
+		rawItemId && rawItemId !== "new" ? rawItemId : undefined;
 	const lang = typeof params.lang === "string" && params.lang ? params.lang : "en";
 	const disasterRecordOptions = await queryLinkedDisasterRecordOptions(
 		countryAccountsId,
 		lang,
+		currentDisasterEventId,
 	);
 
 	return {
@@ -38,12 +43,16 @@ export const action = authActionWithPerm("EditData", async ({ request, params })
 		throw new Response("Unauthorized", { status: 401 });
 	}
 
+	const rawItemId = String(params.id ?? "").trim();
+	const currentDisasterEventId =
+		rawItemId && rawItemId !== "new" ? rawItemId : undefined;
 	const formData = await request.formData();
 	const keyword = String(formData.get("keyword") ?? "").trim();
 	const lang = typeof params.lang === "string" && params.lang ? params.lang : "en";
 	const disasterRecordOptions = await queryLinkedDisasterRecordOptions(
 		countryAccountsId,
 		lang,
+		currentDisasterEventId,
 		keyword,
 	);
 
@@ -63,6 +72,7 @@ export default function LinkedDisasterRecordsModalRoute() {
 	const ld = useLoaderData<typeof loader>();
 	const fetcher = useFetcher<typeof action>();
 	const navigate = useNavigate();
+	const ctx = new ViewContext();
 	const {
 		linkedDisasterRecordTarget,
 		setLinkedDisasterRecordTarget,
@@ -227,13 +237,16 @@ export default function LinkedDisasterRecordsModalRoute() {
 			<div className="max-h-[calc(100vh-2rem)] w-full max-w-6xl overflow-y-auto rounded-xl bg-white p-5 shadow-xl">
 				<div className="mb-4 flex items-center justify-between">
 					<h3 className="text-[18px] font-semibold text-slate-800">
-						Manage linked disaster records
+						{ctx.t({
+							code: "disaster_event.form.manage_linked_disaster_records",
+							msg: "Manage linked disaster records",
+						})}
 					</h3>
 					<Button
 						type="button"
 						icon="pi pi-times"
 						text
-						aria-label="Close"
+						aria-label={ctx.t({ code: "common.close", msg: "Close" })}
 						loading={pendingExitAction === "close"}
 						disabled={Boolean(pendingExitAction)}
 						onClick={handleClose}
@@ -241,7 +254,10 @@ export default function LinkedDisasterRecordsModalRoute() {
 				</div>
 
 				<p className="mb-4 text-[13px] text-slate-500">
-					Search and select disaster records to link this disaster event.
+					{ctx.t({
+						code: "disaster_event.form.linked_records_search_description",
+						msg: "Search and select disaster records to link this disaster event.",
+					})}
 				</p>
 
 				<div className="mb-4 relative">
@@ -249,7 +265,10 @@ export default function LinkedDisasterRecordsModalRoute() {
 					<InputText
 						value={searchTerm}
 						onChange={(event) => setSearchTerm(event.target.value)}
-						placeholder="Search by Hazard classification, date (yyyy-mm-dd), geographic level or UUID..."
+						placeholder={ctx.t({
+							code: "disaster_event.form.linked_records_search_placeholder",
+							msg: "Search by Hazard classification, date (yyyy-mm-dd), geographic level or UUID...",
+						})}
 						className="w-full pr-10"
 					/>
 				</div>
@@ -259,12 +278,21 @@ export default function LinkedDisasterRecordsModalRoute() {
 						<div className="mb-3 flex items-center justify-between gap-2">
 							<h4 className="text-[14px] font-semibold text-slate-800">
 								{searchTerm.trim().length >= 3
-									? "Search results"
-									: "Latest 200 records"}
+									? ctx.t({
+											code: "disaster_event.form.search_results",
+											msg: "Search results",
+										})
+									: ctx.t({
+											code: "disaster_event.form.latest_200_records",
+											msg: "Latest 200 records",
+										})}
 							</h4>
 							<Button
 								type="button"
-								label="Add selected"
+								label={ctx.t({
+									code: "disaster_event.form.add_selected",
+									msg: "Add selected",
+								})}
 								onClick={addSelected}
 								disabled={selectedAvailableIds.length === 0}
 							/>
@@ -273,7 +301,10 @@ export default function LinkedDisasterRecordsModalRoute() {
 							<DataView
 								value={availableRecords}
 								itemTemplate={renderAvailableItem}
-								emptyMessage="No records available"
+								emptyMessage={ctx.t({
+									code: "disaster_event.form.no_records_available",
+									msg: "No records available",
+								})}
 							/>
 						</div>
 					</div>
@@ -281,11 +312,17 @@ export default function LinkedDisasterRecordsModalRoute() {
 					<div className="rounded-xl border border-slate-200 bg-white p-4">
 						<div className="mb-3 flex items-center justify-between gap-2">
 							<h4 className="text-[14px] font-semibold text-slate-800">
-								Selected linked records
+								{ctx.t({
+									code: "disaster_event.form.selected_linked_records",
+									msg: "Selected linked records",
+								})}
 							</h4>
 							<Button
 								type="button"
-								label="Remove selected"
+								label={ctx.t({
+									code: "disaster_event.form.remove_selected",
+									msg: "Remove selected",
+								})}
 								severity="danger"
 								outlined
 								onClick={removeSelected}
@@ -296,7 +333,10 @@ export default function LinkedDisasterRecordsModalRoute() {
 							<DataView
 								value={draftTarget}
 								itemTemplate={renderLinkedItem}
-								emptyMessage="No linked records"
+								emptyMessage={ctx.t({
+									code: "disaster_event.form.no_linked_records",
+									msg: "No linked records",
+								})}
 							/>
 						</div>
 					</div>
@@ -305,7 +345,7 @@ export default function LinkedDisasterRecordsModalRoute() {
 				<div className="mt-4 flex justify-end gap-2">
 					<Button
 						type="button"
-						label="Cancel"
+						label={ctx.t({ code: "common.cancel", msg: "Cancel" })}
 						outlined
 						loading={pendingExitAction === "cancel"}
 						disabled={Boolean(pendingExitAction)}
@@ -313,14 +353,17 @@ export default function LinkedDisasterRecordsModalRoute() {
 					/>
 					<Button
 						type="button"
-						label="Apply"
+						label={ctx.t({ code: "common.apply", msg: "Apply" })}
 						loading={pendingExitAction === "apply"}
 						disabled={Boolean(pendingExitAction)}
 						onClick={handleApply}
 					/>
 					<span className="sr-only" aria-live="polite">
 						{pendingExitAction
-							? "Closing dialog"
+							? ctx.t({
+									code: "disaster_event.form.closing_dialog",
+									msg: "Closing dialog",
+								})
 							: ""}
 					</span>
 				</div>

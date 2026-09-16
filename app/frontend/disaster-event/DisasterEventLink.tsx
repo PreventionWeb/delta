@@ -266,7 +266,10 @@ export default function DisasterEventLink({
 							id="event-link-label"
 							value={linkTitleValue}
 							onChange={(event) => setLinkTitleValue(event.target.value)}
-							placeholder="Optional"
+							placeholder={ctx.t({
+								code: "disaster_event.form.stepper_status.optional",
+								msg: "Optional",
+							})}
 							className="w-full"
 						/>
 					</div>

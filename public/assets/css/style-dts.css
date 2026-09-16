@@ -77,6 +77,17 @@ html[lang="ar"] {
 	left: 3rem;
 }
 
+/* Keep clear icon and label spacing correct for clearable PrimeReact TreeSelect in RTL */
+[dir="rtl"] .p-treeselect.p-treeselect-clearable .p-treeselect-label {
+	padding-right: 0.75rem;
+	padding-left: 1.75rem;
+}
+
+[dir="rtl"] .p-treeselect.p-treeselect-clearable .p-treeselect-clear-icon {
+	right: auto;
+	left: 3rem;
+}
+
 /* Flip showIcon Calendar input/button edges in RTL */
 [dir="rtl"] .p-calendar.p-calendar-w-btn .p-inputtext {
 	border-top-right-radius: 6px;

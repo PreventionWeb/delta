@@ -54,11 +54,13 @@ function formatDisasterRecordOption(
 export async function queryLinkedDisasterRecordOptions(
 	countryAccountsId: string,
 	lang: string,
+	currentDisasterEventId?: string,
 	keyword?: string,
 ) {
 	const { disasterRecords, divisionNamesByDisasterRecordId } =
 		await DisasterRecordsRepository.getLinkableOptionsData(
 			countryAccountsId,
+			currentDisasterEventId,
 			keyword,
 		);
 
