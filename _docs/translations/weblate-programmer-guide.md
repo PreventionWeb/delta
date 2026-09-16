@@ -11,6 +11,7 @@ After English strings have changed or been added in code:
 
   ```
   git checkout weblate
+  git pull
   git merge origin/dev
   git push
   ```
