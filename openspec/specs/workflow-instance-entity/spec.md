@@ -13,10 +13,25 @@ and the publish backfill rule for validator attribution.
 The `WorkflowInstance` domain entity in
 `app/domains/validation-workflow/domain/WorkflowInstance.ts` SHALL only be instantiated
 through a static `WorkflowInstance.create(props)` factory. The constructor MUST be
-inaccessible to callers outside the class. The factory MUST validate that `entityType` is
-one of `'HE'`, `'DE'`, `'DR'` and that `status` is one of `DRAFT`, `SUBMITTED`,
-`REVISION_REQUESTED`, `APPROVED`, `REJECTED`, `PUBLISHED`, and MUST throw
-`ValidationError` (from `app/shared/errors/`) if either is not a member of its enum.
+inaccessible to callers outside the class.
+
+The factory MUST first validate that `entityId` is present: `null`, `undefined`, or a
+string that is empty or contains only whitespace after `.trim()` MUST cause the factory
+to throw `ValidationError` (from `app/shared/errors/`) with a message that references the
+`entityId` field (matching `HazardousEvent.create()`'s convention: literally `entityId
+must not be empty`). This check MUST run before every other validation in `create()` —
+including the `entityType`/`status` enum checks below — so that an `entityId` presence
+failure is always reported as an `entityId` error, never masked by a different field's
+error when multiple fields are simultaneously invalid.
+
+The same check MUST also reject any `entityId` value that is not a string and not
+`null`/`undefined` — e.g. a number, object, or boolean — by throwing `ValidationError`
+from the identical check (design.md Decision 4, round 2). It MUST NOT allow an internal
+`.trim()` call to throw a raw `TypeError` when a non-string value is passed.
+
+The factory MUST validate that `entityType` is one of `'HE'`, `'DE'`, `'DR'` and that
+`status` is one of `DRAFT`, `SUBMITTED`, `REVISION_REQUESTED`, `APPROVED`, `REJECTED`,
+`PUBLISHED`, and MUST throw `ValidationError` if either is not a member of its enum.
 
 The factory MUST also validate that `createdAt` and `updatedAt` are each a valid `Date`
 instance (design.md Decision 9) — not merely `instanceof Date`, but also not representing
@@ -52,6 +67,53 @@ be satisfied. `ValidationError` on any violation.
 - **WHEN** `WorkflowInstance.create(props)` is called
 - **THEN** it MUST return a `WorkflowInstance` instance without throwing
 - **AND** the returned instance's `submittedByUserId`/`submittedAt` MUST equal the input
+
+#### Scenario: Failure — empty-string entityId throws ValidationError
+
+- **GIVEN** a props object where `entityId` is `""`
+- **WHEN** `WorkflowInstance.create(props)` is called
+- **THEN** it MUST throw a `ValidationError`
+- **AND** the error message MUST reference the `entityId` field
+
+#### Scenario: Failure — whitespace-only entityId throws ValidationError
+
+- **GIVEN** a props object where `entityId` is `"   "` (whitespace only)
+- **WHEN** `WorkflowInstance.create(props)` is called
+- **THEN** it MUST throw a `ValidationError`
+- **AND** the error message MUST reference the `entityId` field
+
+#### Scenario: Failure — null or undefined entityId throws ValidationError
+
+- **GIVEN** a props object where `entityId` is `null` or `undefined`
+- **WHEN** `WorkflowInstance.create(props)` is called
+- **THEN** it MUST throw a `ValidationError` in both cases
+- **AND** the error message MUST reference the `entityId` field
+
+#### Scenario: Failure — non-string, non-null entityId throws ValidationError, not TypeError
+
+- **GIVEN** a props object where `entityId` is a number (e.g. `12345`) — a value that is
+  neither `null`/`undefined` nor a string
+- **WHEN** `WorkflowInstance.create(props)` is called
+- **THEN** it MUST throw a `ValidationError`
+- **AND** the error message MUST reference the `entityId` field
+- **AND** it MUST NOT throw an unhandled `TypeError` or any other non-`ValidationError`
+  exception
+
+#### Scenario: Happy path — a real entityId value passes through unchanged
+
+- **GIVEN** a props object where `entityId` is a real UUID string (e.g.
+  `"11111111-1111-1111-1111-111111111111"`)
+- **WHEN** `WorkflowInstance.create(props)` is called
+- **THEN** it MUST NOT throw
+- **AND** the returned instance's `entityId` getter MUST equal the input value exactly
+
+#### Scenario: entityId presence is checked before entityType validity
+
+- **GIVEN** a props object where `entityId` is `""` and `entityType` is `'XX'` (also
+  invalid)
+- **WHEN** `WorkflowInstance.create(props)` is called
+- **THEN** it MUST throw a `ValidationError` whose message references `entityId`, not
+  `entityType`
 
 #### Scenario: Failure — invalid entityType throws ValidationError
 
