@@ -51,6 +51,11 @@ change — not just at archival.
 
 **When in doubt — stop and ask.** Pausing costs seconds; an unrecoverable action costs far more.
 
+**Subagent invocation mistakes — stop, don't compensate.** Always pass an explicit `subagent_type`
+matching the gate you intend — never let it default. If you discover a misfire and can't cancel
+it, don't launch a second, correctly-typed one in parallel as a workaround. Stop and report the
+misfire to your coordinator instead.
+
 ---
 
 ## Your responsibilities
@@ -135,13 +140,18 @@ summary here — the skill is the authoritative source.
   public cross-module function (one-line JSDoc is enough).
 - Skip when: function name and types already describe the contract, or logic is self-evident.
 - Balance rule: if comments outnumber code lines, refactor the code — don't explain harder.
-- Compact rule: before your final report, re-scan every comment across the change's **entire
-  diff so far — not just this round's delta**. Bloat can accrete gradually across several
-  refactor rounds without any single round's check catching it. Compact any comment that says
-  in several lines what fits in one, without losing real information. A multi-line comment is
-  not itself a defect — keep it when the code it documents is genuinely non-trivial (a subtle
-  invariant, an ordering dependency, a workaround whose reasoning doesn't fit on one line).
-  There is no fixed line-count limit to hit; the bar is "no shorter without losing meaning."
+- Compact rule: before your final report, the full-diff comment sweep — every comment across
+  the change's entire diff so far, not just this round's delta — MUST be done by a fresh
+  subagent (`Agent` tool, no prior context), not by re-reading your own comments yourself.
+  Self-review has already missed real bloat twice on this exact check (an author reliably
+  finds their own explanation reasonable); a fresh reviewer doesn't share that bias. Prompt it
+  with the full list of files this change touched and this instruction: compact any comment
+  that restates content already in `design.md`/`specs/`, or says in several lines what fits in
+  one, without losing real information; leave a comment alone when the code it documents is
+  genuinely non-trivial (a subtle invariant, an ordering dependency, a workaround whose
+  reasoning doesn't fit on one line) — there is no fixed line-count limit, the bar is "no
+  shorter without losing meaning." Apply its suggested compactions yourself, then re-run gate 3
+  (Prettier) only — a comment-only edit doesn't affect gates 1/2.
 
 **Project conventions:** See `.github/copilot-instructions.md`. Critical: `countryAccountsId`
 on every tenant query, `authLoaderWithPerm` on every loader, `yarn dbsync` for migrations,
