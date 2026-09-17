@@ -129,6 +129,14 @@ fallback that violates the API contract.
 - [ ] Aggregate boundaries match the design's stated aggregate root — no repository per non-root entity
 - [ ] New files are placed per ADR-009 (context-first: `app/domains/<context>/{domain,application,infrastructure,presentation}`)
 - [ ] The change is checked against every ADR relevant to the area touched, not just the ones already named in `design.md`
+- [ ] Every `NOT NULL`/enum/FK-presence constraint on the entity's real DB table has a matching
+      single-record check in the entity's own `create()`/factory — cross-reference the actual
+      schema file field by field, don't assume from `design.md`'s prose summary. A DB constraint
+      is defense-in-depth, never a substitute for the domain-layer check (this project's own
+      standing invariant — see the HE refactoring roadmap). Cross-record rules (`UNIQUE`, a
+      conflict only visible across rows) are the exception — a lone entity can't query other
+      rows, so those belong at the use-case/repository layer instead; flag them as deferred
+      there, don't treat the DB constraint as already having satisfied them.
 
 ## Cross-Tool Compatibility (`.github/`-mirrored agent/skill files only)
 
