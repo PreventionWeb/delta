@@ -130,6 +130,11 @@ The `sdd-implementer` agent runs the full TDD loop:
    doesn't fit on one line). There is no fixed line-count limit; the bar is "no shorter without
    losing meaning," not "no longer than N lines."
 
+   **This sweep must be done by a fresh subagent, not by `sdd-implementer` re-reading its own
+   comments.** Self-review has already missed real bloat twice — an author reliably finds their
+   own explanation reasonable, the same reason Gate 8/10 use a fresh reviewer instead of
+   self-critique. `sdd-implementer` applies the fresh subagent's suggested compactions itself.
+
 4. **Keep all artifacts in sync** — `proposal.md` and `specs/` are living documents. When a
    design decision changes the scope, files, approach, or scenarios stated in either (different
    routes, different helpers, trimmed scope, parallel-loading constraint discovered), update
