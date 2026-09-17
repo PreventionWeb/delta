@@ -75,7 +75,7 @@ rules:
     - "Quality gate 3 of 10: yarn format:check — Prettier clean (run yarn format to fix)"
     - "Quality gate 4 of 10: Anti-pattern review — check .github/skills/anti-pattern-check/SKILL.md"
     - "Quality gate 5 of 10: SOLID review — invoke solid-reviewer agent"
-    - "Quality gate 6 of 10: Documentation review — comments explain WHY not WHAT, compacted where possible without losing meaning (no fixed line-count limit); one full-diff sweep before the final report, not just each round's delta"
+    - "Quality gate 6 of 10: Documentation review — comments explain WHY not WHAT, compacted where possible without losing meaning (no fixed line-count limit); one full-diff sweep before the final report, not just each round's delta, done by a fresh subagent (not self-review)"
     - "Quality gate 7 of 10: Project conventions review — check .github/copilot-instructions.md"
     - "Quality gate 8 of 10: Code review — run .github/skills/code-review/SKILL.md in full, via a fresh subagent"
     - "Quality gate 9 of 10: Visual/UX parity review — required only if this change touches app/domains/*/presentation/ or app/routes/, else skip and say so explicitly"
