@@ -115,8 +115,17 @@ export class WorkflowInstance {
 		};
 	}
 
-	/** @throws {ValidationError} for an invalid enum, a split attribution pair, or a pair missing/present that the given status requires (design.md Decision 7). */
+	/** @throws {ValidationError} for an empty, whitespace-only, or non-string entityId, an invalid enum, a split attribution pair, or a pair missing/present that the given status requires (design.md Decision 7). */
 	static create(props: WorkflowInstanceProps): WorkflowInstance {
+		// Checked before entityType/status, matching HazardousEvent.create()'s required-field ordering (design.md Decision 1).
+		// typeof guard, not just == null: a non-string entityId has no .trim(), which would otherwise surface as an unhandled TypeError instead of ValidationError (design.md Decision 4, round 2).
+		if (
+			typeof props.entityId !== "string" ||
+			props.entityId.trim().length === 0
+		) {
+			throw new ValidationError("entityId must not be empty");
+		}
+
 		if (!ENTITY_TYPE_VALUES.includes(props.entityType)) {
 			throw new ValidationError(
 				`entityType must be one of ${ENTITY_TYPE_VALUES.join(", ")}`,

@@ -90,6 +90,66 @@ describe("WorkflowInstance.create()", () => {
 		});
 	});
 
+	describe("entityId presence and type (design.md Decision 1/3/4)", () => {
+		it("throws ValidationError when entityId is an empty string", () => {
+			const props = { ...baseProps, entityId: "" };
+
+			expect(() => WorkflowInstance.create(props)).toThrow(ValidationError);
+			expect(() => WorkflowInstance.create(props)).toThrow(
+				"entityId must not be empty",
+			);
+		});
+
+		it("throws ValidationError when entityId is whitespace-only", () => {
+			const props = { ...baseProps, entityId: "   " };
+
+			expect(() => WorkflowInstance.create(props)).toThrow(ValidationError);
+			expect(() => WorkflowInstance.create(props)).toThrow(
+				"entityId must not be empty",
+			);
+		});
+
+		it.each([null, undefined, 12345])(
+			"throws ValidationError when entityId is %s",
+			(entityId) => {
+				const props = {
+					...baseProps,
+					entityId,
+				} as unknown as WorkflowInstanceProps;
+
+				expect(() => WorkflowInstance.create(props)).toThrow(ValidationError);
+				expect(() => WorkflowInstance.create(props)).toThrow(
+					"entityId must not be empty",
+				);
+			},
+		);
+
+		it("does not throw and returns the value unchanged for a real UUID entityId", () => {
+			const props = {
+				...baseProps,
+				entityId: "11111111-1111-1111-1111-111111111111",
+			};
+
+			const instance = WorkflowInstance.create(props);
+
+			expect(instance.entityId).toBe(props.entityId);
+		});
+
+		// Pins the ordering: entityId's error must win over entityType's (design.md Decision 1).
+		it("reports the entityId error, not the entityType error, when both are invalid", () => {
+			const props = {
+				...baseProps,
+				entityId: "",
+				entityType: "XX",
+			} as unknown as WorkflowInstanceProps;
+
+			expect(() => WorkflowInstance.create(props)).toThrow(ValidationError);
+			expect(() => WorkflowInstance.create(props)).toThrow(
+				"entityId must not be empty",
+			);
+		});
+	});
+
 	describe("Failure paths", () => {
 		// `as unknown as WorkflowInstanceProps` below: deliberately bypasses the literal-union
 		// type to construct runtime-invalid input, exercising create()'s own guard.
