@@ -14,13 +14,14 @@ services:
       - SESSION_SECRET=${SESSION_SECRET}
       - EMAIL_TRANSPORT=smtp
       - SMTP_HOST=${SMTP_HOST}
-      - SMTP_PORT=${SMTP_PORT}
-      - SMTP_USER=${SMTP_USER}
-      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-your_smtp_user}
+      - SMTP_PASS=${SMTP_PASS:-your_smtp_password}
       - SMTP_SECURE=${SMTP_SECURE}
       - AUTHENTICATION_SUPPORTED=${AUTHENTICATION_SUPPORTED}
       - PUBLIC_URL=${PUBLIC_URL}
       - EMAIL_FROM=${EMAIL_FROM}
+      - NODE_ENV=production
       - TZ=${TZ:-UTC}
     restart: on-failure
 

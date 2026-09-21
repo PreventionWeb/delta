@@ -13,7 +13,7 @@ Adding a new type requires adding multiple files, but adding or changing a field
 
 This approach is flexible enough for customization of edit forms, views and lists as needed.
 
-There is no built-in library for React Router v7 that does all this, though similar tools exist for other Typescript frameworks.
+There is no built-in library for React Router v8 that does all this, though similar tools exist for other Typescript frameworks.
 
 Use an existing production entity (e.g. `organization`) as a reference implementation to get started.
 
