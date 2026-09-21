@@ -1,6 +1,6 @@
 # Agent Instructions
 
-DELTA Resilience (**D**isaster & Hazardous **E**vents, **L**osses and **D**amages **T**racking & **A**nalysis) is a full-stack TypeScript disaster tracking system built for UNDRR. It supports multi-tenant, multi-language national disaster tracking with geospatial features. Stack: React Router v7 (Remix-style SSR) + Express 5 + Drizzle ORM + PostgreSQL 16/17 + PostGIS.
+DELTA Resilience (**D**isaster & Hazardous **E**vents, **L**osses and **D**amages **T**racking & **A**nalysis) is a full-stack TypeScript disaster tracking system built for UNDRR. It supports multi-tenant, multi-language national disaster tracking with geospatial features. Stack: React Router v8 (Remix-style SSR) + Express 5 + Drizzle ORM + PostgreSQL 17 + PostGIS.
 
 ## Commands
 
