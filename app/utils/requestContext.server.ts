@@ -3,7 +3,7 @@
  *
  * WHY this exists:
  *   `getUserFromSession()` performs a full DB round-trip on every call. In a
- *   React Router v7 app, parallel route loaders can trigger multiple session
+ *   React Router v8 app, parallel route loaders can trigger multiple session
  *   reads within a single request. This module provides an isolated, mutable
  *   store for each request so that repeated lookups within the same request
  *   lifecycle can be short-circuited after the first real DB call.
