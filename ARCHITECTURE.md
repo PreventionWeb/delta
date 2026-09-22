@@ -90,7 +90,7 @@ flowchart TB
     style Deployable fill:#FEF3DC,stroke:#B5680A,stroke-width:2px,color:#0B1929
 ```
 
-The Remix/Express app serves every human-facing route via React Router v7's file-based routing; loaders and actions call use cases directly through the shared NestJS application context — no HTTP hop. The NestJS HTTP API runs on port 4000 as a proper, OpenAPI-documented REST surface, not an internal-only convenience layer — it's built so any external system can integrate with DELTA, and so a future mobile app has a stable API to build against. Every endpoint is guarded by a global error filter that turns every thrown domain error into one consistent response envelope (a success flag, machine-readable code, message, trace ID, timestamp) — never a raw stack trace.
+The Remix/Express app serves every human-facing route via React Router v8's file-based routing; loaders and actions call use cases directly through the shared NestJS application context — no HTTP hop. The NestJS HTTP API runs on port 4000 as a proper, OpenAPI-documented REST surface, not an internal-only convenience layer — it's built so any external system can integrate with DELTA, and so a future mobile app has a stable API to build against. Every endpoint is guarded by a global error filter that turns every thrown domain error into one consistent response envelope (a success flag, machine-readable code, message, trace ID, timestamp) — never a raw stack trace.
 
 ## Codemap: the four layers
 

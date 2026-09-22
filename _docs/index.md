@@ -2,7 +2,7 @@ New to the project? Start with [Code structure](code-structure/code-structure.md
 
 # Developer documentation
 
-DELTA Resilience (**D**isaster & Hazardous **E**vents, **L**osses and Damages **T**racking & **A**nalysis) is a full-stack TypeScript application built on React Router v7, Vite, and PostgreSQL/PostGIS. See the [README](../readme.md) for quick start and the [CONTRIBUTING guide](../CONTRIBUTING.md) for branch/PR conventions.
+DELTA Resilience (**D**isaster & Hazardous **E**vents, **L**osses and Damages **T**racking & **A**nalysis) is a full-stack TypeScript application built on React Router v8, Vite, and PostgreSQL/PostGIS. See the [README](../readme.md) for quick start and the [CONTRIBUTING guide](../CONTRIBUTING.md) for branch/PR conventions.
 
 ## Development workflows
 

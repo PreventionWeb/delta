@@ -4,7 +4,7 @@
 
 `app/routes`
 
-Follows React Router v7 flat-routes conventions.
+Follows React Router v8 flat-routes conventions.
 
 https://reactrouter.com/
 

@@ -25,7 +25,7 @@ Visit the [project website for more details](https://www.undrr.org/building-risk
 
 - TypeScript
 - Node.js (v24.18.0 recommended)
-- React Router v7 (React)
+- React Router v8 (React)
 - Vite
 - Tailwind CSS v4
 - PrimeReact (UI components)
@@ -40,7 +40,7 @@ Below is a view of the repository layout and the purpose of key folders/files to
 
 ```
 ├── _docs/                     # Developer docs and design docs
-├── app/                       # React Router v7 app source
+├── app/                       # React Router v8 app source
 │   ├── backend.server/        # Server-side API handlers and models
 │   ├── components/            # Shared UI components (charts, maps, tables, etc.)
 │   ├── frontend/              # Shared frontend views and form components
@@ -94,7 +94,7 @@ Open http://localhost:3000. Use `docker-compose logs -f app` to tail logs.
 
 Prerequisites:
 
-- Node.js (v24.18.0 recommended)
+- Node.js (v24.xx recommended)
 - Yarn (or use npm)
 - PostgreSQL 17 with PostGIS
 

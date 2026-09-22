@@ -4,8 +4,8 @@ context: |
   Project: DELTA Resilience — Disaster & Hazardous Events, Losses and Damages Tracking & Analysis.
   Built for UNDRR. Multi-tenant, multi-language national disaster tracking with geospatial features.
 
-  Tech stack: TypeScript (strict mode), React Router v7 (Remix-style SSR), Express 5,
-  Drizzle ORM, PostgreSQL 16/17 + PostGIS. Package manager: yarn.
+  Tech stack: TypeScript (strict mode), React Router v8 (Remix-style SSR), Express 5,
+  Drizzle ORM, PostgreSQL 17 + PostGIS. Package manager: yarn.
 
   Architecture layers:
   - app/routes/$lang+/        — React Router route modules (file-based, language-prefixed URLs)

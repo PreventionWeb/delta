@@ -11,7 +11,7 @@ This guide provides technical implementation details for the Sectors Analysis Da
 - **Multi-Tenant Architecture**: Single deployment serves multiple country accounts
 - **Tenant Isolation**: All data queries include `countryAccountsId` for data separation
 - **Session-Based Authentication**: Country account context retrieved from user session
-- **Centralized Data Loading**: React Router v7 loader handles all data fetching with tenant context
+- **Centralized Data Loading**: React Router v8 loader handles all data fetching with tenant context
 
 ## Technical Requirements
 
@@ -248,7 +248,7 @@ graph TD
     C -->|No| D[Redirect to Unauthorized]
     C -->|Yes| E[Extract countryAccountsId]
 
-    E --> F[React Router v7 Loader]
+    E --> F[React Router v8 Loader]
     F --> G[Multiple Handler Calls]
 
     G --> H[getImpactOnSector]

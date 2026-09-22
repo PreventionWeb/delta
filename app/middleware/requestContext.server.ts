@@ -1,5 +1,5 @@
 /**
- * Root-level React Router v7 middleware that opens exactly one `withRequestContext` scope per HTTP request
+ * Root-level React Router v8 middleware that opens exactly one `withRequestContext` scope per HTTP request
  * Registered from `app/root.tsx`'s `middleware` export so it runs for every request
  */
 
