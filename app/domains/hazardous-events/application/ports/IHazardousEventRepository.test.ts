@@ -32,12 +32,20 @@ const baseHazardousEventProps: HazardousEventProps = {
 	submittedAt: null,
 	createdAt: new Date("2026-01-01T00:00:00Z"),
 	updatedAt: null,
+	hazardDriverIds: [],
+	attachments: [],
+	fieldValues: [],
+	customFieldValues: [],
 };
 
 function makeHazardousEvent(
 	overrides: Partial<HazardousEventProps> = {},
 ): HazardousEvent {
-	return HazardousEvent.create({ ...baseHazardousEventProps, ...overrides });
+	return HazardousEvent.create(
+		{ ...baseHazardousEventProps, ...overrides },
+		new Set(),
+		new Set(),
+	);
 }
 
 function makeSpatialObservation(
