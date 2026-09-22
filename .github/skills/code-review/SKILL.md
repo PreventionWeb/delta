@@ -146,7 +146,15 @@ fallback that violates the API contract.
 
 ## Code Simplification
 
-- [ ] No duplicate logic that could be extracted into a shared helper
+- [ ] No duplicate logic that could be extracted into a shared helper — applies to test files
+      exactly as much as production code. A signature change that forces the same bare literal
+      argument(s) into many call sites (e.g. a bulk mechanical update) is a duplication smell even
+      though each individual call site reads fine in isolation; the badness only shows up in
+      aggregate, so check for repetition count, not just per-line correctness
+- [ ] If another file touched by this same change already solved an equivalent problem (a fixture
+      builder, a helper wrapping a constructor call, an error-shape convention), the new file
+      follows the same pattern — flag it if it doesn't, rather than letting two files in one
+      change diverge on how they solve the same shaped problem
 - [ ] No unnecessary intermediate variables that add noise without adding clarity
 - [ ] Functions do one thing — if a function has two distinct phases, consider splitting
 - [ ] No dead code introduced (unreachable branches, unused parameters or variables)
