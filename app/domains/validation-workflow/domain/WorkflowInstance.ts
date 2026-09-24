@@ -1,10 +1,10 @@
 import { ConflictError, ValidationError } from "~/shared/errors";
 
-/** Canonical definition — infrastructure (workflowInstanceTable.ts, workflowHistoryTable.ts) imports this; the dependency runs one way only (design.md Decision 9 round 6). */
+/** Canonical definition — infrastructure (workflowInstanceTable.ts, workflowHistoryTable.ts) imports this; the dependency runs one way only (design.md Decision 9). */
 export const ENTITY_TYPE_VALUES = ["HE", "DE", "DR"] as const;
 export type EntityType = (typeof ENTITY_TYPE_VALUES)[number];
 
-/** Canonical definition — infrastructure imports this; the dependency runs one way only (design.md Decision 9 round 6). */
+/** Same rationale as ENTITY_TYPE_VALUES above. */
 export const STATUS_VALUES = [
 	"DRAFT",
 	"SUBMITTED",
@@ -83,7 +83,11 @@ const REQUIRED_NULL: Record<Status, readonly PairName[]> = {
 	PUBLISHED: [],
 };
 
-/** True when `value` isn't a real Date instant: `instanceof` catches a non-Date value (e.g. a bad DB row), NaN-time catches a syntactically-real-but-invalid Date (e.g. `new Date("garbage")`). Shared by create()'s createdAt/updatedAt/attribution checks and transition()'s now check (design.md Decision 9/round 4). Takes `unknown`, not `Date`, so the `instanceof` disjunct can't later be "simplified away" as unreachable — every call site's static type already claims `Date`, which is exactly the claim this guard exists to distrust (round 4 Gate 10 finding). */
+/** True when `value` isn't a real Date instant: `instanceof` catches a non-Date value (e.g. a
+ * bad DB row), NaN-time catches a syntactically-real-but-invalid Date (e.g.
+ * `new Date("garbage")`). Takes `unknown`, not `Date`, so the `instanceof` disjunct can't later
+ * be "simplified away" as unreachable — every call site's static type already claims `Date`,
+ * which is exactly the claim this guard exists to distrust (design.md Decision 9). */
 function isInvalidDate(value: unknown): boolean {
 	return !(value instanceof Date) || Number.isNaN(value.getTime());
 }
@@ -102,7 +106,10 @@ function cloneRequiredDate(date: Date): Date {
 export class WorkflowInstance {
 	private readonly props: WorkflowInstanceProps;
 
-	/** Clones every incoming Date field so a caller mutating a Date after passing it in (or reusing a shared `now` across calls) can't corrupt already-constructed state. Assumes every Date-typed field — createdAt/updatedAt, the four attribution *At fields, and (via transition()) now — is already valid; enforced by create()/transition(), not re-checked here (design.md Decision 2, round 4 note). */
+	/** Clones every incoming Date field so a caller mutating a Date after passing it in (or reusing
+	 * a shared `now` across calls) can't corrupt already-constructed state. Assumes every
+	 * Date-typed field is already valid — enforced by create()/transition(), not re-checked here
+	 * (design.md Decision 2). */
 	private constructor(props: WorkflowInstanceProps) {
 		this.props = {
 			...props,
@@ -118,7 +125,7 @@ export class WorkflowInstance {
 	/** @throws {ValidationError} for an empty, whitespace-only, or non-string entityId, an invalid enum, a split attribution pair, or a pair missing/present that the given status requires (design.md Decision 7). */
 	static create(props: WorkflowInstanceProps): WorkflowInstance {
 		// Checked before entityType/status, matching HazardousEvent.create()'s required-field ordering (design.md Decision 1).
-		// typeof guard, not just == null: a non-string entityId has no .trim(), which would otherwise surface as an unhandled TypeError instead of ValidationError (design.md Decision 4, round 2).
+		// typeof guard, not just == null: a non-string entityId has no .trim(), which would otherwise surface as an unhandled TypeError instead of ValidationError (design.md Decision 4).
 		if (
 			typeof props.entityId !== "string" ||
 			props.entityId.trim().length === 0
@@ -146,7 +153,7 @@ export class WorkflowInstance {
 			throw new ValidationError("updatedAt must be a valid Date");
 		}
 
-		// Attribution *At fields are nullable — only check validity when set (design.md Decision 9 expanded scope, round 4).
+		// Attribution *At fields are nullable — only check validity when set (design.md Decision 9 expanded scope).
 		// Kept as its own loop, before pair-consistency, so an invalid Date is always reported as a Date error, not a pair-split error.
 		for (const name of PAIR_NAMES) {
 			const [, at] = pairFields(props, name);
@@ -186,7 +193,9 @@ export class WorkflowInstance {
 		return new WorkflowInstance(props);
 	}
 
-	/** Skips create()'s enum/cross-field checks by design (already validated, immutable post-construction), but does validate the caller-supplied `now` — ValidationError there outranks a ConflictError from the allowedFrom guard (design.md Decision 5). */
+	/** Skips create()'s enum/cross-field checks by design (already validated, immutable
+	 * post-construction), but does validate the caller-supplied `now` — ValidationError there
+	 * outranks a ConflictError from the allowedFrom guard (design.md Decision 5). */
 	private transition(
 		allowedFrom: readonly Status[],
 		attemptedTransition:
@@ -217,7 +226,9 @@ export class WorkflowInstance {
 		return new WorkflowInstance({ ...this.props, ...patch });
 	}
 
-	/** @throws {ConflictError} unless current status is DRAFT or REVISION_REQUESTED. Clears any stale validator attribution from a prior revision cycle — matches today's live hazardousEventUpdateApprovalStatusNeedRevision behavior. */
+	/** @throws {ConflictError} unless current status is DRAFT or REVISION_REQUESTED. Clears any
+	 * stale validator attribution from a prior revision cycle — matches today's live
+	 * hazardousEventUpdateApprovalStatusNeedRevision behavior. */
 	submit({ userId, now }: TransitionParams): WorkflowInstance {
 		return this.transition(["DRAFT", "REVISION_REQUESTED"], "submit", now, {
 			status: "SUBMITTED",
