@@ -351,7 +351,7 @@ describe("WorkflowInstance.create()", () => {
 		});
 	});
 
-	describe("Attribution timestamp validity (design.md Decision 9, round 4)", () => {
+	describe("Attribution timestamp validity (design.md Decision 9)", () => {
 		it.each(["submitted", "validated", "approved", "published"] as const)(
 			"throws ValidationError referencing %sAt when it is an invalid Date",
 			(pair) => {
@@ -368,8 +368,8 @@ describe("WorkflowInstance.create()", () => {
 			},
 		);
 
-		// Exercises the `instanceof Date` disjunct itself (round 3 Gate 10's finding for
-		// createdAt/updatedAt applies equally to the four attribution fields).
+		// Exercises the `instanceof Date` disjunct itself — the same check createdAt/updatedAt
+		// use applies equally to the four attribution fields.
 		it.each(["submitted", "validated", "approved", "published"] as const)(
 			"throws ValidationError when %sAt is not a Date instance at all",
 			(pair) => {
@@ -383,8 +383,8 @@ describe("WorkflowInstance.create()", () => {
 			},
 		);
 
-		// Gate 8 (round 4) finding: the two PAIR_NAMES loops in create() only differ in
-		// observable behavior when byUserId is null and At is a non-null invalid Date — the
+		// The two PAIR_NAMES loops in create() only differ in observable behavior when
+		// byUserId is null and At is a non-null invalid Date — the
 		// only input shape where the Date-validity loop and the pair-consistency loop would
 		// disagree on which error to throw. Pins that the Date-validity loop (which runs
 		// first) wins, per design.md Decision 9's ordering claim.
@@ -709,7 +709,7 @@ describe("WorkflowInstance.submit()", () => {
 	);
 });
 
-describe("WorkflowInstance transition now validity (design.md Decision 5 addendum, round 4)", () => {
+describe("WorkflowInstance transition now validity (design.md Decision 5 addendum)", () => {
 	it("throws ValidationError when now is an invalid Date", () => {
 		const instance = WorkflowInstance.create(baseProps);
 
@@ -726,7 +726,7 @@ describe("WorkflowInstance transition now validity (design.md Decision 5 addendu
 		).toThrow("now must be a valid Date");
 	});
 
-	// Exercises the `instanceof Date` disjunct for `now` specifically (round 4 Gate 10 finding — only the NaN-time disjunct had been covered).
+	// Exercises the `instanceof Date` disjunct for `now` specifically — the NaN-time disjunct alone doesn't cover this.
 	it("throws ValidationError when now is not a Date instance at all", () => {
 		const instance = WorkflowInstance.create(baseProps);
 
