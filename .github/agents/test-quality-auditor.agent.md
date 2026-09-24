@@ -3,8 +3,9 @@ name: test-quality-auditor
 description:
   "Runs mutation testing (Stryker) against a change's own touched source files and
   reports which existing tests are actually meaningful vs. which pass regardless of the
-  implementation. Trigger when: sdd-implementer's Refactor loop touches app/domains/*/domain/
-  files, or a developer asks to check test quality / mutation coverage for a specific change.
+  implementation. Trigger when: sdd-implementer's Refactor loop touches any app/domains/**
+  file with real implementation logic (domain/, use-cases/, infrastructure adapters, DTO
+  mappers), or a developer asks to check test quality / mutation coverage for a specific change.
   Structured-analysis-only — does not write or fix tests."
 ---
 
@@ -65,10 +66,16 @@ N real gaps found across M files. Mutation score: NN%.
 
 ## When this runs
 
-- **Mandatory** for any change touching `app/domains/*/domain/*.ts` — pure logic, no DB, mutation
-  runs are fast, and this is where business-rule correctness matters most.
-- **Optional / spot-check** for `application/` or `infrastructure/` changes backed by PGlite —
-  mutation runs are slower there; invoke on request rather than automatically.
+- **Mandatory by default** for any changed file under `app/domains/**` that contains real
+  implementation logic — domain entities/services, use cases, infrastructure adapters, DTO
+  mappers with real conversion logic. Applies uniformly, not just to files that look complex; a
+  simple-looking pass-through can still hide a real gap.
+- **Not applicable** to a type-only interface/port declaration or a trivial re-export — Stryker
+  has no mutable logic to generate a mutant from there, so running it is a no-op. When unsure
+  whether a file qualifies, run it anyway: a file with no mutable logic just reports zero
+  mutants at little cost.
+- Runs against `infrastructure/` adapters backed by PGlite take longer than pure-logic files —
+  this is a cost note, not a reason to skip; still mandatory.
 - Not applicable to presentation-layer or route files — covered by Playwright/visual-parity
   review instead.
 

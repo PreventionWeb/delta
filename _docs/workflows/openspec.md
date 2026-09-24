@@ -115,10 +115,14 @@ The `sdd-implementer` agent runs the full TDD loop:
    | 9    | Visual/UX parity — required only for presentation-layer changes                                                                                                                                   |
    | 10   | Independent second-opinion review, **Claude Code only** — its built-in `code-review high`, via a second fresh subagent. Other tools: use an equivalent platform feature if one exists, else skip. |
 
-   Additionally, any change under `app/domains/*/domain/` requires a **test quality check**:
-   `test-quality-auditor` runs mutation testing (Stryker) scoped to the changed files and
-   reports whether the existing tests would actually catch a real regression — not just whether
-   they pass. See `.claude/agents/test-quality-auditor.agent.md`.
+   Additionally, any change to a file under `app/domains/**` with real implementation logic
+   (domain entities/services, use cases, infrastructure adapters, DTO mappers with real
+   conversion logic — not a type-only interface or a trivial re-export) requires a **test
+   quality check**: `test-quality-auditor` runs mutation testing (Stryker) scoped to the changed
+   files and reports whether the existing tests would actually catch a real regression — not
+   just whether they pass. Default this on; a file with no mutable logic just reports zero
+   mutants at little cost, which is cheaper than the alternative of skipping a file that looked
+   simple but wasn't. See `.claude/agents/test-quality-auditor.agent.md`.
 
    **Gate 6 also requires one full pass over every comment in the change's entire diff** —
    not just the current round's delta — immediately before the final report. A comment can
