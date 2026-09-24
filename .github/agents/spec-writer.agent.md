@@ -148,8 +148,9 @@ Proceed only when all artifacts required for apply (`applyRequires`) show `statu
   10. Independent second-opinion review, Claude Code only — invoke its built-in `code-review`
       at `high` effort via a second, separate fresh subagent; resolve findings before archiving.
       Other tools: use an equivalent platform feature if one exists, otherwise skip this task.
-- If this change adds or modifies anything under `app/domains/*/domain/`: add a test quality
-  task — invoke `test-quality-auditor` scoped to the changed files; resolve any real gap found
+- If this change adds or modifies any file under `app/domains/**` with real implementation logic
+  (not a type-only interface/port, not a trivial re-export): add a test quality task — invoke
+  `test-quality-auditor` scoped to the changed files; resolve any real gap found
 - After all applicable gates: add a mandatory regression task — `yarn test:run2` (full PGlite suite) MUST pass with no new failures before archiving. Pre-existing failures must be confirmed as pre-existing (not introduced by this change).
 - After the regression task: add a final task to run `opsx:archive` on the same branch before raising the PR
 - DB migrations listed explicitly as `yarn dbsync` — never drizzle-kit push

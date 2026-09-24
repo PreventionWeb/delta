@@ -198,11 +198,16 @@ that if it exists, otherwise skip this gate and rely on Gate 8 plus the human re
 follows. Either way, this runs before you report the final state, so the user's own review is
 the last checkpoint, not sandwiched before an automated pass that might reopen it.
 
-**Test quality check (mutation testing):** If this change added or modified anything under
-`app/domains/*/domain/`, invoke the `test-quality-auditor` agent, scoped to exactly the files
-this change touched. Treat a reported real gap as a Gate 8-style finding — write the missing
-test scenario, then re-run gates 1–2. Not required for `application/`/`infrastructure/`-only
-changes; invoke on request there instead.
+**Test quality check (mutation testing):** Default this ON for any file this change added or
+modified under `app/domains/**` that contains real implementation logic — domain entities,
+domain services, use cases, infrastructure adapters, DTO mappers with actual conversion logic,
+error classes with non-trivial construction. Invoke the `test-quality-auditor` agent, scoped to
+exactly the files this change touched. The only files that genuinely don't need it are ones
+Stryker has nothing to mutate: a type-only interface/port declaration, a bare re-export, a
+trivial constructor-pass-through with no logic. When unsure whether a file qualifies, run it
+anyway — a file with truly no mutable logic just reports zero mutants, which costs little; the
+failure mode to avoid is skipping a file that looks simple but isn't. Treat a reported real gap
+as a Gate 8-style finding — write the missing test scenario, then re-run gates 1–2.
 
 ## Review comment resolution
 
