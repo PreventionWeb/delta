@@ -172,6 +172,7 @@ export class WorkflowInstance {
 		}
 
 		// REJECTED has no transition method yet, so its real invariant isn't known — deliberately unvalidated (Decision 4).
+		// Guard is an equivalent mutant for REJECTED itself: REQUIRED_SET/NULL.REJECTED are both [], so no test can distinguish this branch running from being skipped.
 		if (props.status !== "REJECTED") {
 			for (const name of REQUIRED_SET[props.status]) {
 				if (pairFields(props, name)[0] === null) {
@@ -191,6 +192,34 @@ export class WorkflowInstance {
 		}
 
 		return new WorkflowInstance(props);
+	}
+
+	/** Convenience wrapper for the one status whose attribution shape never varies — every pair
+	 * null (DRAFT's own REQUIRED_NULL entry above). Delegates to create() rather than duplicating
+	 * its validation, so each new entity type's own create-use-case doesn't have to hand-assemble
+	 * this literal itself. */
+	static createDraft(props: {
+		id: string;
+		entityId: string;
+		entityType: EntityType;
+		now: Date;
+	}): WorkflowInstance {
+		return WorkflowInstance.create({
+			id: props.id,
+			entityId: props.entityId,
+			entityType: props.entityType,
+			status: "DRAFT",
+			submittedByUserId: null,
+			submittedAt: null,
+			validatedByUserId: null,
+			validatedAt: null,
+			approvedByUserId: null,
+			approvedAt: null,
+			publishedByUserId: null,
+			publishedAt: null,
+			createdAt: props.now,
+			updatedAt: props.now,
+		});
 	}
 
 	/** Skips create()'s enum/cross-field checks by design (already validated, immutable

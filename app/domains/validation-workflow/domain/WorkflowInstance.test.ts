@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ConflictError, ValidationError } from "~/shared/errors";
 import {
+	ENTITY_TYPE_VALUES,
 	STATUS_VALUES,
 	WorkflowInstance,
 	type Status,
@@ -168,7 +169,11 @@ describe("WorkflowInstance.create()", () => {
 				entityType: "XX",
 			} as unknown as WorkflowInstanceProps;
 
-			expect(() => WorkflowInstance.create(props)).toThrow(/entityType/);
+			expect(() => WorkflowInstance.create(props)).toThrow(
+				new ValidationError(
+					`entityType must be one of ${ENTITY_TYPE_VALUES.join(", ")}`,
+				),
+			);
 		});
 
 		it("throws ValidationError when status is not a member of the status enum", () => {
@@ -186,7 +191,11 @@ describe("WorkflowInstance.create()", () => {
 				status: "IN_REVIEW",
 			} as unknown as WorkflowInstanceProps;
 
-			expect(() => WorkflowInstance.create(props)).toThrow(/status/);
+			expect(() => WorkflowInstance.create(props)).toThrow(
+				new ValidationError(
+					`status must be one of ${STATUS_VALUES.join(", ")}`,
+				),
+			);
 		});
 	});
 
@@ -592,6 +601,36 @@ describe("WorkflowInstance.create()", () => {
 				expect(() => WorkflowInstance.create(props)).not.toThrow();
 			},
 		);
+	});
+});
+
+describe("WorkflowInstance.createDraft()", () => {
+	it("returns a DRAFT instance with every attribution pair null and both timestamps set to now", () => {
+		const instance = WorkflowInstance.createDraft({
+			id: "workflow-instance-1",
+			entityId: "entity-1",
+			entityType: "HE",
+			now: fixtureNow,
+		});
+
+		expect(instance.status).toBe("DRAFT");
+		expect(instance.id).toBe("workflow-instance-1");
+		expect(instance.entityId).toBe("entity-1");
+		expect(instance.entityType).toBe("HE");
+		expect(instance.submittedByUserId).toBeNull();
+		expect(instance.createdAt).toEqual(fixtureNow);
+		expect(instance.updatedAt).toEqual(fixtureNow);
+	});
+
+	it("delegates to create()'s own validation — an empty entityId throws the same ValidationError", () => {
+		expect(() =>
+			WorkflowInstance.createDraft({
+				id: "workflow-instance-1",
+				entityId: "",
+				entityType: "HE",
+				now: fixtureNow,
+			}),
+		).toThrow(ValidationError);
 	});
 });
 
