@@ -4,6 +4,7 @@
 	"testRunner": "vitest",
 	"checkers": ["typescript"],
 	"coverageAnalysis": "perTest",
+	"concurrency": 2,
 	"mutate": ["app/domains/**/*.ts", "!app/domains/**/*.test.ts"],
 	"reporters": ["progress", "clear-text", "html"],
 	"thresholds": {
