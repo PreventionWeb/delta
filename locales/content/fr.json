@@ -17,7 +17,7 @@
     },
     {
         "id": "asset.name.0b5b8885-290f-42b3-a87c-9885f8f212bf.6ccf91",
-        "translation": "Plateformes de forage en mer"
+        "translation": "Appareils de forage offshore"
     },
     {
         "id": "asset.name.0c70f0c1-1a04-4198-a027-6617c0de227e.0bfe0c",
@@ -25,7 +25,7 @@
     },
     {
         "id": "asset.name.0c794785-f590-47e5-a7fe-ee61a81bed2f.b5637c",
-        "translation": "lignes de drainage de base"
+        "translation": "Lignes de drainage de base"
     },
     {
         "id": "asset.name.00d1f0d9-38af-42c0-9c05-0a2854bfee68.497575",
@@ -61,7 +61,7 @@
     },
     {
         "id": "asset.name.1c666545-0b79-49fd-a82c-9e927e86a330.ac200f",
-        "translation": "réservoirs d'eau"
+        "translation": "réservoirs d'eau "
     },
     {
         "id": "asset.name.1efb83c0-3967-42cf-80fd-e9a1f47dbf2d.32f3d8",
@@ -77,7 +77,7 @@
     },
     {
         "id": "asset.name.1fca46ba-0b92-41bf-8546-08dce39383ed.e0e9e2",
-        "translation": "Conduite de gaz / Canalisation de gaz"
+        "translation": "Conduite de gaz - Canalisation de gaz"
     },
     {
         "id": "asset.name.2a3f01c1-5e3d-4d8d-b701-6107eed88337.e97e93",
@@ -145,11 +145,11 @@
     },
     {
         "id": "asset.name.3cd27f3c-e992-4e42-b4e7-c87adf8a289a.38b0b9",
-        "translation": "Installations de conférence"
+        "translation": "Installations pour conférence"
     },
     {
         "id": "asset.name.3d8bc735-3790-407b-8091-485368235bce.a1dd0d",
-        "translation": "Muscade, macis, cardamome"
+        "translation": "Noix de muscade, macis, cardamomes"
     },
     {
         "id": "asset.name.3dd667b9-2d85-4a41-b544-400a0935d126.14861f",
@@ -177,15 +177,15 @@
     },
     {
         "id": "asset.name.4a70c242-0ce7-45a9-97d7-6cf75208f8e9.5ee4de",
-        "translation": "Lignes aériennes de transport d'électricité"
+        "translation": "Lignes de transport d'électricité aériennes"
     },
     {
         "id": "asset.name.4a92b447-5561-4a97-9211-d34b64a9aa63.321300",
-        "translation": "Presses d'imprimerie"
+        "translation": "Machines d'impression "
     },
     {
         "id": "asset.name.4ad83d00-5f32-47ee-97a3-2a7ee6635452.784ad7",
-        "translation": "Facilités de marché"
+        "translation": "Infrastructures de marché"
     },
     {
         "id": "asset.name.4aee9ace-ce22-48c0-84a3-9798c34a712c.a63d51",
@@ -213,7 +213,7 @@
     },
     {
         "id": "asset.name.5bdefab6-5987-4bc5-8bba-d25cf13548b4.751924",
-        "translation": "systèmes solaires domestiques pour l'électrification"
+        "translation": "systèmes solaires domestiques destinés à l'électrification"
     },
     {
         "id": "asset.name.5c04f3c7-c5cc-4071-af1a-6ba90ff446aa.105ad1",
@@ -221,7 +221,7 @@
     },
     {
         "id": "asset.name.5caf8ecc-c86e-4d9b-923e-388299253935.fb856c",
-        "translation": "Transport d'électricité sous l'eau"
+        "translation": "Transport d'électricité sous-marin"
     },
     {
         "id": "asset.name.5f17cb11-f5cf-46a3-be54-885a2fcb7341.090709",
@@ -241,7 +241,7 @@
     },
     {
         "id": "asset.name.6b5a5df9-1402-4ee6-9aec-e47e54221bdb.50273e",
-        "translation": "Linseed"
+        "translation": "Graines de lin"
     },
     {
         "id": "asset.name.6b314aa9-a08c-4d5c-89ea-d43210ab2746.e19c6c",
@@ -261,7 +261,7 @@
     },
     {
         "id": "asset.name.6c824c11-9bce-4b23-aa16-d88f84ff4e4c.877889",
-        "translation": "Systèmes d'extraction du sol"
+        "translation": "Systèmes d'extraction au sol"
     },
     {
         "id": "asset.name.6d783f74-a175-44a9-bc69-6d5b503b8f40.3207db",
@@ -273,7 +273,7 @@
     },
     {
         "id": "asset.name.6f0b75cc-94e0-4965-ad51-3525ea0140c4.eb4c00",
-        "translation": "Commutation électronique"
+        "translation": "Commutation électronique "
     },
     {
         "id": "asset.name.7ac8bbaf-99c2-4229-a99b-4614891703d7.8337ef",
@@ -433,7 +433,7 @@
     },
     {
         "id": "asset.name.11b6fb9e-0521-4292-9e65-183d3da17d6f.42f3d2",
-        "translation": "Véhicules - gestion"
+        "translation": "Gestion des véhicules"
     },
     {
         "id": "asset.name.12f35372-dcee-4d53-9739-52e7eced2a1d.8efb65",
@@ -457,7 +457,7 @@
     },
     {
         "id": "asset.name.17ab719c-4705-4665-a858-bf0f0c2c49fa.fad4d4",
-        "translation": "Puits tubé profond"
+        "translation": "Puits tubulaires profonds"
     },
     {
         "id": "asset.name.18ba3340-f521-4b7c-b447-f307cc4f07cd.bd50dc",
@@ -469,7 +469,7 @@
     },
     {
         "id": "asset.name.23a5fa57-b2b1-46eb-b30e-e57b95f03c1a.8ab644",
-        "translation": "Fournitures"
+        "translation": "Fournitures. "
     },
     {
         "id": "asset.name.23a439b0-6205-4601-bfa5-9767599a3790.c76176",
@@ -477,7 +477,7 @@
     },
     {
         "id": "asset.name.23bc380d-6b58-4f9d-bc5d-1ced0834b8d1.5804f5",
-        "translation": "Collègue communautaire"
+        "translation": "Collègue de la communauté"
     },
     {
         "id": "asset.name.26d94e9a-dffa-425d-8797-c5a2eb8f65d9.4908cf",
@@ -497,7 +497,7 @@
     },
     {
         "id": "asset.name.32e469e1-35e2-411e-9cfd-d04cae4c0126.0a9b4d",
-        "translation": "Chevalet de pompage"
+        "translation": "Pompes à balancier"
     },
     {
         "id": "asset.name.33e739db-4cc1-4e52-86f2-de871be86af2.500c5e",
@@ -509,11 +509,11 @@
     },
     {
         "id": "asset.name.35a74151-ce5a-4407-bbee-c2922f569bfb.249a81",
-        "translation": "Installations du Tribunal"
+        "translation": "Locaux du Tribunal"
     },
     {
         "id": "asset.name.36eb213e-709c-4ad0-ab6e-e3e9f7eff9a9.4d9817",
-        "translation": "Machines de broyage"
+        "translation": "Équipements de concassage"
     },
     {
         "id": "asset.name.37baa2fa-0fc2-4d71-bc93-28175ba0babf.551535",
@@ -529,15 +529,15 @@
     },
     {
         "id": "asset.name.40f53f44-1c51-47ab-8fbe-2895017f17b1.af330c",
-        "translation": "Dortoirs pour étudiants"
+        "translation": "Résidences universitaires"
     },
     {
         "id": "asset.name.41ff479d-0357-4596-8f6b-3ffb7f54a19c.56c630",
-        "translation": "Les marteaux-pilons"
+        "translation": "Engins de battage"
     },
     {
         "id": "asset.name.42eb4a4c-2be7-4630-8dfc-d9003df3e4db.61ca7b",
-        "translation": "Gazéificateur de biomasse"
+        "translation": "biogazéificateurs"
     },
     {
         "id": "asset.name.43e4bc48-7700-4d51-8e11-0fb3ace947af.cca303",
@@ -565,7 +565,7 @@
     },
     {
         "id": "asset.name.51a9ce6f-a8c5-42fc-82c0-e173c721d612.fbb525",
-        "translation": "Autres fruits à coque n.c.a."
+        "translation": "Autres fruits à coque n.c.a"
     },
     {
         "id": "asset.name.51c07ea1-d324-4ef6-a005-a9d1430c411c.efb473",
@@ -573,19 +573,19 @@
     },
     {
         "id": "asset.name.52fcbd9f-af3e-4d6d-8571-1dd3c6259f1b.6a677c",
-        "translation": "Letrines"
+        "translation": "Latrines"
     },
     {
         "id": "asset.name.54d73e09-613e-40d6-9704-8e5ef1cbbcd5.26bd35",
-        "translation": "Logement des enseignants"
+        "translation": "Logement pour enseignants"
     },
     {
         "id": "asset.name.54e76c51-0276-4a5b-bc59-c91f1570a69b.436969",
-        "translation": "Semences du Niger"
+        "translation": "Graine de Niger"
     },
     {
         "id": "asset.name.55e81bec-2bad-4fe7-bda8-8b0b2ef193e6.52eb81",
-        "translation": "Hazelnuts"
+        "translation": "Noisettes"
     },
     {
         "id": "asset.name.56a92055-4c7b-48cb-a468-7f24b420dcb5.c7fb91",
@@ -593,7 +593,7 @@
     },
     {
         "id": "asset.name.57b621e8-b148-4ac2-9f61-10f320d95808.f22f76",
-        "translation": "Dispensaire scolaire/ infirmière"
+        "translation": "Infirmerie scolaire"
     },
     {
         "id": "asset.name.58a5e280-0026-41d7-8064-15070e76b0af.ab90ba",
@@ -613,7 +613,7 @@
     },
     {
         "id": "asset.name.63a2e871-0ca9-4f46-bffc-feb834da0935.c4cfb1",
-        "translation": "Application"
+        "translation": "Appareil"
     },
     {
         "id": "asset.name.63f5ba5d-1d73-4b3c-8c15-c0dec0822f6a.452feb",
@@ -625,7 +625,7 @@
     },
     {
         "id": "asset.name.68c1d475-41ab-48e7-80de-4b867c971efe.c38131",
-        "translation": "Les têtes de bétail"
+        "translation": "Les têtes de puits"
     },
     {
         "id": "asset.name.70a91d28-707a-41e8-9675-785da27e2204.cafd62",
@@ -661,7 +661,7 @@
     },
     {
         "id": "asset.name.84e833a7-e9f1-46ed-b3a2-dc549ce2a5c8.339ec3",
-        "translation": "Kitchens"
+        "translation": "Cuisines"
     },
     {
         "id": "asset.name.86ae6ad4-aa75-49b9-9964-fa799237306c.cafd62",
@@ -681,7 +681,7 @@
     },
     {
         "id": "asset.name.091df712-12e3-4b54-b1cb-c0e391a6ffa2.ac31b0",
-        "translation": "routes intérieures"
+        "translation": "Routes intérieures"
     },
     {
         "id": "asset.name.92f672d3-831d-4a0f-9181-d7328402b63f.067f66",
@@ -733,7 +733,7 @@
     },
     {
         "id": "asset.name.281fba40-fb97-4df4-a959-5731964f3b27.b8d5ca",
-        "translation": "Autres plantes à boissons, n.c.a"
+        "translation": "Autres cultures destinées à la production de boissonss, n.c.a"
     },
     {
         "id": "asset.name.284e318d-dc1a-4950-87a2-44de2761a64d.1230f6",
@@ -749,7 +749,7 @@
     },
     {
         "id": "asset.name.348e8821-ae4a-476e-8abc-4b912cbec15d.55f50a",
-        "translation": "Laboratoires d'étalonnage"
+        "translation": "Laboratoires d'étalonnage des couleurs"
     },
     {
         "id": "asset.name.360ce210-adf7-4966-acc9-b4b5fb1b1d0f.109829",
@@ -773,11 +773,11 @@
     },
     {
         "id": "asset.name.437d0984-58cb-4979-a93b-5b42d570087c.08a73f",
-        "translation": "Véhicules - transport d'élèves ou d'enseignants (bus scolaires, camionnettes, bateaux, etc.)"
+        "translation": "Véhicules - transport des élèves ou des enseignants (Autobus scolaires, minibus, bateaux, etc.)"
     },
     {
         "id": "asset.name.448fd98f-a6ff-4bfc-92cb-3316ada631fc.1ab18f",
-        "translation": "Machines de démolition"
+        "translation": "Engins de démolition"
     },
     {
         "id": "asset.name.455cfd32-1e1f-404b-9e49-14b0afaac038.fe352b",
@@ -789,7 +789,7 @@
     },
     {
         "id": "asset.name.527dbc0d-c2dd-4d5e-bd43-c773335e769e.0dc609",
-        "translation": "Mate"
+        "translation": "Compagnon"
     },
     {
         "id": "asset.name.535b20c1-737b-4bcd-b099-1e6f523b4757.7aa887",
@@ -801,11 +801,11 @@
     },
     {
         "id": "asset.name.574a0769-5551-4cb2-898d-df0b29a48f28.c4458f",
-        "translation": "petites places de marché"
+        "translation": "petits marchés "
     },
     {
         "id": "asset.name.600c8a50-4aca-4b3e-bf77-f973eab831f5.f24c4e",
-        "translation": "Maison du gouvernement"
+        "translation": "Résidence du gouvernement"
     },
     {
         "id": "asset.name.601b203a-e7ea-4ec8-ad40-a4d9dbfa4ba9.e39f6c",
@@ -813,11 +813,11 @@
     },
     {
         "id": "asset.name.609feae0-20c1-473c-9548-2df54a505049.d198ef",
-        "translation": "Millets"
+        "translation": "Mils"
     },
     {
         "id": "asset.name.674d2a6d-ef36-40c2-84b4-545192682372.600d1f",
-        "translation": "Autres cultures permanentes d'épices, n.c.a."
+        "translation": "Autres cultures perennes d'épices, n.c.a."
     },
     {
         "id": "asset.name.714f7327-ead1-44bb-88c9-60410773ccef.07f510",
@@ -825,7 +825,7 @@
     },
     {
         "id": "asset.name.745a0e41-c96f-4118-8b6f-697e0167f831.78a4c7",
-        "translation": "Systèmes de pompage en surface"
+        "translation": "Systèmes de pompage de surface"
     },
     {
         "id": "asset.name.750d1a6b-7bda-4397-b97d-20ee58956191.e81203",
@@ -845,7 +845,7 @@
     },
     {
         "id": "asset.name.790d07cd-bce1-4931-a671-32bef4aca39f.4c6e9f",
-        "translation": "Centre d'accueil de jour"
+        "translation": "Garderie"
     },
     {
         "id": "asset.name.811c4717-849f-45f7-b20f-e036e0dc954b.1e96ea",
@@ -925,7 +925,7 @@
     },
     {
         "id": "asset.name.02660f64-64ed-4fad-99fa-54525bdfc933.568c22",
-        "translation": "Transport souterrain d'électricité"
+        "translation": "Transport souterrain d'électricité "
     },
     {
         "id": "asset.name.2693cdbb-ced9-4ee4-b7a4-dc47e78d126f.29af97",
@@ -945,7 +945,7 @@
     },
     {
         "id": "asset.name.3932ca75-1ee0-4a2c-8153-c0f6807679d0.d6b087",
-        "translation": "petits remblais"
+        "translation": "petits talus "
     },
     {
         "id": "asset.name.004397c5-166b-4ccc-9765-d45e2d228bdc.7a4ef9",
@@ -953,7 +953,7 @@
     },
     {
         "id": "asset.name.4801e89e-374a-4772-a40e-f75543c3f668.a905a4",
-        "translation": "Légumineuses n.c.a."
+        "translation": "Cultures de légumineuses n.c.a."
     },
     {
         "id": "asset.name.4820ac23-e157-43e2-acfc-020b15667243.a23770",
@@ -961,11 +961,11 @@
     },
     {
         "id": "asset.name.5003a606-db7c-41b7-9231-c01cecb04b7c.40cf47",
-        "translation": "Equiments"
+        "translation": "Équipements"
     },
     {
         "id": "asset.name.6826c103-5d88-4997-88a4-03fd652838f6.e41cca",
-        "translation": "Studios"
+        "translation": "Studio"
     },
     {
         "id": "asset.name.6922ca3b-56df-4f58-8ae0-ac00484317e1.ed624e",
@@ -1001,7 +1001,7 @@
     },
     {
         "id": "asset.name.09519eef-862a-44f6-95aa-31f9059d638d.543d76",
-        "translation": "Structures de prise d'eau"
+        "translation": "Ouvrages de prise d'eau"
     },
     {
         "id": "asset.name.9920d104-4fd6-4c6d-af38-7255092d812d.d4b22a",
@@ -1057,7 +1057,7 @@
     },
     {
         "id": "asset.name.84328ccf-92d7-40d0-9013-f49d47e4d1e4.62d1d9",
-        "translation": "Grand autobus de passagers"
+        "translation": "Grand autobus"
     },
     {
         "id": "asset.name.85054c5a-e954-442c-998e-44ff510c26cf.4e1648",
@@ -1085,7 +1085,7 @@
     },
     {
         "id": "asset.name.517539d4-e73a-4592-9526-fba1d04f5aab.017365",
-        "translation": "structures de drainage"
+        "translation": "Ouvrages de drainage"
     },
     {
         "id": "asset.name.0710307f-03e5-43b5-a317-d6b64a91c30d.14e163",
@@ -1105,7 +1105,7 @@
     },
     {
         "id": "asset.name.8626139d-32fa-42d4-86b4-fcc00f4a81ca.e77f48",
-        "translation": "seuils"
+        "translation": "Déversoirs"
     },
     {
         "id": "asset.name.12420163-6d99-4172-b3cb-cac192494670.b9571f",
@@ -1133,7 +1133,7 @@
     },
     {
         "id": "asset.name.71663046-0877-41bf-9d6a-6bfa8415b80d.520f14",
-        "translation": "Pois de vache"
+        "translation": "Doliques à œil noir"
     },
     {
         "id": "asset.name.74953725-7742-4532-bd35-b0f5c709a488.9ae0f1",
@@ -2409,7 +2409,7 @@
     },
     {
         "id": "hip_hazard.name.78504.bc9260",
-        "translation": "Salinité \u0026amp ; Sodicité"
+        "translation": "Salinité &amp ; Sodicité"
     },
     {
         "id": "hip_hazard.name.78505.1261e4",
@@ -2837,7 +2837,7 @@
     },
     {
         "id": "hip_hazard.name.78635.2fa2ec",
-        "translation": "Agents radioactifs \u0026amp ; Matériel"
+        "translation": "Agents radioactifs &amp ; Matériel"
     },
     {
         "id": "hip_hazard.name.78637.3eda4c",
