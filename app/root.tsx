@@ -25,7 +25,10 @@ import { I18nContext } from "react-i18next";
 
 import allStylesHref from "./styles/all.css?url";
 
-import { configAuthSupportedForm } from "~/utils/config";
+import {
+	configAuthSupportedForm,
+	configUndrrSiteScriptsEnabled,
+} from "~/utils/config";
 
 import "primereact/resources/primereact.min.css";
 import "primeicons/primeicons.css";
@@ -47,6 +50,7 @@ import {
 	useRouteLoaderData,
 } from "react-router";
 import { Footer } from "./frontend/footer/footer";
+import { UndrrSiteScripts } from "./components/UndrrSiteScripts";
 
 import { getUserRoleFromSession } from "~/utils/session";
 import { UserCountryAccountRepository } from "~/db/queries/userCountryAccountsRepository";
@@ -164,6 +168,7 @@ export const loader = async (
 				DTS_INSTANCE_CTRY_ISO3: dtsInstanceCtryIso3,
 				SUPPORT_EMAIL: process.env.SUPPORT_EMAIL || "",
 				SUPPORT_URL: process.env.SUPPORT_URL || "",
+				UNDRR_SITE_SCRIPTS_ENABLED: configUndrrSiteScriptsEnabled(),
 			},
 		},
 		{
@@ -244,6 +249,9 @@ export default function Screen() {
 						__html: JSON.stringify(i18nResourceBundle),
 					}}
 				/>
+				<UndrrSiteScripts
+					enabled={loaderData.env?.UNDRR_SITE_SCRIPTS_ENABLED === true}
+				/>
 			</head>
 			<body>
 				<Toast
@@ -317,6 +325,8 @@ export function ErrorBoundary() {
 	const rootData = useRouteLoaderData("root") as any;
 	const supportUrl = rootData?.env?.SUPPORT_URL || "";
 	const supportEmail = rootData?.env?.SUPPORT_EMAIL || "";
+	const undrrSiteScriptsEnabled =
+		rootData?.env?.UNDRR_SITE_SCRIPTS_ENABLED === true;
 
 	let title = "Unexpected Error";
 	let message = "Something went wrong. Please try again later.";
@@ -340,6 +350,7 @@ export function ErrorBoundary() {
 				<title>Error</title>
 				<Meta />
 				<Links />
+				<UndrrSiteScripts enabled={undrrSiteScriptsEnabled} />
 			</head>
 			<body>
 				<div className="min-h-screen bg-gray-50 px-8 py-12">
