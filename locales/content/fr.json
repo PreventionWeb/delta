@@ -329,7 +329,7 @@
     },
     {
         "id": "asset.name.8a2b8807-9875-45d5-b6af-a5aa234defc6.76e0b4",
-        "translation": "Extraction de pétrole - intérieur"
+        "translation": "Extraction de pétrole - terrestre"
     },
     {
         "id": "asset.name.8a7ceaaf-3f60-4e91-b941-7ee99da357bc.5861c3",
@@ -337,15 +337,15 @@
     },
     {
         "id": "asset.name.8ada5c77-925a-4283-bf02-1b02ef51b78c.bc04ec",
-        "translation": "drains"
+        "translation": "canalisations d'évacuation"
     },
     {
         "id": "asset.name.8ae5e800-8ba2-42d6-b54b-c92a3643c7e5.369601",
-        "translation": "ponceaux en caisson"
+        "translation": "dalots rectangulaires"
     },
     {
         "id": "asset.name.8bcb0daf-cd55-498f-b4ae-2a94ca412812.51fee4",
-        "translation": "Blanchisserie"
+        "translation": "Installations de blanchisserie"
     },
     {
         "id": "asset.name.8d0ad683-d358-411a-978f-7d5e11c7c74d.ffc6d2",
@@ -357,7 +357,7 @@
     },
     {
         "id": "asset.name.8d444136-9124-450b-8782-0a1cd93e73cf.fea1c4",
-        "translation": "Véhicule cargo rigide (2-3 essieux)"
+        "translation": "Véhicule de transport de marchandises rigide (2 à 3 essieux)"
     },
     {
         "id": "asset.name.8dff59a8-555f-4c77-b481-2915e97265e2.f6e3ec",
@@ -369,7 +369,7 @@
     },
     {
         "id": "asset.name.9b5744a3-1a9b-43c4-9958-299369a98233.27278f",
-        "translation": "Systèmes de production d'énergie distribuée"
+        "translation": "Systèmes de production d'énergie décentralisée"
     },
     {
         "id": "asset.name.9bb969b9-219d-402c-9cbf-2bb0e2865dfb.dffafd",
@@ -377,7 +377,7 @@
     },
     {
         "id": "asset.name.9bb96832-87b4-4f6c-8aaa-5de12fae9bd0.1e4a01",
-        "translation": "PV solaire"
+        "translation": "Solaire photovoltaïque"
     },
     {
         "id": "asset.name.9bc700f0-aa67-4bf1-8a03-89b1c3a2a8a0.98e3f5",
@@ -385,7 +385,7 @@
     },
     {
         "id": "asset.name.9d16d1da-0d3f-4656-931e-7ed08e174bd9.8c653b",
-        "translation": "Approvisionnements énergétiques associés"
+        "translation": "Approvisionnements en énergie associés"
     },
     {
         "id": "asset.name.09d80ac1-fb83-4724-b44b-146193ba1fdb.b3b323",
@@ -901,7 +901,7 @@
     },
     {
         "id": "asset.name.913cd6a8-726e-486e-a5e1-1d053043fc4c.b6121b",
-        "translation": "les stations de pompage"
+        "translation": "les stations de pompage "
     },
     {
         "id": "asset.name.914b0a03-16b3-471b-ba34-77023047fd59.b8e841",
@@ -909,7 +909,7 @@
     },
     {
         "id": "asset.name.915f9e4e-3de2-4a47-aa8e-150328d30792.c0269f",
-        "translation": "Autre protection"
+        "translation": "Autres protections"
     },
     {
         "id": "asset.name.966b1aa4-ac0a-46c8-8b6c-12482886dff8.aa78cb",
@@ -1069,7 +1069,7 @@
     },
     {
         "id": "asset.name.91060c21-e3bb-4b76-b551-0d101e43361c.687e63",
-        "translation": "Bateaux-logements"
+        "translation": "Maisons flottantes"
     },
     {
         "id": "asset.name.91346dc1-c798-4935-9475-8aecfc98f34f.7b133c",
@@ -1153,7 +1153,7 @@
     },
     {
         "id": "asset.name.a03bd5c1-c59e-43fb-ad26-e62221a45505.bcc189",
-        "translation": "Lignes d'assemblage"
+        "translation": "chaîne de production"
     },
     {
         "id": "asset.name.a5f65443-960d-4b55-9fbe-076221b7fd01.c8d3db",
@@ -1189,7 +1189,7 @@
     },
     {
         "id": "asset.name.a1789d46-711a-4a38-88c7-3462939720d5.4f21b0",
-        "translation": "passerelles"
+        "translation": "passerelles "
     },
     {
         "id": "asset.name.a4423845-5826-470f-87b8-e9434b0c24e5.a300e1",
@@ -1201,7 +1201,7 @@
     },
     {
         "id": "asset.name.ab6ec417-d284-4908-91e7-c80ed8253b34.bc2eea",
-        "translation": "Remorques de maison"
+        "translation": "Maisons roulottes"
     },
     {
         "id": "asset.name.ab629788-0708-4bf0-9e2f-deaed667af60.e2854c",
@@ -1225,7 +1225,7 @@
     },
     {
         "id": "asset.name.aea9d149-1a1e-4a3c-a811-c9a20df89a0a.28f324",
-        "translation": "Outpatient centers"
+        "translation": "Centres ambulatoires"
     },
     {
         "id": "asset.name.afb6d0e2-cd0b-4990-8590-720eab8b115f.4f74df",
@@ -1237,7 +1237,7 @@
     },
     {
         "id": "asset.name.b2c9ecb7-1119-4fd0-9cc1-251f8e2a3b5b.b0250d",
-        "translation": "Véhicules de loisirs (VR) - camping-cars"
+        "translation": "Véhicules de loisirs (VL) – fourgons aménagés "
     },
     {
         "id": "asset.name.b2ed1990-a17d-4e61-8b5d-856aaaf0bfa2.60995b",
@@ -1261,7 +1261,7 @@
     },
     {
         "id": "asset.name.b67f0526-d616-4992-bc9c-3d4774b4d7ce.e92d18",
-        "translation": "Points de vente"
+        "translation": "Points de vente au détail"
     },
     {
         "id": "asset.name.b70c5bd2-5a0c-4e8e-8fd3-528187360505.d91aee",
@@ -1269,7 +1269,7 @@
     },
     {
         "id": "asset.name.b136af9c-417e-4741-9a00-58ec57af083e.82fede",
-        "translation": "Jute, kenaf et autres produits similaires"
+        "translation": "Le jute, le kénaf et d'autres plantes similaires"
     },
     {
         "id": "asset.name.b197e924-f831-443c-a5bc-e6eeaba9eea7.565275",
@@ -1305,7 +1305,7 @@
     },
     {
         "id": "asset.name.b49275ca-2c28-4418-8899-33a6888b4d0c.418044",
-        "translation": "Actifs : viaducs, routes"
+        "translation": "Infrastructures : viaducs, routes "
     },
     {
         "id": "asset.name.b703347d-175b-4264-9b13-73cd935750d6.f10b80",
@@ -1329,7 +1329,7 @@
     },
     {
         "id": "asset.name.bb36a742-0359-4f86-9a80-c9c57203664c.543289",
-        "translation": "Plates-formes de forage à terre"
+        "translation": "Appareils de forage terrestres"
     },
     {
         "id": "asset.name.bb713b78-497e-4e0c-bfed-d49c4b42ec0e.59b790",
@@ -1349,15 +1349,15 @@
     },
     {
         "id": "asset.name.bca1eead-755d-45d5-b75f-5db45f8b792f.13bb1f",
-        "translation": "Chemins de roulement"
+        "translation": "Voies de transport"
     },
     {
         "id": "asset.name.bd6d286d-5dce-484b-9700-af2af2b49e42.9e85d8",
-        "translation": "Machines de manutention"
+        "translation": "Équipements de manutention"
     },
     {
         "id": "asset.name.be3e645a-538f-4c11-9002-0bd4db996c9e.448a06",
-        "translation": "Appareils ménagers dans les chambres"
+        "translation": "Équipements de la chambre"
     },
     {
         "id": "asset.name.be9b7b2d-d0fc-45e0-8ece-198a853017dd.7a5ce2",
@@ -1409,7 +1409,7 @@
     },
     {
         "id": "asset.name.c9e5088b-9af5-4e67-80e2-58bc09dc1269.12aefb",
-        "translation": "Stations"
+        "translation": "Stalles"
     },
     {
         "id": "asset.name.c24a7f6e-a97c-47f1-8520-0d0a1fd539d3.c04ff2",
@@ -1417,7 +1417,7 @@
     },
     {
         "id": "asset.name.c41ce43f-ae33-4650-a517-7db8dfba5e89.b8ed6f",
-        "translation": "installations communautaires d'élimination des déchets et de compostage"
+        "translation": "Usines communautaires de traitement des déchets et de compostage"
     },
     {
         "id": "asset.name.c64f1321-25f7-41b4-a73e-6b7f4a0898a5.8c875e",
@@ -1437,11 +1437,11 @@
     },
     {
         "id": "asset.name.c5637e46-cade-430c-91e0-364348126f85.0d64b6",
-        "translation": "Marrons"
+        "translation": "Châtaignes"
     },
     {
         "id": "asset.name.c7578fd9-5639-4322-951e-23f73f6bc004.baad79",
-        "translation": "Eggplants ( aubergines)"
+        "translation": "Aubergines"
     },
     {
         "id": "asset.name.c40474c8-1487-4364-9261-018bbf54405a.391474",
@@ -1461,15 +1461,15 @@
     },
     {
         "id": "asset.name.cabd0c81-7c37-4ec2-b8fb-9b8ccd510779.c6b34f",
-        "translation": "Scènes de son"
+        "translation": "Studios de son"
     },
     {
         "id": "asset.name.cb85d0e0-6442-44b7-97ec-fdddd92bd866.ede6fc",
-        "translation": "Editer hardwarde"
+        "translation": "Matériel de montage"
     },
     {
         "id": "asset.name.cb452886-7bc7-46c3-81f4-381eb417bc7a.5e1764",
-        "translation": "Pelleteuses"
+        "translation": "Pelles rétrocaveuses"
     },
     {
         "id": "asset.name.cd4f1ba5-6a5e-405f-9a5a-2a975ad9169c.c684eb",
@@ -1493,7 +1493,7 @@
     },
     {
         "id": "asset.name.cfbfd2fc-515a-4236-8eb8-0010fb2e9584.cc31ec",
-        "translation": "Kiwi fruit"
+        "translation": "Kiwis"
     },
     {
         "id": "asset.name.cfeb1f1a-7f09-4086-a15f-9a5d5b56748d.51b737",
@@ -1501,7 +1501,7 @@
     },
     {
         "id": "asset.name.d1a42d7f-9818-48f7-b368-ea1edcd87eb7.622bb8",
-        "translation": "ponceaux à tuyaux"
+        "translation": "ponceaux"
     },
     {
         "id": "asset.name.d02cca45-f40d-4a51-8198-3c9189c76f9e.4e0445",
@@ -1513,7 +1513,7 @@
     },
     {
         "id": "asset.name.d4c90296-f83b-40d2-805a-a833db5a151b.0eadb0",
-        "translation": "Recueils"
+        "translation": "Collections"
     },
     {
         "id": "asset.name.d5a47c7b-4817-4a2b-95e8-44688031438b.725290",
@@ -1537,7 +1537,7 @@
     },
     {
         "id": "asset.name.d20f6a08-7cfe-4b74-ae4f-217c6263f3bb.f7de89",
-        "translation": "Autres éléments conjonctifs"
+        "translation": "Autres éléments conjonctifs "
     },
     {
         "id": "asset.name.d71acd7c-5153-4513-ad17-40dd77e92f4e.a9b675",
@@ -1601,7 +1601,7 @@
     },
     {
         "id": "asset.name.ddfe13e9-9d67-49fa-b706-0f8a49c2d45e.036650",
-        "translation": "Autres cultures permanentes d'épices, n.c.a."
+        "translation": "Autres cultures d'épices permanentes, n.c.a."
     },
     {
         "id": "asset.name.de5a74a9-f5a8-4979-bfcf-2ab813a90351.a8ac1b",
@@ -1609,7 +1609,7 @@
     },
     {
         "id": "asset.name.de48cecf-ee75-4ec2-a9d9-bb215d97db79.283e67",
-        "translation": "Extraction de pétrole - offshore"
+        "translation": "Extraction de pétrole en mer"
     },
     {
         "id": "asset.name.de55925a-8022-4793-aece-4fbd8c962dc1.9f9346",
@@ -1633,7 +1633,7 @@
     },
     {
         "id": "asset.name.e1f4448c-ea73-4a2f-9fcc-dd9c6e6562ec.9d5674",
-        "translation": "Principaux équipements"
+        "translation": "Affiches majeures"
     },
     {
         "id": "asset.name.e2f26abf-a73c-4149-9bc7-fbed4eaa148f.c5ea7e",
