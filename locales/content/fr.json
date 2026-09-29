@@ -1649,11 +1649,11 @@
     },
     {
         "id": "asset.name.e5e1f01e-b1f6-4d1a-8428-ba1a234599bb.685afe",
-        "translation": "Pipes"
+        "translation": "Tuyaux"
     },
     {
         "id": "asset.name.e7c90383-4843-47b3-a4fd-997337c1b46e.f2ae82",
-        "translation": "Bateaux de pêche"
+        "translation": "Navires/bateaux de pêche"
     },
     {
         "id": "asset.name.e9c739da-c85f-4722-bed2-cd9055130e58.855f75",
@@ -1669,7 +1669,7 @@
     },
     {
         "id": "asset.name.e65e7a04-234a-48b4-9d90-d59ffd86c146.0d6c31",
-        "translation": "Camions-citernes"
+        "translation": "Camions-citernes à eaux"
     },
     {
         "id": "asset.name.e95d30a9-fe5f-4285-8d6c-f21ac943dfc0.544a9c",
@@ -1681,7 +1681,7 @@
     },
     {
         "id": "asset.name.e790a060-3983-4cf5-9c28-a9ef3bcca6d2.5dee55",
-        "translation": "Gymnase de l'école"
+        "translation": "Gymnase scolaire"
     },
     {
         "id": "asset.name.e972dbd4-8f3d-4737-bc58-3e0e74a4ec53.04a3d8",
@@ -1713,7 +1713,7 @@
     },
     {
         "id": "asset.name.ecbacbca-c803-4233-8551-d14f48504733.302878",
-        "translation": "Musique des studios"
+        "translation": "Studios de musique"
     },
     {
         "id": "asset.name.ed3b6cc5-a655-4a9e-9849-e5064e5c6c00.fdcd9e",
@@ -1725,7 +1725,7 @@
     },
     {
         "id": "asset.name.ed829f9b-d45c-4565-b2b7-4de311dec533.384575",
-        "translation": "Réseau de pipelines"
+        "translation": "réseau de conduites"
     },
     {
         "id": "asset.name.eda5c0f3-c42a-437b-9e8a-ffaef9383d00.ec5b1c",
@@ -1749,15 +1749,15 @@
     },
     {
         "id": "asset.name.f7d72226-fc26-4573-be10-98124f28ccee.332e04",
-        "translation": "Wells"
+        "translation": "Puits"
     },
     {
         "id": "asset.name.f8ee0bc1-b85c-4ad2-b56b-7fdc56f81bd3.df191a",
-        "translation": "Rollers"
+        "translation": "Rouleaux"
     },
     {
         "id": "asset.name.f8f57c74-14bf-478e-890f-b4f5b9c26bb6.e8a737",
-        "translation": "autres lignes de vie communautaires en matière de communication"
+        "translation": "autres moyens de communication essentiels au sein de la communauté"
     },
     {
         "id": "asset.name.f9c769ad-3cb5-45cf-a881-0158716fdae6.c44d43",
@@ -1769,7 +1769,7 @@
     },
     {
         "id": "asset.name.f78d4006-e941-4f89-81aa-55a649be1ab8.4dc356",
-        "translation": "Apples 2"
+        "translation": "Pommes 2"
     },
     {
         "id": "asset.name.f293e228-5f25-49b7-afa0-9834c4638b07.bc33ac",
@@ -1801,7 +1801,7 @@
     },
     {
         "id": "asset.name.fc0d6fb6-eb73-4c75-aa38-4ac6772eb774.166c4a",
-        "translation": "Paille de céréales, balles, non préparées, moulues, pressées ou sous forme de pellets"
+        "translation": "Paille de céréales et balles, non préparées, moulues, pressées ou sous forme de granulés"
     },
     {
         "id": "asset.name.fc343ac8-8666-4538-ac1e-17a6e0f54524.df585d",
@@ -1809,7 +1809,7 @@
     },
     {
         "id": "asset.name.fd418033-4e88-4e80-b0b7-2517064eba5a.f05ec2",
-        "translation": "Facilités de stationnement"
+        "translation": "Installations de stationnement"
     },
     {
         "id": "asset.name.ff1e4f83-bd24-4bf5-bbf3-4e50eaee75a2.115848",
@@ -1849,7 +1849,7 @@
     },
     {
         "id": "hip_cluster.name.1058.8de84f",
-        "translation": "Chimie. Dangers dans les denrées alimentaires et les aliments pour animaux"
+        "translation": "Risques chimiques dans les denrées alimentaires et les aliments pour animaux"
     },
     {
         "id": "hip_cluster.name.1060.346cde",
@@ -1889,7 +1889,7 @@
     },
     {
         "id": "hip_cluster.name.1072.948a65",
-        "translation": "L'eau"
+        "translation": "Liés à l'eau"
     },
     {
         "id": "hip_cluster.name.1073.cf8fd2",
@@ -1897,7 +1897,7 @@
     },
     {
         "id": "hip_cluster.name.1074.78910b",
-        "translation": "En rapport avec la mer"
+        "translation": "Lié au domaine maritime"
     },
     {
         "id": "hip_cluster.name.1076.08b804",
@@ -1937,7 +1937,7 @@
     },
     {
         "id": "hip_cluster.name.1086.a0a284",
-        "translation": "Défaillance de la construction/des structures"
+        "translation": "Défaillance de construction ou de structure"
     },
     {
         "id": "hip_cluster.name.1088.d4e33e",
@@ -1945,7 +1945,7 @@
     },
     {
         "id": "hip_cluster.name.1089.9f4c68",
-        "translation": "Échec industriel"
+        "translation": "Défaillance industrielle"
     },
     {
         "id": "hip_cluster.name.1090.f734f9",
@@ -1977,7 +1977,7 @@
     },
     {
         "id": "hip_hazard.name.78385.08c97e",
-        "translation": "Efflorescences algales nuisibles"
+        "translation": "Proliférations d'algues nuisibles"
     },
     {
         "id": "hip_hazard.name.78386.10ac22",
@@ -2005,7 +2005,7 @@
     },
     {
         "id": "hip_hazard.name.78393.1d7b98",
-        "translation": "Grappe de suicides"
+        "translation": "Série de suicides"
     },
     {
         "id": "hip_hazard.name.78394.18cbad",
@@ -2021,7 +2021,7 @@
     },
     {
         "id": "hip_hazard.name.78398.559840",
-        "translation": "Foyers de maladies végétales virales, à phytoplasme et à viroïde"
+        "translation": "Épidémies de maladies virales, à phytoplasmes et à viroïdes chez les plantes"
     },
     {
         "id": "hip_hazard.name.78399.578f1c",
@@ -2033,7 +2033,7 @@
     },
     {
         "id": "hip_hazard.name.78401.76395d",
-        "translation": "Virus à diffusion hématogène"
+        "translation": "Virus à transmission sanguine"
     },
     {
         "id": "hip_hazard.name.78402.9b0d9a",
@@ -6917,7 +6917,7 @@
     },
     {
         "id": "categories.name.292bdb90-4c34-4828-b4a9-63768e25972a.28165a",
-        "translation": "Services de réglementation et de maintenance"
+        "translation": "Services de regulation et de maintenance"
     },
     {
         "id": "categories.name.2a76bb27-fdba-4030-8241-e6246295628e.da99b8",
@@ -6993,11 +6993,11 @@
     },
     {
         "id": "categories.name.7ae2ffe9-a8dd-4eda-a360-759dc6f61194.1861d8",
-        "translation": "Communauté (sens de)"
+        "translation": "Communauté (au sens de)"
     },
     {
         "id": "categories.name.7dd75a3d-09bd-44dd-ad99-9bfb46387b9f.93b8e6",
-        "translation": "Artefacts"
+        "translation": "Objects"
     },
     {
         "id": "categories.name.81e84cf2-7ab2-469e-a7e2-9e47bea94d2d.89e2e9",
