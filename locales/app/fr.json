@@ -1057,7 +1057,7 @@
     {
         "id": "common.collapse_all",
         "description": "File: components/TreeView.tsx:851",
-        "translation": "Réduire tout"
+        "translation": "Tout réduire"
     },
     {
         "id": "common.country",
@@ -1067,7 +1067,7 @@
     {
         "id": "common.country_instance",
         "description": "File: routes/$lang+/settings+/system.tsx:251",
-        "translation": "Exemple de pays"
+        "translation": "Instance de pays"
     },
     {
         "id": "common.created",
@@ -1122,7 +1122,7 @@
     {
         "id": "common.discard",
         "description": "Label for disregard action File: frontend/events/hazardeventform.tsx:326",
-        "translation": "Rejeter"
+        "translation": "Ignorer"
     },
     {
         "id": "common.edit",
@@ -1172,7 +1172,7 @@
     {
         "id": "common.error_loading_data",
         "description": "File: frontend/analytics/sectors/sections/MostDamagingEvents.tsx:235",
-        "translation": "Erreur de chargement des données. Veuillez réessayer."
+        "translation": "Erreur lors du chargement des données. Veuillez réessayer."
     },
     {
         "id": "common.expand_all",
@@ -1232,7 +1232,7 @@
     {
         "id": "common.legacy_data",
         "description": "File: frontend/disaster-record/form.tsx:148",
-        "translation": "Données héritées"
+        "translation": "Données historiques"
     },
     {
         "id": "common.linking_parameter",
@@ -1252,7 +1252,7 @@
     {
         "id": "common.map_coordinates_geographic_level",
         "description": "File: frontend/spatialFootprintFormView.tsx:234",
-        "translation": "Coordonnées cartographiques / Niveau géographique"
+        "translation": "Coordonnées cartographiques / Echelle géographique"
     },
     {
         "id": "common.modified",
@@ -1277,7 +1277,7 @@
     {
         "id": "common.no_data",
         "description": "File: components/CustomMap.tsx:241",
-        "translation": "Pas de date"
+        "translation": "Pas de données"
     },
     {
         "id": "common.no_data_available",
@@ -1287,12 +1287,12 @@
     {
         "id": "common.no_data_image_alt",
         "description": "File: frontend/analytics/hazards/sections/DamagesAndLoses.tsx:180",
-        "translation": "Pas de date"
+        "translation": "Pas de données"
     },
     {
         "id": "common.no_link",
         "description": "No link between records File: frontend/events/disastereventform.tsx:832",
-        "translation": "Sur le lien"
+        "translation": "Pas de lien"
     },
     {
         "id": "common.no_match_found",
@@ -1302,7 +1302,7 @@
     {
         "id": "common.no_results_found",
         "description": "File: components/TreeView.tsx:872",
-        "translation": "Aucun résultat n'a été trouvé."
+        "translation": "Aucun résultat trouvé"
     },
     {
         "id": "common.not_available",
@@ -1332,7 +1332,7 @@
     {
         "id": "common.override_input",
         "description": "Label for checkbox that allows inputing manual calculation (overriding) instead of using auto calculated ones File: frontend/events/disastereventform.tsx:788",
-        "translation": "Annulation"
+        "translation": "Remplacer"
     },
     {
         "id": "common.pagination",
@@ -1342,7 +1342,7 @@
     {
         "id": "common.pagination.current_page",
         "description": "Announcement of current page in pagination, {page_number} will be replaced with the actual page number File: frontend/pagination/view.tsx:114",
-        "translation": "Current page, page {page_number}"
+        "translation": "Page actuelle, page {page_number}"
     },
     {
         "id": "common.pagination.items_per_page",
@@ -1352,7 +1352,7 @@
     {
         "id": "common.pagination.next_page",
         "description": "File: frontend/pagination/view.tsx:148",
-        "translation": "Next page"
+        "translation": "Page suivante"
     },
     {
         "id": "common.pagination.page_n",
@@ -3177,7 +3177,7 @@
     {
         "id": "common.column_width.wide",
         "description": "File: frontend/human_effects/custom_editor.tsx:270",
-        "translation": "Wide"
+        "translation": "Large"
     },
     {
         "id": "common.copy",
@@ -3222,12 +3222,12 @@
     {
         "id": "common.field_required_null",
         "description": "File: backend.server/models/event.ts:83",
-        "translation": "est obligatoire. Dans le cas contraire, la valeur est nulle."
+        "translation": "Ce champ est obligatoire. Dans le cas contraire, la valeur est nulle."
     },
     {
         "id": "common.field_start_before_end",
         "description": "File: backend.server/models/event.ts:95",
-        "translation": "Le début du champ doit être antérieur à la fin."
+        "translation": "Le début du champ doit précéder la fin."
     },
     {
         "id": "common.form_errors",
@@ -4202,7 +4202,7 @@
     {
         "id": "common.override",
         "description": "File: backend.server/models/losses.ts:70",
-        "translation": "Annulation"
+        "translation": "Remplacer"
     },
     {
         "id": "common.record_deletion",
@@ -6117,7 +6117,7 @@
     {
         "id": "common.page_of_total_pages",
         "description": "Pagination indicator showing current page and total pages. {page} is the current page number, {totalPages} is the total number of pages. File: frontend/analytics/sectors/sections/MostDamagingEvents.tsx:334",
-        "translation": "Page {page} de {totalPages}"
+        "translation": "Page {page} sur {totalPages}"
     },
     {
         "id": "common.record_not_found",
@@ -6357,7 +6357,7 @@
     {
         "id": "common.link",
         "description": "File: frontend/attachmentsFormView.tsx:152",
-        "translation": "Lien vers"
+        "translation": "Lien"
     },
     {
         "id": "common.missing_required_fields",
@@ -6487,7 +6487,7 @@
     {
         "id": "common.page_current_of_total",
         "description": "File: components/ContentPicker/index.tsx:598",
-        "translation": "Page {current} de {total}"
+        "translation": "Page {actuelle} sur {total}"
     },
     {
         "id": "common.provide_comments",
@@ -6687,7 +6687,7 @@
     {
         "id": "common.damages",
         "description": "File: components/StackedBarChart.tsx:23",
-        "translation": "Dommages et intérêts"
+        "translation": "Dégâts"
     },
     {
         "id": "common.loading_data_dotdotdot",
