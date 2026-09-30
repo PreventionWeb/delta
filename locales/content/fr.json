@@ -1401,7 +1401,7 @@
     },
     {
         "id": "asset.name.c7b3e5de-689f-4652-bad5-31921ef35168.de638a",
-        "translation": "Jardin d'enfants"
+        "translation": "École maternelle"
     },
     {
         "id": "asset.name.c8f4c061-42fb-4471-8511-f8de1b08fb6d.b6c784",
@@ -1417,7 +1417,7 @@
     },
     {
         "id": "asset.name.c41ce43f-ae33-4650-a517-7db8dfba5e89.b8ed6f",
-        "translation": "Usines communautaires de traitement des déchets et de compostage"
+        "translation": "Installations communautaires de traitement des déchets et de compostage"
     },
     {
         "id": "asset.name.c64f1321-25f7-41b4-a73e-6b7f4a0898a5.8c875e",
@@ -1501,7 +1501,7 @@
     },
     {
         "id": "asset.name.d1a42d7f-9818-48f7-b368-ea1edcd87eb7.622bb8",
-        "translation": "ponceaux"
+        "translation": "conduits en tuyau"
     },
     {
         "id": "asset.name.d02cca45-f40d-4a51-8198-3c9189c76f9e.4e0445",
@@ -1537,7 +1537,7 @@
     },
     {
         "id": "asset.name.d20f6a08-7cfe-4b74-ae4f-217c6263f3bb.f7de89",
-        "translation": "Autres éléments conjonctifs "
+        "translation": "Autre connecteur "
     },
     {
         "id": "asset.name.d71acd7c-5153-4513-ad17-40dd77e92f4e.a9b675",
@@ -1561,7 +1561,7 @@
     },
     {
         "id": "asset.name.d8656d68-7d7f-4001-9650-bac4ee70b5c1.023c47",
-        "translation": "Sites de stockage d'archives"
+        "translation": "Sites de stockage des archives"
     },
     {
         "id": "asset.name.da1f389e-5a17-4415-833b-31f750b9b29f.9459d0",
@@ -1681,7 +1681,7 @@
     },
     {
         "id": "asset.name.e790a060-3983-4cf5-9c28-a9ef3bcca6d2.5dee55",
-        "translation": "Gymnase scolaire"
+        "translation": "Salle de sport de l'école"
     },
     {
         "id": "asset.name.e972dbd4-8f3d-4737-bc58-3e0e74a4ec53.04a3d8",
@@ -1817,7 +1817,7 @@
     },
     {
         "id": "asset.name.ff9c003b-940a-414f-8aae-f3951bf825fb.0fdc7c",
-        "translation": "Unité mobile de soins de santé"
+        "translation": "Unité de soins de santé mobile"
     },
     {
         "id": "asset.name.ff31857e-5e13-49c8-bbae-fce0a9be3020.b4493a",
@@ -7053,7 +7053,7 @@
     },
     {
         "id": "categories.name.c61e8fc8-4567-4fb6-9386-5f70175a6e51.757f46",
-        "translation": "Biotic (composants vivants d'un écosystème)"
+        "translation": "Biotique (composants vivants d'un écosystème)"
     },
     {
         "id": "categories.name.cdca0b31-f99b-48a0-83be-b0793064bc0e.a4fe65",
