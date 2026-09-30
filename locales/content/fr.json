@@ -1225,11 +1225,11 @@
     },
     {
         "id": "asset.name.aea9d149-1a1e-4a3c-a811-c9a20df89a0a.28f324",
-        "translation": "Centres ambulatoires"
+        "translation": "Centres de soins ambulatoires"
     },
     {
         "id": "asset.name.afb6d0e2-cd0b-4990-8590-720eab8b115f.4f74df",
-        "translation": "Gymnases"
+        "translation": "Salles de sport"
     },
     {
         "id": "asset.name.b1b509c1-a654-47d1-a4eb-c134734fc035.4e7bcd",
@@ -1345,7 +1345,7 @@
     },
     {
         "id": "asset.name.bbe03809-c3e9-48b0-9095-03d1df57048d.e71762",
-        "translation": "Consommables de laboratoire"
+        "translation": "Fournitures de laboratoire"
     },
     {
         "id": "asset.name.bca1eead-755d-45d5-b75f-5db45f8b792f.13bb1f",
@@ -1357,7 +1357,7 @@
     },
     {
         "id": "asset.name.be3e645a-538f-4c11-9002-0bd4db996c9e.448a06",
-        "translation": "Équipements de la chambre"
+        "translation": "Équipements dans la chambre"
     },
     {
         "id": "asset.name.be9b7b2d-d0fc-45e0-8ece-198a853017dd.7a5ce2",
