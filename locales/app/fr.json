@@ -3392,7 +3392,7 @@
     {
         "id": "common_err_msg.approval_status_not_set_to_needs_revision",
         "description": "File: services/validationWorkflowRejectionService.ts:26",
-        "translation": "Le statut d'approbation n'est pas défini sur \"nécessite une révision\"."
+        "translation": "Le statut d'approbation n'est pas défini sur \"nécessite une révision\""
     },
     {
         "id": "common_err_msg.not_allowed_to_update_record",
@@ -3402,7 +3402,7 @@
     {
         "id": "common_err_msg.record_not_found",
         "description": "File: services/hazardousEventService.ts:19",
-        "translation": "Enregistrement non trouvé"
+        "translation": "Enregistrement intouvable"
     },
     {
         "id": "common_err_msg.rejected_by_userid_required",
@@ -3412,7 +3412,7 @@
     {
         "id": "common_err_msg.rejection_comments_required",
         "description": "File: services/validationWorkflowRejectionService.ts:45",
-        "translation": "Des commentaires de rejet sont requis"
+        "translation": "Les commentaires de rejet sont obligatoires"
     },
     {
         "id": "content_repeater.btn_clear",
