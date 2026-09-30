@@ -1278,6 +1278,11 @@ entity propagates; a cross-tenant `causeId` is rejected (same-tenant-only, settl
 
 ### 🔷 4c — UpdateHazardousEvent Use Case
 
+**Implementation order note (2026-09-30):** this intent's own scope requires
+`RecordSpatialObservationUseCase` (`4g` below) to already exist — a genuine gap in the
+original Track B listing order, not something introduced later. **Build `4g` first**,
+then `4c`. Roadmap letters stay as reference names; only the build order changes.
+
 **Branch:** `feature/ca-he-update-use-case`
 
 **Intent for `/opsx:propose`:**
@@ -1294,9 +1299,10 @@ today even though spatial observations are their own use case underneath.
 ```
 
 **Terminology correction (matches 4b's own correction, 2026-09-24):** "the parent" above
-means `causeId`, not a `parentId` field — `4b` already built `ICausalChainRepository`
-(interface + real Drizzle adapter) and its `findReachableEdgesFrom`/`saveEdge` methods;
-this intent reuses that same port rather than defining its own cycle-check plumbing.
+means `causeId`, not a `parentId` field — `4b` already built `ICausalChainRepository`'s
+**interface** and its `findReachableEdgesFrom`/`saveEdge` methods; this intent reuses that
+same port (against a fake/mock, same as `4b` — no real adapter exists yet, that's `5i`,
+not yet proposed) rather than defining its own cycle-check plumbing.
 `assertCausalLinkDoesNotCreateCycle()` (`3c`) is the same function `4b` already calls.
 
 **Files touched:**
@@ -1395,6 +1401,11 @@ populated `context`; an event with zero dependents deletes successfully.
 ---
 
 ### 🔷 4g — RecordSpatialObservation Use Case
+
+**Built before `4c` (2026-09-30):** `4c` depends on this use case existing to delegate to;
+no circular dependency the other way — this intent only needs `SpatialObservation` (`3d`,
+shipped) and `IHazardousEventRepository`'s existing spatial-observation port methods
+(interface only, unit-tested against a fake, same as every other Phase 4 intent).
 
 **Branch:** `feature/ca-he-record-spatial-observation-use-case`
 
