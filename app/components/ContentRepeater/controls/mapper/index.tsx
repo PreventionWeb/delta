@@ -912,9 +912,9 @@ export const previewMap = (items: any) => {
 
             const map = L.map("map", { preferCanvas: true }); //.setView([43.833, 87.616], 2);
 
-            L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-                attribution: "",
-            }).addTo(map);
+			L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+				attribution: "",
+			}).addTo(map);
 
             const items = \`${items}\`;
             const boundsArray = [];
