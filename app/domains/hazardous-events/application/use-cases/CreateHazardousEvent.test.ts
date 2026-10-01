@@ -525,6 +525,22 @@ describe("CreateHazardousEventUseCase", () => {
 			expect(harness.hazardousEventRepository.findByIdCalls).toHaveLength(0);
 		});
 
+		it("throws ValidationError for a non-string tenantId (e.g. deserialized JSON from an untyped caller), with zero writes", async () => {
+			const harness = createHarness();
+			const command = {
+				...makeCommand(),
+				tenantId: 12345,
+			} as unknown as CreateHazardousEventCommand;
+
+			await expect(harness.useCase.execute(command)).rejects.toThrow(
+				new ValidationError("tenantId must not be empty"),
+			);
+			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(
+				harness.taxonomyRepository.findValidHazardDriverIdsCalls,
+			).toHaveLength(0);
+		});
+
 		it("generates id internally, sets createdByUserId from actingUserId, updatedAt null, and a single internally-computed createdAt", async () => {
 			const harness = createHarness();
 			const command = makeCommand();
