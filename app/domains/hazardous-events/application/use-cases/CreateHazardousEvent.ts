@@ -15,6 +15,7 @@ import { WorkflowInstance } from "~/domains/validation-workflow/domain/WorkflowI
 import type { IWorkflowRepository } from "~/domains/validation-workflow/application/ports/IWorkflowRepository";
 import type { ILogger } from "~/shared/logging/ILogger";
 import { ValidationError } from "~/shared/errors";
+import { assertNonEmptyString } from "../assertNonEmptyString";
 
 /**
  * Input for CreateHazardousEventUseCase. Omits id/createdAt/updatedAt/submittedByUserId/
@@ -105,6 +106,9 @@ export class CreateHazardousEventUseCase {
 	async execute(
 		command: CreateHazardousEventCommand,
 	): Promise<HazardousEventDto> {
+		// Malformed runtime input (bypassing TypeScript) must fail with ValidationError.
+		assertNonEmptyString(command.tenantId, "tenantId");
+
 		const id = crypto.randomUUID();
 		const now = new Date();
 		const causeId = resolveCauseId(command);
