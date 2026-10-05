@@ -98,7 +98,18 @@ API responses include both representations:
 ```
 
 ### Partial and Uncertain Dates
-Historical disaster data is often recorded with incomplete date precision. Each event date is stored as two columns:
+Historical disaster data is often recorded with incomplete date precision.
+
+**Accepted input string format (confirmed with PM/team, 2026-10-01):** `YYYY-MM-DD`,
+zero-padded, with `YYYY-MM` or `YYYY` accepted for partial precision (zero-padded month
+when present). `"2026-9-1"` is **not** a valid input — only `"2026-09-01"` is. This is the
+format every domain-layer date-comparison/validation must enforce; a raw, unvalidated
+string comparison (e.g. a plain `>` on two date strings) is not sufficient on its own,
+since it silently miscompares non-zero-padded or mixed-precision values. This matches
+`app/backend.server/utils/dateFilters.ts`'s existing `parseFlexibleDate` validation,
+which already enforces exactly this rule for the legacy date-filtering/causality code.
+
+Each event date is stored as two columns:
 
 ```sql
 event_start_date       TIMESTAMPTZ    -- start of the known period (e.g. 2015-01-01T00:00:00Z for year-only)
