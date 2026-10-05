@@ -8,7 +8,7 @@ import type { ICausalChainRepository } from "./ICausalChainRepository";
  * reachable-vs-excluded scenarios are genuinely exercised.
  */
 class FakeCausalChainRepository implements ICausalChainRepository {
-	private readonly edges: {
+	private edges: {
 		edge: CausalEdge;
 		causalityExplanation: string | null;
 	}[] = [];
@@ -46,6 +46,10 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 		causalityExplanation: string | null,
 	): Promise<void> {
 		this.edges.push({ edge, causalityExplanation });
+	}
+
+	async deleteCauseEdges(effectId: string): Promise<void> {
+		this.edges = this.edges.filter(({ edge }) => edge.effectId !== effectId);
 	}
 
 	all(): readonly { edge: CausalEdge; causalityExplanation: string | null }[] {
@@ -142,6 +146,48 @@ describe("ICausalChainRepository conformance", () => {
 			expect(repo.all()).toHaveLength(2);
 		});
 	});
+
+	describe("deleteCauseEdges", () => {
+		it("removes an existing cause edge for the given effect", async () => {
+			const repo = new FakeCausalChainRepository();
+			await repo.saveEdge({ causeId: "A", effectId: "B" }, null);
+
+			await repo.deleteCauseEdges("B");
+
+			expect(repo.all()).toEqual([]);
+		});
+
+		it("resolves without throwing for a node with no existing cause edge", async () => {
+			const repo = new FakeCausalChainRepository();
+
+			await expect(
+				repo.deleteCauseEdges("no-such-effect"),
+			).resolves.toBeUndefined();
+		});
+
+		it("leaves an edge unaffected when the given node appears only as its causeId", async () => {
+			const repo = new FakeCausalChainRepository();
+			await repo.saveEdge({ causeId: "B", effectId: "C" }, null);
+
+			await repo.deleteCauseEdges("B");
+
+			expect(repo.all()).toEqual([
+				{ edge: { causeId: "B", effectId: "C" }, causalityExplanation: null },
+			]);
+		});
+
+		it("removes only edges matching the given effectId, leaving unrelated edges in place", async () => {
+			const repo = new FakeCausalChainRepository();
+			await repo.saveEdge({ causeId: "A", effectId: "B" }, null);
+			await repo.saveEdge({ causeId: "X", effectId: "Y" }, null);
+
+			await repo.deleteCauseEdges("B");
+
+			expect(repo.all()).toEqual([
+				{ edge: { causeId: "X", effectId: "Y" }, causalityExplanation: null },
+			]);
+		});
+	});
 });
 
 // Tuple equality (not plain assignability), so a dropped/added param fails to compile (matches IHazardousEventRepository.test.ts).
@@ -155,6 +201,11 @@ const _saveEdgeArity: AssertEqual<
 	Parameters<ICausalChainRepository["saveEdge"]>,
 	[CausalEdge, string | null]
 > = true;
+const _deleteCauseEdgesArity: AssertEqual<
+	Parameters<ICausalChainRepository["deleteCauseEdges"]>,
+	[string]
+> = true;
 
 void _findReachableEdgesFromArity;
 void _saveEdgeArity;
+void _deleteCauseEdgesArity;
