@@ -89,6 +89,20 @@ zero context subfolders exist there today. This is deliberately preserved, not c
 per-context structure: a file's location already signals "used by every domain" vs. "owned by one
 domain," and that signal is worth keeping distinct.
 
+**A second, distinct category of cross-cutting code also exists: DDD's "Shared Kernel"** —
+domain/business logic deliberately shared across multiple bounded contexts, as opposed to generic
+technical infrastructure. This differs from `app/shared/`'s existing character (`DomainError`,
+`ILogger`, i18n resolvers — all technical, none a business rule) and carries a different
+change-governance expectation: a Shared Kernel edit needs agreement from every domain that depends
+on it, not a single domain's unilateral PR — unlike swapping, say, a logger implementation. It
+lives at `app/domains/shared/`, nested exactly like any other context (`domain/`, and
+`application/` if ever needed) rather than as a flat grab-bag, signaling "this is domain logic,
+just shared" rather than technical plumbing. First instance:
+`app/domains/shared/domain/flexibleDateFormat.ts` (`4c`, 2026-10-01) — the zero-padded
+partial-date format/normalization rule ADR-002 establishes, needed identically by Hazardous Events
+now and by Disaster Records/Disaster Events once their own Clean Architecture migrations begin
+(`DEF-029`).
+
 **Every presentation-layer adapter for a context — web routes, REST controllers, and any future
 adapter (mobile, GraphQL, etc.) — lives inside that context's own `presentation/` folder.** This
 is not a new rule; it is what `app/domains/notices/presentation/` already does (`NoticesController.server.ts`
@@ -140,5 +154,8 @@ actually in and growing into.
 - `app/domains/notices/` — the existing, shipped reference implementation this ADR formalizes.
 - `_docs/refactoring-plan/hazardous-events-refactoring-roadmap.md` — Phase 1 scaffold already
   follows this shape for Hazardous Events and `validation-workflow`.
+- [Shared Kernel in DDD](https://deviq.com/domain-driven-design/shared-kernel/) — the pattern this
+  `app/domains/shared/` convention formalizes, distinct from `app/shared/`'s technical-infrastructure
+  role.
 - [ADR-003](ADR-003-error-handling-architecture.md) — establishes the presentation-layer
   boundary (Layer 4) this ADR's `presentation/` placement builds on.
