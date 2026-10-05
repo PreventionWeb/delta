@@ -16,6 +16,10 @@ Defines `CreateHazardousEventUseCase`, the single entry point that constructs an
 `IHazardousEventRepository.save()`. When `command.causeId` is absent, no cause lookup and no
 `ICausalChainRepository` call of any kind SHALL be made.
 
+`execute(command)` SHALL validate that `command.actingUserId` is present (neither `undefined`/`null`
+nor an empty or whitespace-only string after trimming) before any write, and MUST throw
+`ValidationError` referencing `actingUserId` otherwise, with no write of any kind.
+
 #### Scenario: Happy path with no causeId persists the HazardousEvent and no causal edge
 
 - **GIVEN** a valid `CreateHazardousEventCommand` with `causeId` omitted
@@ -50,6 +54,14 @@ Defines `CreateHazardousEventUseCase`, the single entry point that constructs an
 - **WHEN** `execute(command)` is called
 - **THEN** the call SHALL reject with that same `Error`, unmodified
 - **AND** `IWorkflowRepository.save` and `ICausalChainRepository.saveEdge` SHALL NOT be called
+
+#### Scenario: A missing or non-string actingUserId is rejected before any write
+
+- **GIVEN** a `CreateHazardousEventCommand` whose `actingUserId` is an empty string, or a non-string
+  value reachable only by a caller bypassing the compile-time type
+- **WHEN** `execute(command)` is called
+- **THEN** the call SHALL reject with `ValidationError`
+- **AND** `IHazardousEventRepository.save` SHALL NOT be called
 
 ### Requirement: An optional causeId links the new event as the effect of an existing cause
 
