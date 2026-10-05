@@ -61,6 +61,12 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 			throw this.saveEdgeBehavior;
 		}
 	}
+
+	readonly deleteCauseEdgesCalls: string[] = [];
+
+	async deleteCauseEdges(effectId: string): Promise<void> {
+		this.deleteCauseEdgesCalls.push(effectId);
+	}
 }
 
 interface TaxonomyLookupCall {
@@ -539,6 +545,29 @@ describe("CreateHazardousEventUseCase", () => {
 			expect(
 				harness.taxonomyRepository.findValidHazardDriverIdsCalls,
 			).toHaveLength(0);
+		});
+
+		it("throws ValidationError for a non-string actingUserId, with zero writes", async () => {
+			const harness = createHarness();
+			const command = {
+				...makeCommand(),
+				actingUserId: 12345,
+			} as unknown as CreateHazardousEventCommand;
+
+			await expect(harness.useCase.execute(command)).rejects.toThrow(
+				new ValidationError("actingUserId must not be empty"),
+			);
+			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+		});
+
+		it("throws ValidationError for an empty-string actingUserId, with zero writes", async () => {
+			const harness = createHarness();
+			const command = makeCommand({ actingUserId: "" });
+
+			await expect(harness.useCase.execute(command)).rejects.toThrow(
+				new ValidationError("actingUserId must not be empty"),
+			);
+			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
 		});
 
 		it("generates id internally, sets createdByUserId from actingUserId, updatedAt null, and a single internally-computed createdAt", async () => {
