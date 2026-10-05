@@ -887,6 +887,11 @@ is already correct, not that migration happens as part of cutover itself. Genuin
 document hadn't addressed until now, not something quietly folded into Phase 2 or Phase 7 after
 the fact.
 
+**Earlier checkpoint, not just the Phase 7 gate:** `6f`'s `GET /:id` endpoint
+(`GetHazardousEventByIdUseCase`) needs `Ma`'s `workflow_instance` backfill done specifically —
+sooner than the general Phase 7 sign-off (`DEF-031`). Confirm this backfill's status before `6f`
+ships, not only before cutover.
+
 ### ⬜ Ma — Transformation Scripts
 
 **Branch:** `feature/ca-he-migration-scripts` (non-OpenSpec — operational tooling, not a new
@@ -2005,6 +2010,14 @@ behave identically, unlike today where only the missing-header case worked.
 **Branch:** `feature/ca-hazardous-events-rest-controller`
 
 **Depends on:** 5g (`HazardousEventsModule` wired into DI), 6e (`ApiKeyAuthGuard`)
+
+**Checkpoint before `GET /:id` ships (`DEF-031`):** `GetHazardousEventByIdUseCase` throws
+`NotFoundError` for any event with no `WorkflowInstance` row. Every event created before this
+refactor has no such row until Phase M's backfill (`Ma`, being worked by another team member in
+parallel) has actually run against the target environment. Confirm that backfill is complete
+before wiring this endpoint — if it isn't, `GetHazardousEventByIdUseCase`'s missing-`WorkflowInstance`
+handling needs to change first (see `ca-he-get-by-id-use-case` design.md Decision 2), not ship as-is
+against unmigrated data.
 
 **Intent for `/opsx:propose`:**
 
