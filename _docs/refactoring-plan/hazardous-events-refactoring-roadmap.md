@@ -2221,6 +2221,52 @@ still green against the post-drop, post-move schema.
 
 ---
 
+### ⬜ 7f — ADR-002 Date Precision Migration (`DEF-028`)
+
+**Added 2026-10-01, surfaced during `4c`'s readiness check.** ADR-002 already decided this
+exact question for `startDate`/`endDate`-shaped fields — `TIMESTAMPTZ` (UTC anchor) + a
+`TEXT` precision enum (`YEAR`/`YEAR_MONTH`/`DATE`/`DATETIME`), EDTF/ISO-8601-2-aligned — and
+names `hazardous_event` as the migration's own trigger (ADR-002 Consequences). Still
+unimplemented: the table is still plain `TEXT`. Distinct from `4c`'s own narrow `DEF-020`
+fix (format-validating the existing string comparison, not changing the column type).
+Also distinct from, but related to, `7e`'s own open question about whether
+`startDate`/`endDate`'s `zeroText()` `NOT NULL DEFAULT ''` pattern should become nullable —
+the precision enum supersedes that question for these two columns specifically, since the
+`TIMESTAMPTZ` anchor is always set to a known value once precision is tracked separately.
+
+**Branch:** `feature/ca-he-date-precision-migration`
+
+**Scope:**
+
+```
+Add event_start_precision/event_end_precision TEXT enum columns
+(YEAR|YEAR_MONTH|DATE|DATETIME) alongside hazardousEventTable's startDate/endDate,
+migrate TIMESTAMPTZ (backfilling precision from the existing TEXT values' own
+granularity — a year-only "2015" backfills precision=YEAR, anchor
+2015-01-01T00:00:00Z), update HazardousEvent.create()'s own validation and
+comparison logic to use the new typed Date + precision pair instead of raw
+strings, and update any form/display logic that renders these fields to respect
+the precision flag (show only the fields the user knows, per ADR-002's own
+table). Luxon dependency evaluation (ADR-002 Consequences) belongs here too, not
+assumed available already.
+```
+
+**Files touched:**
+
+- `app/drizzle/migrations/<timestamp>_add_hazardous_event_date_precision.sql` (new)
+- `app/domains/hazardous-events/infrastructure/hazardousEventTable.ts` (modified — new
+  columns, assuming `7e`'s relocation already landed; otherwise the pre-relocation path)
+- `app/domains/hazardous-events/domain/HazardousEvent.ts` (modified — `startDate`/`endDate`
+  become typed `Date` + precision pair, not raw strings)
+- Any presentation-layer form/display code rendering these fields (updated for precision-aware
+  rendering)
+
+**Test tier:** PGlite integration — backfill correctness per precision level; domain-layer
+unit tests — comparison/validation logic for each precision level, matching ADR-002's own
+sorting rule ("year-only records sort to January 1st of that year").
+
+---
+
 ### 🏁 Phase 7 Gate — Refactor Complete
 
 Old implementation fully retired (web, API, model layer, dead code). Schema cleanup landed.
