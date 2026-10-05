@@ -23,9 +23,24 @@ not `null`/`undefined` — e.g. a number, object, or boolean — by throwing `Va
 identical check (design.md Decision 10). It MUST NOT allow an internal `.trim()` call to throw a raw
 `TypeError` when a non-string value is passed.
 
-The factory MUST validate that when both `startDate` and `endDate` are non-empty, `startDate` is
-not later than `endDate` (string comparison, matching the columns' real `text` storage), and MUST
-throw `ValidationError` otherwise.
+The factory MUST validate that when both `startDate` and `endDate` are non-empty **and each
+independently matches the accepted zero-padded `YYYY`/`YYYY-MM`/`YYYY-MM-DD` date format (ADR-002,
+"Partial and Uncertain Dates")**, `startDate` is not later than `endDate`, and MUST throw
+`ValidationError` otherwise. This comparison MUST normalize each date **directionally** before
+comparing — `startDate` floor-padded to the earliest point of its own period (`YYYY` →
+`YYYY-01-01`, `YYYY-MM` → `YYYY-MM-01`), `endDate` ceiling-padded to the latest point of its own
+period (`YYYY` → `YYYY-12-31`, `YYYY-MM` → the real last day of that month, leap-year aware) —
+rather than a plain, unnormalized string comparison. This mirrors
+`app/backend.server/utils/dateFilters.ts`'s own `createDateCondition`, which already applies this
+same directional floor/lower-bound vs. ceiling/upper-bound padding for disaster-date range
+filtering. When either `startDate` or `endDate` does not match that accepted format, the factory
+MUST skip this ordering comparison entirely (treat it as unenforceable) rather than performing a
+raw, format-unaware string comparison — this format-gating and normalization closes `DEF-020` (a
+prior raw comparison both miscompared non-zero-padded values such as `"2026-9-1"` vs. `"2026-10-1"`
+and miscompared format-valid but mixed-precision pairs, such as rejecting a `startDate` of
+`"2020-06"` against an `endDate` of `"2020"`) without rejecting construction for a pre-existing,
+non-zero-padded value, since this same factory is also how a future adapter reconstructs an
+existing persisted row.
 
 Independently of that ordering check, the factory MUST reject a present `endDate` value that is
 not a string (e.g. a number) by throwing `ValidationError` referencing `endDate` — even though
@@ -89,6 +104,34 @@ error.
   (both non-empty)
 - **WHEN** `HazardousEvent.create(props)` is called
 - **THEN** it MUST throw a `ValidationError`
+
+#### Scenario: A malformed startDate or endDate skips the ordering check without blocking
+
+- **GIVEN** a props object where `startDate` is `"2026-9-1"` (not zero-padded) and `endDate` is
+  `"2026-10-1"` (also not zero-padded) — a pair that a raw, format-unaware string comparison would
+  miscompare as `startDate > endDate`
+- **WHEN** `HazardousEvent.create(props)` is called
+- **THEN** it MUST NOT throw for the date-ordering reason
+- **AND** this MUST hold identically whether only one of the two dates is malformed or both are
+
+#### Scenario: A mixed-precision startDate/endDate pair within the same event is accepted when correctly ordered
+
+- **GIVEN** a props object where `startDate` is `"2020-06"` (year-month precision) and `endDate` is
+  `"2020"` (year precision) — both valid zero-padded formats, a pair a raw, unnormalized string
+  comparison would reject (`"2020-06" > "2020"` lexically)
+- **WHEN** `HazardousEvent.create(props)` is called
+- **THEN** it MUST NOT throw for the date-ordering reason — floor-padding `startDate` to
+  `"2020-06-01"` and ceiling-padding `endDate` to `"2020-12-31"` confirms `startDate` falls within
+  `endDate`'s own (coarser) period, not after it
+
+#### Scenario: A mixed-precision startDate/endDate pair within the same event is rejected when genuinely out of order
+
+- **GIVEN** a props object where `startDate` is `"2020-07-01"` (day precision) and `endDate` is
+  `"2020-06"` (year-month precision) — both valid zero-padded formats
+- **WHEN** `HazardousEvent.create(props)` is called
+- **THEN** it MUST throw a `ValidationError` — floor-padded `startDate` (`"2020-07-01"`) is later
+  than ceiling-padded `endDate` (`"2020-06-30"`), so `startDate` is genuinely after the end of
+  `endDate`'s own (coarser) period
 
 #### Scenario: Failure — a present, non-string endDate throws ValidationError, not TypeError
 
