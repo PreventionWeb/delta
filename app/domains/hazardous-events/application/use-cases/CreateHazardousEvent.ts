@@ -108,6 +108,7 @@ export class CreateHazardousEventUseCase {
 	): Promise<HazardousEventDto> {
 		// Malformed runtime input (bypassing TypeScript) must fail with ValidationError.
 		assertNonEmptyString(command.tenantId, "tenantId");
+		assertNonEmptyString(command.actingUserId, "actingUserId");
 
 		const id = crypto.randomUUID();
 		const now = new Date();

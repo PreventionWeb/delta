@@ -269,6 +269,16 @@ describe("HazardousEvent.create()", () => {
 			expect(() => createHazardousEvent(undefinedProps)).not.toThrow();
 		});
 
+		it("does not crash when endDate is null and startDate is a non-empty, valid-format string", () => {
+			const props = {
+				...baseProps,
+				startDate: "2026-01-01",
+				endDate: null,
+			} as unknown as HazardousEventProps;
+
+			expect(() => createHazardousEvent(props)).not.toThrow();
+		});
+
 		// Whitespace-only endDate is "not set," matching the required-field loop's trim rule.
 		it("does not throw when endDate is whitespace-only", () => {
 			const props: HazardousEventProps = {
@@ -293,6 +303,56 @@ describe("HazardousEvent.create()", () => {
 			expect(() => createHazardousEvent(props)).toThrow(
 				/endDate must be a string/,
 			);
+		});
+
+		it("does not throw for the date-ordering reason when both startDate and endDate are non-zero-padded", () => {
+			const props: HazardousEventProps = {
+				...baseProps,
+				startDate: "2026-9-1",
+				endDate: "2026-10-1",
+			};
+
+			expect(() => createHazardousEvent(props)).not.toThrow();
+		});
+
+		it("does not throw for the date-ordering reason when only startDate is non-zero-padded", () => {
+			const props: HazardousEventProps = {
+				...baseProps,
+				startDate: "2026-9-1",
+				endDate: "2026-10-01",
+			};
+
+			expect(() => createHazardousEvent(props)).not.toThrow();
+		});
+
+		it("does not throw for the date-ordering reason when only endDate is non-zero-padded", () => {
+			const props: HazardousEventProps = {
+				...baseProps,
+				startDate: "2026-10-01",
+				endDate: "2026-1-15",
+			};
+
+			expect(() => createHazardousEvent(props)).not.toThrow();
+		});
+
+		it("accepts a mixed-precision startDate/endDate pair that normalizes into order", () => {
+			const props: HazardousEventProps = {
+				...baseProps,
+				startDate: "2020-06",
+				endDate: "2020",
+			};
+
+			expect(() => createHazardousEvent(props)).not.toThrow();
+		});
+
+		it("rejects a mixed-precision startDate/endDate pair that is out of order once normalized", () => {
+			const props: HazardousEventProps = {
+				...baseProps,
+				startDate: "2020-07-01",
+				endDate: "2020-06",
+			};
+
+			expect(() => createHazardousEvent(props)).toThrow(ValidationError);
 		});
 	});
 

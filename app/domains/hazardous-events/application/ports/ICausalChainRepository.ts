@@ -15,4 +15,7 @@ export interface ICausalChainRepository {
 		edge: CausalEdge,
 		causalityExplanation: string | null,
 	): Promise<void>;
+
+	/** Deletes all matching rows; the effect column has no `UNIQUE` constraint. */
+	deleteCauseEdges(effectId: string): Promise<void>;
 }

@@ -1,4 +1,9 @@
 import { ValidationError } from "~/shared/errors";
+import {
+	isValidFlexibleDateFormat,
+	normalizeFlexibleDateCeiling,
+	normalizeFlexibleDateFloor,
+} from "~/domains/shared/domain/flexibleDateFormat";
 
 /** DB enum on `hazardous_event.hazardous_event_status` — physical/temporal classification, distinct from approval status (design.md Context, DEF-009's surviving leg). */
 export type HazardousEventStatus = "forecasted" | "ongoing" | "passed";
@@ -64,7 +69,7 @@ function normalizeAttribution(value: string | null): string | null {
 	return value == null || value === "" ? null : value;
 }
 
-/** True when `value` isn't a valid Date instant (non-Date, or NaN-time). Mirrors WorkflowInstance.ts's own predicate, redefined locally to avoid a cross-bounded-context import (design.md Decision 9). */
+/** Mirrors WorkflowInstance.ts's predicate, redefined locally to avoid a cross-bounded-context import. */
 function isInvalidDate(value: unknown): boolean {
 	return !(value instanceof Date) || Number.isNaN(value.getTime());
 }
@@ -288,11 +293,14 @@ export class HazardousEvent {
 		if (props.endDate != null && typeof props.endDate !== "string") {
 			throw new ValidationError("endDate must be a string");
 		}
-		// endDate is optional: null/undefined or whitespace-only means "not set", not a real date to compare.
+		// A malformed or not-set startDate/endDate skips this check.
 		if (
 			props.endDate != null &&
 			props.endDate.trim().length > 0 &&
-			props.startDate > props.endDate
+			isValidFlexibleDateFormat(props.startDate) &&
+			isValidFlexibleDateFormat(props.endDate) &&
+			normalizeFlexibleDateFloor(props.startDate) >
+				normalizeFlexibleDateCeiling(props.endDate)
 		) {
 			throw new ValidationError("startDate must not be later than endDate");
 		}
