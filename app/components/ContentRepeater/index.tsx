@@ -556,7 +556,7 @@ export const ContentRepeater = forwardRef<HTMLDivElement, ContentRepeaterProps>(
 				const { coords, bounds } = await defaultMapLocation();
 				mapRef.current = L.map(`${id}_mapper_container`, { dragging: true });
 				L.tileLayer(
-					"https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+					"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
 					{
 						attribution:
 							'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
