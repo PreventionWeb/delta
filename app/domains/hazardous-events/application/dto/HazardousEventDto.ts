@@ -46,11 +46,10 @@ export interface HazardousEventDto {
 	workflowStatus: Status;
 }
 
-/** Pure mapper — see `toNoticeDto`'s own WHY comment for why this lives outside the domain layer. */
-export function toHazardousEventDto(
+/** Exported for reuse by sibling DTO mappers — not this module's public surface. */
+export function mapHazardousEventFields(
 	event: HazardousEvent,
-	workflowInstance: WorkflowInstance,
-): HazardousEventDto {
+): Omit<HazardousEventDto, "workflowStatus"> {
 	return {
 		id: event.id,
 		tenantId: event.tenantId,
@@ -77,6 +76,16 @@ export function toHazardousEventDto(
 		attachments: event.attachments,
 		fieldValues: event.fieldValues,
 		customFieldValues: event.customFieldValues,
+	};
+}
+
+/** Pure mapper — see `toNoticeDto`'s own WHY comment for why this lives outside the domain layer. */
+export function toHazardousEventDto(
+	event: HazardousEvent,
+	workflowInstance: WorkflowInstance,
+): HazardousEventDto {
+	return {
+		...mapHazardousEventFields(event),
 		workflowStatus: workflowInstance.status,
 	};
 }
