@@ -35,6 +35,7 @@ function makeRepository(
 		save: saveImpl
 			? vi.fn().mockImplementation(saveImpl)
 			: vi.fn().mockImplementation((i: WorkflowInstance) => Promise.resolve(i)),
+		deleteByEntity: vi.fn(),
 	};
 }
 
@@ -198,6 +199,7 @@ function makeConcurrencyRepository(initial: WorkflowInstance) {
 		findByEntity,
 		save,
 		findByEntityIds: vi.fn(),
+		deleteByEntity: vi.fn(),
 	};
 
 	return {
