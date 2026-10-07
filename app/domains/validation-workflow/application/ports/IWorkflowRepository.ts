@@ -19,4 +19,7 @@ export interface IWorkflowRepository {
 
 	/** Insert-or-update; UNIQUE(entityId, entityType) only guards first-insert races, not lost updates to an existing row. */
 	save(instance: WorkflowInstance): Promise<WorkflowInstance>;
+
+	/** Idempotent: resolves normally when no matching instance exists. */
+	deleteByEntity(entityId: string, entityType: EntityType): Promise<void>;
 }

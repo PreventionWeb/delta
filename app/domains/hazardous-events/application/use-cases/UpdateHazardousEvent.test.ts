@@ -96,6 +96,10 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		throw new Error("not used by UpdateHazardousEventUseCase's own tests");
 	}
 
+	async countReferencingDisasterEvents(): Promise<number> {
+		throw new Error("not used by UpdateHazardousEventUseCase's own tests");
+	}
+
 	async findCurrentSpatialObservation(): Promise<never> {
 		throw new Error("not used by UpdateHazardousEventUseCase's own tests");
 	}
@@ -142,6 +146,10 @@ class FakeWorkflowRepository implements IWorkflowRepository {
 		throw new Error(
 			"UpdateHazardousEventUseCase never writes a WorkflowInstance",
 		);
+	}
+
+	async deleteByEntity(): Promise<void> {
+		throw new Error("not used by UpdateHazardousEventUseCase's own tests");
 	}
 }
 
@@ -231,6 +239,10 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 	async deleteCauseEdges(effectId: string): Promise<void> {
 		this.deleteCauseEdgesCalls.push(effectId);
 		this.edges = this.edges.filter((edge) => edge.effectId !== effectId);
+	}
+
+	async countEdgesTouching(): Promise<number> {
+		throw new Error("not used by UpdateHazardousEventUseCase's own tests");
 	}
 
 	all(): readonly CausalEdge[] {

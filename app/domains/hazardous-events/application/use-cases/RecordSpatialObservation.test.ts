@@ -106,6 +106,10 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		throw new Error("not used by RecordSpatialObservationUseCase's own tests");
 	}
 
+	async countReferencingDisasterEvents(): Promise<number> {
+		throw new Error("not used by RecordSpatialObservationUseCase's own tests");
+	}
+
 	async findCurrentSpatialObservation(): Promise<never> {
 		throw new Error("not used by RecordSpatialObservationUseCase's own tests");
 	}

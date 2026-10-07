@@ -52,6 +52,12 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 		this.edges = this.edges.filter(({ edge }) => edge.effectId !== effectId);
 	}
 
+	async countEdgesTouching(nodeId: string): Promise<number> {
+		return this.edges.filter(
+			({ edge }) => edge.causeId === nodeId || edge.effectId === nodeId,
+		).length;
+	}
+
 	all(): readonly { edge: CausalEdge; causalityExplanation: string | null }[] {
 		return this.edges;
 	}
@@ -147,6 +153,45 @@ describe("ICausalChainRepository conformance", () => {
 		});
 	});
 
+	describe("countEdgesTouching", () => {
+		it("resolves zero for a node with no existing edges", async () => {
+			const repo = new FakeCausalChainRepository();
+
+			await expect(repo.countEdgesTouching("solo-node")).resolves.toBe(0);
+		});
+
+		it("counts a node that is only ever a cause", async () => {
+			const repo = new FakeCausalChainRepository();
+			await repo.saveEdge({ causeId: "A", effectId: "B" }, null);
+
+			await expect(repo.countEdgesTouching("A")).resolves.toBe(1);
+		});
+
+		it("counts a node that is only ever an effect, unlike findReachableEdgesFrom's forward-only result for the same node", async () => {
+			const repo = new FakeCausalChainRepository();
+			await repo.saveEdge({ causeId: "A", effectId: "B" }, null);
+
+			await expect(repo.countEdgesTouching("B")).resolves.toBe(1);
+			await expect(repo.findReachableEdgesFrom("B")).resolves.toEqual([]);
+		});
+
+		it("resolves the total count for a node touched as both cause and effect", async () => {
+			const repo = new FakeCausalChainRepository();
+			await repo.saveEdge({ causeId: "A", effectId: "B" }, null);
+			await repo.saveEdge({ causeId: "B", effectId: "C" }, null);
+
+			await expect(repo.countEdgesTouching("B")).resolves.toBe(2);
+		});
+
+		it("excludes an edge that does not touch the given node", async () => {
+			const repo = new FakeCausalChainRepository();
+			await repo.saveEdge({ causeId: "A", effectId: "B" }, null);
+			await repo.saveEdge({ causeId: "X", effectId: "Y" }, null);
+
+			await expect(repo.countEdgesTouching("A")).resolves.toBe(1);
+		});
+	});
+
 	describe("deleteCauseEdges", () => {
 		it("removes an existing cause edge for the given effect", async () => {
 			const repo = new FakeCausalChainRepository();
@@ -205,7 +250,12 @@ const _deleteCauseEdgesArity: AssertEqual<
 	Parameters<ICausalChainRepository["deleteCauseEdges"]>,
 	[string]
 > = true;
+const _countEdgesTouchingArity: AssertEqual<
+	Parameters<ICausalChainRepository["countEdgesTouching"]>,
+	[string]
+> = true;
 
 void _findReachableEdgesFromArity;
 void _saveEdgeArity;
 void _deleteCauseEdgesArity;
+void _countEdgesTouchingArity;

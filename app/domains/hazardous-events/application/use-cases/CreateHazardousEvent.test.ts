@@ -67,6 +67,10 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 	async deleteCauseEdges(effectId: string): Promise<void> {
 		this.deleteCauseEdgesCalls.push(effectId);
 	}
+
+	async countEdgesTouching(): Promise<number> {
+		throw new Error("not used by CreateHazardousEventUseCase's own tests");
+	}
 }
 
 interface TaxonomyLookupCall {
@@ -172,6 +176,10 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		throw new Error("not used by CreateHazardousEventUseCase's own tests");
 	}
 
+	async countReferencingDisasterEvents(): Promise<number> {
+		throw new Error("not used by CreateHazardousEventUseCase's own tests");
+	}
+
 	async findCurrentSpatialObservation(): Promise<never> {
 		throw new Error("not used by CreateHazardousEventUseCase's own tests");
 	}
@@ -219,6 +227,10 @@ class FakeWorkflowRepository implements IWorkflowRepository {
 
 	async findByEntityIds(): Promise<WorkflowInstance[]> {
 		return [];
+	}
+
+	async deleteByEntity(): Promise<void> {
+		throw new Error("not used by CreateHazardousEventUseCase's own tests");
 	}
 
 	async save(instance: WorkflowInstance): Promise<WorkflowInstance> {
