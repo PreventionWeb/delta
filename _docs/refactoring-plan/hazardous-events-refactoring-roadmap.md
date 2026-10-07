@@ -1458,6 +1458,10 @@ and mock-tested only here; their real adapters are `5i` below.
 Same two-track split. All repository implementations are PGlite-integration-tested — this is the
 first phase where the domain/use-case layers built in Phase 3/4 actually touch a real (test) DB.
 
+**Execution order note (2026-10-07):** `5l` (below, out of alphabetical position same as `2i`/`2j`'s
+own precedent) is Phase 5's actual first task — a hard prerequisite for `5i`, and picked to run
+before the rest of this phase regardless of letter order.
+
 ### Track A — `validation-workflow`
 
 ### 🔷 5a — DrizzleWorkflowRepository
@@ -1677,6 +1681,80 @@ instead — whichever lands first.
 **Test tier:** PGlite integration — a cross-tenant `linkedTriggeringHazardousEventIds`/
 `linkedTriggeredHazardousEventIds` submission is rejected, extending the existing
 `hazardousEventDisasterEventBoundary.test.ts` from Phase 0's 0f.
+
+---
+
+### 🔷 5l — Shared Kernel: Multi-Language Taxonomy Schema
+
+**Branch:** `feature/ca-shared-multilang-taxonomy-schema`
+
+**Added 2026-10-07, picked as Phase 5's first task — hard prerequisite for `5i`
+below** (`DrizzleHazardTaxonomyRepository` queries these exact tables). The HIP
+taxonomy ER diagram (`tmp/hazardous-events-er-diagram/hazardous-events-updated.drawio`,
+gitignored) adds multi-language support on top of `2b`'s already-shipped
+`specific_hazard`/`hazard_cluster`/`hazard_type` tables — a real migration on live CA
+tables, not a greenfield design. **Confirmed CA-scoped only, no legacy impact**
+(user-confirmed 2026-10-07): `hazardousEventTable.ts`'s own `specificHazardId` is an
+opaque FK, unaffected by how `specific_hazard.name` is stored; the legacy
+`hip_hazard`/`hip_cluster`/`hip_type` tables already carry their own separate JSONB i18n
+(`20260109060059_multi_lang_hips_sectors_assets.sql`) and are untouched by this intent.
+ADR-001's Decision section gains the `text_content`/`translation`/`language` mechanism
+(simple custom DB joins, no Weblate) as part of this intent — it currently only names
+the category without elaborating on the mechanism.
+
+**Intent for `/opsx:propose`:**
+
+```
+Add three new Shared Kernel tables under app/domains/shared/infrastructure/ (generic
+translation primitives, not HE-exclusive — matches IEventCausalityRepository's own
+Shared Kernel placement from 4f): language (id, language_name, language_cd),
+text_content (id, original_text, original_language_id FK), translation (id,
+text_content_id FK, language_id FK, translation).
+
+Migrate specific_hazard, hazard_cluster, hazard_type: drop plain name, add
+name_text_content_id FK. specific_hazard additionally gains
+description_text_content_id FK — a genuinely new capability, 2b never had a
+description column on this table. All three gain a UNIQUE source_ref_id (text)
+tracking the external HIPs source system's own id (Drupal today, may differ per
+country instance).
+
+Migration backfills every existing specific_hazard/hazard_cluster/hazard_type row's
+current name (and specific_hazard's description, if populated) into
+text_content/translation automatically — no manual data-fix step.
+
+hazard_driver.name is explicitly out of scope for this intent — it doesn't need
+direct query execution from filter text (user-confirmed 2026-10-07).
+
+Update the three PGlite tests that insert plain name values directly
+(hazardousEventSpecificHazard.test.ts, hipHierarchyChain.test.ts,
+specificHazard.test.ts) plus the testSchema mirror
+(tests/integration/db/testSchema/specificHazardTable.ts, index.ts) in lockstep,
+per the existing P1-42 convention.
+```
+
+**Files touched:**
+
+- `app/domains/shared/infrastructure/languageTable.ts` (new)
+- `app/domains/shared/infrastructure/textContentTable.ts` (new)
+- `app/domains/shared/infrastructure/translationTable.ts` (new)
+- `app/domains/hazardous-events/infrastructure/specificHazardTable.ts` (modified —
+  drop `name`, add `nameTextContentId`, `descriptionTextContentId`, `sourceRefId`)
+- `app/domains/hazardous-events/infrastructure/hazardClusterTable.ts` (modified —
+  drop `name`, add `nameTextContentId`, `sourceRefId`)
+- `app/domains/hazardous-events/infrastructure/hazardTypeTable.ts` (modified — drop
+  `name`, add `nameTextContentId`, `sourceRefId`)
+- `app/drizzle/migrations/<new>.sql` (new — schema change + automatic backfill)
+- `tests/integration/db/queries/hazardousEventSpecificHazard.test.ts` (modified)
+- `tests/integration/db/queries/hipHierarchyChain.test.ts` (modified)
+- `tests/integration/db/queries/specificHazard.test.ts` (modified)
+- `tests/integration/db/testSchema/specificHazardTable.ts` (modified)
+- `tests/integration/db/testSchema/index.ts` (modified, if new tables need a mirror)
+- `_docs/decisions/ADR-001-multilingual-strategy.md` (modified — Decision section)
+
+**Test tier:** PGlite integration — migration applies cleanly against a seeded
+pre-migration row and the row's existing `name` backfills correctly into
+`text_content`/`translation`; `name_text_content_id`/`description_text_content_id`
+resolve to the right `original_text`; `source_ref_id` uniqueness is enforced.
 
 ---
 
