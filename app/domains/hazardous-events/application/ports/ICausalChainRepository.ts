@@ -18,4 +18,7 @@ export interface ICausalChainRepository {
 
 	/** Deletes all matching rows; the effect column has no `UNIQUE` constraint. */
 	deleteCauseEdges(effectId: string): Promise<void>;
+
+	/** Counts every edge touching nodeId as cause or effect, in either direction — not tenant-scoped, matching this port's other methods. */
+	countEdgesTouching(nodeId: string): Promise<number>;
 }

@@ -88,6 +88,10 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		throw new Error("not used by GetHazardousEventByIdUseCase's own tests");
 	}
 
+	async countReferencingDisasterEvents(): Promise<number> {
+		throw new Error("not used by GetHazardousEventByIdUseCase's own tests");
+	}
+
 	async findSpatialObservationByTime(): Promise<never> {
 		throw new Error("not used by GetHazardousEventByIdUseCase's own tests");
 	}
@@ -124,6 +128,10 @@ class FakeWorkflowRepository implements IWorkflowRepository {
 	}
 
 	async save(): Promise<WorkflowInstance> {
+		throw new Error("not used by GetHazardousEventByIdUseCase's own tests");
+	}
+
+	async deleteByEntity(): Promise<void> {
 		throw new Error("not used by GetHazardousEventByIdUseCase's own tests");
 	}
 }

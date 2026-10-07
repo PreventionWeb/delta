@@ -26,6 +26,13 @@ class FakeWorkflowRepository implements IWorkflowRepository {
 		this.store.set(this.key(instance.entityId, instance.entityType), instance);
 		return instance;
 	}
+
+	async deleteByEntity(
+		entityId: string,
+		entityType: EntityType,
+	): Promise<void> {
+		this.store.delete(this.key(entityId, entityType));
+	}
 }
 
 function makeInstance(entityId: string, id: string): WorkflowInstance {
@@ -65,6 +72,35 @@ describe("IWorkflowRepository conformance", () => {
 
 		expect(result.map((instance) => instance.entityId)).toEqual(["id1", "id3"]);
 	});
+
+	describe("deleteByEntity", () => {
+		it("removes an existing WorkflowInstance", async () => {
+			const repo = new FakeWorkflowRepository();
+			await repo.save(makeInstance("id1", "wf-1"));
+
+			await repo.deleteByEntity("id1", "HE");
+
+			await expect(repo.findByEntity("id1", "HE")).resolves.toBeNull();
+		});
+
+		it("resolves normally, not throwing, for an entity with no existing instance", async () => {
+			const repo = new FakeWorkflowRepository();
+
+			await expect(
+				repo.deleteByEntity("no-such-entity", "HE"),
+			).resolves.toBeUndefined();
+		});
+
+		it("is idempotent across two sequential calls for the same entity", async () => {
+			const repo = new FakeWorkflowRepository();
+			await repo.save(makeInstance("id1", "wf-1"));
+
+			await repo.deleteByEntity("id1", "HE");
+			await repo.deleteByEntity("id1", "HE");
+
+			await expect(repo.findByEntity("id1", "HE")).resolves.toBeNull();
+		});
+	});
 });
 
 // Tuple equality (not plain assignability) so a dropped/added param fails to compile.
@@ -82,7 +118,12 @@ const _saveArity: AssertEqual<
 	Parameters<IWorkflowRepository["save"]>,
 	[WorkflowInstance]
 > = true;
+const _deleteByEntityArity: AssertEqual<
+	Parameters<IWorkflowRepository["deleteByEntity"]>,
+	[string, EntityType]
+> = true;
 
 void _findByEntityArity;
 void _findByEntityIdsArity;
 void _saveArity;
+void _deleteByEntityArity;
