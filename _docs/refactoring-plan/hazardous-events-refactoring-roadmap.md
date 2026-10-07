@@ -1386,12 +1386,16 @@ unified dependent-check, no special cases:
 blocks the delete if the event is referenced by (a) a Disaster Event's
 hazardousEventId, (b) event_causality in either direction, or (c) another
 HazardousEvent's causal link (cause or effect side — see `4b`'s
-`ICausalChainRepository`, not a `parentId` field). Throws a single DomainError
-(HazardousEventHasDependentsError) whose context carries which dependents and how
-many, for the presentation layer to render a useful message — not three different
-error shapes for three different checks. This is a deliberate behavior change from
-today for case (b) specifically (0a finding #8 / 0f: today cascades silently) — the
-new implementation closes that gap by construction rather than porting it forward.
+`ICausalChainRepository`, not a `parentId` field). Throws a single `ConflictError` (the existing, generic `DomainError` subclass —
+**correction, 2026-10-06**: this text originally named a new, dedicated
+`HazardousEventHasDependentsError` class, predating the convention every use case
+since `4b` has actually followed — reuse the shared `ConflictError`/`NotFoundError`/
+`ValidationError` vocabulary with a rich `context` payload, never a new subclass per
+use case) whose context carries which dependents and how many, for the presentation
+layer to render a useful message — not three different error shapes for three
+different checks. This is a deliberate behavior change from today for case (b)
+specifically (0a finding #8 / 0f: today cascades silently) — the new implementation
+closes that gap by construction rather than porting it forward.
 ```
 
 **Files touched:**
