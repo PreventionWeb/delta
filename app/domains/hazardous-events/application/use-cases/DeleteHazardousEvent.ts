@@ -3,7 +3,7 @@ import type { ICausalChainRepository } from "../ports/ICausalChainRepository";
 import type {
 	EventCausalityReferenceCounts,
 	IEventCausalityRepository,
-} from "~/domains/shared/application/ports/IEventCausalityRepository";
+} from "~/domains/event-causality/application/ports/IEventCausalityRepository";
 import type { IWorkflowRepository } from "~/domains/validation-workflow/application/ports/IWorkflowRepository";
 import type { ILogger } from "~/shared/logging/ILogger";
 import { ConflictError } from "~/shared/errors";

@@ -6,7 +6,6 @@ import type {
 
 interface StoredRow {
 	hazardousEventId: string;
-	/** The tenant owning whichever side of the row isn't hazardousEventId. */
 	otherSideTenantId: string;
 }
 
@@ -44,8 +43,7 @@ describe("IEventCausalityRepository conformance", () => {
 		});
 	});
 
-	// The fake stores one row per reference, regardless of which column (triggering/triggered)
-	// the real schema's CHECK constraint would populate — the port's own count is symmetric.
+	// Identical to the next test: the fake doesn't model triggering/triggered direction.
 	it("counts a same-tenant reference as the triggering party in sameTenantCount", async () => {
 		const repo = new FakeEventCausalityRepository();
 		repo.seedRow("he-1", "tenant-1");
