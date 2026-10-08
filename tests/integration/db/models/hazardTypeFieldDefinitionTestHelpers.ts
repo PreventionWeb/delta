@@ -8,16 +8,20 @@ import { hazardTypeTable } from "../testSchema/hazardTypeTable";
 import { hipsVersionTable } from "../testSchema/hipsVersionTable";
 import { countryAccounts } from "../testSchema/countryAccounts";
 import { countriesTable } from "../testSchema/countriesTable";
+import { seedTextContent } from "./textContentTestHelpers";
 
 export async function seedHazardType() {
 	const [hipsVersion] = await dr
 		.insert(hipsVersionTable)
 		.values({ versionNo: `HIPs ${randomUUID()}` })
 		.returning();
+	const nameTextContentId = await seedTextContent(
+		`Hazard Type ${randomUUID()}`,
+	);
 	const [hazardType] = await dr
 		.insert(hazardTypeTable)
 		.values({
-			name: `Hazard Type ${randomUUID()}`,
+			nameTextContentId,
 			hipsVersionId: hipsVersion.id,
 		})
 		.returning();
