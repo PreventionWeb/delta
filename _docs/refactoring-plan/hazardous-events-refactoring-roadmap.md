@@ -396,9 +396,11 @@ Independent of Phase 0 — can proceed in parallel.
 ## Phase 2 — Schema ✅ (target model reviewed 2026-08-21; Pass 3 breakdown complete 2026-09-01)
 
 Source: `draw.io` ER diagram, "Hazardous Event ER Diagram (Manage actual hazardous event not
-forecasted)" — exported snapshot committed at
-[`diagrams/hazardous-events-er-diagram.png`](diagrams/hazardous-events-er-diagram.png) (the
-`.drawio`/`.json` sources stay in the gitignored `tmp/` working folder, not committed). Two
+forecasted)" — versioned source and exported snapshot at
+[`_docs/database/hazardous-events/hazardous-events-er-diagram.drawio`](../database/hazardous-events/hazardous-events-er-diagram.drawio)
+/ [`.png`](../database/hazardous-events/hazardous-events-er-diagram.png) (relocated 2026-10-08
+from a gitignored `tmp/` working copy — the editable source is now committed, not just a
+rendered snapshot). Two
 sections of that diagram — "Monitoring and measurement" and "Forecast, monitoring and warning" —
 are explicitly marked not-yet-modeled by its author and are out of scope here; the
 spatial-observation redesign below (Section D) looks like it's laying the groundwork for them,
@@ -478,9 +480,9 @@ paraphrased summary of the ER diagram rather than the diagram's own field-by-fie
 caught in review after `2a` was already implemented, corrected there with the user's explicit
 sign-off (see `openspec/changes/ca-workflow-schema/design.md` Decisions 10/11), and corrected
 here in the roadmap text for the intents that had no implementation yet to fix. Verified this
-time against the exact source (`tmp/hazardous-events-er-diagram/hazardous-events.drawio`'s raw
-XML, not the compressed `.png` render, which itself produced one misreading during this same
-review). Lesson for every future intent in this document: verify field-level schema details
+time against the exact source (`_docs/database/hazardous-events/hazardous-events-er-diagram.drawio`'s
+raw XML, not the compressed `.png` render, which itself produced one misreading during this
+same review). Lesson for every future intent in this document: verify field-level schema details
 directly against the diagram source at proposal time, not from this document's own prose.
 
 Two tracks, same split as Phase 3–5 — Section G belongs to `validation-workflow`, everything else
@@ -1750,17 +1752,24 @@ first.
 
 **Added 2026-10-07, picked as Phase 5's first task — hard prerequisite for `5i`
 below** (`DrizzleHazardTaxonomyRepository` queries these exact tables). The HIP
-taxonomy ER diagram (`tmp/hazardous-events-er-diagram/hazardous-events-updated.drawio`,
-gitignored) adds multi-language support on top of `2b`'s already-shipped
+taxonomy ER diagram (`_docs/database/hazardous-events/hazardous-events-er-diagram.drawio`,
+relocated from a gitignored `tmp/` working copy 2026-10-08) adds multi-language support on
+top of `2b`'s already-shipped
 `specific_hazard`/`hazard_cluster`/`hazard_type` tables — a real migration on live CA
 tables, not a greenfield design. **Confirmed CA-scoped only, no legacy impact**
 (user-confirmed 2026-10-07): `hazardousEventTable.ts`'s own `specificHazardId` is an
 opaque FK, unaffected by how `specific_hazard.name` is stored; the legacy
 `hip_hazard`/`hip_cluster`/`hip_type` tables already carry their own separate JSONB i18n
-(`20260109060059_multi_lang_hips_sectors_assets.sql`) and are untouched by this intent.
-ADR-001's Decision section gains the `text_content`/`translation`/`language` mechanism
-(simple custom DB joins, no Weblate) as part of this intent — it currently only names
-the category without elaborating on the mechanism.
+(`20260109060059_multi_lang_hips_sectors_assets.sql`, exported to
+`locales/content/en.json` via `yarn export_tables_for_translation` and translated
+through the real, live Weblate pipeline) and are untouched by this intent.
+
+**Corrected 2026-10-07** — ADR-001's existing Weblate+JSONB mechanism is real and
+untouched by this intent (sectors/assets/legacy `hip_*` display-locale resolution via
+`dts_jsonb_localized`, single-locale-per-call only). This adds a third, parallel
+mechanism for free-text search across unknown-locale input, which the JSONB pipeline
+was never built for — an addition to ADR-001, not a correction. Translator-maintenance
+tooling for new rows is out of scope (`DEF-036`).
 
 **Intent for `/opsx:propose`:**
 
@@ -1785,6 +1794,9 @@ text_content/translation automatically — no manual data-fix step.
 
 hazard_driver.name is explicitly out of scope for this intent — it doesn't need
 direct query execution from filter text (user-confirmed 2026-10-07).
+
+Translator-maintenance workflow for rows created after the backfill is out of scope
+here (`DEF-036`) — schema + migration + automatic backfill only.
 
 Update the three PGlite tests that insert plain name values directly
 (hazardousEventSpecificHazard.test.ts, hipHierarchyChain.test.ts,
