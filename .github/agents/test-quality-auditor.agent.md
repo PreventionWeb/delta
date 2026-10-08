@@ -79,6 +79,27 @@ N real gaps found across M files. Mutation score: NN%.
 - Not applicable to presentation-layer or route files — covered by Playwright/visual-parity
   review instead.
 
+## Known tool limitations — fall back to manual reading, don't misreport the score
+
+Two confirmed failure modes produce a misleading result, not a real signal. In either case,
+do not report a mutation score as if it reflects test quality — state the limitation explicitly
+and fall back to reading the implementation and its tests directly, same rigor as a normal audit.
+
+- **Hard crash on any class using `implements`** (`ReferenceError: unknown node of type
+  "TSExpressionWithTypeArguments"`, thrown inside `@stryker-mutator/instrumenter`'s own bundled
+  `@babel/generator`). Root cause: the instrumenter bundles a pre-release Babel 8 build with
+  incomplete TypeScript-printer support — not a project dependency or config issue. No safe fix
+  available (forcing a different nested Babel version risks breaking the instrumenter's own
+  Babel-8-targeted code differently). Affects every port-adapter class in this codebase.
+- **0% killed with only `Survived`/`Timeout`/`CompileError` statuses, no `Killed` at all**, on a
+  file whose only logic is module-top-level (e.g. a Drizzle `pgTable(...)` definition). Root
+  cause: Stryker's vitest-runner reuses one worker/module cache across mutant runs, so a
+  "static" mutant's code only ever executes once, before any mutation is injected — the mutant
+  is never actually exercised. Confirm by manually reverting one mutant and running the test
+  directly (`yarn vitest run <file>`) — if it fails as expected, the suite is fine and the score
+  is the artifact, not a real gap. `stryker.conf.json`'s `mutate` glob already excludes pure
+  `*Table.ts` schema files for this reason.
+
 ## What this agent does NOT do
 
 - Does not write, edit, or fix tests
