@@ -9,17 +9,21 @@ import { eventTable } from "../testSchema/eventTable";
 import { hazardousEventTable } from "../testSchema/hazardousEventTable";
 import { baseFields } from "../models/hazardousEventTestHelpers";
 import { seedHazardType } from "../models/hazardTypeFieldDefinitionTestHelpers";
+import { seedTextContent } from "../models/textContentTestHelpers";
 
 async function seedSpecificHazard() {
 	const hazardType = await seedHazardType();
 	const [cluster] = await dr
 		.insert(hazardClusterTable)
-		.values({ name: `Cluster ${randomUUID()}`, hazardTypeId: hazardType.id })
+		.values({
+			nameTextContentId: await seedTextContent(`Cluster ${randomUUID()}`),
+			hazardTypeId: hazardType.id,
+		})
 		.returning({ id: hazardClusterTable.id });
 	const [hazard] = await dr
 		.insert(specificHazardTable)
 		.values({
-			name: `Hazard ${randomUUID()}`,
+			nameTextContentId: await seedTextContent(`Hazard ${randomUUID()}`),
 			code: `code-${randomUUID()}`,
 			hazardClusterId: cluster.id,
 		})
