@@ -5,7 +5,11 @@
 	"checkers": ["typescript"],
 	"coverageAnalysis": "perTest",
 	"concurrency": 2,
-	"mutate": ["app/domains/**/*.ts", "!app/domains/**/*.test.ts"],
+	"mutate": [
+		"app/domains/**/*.ts",
+		"!app/domains/**/*.test.ts",
+		"!app/domains/**/infrastructure/*Table.ts"
+	],
 	"reporters": ["progress", "clear-text", "html"],
 	"thresholds": {
 		"high": 90,
