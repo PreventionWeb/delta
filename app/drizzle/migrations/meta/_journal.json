@@ -400,6 +400,13 @@
       "when": 1789455425961,
       "tag": "20260915065705_update_version_no_to_0_3_1",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1791417600000,
+      "tag": "20261008000000_add_shared_multilang_taxonomy",
+      "breakpoints": true
     }
   ]
 }
