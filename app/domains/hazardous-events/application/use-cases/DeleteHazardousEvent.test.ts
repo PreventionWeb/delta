@@ -11,7 +11,7 @@ import type { ICausalChainRepository } from "../ports/ICausalChainRepository";
 import type {
 	EventCausalityReferenceCounts,
 	IEventCausalityRepository,
-} from "~/domains/shared/application/ports/IEventCausalityRepository";
+} from "~/domains/event-causality/application/ports/IEventCausalityRepository";
 import type { EntityType } from "~/domains/validation-workflow/domain/WorkflowInstance";
 import type { IWorkflowRepository } from "~/domains/validation-workflow/application/ports/IWorkflowRepository";
 import {
