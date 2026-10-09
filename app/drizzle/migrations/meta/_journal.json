@@ -407,6 +407,13 @@
       "when": 1791520114180,
       "tag": "20261009042834_migrate_hips_with_multi_language_support_and_fixed_hipsUUID",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1791537033187,
+      "tag": "20261009091033_alter_language_table",
+      "breakpoints": true
     }
   ]
 }
