@@ -1,0 +1,58 @@
+# Build Dockerfile.azure and push it to the Azure container registry (image publication only; no deployment).
+#
+# Phase 1 (testing): pushes ONLY a non-conflicting test tag, azure-test-<short sha>, into the existing
+# undrrpdtsacr01.azurecr.io/dts repository. It never pushes :latest or a release-version tag, and it
+# refuses to overwrite a tag that already exists.
+name: Build and Push Azure Image
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: azure-image-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      REGISTRY: undrrpdtsacr01.azurecr.io
+      IMAGE_NAME: dts
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set test tag
+        run: echo "IMAGE_TAG=azure-test-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      - name: Build image from Dockerfile.azure
+        run: docker build -f ./Dockerfile.azure -t "${IMAGE_NAME}:${IMAGE_TAG}" .
+
+      # Credentials come only from GitHub Secrets, reach the shell as env vars
+      # (GitHub masks them in logs), and the password is piped via stdin.
+      - name: Log in to registry
+        env:
+          REGISTRY_USERNAME: ${{ secrets.AZURE_REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.AZURE_REGISTRY_PASSWORD }}
+        run: printf '%s' "$REGISTRY_PASSWORD" | docker login "$REGISTRY" --username "$REGISTRY_USERNAME" --password-stdin
+
+      - name: Tag image
+        run: docker tag "${IMAGE_NAME}:${IMAGE_TAG}" "${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+
+      - name: Refuse to overwrite an existing tag
+        run: |
+          if docker manifest inspect "${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}" > /dev/null 2>&1; then
+            echo "::error::${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} already exists; not overwriting it."
+            exit 1
+          fi
+
+      - name: Push image
+        run: docker push "${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+
+      - name: Log out of registry
+        if: ${{ always() }}
+        run: docker logout "$REGISTRY" || true
