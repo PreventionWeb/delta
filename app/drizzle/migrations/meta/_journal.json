@@ -400,6 +400,13 @@
       "when": 1789455425961,
       "tag": "20260915065705_update_version_no_to_0_3_1",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1791520114180,
+      "tag": "20261009042834_migrate_hips_with_multi_language_support_and_fixed_hipsUUID",
+      "breakpoints": true
     }
   ]
 }
