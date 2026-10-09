@@ -10,10 +10,14 @@ import { ourRandomUUID } from "../../utils/drizzleUtil";
 import { relations } from "drizzle-orm";
 import { userCountryAccountsTable } from "./userCountryAccountsTable";
 
-export type CountryAccountType = "Official" | "Training";
+export type CountryAccountType =
+	| "Official"
+	| "Training"
+	| "DesInventar Archive";
 export const countryAccountTypesTable = {
 	OFFICIAL: "Official" as CountryAccountType,
 	TRAINING: "Training" as CountryAccountType,
+	DESINVENTAR_ARCHIVE: "DesInventar Archive" as CountryAccountType,
 } as const;
 
 export type CountryAccountStatus = 0 | 1;

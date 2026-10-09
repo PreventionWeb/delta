@@ -90,6 +90,11 @@ export function getCountryAccountTypeLabel(ctx: DContext, type: string) {
 				code: "admin.country_account_type.training",
 				msg: "Training",
 			});
+		case "DesInventar Archive":
+			return ctx.t({
+				code: "admin.country_account_type.desinventar_archive",
+				msg: "DesInventar Archive",
+			});
 		default:
 			return type;
 	}
