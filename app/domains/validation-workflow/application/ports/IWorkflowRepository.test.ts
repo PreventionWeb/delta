@@ -3,10 +3,14 @@ import {
 	WorkflowInstance,
 	type EntityType,
 } from "../../domain/WorkflowInstance";
+import { ConflictError } from "~/shared/errors";
 import type { IWorkflowRepository } from "./IWorkflowRepository";
 
 class FakeWorkflowRepository implements IWorkflowRepository {
 	private readonly store = new Map<string, WorkflowInstance>();
+	// id -> owning entity key; detects an id reused for a different entity (mirrors the real
+	// DrizzleWorkflowRepository's identity-mismatch guard, 5a design.md Decision 3).
+	private readonly idOwner = new Map<string, string>();
 
 	private key(entityId: string, entityType: string): string {
 		return `${entityType}:${entityId}`;
@@ -23,7 +27,16 @@ class FakeWorkflowRepository implements IWorkflowRepository {
 	}
 
 	async save(instance: WorkflowInstance) {
-		this.store.set(this.key(instance.entityId, instance.entityType), instance);
+		const entityKey = this.key(instance.entityId, instance.entityType);
+		const owner = this.idOwner.get(instance.id);
+		if (owner !== undefined && owner !== entityKey) {
+			throw new ConflictError(
+				"WorkflowInstance id already belongs to a different entity",
+				{ id: instance.id },
+			);
+		}
+		this.idOwner.set(instance.id, entityKey);
+		this.store.set(entityKey, instance);
 		return instance;
 	}
 
@@ -71,6 +84,15 @@ describe("IWorkflowRepository conformance", () => {
 		const result = await repo.findByEntityIds(["id1", "id2", "id3"], "HE");
 
 		expect(result.map((instance) => instance.entityId)).toEqual(["id1", "id3"]);
+	});
+
+	it("save rejects with ConflictError when an id already belongs to a different entity, matching DrizzleWorkflowRepository's own identity-mismatch guard (5a Decision 3)", async () => {
+		const repo = new FakeWorkflowRepository();
+		await repo.save(makeInstance("id1", "wf-1"));
+
+		await expect(repo.save(makeInstance("id2", "wf-1"))).rejects.toThrow(
+			ConflictError,
+		);
 	});
 
 	describe("deleteByEntity", () => {
