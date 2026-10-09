@@ -134,8 +134,15 @@ All log lines use UTC ISO 8601 strings exclusively. `new Date().toISOString()` i
 
 - New domain schemas are correctly typed from day one; no silent timezone bugs in new code
 - Old components are undisturbed until their domain is migrated — no regressions
+- For multi-tenant disaster workflows, the primary complexity moves to event data entry (not UTC storage): forms must capture the event's local occurrence timezone correctly
+- Event timezone becomes part of event data (not only a display preference): each event occurrence stores both UTC anchor and IANA event timezone
+- Tenant configuration must define a small valid timezone set per tenant, with tenant default timezone available for prefill
+- Multi-timezone tenants (for example, countries spanning multiple zones) require either location-derived timezone resolution or an explicit timezone field constrained to tenant-valid options
+- Where administrative boundaries map reliably to one zone, forms can hide timezone selection and auto-resolve from location to reduce operator error
+- UI display for event occurrence must use the stored event timezone (for example, `09 Oct 2026 00:30 (Asia/Bangkok)`), not the viewer's timezone, to avoid historically incorrect date shifts across regions
 - Event dates will clearly indicate their geographic timezone to users, eliminating the ambiguity of "whose timezone is this?"
 - Partial date precision requires a migration for existing `startDate TEXT` columns in hazardous_event and related tables — this is scoped to those domain rewrites
+- Blocker for data transformation of existing data or data coming from other systems when timezone is unresolved (for example, DesInventar does not capture timezone for event date); this can cause false date precision
 - Luxon adds a dependency; the bundle size impact should be evaluated and tree-shaking confirmed for the frontend build
 
 ## References

@@ -1,4 +1,4 @@
-name: Deploy Container to Dev
+name: Deploy Container to UNOG (Dev)
 
 on:
   workflow_dispatch:
