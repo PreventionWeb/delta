@@ -164,36 +164,65 @@ const loadLeaflet = (() => {
 				const style = document.createElement("style");
 				style.type = "text/css";
 				style.innerHTML = `
-          .leaflet-container svg {
-            width: auto !important;
-            height: auto !important;
-          }
+			.leaflet-container svg {
+				width: auto !important;
+				height: auto !important;
+			}
 
-          .leaflet-marker-icon {
-            width: 10px !important;
-            height: 10px !important;
-            margin-left: -5px !important;
-            margin-top: -5px !important;
-          }
+			.leaflet-marker-icon {
+				width: 10px !important;
+				height: 10px !important;
+				margin-left: -5px !important;
+				margin-top: -5px !important;
+			}
 
-          .custom-leaflet-marker {
-            width: 20px !important;
-            height: 20px !important;
-            margin-left: -5px !important;
-            margin-top: -20px !important;
-          }
+			.custom-leaflet-marker {
+				width: 20px !important;
+				height: 20px !important;
+				margin-left: -5px !important;
+				margin-top: -20px !important;
+			}
 
-          .content-repeater-mapper {
-            position: fixed;
-            width: 100vw !important;
-            height: 100vh !important;
-            margin: 0;
-            border: none;
-            background-color: white;
-            z-index: 9999;
-            max-width: none !important;
-            max-height: none !important;
-          }
+			.content-repeater-mapper {
+				position: fixed;
+				width: 100vw !important;
+				height: 100vh !important;
+				margin: 0;
+				border: none;
+				background-color: white;
+				z-index: 9999;
+				max-width: none !important;
+				max-height: none !important;
+			}
+
+			@media (max-width: 767px) {
+				.content-repeater-mapper .mapper-menu {
+					gap: 8px !important;
+					padding: 8px !important;
+				}
+
+				.content-repeater-mapper .mapper-menu input,
+				.content-repeater-mapper .mapper-menu select {
+					flex: 1 1 100% !important;
+					min-width: 0 !important;
+					width: 100% !important;
+					margin-right: 0 !important;
+				}
+
+				.content-repeater-mapper .mapper-menu > div {
+					display: flex !important;
+					flex-wrap: wrap !important;
+					gap: 8px !important;
+					margin-left: 0 !important;
+					width: 100% !important;
+				}
+
+				.content-repeater-mapper .mapper-menu > div > button {
+					flex: 1 1 calc(33.33% - 6px) !important;
+					min-width: 96px;
+					font-size: 0.95rem !important;
+				}
+			}
         `;
 				document.head.appendChild(style);
 			};

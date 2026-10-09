@@ -86,22 +86,15 @@ export default function SpatialFootprintModalRoute() {
 
 	return (
 		<div
+			className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-black/35 p-2 sm:p-4"
 			style={{
-				position: "fixed",
-				inset: 0,
-				zIndex: 40,
-				display: "flex",
-				alignItems: "flex-start",
-				justifyContent: "center",
-				background: "rgba(0, 0, 0, 0.35)",
-				padding: "1rem",
-				overflowY: "auto",
+				padding: 0,
 			}}
 		>
 			<div
-				className="w-full max-w-6xl rounded-xl bg-white p-5 shadow-xl"
+				className="w-full max-w-6xl rounded-xl bg-white p-3 shadow-xl sm:p-5"
 				style={{
-					maxHeight: "calc(100vh - 2rem)",
+					maxHeight: "calc(100vh - 1rem)",
 					overflowY: "auto",
 				}}
 			>
@@ -133,7 +126,7 @@ export default function SpatialFootprintModalRoute() {
 					}}
 				/>
 
-				<div className="mt-4 flex justify-end gap-2">
+				<div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
 					<Button
 						type="button"
 						label={ctx.t({ code: "common.cancel", msg: "Cancel" })}
