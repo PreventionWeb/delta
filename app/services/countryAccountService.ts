@@ -385,7 +385,8 @@ export const CountryAccountService = {
 
 		if (
 			countryAccountType !== countryAccountTypesTable.OFFICIAL &&
-			countryAccountType !== countryAccountTypesTable.TRAINING
+			countryAccountType !== countryAccountTypesTable.TRAINING &&
+			countryAccountType !== countryAccountTypesTable.DESINVENTAR_ARCHIVE
 		) {
 			errors.push("Invalid instance type");
 		}

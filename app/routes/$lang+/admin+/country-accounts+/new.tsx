@@ -395,6 +395,13 @@ export default function CountryAccountsNewPage() {
 									}),
 									value: countryAccountTypesTable.TRAINING,
 								},
+								{
+									label: ctx.t({
+										code: "admin.instance_type_desinventar_archive",
+										msg: "DesInventar Archive",
+									}),
+									value: countryAccountTypesTable.DESINVENTAR_ARCHIVE,
+								},
 							]}
 							optionLabel="label"
 							optionValue="value"
