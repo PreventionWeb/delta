@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, pgTable, text } from "drizzle-orm/pg-core";
+import { check, pgTable, text, varchar } from "drizzle-orm/pg-core";
 import { ourRandomUUID } from "~/utils/drizzleUtil";
 
 export const languageTable = pgTable(
@@ -7,7 +7,8 @@ export const languageTable = pgTable(
 	{
 		id: ourRandomUUID(),
 		languageName: text("language_name").notNull().unique(),
-		languageCd: text("language_cd").notNull().unique(),
+		// varchar(2) caps the length; the check below still enforces exactly 2.
+		languageCd: varchar("language_cd", { length: 2 }).notNull().unique(),
 	},
 	(table) => [
 		check(

@@ -1,10 +1,11 @@
 import { pgTable, text, uuid } from "drizzle-orm/pg-core";
-import { ourRandomUUID } from "~/utils/drizzleUtil";
 import { hipsVersionTable } from "./hipsVersionTable";
 import { textContentTable } from "~/domains/shared/infrastructure/textContentTable";
 
 export const hazardTypeTable = pgTable("hazard_type", {
-	id: ourRandomUUID(),
+	// No DB default: ids are deterministic hashes of legacy source refs, assigned by the
+	// HIPs taxonomy migration, not generated on insert.
+	id: uuid("id").primaryKey(),
 	nameTextContentId: uuid("name_text_content_id")
 		.notNull()
 		.references(() => textContentTable.id),

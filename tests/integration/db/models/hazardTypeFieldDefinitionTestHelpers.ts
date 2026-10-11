@@ -21,6 +21,7 @@ export async function seedHazardType() {
 	const [hazardType] = await dr
 		.insert(hazardTypeTable)
 		.values({
+			id: randomUUID(),
 			nameTextContentId,
 			hipsVersionId: hipsVersion.id,
 		})
