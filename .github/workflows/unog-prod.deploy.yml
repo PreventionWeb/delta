@@ -1,4 +1,4 @@
-name: Deploy Container to Production
+name: Deploy Container to UNOG (Training)
 
 on:
   workflow_dispatch:

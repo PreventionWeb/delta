@@ -9,6 +9,7 @@ import {
 	Scripts,
 	useLocation,
 	useMatches,
+	useNavigation,
 } from "react-router";
 
 import {
@@ -20,7 +21,7 @@ import {
 	getCountryAccountsIdFromSession,
 } from "~/utils/session";
 
-import { useContext, useEffect, useRef } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { I18nContext } from "react-i18next";
 
 import allStylesHref from "./styles/all.css?url";
@@ -178,6 +179,9 @@ export default function Screen() {
 	const loaderData = useLoaderData();
 	const location = useLocation();
 	const matches = useMatches();
+	const navigation = useNavigation();
+	const [routeProgressVisible, setRouteProgressVisible] = useState(false);
+	const [routeProgressStarted, setRouteProgressStarted] = useState(false);
 	let ctx = new ViewContext();
 	const onAdminRoute = location.pathname.startsWith(ctx.url("/admin/"));
 	const hideMainNavigation = matches.some((match) => {
@@ -220,6 +224,28 @@ export default function Screen() {
 		}
 	}, [flashMessage]);
 
+	useEffect(() => {
+		if (navigation.state === "idle") {
+			if (!routeProgressStarted) {
+				return;
+			}
+
+			const hideTimer = window.setTimeout(() => {
+				setRouteProgressVisible(false);
+				setRouteProgressStarted(false);
+			}, 300);
+
+			return () => window.clearTimeout(hideTimer);
+		}
+
+		const showTimer = window.setTimeout(() => {
+			setRouteProgressStarted(true);
+			setRouteProgressVisible(true);
+		}, 150);
+
+		return () => window.clearTimeout(showTimer);
+	}, [navigation.state, routeProgressStarted]);
+
 	return (
 		<html
 			lang={loaderData.common.lang}
@@ -246,10 +272,44 @@ export default function Screen() {
 				/>
 			</head>
 			<body>
+				<style>
+					{`
+						@keyframes route-progress-bar {
+							0% {
+								transform: translateX(-90%);
+								opacity: 0.7;
+							}
+							50% {
+								transform: translateX(35%);
+								opacity: 1;
+							}
+							100% {
+								transform: translateX(120%);
+								opacity: 0.7;
+							}
+						}
+
+						@media (prefers-reduced-motion: reduce) {
+							.route-progress-bar {
+								animation: none !important;
+							}
+						}
+					`}
+				</style>
 				<Toast
 					ref={toast}
 					position={loaderData.common.lang === "ar" ? "top-left" : "top-right"}
 				/>
+				{routeProgressVisible ? (
+					<div className="fixed inset-x-0 top-0 z-[9999] h-1 w-full overflow-hidden bg-slate-200">
+						<div
+							className="route-progress-bar h-full w-1/3 rounded-r-full bg-[#004F91] shadow-[0_0_12px_rgba(0,79,145,0.6)]"
+							style={{
+								animation: "route-progress-bar 1.2s ease-in-out infinite",
+							}}
+						/>
+					</div>
+				) : null}
 				<PrimeReactProvider
 					value={{
 						ripple: true,

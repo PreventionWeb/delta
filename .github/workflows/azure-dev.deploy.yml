@@ -3,7 +3,7 @@
 # Phase 1 (testing): pushes ONLY a non-conflicting test tag, azure-test-<short sha>, into the existing
 # undrrpdtsacr01.azurecr.io/dts repository. It never pushes :latest or a release-version tag, and it
 # refuses to overwrite a tag that already exists.
-name: Build and Push Azure Image
+name: Deploy Container to Azure (Dev)
 
 on:
   workflow_dispatch:

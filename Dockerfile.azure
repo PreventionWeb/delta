@@ -24,9 +24,9 @@ FROM node:24-bookworm-slim AS production
 
 WORKDIR /delta
 
-# Install PostgreSQL client (psql), plus Supervisor and OpenSSH server for Azure Web SSH
+# Install PostgreSQL client (psql), NGINX (reverse proxy), plus Supervisor and OpenSSH server for Azure Web SSH
 RUN apt-get update \
-	&& apt-get install -y --no-install-recommends postgresql-client supervisor openssh-server \
+	&& apt-get install -y --no-install-recommends postgresql-client nginx supervisor openssh-server \
 	&& rm -rf /var/lib/apt/lists/*
 
 # Copy dependency manifests
@@ -44,22 +44,28 @@ COPY ./scripts/dts_database/database_init_docker_prod.sql ./dts_database/
 
 # Azure Web SSH: App Service connects to sshd on port 2222 as root with the
 # fixed password "Docker!" (required by App Service; only reachable through its tunnel)
+# Set the SSH root password.
+# The root password must be exactly Docker! as it is used by App Service to let you access the SSH session with the container.
+# Ref: https://docs.microsoft.com/en-us/azure/app-service/configure-custom-container?pivots=container-linux#enable-ssh
 RUN echo "root:Docker!" | chpasswd \
 	&& ssh-keygen -A \
 	&& mkdir -p /var/run/sshd
 COPY ./scripts/azure/sshd_config /etc/ssh/sshd_config
 
-# Supervisor runs the app and sshd; the entrypoint initialises the database first
+# NGINX: public HTTP on :80, proxying to the app on 127.0.0.1:3000
+COPY ./scripts/azure/nginx.conf /etc/nginx/sites-available/default
+
+# Supervisor runs NGINX, the app and sshd; the entrypoint initialises the database first
 COPY ./scripts/azure/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY ./scripts/azure/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Expose the port that the application will use, and the Azure Web SSH port
-EXPOSE 3000 2222
+# Expose NGINX (HTTP) and the Azure Web SSH port; the app on 3000 stays internal
+EXPOSE 80 2222
 
 # Set the environment variables (production image)
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Run migrations, then start the app and sshd under Supervisor
+# Run migrations, then start NGINX, the app and sshd under Supervisor
 CMD ["/entrypoint.sh"]
