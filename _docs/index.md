@@ -50,6 +50,7 @@ DELTA Resilience (**D**isaster & Hazardous **E**vents, **L**osses and Damages **
 
 - [Shared instance installation](installation/shared-instance-installation.md)
 - [Health check best practices](installation/health-check-best-practices.md)
+- [UNDRR site scripts (cookie banner, messaging, analytics)](installation/undrr-site-scripts.md)
 
 ## Security
 
