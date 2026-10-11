@@ -27,13 +27,14 @@ The `hips_version` table MUST persist one row per HIP document version, with col
 ### Requirement: `hazard_type` table shape and constraints
 
 The `hazard_type` table MUST persist one row per hazard type, with columns `id` (UUID
-primary key), `name` (text, not null), and `hips_version_id` (UUID, not null, FK to
-`hips_version.id`).
+primary key), `name_text_content_id` (UUID, not null, FK to `text_content.id`),
+`hips_version_id` (UUID, not null, FK to `hips_version.id`), and `source_ref_id` (text,
+nullable, unique).
 
 #### Scenario: Insert a hazard type under an existing version
 
 - **WHEN** a row is inserted with a `hips_version_id` matching an existing `hips_version`
-  row
+  row and a `name_text_content_id` matching an existing `text_content` row
 - **THEN** the insert succeeds
 
 #### Scenario: `hips_version_id` must reference an existing version
@@ -47,16 +48,51 @@ primary key), `name` (text, not null), and `hips_version_id` (UUID, not null, FK
 - **WHEN** a row is inserted with `hips_version_id = NULL`
 - **THEN** the insert is rejected by a database-level not-null constraint
 
+#### Scenario: `name_text_content_id` is required
+
+- **WHEN** a row is inserted with `name_text_content_id = NULL`
+- **THEN** the insert is rejected by a database-level not-null constraint
+
+#### Scenario: `name_text_content_id` must reference an existing text_content row
+
+- **WHEN** a row is inserted with a `name_text_content_id` that matches no row in
+  `text_content`
+- **THEN** the insert is rejected by the foreign key constraint
+
+#### Scenario: `source_ref_id` is optional
+
+- **WHEN** a row is inserted with no `source_ref_id`
+- **THEN** the insert succeeds
+
+#### Scenario: `source_ref_id` must be unique when provided
+
+- **WHEN** a row is inserted with a `source_ref_id` matching an existing `hazard_type`
+  row's non-null `source_ref_id`
+- **THEN** the insert is rejected by a database-level unique constraint
+
+#### Scenario: multiple rows with no `source_ref_id` are all allowed
+
+- **WHEN** two rows are each inserted with no `source_ref_id`
+- **THEN** both inserts succeed — the unique constraint does not treat two `NULL` values
+  as a duplicate
+
+#### Scenario: concurrent inserts with the same non-null source_ref_id — exactly one succeeds
+
+- **WHEN** two callers concurrently insert `hazard_type` rows with the identical non-null
+  `source_ref_id`, before either transaction commits
+- **THEN** exactly one insert succeeds and the other is rejected by the unique constraint
+
 ### Requirement: `hazard_cluster` table shape and constraints
 
 The `hazard_cluster` table MUST persist one row per hazard cluster, with columns `id`
-(UUID primary key), `name` (text, not null), and `hazard_type_id` (UUID, not null, FK to
-`hazard_type.id`).
+(UUID primary key), `name_text_content_id` (UUID, not null, FK to `text_content.id`),
+`hazard_type_id` (UUID, not null, FK to `hazard_type.id`), and `source_ref_id` (text,
+nullable, unique).
 
 #### Scenario: Insert a cluster under an existing type
 
 - **WHEN** a row is inserted with a `hazard_type_id` matching an existing `hazard_type`
-  row
+  row and a `name_text_content_id` matching an existing `text_content` row
 - **THEN** the insert succeeds
 
 #### Scenario: `hazard_type_id` must reference an existing type
@@ -69,16 +105,52 @@ The `hazard_cluster` table MUST persist one row per hazard cluster, with columns
 - **WHEN** a row is inserted with `hazard_type_id = NULL`
 - **THEN** the insert is rejected by a database-level not-null constraint
 
+#### Scenario: `name_text_content_id` is required
+
+- **WHEN** a row is inserted with `name_text_content_id = NULL`
+- **THEN** the insert is rejected by a database-level not-null constraint
+
+#### Scenario: `name_text_content_id` must reference an existing text_content row
+
+- **WHEN** a row is inserted with a `name_text_content_id` that matches no row in
+  `text_content`
+- **THEN** the insert is rejected by the foreign key constraint
+
+#### Scenario: `source_ref_id` is optional
+
+- **WHEN** a row is inserted with no `source_ref_id`
+- **THEN** the insert succeeds
+
+#### Scenario: `source_ref_id` must be unique when provided
+
+- **WHEN** a row is inserted with a `source_ref_id` matching an existing `hazard_cluster`
+  row's non-null `source_ref_id`
+- **THEN** the insert is rejected by a database-level unique constraint
+
+#### Scenario: multiple rows with no `source_ref_id` are all allowed
+
+- **WHEN** two rows are each inserted with no `source_ref_id`
+- **THEN** both inserts succeed — the unique constraint does not treat two `NULL` values
+  as a duplicate
+
+#### Scenario: concurrent inserts with the same non-null source_ref_id — exactly one succeeds
+
+- **WHEN** two callers concurrently insert `hazard_cluster` rows with the identical non-null
+  `source_ref_id`, before either transaction commits
+- **THEN** exactly one insert succeeds and the other is rejected by the unique constraint
+
 ### Requirement: `specific_hazard` table shape and constraints
 
 The `specific_hazard` table MUST persist one row per specific hazard, with columns `id`
-(UUID primary key), `name` (text, not null), `code` (text, not null), and
-`hazard_cluster_id` (UUID, not null, FK to `hazard_cluster.id`).
+(UUID primary key), `name_text_content_id` (UUID, not null, FK to `text_content.id`),
+`code` (text, not null), `hazard_cluster_id` (UUID, not null, FK to `hazard_cluster.id`),
+`source_ref_id` (text, nullable, unique), and `description_text_content_id` (UUID,
+nullable, FK to `text_content.id`).
 
 #### Scenario: Insert a specific hazard under an existing cluster
 
 - **WHEN** a row is inserted with a `hazard_cluster_id` matching an existing
-  `hazard_cluster` row
+  `hazard_cluster` row and a `name_text_content_id` matching an existing `text_content` row
 - **THEN** the insert succeeds
 
 #### Scenario: `hazard_cluster_id` must reference an existing cluster
@@ -92,6 +164,51 @@ The `specific_hazard` table MUST persist one row per specific hazard, with colum
 
 - **WHEN** a row is inserted with `hazard_cluster_id = NULL`
 - **THEN** the insert is rejected by a database-level not-null constraint
+
+#### Scenario: `name_text_content_id` is required
+
+- **WHEN** a row is inserted with `name_text_content_id = NULL`
+- **THEN** the insert is rejected by a database-level not-null constraint
+
+#### Scenario: `name_text_content_id` must reference an existing text_content row
+
+- **WHEN** a row is inserted with a `name_text_content_id` that matches no row in
+  `text_content`
+- **THEN** the insert is rejected by the foreign key constraint
+
+#### Scenario: `description_text_content_id` is optional
+
+- **WHEN** a row is inserted with `description_text_content_id = NULL`
+- **THEN** the insert succeeds
+
+#### Scenario: `description_text_content_id` must reference an existing text_content row when provided
+
+- **WHEN** a row is inserted with a non-null `description_text_content_id` that matches no
+  row in `text_content`
+- **THEN** the insert is rejected by the foreign key constraint
+
+#### Scenario: `source_ref_id` is optional
+
+- **WHEN** a row is inserted with no `source_ref_id`
+- **THEN** the insert succeeds
+
+#### Scenario: `source_ref_id` must be unique when provided
+
+- **WHEN** a row is inserted with a `source_ref_id` matching an existing `specific_hazard`
+  row's non-null `source_ref_id`
+- **THEN** the insert is rejected by a database-level unique constraint
+
+#### Scenario: multiple rows with no `source_ref_id` are all allowed
+
+- **WHEN** two rows are each inserted with no `source_ref_id`
+- **THEN** both inserts succeed — the unique constraint does not treat two `NULL` values
+  as a duplicate
+
+#### Scenario: concurrent inserts with the same non-null source_ref_id — exactly one succeeds
+
+- **WHEN** two callers concurrently insert `specific_hazard` rows with the identical
+  non-null `source_ref_id`, before either transaction commits
+- **THEN** exactly one insert succeeds and the other is rejected by the unique constraint
 
 ### Requirement: full chain integrity and reference-data delete protection
 

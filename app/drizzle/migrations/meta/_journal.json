@@ -414,6 +414,13 @@
       "when": 1791537033187,
       "tag": "20261009091033_alter_language_table",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1791676800000,
+      "tag": "20261011000000_fix_hips_multilang_corrections",
+      "breakpoints": true
     }
   ]
 }
