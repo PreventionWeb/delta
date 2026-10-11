@@ -65,6 +65,10 @@ or use them as implementation templates.
       a typed error result; never silently discards
 - [ ] No sentinel strings for control flow — use `class DomainError extends Error {}`
 - [ ] Async functions that can fail return a typed result or throw; never return `undefined` on error
+- [ ] When a repository/adapter catches one specific driver error code (e.g. Postgres `23505`)
+      and maps it to a domain error, check for other realistic sibling codes at the same call site
+      (e.g. `23503` FK violation, `22P02` invalid input) — map those too, don't leave them to leak
+      as raw driver exceptions just because only one case was in focus
 
 ---
 
