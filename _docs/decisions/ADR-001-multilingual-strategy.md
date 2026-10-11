@@ -10,7 +10,7 @@ Proposed
 
 ## Context
 
-DELTA is a multi-tenant application supporting UN member states across multiple languages (currently en, ar, ru, with fr, es, zh partially available). The existing translation system uses a custom `ViewContext.t({code, msg})` pattern with flat per-language JSON files, a custom key extractor (`yarn i18n:extractor`), and Weblate for translator workflow. The system has several known gaps (see P1-34, P1-35, P1-36 in the Phase 1 structural report).
+DELTA is a multi-tenant application supporting UN member states across multiple languages. `app/utils/lang.backend.ts`'s `VALID_LANGUAGES` is the actual 9-language source of truth — `en`, `ar`, `ru`, `fr`, `es`, `zh`, `sr`, `sq`, `tg` — live and current, with real locale JSON files present under `locales/app/`/`locales/content/` for all 9. The existing translation system uses a custom `ViewContext.t({code, msg})` pattern with flat per-language JSON files, a custom key extractor (`yarn i18n:extractor`), and Weblate for translator workflow. The system has several known gaps (see P1-34, P1-35, P1-36 in the Phase 1 structural report).
 
 As part of the Clean Architecture migration, new domains need a proper, standards-based i18n foundation. Decisions here apply to new domains written during the strangler fig migration — the existing system is not replaced wholesale.
 
@@ -86,6 +86,14 @@ Two parallel extraction pipelines:
 ### Formatting
 
 Native `Intl` API for all locale-aware formatting (numbers, currency display, dates). Formatter instances are cached to avoid expensive object reconstruction on each call. Pluralisation uses i18next's built-in `_one`/`_other` suffix convention — no if/else in components.
+
+### Third content-translation mechanism — `language`/`text_content`/`translation`
+
+A third, parallel content-translation mechanism, alongside — not replacing — the Weblate/JSONB content-hash pipeline above (`zeroStrMap` JSONB columns, `yarn export_tables_for_translation`, Weblate, `dts_jsonb_localized`), which remains the single-locale display-resolution mechanism for sectors/assets/the legacy `hip_hazard`/`hip_cluster`/`hip_type` tables and is untouched by this addition. This mechanism exists for free-text filter search across unknown-locale input, which the JSONB pipeline was never built to do: `text_content` stores one row per piece of original-language source text, and `translation` stores one row per rendering of that text into a given language, joinable by any caller regardless of the search locale. Scope matches ADR-008: this covers centrally-curated, slow-changing reference/taxonomy data (hazard types, clusters, specific hazards), not user-authored content, which ADR-008 excludes from translation entirely.
+
+**Standing invariant**: every `text_content` row MUST have a same-language `translation` row created alongside it. `translation` is the only table ever read for search/display, in any language, including the row's own original one. `text_content.original_text`/`original_language_id` are provenance metadata only (what language a piece of text was authored in) — never read directly by a search or display query. Enforcement for a future writer of `text_content` (a DB trigger vs. an application-layer contract the write use case must honor) is undecided here and left to whichever intent adds the next real write path to these tables.
+
+`language` is seeded with all 9 `VALID_LANGUAGES` codes, the live, current source of truth for which languages DELTA supports.
 
 ## Consequences
 
