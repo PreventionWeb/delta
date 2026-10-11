@@ -16,6 +16,7 @@ async function seedSpecificHazard() {
 	const [cluster] = await dr
 		.insert(hazardClusterTable)
 		.values({
+			id: randomUUID(),
 			nameTextContentId: await seedTextContent(`Cluster ${randomUUID()}`),
 			hazardTypeId: hazardType.id,
 		})
@@ -23,6 +24,7 @@ async function seedSpecificHazard() {
 	const [hazard] = await dr
 		.insert(specificHazardTable)
 		.values({
+			id: randomUUID(),
 			nameTextContentId: await seedTextContent(`Hazard ${randomUUID()}`),
 			code: `code-${randomUUID()}`,
 			hazardClusterId: cluster.id,

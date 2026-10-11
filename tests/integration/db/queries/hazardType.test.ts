@@ -21,7 +21,7 @@ describe("hazardTypeTable", () => {
 
 		const [row] = await dr
 			.insert(hazardTypeTable)
-			.values({ nameTextContentId, hipsVersionId })
+			.values({ id: randomUUID(), nameTextContentId, hipsVersionId })
 			.returning();
 
 		expect(row.hipsVersionId).toBe(hipsVersionId);
@@ -33,7 +33,11 @@ describe("hazardTypeTable", () => {
 		await expect(
 			dr
 				.insert(hazardTypeTable)
-				.values({ nameTextContentId, hipsVersionId: randomUUID() })
+				.values({
+					id: randomUUID(),
+					nameTextContentId,
+					hipsVersionId: randomUUID(),
+				})
 				.returning(),
 		).rejects.toThrow();
 	});
@@ -45,7 +49,7 @@ describe("hazardTypeTable", () => {
 			dr
 				.insert(hazardTypeTable)
 				// @ts-expect-error hipsVersionId is required
-				.values({ nameTextContentId })
+				.values({ id: randomUUID(), nameTextContentId })
 				.returning(),
 		).rejects.toThrow();
 	});
@@ -57,7 +61,7 @@ describe("hazardTypeTable", () => {
 			dr
 				.insert(hazardTypeTable)
 				// @ts-expect-error nameTextContentId is required
-				.values({ hipsVersionId })
+				.values({ id: randomUUID(), hipsVersionId })
 				.returning(),
 		).rejects.toThrow();
 	});
@@ -68,7 +72,11 @@ describe("hazardTypeTable", () => {
 		await expect(
 			dr
 				.insert(hazardTypeTable)
-				.values({ nameTextContentId: randomUUID(), hipsVersionId })
+				.values({
+					id: randomUUID(),
+					nameTextContentId: randomUUID(),
+					hipsVersionId,
+				})
 				.returning(),
 		).rejects.toThrow();
 	});
@@ -79,7 +87,7 @@ describe("hazardTypeTable", () => {
 
 		const [row] = await dr
 			.insert(hazardTypeTable)
-			.values({ nameTextContentId, hipsVersionId })
+			.values({ id: randomUUID(), nameTextContentId, hipsVersionId })
 			.returning();
 
 		expect(row.sourceRefId).toBeNull();
@@ -89,6 +97,7 @@ describe("hazardTypeTable", () => {
 		const hipsVersionId = await insertHipsVersion();
 		const sourceRefId = `src-${randomUUID()}`;
 		await dr.insert(hazardTypeTable).values({
+			id: randomUUID(),
 			nameTextContentId: await seedTextContent("Geohazards"),
 			hipsVersionId,
 			sourceRefId,
@@ -96,6 +105,7 @@ describe("hazardTypeTable", () => {
 
 		await expect(
 			dr.insert(hazardTypeTable).values({
+				id: randomUUID(),
 				nameTextContentId: await seedTextContent("Geohazards (dup)"),
 				hipsVersionId,
 				sourceRefId,
@@ -110,6 +120,7 @@ describe("hazardTypeTable", () => {
 			dr
 				.insert(hazardTypeTable)
 				.values({
+					id: randomUUID(),
 					nameTextContentId: await seedTextContent("Geohazards A"),
 					hipsVersionId,
 				})
@@ -117,6 +128,7 @@ describe("hazardTypeTable", () => {
 			dr
 				.insert(hazardTypeTable)
 				.values({
+					id: randomUUID(),
 					nameTextContentId: await seedTextContent("Geohazards B"),
 					hipsVersionId,
 				})
@@ -137,7 +149,12 @@ describe("hazardTypeTable", () => {
 		const outcomes = await Promise.all([
 			dr
 				.insert(hazardTypeTable)
-				.values({ nameTextContentId: nameA, hipsVersionId, sourceRefId })
+				.values({
+					id: randomUUID(),
+					nameTextContentId: nameA,
+					hipsVersionId,
+					sourceRefId,
+				})
 				.returning()
 				.then(
 					() => "fulfilled" as const,
@@ -145,7 +162,12 @@ describe("hazardTypeTable", () => {
 				),
 			dr
 				.insert(hazardTypeTable)
-				.values({ nameTextContentId: nameB, hipsVersionId, sourceRefId })
+				.values({
+					id: randomUUID(),
+					nameTextContentId: nameB,
+					hipsVersionId,
+					sourceRefId,
+				})
 				.returning()
 				.then(
 					() => "fulfilled" as const,
@@ -155,5 +177,19 @@ describe("hazardTypeTable", () => {
 
 		expect(outcomes.filter((o) => o === "fulfilled")).toHaveLength(1);
 		expect(outcomes.filter((o) => o === "rejected")).toHaveLength(1);
+	});
+
+	it("rejects an insert that omits id with a NOT NULL violation, proving there is no DB default", async () => {
+		const hipsVersionId = await insertHipsVersion();
+		const nameTextContentId = await seedTextContent("Geohazards");
+
+		const error = await dr
+			.insert(hazardTypeTable)
+			// @ts-expect-error id is required — there is no DB default to fall back on
+			.values({ nameTextContentId, hipsVersionId })
+			.returning()
+			.catch((e: unknown) => e);
+
+		expect((error as { cause?: { code?: string } }).cause?.code).toBe("23502");
 	});
 });

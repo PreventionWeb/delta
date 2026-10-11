@@ -1,4 +1,5 @@
 import "../setup";
+import { randomUUID } from "crypto";
 import { eq } from "drizzle-orm";
 import { describe, it, expect } from "vitest";
 import { dr } from "~/db.server";
@@ -22,6 +23,7 @@ async function insertHazardCluster(): Promise<string> {
 	const [type] = await dr
 		.insert(hazardTypeTable)
 		.values({
+			id: randomUUID(),
 			nameTextContentId: await seedTextContent("Geohazards"),
 			hipsVersionId: version.id,
 		})
@@ -29,6 +31,7 @@ async function insertHazardCluster(): Promise<string> {
 	const [cluster] = await dr
 		.insert(hazardClusterTable)
 		.values({
+			id: randomUUID(),
 			nameTextContentId: await seedTextContent("Seismogenic (Earthquakes)"),
 			hazardTypeId: type.id,
 		})
@@ -40,6 +43,7 @@ describe("hip hierarchy chain integrity", () => {
 	it("rejects deleting a hazard_cluster referenced by a specific_hazard row", async () => {
 		const hazardClusterId = await insertHazardCluster();
 		await dr.insert(specificHazardTable).values({
+			id: randomUUID(),
 			nameTextContentId: await seedTextContent("Earthquake"),
 			code: "GH0001",
 			hazardClusterId,
@@ -63,6 +67,7 @@ describe("hip hierarchy chain integrity", () => {
 			dr
 				.insert(specificHazardTable)
 				.values({
+					id: randomUUID(),
 					nameTextContentId: earthquakeName,
 					code: "GH0001",
 					hazardClusterId,
@@ -75,6 +80,7 @@ describe("hip hierarchy chain integrity", () => {
 			dr
 				.insert(specificHazardTable)
 				.values({
+					id: randomUUID(),
 					nameTextContentId: tsunamiName,
 					code: "GH0002",
 					hazardClusterId,
@@ -114,6 +120,7 @@ describe("shared translation schema FK delete-protection (non-cascade FKs)", () 
 			.returning({ id: hipsVersionTable.id });
 		const nameTextContentId = await seedTextContent("Geohazards");
 		await dr.insert(hazardTypeTable).values({
+			id: randomUUID(),
 			nameTextContentId,
 			hipsVersionId: version.id,
 		});
@@ -131,6 +138,7 @@ describe("shared translation schema FK delete-protection (non-cascade FKs)", () 
 		const [type] = await dr
 			.insert(hazardTypeTable)
 			.values({
+				id: randomUUID(),
 				nameTextContentId: await seedTextContent("Geohazards"),
 				hipsVersionId: version.id,
 			})
@@ -139,6 +147,7 @@ describe("shared translation schema FK delete-protection (non-cascade FKs)", () 
 			"Seismogenic (Earthquakes)",
 		);
 		await dr.insert(hazardClusterTable).values({
+			id: randomUUID(),
 			nameTextContentId,
 			hazardTypeId: type.id,
 		});
@@ -152,6 +161,7 @@ describe("shared translation schema FK delete-protection (non-cascade FKs)", () 
 		const hazardClusterId = await insertHazardCluster();
 		const nameTextContentId = await seedTextContent("Earthquake");
 		await dr.insert(specificHazardTable).values({
+			id: randomUUID(),
 			nameTextContentId,
 			code: "GH0001",
 			hazardClusterId,
@@ -168,6 +178,7 @@ describe("shared translation schema FK delete-protection (non-cascade FKs)", () 
 			"Sudden ground shaking caused by tectonic movement",
 		);
 		await dr.insert(specificHazardTable).values({
+			id: randomUUID(),
 			nameTextContentId: await seedTextContent("Earthquake"),
 			code: "GH0001",
 			hazardClusterId,

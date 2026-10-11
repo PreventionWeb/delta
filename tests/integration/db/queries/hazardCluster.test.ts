@@ -15,6 +15,7 @@ async function insertHazardType(): Promise<string> {
 	const [type] = await dr
 		.insert(hazardTypeTable)
 		.values({
+			id: randomUUID(),
 			nameTextContentId: await seedTextContent("Geohazards"),
 			hipsVersionId: version.id,
 		})
@@ -31,7 +32,7 @@ describe("hazardClusterTable", () => {
 
 		const [row] = await dr
 			.insert(hazardClusterTable)
-			.values({ nameTextContentId, hazardTypeId })
+			.values({ id: randomUUID(), nameTextContentId, hazardTypeId })
 			.returning();
 
 		expect(row.hazardTypeId).toBe(hazardTypeId);
@@ -45,7 +46,11 @@ describe("hazardClusterTable", () => {
 		await expect(
 			dr
 				.insert(hazardClusterTable)
-				.values({ nameTextContentId, hazardTypeId: randomUUID() })
+				.values({
+					id: randomUUID(),
+					nameTextContentId,
+					hazardTypeId: randomUUID(),
+				})
 				.returning(),
 		).rejects.toThrow();
 	});
@@ -59,7 +64,7 @@ describe("hazardClusterTable", () => {
 			dr
 				.insert(hazardClusterTable)
 				// @ts-expect-error hazardTypeId is required
-				.values({ nameTextContentId })
+				.values({ id: randomUUID(), nameTextContentId })
 				.returning(),
 		).rejects.toThrow();
 	});
@@ -71,7 +76,7 @@ describe("hazardClusterTable", () => {
 			dr
 				.insert(hazardClusterTable)
 				// @ts-expect-error nameTextContentId is required
-				.values({ hazardTypeId })
+				.values({ id: randomUUID(), hazardTypeId })
 				.returning(),
 		).rejects.toThrow();
 	});
@@ -82,7 +87,11 @@ describe("hazardClusterTable", () => {
 		await expect(
 			dr
 				.insert(hazardClusterTable)
-				.values({ nameTextContentId: randomUUID(), hazardTypeId })
+				.values({
+					id: randomUUID(),
+					nameTextContentId: randomUUID(),
+					hazardTypeId,
+				})
 				.returning(),
 		).rejects.toThrow();
 	});
@@ -95,7 +104,7 @@ describe("hazardClusterTable", () => {
 
 		const [row] = await dr
 			.insert(hazardClusterTable)
-			.values({ nameTextContentId, hazardTypeId })
+			.values({ id: randomUUID(), nameTextContentId, hazardTypeId })
 			.returning();
 
 		expect(row.sourceRefId).toBeNull();
@@ -105,6 +114,7 @@ describe("hazardClusterTable", () => {
 		const hazardTypeId = await insertHazardType();
 		const sourceRefId = `src-${randomUUID()}`;
 		await dr.insert(hazardClusterTable).values({
+			id: randomUUID(),
 			nameTextContentId: await seedTextContent("Seismogenic"),
 			hazardTypeId,
 			sourceRefId,
@@ -112,6 +122,7 @@ describe("hazardClusterTable", () => {
 
 		await expect(
 			dr.insert(hazardClusterTable).values({
+				id: randomUUID(),
 				nameTextContentId: await seedTextContent("Seismogenic (dup)"),
 				hazardTypeId,
 				sourceRefId,
@@ -126,6 +137,7 @@ describe("hazardClusterTable", () => {
 			dr
 				.insert(hazardClusterTable)
 				.values({
+					id: randomUUID(),
 					nameTextContentId: await seedTextContent("Seismogenic A"),
 					hazardTypeId,
 				})
@@ -133,6 +145,7 @@ describe("hazardClusterTable", () => {
 			dr
 				.insert(hazardClusterTable)
 				.values({
+					id: randomUUID(),
 					nameTextContentId: await seedTextContent("Seismogenic B"),
 					hazardTypeId,
 				})
@@ -153,7 +166,12 @@ describe("hazardClusterTable", () => {
 		const outcomes = await Promise.all([
 			dr
 				.insert(hazardClusterTable)
-				.values({ nameTextContentId: nameA, hazardTypeId, sourceRefId })
+				.values({
+					id: randomUUID(),
+					nameTextContentId: nameA,
+					hazardTypeId,
+					sourceRefId,
+				})
 				.returning()
 				.then(
 					() => "fulfilled" as const,
@@ -161,7 +179,12 @@ describe("hazardClusterTable", () => {
 				),
 			dr
 				.insert(hazardClusterTable)
-				.values({ nameTextContentId: nameB, hazardTypeId, sourceRefId })
+				.values({
+					id: randomUUID(),
+					nameTextContentId: nameB,
+					hazardTypeId,
+					sourceRefId,
+				})
 				.returning()
 				.then(
 					() => "fulfilled" as const,
@@ -171,5 +194,21 @@ describe("hazardClusterTable", () => {
 
 		expect(outcomes.filter((o) => o === "fulfilled")).toHaveLength(1);
 		expect(outcomes.filter((o) => o === "rejected")).toHaveLength(1);
+	});
+
+	it("rejects an insert that omits id with a NOT NULL violation, proving there is no DB default", async () => {
+		const hazardTypeId = await insertHazardType();
+		const nameTextContentId = await seedTextContent(
+			"Seismogenic (Earthquakes)",
+		);
+
+		const error = await dr
+			.insert(hazardClusterTable)
+			// @ts-expect-error id is required — there is no DB default to fall back on
+			.values({ nameTextContentId, hazardTypeId })
+			.returning()
+			.catch((e: unknown) => e);
+
+		expect((error as { cause?: { code?: string } }).cause?.code).toBe("23502");
 	});
 });

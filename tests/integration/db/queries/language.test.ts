@@ -42,6 +42,16 @@ describe("languageTable", () => {
 		).rejects.toThrow();
 	});
 
+	it("rejects a 3-char language_cd as a string-too-long error (22001), not the check constraint (23514)", async () => {
+		const error = await dr
+			.insert(languageTable)
+			.values({ languageName: "French", languageCd: "fra" })
+			.returning()
+			.catch((e: unknown) => e);
+
+		expect((error as { cause?: { code?: string } }).cause?.code).toBe("22001");
+	});
+
 	it("rejects an insert with language_cd shorter than 2 chars", async () => {
 		await expect(
 			dr
