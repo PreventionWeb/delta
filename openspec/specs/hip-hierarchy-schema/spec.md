@@ -210,55 +210,6 @@ nullable, FK to `text_content.id`).
   non-null `source_ref_id`, before either transaction commits
 - **THEN** exactly one insert succeeds and the other is rejected by the unique constraint
 
-### Requirement: existing taxonomy names are preserved across the multi-language migration
-
-A `specific_hazard`, `hazard_cluster`, or `hazard_type` row that existed before this
-migration MUST resolve, through its new `name_text_content_id`, to a `text_content` row
-whose `original_text` equals that row's pre-migration `name` value, with
-`original_language_id` referencing the `language` row seeded for `en`. That same
-`text_content` row MUST also have a corresponding `translation` row whose `language_id`
-references the `en` `language` row and whose `translation` text equals the same
-pre-migration `name` value, per the standing invariant that every `text_content` row has a
-same-language `translation` row. The migration MUST NOT alter `code` (`specific_hazard`),
-`hazard_cluster_id`/`hazard_type_id`/`hips_version_id` chain references, or any other
-pre-existing column on these three tables.
-
-#### Scenario: a pre-existing row's name is preserved and resolvable
-
-- **GIVEN** a `specific_hazard` row existed before the migration with `name = "Earthquake"`
-- **WHEN** the migration runs
-- **THEN** the row's `name_text_content_id` resolves through `text_content` to a row with
-  `original_text = "Earthquake"` and `original_language_id` referencing the `en` `language`
-  row
-
-#### Scenario: a same-language translation row is also created for every backfilled name
-
-- **GIVEN** a `specific_hazard` row existed before the migration with `name = "Earthquake"`
-- **WHEN** the migration runs
-- **THEN** a `translation` row exists whose `text_content_id` is the row's
-  `name_text_content_id`, whose `language_id` references the `en` `language` row, and whose
-  `translation` text equals `"Earthquake"`
-
-#### Scenario: the plain `name` column no longer exists
-
-- **WHEN** the migration runs
-- **THEN** `specific_hazard`, `hazard_cluster`, and `hazard_type` each no longer have a
-  `name` column
-
-#### Scenario: pre-existing rows have no description or source_ref_id
-
-- **GIVEN** a `specific_hazard` row existed before the migration (with no pre-existing
-  `description` column to source a value from)
-- **WHEN** the migration runs
-- **THEN** that row's `description_text_content_id` is `NULL` and its `source_ref_id` is
-  `NULL`
-
-#### Scenario: the seeded language rows are present after migration
-
-- **WHEN** the migration runs
-- **THEN** `language` contains one row per `VALID_LANGUAGES` code (`ar`, `zh`, `en`, `fr`,
-  `ru`, `es`, `sr`, `sq`, `tg`), including the `en` row used by the backfill above
-
 ### Requirement: full chain integrity and reference-data delete protection
 
 Deleting a row anywhere in `hips_version → hazard_type → hazard_cluster` MUST be rejected
