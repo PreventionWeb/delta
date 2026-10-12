@@ -217,7 +217,11 @@ class FakeWorkflowRepository implements IWorkflowRepository {
 		throw new Error("not used by DeleteHazardousEventUseCase's own tests");
 	}
 
-	async save(): Promise<never> {
+	async insert(): Promise<never> {
+		throw new Error("not used by DeleteHazardousEventUseCase's own tests");
+	}
+
+	async update(): Promise<never> {
 		throw new Error("not used by DeleteHazardousEventUseCase's own tests");
 	}
 }
