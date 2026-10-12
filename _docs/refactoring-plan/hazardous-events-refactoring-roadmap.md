@@ -1991,7 +1991,14 @@ cause edges for one effect.
 
 ---
 
-### 🔷 5j — Optimistic Locking for `IWorkflowRepository.save()`
+### 🔷 5j — Optimistic Locking for `IWorkflowRepository` (`DrizzleWorkflowRepository` only — see scope note below)
+
+**Resolved 2026-10-12 (see `feature/ca-workflow-optimistic-locking`'s design.md Decision
+2):** the paragraph below's "`save()` is an upsert, so the fix extends its existing
+`setWhere` guard" plan was superseded during design — `save()` was split into
+`insert()` (plain INSERT, unchanged) and `update()` (a plain conditional `UPDATE`,
+never an upsert, no insert fallback at all). The no-upsert-fallback property is what
+closes the delete/resurrection race described below, not an extended `setWhere` guard.
 
 **Branch:** `feature/ca-workflow-optimistic-locking`
 
@@ -2000,10 +2007,22 @@ cause edges for one effect.
 existing row); `4a` gave the port its first real caller, making the race reachable in
 practice — two callers racing off the same stale read produce last-write-wins with no
 error to either side, e.g. a stale `'return'` silently overwriting an already-`PUBLISHED`
-row. **No existing pattern to follow here** — confirmed via repo-wide grep (2026-09-24):
-no table anywhere in this codebase has a `version` column, and no legacy model issues an
-`updatedAt`-conditioned `UPDATE ... WHERE` for concurrency control. This is genuinely new
-ground for the codebase, not an application of an established convention.
+row. `5a`'s own review (2026-10-09) found a second interleaving on this same repository:
+`deleteByEntity()` followed by a stale, already-in-flight `save()` silently resurrects
+the just-deleted row — a version check alone doesn't catch this, since the row it would
+guard no longer exists after delete. **No existing pattern to follow here** — confirmed
+via repo-wide grep (2026-09-24): no table anywhere in this codebase has a `version`
+column, and no legacy model issues an `updatedAt`-conditioned `UPDATE ... WHERE` for
+concurrency control. This is genuinely new ground for the codebase, not an application of
+an established convention.
+
+**Scope narrowed 2026-10-12:** fixes `DrizzleWorkflowRepository` only — the identical
+race on `IHazardousEventRepository.save()` moves to `DEF-037` (owned by `5d`, no adapter
+exists yet to fix). Confirmed against `5a`'s real code, not assumed: `save()` is an
+upsert, so the fix extends its existing `setWhere` guard rather than adding a separate
+`UPDATE`; `updatedAt` is app-managed with no DB trigger, and `save()`'s signature has no
+slot yet for "the previous value to check against"; a zero-row result already means one
+thing (Decision 3's entity-mismatch guard) and must not be conflated with the new check.
 
 **Intent for `/opsx:propose`:**
 
@@ -2174,11 +2193,12 @@ included; revoking a grant removes access without deleting the underlying link.
 `yarn test:run2` fully green. `yarn tsc` clean. All PGlite integration tests for both
 modules pass on `dev`, including cross-module resolution (`HazardousEventsModule`
 successfully resolving a use case that depends on `ValidationWorkflowModule`'s port).
-**Blocking, no exceptions (added 2026-09-24, widened 2026-10-07):** `DEF-024`,
-`DEF-026`, and `DEF-033` are all closed — `5j` and `5k` land and pass their own PGlite
-tests before this gate is considered passed. None may be waved through as "planned but
-deferred further" once Phase 5 starts; the gate does not pass with any still open in
-the register.
+**Blocking, no exceptions (added 2026-09-24, widened 2026-10-07, widened again
+2026-10-12):** `DEF-024`, `DEF-026`, `DEF-033`, and `DEF-037` are all closed — `5j`,
+`5k`, and `5d` (for `DEF-037`'s `IHazardousEventRepository` piece, split from `DEF-024`)
+land and pass their own PGlite tests before this gate is considered passed. None may be
+waved through as "planned but deferred further" once Phase 5 starts; the gate does not
+pass with any still open in the register.
 
 ---
 
