@@ -216,8 +216,8 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 }
 
 class FakeWorkflowRepository implements IWorkflowRepository {
-	readonly saveCalls: WorkflowInstance[] = [];
-	saveBehavior: "succeed" | "succeed-enriched" | Error = "succeed";
+	readonly insertCalls: WorkflowInstance[] = [];
+	insertBehavior: "succeed" | "succeed-enriched" | Error = "succeed";
 
 	constructor(private readonly callLog: string[] = []) {}
 
@@ -233,15 +233,21 @@ class FakeWorkflowRepository implements IWorkflowRepository {
 		throw new Error("not used by CreateHazardousEventUseCase's own tests");
 	}
 
-	async save(instance: WorkflowInstance): Promise<WorkflowInstance> {
-		this.saveCalls.push(instance);
-		this.callLog.push("workflow.save");
-		if (this.saveBehavior instanceof Error) {
-			throw this.saveBehavior;
+	async update(): Promise<never> {
+		throw new Error(
+			"CreateHazardousEventUseCase never calls update() — it only ever inserts",
+		);
+	}
+
+	async insert(instance: WorkflowInstance): Promise<WorkflowInstance> {
+		this.insertCalls.push(instance);
+		this.callLog.push("workflow.insert");
+		if (this.insertBehavior instanceof Error) {
+			throw this.insertBehavior;
 		}
-		if (this.saveBehavior === "succeed-enriched") {
-			// Contrived, test-only enrichment — proves toHazardousEventDto uses save()'s resolved WorkflowInstance,
-			// not the pre-save one (mirrors FakeHazardousEventRepository's own dataSource-suffix enrichment).
+		if (this.insertBehavior === "succeed-enriched") {
+			// Contrived, test-only enrichment — proves toHazardousEventDto uses insert()'s resolved WorkflowInstance,
+			// not the pre-insert one (mirrors FakeHazardousEventRepository's own dataSource-suffix enrichment).
 			return WorkflowInstance.create({
 				id: instance.id,
 				entityId: instance.entityId,
@@ -635,7 +641,7 @@ describe("CreateHazardousEventUseCase", () => {
 		await expect(harness.useCase.execute(command)).rejects.toThrow(
 			"boom-hazardous-event-save",
 		);
-		expect(harness.workflowRepository.saveCalls).toHaveLength(0);
+		expect(harness.workflowRepository.insertCalls).toHaveLength(0);
 		expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(0);
 	});
 
@@ -655,7 +661,7 @@ describe("CreateHazardousEventUseCase", () => {
 
 			expect(harness.callLog).toEqual([
 				"hazardousEvent.save",
-				"workflow.save",
+				"workflow.insert",
 				"causalChain.saveEdge",
 			]);
 			expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(1);
@@ -714,7 +720,7 @@ describe("CreateHazardousEventUseCase", () => {
 				NotFoundError,
 			);
 			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
-			expect(harness.workflowRepository.saveCalls).toHaveLength(0);
+			expect(harness.workflowRepository.insertCalls).toHaveLength(0);
 			expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(0);
 		});
 
@@ -735,7 +741,7 @@ describe("CreateHazardousEventUseCase", () => {
 				tenantId: "tenant-1",
 			});
 			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
-			expect(harness.workflowRepository.saveCalls).toHaveLength(0);
+			expect(harness.workflowRepository.insertCalls).toHaveLength(0);
 			expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(0);
 		});
 
@@ -752,7 +758,7 @@ describe("CreateHazardousEventUseCase", () => {
 				ConflictError,
 			);
 			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
-			expect(harness.workflowRepository.saveCalls).toHaveLength(0);
+			expect(harness.workflowRepository.insertCalls).toHaveLength(0);
 			expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(0);
 		});
 
@@ -767,13 +773,15 @@ describe("CreateHazardousEventUseCase", () => {
 				"boom-find-reachable",
 			);
 			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
-			expect(harness.workflowRepository.saveCalls).toHaveLength(0);
+			expect(harness.workflowRepository.insertCalls).toHaveLength(0);
 			expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(0);
 		});
 
-		it("propagates a generic Error from the workflow save, leaving the already-saved HazardousEvent in place with no compensating delete", async () => {
+		it("propagates a generic Error from the workflow insert, leaving the already-saved HazardousEvent in place with no compensating delete", async () => {
 			const harness = harnessWithCause();
-			harness.workflowRepository.saveBehavior = new Error("boom-workflow-save");
+			harness.workflowRepository.insertBehavior = new Error(
+				"boom-workflow-save",
+			);
 			const command = makeCommand({ causeId: "cause-1" });
 
 			await expect(harness.useCase.execute(command)).rejects.toThrow(
@@ -802,7 +810,7 @@ describe("CreateHazardousEventUseCase", () => {
 				"boom-edge-save",
 			);
 			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(1);
-			expect(harness.workflowRepository.saveCalls).toHaveLength(1);
+			expect(harness.workflowRepository.insertCalls).toHaveLength(1);
 		});
 
 		it("supports two same-cause creates in one Promise.all, each producing its own distinct effectId/edge (no shared mutable state to race over)", async () => {
@@ -838,8 +846,8 @@ describe("CreateHazardousEventUseCase", () => {
 
 		await harness.useCase.execute(command);
 
-		expect(harness.workflowRepository.saveCalls).toHaveLength(1);
-		const savedWorkflow = harness.workflowRepository.saveCalls[0];
+		expect(harness.workflowRepository.insertCalls).toHaveLength(1);
+		const savedWorkflow = harness.workflowRepository.insertCalls[0];
 		const savedEntityId = harness.hazardousEventRepository.saveCalls[0].id;
 		expect(savedWorkflow.entityId).toBe(savedEntityId);
 		expect(savedWorkflow.entityType).toBe("HE");
@@ -871,9 +879,9 @@ describe("CreateHazardousEventUseCase", () => {
 		expect(dto.dataSource).not.toBe(command.dataSource);
 	});
 
-	it("returns a DTO whose workflowStatus reflects workflowRepository.save()'s resolved value, not the pre-save DRAFT instance", async () => {
+	it("returns a DTO whose workflowStatus reflects workflowRepository.insert()'s resolved value, not the pre-insert DRAFT instance", async () => {
 		const harness = createHarness();
-		harness.workflowRepository.saveBehavior = "succeed-enriched";
+		harness.workflowRepository.insertBehavior = "succeed-enriched";
 		const command = makeCommand();
 
 		const dto = await harness.useCase.execute(command);

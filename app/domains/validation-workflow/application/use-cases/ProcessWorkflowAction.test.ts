@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { NoOpLogger } from "~/shared/logging/NoOpLogger";
-import { ConflictError } from "~/shared/errors";
+import { ConcurrentModificationError, ConflictError } from "~/shared/errors";
 
 import {
 	WorkflowInstance,
@@ -24,16 +24,21 @@ import type { ProcessWorkflowActionCommand } from "./ProcessWorkflowAction";
 // ---------------------------------------------------------------------------
 
 /** Per-test IWorkflowRepository double: `findByEntity` resolves the fixed
- * instance (or null); `save` echoes its argument unless a custom impl is given. */
+ * instance (or null); `update` echoes its argument unless a custom impl is given.
+ * `insert` is never called by this use case — stubbed only to satisfy the interface. */
 function makeRepository(
 	instance: WorkflowInstance | null,
-	saveImpl?: (instance: WorkflowInstance) => Promise<WorkflowInstance>,
+	updateImpl?: (
+		instance: WorkflowInstance,
+		expectedUpdatedAt: Date,
+	) => Promise<WorkflowInstance>,
 ): IWorkflowRepository {
 	return {
 		findByEntity: vi.fn().mockResolvedValue(instance),
 		findByEntityIds: vi.fn(),
-		save: saveImpl
-			? vi.fn().mockImplementation(saveImpl)
+		insert: vi.fn(),
+		update: updateImpl
+			? vi.fn().mockImplementation(updateImpl)
 			: vi.fn().mockImplementation((i: WorkflowInstance) => Promise.resolve(i)),
 		deleteByEntity: vi.fn(),
 	};
@@ -164,40 +169,53 @@ function buildInstance(options: BuildInstanceOptions): WorkflowInstance {
 }
 
 /**
- * Concurrency-scenario repository: a mutable single-row store (not per-call
- * stubs), so a second execute() call reads whatever the first actually persisted.
- * `gateNextSave()` arms the *next* save() call to resolve `entered` once reached,
- * then block on a manually-released promise before writing — letting the test
- * deterministically sequence "A enters save(), B completes twice, then A's
- * save() releases" without any timers.
+ * Concurrency-scenario repository: a mutable single-row store whose `update()` actually
+ * enforces the expectedUpdatedAt check (same contract as DrizzleWorkflowRepository, 5j), so a
+ * stale second-caller `update()` genuinely loses rather than the test asserting it by fiat.
+ * `gateNextUpdate()` arms the *next* `update()` call to resolve `entered` once reached, then
+ * block until released — letting the test deterministically sequence "A enters update(), B
+ * commits, then A's update() releases and loses against B's committed state."
  */
 function makeConcurrencyRepository(initial: WorkflowInstance) {
 	let current = initial;
 	let armed = false;
 	let releaseGate: (() => void) | undefined;
 	let resolveEntered: (() => void) | undefined;
+	let thrownConcurrencyError: ConcurrentModificationError | undefined;
 
 	const findByEntity = vi.fn().mockImplementation(async () => current);
-	const save = vi
+	const update = vi
 		.fn()
-		.mockImplementation(async (instance: WorkflowInstance) => {
-			if (armed) {
-				armed = false;
-				const gate = new Promise<void>((resolve) => {
-					releaseGate = resolve;
-				});
-				resolveEntered?.();
-				await gate;
-			}
-			current = instance;
-			return instance;
-		});
+		.mockImplementation(
+			async (instance: WorkflowInstance, expectedUpdatedAt: Date) => {
+				if (armed) {
+					armed = false;
+					const gate = new Promise<void>((resolve) => {
+						releaseGate = resolve;
+					});
+					resolveEntered?.();
+					await gate;
+				}
+				// Checked after the gate releases, against whatever is current *now* — mirrors a
+				// real conditional UPDATE's WHERE clause being evaluated at commit time, not call time.
+				if (current.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+					thrownConcurrencyError = new ConcurrentModificationError(
+						"WorkflowInstance has been modified since it was read",
+						{ entityId: instance.entityId, entityType: instance.entityType },
+					);
+					throw thrownConcurrencyError;
+				}
+				current = instance;
+				return instance;
+			},
+		);
 
 	// Explicit annotation (not `as IWorkflowRepository`) so a missing/mistyped
 	// method fails to compile instead of being silently cast away.
 	const repo: IWorkflowRepository = {
 		findByEntity,
-		save,
+		update,
+		insert: vi.fn(),
 		findByEntityIds: vi.fn(),
 		deleteByEntity: vi.fn(),
 	};
@@ -205,14 +223,15 @@ function makeConcurrencyRepository(initial: WorkflowInstance) {
 	return {
 		repo,
 		getCurrentStatus: () => current.status,
-		/** Arms the gate and returns a promise that resolves once the gated save() call has been entered. */
-		gateNextSave(): Promise<void> {
+		getThrownConcurrencyError: () => thrownConcurrencyError,
+		/** Arms the gate and returns a promise that resolves once the gated update() call has been entered. */
+		gateNextUpdate(): Promise<void> {
 			armed = true;
 			return new Promise<void>((resolve) => {
 				resolveEntered = resolve;
 			});
 		},
-		releaseGatedSave(): void {
+		releaseGatedUpdate(): void {
 			releaseGate?.();
 		},
 	};
@@ -246,12 +265,14 @@ describe("ProcessWorkflowActionUseCase — action to entity-method mapping", () 
 
 		const dto = await useCase.execute(command);
 
-		expect(repo.save).toHaveBeenCalledOnce();
-		// Naming: the argument save() was called *with*, not its resolved return
-		// value — distinct from `saved` used elsewhere for save()'s result.
-		const saveArg = vi.mocked(repo.save).mock.calls[0][0];
-		expect(saveArg.status).toBe("SUBMITTED");
-		expect(saveArg.submittedByUserId).toBe("user-1");
+		expect(repo.update).toHaveBeenCalledOnce();
+		// Naming: the argument update() was called *with*, not its resolved return
+		// value — distinct from `saved` used elsewhere for update()'s result.
+		const updateArgs = vi.mocked(repo.update).mock.calls[0];
+		expect(updateArgs[0].status).toBe("SUBMITTED");
+		expect(updateArgs[0].submittedByUserId).toBe("user-1");
+		// expectedUpdatedAt is the pre-transition snapshot findByEntity resolved.
+		expect(updateArgs[1].getTime()).toBe(instance.updatedAt.getTime());
 		expect(dto.status).toBe("SUBMITTED");
 		// action/fromStatus/toStatus assertions: 4.4's dedicated notification
 		// tests only exercise the `validate` action — this covers the other three.
@@ -282,8 +303,9 @@ describe("ProcessWorkflowActionUseCase — action to entity-method mapping", () 
 
 		await useCase.execute(command);
 
-		const saveArg = vi.mocked(repo.save).mock.calls[0][0];
-		expect(saveArg.status).toBe("SUBMITTED");
+		const updateArgs = vi.mocked(repo.update).mock.calls[0];
+		expect(updateArgs[0].status).toBe("SUBMITTED");
+		expect(updateArgs[1].getTime()).toBe(instance.updatedAt.getTime());
 	});
 
 	it("validate with alsoApprove false validates only, status unchanged", async () => {
@@ -305,14 +327,15 @@ describe("ProcessWorkflowActionUseCase — action to entity-method mapping", () 
 
 		await useCase.execute(command);
 
-		expect(repo.save).toHaveBeenCalledOnce();
-		const saveArg = vi.mocked(repo.save).mock.calls[0][0];
-		expect(saveArg.status).toBe("SUBMITTED");
-		expect(saveArg.validatedByUserId).toBe("user-2");
-		expect(saveArg.approvedByUserId).toBeNull();
+		expect(repo.update).toHaveBeenCalledOnce();
+		const updateArgs = vi.mocked(repo.update).mock.calls[0];
+		expect(updateArgs[0].status).toBe("SUBMITTED");
+		expect(updateArgs[0].validatedByUserId).toBe("user-2");
+		expect(updateArgs[0].approvedByUserId).toBeNull();
+		expect(updateArgs[1].getTime()).toBe(instance.updatedAt.getTime());
 	});
 
-	it("validate with alsoApprove true composes validate() then approve() in a single save(), stamping validatedAt === approvedAt from one shared now", async () => {
+	it("validate with alsoApprove true composes validate() then approve() in a single update(), stamping validatedAt === approvedAt from one shared now", async () => {
 		const instance = buildInstance({ status: "SUBMITTED" });
 		const repo = makeRepository(instance);
 		const notificationPort = makeNotificationPort();
@@ -347,13 +370,16 @@ describe("ProcessWorkflowActionUseCase — action to entity-method mapping", () 
 
 		await useCase.execute(command);
 
-		expect(repo.save).toHaveBeenCalledOnce();
-		const saveArg = vi.mocked(repo.save).mock.calls[0][0];
-		expect(saveArg.status).toBe("APPROVED");
-		expect(saveArg.validatedByUserId).toBe("user-3");
-		expect(saveArg.approvedByUserId).toBe("user-3");
+		expect(repo.update).toHaveBeenCalledOnce();
+		const updateArgs = vi.mocked(repo.update).mock.calls[0];
+		expect(updateArgs[0].status).toBe("APPROVED");
+		expect(updateArgs[0].validatedByUserId).toBe("user-3");
+		expect(updateArgs[0].approvedByUserId).toBe("user-3");
 		// getTime(), not toBe/reference equality — WorkflowInstance's getters clone the Date on every read (cloneDate).
-		expect(saveArg.validatedAt?.getTime()).toBe(saveArg.approvedAt?.getTime());
+		expect(updateArgs[0].validatedAt?.getTime()).toBe(
+			updateArgs[0].approvedAt?.getTime(),
+		);
+		expect(updateArgs[1].getTime()).toBe(instance.updatedAt.getTime());
 
 		expect(validateSpy).toHaveBeenCalledOnce();
 		expect(approveSpy).toHaveBeenCalledOnce();
@@ -380,9 +406,10 @@ describe("ProcessWorkflowActionUseCase — action to entity-method mapping", () 
 
 		await useCase.execute(command);
 
-		const saveArg = vi.mocked(repo.save).mock.calls[0][0];
-		expect(saveArg.status).toBe("PUBLISHED");
-		expect(saveArg.publishedByUserId).toBe("user-4");
+		const updateArgs = vi.mocked(repo.update).mock.calls[0];
+		expect(updateArgs[0].status).toBe("PUBLISHED");
+		expect(updateArgs[0].publishedByUserId).toBe("user-4");
+		expect(updateArgs[1].getTime()).toBe(instance.updatedAt.getTime());
 		expect(notificationPort.notify).toHaveBeenCalledWith(
 			expect.objectContaining({
 				action: "publish",
@@ -410,8 +437,9 @@ describe("ProcessWorkflowActionUseCase — action to entity-method mapping", () 
 
 		await useCase.execute(command);
 
-		const saveArg = vi.mocked(repo.save).mock.calls[0][0];
-		expect(saveArg.status).toBe("REVISION_REQUESTED");
+		const updateArgs = vi.mocked(repo.update).mock.calls[0];
+		expect(updateArgs[0].status).toBe("REVISION_REQUESTED");
+		expect(updateArgs[1].getTime()).toBe(instance.updatedAt.getTime());
 		expect(notificationPort.notify).toHaveBeenCalledWith(
 			expect.objectContaining({
 				action: "return",
@@ -427,7 +455,7 @@ describe("ProcessWorkflowActionUseCase — action to entity-method mapping", () 
 // ---------------------------------------------------------------------------
 
 describe("ProcessWorkflowActionUseCase — ConflictError propagation", () => {
-	it("publish from DRAFT propagates the entity's own ConflictError instance unmodified, without saving or notifying", async () => {
+	it("publish from DRAFT propagates the entity's own ConflictError instance unmodified, without updating or notifying", async () => {
 		const instance = buildInstance({ status: "DRAFT" });
 		const repo = makeRepository(instance);
 		const notificationPort = makeNotificationPort();
@@ -471,7 +499,7 @@ describe("ProcessWorkflowActionUseCase — ConflictError propagation", () => {
 
 		expect(caught).toBeInstanceOf(ConflictError);
 		expect(caught).toBe(thrown);
-		expect(repo.save).not.toHaveBeenCalled();
+		expect(repo.update).not.toHaveBeenCalled();
 		expect(notificationPort.notify).not.toHaveBeenCalled();
 	});
 
@@ -496,18 +524,18 @@ describe("ProcessWorkflowActionUseCase — ConflictError propagation", () => {
 		await expect(useCase.execute(command)).rejects.toBeInstanceOf(
 			ConflictError,
 		);
-		expect(repo.save).not.toHaveBeenCalled();
+		expect(repo.update).not.toHaveBeenCalled();
 		expect(approveSpy).not.toHaveBeenCalled();
 		expect(notificationPort.notify).not.toHaveBeenCalled();
 	});
 });
 
 // ---------------------------------------------------------------------------
-// 4.3 — not-found and save-error propagation
+// 4.3 — not-found and update-error propagation
 // ---------------------------------------------------------------------------
 
-describe("ProcessWorkflowActionUseCase — not-found and save-error propagation", () => {
-	it("rejects with WorkflowInstanceNotFoundError when findByEntity resolves null, without saving", async () => {
+describe("ProcessWorkflowActionUseCase — not-found and update-error propagation", () => {
+	it("rejects with WorkflowInstanceNotFoundError when findByEntity resolves null, without updating", async () => {
 		const repo = makeRepository(null);
 		const notificationPort = makeNotificationPort();
 		const useCase = new ProcessWorkflowActionUseCase(
@@ -525,11 +553,11 @@ describe("ProcessWorkflowActionUseCase — not-found and save-error propagation"
 		await expect(useCase.execute(command)).rejects.toBeInstanceOf(
 			WorkflowInstanceNotFoundError,
 		);
-		expect(repo.save).not.toHaveBeenCalled();
+		expect(repo.update).not.toHaveBeenCalled();
 		expect(notificationPort.notify).not.toHaveBeenCalled();
 	});
 
-	it("propagates a repository save() error unmodified, without notifying", async () => {
+	it("Repository update throws a generic error", async () => {
 		const instance = buildInstance({ status: "DRAFT" });
 		const dbError = new Error("DB connection lost");
 		const repo = makeRepository(instance, () => Promise.reject(dbError));
@@ -622,7 +650,7 @@ describe("ProcessWorkflowActionUseCase — notification", () => {
 		expect(notification.occurredAt).toBeInstanceOf(Date);
 	});
 
-	it("still resolves with the saved WorkflowInstanceDto and logs a WARN when notify() rejects after a successful save", async () => {
+	it("still resolves with the saved WorkflowInstanceDto and logs a WARN when notify() rejects after a successful update", async () => {
 		const instance = buildInstance({ status: "SUBMITTED" });
 		const repo = makeRepository(instance);
 		const notifyError = new Error("notification channel unavailable");
@@ -649,10 +677,10 @@ describe("ProcessWorkflowActionUseCase — notification", () => {
 		// promise does not reject: if notify()'s rejection propagated instead
 		// of being swallowed, this await would throw and fail the test.
 		const dto = await useCase.execute(command);
-		const saveArg = vi.mocked(repo.save).mock.calls[0][0];
+		const updateArgs = vi.mocked(repo.update).mock.calls[0];
 
-		expect(dto.status).toBe(saveArg.status);
-		expect(dto.updatedAt).toBe(saveArg.updatedAt.toISOString());
+		expect(dto.status).toBe(updateArgs[0].status);
+		expect(dto.updatedAt).toBe(updateArgs[0].updatedAt.toISOString());
 		// WARN, not ERROR: a swallowed, tolerated degradation (ADR-004), not a broken system.
 		// Full record, not just "was called" — this log line is the only record
 		// of a swallowed notify() failure (DEF-023, no retry mechanism).
@@ -745,13 +773,13 @@ describe("ProcessWorkflowActionUseCase — notification", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 4.5 — saved (not pre-save) feeds the DTO
+// 4.5 — saved (not pre-update) feeds the DTO
 // ---------------------------------------------------------------------------
 
-describe("ProcessWorkflowActionUseCase — DTO and notify() reflect save()'s resolved value", () => {
-	it("returns a DTO reflecting save()'s resolved (enriched) instance, not the pre-save transitioned instance, and notify() receives the same enriched instanceId", async () => {
+describe("ProcessWorkflowActionUseCase — DTO and notify() reflect update()'s resolved value", () => {
+	it("returns a DTO reflecting update()'s resolved (enriched) instance, not the pre-update transitioned instance, and notify() receives the same enriched instanceId", async () => {
 		const instance = buildInstance({ status: "DRAFT" });
-		// `enriched` has a distinct id/updatedAt from the pre-save transitioned instance, so a
+		// `enriched` has a distinct id/updatedAt from the pre-update transitioned instance, so a
 		// regression that fed `transitioned` (not `saved`) into the DTO mapper or notify() would be caught.
 		const enriched = buildInstance({
 			id: "enriched-instance-id",
@@ -786,18 +814,23 @@ describe("ProcessWorkflowActionUseCase — DTO and notify() reflect save()'s res
 });
 
 // ---------------------------------------------------------------------------
-// 4.6 — concurrent callers (corrected 3-save/3-notify scenario)
+// 4.6 — concurrent callers (stale caller rejected with ConcurrentModificationError)
 // ---------------------------------------------------------------------------
 
 describe("ProcessWorkflowActionUseCase — concurrent callers race at the repository tier", () => {
-	it("a stale-read 'return' silently overwrites a concurrently-published record; 3 saves, 3 notifies, final status REVISION_REQUESTED", async () => {
+	it("a stale caller's execute() rejects with ConcurrentModificationError (propagated unmodified) when another caller already committed; the winner's state is not overwritten", async () => {
 		const initial = buildInstance({
 			status: "SUBMITTED",
 			entityId: "entity-concurrent",
 			entityType: "HE",
 		});
-		const { repo, getCurrentStatus, gateNextSave, releaseGatedSave } =
-			makeConcurrencyRepository(initial);
+		const {
+			repo,
+			getCurrentStatus,
+			getThrownConcurrencyError,
+			gateNextUpdate,
+			releaseGatedUpdate,
+		} = makeConcurrencyRepository(initial);
 		const notifications: WorkflowActionNotification[] = [];
 		const notificationPort: INotificationPort = {
 			notify: vi
@@ -812,10 +845,9 @@ describe("ProcessWorkflowActionUseCase — concurrent callers race at the reposi
 			notificationPort,
 		);
 
-		// (a) Arm the gate, then start A's stale 'return' call. Its save() will
-		// block on the gate once entered — proving it read the stale SUBMITTED
-		// snapshot before either of B's calls ran.
-		const aEntered = gateNextSave();
+		// (a) Arm the gate, then start A's stale 'return' call. Its update() call will block on
+		// the gate once entered — proving it read the pre-B SUBMITTED snapshot first.
+		const aEntered = gateNextUpdate();
 		const aCommand: ProcessWorkflowActionCommand = {
 			action: "return",
 			entityId: "entity-concurrent",
@@ -824,52 +856,40 @@ describe("ProcessWorkflowActionUseCase — concurrent callers race at the reposi
 		};
 		const aPromise = useCase.execute(aCommand);
 		// Race against aPromise itself: if A's execute() rejects before ever
-		// reaching save() (e.g. a ConflictError from a wrong invariant above),
+		// reaching update() (e.g. a ConflictError from a wrong invariant above),
 		// this fails fast instead of hanging until aEntered's gate times out.
 		await Promise.race([aEntered, aPromise]);
 
-		// (b) Only now run BOTH of B's calls to completion, sequentially. The
-		// second reads the store's current state — B's own first save() result,
-		// not the stale snapshot A is still holding.
-		const bValidateCommand: ProcessWorkflowActionCommand = {
+		// (b) Only now run B's call to completion — validate()+approve() composed into one
+		// update() call, committing APPROVED while A is still gated on its stale read.
+		const bCommand: ProcessWorkflowActionCommand = {
 			action: "validate",
 			alsoApprove: true,
 			entityId: "entity-concurrent",
 			entityType: "HE",
 			actingUserId: "user-b",
 		};
-		const bValidateDto = await useCase.execute(bValidateCommand);
+		const bDto = await useCase.execute(bCommand);
 
-		const bPublishCommand: ProcessWorkflowActionCommand = {
-			action: "publish",
-			entityId: "entity-concurrent",
-			entityType: "HE",
-			actingUserId: "user-b",
-		};
-		const bPublishDto = await useCase.execute(bPublishCommand);
+		// (c) Release A's gated update() — it now checks its stale expectedUpdatedAt against
+		// B's already-committed state and must lose.
+		releaseGatedUpdate();
+		let aError: unknown;
+		try {
+			await aPromise;
+		} catch (err) {
+			aError = err;
+		}
 
-		// (c) Only now release A's gated save(), letting it finish last and
-		// overwrite the store's current PUBLISHED state with REVISION_REQUESTED.
-		releaseGatedSave();
-		const aDto = await aPromise;
+		expect(aError).toBeInstanceOf(ConcurrentModificationError);
+		// Propagated unmodified (design.md Decision 6) — same error instance, no wrapper or retry.
+		expect(aError).toBe(getThrownConcurrencyError());
+		expect(getCurrentStatus()).toBe("APPROVED");
+		expect(bDto.status).toBe("APPROVED");
 
-		expect(repo.save).toHaveBeenCalledTimes(3);
-		expect(notificationPort.notify).toHaveBeenCalledTimes(3);
-		expect(notifications.map((n) => n.toStatus)).toEqual([
-			"APPROVED",
-			"PUBLISHED",
-			"REVISION_REQUESTED",
-		]);
-		expect(notifications.map((n) => n.action)).toEqual([
-			"validate",
-			"publish",
-			"return",
-		]);
-		expect(getCurrentStatus()).toBe("REVISION_REQUESTED");
-
-		// Plain successful DTOs — no error indicator of any kind for any caller.
-		expect(aDto.status).toBe("REVISION_REQUESTED");
-		expect(bValidateDto.status).toBe("APPROVED");
-		expect(bPublishDto.status).toBe("PUBLISHED");
+		// Notify fires only for B's successful call — A's rejected update() never reaches notify().
+		expect(notificationPort.notify).toHaveBeenCalledTimes(1);
+		expect(notifications[0].toStatus).toBe("APPROVED");
+		expect(notifications[0].action).toBe("validate");
 	});
 });
