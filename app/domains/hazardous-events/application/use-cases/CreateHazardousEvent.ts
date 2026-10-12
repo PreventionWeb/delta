@@ -189,7 +189,8 @@ export class CreateHazardousEventUseCase {
 			entityType: "HE",
 			now,
 		});
-		const savedWorkflow = await this.workflowRepository.save(workflowInstance);
+		const savedWorkflow =
+			await this.workflowRepository.insert(workflowInstance);
 
 		// Edge last (design.md Decision 5): only a 2nd-write failure can orphan the event from its
 		// WorkflowInstance. No compensating delete on any later failure (DEF-026).

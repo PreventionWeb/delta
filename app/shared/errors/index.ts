@@ -1,5 +1,6 @@
 export {
 	AuthorizationError,
+	ConcurrentModificationError,
 	ConflictError,
 	DomainError,
 	NotFoundError,
