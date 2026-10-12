@@ -69,9 +69,14 @@ export class ProcessWorkflowActionUseCase {
 			transitionParams,
 		);
 
-		// Use `saved`, not `transitioned` — the repository may enrich on write (Decision 4).
-		// A ConflictError from applyTransition() above isn't caught here, so it propagates before this line (Decision 3).
-		const saved = await this.workflowRepository.save(transitioned);
+		// Use `saved`, not `transitioned` — the repository may enrich on write. A ConflictError 
+		// from applyTransition() above isn't caught here, so it propagates before this line.
+		// expectedUpdatedAt is existing's pre-transition value — update() uses it to detect a 
+		// concurrent write. ConcurrentModificationError propagates unmodified.
+		const saved = await this.workflowRepository.update(
+			transitioned,
+			existing.updatedAt,
+		);
 
 		// Notify fires exactly once per successful execute(), even if status is
 		// unchanged (Decision 7); a notify() failure is logged, not propagated — no rollback exists (Decision 8).
@@ -90,7 +95,7 @@ export class ProcessWorkflowActionUseCase {
 		} catch (err) {
 			// WARN, not ERROR: this is a handled, tolerated degradation (ADR-004) — the
 			// transition already succeeded, notify() failing doesn't break anything nobody
-			// designed for. Guarded: execute() must still resolve after a successful save()
+			// designed for. Guarded: execute() must still resolve after a successful update()
 			// (Decision 8), even if the injected ILogger itself throws. console.error is a
 			// deliberate, narrow last resort — reachable only when the sanctioned ILogger has
 			// itself failed, so no other logging channel exists at that point (DEF-023).
