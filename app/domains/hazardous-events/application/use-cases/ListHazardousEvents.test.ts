@@ -101,7 +101,11 @@ class FakeWorkflowRepository implements IWorkflowRepository {
 		return null;
 	}
 
-	async save(): Promise<WorkflowInstance> {
+	async insert(): Promise<WorkflowInstance> {
+		throw new Error("not used by ListHazardousEventsUseCase's own tests");
+	}
+
+	async update(): Promise<WorkflowInstance> {
 		throw new Error("not used by ListHazardousEventsUseCase's own tests");
 	}
 
