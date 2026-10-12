@@ -1,10 +1,14 @@
 import { Injectable, Inject } from "@nestjs/common";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import type { Dr } from "~/db.server";
 import { DRIZZLE_CLIENT } from "~/infrastructure/DrizzleProvider.server";
 import { getPinoLogger } from "~/infrastructure/logging/PinoLogger.server";
-import { ConflictError, ValidationError } from "~/shared/errors";
+import {
+	ConcurrentModificationError,
+	ConflictError,
+	ValidationError,
+} from "~/shared/errors";
 import type { IWorkflowRepository } from "~/domains/validation-workflow/application/ports/IWorkflowRepository";
 import {
 	WorkflowInstance,
@@ -59,7 +63,12 @@ export class DrizzleWorkflowRepository implements IWorkflowRepository {
 		};
 	}
 
-	private toRow(instance: WorkflowInstance): InsertWorkflowInstance {
+	/** `& { id: string }`: the inferred insert type makes `id` optional (it has a DB default),
+	 * but this always supplies it from the domain entity — narrowing here lets update()'s WHERE
+	 * clause use it directly instead of every call site re-guarding against `undefined`. */
+	private toRow(
+		instance: WorkflowInstance,
+	): InsertWorkflowInstance & { id: string } {
 		return {
 			id: instance.id,
 			entityId: instance.entityId,
@@ -138,58 +147,124 @@ export class DrizzleWorkflowRepository implements IWorkflowRepository {
 		return instances;
 	}
 
-	async save(instance: WorkflowInstance): Promise<WorkflowInstance> {
+	/** Shared pg-error -> domain-error mapping for insert()/update() (one source of truth for
+	 * this table, avoiding two near-identical if-chains). Always throws. */
+	private mapWriteError(
+		err: unknown,
+		context: { entityId: string; entityType: EntityType },
+	): never {
+		const code = pgErrorCode(err);
+		if (code === "23505") {
+			throw new ConflictError(
+				"WorkflowInstance already exists for this entityId/entityType",
+				context,
+			);
+		}
+		if (code === "23503") {
+			throw new ValidationError(
+				"WorkflowInstance references a nonexistent user id",
+				context,
+			);
+		}
+		if (code === "22P02") {
+			throw new ValidationError(
+				"WorkflowInstance has malformed input data",
+				context,
+			);
+		}
+		throw err;
+	}
+
+	/** First-time persistence only (DEF-024, 5j design.md Decision 1) — a plain INSERT relying on
+	 * UNIQUE(entityId, entityType) for the first-insert race, unchanged from the old save(). */
+	async insert(instance: WorkflowInstance): Promise<WorkflowInstance> {
 		const row = this.toRow(instance);
-		// entityId/entityType/createdAt are immutable after insert, so excluded from SET (Decision 2).
-		const { id, entityId, entityType, createdAt, ...setFields } = row;
 
 		let rows: SelectWorkflowInstance[];
 		try {
 			rows = await this.db
 				.insert(workflowInstanceTable)
 				.values(row)
-				.onConflictDoUpdate({
-					target: workflowInstanceTable.id,
-					set: setFields,
-					// Guards against an id collision silently reassigning a different entity's row
-					// (Decision 3) — empty RETURNING below is how a guard failure surfaces.
-					setWhere: and(
-						eq(workflowInstanceTable.entityId, entityId),
-						eq(workflowInstanceTable.entityType, entityType),
-					),
-				})
 				.returning();
 		} catch (err) {
-			const code = pgErrorCode(err);
-			if (code === "23505") {
-				throw new ConflictError(
-					"WorkflowInstance already exists for this entityId/entityType",
-					{ entityId, entityType },
-				);
-			}
-			if (code === "23503") {
-				throw new ValidationError(
-					"WorkflowInstance references a nonexistent user id",
-					{ entityId, entityType },
-				);
-			}
-			if (code === "22P02") {
-				throw new ValidationError("WorkflowInstance has malformed input data", {
-					entityId,
-					entityType,
-				});
-			}
-			throw err;
+			throw this.mapWriteError(err, {
+				entityId: row.entityId,
+				entityType: row.entityType,
+			});
 		}
 
-		if (rows.length === 0) {
+		return WorkflowInstance.create(this.toProps(rows[0]));
+	}
+
+	/** Conditional UPDATE guarded on expectedUpdatedAt — never an upsert, so a deleteByEntity()
+	 * racing ahead simply leaves this matching zero rows instead of resurrecting the row (5j
+	 * design.md Decisions 2-4). */
+	async update(
+		instance: WorkflowInstance,
+		expectedUpdatedAt: Date,
+	): Promise<WorkflowInstance> {
+		const row = this.toRow(instance);
+		// entityId/entityType/createdAt are immutable after insert, so excluded from SET (5a design.md Decision 2).
+		const { id, entityId, entityType, createdAt, ...setFields } = row;
+
+		let rows: SelectWorkflowInstance[];
+		try {
+			rows = await this.db
+				.update(workflowInstanceTable)
+				.set(setFields)
+				.where(
+					and(
+						eq(workflowInstanceTable.id, id),
+						eq(workflowInstanceTable.entityId, entityId),
+						eq(workflowInstanceTable.entityType, entityType),
+						// Millisecond-truncated: tolerates a sub-millisecond component already stored,
+						// without that alone causing a false conflict (design.md Decision 3).
+						sql`date_trunc('milliseconds', ${workflowInstanceTable.updatedAt}) = date_trunc('milliseconds', ${expectedUpdatedAt.toISOString()}::timestamptz)`,
+					),
+				)
+				.returning();
+		} catch (err) {
+			throw this.mapWriteError(err, { entityId, entityType });
+		}
+
+		if (rows.length > 0) {
+			return WorkflowInstance.create(this.toProps(rows[0]));
+		}
+
+		return this.diagnoseUpdateConflict(id, entityId, entityType);
+	}
+
+	/** Zero-row UPDATE diagnostic re-read (design.md Decision 4) — classifies the cause, never
+	 * retries the write. Always throws. Split out of update() for SRP. */
+	private async diagnoseUpdateConflict(
+		id: string,
+		entityId: string,
+		entityType: EntityType,
+	): Promise<never> {
+		const diagnosticRows = await this.db
+			.select()
+			.from(workflowInstanceTable)
+			.where(eq(workflowInstanceTable.id, id));
+
+		if (diagnosticRows.length === 0) {
+			throw new ConcurrentModificationError(
+				"WorkflowInstance no longer exists for this entityId/entityType",
+				{ entityId, entityType },
+			);
+		}
+
+		const found = diagnosticRows[0];
+		if (found.entityId !== entityId || found.entityType !== entityType) {
 			throw new ConflictError(
 				"WorkflowInstance id already belongs to a different entity",
 				{ id },
 			);
 		}
 
-		return WorkflowInstance.create(this.toProps(rows[0]));
+		throw new ConcurrentModificationError(
+			"WorkflowInstance has been modified since it was read",
+			{ entityId, entityType },
+		);
 	}
 
 	async deleteByEntity(
