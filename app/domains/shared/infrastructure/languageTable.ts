@@ -7,13 +7,14 @@ export const languageTable = pgTable(
 	{
 		id: ourRandomUUID(),
 		languageName: text("language_name").notNull().unique(),
-		// varchar(2) caps the length; the check below still enforces exactly 2.
-		languageCd: varchar("language_cd", { length: 2 }).notNull().unique(),
+		// varchar(35) is RFC 5646 §4.4.1's worst-case single-tag buffer size.
+		languageCd: varchar("language_cd", { length: 35 }).notNull().unique(),
 	},
 	(table) => [
+		// Mirrors resolveLocale.ts's BCP_47_PATTERN (Decision Q3) -- one shape, both layers.
 		check(
-			"language_language_cd_length_check",
-			sql`char_length(${table.languageCd}) = 2`,
+			"language_cd_format_check",
+			sql`${table.languageCd} ~ '^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$'`,
 		),
 	],
 );
