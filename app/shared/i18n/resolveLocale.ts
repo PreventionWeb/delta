@@ -78,14 +78,30 @@ function matchAcceptLanguage(
 
 	for (const entry of entries) {
 		if (entry === "*") continue;
-		if (supportedLocales.includes(entry)) {
-			return entry;
-		}
-		const primarySubtag = entry.split("-")[0];
-		if (supportedLocales.includes(primarySubtag)) {
-			return primarySubtag;
+		const matched = matchByProgressiveTruncation(entry, supportedLocales);
+		if (matched !== null) {
+			return matched;
 		}
 	}
 
 	return null;
+}
+
+// Decision Q2: truncate the rightmost subtag until a match; never adds subtags back, so
+// "sr" never matches a more-specific "sr-Latn".
+function matchByProgressiveTruncation(
+	entry: string,
+	supportedLocales: readonly string[],
+): string | null {
+	let candidate = entry;
+	while (true) {
+		if (supportedLocales.includes(candidate)) {
+			return candidate;
+		}
+		const lastHyphen = candidate.lastIndexOf("-");
+		if (lastHyphen === -1) {
+			return null;
+		}
+		candidate = candidate.slice(0, lastHyphen);
+	}
 }
