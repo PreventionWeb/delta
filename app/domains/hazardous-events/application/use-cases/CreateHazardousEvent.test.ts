@@ -62,10 +62,10 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 		}
 	}
 
-	readonly deleteCauseEdgesCalls: string[] = [];
+	readonly replaceCauseEdgeCalls: string[] = [];
 
-	async deleteCauseEdges(effectId: string): Promise<void> {
-		this.deleteCauseEdgesCalls.push(effectId);
+	async replaceCauseEdge(effectId: string): Promise<void> {
+		this.replaceCauseEdgeCalls.push(effectId);
 	}
 
 	async countEdgesTouching(): Promise<number> {
