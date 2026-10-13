@@ -421,6 +421,13 @@
       "when": 1791676800000,
       "tag": "20261011000000_fix_hips_multilang_corrections",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1791763200000,
+      "tag": "20261012000000_widen_language_cd_bcp47",
+      "breakpoints": true
     }
   ]
 }
