@@ -114,6 +114,11 @@ export const renderMapperDialog = (
 								style={{
 									flex: "1 1 260px",
 									minWidth: "160px",
+									border: "1px solid rgba(0, 0, 0, 0.35)",
+									borderRadius: "6px",
+									background: "#fff",
+									padding: "0.5rem 0.75rem",
+									boxSizing: "border-box",
 								}}
 								onKeyDown={(e) => {
 									if (e.key === "Enter") {
@@ -198,6 +203,11 @@ export const renderMapperDialog = (
 									flex: "0 1 220px",
 									minWidth: "160px",
 									width: "auto",
+									border: "1px solid rgba(0, 0, 0, 0.35)",
+									borderRadius: "6px",
+									background: "#fff",
+									padding: "0.5rem 0.75rem",
+									boxSizing: "border-box",
 								}}
 								onChange={(e) => {
 									const newMode = e.target.value;
