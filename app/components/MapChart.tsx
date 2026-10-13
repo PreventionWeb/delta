@@ -94,9 +94,9 @@ const getOpacityForRange = (value: number, min: number, max: number) => {
 const getTileLayer = (mapMode: string) => {
 	switch (mapMode) {
 		case "light":
-			return "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+			return "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 		case "dark":
-			return "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+			return "https://tiles.wmflabs.org/bw-map/{z}/{x}/{y}.png";
 		default:
 			return "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 	}
@@ -110,7 +110,7 @@ const MapChart = forwardRef<MapChartRef, MapChartProps>(
 			dataSource = [],
 			legendMaxColor = "#333333",
 			legendTitle = "Legend",
-			mapMode = "light",
+			mapMode = "default",
 		},
 		ref,
 	) => {
@@ -356,7 +356,12 @@ const MapChart = forwardRef<MapChartRef, MapChartProps>(
 						}}
 					>
 						<strong>{currentLegendTitle}</strong>
-						<ul style={{ listStyle: "none", padding: 0, margin: "5px 0 0 0" }}>
+						<ul style={{
+							listStyle: "none",
+							padding: 0,
+							margin: "5px 0 0 0",
+						}}
+						>
 							{hasNoData && (
 								<li
 									style={{
