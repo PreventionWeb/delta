@@ -166,7 +166,10 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 		edge: CausalEdge;
 		causalityExplanation: string | null;
 	}[] = [];
-	readonly deleteCauseEdgesCalls: string[] = [];
+	readonly replaceCauseEdgeCalls: {
+		effectId: string;
+		newCause: { causeId: string; causalityExplanation: string | null } | null;
+	}[] = [];
 	findReachableEdgesFromBehavior:
 		| readonly CausalEdge[]
 		| Error
@@ -242,9 +245,15 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 		this.edges.push(edge);
 	}
 
-	async deleteCauseEdges(effectId: string): Promise<void> {
-		this.deleteCauseEdgesCalls.push(effectId);
+	async replaceCauseEdge(
+		effectId: string,
+		newCause: { causeId: string; causalityExplanation: string | null } | null,
+	): Promise<void> {
+		this.replaceCauseEdgeCalls.push({ effectId, newCause });
 		this.edges = this.edges.filter((edge) => edge.effectId !== effectId);
+		if (newCause !== null) {
+			this.edges.push({ causeId: newCause.causeId, effectId });
+		}
 	}
 
 	async countEdgesTouching(): Promise<number> {
@@ -617,6 +626,27 @@ describe("UpdateHazardousEventUseCase", () => {
 			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
 		});
 
+		it("strips a non-object element from customFieldValues before querying the taxonomy repository, surfacing HazardousEvent.create()'s own ValidationError for the raw array", async () => {
+			const harness = createHarness();
+			const command = {
+				...makeCommand({ id: "event-A", tenantId: "tenant-1" }),
+				customFieldValues: [
+					{ hazardTypeCustomFieldDefinitionId: "custom-a", value: "orig" },
+					undefined,
+				],
+			} as unknown as UpdateHazardousEventCommand;
+
+			await expect(harness.useCase.execute(command)).rejects.toThrow(
+				new ValidationError(
+					"customFieldValues must not contain a null, undefined, or non-object element",
+				),
+			);
+			expect(
+				harness.taxonomyRepository.findValidCustomFieldDefinitionIdsCalls,
+			).toEqual([{ ids: ["custom-a"], tenantId: "tenant-1" }]);
+			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+		});
+
 		it("re-validates startDate/endDate ordering against the merged values", async () => {
 			const harness = createHarness({
 				seedEvents: [
@@ -863,7 +893,7 @@ describe("UpdateHazardousEventUseCase", () => {
 				makeCommand({ id: "event-A", tenantId: "tenant-1", causeId: null }),
 			),
 		).rejects.toThrow("boom-hazardous-event-save");
-		expect(harness.causalChainRepository.deleteCauseEdgesCalls).toHaveLength(0);
+		expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(0);
 	});
 
 	describe("a changed causal link", () => {
@@ -896,7 +926,7 @@ describe("UpdateHazardousEventUseCase", () => {
 			expect(
 				harness.causalChainRepository.findReachableEdgesFromCalls,
 			).toHaveLength(0);
-			expect(harness.causalChainRepository.deleteCauseEdgesCalls).toHaveLength(
+			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(
 				0,
 			);
 		});
@@ -924,7 +954,7 @@ describe("UpdateHazardousEventUseCase", () => {
 				),
 			).rejects.toThrow(NotFoundError);
 			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
-			expect(harness.causalChainRepository.deleteCauseEdgesCalls).toHaveLength(
+			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(
 				0,
 			);
 		});
@@ -945,8 +975,7 @@ describe("UpdateHazardousEventUseCase", () => {
 				),
 			).rejects.toThrow(ConflictError);
 			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
-			expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(0);
-			expect(harness.causalChainRepository.deleteCauseEdgesCalls).toHaveLength(
+			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(
 				0,
 			);
 		});
@@ -967,7 +996,7 @@ describe("UpdateHazardousEventUseCase", () => {
 				),
 			).rejects.toThrow("boom-find-reachable");
 			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
-			expect(harness.causalChainRepository.deleteCauseEdgesCalls).toHaveLength(
+			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(
 				0,
 			);
 		});
@@ -990,8 +1019,7 @@ describe("UpdateHazardousEventUseCase", () => {
 				),
 			).rejects.toThrow(ConflictError);
 			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
-			expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(0);
-			expect(harness.causalChainRepository.deleteCauseEdgesCalls).toHaveLength(
+			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(
 				0,
 			);
 		});
@@ -1014,7 +1042,9 @@ describe("UpdateHazardousEventUseCase", () => {
 					}),
 				),
 			).resolves.toBeDefined();
-			expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(1);
+			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(
+				1,
+			);
 		});
 
 		it("accepts a causeId whose startDate equals the updated event's own startDate", async () => {
@@ -1033,7 +1063,9 @@ describe("UpdateHazardousEventUseCase", () => {
 				}),
 			);
 
-			expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(1);
+			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(
+				1,
+			);
 		});
 
 		it("defaults a null causalityExplanation when omitted from the command", async () => {
@@ -1048,7 +1080,8 @@ describe("UpdateHazardousEventUseCase", () => {
 			);
 
 			expect(
-				harness.causalChainRepository.saveEdgeCalls[0].causalityExplanation,
+				harness.causalChainRepository.replaceCauseEdgeCalls[0].newCause
+					?.causalityExplanation,
 			).toBeNull();
 		});
 
@@ -1065,7 +1098,8 @@ describe("UpdateHazardousEventUseCase", () => {
 			);
 
 			expect(
-				harness.causalChainRepository.saveEdgeCalls[0].causalityExplanation,
+				harness.causalChainRepository.replaceCauseEdgeCalls[0].newCause
+					?.causalityExplanation,
 			).toBe("upstream flooding");
 		});
 
@@ -1085,7 +1119,9 @@ describe("UpdateHazardousEventUseCase", () => {
 				}),
 			);
 
-			expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(1);
+			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(
+				1,
+			);
 		});
 
 		it("rejects a self-cause (causeId equal to the event's own id)", async () => {
@@ -1119,8 +1155,7 @@ describe("UpdateHazardousEventUseCase", () => {
 			expect(
 				harness.causalChainRepository.findReachableEdgesFromCalls,
 			).toHaveLength(0);
-			expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(0);
-			expect(harness.causalChainRepository.deleteCauseEdgesCalls).toHaveLength(
+			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(
 				0,
 			);
 			expect(harness.causalChainRepository.all()).toEqual([
@@ -1146,8 +1181,7 @@ describe("UpdateHazardousEventUseCase", () => {
 			expect(
 				harness.causalChainRepository.findReachableEdgesFromCalls,
 			).toHaveLength(0);
-			expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(0);
-			expect(harness.causalChainRepository.deleteCauseEdgesCalls).toHaveLength(
+			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(
 				0,
 			);
 			expect(harness.causalChainRepository.all()).toEqual([
@@ -1164,10 +1198,9 @@ describe("UpdateHazardousEventUseCase", () => {
 				makeCommand({ id: "event-A", tenantId: "tenant-1", causeId: null }),
 			);
 
-			expect(harness.causalChainRepository.deleteCauseEdgesCalls).toEqual([
-				"event-A",
+			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toEqual([
+				{ effectId: "event-A", newCause: null },
 			]);
-			expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(0);
 			expect(harness.causalChainRepository.all()).toEqual([]);
 		});
 
@@ -1180,10 +1213,9 @@ describe("UpdateHazardousEventUseCase", () => {
 				makeCommand({ id: "event-A", tenantId: "tenant-1", causeId: "" }),
 			);
 
-			expect(harness.causalChainRepository.deleteCauseEdgesCalls).toEqual([
-				"event-A",
+			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toEqual([
+				{ effectId: "event-A", newCause: null },
 			]);
-			expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(0);
 			expect(harness.causalChainRepository.all()).toEqual([]);
 		});
 
@@ -1214,58 +1246,35 @@ describe("UpdateHazardousEventUseCase", () => {
 				}),
 			);
 
-			expect(harness.causalChainRepository.deleteCauseEdgesCalls).toEqual([
-				"event-A",
+			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toEqual([
+				{
+					effectId: "event-A",
+					newCause: {
+						causeId: "cause-2-canonical",
+						causalityExplanation: null,
+					},
+				},
 			]);
-			expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(1);
-			expect(harness.causalChainRepository.saveEdgeCalls[0].edge).toEqual({
-				causeId: "cause-2-canonical",
-				effectId: "event-A",
-			});
 			expect(harness.causalChainRepository.all()).toEqual([
 				{ causeId: "cause-2-canonical", effectId: "event-A" },
 			]);
 		});
 
-		it("propagates a generic Error from deleteCauseEdges, after the HazardousEvent save already happened", async () => {
+		// Folded from the former two-step ("delete then save") shape: replaceCauseEdge's
+		// atomicity means there's no longer an observable "prior edge already deleted, then a
+		// separate save fails" intermediate state above the port (design.md Decision 4, point 4).
+		it("propagates a generic Error from replaceCauseEdge, after the HazardousEvent save already happened", async () => {
 			const harness = createHarness();
-			harness.causalChainRepository.deleteCauseEdges = async () => {
-				throw new Error("boom-delete-cause-edges");
+			harness.causalChainRepository.replaceCauseEdge = async () => {
+				throw new Error("boom-replace-cause-edge");
 			};
 
 			await expect(
 				harness.useCase.execute(
 					makeCommand({ id: "event-A", tenantId: "tenant-1", causeId: null }),
 				),
-			).rejects.toThrow("boom-delete-cause-edges");
+			).rejects.toThrow("boom-replace-cause-edge");
 			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(1);
-		});
-
-		it("propagates a generic Error from saveEdge, leaving the prior edge already deleted", async () => {
-			const harness = createHarness({
-				seedEvents: [
-					makeEvent({ id: "event-A", startDate: "2026-01-01" }),
-					makeEvent({ id: "cause-1", startDate: "2025-01-01" }),
-				],
-				seedWorkflows: [makeWorkflow("event-A"), makeWorkflow("cause-1")],
-			});
-			harness.causalChainRepository.saveEdge = async () => {
-				throw new Error("boom-save-edge");
-			};
-
-			await expect(
-				harness.useCase.execute(
-					makeCommand({
-						id: "event-A",
-						tenantId: "tenant-1",
-						causeId: "cause-1",
-					}),
-				),
-			).rejects.toThrow("boom-save-edge");
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(1);
-			expect(harness.causalChainRepository.deleteCauseEdgesCalls).toEqual([
-				"event-A",
-			]);
 		});
 
 		it("throws ValidationError when causeId is present but not a string", async () => {
@@ -1362,7 +1371,9 @@ describe("UpdateHazardousEventUseCase", () => {
 				),
 			).rejects.toThrow(ConflictError);
 			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(1);
-			expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(1);
+			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(
+				1,
+			);
 			expect(harness.callLog).toEqual([
 				"hazardousEvent.save",
 				"spatialObservation.execute",
@@ -1435,6 +1446,48 @@ describe("UpdateHazardousEventUseCase", () => {
 					}),
 				),
 			).rejects.toThrow(ConflictError);
+		});
+
+		it("calls replaceCauseEdge exactly once per execute() call, and leaves exactly one edge, for two concurrent calls racing to set the same effect's causeId", async () => {
+			const harness = createHarness({
+				seedEvents: [
+					makeEvent({ id: "event-A", startDate: "2026-01-01" }),
+					makeEvent({ id: "cause-X", startDate: "2025-01-01" }),
+					makeEvent({ id: "cause-Y", startDate: "2025-06-01" }),
+				],
+				seedWorkflows: [
+					makeWorkflow("event-A"),
+					makeWorkflow("cause-X"),
+					makeWorkflow("cause-Y"),
+				],
+			});
+
+			const results = await Promise.allSettled([
+				harness.useCase.execute(
+					makeCommand({
+						id: "event-A",
+						tenantId: "tenant-1",
+						causeId: "cause-X",
+					}),
+				),
+				harness.useCase.execute(
+					makeCommand({
+						id: "event-A",
+						tenantId: "tenant-1",
+						causeId: "cause-Y",
+					}),
+				),
+			]);
+
+			expect(results[0].status).toBe("fulfilled");
+			expect(results[1].status).toBe("fulfilled");
+			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(
+				2,
+			);
+			const finalEdgesForEffect = harness.causalChainRepository
+				.all()
+				.filter((edge) => edge.effectId === "event-A");
+			expect(finalEdgesForEffect).toHaveLength(1);
 		});
 	});
 
