@@ -116,7 +116,7 @@ describe("resolveLocale", () => {
 
 	// -------------------------------------------------------------------------
 	// Real HTTP list parsing (design.md Decision 10) — comma-separated,
-	// q-weighted, wildcard-tolerant, with primary-subtag folding
+	// q-weighted, wildcard-tolerant, with progressive truncation (Decision Q2)
 	// -------------------------------------------------------------------------
 
 	it("resolves a realistic multi-value, q-weighted header without throwing", () => {
@@ -166,6 +166,33 @@ describe("resolveLocale", () => {
 	it("a whitespace/commas-only Accept-Language string falls through without throwing", () => {
 		const result = resolveLocale(
 			buildInput({ acceptLanguageHeader: " , , ", userPreferredLocale: "es" }),
+		);
+		expect(result).toBe("es");
+	});
+
+	// -------------------------------------------------------------------------
+	// Progressive truncation (design.md Decision Q2) -- replaces the single-step
+	// fold-to-primary-subtag so a future script/region variant row can be matched.
+	// -------------------------------------------------------------------------
+
+	it("matches a fully-specified tag to an equally-specific supported variant before truncating further", () => {
+		const result = resolveLocale(
+			buildInput({
+				acceptLanguageHeader: "sr-Latn-RS",
+				supportedLocales: ["sr", "sr-Latn"],
+			}),
+		);
+		expect(result).toBe("sr-Latn");
+	});
+
+	// Characterization guard: already held under the old single-step fold too.
+	it("does not match a less-specific requested tag to a more-specific supported variant", () => {
+		const result = resolveLocale(
+			buildInput({
+				acceptLanguageHeader: "sr",
+				supportedLocales: ["sr-Latn", "es"],
+				userPreferredLocale: "es",
+			}),
 		);
 		expect(result).toBe("es");
 	});
