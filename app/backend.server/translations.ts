@@ -6,6 +6,7 @@ import { readdirSync, readFileSync } from "fs";
 // import { fileURLToPath } from "url";
 import { join } from "path";
 import { TParams, Translation, TranslationGetter } from "~/utils/translator";
+import { VALID_LANGUAGES } from "~/utils/lang.backend";
 import path from "path";
 
 const __dirname = path.resolve(process.cwd());
@@ -137,8 +138,7 @@ function fallback(p: TParams): Translation {
 	throw new Error("Missing both translation msg and msgs for code: " + p.code);
 }
 
-const availableLanguagesWhiteList = ["en", "ru", "ar", "sr", "sq"];
-
+// Sole source of truth for supported languages (see ca-shared-language-registry spec).
 export function getAvailableLanguages(): string[] {
 	const langSet = new Set<string>();
 
@@ -158,9 +158,7 @@ export function getAvailableLanguages(): string[] {
 		}
 	}
 
-	return Array.from(langSet).filter((lang) =>
-		availableLanguagesWhiteList.includes(lang),
-	);
+	return Array.from(langSet).filter((lang) => VALID_LANGUAGES.includes(lang));
 }
 
 function removeFileExtension(filename: string): string {
