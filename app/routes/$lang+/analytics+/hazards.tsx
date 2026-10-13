@@ -29,8 +29,10 @@ import { NavSettings } from "~/frontend/components/NavSettings";
 import HazardFilters from "~/frontend/analytics/hazards/sections/HazardFilters";
 import ImpactByHazard from "~/frontend/analytics/hazards/sections/ImpactByHazard";
 import {
+	getAdministrativeLevels,
 	getAllDivisionsByCountryAccountsId,
 	getDivisionByLevel,
+	getFirstAdministrativeLevel,
 } from "~/backend.server/models/division";
 import { fetchHazardClusters } from "~/backend.server/models/analytics/hazard-clusters";
 import HumanAffects from "~/frontend/analytics/hazards/sections/HumanAffects";
@@ -122,7 +124,14 @@ export const action = async (actionArgs: ActionFunctionArgs) => {
 		toDate,
 	};
 
-	const geographicLevel1 = await getDivisionByLevel(1, countryAccountsId);
+	const administrativeLevels = await getAdministrativeLevels(countryAccountsId);
+	const firstAdministrativeLevel = getFirstAdministrativeLevel(
+		administrativeLevels,
+	);
+	const geographicLevel1 = await getDivisionByLevel(
+		firstAdministrativeLevel,
+		countryAccountsId,
+	);
 
 	const disasterCount = await getDisasterEventCount(filters);
 	const yearlyDisasterCounts = await getDisasterEventCountByYear(filters);

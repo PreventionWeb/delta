@@ -23,8 +23,9 @@ import {
 import { sectorChildrenById } from "~/backend.server/models/sector";
 
 import {
+	getAdministrativeLevels,
 	getDivisionByLevel,
-	getCountDivisionByLevel1,
+	getFirstAdministrativeLevel,
 } from "~/backend.server/models/division";
 import { dr } from "~/db.server"; // Drizzle ORM instance
 import MapChart, { MapChartRef } from "~/components/MapChart";
@@ -131,9 +132,10 @@ export const loader = authLoaderPublicOrWithPerm(
 
 		// Use the shared public tenant context for analytics
 		const countryAccountsId = await getCountryAccountsIdFromSession(request);
-		const countDivisionByLevel1 =
-			await getCountDivisionByLevel1(countryAccountsId);
-		const geoLevelSelectorOverride = countDivisionByLevel1 === 1 ? 2 : 1; // Adjust geographic level to level 2 if only one value exists in level 1 division
+		const administrativeLevels = await getAdministrativeLevels(countryAccountsId);
+		const firstAdministrativeLevel = getFirstAdministrativeLevel(
+			administrativeLevels,
+		);
 
 		if (qsDisEventId) {
 			// Pass public tenant context for analytics access
@@ -287,7 +289,7 @@ export const loader = authLoaderPublicOrWithPerm(
 					);
 
 					const divisionLevel1 = await getDivisionByLevel(
-						geoLevelSelectorOverride,
+						firstAdministrativeLevel,
 						settings.countryAccountsId,
 					);
 					for (const item of divisionLevel1) {
