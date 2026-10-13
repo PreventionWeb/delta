@@ -110,3 +110,24 @@ A third, parallel content-translation mechanism, alongside — not replacing —
 - [P1-36: Fail build on duplicate translation keys](../refactoring-plan/phases/phase-1-structural.md)
 - [remix-i18next](https://github.com/sergiodxa/remix-i18next)
 - [ADR-002: Timezone Handling](ADR-002-timezone-handling.md) — locale and timezone are resolved independently, same chain pattern
+
+## Addendum (2026-10-12): consolidated language source of truth, widened `language_cd`
+
+Four previously-unsynchronized "which languages exist" lists are consolidated
+(`ca-shared-language-registry`):
+
+- `VALID_LANGUAGES` (`app/utils/lang.backend.ts`) is now the sole application-layer source of
+  truth. `getAvailableLanguages()` (`app/backend.server/translations.ts`) filters disk-discovered
+  locale files against it directly; the narrower, separately-maintained
+  `availableLanguagesWhiteList` is removed. **Behavior change**: `zh`/`fr`/`es`/`tg` are now
+  selectable as a tenant's default system language in Settings.
+- `language.language_cd` is widened from `varchar(2)` (exact-2-character CHECK) to `varchar(35)`
+  with a permissive BCP-47-shaped CHECK (`^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$`, the same pattern
+  `resolveLocale()` uses for `Accept-Language` parsing), capable of holding a script/region
+  variant tag (e.g. `sr-Latn`) — no variant row is added yet.
+- A PGlite integration test
+  (`tests/integration/db/queries/languageRegistryConsistency.test.ts`) replays the migrations
+  that create and seed `public.language` and asserts the resulting `language_cd` set equals
+  `VALID_LANGUAGES` exactly, catching future drift between the two in CI.
+
+See `openspec/changes/ca-shared-language-registry/design.md` for the full option analysis.
