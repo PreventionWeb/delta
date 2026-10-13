@@ -278,6 +278,7 @@ export class UpdateHazardousEventUseCase {
 		const edges = await this.causalChainRepository.findReachableEdgesFrom(
 			updatedEvent.id,
 		);
+		// Advisory only — replaceCauseEdge's own in-transaction recheck is authoritative.
 		assertCausalLinkDoesNotCreateCycle(edges, cause.id, updatedEvent.id);
 		assertCauseStartsNoLaterThanEffect(cause.startDate, updatedEvent.startDate);
 		return cause;
@@ -289,14 +290,13 @@ export class UpdateHazardousEventUseCase {
 		effectId: string,
 		causalityExplanation: string | null,
 	): Promise<void> {
-		if (causeAction.kind === "clear") {
-			await this.causalChainRepository.deleteCauseEdges(effectId);
-		} else if (causeAction.kind === "set" && cause !== undefined) {
-			await this.causalChainRepository.deleteCauseEdges(effectId);
-			await this.causalChainRepository.saveEdge(
-				{ causeId: cause.id, effectId },
-				causalityExplanation,
-			);
+		if (causeAction.kind === "unchanged") {
+			return;
 		}
+		const newCause =
+			causeAction.kind === "set" && cause !== undefined
+				? { causeId: cause.id, causalityExplanation }
+				: null;
+		await this.causalChainRepository.replaceCauseEdge(effectId, newCause);
 	}
 }

@@ -2,23 +2,27 @@ import type { CausalEdge } from "../../domain/CausalChain";
 
 /** Port for `hazardous_event_causality`. No whole-table load (design.md Decision 2). */
 export interface ICausalChainRepository {
-	/**
-	 * MUST resolve the complete set or reject: a partial set lets the caller's
-	 * BFS misreport "no cycle". Not tenant-scoped: `hazardous_event_causality`
-	 * has no tenant column of its own (`DEF-012`) — callers must not assume pre-filtering.
-	 */
+	/** MUST resolve the complete set or reject (a partial set misreports "no cycle"). Not
+	 * tenant-scoped — the table has no tenant column of its own (`DEF-012`). */
 	findReachableEdgesFrom(nodeId: string): Promise<readonly CausalEdge[]>;
 
-	/** `hazardous_event_causality`'s own FK/CHECK constraints are the authoritative guard against
-	 * a dangling or self-referencing edge; this method does not re-validate. */
+	/** FK/CHECK constraints guard a dangling/self-referencing edge; this also re-verifies,
+	 * lock-guarded and in-transaction, that the edge won't close a cycle — rejects with
+	 * `ConflictError` on conflict (closes `DEF-030` Race 1). */
 	saveEdge(
 		edge: CausalEdge,
 		causalityExplanation: string | null,
 	): Promise<void>;
 
-	/** Deletes all matching rows; the effect column has no `UNIQUE` constraint. */
-	deleteCauseEdges(effectId: string): Promise<void>;
+	/** Atomically replaces every cause edge for `effectId` with `newCause` (`null` clears it),
+	 * cycle-rechecked, as one transaction. Authoritative guard against `DEF-030`; a caller's own
+	 * prior cycle check is advisory only. */
+	replaceCauseEdge(
+		effectId: string,
+		newCause: { causeId: string; causalityExplanation: string | null } | null,
+	): Promise<void>;
 
-	/** Counts every edge touching nodeId as cause or effect, in either direction — not tenant-scoped, matching this port's other methods. */
+	/** Counts every edge touching nodeId as cause or effect. Not tenant-scoped (matches this
+	 * port's other methods). */
 	countEdgesTouching(nodeId: string): Promise<number>;
 }

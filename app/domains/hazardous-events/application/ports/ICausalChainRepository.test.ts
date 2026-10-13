@@ -48,8 +48,17 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 		this.edges.push({ edge, causalityExplanation });
 	}
 
-	async deleteCauseEdges(effectId: string): Promise<void> {
+	async replaceCauseEdge(
+		effectId: string,
+		newCause: { causeId: string; causalityExplanation: string | null } | null,
+	): Promise<void> {
 		this.edges = this.edges.filter(({ edge }) => edge.effectId !== effectId);
+		if (newCause !== null) {
+			this.edges.push({
+				edge: { causeId: newCause.causeId, effectId },
+				causalityExplanation: newCause.causalityExplanation,
+			});
+		}
 	}
 
 	async countEdgesTouching(nodeId: string): Promise<number> {
@@ -192,44 +201,62 @@ describe("ICausalChainRepository conformance", () => {
 		});
 	});
 
-	describe("deleteCauseEdges", () => {
-		it("removes an existing cause edge for the given effect", async () => {
+	describe("replaceCauseEdge", () => {
+		it("atomically swaps an existing cause edge for a new one", async () => {
 			const repo = new FakeCausalChainRepository();
-			await repo.saveEdge({ causeId: "A", effectId: "B" }, null);
+			await repo.saveEdge({ causeId: "cause-1", effectId: "event-A" }, null);
 
-			await repo.deleteCauseEdges("B");
+			await repo.replaceCauseEdge("event-A", {
+				causeId: "cause-2",
+				causalityExplanation: null,
+			});
+
+			expect(repo.all()).toEqual([
+				{
+					edge: { causeId: "cause-2", effectId: "event-A" },
+					causalityExplanation: null,
+				},
+			]);
+		});
+
+		it("clears the existing cause edge with no replacement when newCause is null", async () => {
+			const repo = new FakeCausalChainRepository();
+			await repo.saveEdge({ causeId: "cause-1", effectId: "event-A" }, null);
+
+			await repo.replaceCauseEdge("event-A", null);
 
 			expect(repo.all()).toEqual([]);
 		});
 
-		it("resolves without throwing for a node with no existing cause edge", async () => {
+		it("is a clean no-op for null, or a plain insert for a given cause, when no prior edge exists", async () => {
 			const repo = new FakeCausalChainRepository();
 
 			await expect(
-				repo.deleteCauseEdges("no-such-effect"),
+				repo.replaceCauseEdge("event-A", null),
 			).resolves.toBeUndefined();
+			expect(repo.all()).toEqual([]);
+
+			await repo.replaceCauseEdge("event-A", {
+				causeId: "cause-1",
+				causalityExplanation: null,
+			});
+
+			expect(repo.all()).toEqual([
+				{
+					edge: { causeId: "cause-1", effectId: "event-A" },
+					causalityExplanation: null,
+				},
+			]);
 		});
 
 		it("leaves an edge unaffected when the given node appears only as its causeId", async () => {
 			const repo = new FakeCausalChainRepository();
 			await repo.saveEdge({ causeId: "B", effectId: "C" }, null);
 
-			await repo.deleteCauseEdges("B");
+			await repo.replaceCauseEdge("B", null);
 
 			expect(repo.all()).toEqual([
 				{ edge: { causeId: "B", effectId: "C" }, causalityExplanation: null },
-			]);
-		});
-
-		it("removes only edges matching the given effectId, leaving unrelated edges in place", async () => {
-			const repo = new FakeCausalChainRepository();
-			await repo.saveEdge({ causeId: "A", effectId: "B" }, null);
-			await repo.saveEdge({ causeId: "X", effectId: "Y" }, null);
-
-			await repo.deleteCauseEdges("B");
-
-			expect(repo.all()).toEqual([
-				{ edge: { causeId: "X", effectId: "Y" }, causalityExplanation: null },
 			]);
 		});
 	});
@@ -246,9 +273,9 @@ const _saveEdgeArity: AssertEqual<
 	Parameters<ICausalChainRepository["saveEdge"]>,
 	[CausalEdge, string | null]
 > = true;
-const _deleteCauseEdgesArity: AssertEqual<
-	Parameters<ICausalChainRepository["deleteCauseEdges"]>,
-	[string]
+const _replaceCauseEdgeArity: AssertEqual<
+	Parameters<ICausalChainRepository["replaceCauseEdge"]>,
+	[string, { causeId: string; causalityExplanation: string | null } | null]
 > = true;
 const _countEdgesTouchingArity: AssertEqual<
 	Parameters<ICausalChainRepository["countEdgesTouching"]>,
@@ -257,5 +284,5 @@ const _countEdgesTouchingArity: AssertEqual<
 
 void _findReachableEdgesFromArity;
 void _saveEdgeArity;
-void _deleteCauseEdgesArity;
+void _replaceCauseEdgeArity;
 void _countEdgesTouchingArity;
