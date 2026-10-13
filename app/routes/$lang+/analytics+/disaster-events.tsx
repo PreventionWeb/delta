@@ -1352,6 +1352,7 @@ function DisasterEventsAnalysisContent() {
 														ref={mapChartRef}
 														id="map_viewer"
 														dataSource={activeData}
+														mapMode="light"
 														legendTitle={ctx.t({
 															code: "analysis.total_damage",
 															msg: "Total damage",
