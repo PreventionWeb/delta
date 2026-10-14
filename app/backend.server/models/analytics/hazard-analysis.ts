@@ -2348,7 +2348,6 @@ export async function getTotalAffectedPeopleByDivision(
 		SELECT dr."id" AS record_id, dr."disaster_event_id" AS event_id
 		FROM "disaster_records" dr
 		WHERE dr."approvalStatus" IN ('published', 'validated')
-		  AND dr."disaster_event_id" IN (SELECT fe."id" FROM filtered_events fe)
 	  ),
 	  affected_by_record AS (
 		SELECT 
