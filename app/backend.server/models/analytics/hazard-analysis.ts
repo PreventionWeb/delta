@@ -269,7 +269,7 @@ export async function getAffectedPeopleByHazardFilters(
           WITH RECURSIVE division_hierarchy AS (
             SELECT id, parent_id, id AS level1_id
             FROM "division"
-            WHERE parent_id IS NULL
+            WHERE level = 1
             UNION ALL
             SELECT d.id, d.parent_id, dh.level1_id
             FROM "division" d
@@ -452,7 +452,7 @@ export async function getGenderTotalsByHazardFilters(
           WITH RECURSIVE division_hierarchy AS (
             SELECT id, parent_id, id AS level1_id
             FROM "division"
-            WHERE parent_id IS NULL
+            WHERE level = 1
             UNION ALL
             SELECT d.id, d.parent_id, dh.level1_id
             FROM "division" d
@@ -648,7 +648,7 @@ export async function getAgeTotalsByHazardFilters(
           WITH RECURSIVE division_hierarchy AS (
             SELECT id, parent_id, id AS level1_id
             FROM "division"
-            WHERE parent_id IS NULL
+            WHERE level = 1
             UNION ALL
             SELECT d.id, d.parent_id, dh.level1_id
             FROM "division" d
@@ -830,7 +830,7 @@ export async function getDisabilityTotalByHazardFilters(
           WITH RECURSIVE division_hierarchy AS (
             SELECT id, parent_id, id AS level1_id
             FROM "division"
-            WHERE parent_id IS NULL
+            WHERE level = 1
             UNION ALL
             SELECT d.id, d.parent_id, dh.level1_id
             FROM "division" d
@@ -987,7 +987,7 @@ export async function getInternationalPovertyTotalByHazardFilters(
           WITH RECURSIVE division_hierarchy AS (
             SELECT id, parent_id, id AS level1_id
             FROM "division"
-            WHERE parent_id IS NULL
+            WHERE level = 1
             UNION ALL
             SELECT d.id, d.parent_id, dh.level1_id
             FROM "division" d
@@ -1141,7 +1141,7 @@ export async function getNationalPovertyTotalByHazardFilters(
           WITH RECURSIVE division_hierarchy AS (
             SELECT id, parent_id, id AS level1_id
             FROM "division"
-            WHERE parent_id IS NULL
+            WHERE level = 1
             UNION ALL
             SELECT d.id, d.parent_id, dh.level1_id
             FROM "division" d
@@ -1814,7 +1814,7 @@ export async function getTotalDamagesByDivision(
 			WITH RECURSIVE division_hierarchy AS (
 				SELECT id, parent_id, id AS level1_id
 				FROM division
-				WHERE parent_id IS NULL
+				WHERE level = 1
 				UNION ALL
 				SELECT d.id, d.parent_id, dh.level1_id
 				FROM division d
@@ -1995,7 +1995,7 @@ export async function getTotalLossesByDivision(
 			WITH RECURSIVE division_hierarchy AS (
 				SELECT id, parent_id, id AS level1_id
 				FROM division
-				WHERE parent_id IS NULL
+				WHERE level = 1
 				UNION ALL
 				SELECT d.id, d.parent_id, dh.level1_id
 				FROM division d
@@ -2147,7 +2147,7 @@ export async function getTotalDeathsByDivision(
 	  WITH RECURSIVE division_hierarchy AS (
 		SELECT id, parent_id, id AS level1_id
 		FROM "division"
-		WHERE parent_id IS NULL
+		WHERE level = 1
 		UNION ALL
 		SELECT d.id, d.parent_id, dh.level1_id
 		FROM "division" d
@@ -2333,7 +2333,7 @@ export async function getTotalAffectedPeopleByDivision(
 	  WITH RECURSIVE division_hierarchy AS (
 		SELECT id, parent_id, id AS level1_id
 		FROM "division"
-		WHERE parent_id IS NULL
+		WHERE level = 1
 		UNION ALL
 		SELECT d.id, d.parent_id, dh.level1_id
 		FROM "division" d
@@ -2511,7 +2511,7 @@ export async function getDisasterEventCountByDivision(
 	  WITH RECURSIVE division_hierarchy AS (
 		SELECT id, parent_id, id AS level1_id
 		FROM "division"
-		WHERE parent_id IS NULL
+		WHERE level = 1
 		UNION ALL
 		SELECT d.id, d.parent_id, dh.level1_id
 		FROM "division" d
