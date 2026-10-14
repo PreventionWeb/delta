@@ -296,10 +296,19 @@ export async function getSectorImpactTotal(
 	// Condition for division
 	if (args.divisionId) {
 		baseWhere.push(sql`EXISTS (
+			WITH RECURSIVE division_tree AS (
+				SELECT id
+				FROM division
+				WHERE id = ${args.divisionId}::uuid
+				UNION ALL
+				SELECT d.id
+				FROM division d
+				INNER JOIN division_tree dt ON d.parent_id = dt.id
+			)
 			SELECT 1
 			FROM disaster_records_division drd
 			WHERE drd.disaster_record_id = ${disasterRecordsTable.id}
-				AND drd.division_id = ${args.divisionId}::uuid
+				AND drd.division_id IN (SELECT id FROM division_tree)
 		)`);
 	}
 
