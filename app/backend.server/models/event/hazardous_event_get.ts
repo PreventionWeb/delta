@@ -77,7 +77,8 @@ export async function hazardousEventBasicInfoById(
 		? await getClusterById(ctx, event.hipClusterId)
 		: null;
 
-	const type = await getTypeById(ctx, event.hipTypeId);
+	// hip_type_id is now nullable -- same guard as hipHazardId/hipClusterId above.
+	const type = event.hipTypeId ? await getTypeById(ctx, event.hipTypeId) : null;
 
 	return {
 		...event,
