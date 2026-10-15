@@ -39,9 +39,7 @@ interface SaveSpatialObservationCall {
 	tenantId: string;
 }
 
-/** Call-arg capture fake. `saveSpatialObservation` returns a distinct record (updatedAt +1s).
- * `simulateUniqueConstraint` simulates the DB's unique constraint for the concurrent-callers
- * test (Decision 6), off by default. */
+/** Call-arg capture fake; saveSpatialObservation returns a distinct record (updatedAt +1s). simulateUniqueConstraint simulates the DB's unique constraint for the concurrent-callers test (Decision 6), off by default. */
 class FakeHazardousEventRepository implements IHazardousEventRepository {
 	readonly findByIdCalls: FindByIdCall[] = [];
 	readonly findSpatialObservationByTimeCalls: FindSpatialObservationByTimeCall[] =
@@ -50,9 +48,7 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 	readonly thrownConflictErrors: ConflictError[] = [];
 
 	simulateUniqueConstraint = false;
-	/** When set, findSpatialObservationByTime always resolves this value regardless of the
-	 * store's contents -- used to force "both concurrent readers observed null before either
-	 * wrote" deterministically, without relying on microtask interleaving timing. */
+	/** When set, findSpatialObservationByTime always resolves this value regardless of the store's contents -- forces "both readers observed null before either wrote" deterministically, without relying on microtask-interleaving timing. */
 	findSpatialObservationByTimeOverride?: SpatialObservationRecord | null;
 
 	private readonly events = new Map<string, HazardousEvent>();
@@ -98,7 +94,11 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		throw new Error("not used by RecordSpatialObservationUseCase's own tests");
 	}
 
-	async save(): Promise<HazardousEvent> {
+	async insert(): Promise<HazardousEvent> {
+		throw new Error("not used by RecordSpatialObservationUseCase's own tests");
+	}
+
+	async update(): Promise<HazardousEvent> {
 		throw new Error("not used by RecordSpatialObservationUseCase's own tests");
 	}
 
@@ -267,8 +267,7 @@ function createHarness(
 	return { logger, hazardousEventRepository, divisionRepository, useCase };
 }
 
-/** Captures a rejected promise's reason without a repeated `execute()` call (which would
- * double-count side-effect call assertions). Throws if the promise unexpectedly resolves. */
+/** Captures a rejected promise's reason without a repeated `execute()` call (would double-count side-effect assertions); throws if the promise unexpectedly resolves. */
 async function captureRejection(promise: Promise<unknown>): Promise<unknown> {
 	try {
 		await promise;
@@ -596,8 +595,7 @@ describe("RecordSpatialObservationUseCase", () => {
 				]);
 				expect(savedArg.divisionIds).toEqual(["div-new"]);
 
-				// updatedAt is the fake's +1s "enriched on write" value -- confirms the DTO
-				// comes from save()'s return, not the pre-save entity.
+				// updatedAt is the fake's +1s "enriched on write" value -- confirms the DTO comes from save()'s return, not the pre-save entity.
 				expect(dto.updatedAt).toBe(
 					new Date(fixedNow.getTime() + 1000).toISOString(),
 				);
@@ -649,8 +647,7 @@ describe("RecordSpatialObservationUseCase", () => {
 			it("propagates the losing caller's saveSpatialObservation rejection unmodified rather than treating it as success", async () => {
 				const observationTime = new Date("2026-02-01T00:00:00.000Z");
 				const harness = createHarness();
-				// Forces both readers' findSpatialObservationByTime to resolve null
-				// deterministically (Decision 6).
+				// Forces both readers' findSpatialObservationByTime to resolve null deterministically (Decision 6).
 				harness.hazardousEventRepository.findSpatialObservationByTimeOverride =
 					null;
 				harness.hazardousEventRepository.simulateUniqueConstraint = true;
@@ -669,8 +666,7 @@ describe("RecordSpatialObservationUseCase", () => {
 				expect(
 					harness.hazardousEventRepository.saveSpatialObservationCalls,
 				).toHaveLength(2);
-				// Identity check, not just instanceof/message -- proves the exact error the fake
-				// threw reaches the caller unmodified, not caught/rewrapped/swallowed.
+				// Identity check, not just instanceof/message -- proves the exact error the fake threw reaches the caller unmodified, not caught/rewrapped/swallowed.
 				const rejectedResult = rejected[0] as PromiseRejectedResult;
 				expect(rejectedResult.reason).toBe(
 					harness.hazardousEventRepository.thrownConflictErrors[0],
@@ -783,8 +779,7 @@ describe("RecordSpatialObservationUseCase", () => {
 					harnessB.hazardousEventRepository.saveSpatialObservationCalls[0]
 						.observation;
 
-				// Two independent fresh inserts must not share an id -- catches a fallback that
-				// silently became a hardcoded string instead of crypto.randomUUID().
+				// Two independent fresh inserts must not share an id -- catches a fallback that silently became a hardcoded string instead of crypto.randomUUID().
 				expect(saveArgA.id).not.toBe(saveArgB.id);
 				expect(saveArgA.createdAt).toEqual(fixedNow);
 				expect(saveArgB.createdAt).toEqual(fixedNow);
@@ -849,8 +844,7 @@ describe("RecordSpatialObservationUseCase", () => {
 				harness.hazardousEventRepository.saveSpatialObservationCalls[0]
 					.observation;
 			expect(dto.createdAt).toBe(saveArg.createdAt.toISOString());
-			// updatedAt is the fake's +1s "enriched on write" value -- confirms the DTO
-			// comes from save()'s return, not the pre-save entity.
+			// updatedAt is the fake's +1s "enriched on write" value -- confirms the DTO comes from save()'s return, not the pre-save entity.
 			expect(dto.updatedAt).toBe(
 				new Date(saveArg.updatedAt.getTime() + 1000).toISOString(),
 			);

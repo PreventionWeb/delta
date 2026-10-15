@@ -103,7 +103,11 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		throw new Error("not used by DeleteHazardousEventUseCase's own tests");
 	}
 
-	async save(): Promise<HazardousEvent> {
+	async insert(): Promise<HazardousEvent> {
+		throw new Error("not used by DeleteHazardousEventUseCase's own tests");
+	}
+
+	async update(): Promise<HazardousEvent> {
 		throw new Error("not used by DeleteHazardousEventUseCase's own tests");
 	}
 
@@ -174,8 +178,7 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 	}
 }
 
-/** `concurrentBarrierSize` gates deleteByEntity, the use case's first write — both calls'
- * own findById/dependent-checks must already be done by the time either reaches it. */
+/** `concurrentBarrierSize` gates deleteByEntity, the use case's first write -- both calls' own findById/dependent-checks must already be done by the time either reaches it. */
 class FakeWorkflowRepository implements IWorkflowRepository {
 	readonly deleteByEntityCalls: { entityId: string; entityType: EntityType }[] =
 		[];
