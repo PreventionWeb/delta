@@ -2,6 +2,7 @@ import { Injectable, Inject } from "@nestjs/common";
 import { eq, sql } from "drizzle-orm";
 import type { Dr, Tx } from "~/db.server";
 import { DRIZZLE_CLIENT } from "~/infrastructure/DrizzleProvider.server";
+import { pgErrorCode } from "~/infrastructure/pgErrorCode.server";
 import { ValidationError } from "~/shared/errors";
 import {
 	assertCausalLinkDoesNotCreateCycle,
@@ -16,24 +17,6 @@ export const DEFAULT_ADAPTER_ROW_BOUND = 5000;
 interface RawCausalEdgeRow {
 	cause_id: string;
 	effect_id: string;
-}
-
-/** Checks both `.code` and `.cause.code` — drizzle-orm's error wrapping varies by driver (same
- * helper as `DrizzleWorkflowRepository.server.ts`). */
-function pgErrorCode(err: unknown): string | undefined {
-	if (typeof err !== "object" || err === null) {
-		return undefined;
-	}
-	const code = "code" in err ? err.code : undefined;
-	if (typeof code === "string") {
-		return code;
-	}
-	const cause = "cause" in err ? err.cause : undefined;
-	const causeCode =
-		typeof cause === "object" && cause !== null && "code" in cause
-			? cause.code
-			: undefined;
-	return typeof causeCode === "string" ? causeCode : undefined;
 }
 
 function dedupeByCauseEffectPair(

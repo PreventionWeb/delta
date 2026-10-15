@@ -4,6 +4,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Dr } from "~/db.server";
 import { DRIZZLE_CLIENT } from "~/infrastructure/DrizzleProvider.server";
 import { getPinoLogger } from "~/infrastructure/logging/PinoLogger.server";
+import { pgErrorCode } from "~/infrastructure/pgErrorCode.server";
 import {
 	ConcurrentModificationError,
 	ConflictError,
@@ -20,25 +21,6 @@ import {
 	type InsertWorkflowInstance,
 	type SelectWorkflowInstance,
 } from "./workflowInstanceTable";
-
-/** drizzle-orm wraps driver errors in `DrizzleQueryError` (PGlite and node-postgres alike), so
- * the PG code lands on `.cause.code`; `err.code` is also checked as defense-in-depth, matching
- * `common.ts:148`'s own both-fields pattern (Decision 4). */
-function pgErrorCode(err: unknown): string | undefined {
-	if (typeof err !== "object" || err === null) {
-		return undefined;
-	}
-	const code = "code" in err ? err.code : undefined;
-	if (typeof code === "string") {
-		return code;
-	}
-	const cause = "cause" in err ? err.cause : undefined;
-	const causeCode =
-		typeof cause === "object" && cause !== null && "code" in cause
-			? cause.code
-			: undefined;
-	return typeof causeCode === "string" ? causeCode : undefined;
-}
 
 @Injectable()
 export class DrizzleWorkflowRepository implements IWorkflowRepository {
