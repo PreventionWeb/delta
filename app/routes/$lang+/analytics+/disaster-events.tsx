@@ -23,9 +23,7 @@ import {
 import { sectorChildrenById } from "~/backend.server/models/sector";
 
 import {
-	getAdministrativeLevels,
 	getDivisionByLevel,
-	getFirstAdministrativeLevel,
 } from "~/backend.server/models/division";
 import { dr } from "~/db.server"; // Drizzle ORM instance
 import MapChart, { MapChartRef } from "~/components/MapChart";
@@ -132,10 +130,6 @@ export const loader = authLoaderPublicOrWithPerm(
 
 		// Use the shared public tenant context for analytics
 		const countryAccountsId = await getCountryAccountsIdFromSession(request);
-		const administrativeLevels = await getAdministrativeLevels(countryAccountsId);
-		const firstAdministrativeLevel = getFirstAdministrativeLevel(
-			administrativeLevels,
-		);
 
 		if (qsDisEventId) {
 			// Pass public tenant context for analytics access
@@ -289,7 +283,7 @@ export const loader = authLoaderPublicOrWithPerm(
 					);
 
 					const divisionLevel1 = await getDivisionByLevel(
-						firstAdministrativeLevel,
+						1,
 						settings.countryAccountsId,
 					);
 					for (const item of divisionLevel1) {
