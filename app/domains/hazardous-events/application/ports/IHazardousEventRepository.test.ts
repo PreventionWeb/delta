@@ -3,7 +3,11 @@ import {
 	HazardousEvent,
 	type HazardousEventProps,
 } from "../../domain/HazardousEvent";
-import { NotFoundError } from "~/shared/errors";
+import {
+	ConcurrentModificationError,
+	ConflictError,
+	NotFoundError,
+} from "~/shared/errors";
 import type { Pagination } from "~/shared/types";
 import type {
 	IHazardousEventRepository,
@@ -65,9 +69,9 @@ function makeSpatialObservation(
 }
 
 /**
- * Fake conformance implementation (matches 3a's FakeWorkflowRepository pattern), keyed on
- * `tenantId:id`. `saveSpatialObservation` is last-write-wins — the fake's own choice; the
- * real conflict contract is Phase 3d's job (design.md Decision 7).
+ * Fake conformance implementation (matches 3a's FakeWorkflowRepository pattern), keyed on tenantId:id.
+ * saveSpatialObservation is last-write-wins -- the fake's own choice; the real conflict contract is Phase 3d's job (Decision 7).
+ * insert/update replace save (Decision 1), scoped to this fake's own tenantId:id key -- weaker than the real adapter's global-PK uniqueness.
  */
 class FakeHazardousEventRepository implements IHazardousEventRepository {
 	private readonly store = new Map<string, HazardousEvent>();
@@ -104,8 +108,49 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		return all.slice(start, start + pagination.pageSize);
 	}
 
-	async save(entity: HazardousEvent): Promise<HazardousEvent> {
-		this.store.set(this.key(entity.id, entity.tenantId), entity);
+	async insert(entity: HazardousEvent): Promise<HazardousEvent> {
+		const key = this.key(entity.id, entity.tenantId);
+		if (this.store.has(key)) {
+			// Plain write that rejects on an id collision, never silently overwriting (port spec).
+			throw new ConflictError(
+				"HazardousEvent already exists for this id/tenantId",
+				{ id: entity.id, tenantId: entity.tenantId },
+			);
+		}
+		this.store.set(key, entity);
+		return entity;
+	}
+
+	/** In-memory equality against the stored entity's own updatedAt, including the null branch (never updated since insert()) -- the real conditional-SQL CAS is the adapter's concern. */
+	async update(
+		entity: HazardousEvent,
+		expectedUpdatedAt: Date | null,
+	): Promise<HazardousEvent> {
+		const key = this.key(entity.id, entity.tenantId);
+		const current = this.store.get(key);
+
+		if (current === undefined) {
+			// Covers both "never existed" and "a delete() already removed it" (no resurrection).
+			throw new ConcurrentModificationError(
+				"HazardousEvent no longer exists for this id/tenantId",
+				{ id: entity.id, tenantId: entity.tenantId },
+			);
+		}
+
+		const currentUpdatedAt = current.updatedAt;
+		const matches =
+			currentUpdatedAt === null
+				? expectedUpdatedAt === null
+				: expectedUpdatedAt !== null &&
+					currentUpdatedAt.getTime() === expectedUpdatedAt.getTime();
+		if (!matches) {
+			throw new ConcurrentModificationError(
+				"HazardousEvent has been modified since it was read",
+				{ id: entity.id, tenantId: entity.tenantId },
+			);
+		}
+
+		this.store.set(key, entity);
 		return entity;
 	}
 
@@ -184,7 +229,7 @@ describe("IHazardousEventRepository conformance", () => {
 		it("resolves the saved entity when one exists for the given id and tenantId", async () => {
 			const repo = new FakeHazardousEventRepository();
 			const entity = makeHazardousEvent({ id: "he-2", tenantId: "tenant-2" });
-			await repo.save(entity);
+			await repo.insert(entity);
 
 			await expect(repo.findById("he-2", "tenant-2")).resolves.toBe(entity);
 		});
@@ -193,8 +238,12 @@ describe("IHazardousEventRepository conformance", () => {
 	describe("findAll", () => {
 		it("returns only entities matching the given tenantId", async () => {
 			const repo = new FakeHazardousEventRepository();
-			await repo.save(makeHazardousEvent({ id: "he-1", tenantId: "tenant-1" }));
-			await repo.save(makeHazardousEvent({ id: "he-2", tenantId: "tenant-2" }));
+			await repo.insert(
+				makeHazardousEvent({ id: "he-1", tenantId: "tenant-1" }),
+			);
+			await repo.insert(
+				makeHazardousEvent({ id: "he-2", tenantId: "tenant-2" }),
+			);
 
 			const result = await repo.findAll("tenant-1", { page: 1, pageSize: 10 });
 
@@ -203,9 +252,15 @@ describe("IHazardousEventRepository conformance", () => {
 
 		it("respects page and pageSize", async () => {
 			const repo = new FakeHazardousEventRepository();
-			await repo.save(makeHazardousEvent({ id: "he-1", tenantId: "tenant-1" }));
-			await repo.save(makeHazardousEvent({ id: "he-2", tenantId: "tenant-1" }));
-			await repo.save(makeHazardousEvent({ id: "he-3", tenantId: "tenant-1" }));
+			await repo.insert(
+				makeHazardousEvent({ id: "he-1", tenantId: "tenant-1" }),
+			);
+			await repo.insert(
+				makeHazardousEvent({ id: "he-2", tenantId: "tenant-1" }),
+			);
+			await repo.insert(
+				makeHazardousEvent({ id: "he-3", tenantId: "tenant-1" }),
+			);
 
 			const firstPage = await repo.findAll("tenant-1", {
 				page: 1,
@@ -218,6 +273,107 @@ describe("IHazardousEventRepository conformance", () => {
 
 			expect(firstPage.map((entity) => entity.id)).toEqual(["he-1", "he-2"]);
 			expect(secondPage.map((entity) => entity.id)).toEqual(["he-3"]);
+		});
+	});
+
+	describe("insert", () => {
+		it("rejects an id collision rather than silently overwriting the existing row", async () => {
+			const repo = new FakeHazardousEventRepository();
+			const original = makeHazardousEvent({ id: "he-1", tenantId: "tenant-1" });
+			await repo.insert(original);
+
+			const colliding = makeHazardousEvent({
+				id: "he-1",
+				tenantId: "tenant-1",
+				description: "a different event sharing the same id",
+			});
+			await expect(repo.insert(colliding)).rejects.toThrow(ConflictError);
+			await expect(repo.findById("he-1", "tenant-1")).resolves.toBe(original);
+		});
+	});
+
+	describe("update", () => {
+		it("persists a matching expectedUpdatedAt and resolves the updated entity", async () => {
+			const repo = new FakeHazardousEventRepository();
+			const original = makeHazardousEvent({
+				id: "he-1",
+				tenantId: "tenant-1",
+				updatedAt: new Date("2026-01-02T00:00:00Z"),
+			});
+			await repo.insert(original);
+
+			const changed = makeHazardousEvent({
+				id: "he-1",
+				tenantId: "tenant-1",
+				updatedAt: new Date("2026-01-03T00:00:00Z"),
+				description: "changed",
+			});
+			await expect(repo.update(changed, original.updatedAt)).resolves.toBe(
+				changed,
+			);
+			await expect(repo.findById("he-1", "tenant-1")).resolves.toBe(changed);
+		});
+
+		it("accepts a null expectedUpdatedAt for a row never updated since insert()", async () => {
+			const repo = new FakeHazardousEventRepository();
+			// updatedAt: null in baseHazardousEventProps -- never updated since insert().
+			const original = makeHazardousEvent({ id: "he-1", tenantId: "tenant-1" });
+			await repo.insert(original);
+
+			const changed = makeHazardousEvent({
+				id: "he-1",
+				tenantId: "tenant-1",
+				updatedAt: new Date("2026-01-03T00:00:00Z"),
+			});
+			await expect(repo.update(changed, null)).resolves.toBe(changed);
+		});
+
+		it("rejects with ConcurrentModificationError when expectedUpdatedAt no longer matches the stored entity (stale write)", async () => {
+			const repo = new FakeHazardousEventRepository();
+			const original = makeHazardousEvent({
+				id: "he-1",
+				tenantId: "tenant-1",
+				updatedAt: new Date("2026-01-02T00:00:00Z"),
+			});
+			await repo.insert(original);
+			const winner = makeHazardousEvent({
+				id: "he-1",
+				tenantId: "tenant-1",
+				updatedAt: new Date("2026-01-03T00:00:00Z"),
+			});
+			await repo.update(winner, original.updatedAt);
+
+			const stale = makeHazardousEvent({
+				id: "he-1",
+				tenantId: "tenant-1",
+				updatedAt: new Date("2026-01-04T00:00:00Z"),
+			});
+			await expect(repo.update(stale, original.updatedAt)).rejects.toThrow(
+				ConcurrentModificationError,
+			);
+		});
+
+		it("rejects with ConcurrentModificationError, not resurrecting the row, when delete() already removed it", async () => {
+			const repo = new FakeHazardousEventRepository();
+			const original = makeHazardousEvent({
+				id: "he-1",
+				tenantId: "tenant-1",
+				updatedAt: new Date("2026-01-02T00:00:00Z"),
+			});
+			await repo.insert(original);
+			await repo.delete("he-1", "tenant-1");
+
+			const stale = makeHazardousEvent({
+				id: "he-1",
+				tenantId: "tenant-1",
+				updatedAt: new Date("2026-01-03T00:00:00Z"),
+			});
+			await expect(repo.update(stale, original.updatedAt)).rejects.toThrow(
+				ConcurrentModificationError,
+			);
+			await expect(repo.findById("he-1", "tenant-1")).rejects.toThrow(
+				NotFoundError,
+			);
 		});
 	});
 
@@ -241,8 +397,8 @@ describe("IHazardousEventRepository conformance", () => {
 				id: "he-shared-id",
 				tenantId: "tenant-2",
 			});
-			await repo.save(tenantOneEntity);
-			await repo.save(tenantTwoEntity);
+			await repo.insert(tenantOneEntity);
+			await repo.insert(tenantTwoEntity);
 
 			await repo.delete("he-shared-id", "tenant-1");
 
@@ -400,9 +556,14 @@ const _findAllArity: AssertEqual<
 	Parameters<IHazardousEventRepository["findAll"]>,
 	[string, Pagination]
 > = true;
-const _saveArity: AssertEqual<
-	Parameters<IHazardousEventRepository["save"]>,
+const _insertArity: AssertEqual<
+	Parameters<IHazardousEventRepository["insert"]>,
 	[HazardousEvent]
+> = true;
+// Fails to compile if expectedUpdatedAt is made optional (Date | null | undefined isn't the required tuple) -- the compile-time guard Decision 2 relies on.
+const _updateArity: AssertEqual<
+	Parameters<IHazardousEventRepository["update"]>,
+	[HazardousEvent, Date | null]
 > = true;
 const _deleteArity: AssertEqual<
 	Parameters<IHazardousEventRepository["delete"]>,
@@ -427,7 +588,8 @@ const _countReferencingDisasterEventsArity: AssertEqual<
 
 void _findByIdArity;
 void _findAllArity;
-void _saveArity;
+void _insertArity;
+void _updateArity;
 void _deleteArity;
 void _findCurrentSpatialObservationArity;
 void _findSpatialObservationByTimeArity;
