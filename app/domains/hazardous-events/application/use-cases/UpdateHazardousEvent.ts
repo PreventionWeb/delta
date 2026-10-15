@@ -234,7 +234,10 @@ export class UpdateHazardousEventUseCase {
 			command.tenantId,
 		);
 
-		const saved = await this.hazardousEventRepository.save(updatedEvent);
+		const saved = await this.hazardousEventRepository.update(
+			updatedEvent,
+			existingEvent.updatedAt,
+		);
 
 		await this.applyCausalEdgeChange(
 			causeAction,
