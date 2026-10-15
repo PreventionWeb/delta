@@ -12,7 +12,7 @@ import {
 	approvalFields,
 	approvalWorkflowFields,
 	apiImportIdField,
-	hipRelationColumnsRequired,
+	hipRelationColumnsOptional,
 	zeroText,
 } from "~/utils/drizzleUtil";
 import { eventTable } from "./eventTable";
@@ -30,7 +30,8 @@ export const hazardousEventTable = pgTable(
 		...approvalFields,
 		...approvalWorkflowFields,
 		...apiImportIdField(),
-		...hipRelationColumnsRequired(),
+		// Matches the real schema -- PGlite builds from this file via pushSchema, not the SQL.
+		...hipRelationColumnsOptional(),
 		id: uuid("id")
 			.references((): AnyPgColumn => eventTable.id)
 			.primaryKey(),
