@@ -13,7 +13,7 @@ Defines `CreateHazardousEventUseCase`, the single entry point that constructs an
 `CreateHazardousEventUseCase.execute(command)` SHALL generate a new id internally, compute
 `validHazardDriverIds`/`validCustomFieldDefinitionIds` via `IHazardTaxonomyRepository` scoped to
 `command.tenantId`, construct a `HazardousEvent` via `HazardousEvent.create()`, and persist it via
-`IHazardousEventRepository.save()`. When `command.causeId` is absent, no cause lookup and no
+`IHazardousEventRepository.insert()`. When `command.causeId` is absent, no cause lookup and no
 `ICausalChainRepository` call of any kind SHALL be made.
 
 `execute(command)` SHALL validate that `command.actingUserId` is present (neither `undefined`/`null`
@@ -24,7 +24,7 @@ nor an empty or whitespace-only string after trimming) before any write, and MUS
 
 - **GIVEN** a valid `CreateHazardousEventCommand` with `causeId` omitted
 - **WHEN** `execute(command)` is called
-- **THEN** `IHazardousEventRepository.save` SHALL be called exactly once with a `HazardousEvent`
+- **THEN** `IHazardousEventRepository.insert` SHALL be called exactly once with a `HazardousEvent`
   whose fields match the command
 - **AND** `ICausalChainRepository.findReachableEdgesFrom` and `ICausalChainRepository.saveEdge`
   SHALL NOT be called
@@ -36,7 +36,7 @@ nor an empty or whitespace-only string after trimming) before any write, and MUS
 - **WHEN** `execute(command)` is called
 - **THEN** the call SHALL reject with the `ValidationError` thrown by `HazardousEvent.create()`,
   unmodified
-- **AND** `IHazardousEventRepository.save` SHALL NOT be called
+- **AND** `IHazardousEventRepository.insert` SHALL NOT be called
 
 #### Scenario: An empty-string causeId is treated as absent, same as omitted
 
@@ -49,7 +49,7 @@ nor an empty or whitespace-only string after trimming) before any write, and MUS
 
 #### Scenario: A failure from the HazardousEvent save propagates unmodified, no later step runs
 
-- **GIVEN** a valid `CreateHazardousEventCommand`, and a fake `IHazardousEventRepository.save`
+- **GIVEN** a valid `CreateHazardousEventCommand`, and a fake `IHazardousEventRepository.insert`
   stubbed to reject with a generic `Error`
 - **WHEN** `execute(command)` is called
 - **THEN** the call SHALL reject with that same `Error`, unmodified
@@ -61,7 +61,7 @@ nor an empty or whitespace-only string after trimming) before any write, and MUS
   value reachable only by a caller bypassing the compile-time type
 - **WHEN** `execute(command)` is called
 - **THEN** the call SHALL reject with `ValidationError`
-- **AND** `IHazardousEventRepository.save` SHALL NOT be called
+- **AND** `IHazardousEventRepository.insert` SHALL NOT be called
 
 ### Requirement: An optional causeId links the new event as the effect of an existing cause
 
@@ -73,7 +73,7 @@ via `ICausalChainRepository.findReachableEdgesFrom`, call
 `assertCausalLinkDoesNotCreateCycle(edges, command.causeId, newId)`, persist the `HazardousEvent`,
 initialize and persist its `WorkflowInstance`, and only then persist the new
 `causeId -> effectId` edge via `ICausalChainRepository.saveEdge`. The order MUST be:
-`IHazardousEventRepository.save` -> `IWorkflowRepository.insert` -> `ICausalChainRepository.saveEdge`
+`IHazardousEventRepository.insert` -> `IWorkflowRepository.insert` -> `ICausalChainRepository.saveEdge`
 (design.md Decision 5 — this order is deliberate, not incidental: it makes the harder-to-recover
 failure, a `HazardousEvent` with no `WorkflowInstance`, require the _second_ write to fail rather
 than either of the last two).
@@ -83,7 +83,7 @@ than either of the last two).
 - **GIVEN** a valid `CreateHazardousEventCommand` with `causeId` set to an id that
   `IHazardousEventRepository.findById` resolves successfully
 - **WHEN** `execute(command)` is called
-- **THEN** `IHazardousEventRepository.save` SHALL be called before `IWorkflowRepository.insert`,
+- **THEN** `IHazardousEventRepository.insert` SHALL be called before `IWorkflowRepository.insert`,
   which SHALL be called before `ICausalChainRepository.saveEdge`
 - **AND** `saveEdge` SHALL be called exactly once with `{ causeId: command.causeId, effectId:
 <the newly-generated id> }` and `command.causalityExplanation` (or `null` if omitted)
@@ -95,7 +95,7 @@ than either of the last two).
   `Error`
 - **WHEN** `execute(command)` is called
 - **THEN** the call SHALL reject with that same `Error`, unmodified
-- **AND** the `HazardousEvent` already persisted by `IHazardousEventRepository.save` SHALL remain
+- **AND** the `HazardousEvent` already persisted by `IHazardousEventRepository.insert` SHALL remain
   persisted — `execute()` MUST NOT attempt to delete or roll back any write that already succeeded
   (design.md Decision 5, `DEF-026`: no unit-of-work abstraction exists to make these writes
   atomic; a caller that retries the same logical request on this rejection creates a second,
@@ -108,7 +108,7 @@ than either of the last two).
   `IHazardousEventRepository.findById` does not find
 - **WHEN** `execute(command)` is called
 - **THEN** the call SHALL reject with the `NotFoundError` thrown by `findById`, unmodified
-- **AND** `IHazardousEventRepository.save`, `ICausalChainRepository.saveEdge`, and
+- **AND** `IHazardousEventRepository.insert`, `ICausalChainRepository.saveEdge`, and
   `IWorkflowRepository.insert` SHALL NOT be called
 
 #### Scenario: A causeId belonging to a different tenant is rejected (same-tenant-only, final for this change — see design.md Decision 4)
@@ -119,7 +119,7 @@ than either of the last two).
 - **THEN** `IHazardousEventRepository.findById` SHALL be called with `(command.causeId,
 command.tenantId)`, and the call SHALL reject with the resulting `NotFoundError`, unmodified,
   even though the cause event genuinely exists under another tenant
-- **AND** `IHazardousEventRepository.save`, `ICausalChainRepository.saveEdge`, and
+- **AND** `IHazardousEventRepository.insert`, `ICausalChainRepository.saveEdge`, and
   `IWorkflowRepository.insert` SHALL NOT be called
 
 #### Scenario: findReachableEdgesFrom is called with the newly-generated id, not causeId
@@ -143,7 +143,7 @@ command.tenantId)`, and the call SHALL reject with the resulting `NotFoundError`
 - **WHEN** `execute(command)` is called
 - **THEN** the call SHALL reject with the `ConflictError` `assertCausalLinkDoesNotCreateCycle`
   throws, unmodified
-- **AND** `IHazardousEventRepository.save`, `ICausalChainRepository.saveEdge`, and
+- **AND** `IHazardousEventRepository.insert`, `ICausalChainRepository.saveEdge`, and
   `IWorkflowRepository.insert` SHALL NOT be called
 
 #### Scenario: Two concurrent creates with the same causeId both succeed, producing two distinct edges
@@ -177,8 +177,8 @@ existing row, so `insert()` (not `update()`) is the correct method here.
 
 ### Requirement: The returned HazardousEventDto reflects the saved event and its DRAFT workflow status
 
-`execute(command)` SHALL return a `HazardousEventDto` derived from `IHazardousEventRepository.save()`'s
-resolved value and `IWorkflowRepository.insert()`'s resolved value — never the pre-save
+`execute(command)` SHALL return a `HazardousEventDto` derived from `IHazardousEventRepository.insert()`'s
+resolved value and `IWorkflowRepository.insert()`'s resolved value — never the pre-insert
 `HazardousEvent`/`WorkflowInstance` instances. Date fields MUST be serialized as ISO 8601 strings.
 
 #### Scenario: Returned DTO has status DRAFT and matches the saved event's fields
@@ -186,5 +186,5 @@ resolved value and `IWorkflowRepository.insert()`'s resolved value — never the
 - **GIVEN** any valid `CreateHazardousEventCommand`
 - **WHEN** `execute(command)` resolves
 - **THEN** the returned `HazardousEventDto.workflowStatus` SHALL be `"DRAFT"`
-- **AND** the DTO's `id` SHALL equal `IHazardousEventRepository.save()`'s resolved `id`
+- **AND** the DTO's `id` SHALL equal `IHazardousEventRepository.insert()`'s resolved `id`
 - **AND** `createdAt` SHALL be an ISO 8601 string equal to the saved event's `createdAt`
