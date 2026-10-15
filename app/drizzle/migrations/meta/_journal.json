@@ -428,6 +428,34 @@
       "when": 1791763200000,
       "tag": "20261012000000_widen_language_cd_bcp47",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1792058371486,
+      "tag": "20261015095931_migrate_hazardous_event_hip_hazard_id_to_hazardous_event_specific_hazard_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1792058418935,
+      "tag": "20261015100018_migrate_hazardous_event_spatial",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1792058455430,
+      "tag": "20261015100055_migrate_hazardous_event_causality_from_event_relationship_to_hazardous_event_causality",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1792058482745,
+      "tag": "20261015100122_migrate_validation_workflow",
+      "breakpoints": true
     }
   ]
 }
