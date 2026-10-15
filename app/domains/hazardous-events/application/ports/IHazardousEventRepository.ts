@@ -15,11 +15,7 @@ export interface SpatialObservationRecord {
 	readonly updatedAt: Date;
 }
 
-/**
- * Repository port for the `HazardousEvent` aggregate and its child spatial observations.
- * Tenancy: explicit `tenantId` on every read/delete/spatial method (addressing DEF-005 at
- * the port boundary), implicit via the entity on `save` (design.md Context/Decision 6).
- */
+/** Repository port for the `HazardousEvent` aggregate and its child spatial observations; `tenantId` is explicit on every read/delete/spatial method (DEF-005), implicit via the entity itself on `insert`/`update`. */
 export interface IHazardousEventRepository {
 	/** @throws {NotFoundError} when no HazardousEvent exists for `id` within `tenantId`. */
 	findById(id: string, tenantId: string): Promise<HazardousEvent>;
@@ -27,14 +23,20 @@ export interface IHazardousEventRepository {
 	/** Tenant-scoped, paginated list. */
 	findAll(tenantId: string, pagination: Pagination): Promise<HazardousEvent[]>;
 
-	/** Insert-or-update; the entity's own `tenantId` property carries tenancy — no separate parameter. */
-	save(entity: HazardousEvent): Promise<HazardousEvent>;
+	/** First-time persistence of all four child collections as one atomic unit; no separate `tenantId` param -- the entity's own property carries tenancy (Decision 1). */
+	insert(entity: HazardousEvent): Promise<HazardousEvent>;
+
+	/** Conditional update guarded by optimistic locking, replacing all four child collections wholesale; `expectedUpdatedAt` is `Date | null` (Decision 2).
+	 * @throws {ConcurrentModificationError} when no row matches — never falls back to an upsert. */
+	update(
+		entity: HazardousEvent,
+		expectedUpdatedAt: Date | null,
+	): Promise<HazardousEvent>;
 
 	/** Tenant-scoped delete. Resolves normally, not throwing, when no row matches. */
 	delete(id: string, tenantId: string): Promise<void>;
 
-	/** Counts disaster_event rows referencing hazardousEventId. tenantId scopes the HazardousEvent
-	 * side only — a cross-tenant disaster_event row is still counted, not excluded. */
+	/** Counts disaster_event rows referencing hazardousEventId; tenantId scopes the HazardousEvent side only -- a cross-tenant disaster_event row is still counted, not excluded. */
 	countReferencingDisasterEvents(
 		hazardousEventId: string,
 		tenantId: string,
