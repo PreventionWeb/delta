@@ -23,8 +23,7 @@ class FakeLogger implements ILogger {
 	debug = vi.fn();
 }
 
-/** Fake conformance matches ICausalChainRepository.test.ts's own fake but adds call-arg
- * capture + configurable behavior, needed to exercise CreateHazardousEventUseCase's branches. */
+/** Fake conformance matches ICausalChainRepository.test.ts's own fake but adds call-arg capture + configurable behavior, needed to exercise CreateHazardousEventUseCase's branches. */
 class FakeCausalChainRepository implements ICausalChainRepository {
 	readonly findReachableEdgesFromCalls: string[] = [];
 	readonly saveEdgeCalls: {
@@ -106,8 +105,7 @@ class FakeHazardTaxonomyRepository implements IHazardTaxonomyRepository {
 	}
 }
 
-/** Rebuilds a full HazardousEventProps snapshot from an entity's own getters — needed to
- * construct an "enriched on write" clone without bypassing HazardousEvent.create()'s validation. */
+/** Rebuilds a full HazardousEventProps snapshot from an entity's own getters -- needed to construct an "enriched on write" clone without bypassing HazardousEvent.create()'s validation. */
 function snapshotProps(entity: HazardousEvent): HazardousEventProps {
 	return {
 		id: entity.id,
@@ -138,12 +136,11 @@ function snapshotProps(entity: HazardousEvent): HazardousEventProps {
 	};
 }
 
-/** call-arg capture and a configurable save() outcome. save() returns a distinct, "enriched on write" clone
- * by default — proves a caller uses the resolved value, not the pre-save entity. */
+/** insert() returns a distinct "enriched on write" clone -- proves callers use the resolved value. */
 class FakeHazardousEventRepository implements IHazardousEventRepository {
-	readonly saveCalls: HazardousEvent[] = [];
+	readonly insertCalls: HazardousEvent[] = [];
 	readonly findByIdCalls: { id: string; tenantId: string }[] = [];
-	saveBehavior: "succeed" | Error = "succeed";
+	insertBehavior: "succeed" | Error = "succeed";
 	private readonly store = new Map<string, HazardousEvent>();
 
 	constructor(
@@ -192,10 +189,10 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		throw new Error("not used by CreateHazardousEventUseCase's own tests");
 	}
 
-	async save(entity: HazardousEvent): Promise<HazardousEvent> {
-		this.saveCalls.push(entity);
-		if (this.saveBehavior instanceof Error) {
-			throw this.saveBehavior;
+	async insert(entity: HazardousEvent): Promise<HazardousEvent> {
+		this.insertCalls.push(entity);
+		if (this.insertBehavior instanceof Error) {
+			throw this.insertBehavior;
 		}
 		const saved = HazardousEvent.create(
 			{
@@ -210,8 +207,14 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 			),
 		);
 		this.store.set(this.key(saved.id, saved.tenantId), saved);
-		this.callLog.push("hazardousEvent.save");
+		this.callLog.push("hazardousEvent.insert");
 		return saved;
+	}
+
+	async update(): Promise<never> {
+		throw new Error(
+			"CreateHazardousEventUseCase never calls update() — it only ever inserts",
+		);
 	}
 }
 
@@ -246,8 +249,7 @@ class FakeWorkflowRepository implements IWorkflowRepository {
 			throw this.insertBehavior;
 		}
 		if (this.insertBehavior === "succeed-enriched") {
-			// Contrived, test-only enrichment — proves toHazardousEventDto uses insert()'s resolved WorkflowInstance,
-			// not the pre-insert one (mirrors FakeHazardousEventRepository's own dataSource-suffix enrichment).
+			// Contrived, test-only enrichment -- proves toHazardousEventDto uses insert()'s resolved WorkflowInstance, not the pre-insert one (mirrors FakeHazardousEventRepository's own dataSource-suffix enrichment).
 			return WorkflowInstance.create({
 				id: instance.id,
 				entityId: instance.entityId,
@@ -389,8 +391,8 @@ describe("CreateHazardousEventUseCase", () => {
 
 			await harness.useCase.execute(command);
 
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(1);
-			const savedEntity = harness.hazardousEventRepository.saveCalls[0];
+			expect(harness.hazardousEventRepository.insertCalls).toHaveLength(1);
+			const savedEntity = harness.hazardousEventRepository.insertCalls[0];
 			expect(savedEntity.tenantId).toBe(command.tenantId);
 			expect(savedEntity.specificHazardId).toBe(command.specificHazardId);
 			expect(savedEntity.startDate).toBe(command.startDate);
@@ -439,7 +441,7 @@ describe("CreateHazardousEventUseCase", () => {
 			expect(
 				harness.taxonomyRepository.findValidCustomFieldDefinitionIdsCalls,
 			).toEqual([{ ids: ["custom-1"], tenantId: "tenant-1" }]);
-			const savedEntity = harness.hazardousEventRepository.saveCalls[0];
+			const savedEntity = harness.hazardousEventRepository.insertCalls[0];
 			expect(savedEntity.hazardDriverIds).toEqual(["driver-1"]);
 			expect(savedEntity.customFieldValues).toEqual(command.customFieldValues);
 		});
@@ -454,7 +456,7 @@ describe("CreateHazardousEventUseCase", () => {
 			await expect(harness.useCase.execute(command)).rejects.toThrow(
 				ValidationError,
 			);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.insertCalls).toHaveLength(0);
 			expect(harness.taxonomyRepository.findValidHazardDriverIdsCalls).toEqual([
 				{ ids: [], tenantId: "tenant-1" },
 			]);
@@ -467,9 +469,7 @@ describe("CreateHazardousEventUseCase", () => {
 				hazardDriverIds: ["driver-1", 42, "driver-2"],
 			} as unknown as CreateHazardousEventCommand;
 
-			// HazardousEvent.create() still rejects the raw (unsanitized) array on its own
-			// membership/shape checks -- this test is about what the taxonomy query received,
-			// which happens strictly before that.
+			// HazardousEvent.create() still rejects the raw (unsanitized) array on its own membership/shape checks -- this test is about what the taxonomy query received, which happens strictly before that.
 			await expect(harness.useCase.execute(command)).rejects.toThrow(
 				ValidationError,
 			);
@@ -488,7 +488,7 @@ describe("CreateHazardousEventUseCase", () => {
 			await expect(harness.useCase.execute(command)).rejects.toThrow(
 				ValidationError,
 			);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.insertCalls).toHaveLength(0);
 			expect(
 				harness.taxonomyRepository.findValidCustomFieldDefinitionIdsCalls,
 			).toEqual([{ ids: [], tenantId: "tenant-1" }]);
@@ -504,7 +504,7 @@ describe("CreateHazardousEventUseCase", () => {
 			await expect(harness.useCase.execute(command)).rejects.toThrow(
 				ValidationError,
 			);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.insertCalls).toHaveLength(0);
 		});
 
 		it("survives an undefined element in customFieldValues without a raw TypeError, surfacing HazardousEvent.create()'s own ValidationError", async () => {
@@ -517,7 +517,7 @@ describe("CreateHazardousEventUseCase", () => {
 			await expect(harness.useCase.execute(command)).rejects.toThrow(
 				ValidationError,
 			);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.insertCalls).toHaveLength(0);
 		});
 
 		it("survives a non-string hazardTypeCustomFieldDefinitionId without a raw TypeError, surfacing HazardousEvent.create()'s own ValidationError", async () => {
@@ -532,7 +532,7 @@ describe("CreateHazardousEventUseCase", () => {
 			await expect(harness.useCase.execute(command)).rejects.toThrow(
 				ValidationError,
 			);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.insertCalls).toHaveLength(0);
 		});
 
 		it("throws ValidationError when causeId is present but not a string (e.g. deserialized JSON from an untyped caller)", async () => {
@@ -545,7 +545,7 @@ describe("CreateHazardousEventUseCase", () => {
 			await expect(harness.useCase.execute(command)).rejects.toThrow(
 				new ValidationError("causeId must be a string when present"),
 			);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.insertCalls).toHaveLength(0);
 			expect(harness.hazardousEventRepository.findByIdCalls).toHaveLength(0);
 		});
 
@@ -559,7 +559,7 @@ describe("CreateHazardousEventUseCase", () => {
 			await expect(harness.useCase.execute(command)).rejects.toThrow(
 				new ValidationError("tenantId must not be empty"),
 			);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.insertCalls).toHaveLength(0);
 			expect(
 				harness.taxonomyRepository.findValidHazardDriverIdsCalls,
 			).toHaveLength(0);
@@ -575,7 +575,7 @@ describe("CreateHazardousEventUseCase", () => {
 			await expect(harness.useCase.execute(command)).rejects.toThrow(
 				new ValidationError("actingUserId must not be empty"),
 			);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.insertCalls).toHaveLength(0);
 		});
 
 		it("throws ValidationError for an empty-string actingUserId, with zero writes", async () => {
@@ -585,7 +585,7 @@ describe("CreateHazardousEventUseCase", () => {
 			await expect(harness.useCase.execute(command)).rejects.toThrow(
 				new ValidationError("actingUserId must not be empty"),
 			);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.insertCalls).toHaveLength(0);
 		});
 
 		it("generates id internally, sets createdByUserId from actingUserId, updatedAt null, and a single internally-computed createdAt", async () => {
@@ -594,7 +594,7 @@ describe("CreateHazardousEventUseCase", () => {
 
 			await harness.useCase.execute(command);
 
-			const savedEntity = harness.hazardousEventRepository.saveCalls[0];
+			const savedEntity = harness.hazardousEventRepository.insertCalls[0];
 			expect(savedEntity.id).toEqual(expect.any(String));
 			expect(savedEntity.id.length).toBeGreaterThan(0);
 			expect(savedEntity.createdByUserId).toBe(command.actingUserId);
@@ -612,7 +612,7 @@ describe("CreateHazardousEventUseCase", () => {
 		await expect(harness.useCase.execute(command)).rejects.toThrow(
 			ValidationError,
 		);
-		expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+		expect(harness.hazardousEventRepository.insertCalls).toHaveLength(0);
 	});
 
 	it("treats an empty-string causeId as absent, same as omitted", async () => {
@@ -633,7 +633,7 @@ describe("CreateHazardousEventUseCase", () => {
 
 	it("propagates a generic Error from the HazardousEvent save, with no later write", async () => {
 		const harness = createHarness();
-		harness.hazardousEventRepository.saveBehavior = new Error(
+		harness.hazardousEventRepository.insertBehavior = new Error(
 			"boom-hazardous-event-save",
 		);
 		const command = makeCommand();
@@ -660,13 +660,13 @@ describe("CreateHazardousEventUseCase", () => {
 			await harness.useCase.execute(command);
 
 			expect(harness.callLog).toEqual([
-				"hazardousEvent.save",
+				"hazardousEvent.insert",
 				"workflow.insert",
 				"causalChain.saveEdge",
 			]);
 			expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(1);
 			const [edgeCall] = harness.causalChainRepository.saveEdgeCalls;
-			const savedEntityId = harness.hazardousEventRepository.saveCalls[0].id;
+			const savedEntityId = harness.hazardousEventRepository.insertCalls[0].id;
 			expect(edgeCall.edge).toEqual({
 				causeId: "cause-1",
 				effectId: savedEntityId,
@@ -704,7 +704,7 @@ describe("CreateHazardousEventUseCase", () => {
 
 			await harness.useCase.execute(command);
 
-			const savedEntityId = harness.hazardousEventRepository.saveCalls[0].id;
+			const savedEntityId = harness.hazardousEventRepository.insertCalls[0].id;
 			expect(harness.causalChainRepository.findReachableEdgesFromCalls).toEqual(
 				[savedEntityId],
 			);
@@ -719,7 +719,7 @@ describe("CreateHazardousEventUseCase", () => {
 			await expect(harness.useCase.execute(command)).rejects.toThrow(
 				NotFoundError,
 			);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.insertCalls).toHaveLength(0);
 			expect(harness.workflowRepository.insertCalls).toHaveLength(0);
 			expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(0);
 		});
@@ -740,7 +740,7 @@ describe("CreateHazardousEventUseCase", () => {
 				id: "cause-1",
 				tenantId: "tenant-1",
 			});
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.insertCalls).toHaveLength(0);
 			expect(harness.workflowRepository.insertCalls).toHaveLength(0);
 			expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(0);
 		});
@@ -748,8 +748,7 @@ describe("CreateHazardousEventUseCase", () => {
 		it("propagates a ConflictError from a contrived cycle and blocks every write", async () => {
 			const harness = harnessWithCause();
 			const command = makeCommand({ causeId: "cause-1" });
-			// Contrived per design.md Decision 1's own test implication: a real adapter can never
-			// produce this for a brand-new id, but the branch must still be exercisable.
+			// Contrived per design.md Decision 1's own test implication: a real adapter can never produce this for a brand-new id, but the branch must still be exercisable.
 			harness.causalChainRepository.findReachableEdgesFromBehavior = (
 				nodeId,
 			) => [{ causeId: nodeId, effectId: "cause-1" }];
@@ -757,7 +756,7 @@ describe("CreateHazardousEventUseCase", () => {
 			await expect(harness.useCase.execute(command)).rejects.toThrow(
 				ConflictError,
 			);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.insertCalls).toHaveLength(0);
 			expect(harness.workflowRepository.insertCalls).toHaveLength(0);
 			expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(0);
 		});
@@ -772,7 +771,7 @@ describe("CreateHazardousEventUseCase", () => {
 			await expect(harness.useCase.execute(command)).rejects.toThrow(
 				"boom-find-reachable",
 			);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.insertCalls).toHaveLength(0);
 			expect(harness.workflowRepository.insertCalls).toHaveLength(0);
 			expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(0);
 		});
@@ -787,10 +786,9 @@ describe("CreateHazardousEventUseCase", () => {
 			await expect(harness.useCase.execute(command)).rejects.toThrow(
 				"boom-workflow-save",
 			);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(1);
-			// save()'s own fake enriches on write (dataSource suffix), so the persisted row is a
-			// distinct object from saveCalls[0] — compare by id, the only stable identity here.
-			const savedEntity = harness.hazardousEventRepository.saveCalls[0];
+			expect(harness.hazardousEventRepository.insertCalls).toHaveLength(1);
+			// Compare by id -- the fake enriches on write, so this isn't the same object instance.
+			const savedEntity = harness.hazardousEventRepository.insertCalls[0];
 			const persisted = await harness.hazardousEventRepository.findById(
 				savedEntity.id,
 				"tenant-1",
@@ -809,7 +807,7 @@ describe("CreateHazardousEventUseCase", () => {
 			await expect(harness.useCase.execute(command)).rejects.toThrow(
 				"boom-edge-save",
 			);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(1);
+			expect(harness.hazardousEventRepository.insertCalls).toHaveLength(1);
 			expect(harness.workflowRepository.insertCalls).toHaveLength(1);
 		});
 
@@ -848,7 +846,7 @@ describe("CreateHazardousEventUseCase", () => {
 
 		expect(harness.workflowRepository.insertCalls).toHaveLength(1);
 		const savedWorkflow = harness.workflowRepository.insertCalls[0];
-		const savedEntityId = harness.hazardousEventRepository.saveCalls[0].id;
+		const savedEntityId = harness.hazardousEventRepository.insertCalls[0].id;
 		expect(savedWorkflow.entityId).toBe(savedEntityId);
 		expect(savedWorkflow.entityType).toBe("HE");
 		expect(savedWorkflow.status).toBe("DRAFT");
@@ -871,7 +869,7 @@ describe("CreateHazardousEventUseCase", () => {
 
 		const dto = await harness.useCase.execute(command);
 
-		const savedEntity = harness.hazardousEventRepository.saveCalls[0];
+		const savedEntity = harness.hazardousEventRepository.insertCalls[0];
 		expect(dto.workflowStatus).toBe("DRAFT");
 		expect(dto.id).toBe(savedEntity.id);
 		expect(dto.createdAt).toBe(savedEntity.createdAt.toISOString());
@@ -895,7 +893,7 @@ describe("CreateHazardousEventUseCase", () => {
 
 		await harness.useCase.execute(command);
 
-		const savedEntity = harness.hazardousEventRepository.saveCalls[0];
+		const savedEntity = harness.hazardousEventRepository.insertCalls[0];
 		expect(harness.logger.info).toHaveBeenCalledTimes(1);
 		expect(harness.logger.info).toHaveBeenCalledWith({
 			msg: "hazardous_event.created",

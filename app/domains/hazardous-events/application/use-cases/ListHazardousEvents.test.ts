@@ -47,7 +47,11 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		throw new Error("not used by ListHazardousEventsUseCase's own tests");
 	}
 
-	async save(): Promise<HazardousEvent> {
+	async insert(): Promise<HazardousEvent> {
+		throw new Error("not used by ListHazardousEventsUseCase's own tests");
+	}
+
+	async update(): Promise<HazardousEvent> {
 		throw new Error("not used by ListHazardousEventsUseCase's own tests");
 	}
 

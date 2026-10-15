@@ -4,7 +4,12 @@ import {
 	type HazardousEventProps,
 } from "../../domain/HazardousEvent";
 import type { CausalEdge } from "../../domain/CausalChain";
-import { ConflictError, NotFoundError, ValidationError } from "~/shared/errors";
+import {
+	ConcurrentModificationError,
+	ConflictError,
+	NotFoundError,
+	ValidationError,
+} from "~/shared/errors";
 import type { ILogger } from "~/shared/logging/ILogger";
 import { WorkflowInstance } from "~/domains/validation-workflow/domain/WorkflowInstance";
 import type { IWorkflowRepository } from "~/domains/validation-workflow/application/ports/IWorkflowRepository";
@@ -62,7 +67,10 @@ class FakeHazardTaxonomyRepository implements IHazardTaxonomyRepository {
 }
 
 class FakeHazardousEventRepository implements IHazardousEventRepository {
-	readonly saveCalls: HazardousEvent[] = [];
+	readonly updateCalls: {
+		entity: HazardousEvent;
+		expectedUpdatedAt: Date | null;
+	}[] = [];
 	readonly findByIdCalls: { id: string; tenantId: string }[] = [];
 	private readonly store = new Map<string, HazardousEvent>();
 
@@ -112,10 +120,40 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		throw new Error("not used by UpdateHazardousEventUseCase's own tests");
 	}
 
-	async save(entity: HazardousEvent): Promise<HazardousEvent> {
-		this.saveCalls.push(entity);
-		this.store.set(this.key(entity.id, entity.tenantId), entity);
-		this.callLog.push("hazardousEvent.save");
+	async insert(): Promise<never> {
+		throw new Error(
+			"UpdateHazardousEventUseCase never calls insert() — it only ever updates an existing entity",
+		);
+	}
+
+	/** In-memory CAS, matching `IHazardousEventRepository.test.ts`'s conformance fake -- the real conditional-SQL CAS is `DrizzleHazardousEventRepository`'s own concern. */
+	async update(
+		entity: HazardousEvent,
+		expectedUpdatedAt: Date | null,
+	): Promise<HazardousEvent> {
+		this.updateCalls.push({ entity, expectedUpdatedAt });
+		const key = this.key(entity.id, entity.tenantId);
+		const current = this.store.get(key);
+		if (current === undefined) {
+			throw new ConcurrentModificationError(
+				"HazardousEvent no longer exists for this id/tenantId",
+				{ id: entity.id, tenantId: entity.tenantId },
+			);
+		}
+		const currentUpdatedAt = current.updatedAt;
+		const matches =
+			currentUpdatedAt === null
+				? expectedUpdatedAt === null
+				: expectedUpdatedAt !== null &&
+					currentUpdatedAt.getTime() === expectedUpdatedAt.getTime();
+		if (!matches) {
+			throw new ConcurrentModificationError(
+				"HazardousEvent has been modified since it was read",
+				{ id: entity.id, tenantId: entity.tenantId },
+			);
+		}
+		this.store.set(key, entity);
+		this.callLog.push("hazardousEvent.update");
 		return entity;
 	}
 }
@@ -544,7 +582,7 @@ describe("UpdateHazardousEventUseCase", () => {
 					}),
 				),
 			).rejects.toThrow(/hazardDriverId driver-a/);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
 		});
 
 		it("re-validates a carried-over customFieldValues definition id and throws if it is no longer valid", async () => {
@@ -562,7 +600,7 @@ describe("UpdateHazardousEventUseCase", () => {
 					}),
 				),
 			).rejects.toThrow(/hazardTypeCustomFieldDefinitionId custom-a/);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
 		});
 
 		it("surfaces HazardousEvent.create()'s ValidationError for a non-array hazardDriverIds, querying taxonomy with an empty id list", async () => {
@@ -578,7 +616,7 @@ describe("UpdateHazardousEventUseCase", () => {
 			expect(harness.taxonomyRepository.findValidHazardDriverIdsCalls).toEqual([
 				{ ids: [], tenantId: "tenant-1" },
 			]);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
 		});
 
 		it("surfaces HazardousEvent.create()'s ValidationError for a non-array customFieldValues, querying taxonomy with an empty id list", async () => {
@@ -594,7 +632,7 @@ describe("UpdateHazardousEventUseCase", () => {
 			expect(
 				harness.taxonomyRepository.findValidCustomFieldDefinitionIdsCalls,
 			).toEqual([{ ids: [], tenantId: "tenant-1" }]);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
 		});
 
 		it("strips a non-string element from hazardDriverIds before querying the taxonomy repository, surfacing HazardousEvent.create()'s own ValidationError for the raw array", async () => {
@@ -610,7 +648,7 @@ describe("UpdateHazardousEventUseCase", () => {
 			expect(harness.taxonomyRepository.findValidHazardDriverIdsCalls).toEqual([
 				{ ids: ["driver-a"], tenantId: "tenant-1" },
 			]);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
 		});
 
 		it("surfaces HazardousEvent.create()'s ValidationError for a null element in customFieldValues", async () => {
@@ -623,7 +661,7 @@ describe("UpdateHazardousEventUseCase", () => {
 			await expect(harness.useCase.execute(command)).rejects.toThrow(
 				ValidationError,
 			);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
 		});
 
 		it("strips a non-object element from customFieldValues before querying the taxonomy repository, surfacing HazardousEvent.create()'s own ValidationError for the raw array", async () => {
@@ -644,7 +682,7 @@ describe("UpdateHazardousEventUseCase", () => {
 			expect(
 				harness.taxonomyRepository.findValidCustomFieldDefinitionIdsCalls,
 			).toEqual([{ ids: ["custom-a"], tenantId: "tenant-1" }]);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
 		});
 
 		it("re-validates startDate/endDate ordering against the merged values", async () => {
@@ -663,7 +701,7 @@ describe("UpdateHazardousEventUseCase", () => {
 					}),
 				),
 			).rejects.toThrow(ValidationError);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
 		});
 
 		it("replaces every present field with the command's value", async () => {
@@ -783,7 +821,7 @@ describe("UpdateHazardousEventUseCase", () => {
 				makeCommand({ id: "missing-event", tenantId: "tenant-1" }),
 			),
 		).rejects.toThrow(NotFoundError);
-		expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+		expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
 		expect(
 			harness.taxonomyRepository.findValidHazardDriverIdsCalls,
 		).toHaveLength(0);
@@ -797,7 +835,7 @@ describe("UpdateHazardousEventUseCase", () => {
 				makeCommand({ id: "event-A", tenantId: "tenant-2" }),
 			),
 		).rejects.toThrow(NotFoundError);
-		expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+		expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
 	});
 
 	it("throws NotFoundError for a missing WorkflowInstance before any merge/validation work runs", async () => {
@@ -811,7 +849,7 @@ describe("UpdateHazardousEventUseCase", () => {
 		expect(
 			harness.taxonomyRepository.findValidHazardDriverIdsCalls,
 		).toHaveLength(0);
-		expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+		expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
 	});
 
 	it("throws ValidationError for a non-string id, with zero writes", async () => {
@@ -837,7 +875,7 @@ describe("UpdateHazardousEventUseCase", () => {
 		await expect(harness.useCase.execute(command)).rejects.toThrow(
 			ValidationError,
 		);
-		expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+		expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
 	});
 
 	it("throws ValidationError for a non-string actingUserId, with zero writes", async () => {
@@ -850,7 +888,7 @@ describe("UpdateHazardousEventUseCase", () => {
 		await expect(harness.useCase.execute(command)).rejects.toThrow(
 			new ValidationError("actingUserId must not be empty"),
 		);
-		expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+		expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
 		expect(harness.hazardousEventRepository.findByIdCalls).toHaveLength(0);
 	});
 
@@ -865,7 +903,7 @@ describe("UpdateHazardousEventUseCase", () => {
 		await expect(harness.useCase.execute(command)).rejects.toThrow(
 			new ValidationError("actingUserId must not be empty"),
 		);
-		expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+		expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
 		expect(harness.hazardousEventRepository.findByIdCalls).toHaveLength(0);
 	});
 
@@ -879,12 +917,12 @@ describe("UpdateHazardousEventUseCase", () => {
 		await expect(harness.useCase.execute(command)).rejects.toThrow(
 			ValidationError,
 		);
-		expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+		expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
 	});
 
-	it("propagates a generic Error from the HazardousEvent save, with no causal-chain write", async () => {
+	it("propagates a generic Error from the HazardousEvent update, with no causal-chain write", async () => {
 		const harness = createHarness();
-		harness.hazardousEventRepository.save = async () => {
+		harness.hazardousEventRepository.update = async () => {
 			throw new Error("boom-hazardous-event-save");
 		};
 
@@ -922,7 +960,7 @@ describe("UpdateHazardousEventUseCase", () => {
 					}),
 				),
 			).rejects.toThrow(NotFoundError);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
 			expect(
 				harness.causalChainRepository.findReachableEdgesFromCalls,
 			).toHaveLength(0);
@@ -953,7 +991,7 @@ describe("UpdateHazardousEventUseCase", () => {
 					}),
 				),
 			).rejects.toThrow(NotFoundError);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
 			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(
 				0,
 			);
@@ -974,7 +1012,7 @@ describe("UpdateHazardousEventUseCase", () => {
 					}),
 				),
 			).rejects.toThrow(ConflictError);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
 			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(
 				0,
 			);
@@ -995,7 +1033,7 @@ describe("UpdateHazardousEventUseCase", () => {
 					}),
 				),
 			).rejects.toThrow("boom-find-reachable");
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
 			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(
 				0,
 			);
@@ -1018,7 +1056,7 @@ describe("UpdateHazardousEventUseCase", () => {
 					}),
 				),
 			).rejects.toThrow(ConflictError);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
 			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(
 				0,
 			);
@@ -1136,7 +1174,7 @@ describe("UpdateHazardousEventUseCase", () => {
 					}),
 				),
 			).rejects.toThrow(ConflictError);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
 		});
 
 		it("does not re-trigger the cycle or temporal check, and does not alter the existing link, when startDate changes but causeId is omitted", async () => {
@@ -1260,9 +1298,7 @@ describe("UpdateHazardousEventUseCase", () => {
 			]);
 		});
 
-		// Folded from the former two-step ("delete then save") shape: replaceCauseEdge's
-		// atomicity means there's no longer an observable "prior edge already deleted, then a
-		// separate save fails" intermediate state above the port (design.md Decision 4, point 4).
+		// Folded from the former two-step ("delete then save") shape: replaceCauseEdge's atomicity means there's no longer an observable "prior edge already deleted, then a separate save fails" intermediate state above the port (design.md Decision 4, point 4).
 		it("propagates a generic Error from replaceCauseEdge, after the HazardousEvent save already happened", async () => {
 			const harness = createHarness();
 			harness.causalChainRepository.replaceCauseEdge = async () => {
@@ -1274,7 +1310,11 @@ describe("UpdateHazardousEventUseCase", () => {
 					makeCommand({ id: "event-A", tenantId: "tenant-1", causeId: null }),
 				),
 			).rejects.toThrow("boom-replace-cause-edge");
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(1);
+			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(1);
+			// 2nd arg is the previously-read updatedAt (null, the seed's default), not fresh.
+			expect(
+				harness.hazardousEventRepository.updateCalls[0].expectedUpdatedAt,
+			).toBeNull();
 		});
 
 		it("throws ValidationError when causeId is present but not a string", async () => {
@@ -1287,7 +1327,7 @@ describe("UpdateHazardousEventUseCase", () => {
 			await expect(harness.useCase.execute(command)).rejects.toThrow(
 				ValidationError,
 			);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
 		});
 	});
 
@@ -1370,12 +1410,15 @@ describe("UpdateHazardousEventUseCase", () => {
 					}),
 				),
 			).rejects.toThrow(ConflictError);
-			expect(harness.hazardousEventRepository.saveCalls).toHaveLength(1);
+			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(1);
+			expect(
+				harness.hazardousEventRepository.updateCalls[0].expectedUpdatedAt,
+			).toBeNull();
 			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(
 				1,
 			);
 			expect(harness.callLog).toEqual([
-				"hazardousEvent.save",
+				"hazardousEvent.update",
 				"spatialObservation.execute",
 			]);
 		});
@@ -1448,7 +1491,8 @@ describe("UpdateHazardousEventUseCase", () => {
 			).rejects.toThrow(ConflictError);
 		});
 
-		it("calls replaceCauseEdge exactly once per execute() call, and leaves exactly one edge, for two concurrent calls racing to set the same effect's causeId", async () => {
+		// Pre-DEF-037 this test proved the lost-update bug; pins the now-corrected behavior.
+		it("lets exactly one of two concurrent calls racing to set the same effect's causeId win; the loser rejects with ConcurrentModificationError before reaching replaceCauseEdge", async () => {
 			const harness = createHarness({
 				seedEvents: [
 					makeEvent({ id: "event-A", startDate: "2026-01-01" }),
@@ -1479,15 +1523,22 @@ describe("UpdateHazardousEventUseCase", () => {
 				),
 			]);
 
-			expect(results[0].status).toBe("fulfilled");
-			expect(results[1].status).toBe("fulfilled");
+			const fulfilled = results.filter((r) => r.status === "fulfilled");
+			const rejected = results.filter((r) => r.status === "rejected");
+			expect(fulfilled).toHaveLength(1);
+			expect(rejected).toHaveLength(1);
+			expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(
+				ConcurrentModificationError,
+			);
+			// Only the winner's causal-edge write happens -- the loser's update() throws first.
 			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(
-				2,
+				1,
 			);
 			const finalEdgesForEffect = harness.causalChainRepository
 				.all()
 				.filter((edge) => edge.effectId === "event-A");
 			expect(finalEdgesForEffect).toHaveLength(1);
+			expect(["cause-X", "cause-Y"]).toContain(finalEdgesForEffect[0].causeId);
 		});
 	});
 
@@ -1572,5 +1623,96 @@ describe("UpdateHazardousEventUseCase", () => {
 		expect(harness.logger.info).toHaveBeenCalledWith(
 			expect.objectContaining({ spatialObservationIncluded: true }),
 		);
+	});
+
+	describe("optimistic locking", () => {
+		// A hardcoded `null` 2nd argument would pass every other scenario here undetected.
+		it("calls update() with the previously-read, non-null updatedAt, not a freshly-computed value", async () => {
+			const seededUpdatedAt = new Date("2026-01-05T12:30:00.000Z");
+			const harness = createHarness({
+				seedEvents: [makeEvent({ id: "event-A", updatedAt: seededUpdatedAt })],
+			});
+
+			await harness.useCase.execute(
+				makeCommand({
+					id: "event-A",
+					tenantId: "tenant-1",
+					description: "Updated",
+				}),
+			);
+
+			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(1);
+			const { expectedUpdatedAt } =
+				harness.hazardousEventRepository.updateCalls[0];
+			expect(expectedUpdatedAt).not.toBeNull();
+			expect(expectedUpdatedAt?.getTime()).toBe(seededUpdatedAt.getTime());
+			// Distinct from the merged entity's own new ("now") updatedAt -- confirms it's the token.
+			const mergedEntityUpdatedAt =
+				harness.hazardousEventRepository.updateCalls[0].entity.updatedAt;
+			expect(mergedEntityUpdatedAt?.getTime()).not.toBe(
+				seededUpdatedAt.getTime(),
+			);
+		});
+
+		it("propagates a ConcurrentModificationError from update() unmodified, with no retry", async () => {
+			const harness = createHarness();
+			const thrown = new ConcurrentModificationError(
+				"HazardousEvent has been modified since it was read",
+				{ id: "event-A", tenantId: "tenant-1" },
+			);
+			let updateCallCount = 0;
+			harness.hazardousEventRepository.update = async () => {
+				updateCallCount += 1;
+				throw thrown;
+			};
+
+			// toBe (identity) -- toThrow(type) alone wouldn't catch a catch-and-rethrow-new.
+			await expect(
+				harness.useCase.execute(
+					makeCommand({ id: "event-A", tenantId: "tenant-1" }),
+				),
+			).rejects.toBe(thrown);
+			expect(updateCallCount).toBe(1);
+		});
+
+		it("lets exactly one of two concurrent execute() calls for the same event win, the other rejecting with ConcurrentModificationError", async () => {
+			const harness = createHarness();
+
+			const [first, second] = await Promise.allSettled([
+				harness.useCase.execute(
+					makeCommand({
+						id: "event-A",
+						tenantId: "tenant-1",
+						description: "caller A",
+					}),
+				),
+				harness.useCase.execute(
+					makeCommand({
+						id: "event-A",
+						tenantId: "tenant-1",
+						description: "caller B",
+					}),
+				),
+			]);
+
+			const outcomes = [first, second];
+			const fulfilled = outcomes.filter((o) => o.status === "fulfilled");
+			const rejected = outcomes.filter((o) => o.status === "rejected");
+			expect(fulfilled).toHaveLength(1);
+			expect(rejected).toHaveLength(1);
+			expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(
+				ConcurrentModificationError,
+			);
+
+			const persisted = await harness.hazardousEventRepository.findById(
+				"event-A",
+				"tenant-1",
+			);
+			const winnerDescription = (
+				fulfilled[0] as PromiseFulfilledResult<{ description: string }>
+			).value.description;
+			expect(persisted.description).toBe(winnerDescription);
+			expect(["caller A", "caller B"]).toContain(persisted.description);
+		});
 	});
 });
