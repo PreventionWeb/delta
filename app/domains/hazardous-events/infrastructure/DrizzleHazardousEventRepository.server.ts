@@ -27,6 +27,7 @@ import type {
 import type { Pagination } from "~/shared/types";
 import { eventTable } from "~/drizzle/schema/eventTable";
 import { eventRelationshipTable } from "~/drizzle/schema/eventRelationshipTable";
+import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import {
 	hazardousEventTable,
 	type InsertHazardousEvent,
@@ -536,13 +537,23 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 		}
 	}
 
-	// Spatial-observation (5e) and countReferencingDisasterEvents (5f) are separate later intents.
-	async countReferencingDisasterEvents(): Promise<number> {
-		throw new Error(
-			"DrizzleHazardousEventRepository.countReferencingDisasterEvents is not implemented yet (5f)",
-		);
+	async countReferencingDisasterEvents(
+		hazardousEventId: string,
+		// Intentionally unused: scopes the HE side only, never filters the counted disaster_event rows.
+		_tenantId: string,
+	): Promise<number> {
+		// ::int required: bare count(*) is Postgres bigint, returned as a string by
+		// node-postgres at runtime -- PGlite doesn't reproduce this, so don't rely on
+		// these tests to catch its removal.
+		const [row] = await this.db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(disasterEventTable)
+			.where(eq(disasterEventTable.hazardousEventId, hazardousEventId));
+		// Safe: an unqualified aggregate with no GROUP BY always returns exactly one row.
+		return row.count;
 	}
 
+	// Spatial-observation (5e) is a separate later intent.
 	async findCurrentSpatialObservation(): Promise<SpatialObservationRecord | null> {
 		throw new Error(
 			"DrizzleHazardousEventRepository.findCurrentSpatialObservation is not implemented yet (5e)",
