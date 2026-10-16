@@ -1269,6 +1269,86 @@ describe("DrizzleHazardousEventRepository", () => {
 			await expect(repo.findById(id, tenantId)).resolves.toBeDefined();
 		});
 	});
+
+	describe("countReferencingDisasterEvents", () => {
+		async function seedDisasterEvent(
+			hazardousEventId: string,
+			countryAccountsId: string | null,
+		): Promise<void> {
+			const [event] = await dr
+				.insert(eventTable)
+				.values({})
+				.returning({ id: eventTable.id });
+			await dr.insert(disasterEventTable).values({
+				id: event.id,
+				hazardousEventId,
+				countryAccountsId,
+			});
+		}
+
+		it("resolves zero when no disaster_event row references the given hazardousEventId", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			await expect(
+				repo.countReferencingDisasterEvents(id, tenantId),
+			).resolves.toBe(0);
+		});
+
+		it("resolves the count of multiple referencing disaster_event rows", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			await seedDisasterEvent(id, tenantId);
+			await seedDisasterEvent(id, tenantId);
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			await expect(
+				repo.countReferencingDisasterEvents(id, tenantId),
+			).resolves.toBe(2);
+		});
+
+		it("excludes a disaster_event row referencing a different hazardousEventId", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const { id: otherId } = await seedRawHazardousEvent({ tenantId });
+			await seedDisasterEvent(otherId, tenantId);
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			await expect(
+				repo.countReferencingDisasterEvents(id, tenantId),
+			).resolves.toBe(0);
+		});
+
+		it("still counts a referencing disaster_event row belonging to a different tenant", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const otherTenantId = (await seedCountryAccount()) as string;
+			await seedDisasterEvent(id, otherTenantId);
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			await expect(
+				repo.countReferencingDisasterEvents(id, tenantId),
+			).resolves.toBe(1);
+		});
+
+		it("still counts a referencing disaster_event row with a null countryAccountsId", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			await seedDisasterEvent(id, null);
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			await expect(
+				repo.countReferencingDisasterEvents(id, tenantId),
+			).resolves.toBe(1);
+		});
+
+		it("is unaffected by a tenantId argument unrelated to either the hazardous_event or disaster_event rows' own tenant", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			await seedDisasterEvent(id, tenantId);
+			const unrelatedTenantId = (await seedCountryAccount()) as string;
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			await expect(
+				repo.countReferencingDisasterEvents(id, unrelatedTenantId),
+			).resolves.toBe(1);
+		});
+	});
 });
 
 /** No-op logger -- logging isn't under test here. */
