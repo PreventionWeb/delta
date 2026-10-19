@@ -1501,23 +1501,35 @@ correctness); `save()` round-trips every status transition correctly.
 
 **Branch:** `feature/ca-workflow-notification-adapter`
 
+**Corrected 2026-10-16 — the original citation was wrong and the scope understated by
+roughly 3x, both found during this intent's own readiness check.** It cited "0c's audit"
+for the legacy email behavior, but `0c`'s own findings never mention email. The real
+source is `app/backend.server/services/emailValidationWorkflowService.ts` and its two
+live callers (`approvalWorkflowService.ts`, `approvalStatusWorkflowService.ts`) — three
+functions dispatched via two mutually exclusive paths (validators on submission;
+submitter on validate/publish/most rejections; a distinct assignee list only for the
+legacy `submit-return` action), not one generic "status-change notification." Faithful
+parity needs a rejection-comments field and an assignees-vs-submitter distinction neither
+`INotificationPort` nor `ProcessWorkflowActionCommand` carry today — human-confirmed to
+widen both now, not defer. Full trace in this intent's own `design.md`.
+
 **Intent for `/opsx:propose`:**
 
 ```
-Implement an email-based INotificationPort adapter — sends the validator-assignment
-notification on submit-validation and the status-change notification on
-validate/publish/reject/return, matching today's actual email behavior found in 0c's
-audit (assigns validators, emails them on submission). Injectable via NestJS DI so
-ProcessWorkflowActionUseCase's tests can use a no-op double instead.
+Implement an email-based INotificationPort adapter faithfully matching the real legacy
+email behavior (see correction above, not the original understated sketch) — widening
+WorkflowActionNotification/ProcessWorkflowActionCommand to carry rejection comments and
+distinguish an assignees-targeted notification from a submitter-targeted one. Injectable
+via NestJS DI so ProcessWorkflowActionUseCase's tests can use a no-op double instead.
+Entity-type-generic (HE/DE/DR) from the start, matching the domain's existing EntityType.
 ```
 
-**Files touched:**
-
-- `app/domains/validation-workflow/infrastructure/EmailNotificationAdapter.ts` (new)
-- `app/domains/validation-workflow/infrastructure/EmailNotificationAdapter.test.ts` (new)
+**Files touched:** `EmailNotificationAdapter.server.ts`/`.test.ts`,
+`EmailNotificationTemplates.ts` (new); `INotificationPort.ts`,
+`ProcessWorkflowAction.ts`/`.test.ts` (widened).
 
 **Test tier:** Unit — mocked mail sender; correct recipients/template selected per
-action type.
+action type, including the assignees-vs-submitter branch.
 
 ---
 
@@ -1553,7 +1565,7 @@ resolves `ProcessWorkflowActionUseCase` using PGlite.
 **Branch:** `feature/ca-he-drizzle-repository-core`
 
 **Owner-corrected 2026-10-07: closes `DEF-035`, not `5f`.** The register originally
-pointed `DEF-035` at `5f`, but `5f` only ever covered the dependent-check *count*
+pointed `DEF-035` at `5f`, but `5f` only ever covered the dependent-check _count_
 queries — the real `delete()` method (with its legacy multi-table replication
 requirement) is this intent's own scope. `hazardousEventTable.id` is a FK into the
 shared `eventTable.id` supertype; `delete()` must replicate the live legacy
@@ -2154,7 +2166,7 @@ the delete is detected, not silently cascaded away.
 cross-tenant cause/effect links on `hazardous_event_causality` (a real transboundary
 hazard need, e.g. Nepal→India floods) but no sharing/access-control mechanism exists
 — a tenant can see that a cross-tenant link exists (via `4f`'s dependent-check
-disclosure) but today nothing governs who may *view* the other tenant's linked event
+disclosure) but today nothing governs who may _view_ the other tenant's linked event
 itself. Was previously an unscheduled, watch-for item ("before Phase 3c or Phase 5
 builds real access control around this table") — Phase 3c has since passed with no
 access-control work; this intent is where it's finally picked up. Runs after `5i`
