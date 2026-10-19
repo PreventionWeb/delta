@@ -25,6 +25,7 @@ import { I18nModule } from "nestjs-i18n";
 import { DrizzleProvider } from "./DrizzleProvider.server";
 import { DomainErrorFilter } from "./DomainErrorFilter.server";
 import { NoticesModule } from "~/domains/notices/infrastructure/NoticesModule.server";
+import { ValidationWorkflowModule } from "~/domains/validation-workflow/infrastructure/ValidationWorkflowModule.server";
 import { AcceptLanguageI18nResolver } from "~/shared/i18n/AcceptLanguageI18nResolver.server";
 import { DEFAULT_LANGUAGE } from "~/utils/lang.backend";
 
@@ -34,6 +35,8 @@ import { DEFAULT_LANGUAGE } from "~/utils/lang.backend";
 @Module({
 	imports: [
 		NoticesModule,
+		// Deliberately not exported, unlike NoticesModule — design.md Decision 5.
+		ValidationWorkflowModule,
 		I18nModule.forRoot({
 			fallbackLanguage: DEFAULT_LANGUAGE,
 			loaderOptions: { path: join(process.cwd(), "locales"), watch: false },
