@@ -8560,5 +8560,80 @@
         "id": "session.refresh",
         "description": "File: app/components/InactivityWarning.tsx:127",
         "translation": "تحديث الجلسة"
+    },
+    {
+        "id": "admin.country_account_type.desinventar_archive",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:94",
+        "translation": "أرشيف DesInventar"
+    },
+    {
+        "id": "admin.instance_type_desinventar_archive",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/edit.$id.tsx:372",
+        "translation": "أرشيف DesInventar"
+    },
+    {
+        "id": "geographies.country_boundary",
+        "description": "File: app/routes/$lang+/settings+/geography+/edit.$id.tsx:576",
+        "translation": "حدود الدولة (المستوى 0)"
+    },
+    {
+        "id": "geographies.country_boundary_hint",
+        "description": "File: app/routes/$lang+/settings+/geography+/edit.$id.tsx:582",
+        "translation": "لا يتوفر هذا الخيار إلا عندما يكون هذا هو التقسيم الوحيد من المستوى الأعلى ولا يوجد له أي أقسام متساوية. يمثل المستوى 0 حدود الدولة؛ وتبدأ التقسيمات الإدارية من المستوى 1."
+    },
+    {
+        "id": "human_effects.disaggregation_details",
+        "description": "File: app/routes/$lang+/disaster-record+/$id.tsx:400",
+        "translation": "تفاصيل التصنيف"
+    },
+    {
+        "id": "nav.about_the_system_description",
+        "description": "File: app/components/RegularMenuBar.tsx:325",
+        "translation": "معلومات النظام"
+    },
+    {
+        "id": "nav.access_management_description",
+        "description": "File: app/components/RegularMenuBar.tsx:395",
+        "translation": "إدارة أذونات المستخدمين"
+    },
+    {
+        "id": "nav.analysis.disaster_events_description",
+        "description": "File: app/components/RegularMenuBar.tsx:304",
+        "translation": "تحليل البيانات حسب الكوارث"
+    },
+    {
+        "id": "nav.analysis.hazards_description",
+        "description": "File: app/components/RegularMenuBar.tsx:291",
+        "translation": "تحليل البيانات حسب المخاطر"
+    },
+    {
+        "id": "nav.analysis.sectors_description",
+        "description": "File: app/components/RegularMenuBar.tsx:281",
+        "translation": "تحليل البيانات حسب القطاعات"
+    },
+    {
+        "id": "nav.disaster_records_description",
+        "description": "File: app/components/RegularMenuBar.tsx:261",
+        "translation": "وثائق الكوارث الكاملة"
+    },
+    {
+        "id": "nav.hazardous_events_description",
+        "description": "File: app/components/RegularMenuBar.tsx:235",
+        "translation": "مراقبة المواقف الخطرة"
+    },
+    {
+        "id": "nav.human_effects_description",
+        "description": "File: app/components/RegularMenuBar.tsx:444",
+        "translation": "إدارة التصنيفات التفصيلية"
+    },
+    {
+        "id": "nav.organization_management_description",
+        "description": "File: app/components/RegularMenuBar.tsx:408",
+        "translation": "إدارة المنظمات"
+    },
+    {
+        "id": "nav.system_settings_description",
+        "description": "File: app/components/RegularMenuBar.tsx:382",
+        "translation": "تكوين تفضيلات النظام"
     }
 ]

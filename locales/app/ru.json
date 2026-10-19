@@ -8557,5 +8557,80 @@
         "id": "session.refresh",
         "description": "File: app/components/InactivityWarning.tsx:127",
         "translation": "Обновить сессию"
+    },
+    {
+        "id": "admin.country_account_type.desinventar_archive",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:94",
+        "translation": "Архив DesInventar"
+    },
+    {
+        "id": "admin.instance_type_desinventar_archive",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/edit.$id.tsx:372",
+        "translation": "Архив DesInventar"
+    },
+    {
+        "id": "geographies.country_boundary",
+        "description": "File: app/routes/$lang+/settings+/geography+/edit.$id.tsx:576",
+        "translation": "Граница страны (уровень 0)"
+    },
+    {
+        "id": "geographies.country_boundary_hint",
+        "description": "File: app/routes/$lang+/settings+/geography+/edit.$id.tsx:582",
+        "translation": "Доступно только в том случае, если это единственное подразделение верхнего уровня, не имеющее подразделений того же уровня. Уровень 0 соответствует границе страны; административные подразделения начинаются с уровня 1."
+    },
+    {
+        "id": "human_effects.disaggregation_details",
+        "description": "File: app/routes/$lang+/disaster-record+/$id.tsx:400",
+        "translation": "Подробная информация о дезагрегации"
+    },
+    {
+        "id": "nav.about_the_system_description",
+        "description": "File: app/components/RegularMenuBar.tsx:325",
+        "translation": "Информация о системе"
+    },
+    {
+        "id": "nav.access_management_description",
+        "description": "File: app/components/RegularMenuBar.tsx:395",
+        "translation": "Управление правами доступа пользователей"
+    },
+    {
+        "id": "nav.analysis.disaster_events_description",
+        "description": "File: app/components/RegularMenuBar.tsx:304",
+        "translation": "Анализ данных по стихийным бедствиям"
+    },
+    {
+        "id": "nav.analysis.hazards_description",
+        "description": "File: app/components/RegularMenuBar.tsx:291",
+        "translation": "Анализ данных по видам опасностей"
+    },
+    {
+        "id": "nav.analysis.sectors_description",
+        "description": "File: app/components/RegularMenuBar.tsx:281",
+        "translation": "Проанализировать данные по секторам"
+    },
+    {
+        "id": "nav.disaster_records_description",
+        "description": "File: app/components/RegularMenuBar.tsx:261",
+        "translation": "Полная документация по чрезвычайным ситуациям"
+    },
+    {
+        "id": "nav.hazardous_events_description",
+        "description": "File: app/components/RegularMenuBar.tsx:235",
+        "translation": "Отслеживать опасные ситуации"
+    },
+    {
+        "id": "nav.human_effects_description",
+        "description": "File: app/components/RegularMenuBar.tsx:444",
+        "translation": "Управление дезагрегацией"
+    },
+    {
+        "id": "nav.organization_management_description",
+        "description": "File: app/components/RegularMenuBar.tsx:408",
+        "translation": "Управление организациями"
+    },
+    {
+        "id": "nav.system_settings_description",
+        "description": "File: app/components/RegularMenuBar.tsx:382",
+        "translation": "Настроить системные параметры"
     }
 ]

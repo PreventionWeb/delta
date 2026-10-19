@@ -7851,5 +7851,80 @@
         "id": "your_account_has_been_set_up_successfully.",
         "description": "File: app/routes/$lang+/user+/accept-invite.tsx:171",
         "translation": "Ҳисоби шумо бо муваффақият эҷод шуд. Ҳоло метавонед ворид шавед."
+    },
+    {
+        "id": "admin.country_account_type.desinventar_archive",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:94",
+        "translation": "Архиви DesInventar"
+    },
+    {
+        "id": "admin.instance_type_desinventar_archive",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/edit.$id.tsx:372",
+        "translation": "Архиви DesInventar"
+    },
+    {
+        "id": "geographies.country_boundary",
+        "description": "File: app/routes/$lang+/settings+/geography+/edit.$id.tsx:576",
+        "translation": "Марзи кишвар (сатҳи 0)"
+    },
+    {
+        "id": "geographies.country_boundary_hint",
+        "description": "File: app/routes/$lang+/settings+/geography+/edit.$id.tsx:582",
+        "translation": "Танҳо дар ҳолате дастрас аст, ки ин ягона тақсимоти сатҳи болоӣ бошад ва ҳеҷ зерсатҳ надошта бошад. Сатҳи 0 марзи кишварро ифода мекунад; тақсимоти маъмурӣ аз сатҳи 1 оғоз меёбад."
+    },
+    {
+        "id": "human_effects.disaggregation_details",
+        "description": "File: app/routes/$lang+/disaster-record+/$id.tsx:400",
+        "translation": "Ҷузъиёти ҷудошавӣ"
+    },
+    {
+        "id": "nav.about_the_system_description",
+        "description": "File: app/components/RegularMenuBar.tsx:325",
+        "translation": "Маълумоти система"
+    },
+    {
+        "id": "nav.access_management_description",
+        "description": "File: app/components/RegularMenuBar.tsx:395",
+        "translation": "Идора кардани иҷозатҳои корбар"
+    },
+    {
+        "id": "nav.analysis.disaster_events_description",
+        "description": "File: app/components/RegularMenuBar.tsx:304",
+        "translation": "Маълумотро бар асоси ҳодисаҳои офатҳо таҳлил кунед"
+    },
+    {
+        "id": "nav.analysis.hazards_description",
+        "description": "File: app/components/RegularMenuBar.tsx:291",
+        "translation": "Маълумотро аз рӯи хатарҳо таҳлил кунед"
+    },
+    {
+        "id": "nav.analysis.sectors_description",
+        "description": "File: app/components/RegularMenuBar.tsx:281",
+        "translation": "Маълумотро аз рӯи соҳаҳо таҳлил кунед"
+    },
+    {
+        "id": "nav.disaster_records_description",
+        "description": "File: app/components/RegularMenuBar.tsx:261",
+        "translation": "Ҳуҷҷатгузории пурраи офатҳо"
+    },
+    {
+        "id": "nav.hazardous_events_description",
+        "description": "File: app/components/RegularMenuBar.tsx:235",
+        "translation": "Назорат кунед вазъиятҳои хатарнок"
+    },
+    {
+        "id": "nav.human_effects_description",
+        "description": "File: app/components/RegularMenuBar.tsx:444",
+        "translation": "Идора кардани ҷудошавӣҳо"
+    },
+    {
+        "id": "nav.organization_management_description",
+        "description": "File: app/components/RegularMenuBar.tsx:408",
+        "translation": "Идора кардани ташкилотҳо"
+    },
+    {
+        "id": "nav.system_settings_description",
+        "description": "File: app/components/RegularMenuBar.tsx:382",
+        "translation": "Танзимоти афзалиятҳои системаро танзим кунед"
     }
 ]
