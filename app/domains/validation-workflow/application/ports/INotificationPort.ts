@@ -1,21 +1,39 @@
 import type { EntityType, Status } from "../../domain/WorkflowInstance";
 
-/**
- * Self-sufficient event payload; carries no resolved recipient (no
- * `notifiedUserId`) — recipient resolution is an adapter's job.
- */
-export interface WorkflowActionNotification {
+interface WorkflowActionNotificationBase {
 	instanceId: string;
 	entityId: string;
 	entityType: EntityType;
-	action: "submit-validation" | "validate" | "publish" | "return";
 	fromStatus: Status;
 	toStatus: Status;
 	actingUserId: string;
 	occurredAt: Date;
+	/** Sourced from the saved WorkflowInstance, never reloaded from an entity-type-specific table. */
+	submittedByUserId: string | null;
 }
 
-/** No adapter in this change — interface-now/adapter-later, matching IWorkflowRepository. */
+/**
+ * Self-sufficient event payload — no resolved recipient (no `notifiedUserId`/`recipientEmail`);
+ * recipient resolution is the adapter's job. Discriminated union mirroring
+ * `ProcessWorkflowActionCommand`'s shape (design.md Decision 1) makes a mismatched field (e.g.
+ * `rejectionComments` on `"submit-validation"`) a compile error, not just documented convention.
+ */
+export type WorkflowActionNotification =
+	| (WorkflowActionNotificationBase & {
+			action: "submit-validation";
+			validatorUserIds: readonly string[];
+			recordDisplayName: string;
+			recordDate: string;
+	  })
+	| (WorkflowActionNotificationBase & { action: "validate" })
+	| (WorkflowActionNotificationBase & { action: "publish" })
+	| (WorkflowActionNotificationBase & {
+			action: "return";
+			rejectionComments: string;
+			assigneeUserIds?: readonly string[];
+	  });
+
+/** Implemented by EmailNotificationAdapter (infrastructure/). */
 export interface INotificationPort {
 	notify(notification: WorkflowActionNotification): Promise<void>;
 }
