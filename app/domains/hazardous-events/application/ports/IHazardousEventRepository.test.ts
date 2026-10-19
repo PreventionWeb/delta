@@ -75,6 +75,7 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		string,
 		SpatialObservationRecord
 	>();
+	private readonly disasterEventReferences = new Map<string, string[]>();
 
 	private key(id: string, tenantId: string): string {
 		return `${tenantId}:${id}`;
@@ -110,6 +111,23 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 
 	async delete(id: string, tenantId: string): Promise<void> {
 		this.store.delete(this.key(id, tenantId));
+	}
+
+	seedDisasterEventReference(
+		hazardousEventId: string,
+		disasterEventTenantId: string,
+	): void {
+		const existing = this.disasterEventReferences.get(hazardousEventId) ?? [];
+		existing.push(disasterEventTenantId);
+		this.disasterEventReferences.set(hazardousEventId, existing);
+	}
+
+	async countReferencingDisasterEvents(
+		hazardousEventId: string,
+		// Intentionally unused: scopes the HE side only, never filters the counted disaster_event rows.
+		_tenantId: string,
+	): Promise<number> {
+		return (this.disasterEventReferences.get(hazardousEventId) ?? []).length;
 	}
 
 	async findCurrentSpatialObservation(
@@ -204,6 +222,14 @@ describe("IHazardousEventRepository conformance", () => {
 	});
 
 	describe("delete", () => {
+		it("resolves normally, not throwing, for an id/tenantId pair with no matching row", async () => {
+			const repo = new FakeHazardousEventRepository();
+
+			await expect(
+				repo.delete("missing-id", "tenant-1"),
+			).resolves.toBeUndefined();
+		});
+
 		it("does not remove a same-id row belonging to a different tenant", async () => {
 			const repo = new FakeHazardousEventRepository();
 			const tenantOneEntity = makeHazardousEvent({
@@ -293,6 +319,35 @@ describe("IHazardousEventRepository conformance", () => {
 		});
 	});
 
+	describe("countReferencingDisasterEvents", () => {
+		it("resolves zero when no disaster_event row references the given hazardousEventId", async () => {
+			const repo = new FakeHazardousEventRepository();
+
+			await expect(
+				repo.countReferencingDisasterEvents("he-1", "tenant-1"),
+			).resolves.toBe(0);
+		});
+
+		it("resolves the count of multiple referencing disaster_event rows", async () => {
+			const repo = new FakeHazardousEventRepository();
+			repo.seedDisasterEventReference("he-1", "tenant-1");
+			repo.seedDisasterEventReference("he-1", "tenant-1");
+
+			await expect(
+				repo.countReferencingDisasterEvents("he-1", "tenant-1"),
+			).resolves.toBe(2);
+		});
+
+		it("still counts a referencing disaster_event row belonging to a different tenant", async () => {
+			const repo = new FakeHazardousEventRepository();
+			repo.seedDisasterEventReference("he-1", "tenant-2");
+
+			await expect(
+				repo.countReferencingDisasterEvents("he-1", "tenant-1"),
+			).resolves.toBe(1);
+		});
+	});
+
 	// Concurrent-callers scenario required by spec hazardous-event-repository-port and design.md Decision 7.
 	describe("Concurrent saveSpatialObservation calls for the same hazardousEventId + observationTime", () => {
 		it("pins the fake's own last-write-wins behavior: exactly one row survives once both calls resolve", async () => {
@@ -365,6 +420,10 @@ const _saveSpatialObservationArity: AssertEqual<
 	Parameters<IHazardousEventRepository["saveSpatialObservation"]>,
 	[string, SpatialObservationRecord, string]
 > = true;
+const _countReferencingDisasterEventsArity: AssertEqual<
+	Parameters<IHazardousEventRepository["countReferencingDisasterEvents"]>,
+	[string, string]
+> = true;
 
 void _findByIdArity;
 void _findAllArity;
@@ -373,3 +432,4 @@ void _deleteArity;
 void _findCurrentSpatialObservationArity;
 void _findSpatialObservationByTimeArity;
 void _saveSpatialObservationArity;
+void _countReferencingDisasterEventsArity;

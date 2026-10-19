@@ -30,8 +30,15 @@ export interface IHazardousEventRepository {
 	/** Insert-or-update; the entity's own `tenantId` property carries tenancy — no separate parameter. */
 	save(entity: HazardousEvent): Promise<HazardousEvent>;
 
-	/** Tenant-scoped delete. */
+	/** Tenant-scoped delete. Resolves normally, not throwing, when no row matches. */
 	delete(id: string, tenantId: string): Promise<void>;
+
+	/** Counts disaster_event rows referencing hazardousEventId. tenantId scopes the HazardousEvent
+	 * side only — a cross-tenant disaster_event row is still counted, not excluded. */
+	countReferencingDisasterEvents(
+		hazardousEventId: string,
+		tenantId: string,
+	): Promise<number>;
 
 	/** Latest-by-`observationTime` reading, or `null` if none recorded yet — resolves `null`, never throws. */
 	findCurrentSpatialObservation(

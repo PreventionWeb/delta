@@ -9,8 +9,10 @@ import { Def } from "~/frontend/editabletable/base";
 import { HumanEffectsTable } from "~/frontend/human_effects/defs";
 import { BackendContext } from "../../context";
 
-async function getHidden(tx: Tx) {
-	let row = await tx.query.humanDsgConfigTable.findFirst();
+async function getHidden(tx: Tx, countryAccountsId: string) {
+	let row = await tx.query.humanDsgConfigTable.findFirst({
+		where: eq(humanDsgConfigTable.countryAccountsId, countryAccountsId),
+	});
 	return new Set(row?.hidden?.cols || []);
 }
 
@@ -342,8 +344,12 @@ export function sharedDefsAll(ctx: BackendContext): Def[] {
 	return shared;
 }
 
-export async function sharedDefs(ctx: BackendContext, tx: Tx): Promise<Def[]> {
-	let hidden = await getHidden(tx);
+export async function sharedDefs(
+	ctx: BackendContext,
+	tx: Tx,
+	countryAccountsId: string,
+): Promise<Def[]> {
+	let hidden = await getHidden(tx, countryAccountsId);
 	let shared = sharedDefsAll(ctx);
 	shared = shared.filter((d) => !hidden.has(d.dbName));
 	return shared;
@@ -377,7 +383,7 @@ export async function defsForTable(
 	countryAccountsId: string,
 ): Promise<Def[]> {
 	return [
-		...(await sharedDefs(ctx, tx)),
+		...(await sharedDefs(ctx, tx, countryAccountsId)),
 		...(await defsCustom(tx, countryAccountsId)),
 		...defsForTableGlobal(ctx, tbl),
 	];

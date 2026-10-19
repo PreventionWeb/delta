@@ -91,6 +91,27 @@ describe("Albanian language selection persistence", () => {
 		expect(fromDb?.language).toBe("sq");
 	});
 
+	it("accepts zh as a tenant default language, previously excluded by the narrower availableLanguagesWhiteList", async () => {
+		const countryAccountsId = await insertCountryAccount();
+		const created = await InstanceSystemSettingRepository.create({
+			countryAccountsId,
+			websiteName: "China DELTA",
+		});
+
+		const { instanceSystemSettings } = await SettingsService.updateSettings(
+			created!.id,
+			"China DELTA",
+			"zh",
+		);
+		expect(instanceSystemSettings?.language).toBe("zh");
+
+		const fromDb =
+			await InstanceSystemSettingRepository.getByCountryAccountId(
+				countryAccountsId,
+			);
+		expect(fromDb?.language).toBe("zh");
+	});
+
 	it("rejects an unsupported language so only a supported Albanian selection can be persisted", async () => {
 		const countryAccountsId = await insertCountryAccount();
 		const created = await InstanceSystemSettingRepository.create({

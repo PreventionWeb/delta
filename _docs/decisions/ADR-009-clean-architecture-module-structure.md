@@ -89,6 +89,25 @@ zero context subfolders exist there today. This is deliberately preserved, not c
 per-context structure: a file's location already signals "used by every domain" vs. "owned by one
 domain," and that signal is worth keeping distinct.
 
+**A second, distinct category of cross-cutting code also exists: DDD's "Shared Kernel"** —
+domain/business logic deliberately shared across multiple bounded contexts, as opposed to generic
+technical infrastructure. This differs from `app/shared/`'s existing character (`DomainError`,
+`ILogger`, i18n resolvers — all technical, none a business rule) and carries a different
+change-governance expectation: a Shared Kernel edit needs agreement from every domain that depends
+on it, not a single domain's unilateral PR — unlike swapping, say, a logger implementation. It
+lives at `app/domains/shared/`, nested exactly like any other context (`domain/`, and
+`application/` if ever needed) rather than as a flat grab-bag, signaling "this is domain logic,
+just shared" rather than technical plumbing. First instance:
+`app/domains/shared/domain/flexibleDateFormat.ts` (`4c`, 2026-10-01) — the zero-padded
+partial-date format/normalization rule ADR-002 establishes, needed identically by Hazardous Events
+now and by Disaster Records/Disaster Events once their own Clean Architecture migrations begin
+(`DEF-029`).
+
+This same question came up again for the port over `event_causality`, a relationship concern
+between Hazardous Events and Disaster Events owned by neither (`5m`, 2026-10-08): once it grew a
+real adapter and a real business rule, it was resolved in favor of its own bounded context,
+mirroring `validation-workflow`'s own precedent for a cross-domain relationship concern.
+
 **Every presentation-layer adapter for a context — web routes, REST controllers, and any future
 adapter (mobile, GraphQL, etc.) — lives inside that context's own `presentation/` folder.** This
 is not a new rule; it is what `app/domains/notices/presentation/` already does (`NoticesController.server.ts`
@@ -101,6 +120,24 @@ expected refinement — mirroring how `application/` already splits into `use-ca
 **The alternatively proposed layer-first-at-root proposal is not adopted**, on the grounds that it is the
 correct convention for a different situation (a single bounded context) than the one DELTA is
 actually in and growing into.
+
+**A file needs the `.server.ts(x)` suffix only when it transitively imports genuinely
+browser-unsafe code** (a DB client, `process.env` secrets, a Node-only API) — not merely because
+it is conceptually server-side wiring. React Router's bundler strips/replaces any `.server.ts`
+file in the import graph, so the suffix is defense-in-depth against a future accidental
+client-reachable import, not a label for "server-side only." A pure DI token or type-only file has
+nothing that could leak if bundled, so it skips the suffix even when every consumer is
+server-only — `NoticeRepositoryToken.ts` (no suffix) alongside `NoticesModule.server.ts` (suffix,
+since it wires `DrizzleProvider` and a real repository) is the precedent (`5m`, 2026-10-08).
+
+**Integration tests for a context's own port-adapter classes live under
+`tests/integration/domains/<context>/`, alongside that context's module/controller/guard tests —
+not in the flat `tests/integration/db/queries/` bucket.** This groups one bounded context's whole
+integration-test surface in one folder. `db/queries/` remains the right home only for tests with
+no port/adapter class at all — a plain Drizzle table's own schema/constraint tests (e.g.
+`specificHazard.test.ts`). `DrizzleNoticeRepository.test.ts` is a known, deliberately-not-migrated
+exception predating this distinction; new adapter tests follow the corrected convention (`5m`,
+2026-10-08).
 
 ## Consequences
 
@@ -140,5 +177,8 @@ actually in and growing into.
 - `app/domains/notices/` — the existing, shipped reference implementation this ADR formalizes.
 - `_docs/refactoring-plan/hazardous-events-refactoring-roadmap.md` — Phase 1 scaffold already
   follows this shape for Hazardous Events and `validation-workflow`.
+- [Shared Kernel in DDD](https://deviq.com/domain-driven-design/shared-kernel/) — the pattern this
+  `app/domains/shared/` convention formalizes, distinct from `app/shared/`'s technical-infrastructure
+  role.
 - [ADR-003](ADR-003-error-handling-architecture.md) — establishes the presentation-layer
   boundary (Layer 4) this ADR's `presentation/` placement builds on.

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ConflictError, ValidationError } from "~/shared/errors";
 import {
 	assertCausalLinkDoesNotCreateCycle,
+	assertCauseStartsNoLaterThanEffect,
 	CAUSAL_CHAIN_TRAVERSAL_CAP,
 	type CausalEdge,
 } from "./CausalChain";
@@ -234,5 +235,80 @@ describe("Concurrent invocation has no shared-state hazard", () => {
 		// Decision 6 / concurrency note: a pure function must never mutate the caller's existingEdges, regardless of outcome.
 		expect(JSON.stringify(acyclicEdges)).toBe(acyclicSnapshotBefore);
 		expect(JSON.stringify(cyclicEdges)).toBe(cyclicSnapshotBefore);
+	});
+});
+
+describe("Reject a causal link whose cause starts later than its effect", () => {
+	it("throws ConflictError when the cause starts after the effect", () => {
+		expect(() =>
+			assertCauseStartsNoLaterThanEffect("2026-05-10", "2026-05-01"),
+		).toThrow(ConflictError);
+	});
+
+	it("references both dates in the thrown ConflictError's message and context", () => {
+		let caught: unknown;
+		try {
+			assertCauseStartsNoLaterThanEffect("2026-05-10", "2026-05-01");
+		} catch (error) {
+			caught = error;
+		}
+
+		expect(caught).toBeInstanceOf(ConflictError);
+		expect((caught as ConflictError).message).toMatch(/must not start later/);
+		expect((caught as ConflictError).context).toMatchObject({
+			causeStartDate: "2026-05-10",
+			effectStartDate: "2026-05-01",
+		});
+	});
+
+	it("does not throw when the cause starts before the effect", () => {
+		expect(() =>
+			assertCauseStartsNoLaterThanEffect("2026-05-01", "2026-05-10"),
+		).not.toThrow();
+	});
+
+	it("does not throw when the cause and effect start on the same date", () => {
+		expect(() =>
+			assertCauseStartsNoLaterThanEffect("2026-05-10", "2026-05-10"),
+		).not.toThrow();
+	});
+
+	it("compares correctly when the cause is coarser precision than the effect", () => {
+		expect(() =>
+			assertCauseStartsNoLaterThanEffect("2020-06", "2020-06-15"),
+		).not.toThrow();
+	});
+
+	it("accepts a finer-precision cause falling exactly on a coarser effect's period start", () => {
+		expect(() =>
+			assertCauseStartsNoLaterThanEffect("2020-01-01", "2020"),
+		).not.toThrow();
+	});
+
+	it("rejects a finer-precision cause after a coarser effect's period start", () => {
+		expect(() =>
+			assertCauseStartsNoLaterThanEffect("2020-06-15", "2020"),
+		).toThrow(ConflictError);
+	});
+
+	it("does not block on a non-zero-padded causeStartDate", () => {
+		expect(() =>
+			assertCauseStartsNoLaterThanEffect("2026-9-1", "2020-01-01"),
+		).not.toThrow();
+	});
+
+	it("does not block on a non-zero-padded effectStartDate", () => {
+		expect(() =>
+			assertCauseStartsNoLaterThanEffect("2026-05-10", "2026-9-1"),
+		).not.toThrow();
+	});
+
+	it("does not block when either startDate is an empty string", () => {
+		expect(() =>
+			assertCauseStartsNoLaterThanEffect("", "2026-05-01"),
+		).not.toThrow();
+		expect(() =>
+			assertCauseStartsNoLaterThanEffect("2026-05-01", ""),
+		).not.toThrow();
 	});
 });

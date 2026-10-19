@@ -263,6 +263,7 @@ const HazardImpactMap2: React.FC<HazardImpactMap2Props> = ({
 								ref={mapChartRef}
 								id="map_viewer"
 								dataSource={activeData}
+								mapMode="default"
 								legendMaxColor="#208f04"
 							/>
 						</div>

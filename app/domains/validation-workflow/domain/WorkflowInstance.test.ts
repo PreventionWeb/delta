@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ConflictError, ValidationError } from "~/shared/errors";
 import {
+	ENTITY_TYPE_VALUES,
 	STATUS_VALUES,
 	WorkflowInstance,
 	type Status,
@@ -168,7 +169,11 @@ describe("WorkflowInstance.create()", () => {
 				entityType: "XX",
 			} as unknown as WorkflowInstanceProps;
 
-			expect(() => WorkflowInstance.create(props)).toThrow(/entityType/);
+			expect(() => WorkflowInstance.create(props)).toThrow(
+				new ValidationError(
+					`entityType must be one of ${ENTITY_TYPE_VALUES.join(", ")}`,
+				),
+			);
 		});
 
 		it("throws ValidationError when status is not a member of the status enum", () => {
@@ -186,7 +191,11 @@ describe("WorkflowInstance.create()", () => {
 				status: "IN_REVIEW",
 			} as unknown as WorkflowInstanceProps;
 
-			expect(() => WorkflowInstance.create(props)).toThrow(/status/);
+			expect(() => WorkflowInstance.create(props)).toThrow(
+				new ValidationError(
+					`status must be one of ${STATUS_VALUES.join(", ")}`,
+				),
+			);
 		});
 	});
 
@@ -351,7 +360,7 @@ describe("WorkflowInstance.create()", () => {
 		});
 	});
 
-	describe("Attribution timestamp validity (design.md Decision 9, round 4)", () => {
+	describe("Attribution timestamp validity (design.md Decision 9)", () => {
 		it.each(["submitted", "validated", "approved", "published"] as const)(
 			"throws ValidationError referencing %sAt when it is an invalid Date",
 			(pair) => {
@@ -368,8 +377,8 @@ describe("WorkflowInstance.create()", () => {
 			},
 		);
 
-		// Exercises the `instanceof Date` disjunct itself (round 3 Gate 10's finding for
-		// createdAt/updatedAt applies equally to the four attribution fields).
+		// Exercises the `instanceof Date` disjunct itself — the same check createdAt/updatedAt
+		// use applies equally to the four attribution fields.
 		it.each(["submitted", "validated", "approved", "published"] as const)(
 			"throws ValidationError when %sAt is not a Date instance at all",
 			(pair) => {
@@ -383,8 +392,8 @@ describe("WorkflowInstance.create()", () => {
 			},
 		);
 
-		// Gate 8 (round 4) finding: the two PAIR_NAMES loops in create() only differ in
-		// observable behavior when byUserId is null and At is a non-null invalid Date — the
+		// The two PAIR_NAMES loops in create() only differ in observable behavior when
+		// byUserId is null and At is a non-null invalid Date — the
 		// only input shape where the Date-validity loop and the pair-consistency loop would
 		// disagree on which error to throw. Pins that the Date-validity loop (which runs
 		// first) wins, per design.md Decision 9's ordering claim.
@@ -595,6 +604,36 @@ describe("WorkflowInstance.create()", () => {
 	});
 });
 
+describe("WorkflowInstance.createDraft()", () => {
+	it("returns a DRAFT instance with every attribution pair null and both timestamps set to now", () => {
+		const instance = WorkflowInstance.createDraft({
+			id: "workflow-instance-1",
+			entityId: "entity-1",
+			entityType: "HE",
+			now: fixtureNow,
+		});
+
+		expect(instance.status).toBe("DRAFT");
+		expect(instance.id).toBe("workflow-instance-1");
+		expect(instance.entityId).toBe("entity-1");
+		expect(instance.entityType).toBe("HE");
+		expect(instance.submittedByUserId).toBeNull();
+		expect(instance.createdAt).toEqual(fixtureNow);
+		expect(instance.updatedAt).toEqual(fixtureNow);
+	});
+
+	it("delegates to create()'s own validation — an empty entityId throws the same ValidationError", () => {
+		expect(() =>
+			WorkflowInstance.createDraft({
+				id: "workflow-instance-1",
+				entityId: "",
+				entityType: "HE",
+				now: fixtureNow,
+			}),
+		).toThrow(ValidationError);
+	});
+});
+
 describe("WorkflowInstance.submit()", () => {
 	it("submits from DRAFT to SUBMITTED and stamps submission attribution", () => {
 		const instance = WorkflowInstance.create(baseProps);
@@ -709,7 +748,7 @@ describe("WorkflowInstance.submit()", () => {
 	);
 });
 
-describe("WorkflowInstance transition now validity (design.md Decision 5 addendum, round 4)", () => {
+describe("WorkflowInstance transition now validity (design.md Decision 5 addendum)", () => {
 	it("throws ValidationError when now is an invalid Date", () => {
 		const instance = WorkflowInstance.create(baseProps);
 
@@ -726,7 +765,7 @@ describe("WorkflowInstance transition now validity (design.md Decision 5 addendu
 		).toThrow("now must be a valid Date");
 	});
 
-	// Exercises the `instanceof Date` disjunct for `now` specifically (round 4 Gate 10 finding — only the NaN-time disjunct had been covered).
+	// Exercises the `instanceof Date` disjunct for `now` specifically — the NaN-time disjunct alone doesn't cover this.
 	it("throws ValidationError when now is not a Date instance at all", () => {
 		const instance = WorkflowInstance.create(baseProps);
 

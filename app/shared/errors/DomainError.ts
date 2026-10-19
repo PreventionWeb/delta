@@ -57,3 +57,6 @@ export class ConflictError extends DomainError {
 	readonly code = "CONFLICT";
 	readonly statusHint = 409;
 }
+
+/** Subtype, not a sibling: distinguished by `instanceof`, not `code` (design.md Decision 5). */
+export class ConcurrentModificationError extends ConflictError {}

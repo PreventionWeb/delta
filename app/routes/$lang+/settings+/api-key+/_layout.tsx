@@ -24,7 +24,7 @@ interface EnhancedApiKey {
 	secret: string;
 }
 
-export const loader = authLoaderWithPerm("ViewData", async (loaderArgs) => {
+export const loader = authLoaderWithPerm("EditAPIKeys", async (loaderArgs) => {
 	const { request } = loaderArgs;
 	const countryAccountsId = await getCountryAccountsIdFromSession(request);
 	const items = await ApiKeyRepository.getByCountryAccountsIdWithUser(countryAccountsId);

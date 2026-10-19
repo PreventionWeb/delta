@@ -208,6 +208,161 @@ export function divisionSelect(langs: string[], countryAccountsId: string) {
 	});
 }
 
+/**
+ * Returns every distinct administrative level currently stored for a tenant.
+ *
+ * Intent:
+ * - Use this to detect the hierarchy depth for a country/account.
+ * - The project rule is: when more than one level exists, the first
+ *   administrative division is the lowest numeric level (for example, level 1).
+ *
+ * Param:
+ * - countryAccountsId: tenant/account scope used to isolate division data.
+ *
+ * Output:
+ * - An ascending list of division levels, such as [1, 2, 3].
+ */
+export async function getAdministrativeLevels(
+	countryAccountsId: string,
+): Promise<number[]> {
+	try {
+		const rows = await dr
+			.selectDistinct({ level: divisionTable.level })
+			.from(divisionTable)
+			.where(eq(divisionTable.countryAccountsId, countryAccountsId))
+			.orderBy(divisionTable.level);
+
+		const levels = rows
+			.map((row) => Number(row.level ?? 1))
+			.filter((value) => Number.isFinite(value));
+
+		return [...new Set(levels)];
+	} catch (error) {
+		logger.error("Failed to get administrative levels", {
+			error,
+			countryAccountsId,
+		});
+		throw new DatabaseError("Failed to get administrative levels", {
+			error,
+			countryAccountsId,
+		});
+	}
+}
+
+/**
+ * Resolves the first subnational administrative division level from a sorted list.
+ *
+ * Intent:
+ * - In the division hierarchy, level 0 represents the country boundary itself.
+ * - The first administrative division shown on maps should therefore be the first
+ *   subnational level greater than 0, not the country polygon.
+ *
+ * Param:
+ * - levels: all distinct administrative levels in ascending order.
+ *
+ * Output:
+ * - The smallest level greater than 0, or the first available level when no
+ *   subnational level exists.
+ */
+export function getFirstAdministrativeLevel(levels: number[]): number {
+	const subnationalLevels = levels.filter((level) => level > 0);
+	if (subnationalLevels.length > 0) {
+		return subnationalLevels[0];
+	}
+	if (levels.length === 0) return 1;
+	return levels[0];
+}
+
+/**
+ * Lists every division row for a given administrative level, returning both ID and translated name.
+ *
+ * Intent:
+ * - This is the reusable query for any administrative depth.
+ * - The first subnational division rule can be computed by calling
+ *   getAdministrativeLevels() and getFirstAdministrativeLevel() before invoking this helper.
+ *
+ * Param:
+ * - level: the division depth to query, such as 1, 2, or 3.
+ * - countryAccountsId: tenant/account scope used to isolate the data.
+ * - langs: preferred languages to use when selecting translated names.
+ *
+ * Output:
+ * - An array of objects shaped as { id: string; name: string }, ordered by ID.
+ */
+export async function listDivisionsByLevel(
+	level: number,
+	countryAccountsId: string,
+	langs: string[] = ["en"],
+): Promise<Array<{ id: string; name: string }>> {
+	try {
+		const tr = selectTranslated(divisionTable.name, "name", langs);
+
+		const rows = await dr
+			.select({
+				id: divisionTable.id,
+				name: tr.name,
+			})
+			.from(divisionTable)
+			.where(
+				and(
+					eq(divisionTable.countryAccountsId, countryAccountsId),
+					eq(divisionTable.level, level),
+				),
+			)
+			.orderBy(divisionTable.id);
+
+		return rows.map((row) => ({
+			id: row.id,
+			name: String(row.name),
+		}));
+	} catch (error) {
+		logger.error("Failed to list divisions by level", {
+			error,
+			level,
+			countryAccountsId,
+		});
+		throw new DatabaseError("Failed to list divisions by level", {
+			error,
+			level,
+			countryAccountsId,
+		});
+	}
+}
+
+/**
+ * Convenience helper for the first subnational administrative division.
+ *
+ * Intent:
+ * - Use this when the business rule is: if multiple levels exist, skip the country
+ *   boundary (level 0) and choose the first subnational division level.
+ *
+ * Param:
+ * - countryAccountsId: tenant/account scope used to isolate the data.
+ * - langs: preferred languages to use when selecting translated names.
+ *
+ * Output:
+ * - A list of divisions belonging to the first subnational administrative level, each with ID and name.
+ */
+export async function listDivisionNamesUnderFirstAdministrativeLevel(
+	countryAccountsId: string,
+	langs: string[] = ["en"],
+): Promise<Array<{ id: string; name: string }>> {
+	try {
+		const levels = await getAdministrativeLevels(countryAccountsId);
+		const firstLevel = getFirstAdministrativeLevel(levels);
+		return listDivisionsByLevel(firstLevel, countryAccountsId, langs);
+	} catch (error) {
+		logger.error("Failed to list divisions under first administrative level", {
+			error,
+			countryAccountsId,
+		});
+		throw new DatabaseError(
+			"Failed to list divisions under first administrative level",
+			{ error, countryAccountsId },
+		);
+	}
+}
+
 async function parseCSV(data: string): Promise<string[][]> {
 	return new Promise((resolve, reject) => {
 		const parser = parse({

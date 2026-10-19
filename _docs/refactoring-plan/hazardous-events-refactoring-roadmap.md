@@ -396,9 +396,11 @@ Independent of Phase 0 — can proceed in parallel.
 ## Phase 2 — Schema ✅ (target model reviewed 2026-08-21; Pass 3 breakdown complete 2026-09-01)
 
 Source: `draw.io` ER diagram, "Hazardous Event ER Diagram (Manage actual hazardous event not
-forecasted)" — exported snapshot committed at
-[`diagrams/hazardous-events-er-diagram.png`](diagrams/hazardous-events-er-diagram.png) (the
-`.drawio`/`.json` sources stay in the gitignored `tmp/` working folder, not committed). Two
+forecasted)" — versioned source and exported snapshot at
+[`_docs/database/hazardous-events/hazardous-events-er-diagram.drawio`](../database/hazardous-events/hazardous-events-er-diagram.drawio)
+/ [`.png`](../database/hazardous-events/hazardous-events-er-diagram.png) (relocated 2026-10-08
+from a gitignored `tmp/` working copy — the editable source is now committed, not just a
+rendered snapshot). Two
 sections of that diagram — "Monitoring and measurement" and "Forecast, monitoring and warning" —
 are explicitly marked not-yet-modeled by its author and are out of scope here; the
 spatial-observation redesign below (Section D) looks like it's laying the groundwork for them,
@@ -478,9 +480,9 @@ paraphrased summary of the ER diagram rather than the diagram's own field-by-fie
 caught in review after `2a` was already implemented, corrected there with the user's explicit
 sign-off (see `openspec/changes/ca-workflow-schema/design.md` Decisions 10/11), and corrected
 here in the roadmap text for the intents that had no implementation yet to fix. Verified this
-time against the exact source (`tmp/hazardous-events-er-diagram/hazardous-events.drawio`'s raw
-XML, not the compressed `.png` render, which itself produced one misreading during this same
-review). Lesson for every future intent in this document: verify field-level schema details
+time against the exact source (`_docs/database/hazardous-events/hazardous-events-er-diagram.drawio`'s
+raw XML, not the compressed `.png` render, which itself produced one misreading during this
+same review). Lesson for every future intent in this document: verify field-level schema details
 directly against the diagram source at proposal time, not from this document's own prose.
 
 Two tracks, same split as Phase 3–5 — Section G belongs to `validation-workflow`, everything else
@@ -887,6 +889,11 @@ is already correct, not that migration happens as part of cutover itself. Genuin
 document hadn't addressed until now, not something quietly folded into Phase 2 or Phase 7 after
 the fact.
 
+**Earlier checkpoint, not just the Phase 7 gate:** `6f`'s `GET /:id` endpoint
+(`GetHazardousEventByIdUseCase`) needs `Ma`'s `workflow_instance` backfill done specifically —
+sooner than the general Phase 7 sign-off (`DEF-031`). Confirm this backfill's status before `6f`
+ships, not only before cutover.
+
 ### ⬜ Ma — Transformation Scripts
 
 **Branch:** `feature/ca-he-migration-scripts` (non-OpenSpec — operational tooling, not a new
@@ -1199,7 +1206,7 @@ directly from 0c's finding that today's system already made this mistake twice i
 Add ProcessWorkflowActionUseCase in
 app/domains/validation-workflow/application/use-cases/ProcessWorkflowAction.ts —
 accepts a ProcessWorkflowActionCommand { entityId, entityType, action:
-'submit-validation'|'validate'|'publish'|'reject'|'return', actingUserId } (Command/
+'submit-validation'|'validate'|'publish'|'return', actingUserId } (Command/
 Query naming per Notices' precedent — CreateNoticeCommand, ListNoticesQuery, etc. —
 applied consistently across every use case in this phase, not just this one), loads
 the WorkflowInstance via IWorkflowRepository,
@@ -1209,11 +1216,17 @@ entity type — replaces today's two independently-duplicated generic services
 (handleApprovalWorkflowService, processApprovalStatusActionService) found in 0c.
 ```
 
-**Files touched:**
+**✅ Shipped 2026-09-24, PR merged to `feature/he-ca-phase4`.** `action` never included
+`'reject'` in the actual implementation — `WorkflowInstance` has no `reject()` transition
+and no clarity from business on what one should mean (`DEF-022`, no phase assigned).
+
+**Files touched (as shipped — 7 files, not the original 3):**
 
 - `app/domains/validation-workflow/application/use-cases/ProcessWorkflowAction.ts` (new)
 - `app/domains/validation-workflow/application/use-cases/ProcessWorkflowAction.test.ts` (new)
-- `app/domains/validation-workflow/application/ports/INotificationPort.ts` (new)
+- `app/domains/validation-workflow/application/ports/INotificationPort.ts` (new, + test)
+- `app/domains/validation-workflow/application/dto/WorkflowInstanceDto.ts` (new, + test)
+- `app/domains/validation-workflow/application/errors/WorkflowInstanceErrors.ts` (new)
 
 **Test tier:** Unit — mock repository + notification port. Each action transitions
 correctly; an invalid transition (e.g. `submit-publish` on a still-`DRAFT` record, if
@@ -1240,18 +1253,42 @@ persists via IHazardousEventRepository, and initializes a WorkflowInstance at DR
 via IWorkflowRepository. Returns HazardousEventDto.
 ```
 
-**Files touched:**
+**Scope correction (Phase 0 finding, 2026-09-24):** there is no `parentId` field —
+`HazardousEvent.create()` never had one. The real cause/effect relationship, built
+afterward in `3c`, is `CausalChain`'s directed-edge model (`causeId`/`effectId` in
+`hazardous_event_causality`), not a single parent. This intent's actual scope is an
+optional `causeId`/`causalityExplanation` on the create command, validated for
+existence (same-tenant-only, settled — `DEF-012`'s cross-tenant question stays open in
+the register, deferred again, not resolved here) and checked via
+`assertCausalLinkDoesNotCreateCycle()` (`3c`) before persisting a new edge. `4b` defines
+`ICausalChainRepository` and `IHazardTaxonomyRepository` as **interfaces only** — no
+Drizzle adapter, matching `IHazardousEventRepository`/`IWorkflowRepository`'s own
+"interface now, adapter later" split. (Folding real adapters into `4b` was considered
+and explicitly reverted, 2026-09-24 — see `5i` below: keeps the one-intent-at-a-time
+principle and the Phase 4 Gate's "zero PGlite/DB dependency" invariant intact, no
+exceptions.)
 
-- `app/domains/hazardous-events/application/use-cases/CreateHazardousEvent.ts` (new)
-- `app/domains/hazardous-events/application/use-cases/CreateHazardousEvent.test.ts` (new)
-- `app/domains/hazardous-events/application/dto/HazardousEventDto.ts` (new)
+**Files touched (revised):**
 
-**Test tier:** Unit — mock repositories. Happy path returns DTO with a `DRAFT` status;
-`ValidationError` from the entity propagates; foreign-tenant parent is rejected.
+- `app/domains/hazardous-events/application/use-cases/CreateHazardousEvent.ts` (new, + test)
+- `app/domains/hazardous-events/application/dto/HazardousEventDto.ts` (new, + test)
+- `app/domains/hazardous-events/application/ports/ICausalChainRepository.ts` (new, + test
+  — interface + fake-conformance test only, no adapter)
+- `app/domains/hazardous-events/application/ports/IHazardTaxonomyRepository.ts` (new, + test
+  — interface + fake-conformance test only, no adapter)
+
+**Test tier:** Unit — mock repositories, zero PGlite/DB dependency (Phase 4 Gate
+compliant). Happy path returns DTO with a `DRAFT` status; `ValidationError` from the
+entity propagates; a cross-tenant `causeId` is rejected (same-tenant-only, settled).
 
 ---
 
 ### 🔷 4c — UpdateHazardousEvent Use Case
+
+**Implementation order note (2026-09-30):** this intent's own scope requires
+`RecordSpatialObservationUseCase` (`4g` below) to already exist — a genuine gap in the
+original Track B listing order, not something introduced later. **Build `4g` first**,
+then `4c`. Roadmap letters stay as reference names; only the build order changes.
 
 **Branch:** `feature/ca-he-update-use-case`
 
@@ -1267,6 +1304,13 @@ RecordSpatialObservationUseCase (4g) internally rather than duplicating its logi
 this is what keeps the web form's single "save" submission working exactly like
 today even though spatial observations are their own use case underneath.
 ```
+
+**Terminology correction (matches 4b's own correction, 2026-09-24):** "the parent" above
+means `causeId`, not a `parentId` field — `4b` already built `ICausalChainRepository`'s
+**interface** and its `findReachableEdgesFrom`/`saveEdge` methods; this intent reuses that
+same port (against a fake/mock, same as `4b` — no real adapter exists yet, that's `5i`,
+not yet proposed) rather than defining its own cycle-check plumbing.
+`assertCausalLinkDoesNotCreateCycle()` (`3c`) is the same function `4b` already calls.
 
 **Files touched:**
 
@@ -1343,12 +1387,17 @@ Add DeleteHazardousEventUseCase — accepts a DeleteHazardousEventCommand, one
 unified dependent-check, no special cases:
 blocks the delete if the event is referenced by (a) a Disaster Event's
 hazardousEventId, (b) event_causality in either direction, or (c) another
-HazardousEvent's parent/causal link. Throws a single DomainError
-(HazardousEventHasDependentsError) whose context carries which dependents and how
-many, for the presentation layer to render a useful message — not three different
-error shapes for three different checks. This is a deliberate behavior change from
-today for case (b) specifically (0a finding #8 / 0f: today cascades silently) — the
-new implementation closes that gap by construction rather than porting it forward.
+HazardousEvent's causal link (cause or effect side — see `4b`'s
+`ICausalChainRepository`, not a `parentId` field). Throws a single `ConflictError` (the existing, generic `DomainError` subclass —
+**correction, 2026-10-06**: this text originally named a new, dedicated
+`HazardousEventHasDependentsError` class, predating the convention every use case
+since `4b` has actually followed — reuse the shared `ConflictError`/`NotFoundError`/
+`ValidationError` vocabulary with a rich `context` payload, never a new subclass per
+use case) whose context carries which dependents and how many, for the presentation
+layer to render a useful message — not three different error shapes for three
+different checks. This is a deliberate behavior change from today for case (b)
+specifically (0a finding #8 / 0f: today cascades silently) — the new implementation
+closes that gap by construction rather than porting it forward.
 ```
 
 **Files touched:**
@@ -1363,6 +1412,11 @@ populated `context`; an event with zero dependents deletes successfully.
 ---
 
 ### 🔷 4g — RecordSpatialObservation Use Case
+
+**Built before `4c` (2026-09-30):** `4c` depends on this use case existing to delegate to;
+no circular dependency the other way — this intent only needs `SpatialObservation` (`3d`,
+shipped) and `IHazardousEventRepository`'s existing spatial-observation port methods
+(interface only, unit-tested against a fake, same as every other Phase 4 intent).
 
 **Branch:** `feature/ca-he-record-spatial-observation-use-case`
 
@@ -1395,7 +1449,9 @@ rejected (delegates to 3d's own tenant-scoping).
 
 `yarn tsc` passes with all new files. Every use case above is tested against a **mock**
 repository/port, zero PGlite/DB dependency — Phase 5 is where real, DB-backed
-implementations get verified against these same use cases.
+implementations get verified against these same use cases. No exceptions, including
+`4b`'s two new ports (`ICausalChainRepository`, `IHazardTaxonomyRepository`) — interface
+and mock-tested only here; their real adapters are `5i` below.
 
 ---
 
@@ -1403,6 +1459,11 @@ implementations get verified against these same use cases.
 
 Same two-track split. All repository implementations are PGlite-integration-tested — this is the
 first phase where the domain/use-case layers built in Phase 3/4 actually touch a real (test) DB.
+
+**Execution order note (2026-10-07):** `5l` and `5m` (below, out of alphabetical position same as
+`2i`/`2j`'s own precedent) run before the rest of this phase regardless of letter order. `5l` is
+Phase 5's actual first task — a hard prerequisite for `5i`. `5m` is a hard prerequisite for `5g`
+(`HazardousEventsModule` imports `EventCausalityModule`).
 
 ### Track A — `validation-workflow`
 
@@ -1415,11 +1476,14 @@ first phase where the domain/use-case layers built in Phase 3/4 actually touch a
 ```
 Implement DrizzleWorkflowRepository fulfilling IWorkflowRepository against
 workflow_instance — findByEntity(entityId, entityType), findByEntityIds(entityIds[],
-entityType) as one batched query (IN clause, not a loop), save(). Deliberately no
-tenant filter of its own — this repository trusts the entityId it's given was already
-tenant-validated by the caller's own aggregate repository (HazardousEventRepository/
-DisasterEventRepository) before reaching here; workflow_instance has no
-countryAccountsId column of its own by design (Phase 2, Section G).
+entityType) as one batched query (IN clause, not a loop), save(), deleteByEntity
+(entityId, entityType) — idempotent, resolves normally when no matching instance
+exists (`4f`, 2026-10-07; added after this intent's original 2026-09-01 text, which
+only covered the first three methods). Deliberately no tenant filter of its own —
+this repository trusts the entityId it's given was already tenant-validated by the
+caller's own aggregate repository (HazardousEventRepository/DisasterEventRepository)
+before reaching here; workflow_instance has no countryAccountsId column of its own by
+design (Phase 2, Section G).
 ```
 
 **Files touched:**
@@ -1488,6 +1552,18 @@ resolves `ProcessWorkflowActionUseCase` using PGlite.
 
 **Branch:** `feature/ca-he-drizzle-repository-core`
 
+**Owner-corrected 2026-10-07: closes `DEF-035`, not `5f`.** The register originally
+pointed `DEF-035` at `5f`, but `5f` only ever covered the dependent-check *count*
+queries — the real `delete()` method (with its legacy multi-table replication
+requirement) is this intent's own scope. `hazardousEventTable.id` is a FK into the
+shared `eventTable.id` supertype; `delete()` must replicate the live legacy
+transaction's cleanup (`app/backend.server/models/event.ts:1728` — not the dead-code
+twin, `DEF-001`): the `hazardous_event` row, incoming `event_relationship` rows, then
+the `event` row itself. Its own validation-row cleanup is superseded by `5a`'s
+`IWorkflowRepository.deleteByEntity`. One gap remains either way: `event_relationship`'s
+outgoing role is cleaned up by neither the legacy function nor this change (`0a`
+finding #6) — decide here whether to finally fix it or continue inheriting the gap.
+
 **Intent for `/opsx:propose`:**
 
 ```
@@ -1497,22 +1573,40 @@ grouped child value objects from 3e (hazard drivers, attachments, hazard-type fi
 values) persisted as part of the same save(). Every query scoped with
 eq(hazardousEventTable.countryAccountsId, tenantId), matching Notices' precedent.
 findById throws NotFoundError for a missing row or a foreign-tenant match.
+
+delete() replicates the legacy transaction's full cleanup (DEF-035): the
+hazardous_event row, incoming event_relationship rows, then the event supertype row
+— in that order, within one transaction. Decide and document whether
+event_relationship's outgoing-role gap (0a finding #6) is finally fixed here or
+deliberately still inherited.
 ```
 
 **Files touched:**
 
 - `app/domains/hazardous-events/infrastructure/DrizzleHazardousEventRepository.ts` (new)
 - `tests/integration/domains/hazardous-events/DrizzleHazardousEventRepository.test.ts` (new)
+- `_docs/refactoring-plan/deferred-items-register.md` (close `DEF-035`; update if the
+  outgoing-role gap is fixed rather than inherited)
 
 **Test tier:** PGlite integration — CRUD with tenant isolation (an event created for
 tenant A is not visible from tenant B); child value objects persist and round-trip
-correctly.
+correctly; `delete()` also removes the `event` supertype row and incoming
+`event_relationship` rows, matching the legacy transaction's own cleanup scope.
 
 ---
 
 ### 🔷 5e — Spatial Observation Persistence
 
 **Branch:** `feature/ca-he-spatial-observation-persistence`
+
+**Closes `DEF-027` (added 2026-10-07).** `IHazardousEventRepository`'s spatial methods
+keep the provisional `SpatialObservationRecord` shape while `3d`'s real
+`SpatialObservation` entity supersedes it; `4g` added a mapping boundary
+(`toSpatialObservationRecord`) rather than retyping the port. This intent's real
+adapter is the first place that boundary is exercised against actual persisted rows —
+settle here whether the port should retype to `SpatialObservation` directly now that
+a real adapter exists, or keep the mapping boundary permanently; a silent divergence
+today would only be caught by `tsc`, not any test.
 
 **Intent for `/opsx:propose`:**
 
@@ -1522,6 +1616,11 @@ findCurrentSpatialObservation (latest by observationTime, not insertion order, p
 3d), findSpatialObservationByTime (exact match, for the conflict check),
 saveSpatialObservation — against hazardous_event_spatial_observation. Division
 validity checks are tenant-scoped (0d finding #1 — this must not repeat that gap).
+
+Resolve DEF-027 explicitly: either retype IHazardousEventRepository's spatial
+methods to SpatialObservation directly (removing toSpatialObservationRecord) or
+keep SpatialObservationRecord as a deliberate, documented persistence-shape
+boundary distinct from the domain entity — not left as an unexamined duplication.
 ```
 
 **Files touched:**
@@ -1530,6 +1629,9 @@ validity checks are tenant-scoped (0d finding #1 — this must not repeat that g
   (modified — same file as 5d, this is the spatial-observation half of it)
 - `tests/integration/domains/hazardous-events/DrizzleHazardousEventRepository.test.ts`
   (modified)
+- `app/domains/hazardous-events/application/ports/IHazardousEventRepository.ts`
+  (modified, if DEF-027 resolves toward retyping)
+- `_docs/refactoring-plan/deferred-items-register.md` (close `DEF-027`)
 
 **Test tier:** PGlite integration — a backfilled earlier `observationTime` inserted
 after a later one does not become "current"; a duplicate `observationTime` is
@@ -1539,18 +1641,26 @@ just the domain layer (defense in depth).
 
 ---
 
-### 🔷 5f — Delete Dependent-Check Queries
+### 🔷 5f — Delete Dependent-Check Queries: Disaster Event References
 
 **Branch:** `feature/ca-he-delete-dependent-check-queries`
+
+**Narrowed 2026-10-07** — `DeleteHazardousEventUseCase`'s (`4f`) unified check actually
+spans three separate ports, not one: this intent covers only
+`IHazardousEventRepository.countReferencingDisasterEvents`. The other two —
+`ICausalChainRepository.countEdgesTouching` and `IEventCausalityRepository`'s
+`countReferences` — are `5i` and `5m` respectively; this intent's original text
+(2026-09-01) predated `4f`'s actual port-placement decisions and conflated all three
+under one file.
 
 **Intent for `/opsx:propose`:**
 
 ```
-Implement the three dependent-reference queries backing DeleteHazardousEventUseCase
-(4f)'s unified check — a Disaster Event referencing this event's hazardousEventId, an
-event_causality row in either direction, or another HazardousEvent's parent/causal
-link. Return enough detail (which table, how many rows) for the use case's
-DomainError context, not just a boolean.
+Implement IHazardousEventRepository.countReferencingDisasterEvents — a Disaster
+Event referencing this event's hazardousEventId, counted regardless of the
+referencing event's own tenant (DEF-032's interim placement; see that row for why
+this lives here rather than on a Disaster Events repository that doesn't exist yet).
+Return a plain count for the use case's DomainError context, not just a boolean.
 ```
 
 **Files touched:**
@@ -1560,9 +1670,10 @@ DomainError context, not just a boolean.
 - `tests/integration/domains/hazardous-events/DrizzleHazardousEventRepository.test.ts`
   (modified)
 
-**Test tier:** PGlite integration — three independent scenarios (0a's existing
-`event_causality`-only test from Phase 0 is the direct precedent for one of them),
-each correctly detected; zero dependents deletes cleanly.
+**Test tier:** PGlite integration — zero referencing Disaster Events resolves zero;
+one or more resolves the correct count; a cross-tenant referencing Disaster Event is
+still counted, not excluded (0a's existing `event_causality`-only test from Phase 0
+is the direct precedent for this kind of cross-tenant-inclusion assertion).
 
 ---
 
@@ -1579,6 +1690,17 @@ ValidationWorkflowModule (5c) for the workflow port dependency, and exporting al
 use cases from Phase 4 (Create, Update, GetById, List, Delete,
 RecordSpatialObservation) — import into CoreModule.
 ```
+
+**Note (2026-09-24):** also register `DrizzleCausalChainRepository` and
+`DrizzleHazardTaxonomyRepository` (`5i` below, not yet built as of this note) as the
+`ICausalChainRepository`/`IHazardTaxonomyRepository` providers here, once `5i` lands —
+same as every other provider above.
+
+**Note (2026-10-07):** also import `EventCausalityModule` (`5m` below) for the
+`EVENT_CAUSALITY_REPOSITORY` token `DeleteHazardousEventUseCase` depends on —
+unlike the providers above, this one is not registered directly in this module;
+`event-causality` is its own bounded context (not HE-exclusive), so its module is
+imported, matching how this module will itself be imported by `CoreModule`.
 
 **Files touched:**
 
@@ -1598,25 +1720,471 @@ resolves all six use cases using PGlite, including their cross-module dependency
 to existing legacy code, not a new capability; per this document's own "Non-OpenSpec
 task" category)
 
-**Carried from Phase 0 (0f), executed here so it doesn't get lost, not because it
-structurally belongs to HE's repository layer.** Today's `event_causality` HE↔DE
-linking has no tenant check at all, unlike the singular `disasterEventTable.hazardousEventId`
-field which the same code explicitly guards. The fix is a small, standalone patch to
-`syncLinkedHazardousEvents` in `app/routes/$lang+/disaster-event+/edit.$id.tsx` — it
-does **not** require DE's own Clean Architecture domain module to exist first. If
-Disaster Events gets its own Clean Architecture refactor before this phase executes,
-this fix moves with it as a prerequisite for that effort's own causality-linking work
-instead — whichever lands first.
+**Closes `DEF-004` (cross-referenced 2026-10-07 — the register row named "Phase 4 or
+5, whichever owns the causality-linking use case" without pointing back at this
+intent specifically).** Carried from Phase 0 (`0f`), executed here so it doesn't get
+lost, not because it structurally belongs to HE's repository layer. Today's
+`event_causality` HE↔DE linking has no tenant check at all, unlike the singular
+`disasterEventTable.hazardousEventId` field which the same code explicitly guards.
+The fix is a small, standalone patch to `syncLinkedHazardousEvents` in
+`app/routes/$lang+/disaster-event+/edit.$id.tsx` — it does **not** require DE's own
+Clean Architecture domain module to exist first. If Disaster Events gets its own
+Clean Architecture refactor before this phase executes, this fix moves with it as a
+prerequisite for that effort's own causality-linking work instead — whichever lands
+first.
 
 **Files touched:**
 
 - `app/routes/$lang+/disaster-event+/edit.$id.tsx` (modified — add same-tenant check
   to `syncLinkedHazardousEvents`, mirroring `disasterEventCreate`/`Update`'s existing
   `hazardous_event.cannot_reference_other_tenant` guard for the singular field)
+- `_docs/refactoring-plan/deferred-items-register.md` (close `DEF-004`)
 
 **Test tier:** PGlite integration — a cross-tenant `linkedTriggeringHazardousEventIds`/
 `linkedTriggeredHazardousEventIds` submission is rejected, extending the existing
 `hazardousEventDisasterEventBoundary.test.ts` from Phase 0's 0f.
+
+---
+
+### 🔷 5l — Shared Kernel: Multi-Language Taxonomy Schema
+
+**Branch:** `feature/ca-shared-multilang-taxonomy-schema`
+
+**Added 2026-10-07, picked as Phase 5's first task — hard prerequisite for `5i`
+below** (`DrizzleHazardTaxonomyRepository` queries these exact tables). The HIP
+taxonomy ER diagram (`_docs/database/hazardous-events/hazardous-events-er-diagram.drawio`,
+relocated from a gitignored `tmp/` working copy 2026-10-08) adds multi-language support on
+top of `2b`'s already-shipped
+`specific_hazard`/`hazard_cluster`/`hazard_type` tables — a real migration on live CA
+tables, not a greenfield design. **Confirmed CA-scoped only, no legacy impact**
+(user-confirmed 2026-10-07): `hazardousEventTable.ts`'s own `specificHazardId` is an
+opaque FK, unaffected by how `specific_hazard.name` is stored; the legacy
+`hip_hazard`/`hip_cluster`/`hip_type` tables already carry their own separate JSONB i18n
+(`20260109060059_multi_lang_hips_sectors_assets.sql`, exported to
+`locales/content/en.json` via `yarn export_tables_for_translation` and translated
+through the real, live Weblate pipeline) and are untouched by this intent.
+
+**Corrected 2026-10-07** — ADR-001's existing Weblate+JSONB mechanism is real and
+untouched by this intent (sectors/assets/legacy `hip_*` display-locale resolution via
+`dts_jsonb_localized`, single-locale-per-call only). This adds a third, parallel
+mechanism for free-text search across unknown-locale input, which the JSONB pipeline
+was never built for — an addition to ADR-001, not a correction. Translator-maintenance
+tooling for new rows is out of scope (`DEF-036`).
+
+**Intent for `/opsx:propose`:**
+
+```
+Add three new Shared Kernel tables under app/domains/shared/infrastructure/ (generic
+translation primitives, not HE-exclusive, matching flexibleDateFormat.ts's own
+Shared Kernel placement — a small, non-business-logic shared rule, not a bounded
+context of its own): language (id, language_name, language_cd), text_content (id,
+original_text, original_language_id FK), translation (id, text_content_id FK,
+language_id FK, translation).
+
+Migrate specific_hazard, hazard_cluster, hazard_type: drop plain name, add
+name_text_content_id FK. specific_hazard additionally gains
+description_text_content_id FK — a genuinely new capability, 2b never had a
+description column on this table. All three gain a UNIQUE source_ref_id (text)
+tracking the external HIPs source system's own id (Drupal today, may differ per
+country instance).
+
+Migration backfills every existing specific_hazard/hazard_cluster/hazard_type row's
+current name (and specific_hazard's description, if populated) into
+text_content/translation automatically — no manual data-fix step.
+
+hazard_driver.name is explicitly out of scope for this intent — it doesn't need
+direct query execution from filter text (user-confirmed 2026-10-07).
+
+Translator-maintenance workflow for rows created after the backfill is out of scope
+here (`DEF-036`) — schema + migration + automatic backfill only.
+
+Update the three PGlite tests that insert plain name values directly
+(hazardousEventSpecificHazard.test.ts, hipHierarchyChain.test.ts,
+specificHazard.test.ts) plus the testSchema mirror
+(tests/integration/db/testSchema/specificHazardTable.ts, index.ts) in lockstep,
+per the existing P1-42 convention.
+```
+
+**Files touched:**
+
+- `app/domains/shared/infrastructure/languageTable.ts` (new)
+- `app/domains/shared/infrastructure/textContentTable.ts` (new)
+- `app/domains/shared/infrastructure/translationTable.ts` (new)
+- `app/domains/hazardous-events/infrastructure/specificHazardTable.ts` (modified —
+  drop `name`, add `nameTextContentId`, `descriptionTextContentId`, `sourceRefId`)
+- `app/domains/hazardous-events/infrastructure/hazardClusterTable.ts` (modified —
+  drop `name`, add `nameTextContentId`, `sourceRefId`)
+- `app/domains/hazardous-events/infrastructure/hazardTypeTable.ts` (modified — drop
+  `name`, add `nameTextContentId`, `sourceRefId`)
+- `app/drizzle/migrations/<new>.sql` (new — schema change + automatic backfill)
+- `tests/integration/db/queries/hazardousEventSpecificHazard.test.ts` (modified)
+- `tests/integration/db/queries/hipHierarchyChain.test.ts` (modified)
+- `tests/integration/db/queries/specificHazard.test.ts` (modified)
+- `tests/integration/db/testSchema/specificHazardTable.ts` (modified)
+- `tests/integration/db/testSchema/index.ts` (modified, if new tables need a mirror)
+- `_docs/decisions/ADR-001-multilingual-strategy.md` (modified — Decision section)
+
+**Test tier:** PGlite integration — migration applies cleanly against a seeded
+pre-migration row and the row's existing `name` backfills correctly into
+`text_content`/`translation`; `name_text_content_id`/`description_text_content_id`
+resolve to the right `original_text`; `source_ref_id` uniqueness is enforced.
+
+---
+
+### 🔷 5m — Event Causality Bounded Context
+
+**Branch:** `feature/ca-event-causality-bounded-context`
+
+**Added 2026-10-07, picked as one of Phase 5's first tasks alongside `5l` — a hard
+prerequisite for `5g`** (`HazardousEventsModule` imports this context's module).
+`4f` placed `IEventCausalityRepository` under `app/domains/shared/` as a Shared
+Kernel port — reasonable at the time, since it was just a port signature with no
+adapter yet. Revisited after researching DDD's actual Shared Kernel definition
+(Evans): the pattern is meant for small, non-business-logic shared rules —
+`flexibleDateFormat.ts` is the real fit — and explicitly warns to "extract a new
+context instead" once business logic accumulates. `event_causality` has its own
+table, its own repository, and a genuine business rule (`4f`'s same-tenant/
+cross-tenant disclosure split) — the same shape as `validation-workflow`: a
+relationship concern shared between Hazardous Events and Disaster Events, owned by
+neither, with its own port/adapter/module. Blast radius of the relocation is small —
+confirmed via repo-wide grep (2026-10-07): `IEventCausalityRepository` has exactly
+one consumer today (`DeleteHazardousEventUseCase`, `4f`), so this is the cheapest
+point to fix the placement; it only gets more expensive once Disaster Events' own
+CA work adds a second consumer.
+
+**Intent for `/opsx:propose`:**
+
+```
+Relocate IEventCausalityRepository.ts and its test from
+app/domains/shared/application/ports/ to
+app/domains/event-causality/application/ports/ (new bounded context — structural
+move only, no behavior change; fix the one consumer import in
+DeleteHazardousEvent.ts). Update ADR-009's Shared Kernel section to drop the
+now-incorrect implication that this port belongs there (it never named
+IEventCausalityRepository explicitly, but should note the context explicitly chose
+its own bounded context over Shared Kernel here, for future reference).
+
+Implement DrizzleEventCausalityRepository fulfilling IEventCausalityRepository
+against event_causality (pre-existing, no schema change) — countReferences splits
+same-tenant vs. cross-tenant counts for a given hazardousEventId + tenantId,
+matching the port's existing disclosure-shaping contract (4f): tenantId classifies
+each matching row's own other side, it does not filter.
+
+Create EventCausalityModule (NestJS) registering the adapter under an
+EVENT_CAUSALITY_REPOSITORY token and exporting that token directly — unlike
+NoticesModule's convention of hiding its repository behind use cases, this context
+has no use case of its own; other domains (HazardousEventsModule now, Disaster
+Events' own CA module later) inject the port directly.
+```
+
+**Files touched:**
+
+- `app/domains/event-causality/application/ports/IEventCausalityRepository.ts`
+  (moved from `app/domains/shared/application/ports/`)
+- `app/domains/event-causality/application/ports/IEventCausalityRepository.test.ts`
+  (moved, same)
+- `app/domains/event-causality/infrastructure/DrizzleEventCausalityRepository.server.ts`
+  (new)
+- `app/domains/event-causality/infrastructure/EventCausalityModule.ts` (new)
+- `tests/integration/domains/event-causality/DrizzleEventCausalityRepository.test.ts`
+  (new)
+- `app/domains/hazardous-events/application/use-cases/DeleteHazardousEvent.ts`
+  (modified — import path only)
+- `_docs/decisions/ADR-009-clean-architecture-module-structure.md` (modified)
+
+**Test tier:** unit (relocated port test, unchanged) + PGlite integration — zero
+`event_causality` rows resolves `{ sameTenantCount: 0, crossTenantCount: 0 }`; a
+same-tenant row counts toward `sameTenantCount`; a cross-tenant row counts toward
+`crossTenantCount`, not excluded; both directions (hazardous event as triggering or
+triggered side) are counted.
+
+---
+
+### 🔷 5i — DrizzleCausalChainRepository & DrizzleHazardTaxonomyRepository
+
+**Branch:** `feature/ca-he-causal-chain-and-taxonomy-repositories`
+
+**Added 2026-09-24** — split out from `4b`, which originally considered folding these
+adapters in directly; reverted to keep the one-intent-at-a-time principle and the
+Phase 4 Gate's "zero PGlite/DB dependency" invariant intact with no exceptions. `4b`
+already defines both ports' interfaces (`ICausalChainRepository`,
+`IHazardTaxonomyRepository`) and consumes them via mocks; this intent is real Drizzle
+adapters + PGlite tests only.
+
+**Intent for `/opsx:propose`:**
+
+```
+Implement DrizzleCausalChainRepository (fulfilling ICausalChainRepository, 4b) and
+DrizzleHazardTaxonomyRepository (fulfilling IHazardTaxonomyRepository, 4b) against
+hazardous_event_causality, hazard_driver, and hazard_type_custom_field_definition
+(all pre-existing, no schema change).
+
+DrizzleCausalChainRepository.findReachableEdgesFrom(nodeId): a WITH RECURSIVE query
+(this codebase's own established shape, per app/db/queries/eventCausalityRepository.ts)
+with two things that precedent doesn't provide on its own: (1) a visited-path cycle
+guard — hazardous_event_causality's CHECK constraint only blocks the trivial 1-length
+self-reference, confirmed not assumed by
+tests/integration/db/queries/hazardousEventCausality.test.ts's own "does not block a
+multi-hop cycle" test, so a naive recursive query over this table can loop forever
+against real (if invariant-violating) data; and (2) a fail-closed row bound
+(ADAPTER_ROW_BOUND, deliberately larger than and distinct from the domain layer's
+CAUSAL_CHAIN_TRAVERSAL_CAP = 500 — a separate concern, per 3c/4b's own design.md) that
+MUST reject (ValidationError) rather than silently return a truncated result if hit —
+this is the fix for app/backend.server/models/event/cycles.ts's own
+`array_length(cc.path, 1) < 10` bug, which stops silently and reports a normal (if
+wrong) result. Detecting "the bound was hit" needs care: only a result row whose path
+length equals ADAPTER_ROW_BOUND itself (not ADAPTER_ROW_BOUND - 1) is the ambiguous
+one — work through 4b's own design.md Decision 12 for the exact arithmetic before
+reimplementing this, an off-by-one here was found and fixed during 4b's proposal
+review and is easy to reintroduce.
+
+DrizzleHazardTaxonomyRepository: a plain tenant+id-membership query per method
+(WHERE country_accounts_id = tenantId AND id = ANY(ids)), no recursion, no cycle risk.
+Both tables already have a country_accounts_id index.
+
+DrizzleCausalChainRepository also implements countEdgesTouching(nodeId) and
+deleteCauseEdges(effectId) — both added to ICausalChainRepository in `4f`
+(2026-10-07), after this intent's original 2026-09-01 text, which only worked
+through findReachableEdgesFrom's recursive-query design in detail.
+countEdgesTouching counts every edge touching nodeId as cause or effect in either
+direction, not tenant-scoped (matching this port's other methods) — backs
+DeleteHazardousEventUseCase's (4f) causal-chain dependent check.
+
+Closes DEF-030 (added 2026-10-07): saveEdge's TOCTOU race — two concurrent callers
+can each read the pre-write edge state, both pass their own cycle check, and jointly
+write a two-node cycle (or, on a shared effect, both delete-then-insert and leave two
+cause edges for one effect). This is a graph-level check-then-act race, not the
+single-row lost-update shape 5j fixes — needs a locking or isolation strategy
+spanning findReachableEdgesFrom's read and saveEdge's write as one unit (e.g.
+SERIALIZABLE isolation, or a row lock on the effect side before the cycle check),
+designed here rather than assumed.
+
+Register both as NestJS providers in HazardousEventsModule (5g).
+```
+
+**Files touched:**
+
+- `app/domains/hazardous-events/infrastructure/DrizzleCausalChainRepository.server.ts` (new)
+- `app/domains/hazardous-events/infrastructure/DrizzleHazardTaxonomyRepository.server.ts` (new)
+- `tests/integration/db/queries/DrizzleCausalChainRepository.test.ts` (new)
+- `tests/integration/db/queries/DrizzleHazardTaxonomyRepository.test.ts` (new)
+- `_docs/refactoring-plan/deferred-items-register.md` (update — close `DEF-021`: real
+  adapter now exists and is PGlite-tested against real schema, not just asserted
+  against a fake; close `DEF-030`: TOCTOU race closed by the locking/isolation
+  strategy above)
+
+**Test tier:** PGlite integration. Multi-hop cycle (A causes B, B causes A) seeded via
+direct insert still terminates and resolves correctly (visited-path guard); the
+`ADAPTER_ROW_BOUND` boundary case is exercised via an injectable bound (constructor
+parameter, default `5000`, matching `CAUSAL_CHAIN_TRAVERSAL_CAP`'s own
+exported-for-testability precedent) so a test can pass a small bound and seed a
+handful of rows rather than 5000 real ones; same-tenant-only inclusion for both
+taxonomy methods; a non-existent id is excluded without throwing; an empty `ids` array
+resolves an empty set without issuing a query. `countEdgesTouching`: zero edges
+resolves zero; an edge where the node is the cause and one where it's the effect
+are both counted; `deleteCauseEdges`: removes every row where the given id is the
+cause, idempotent on a second call. `DEF-030`: two concurrent `saveEdge` calls
+setting `A.causeId=B` and `B.causeId=A` do not both succeed (at most one commits,
+the other rejects or waits); two concurrent calls setting different causes on the
+same effect do not both land — one wins, the other is rejected, not two surviving
+cause edges for one effect.
+
+---
+
+### 🔷 5j — Optimistic Locking for `IWorkflowRepository` (`DrizzleWorkflowRepository` only — see scope note below)
+
+**Resolved 2026-10-12 (see `feature/ca-workflow-optimistic-locking`'s design.md Decision
+2):** the paragraph below's "`save()` is an upsert, so the fix extends its existing
+`setWhere` guard" plan was superseded during design — `save()` was split into
+`insert()` (plain INSERT, unchanged) and `update()` (a plain conditional `UPDATE`,
+never an upsert, no insert fallback at all). The no-upsert-fallback property is what
+closes the delete/resurrection race described below, not an extended `setWhere` guard.
+
+**Branch:** `feature/ca-workflow-optimistic-locking`
+
+**Added 2026-09-24, closes `DEF-024`.** `3a` accepted this risk knowingly
+(`UNIQUE(entityId, entityType)` only guards first-insert races, not lost updates to an
+existing row); `4a` gave the port its first real caller, making the race reachable in
+practice — two callers racing off the same stale read produce last-write-wins with no
+error to either side, e.g. a stale `'return'` silently overwriting an already-`PUBLISHED`
+row. `5a`'s own review (2026-10-09) found a second interleaving on this same repository:
+`deleteByEntity()` followed by a stale, already-in-flight `save()` silently resurrects
+the just-deleted row — a version check alone doesn't catch this, since the row it would
+guard no longer exists after delete. **No existing pattern to follow here** — confirmed
+via repo-wide grep (2026-09-24): no table anywhere in this codebase has a `version`
+column, and no legacy model issues an `updatedAt`-conditioned `UPDATE ... WHERE` for
+concurrency control. This is genuinely new ground for the codebase, not an application of
+an established convention.
+
+**Scope narrowed 2026-10-12:** fixes `DrizzleWorkflowRepository` only — the identical
+race on `IHazardousEventRepository.save()` moves to `DEF-037` (owned by `5d`, no adapter
+exists yet to fix). Confirmed against `5a`'s real code, not assumed: `save()` is an
+upsert, so the fix extends its existing `setWhere` guard rather than adding a separate
+`UPDATE`; `updatedAt` is app-managed with no DB trigger, and `save()`'s signature has no
+slot yet for "the previous value to check against"; a zero-row result already means one
+thing (Decision 3's entity-mismatch guard) and must not be conflated with the new check.
+
+**Intent for `/opsx:propose`:**
+
+```
+Add lost-update protection to DrizzleWorkflowRepository.save() (5a) — a conditional
+UPDATE (WHERE id = ? AND updatedAt = ? [the value read before this call's own
+transition]) that affects zero rows when another writer has already changed the row
+since, distinguishable from "row doesn't exist at all." IWorkflowRepository.save()'s
+contract gains a new thrown error (e.g. ConcurrentModificationError extends
+ConflictError) for this case. ProcessWorkflowActionUseCase (4a) needs a design
+decision on how it reacts: propagate unmodified (simplest, matches its own existing
+"errors propagate unmodified" precedent) vs. a bounded retry (re-read, re-apply the
+same action, re-save) — the retry option changes 4a's own behavior contract and
+needs its own scrutiny, not a default assumption.
+```
+
+**Files touched:**
+
+- `app/domains/validation-workflow/infrastructure/DrizzleWorkflowRepository.server.ts`
+  (modified — `save()`'s conditional UPDATE)
+- `app/domains/validation-workflow/application/ports/IWorkflowRepository.ts` (modified —
+  document the new thrown error)
+- `app/domains/validation-workflow/application/use-cases/ProcessWorkflowAction.ts`
+  (modified, if the design decision above chooses retry over propagate-unmodified)
+- Tests for all of the above, PGlite integration tier for the repository's own conflict
+  detection
+
+**Test tier:** PGlite integration — two sequential `save()` calls against the same row,
+the second using a stale `updatedAt`, throws the new error and affects zero rows; a
+normal single-writer `save()` still succeeds; `4a`'s own use-case tests updated for
+whichever reaction (propagate/retry) the design settles on.
+
+---
+
+### 🔷 5k — Unit-of-Work for Multi-Write Use Cases
+
+**Branch:** `feature/ca-persistence-unit-of-work`
+
+**Added 2026-09-24, closes `DEF-026`.** `4b`'s `CreateHazardousEventUseCase` makes three
+sequential, non-transactional writes (`HazardousEvent` → `WorkflowInstance` → causal
+edge) with no atomicity — `4b`'s own design.md Decision 5 accepted this explicitly,
+choosing a write order that minimizes (not eliminates) the worse failure mode. `4c`'s
+`UpdateHazardousEventUseCase` has the same shape (`HazardousEvent` field changes +
+possible causal-edge change + possible delegated `RecordSpatialObservationUseCase` call,
+all in one submission) and should be covered by the same mechanism, not a second
+one-off fix. **A real precedent exists to follow, not invent** — confirmed via
+repo-wide grep (2026-09-24): legacy code already wraps multi-table writes in
+`tx.transaction(async (tx) => {...})` for exactly this kind of logical operation (e.g.
+`app/backend.server/models/event/hazardous_event_create_update.ts:365`,
+`app/backend.server/models/event.ts:930/1240`), and `app/db.server.ts`'s `Tx` type is
+already threaded as a parameter type through ~95 files across
+`app/db/queries/`/`app/backend.server/models/`. This intent applies that same
+established convention to the new CA ports, rather than designing a novel abstraction.
+
+**Widened 2026-10-07 to also close `DEF-033` (and the `DeleteHazardousEventUseCase`
+clause of `DEF-031`)** — the register originally pointed `DEF-033` at `5f`, but `5f`
+only ever implemented a count query, never a transaction; wrapping multi-write
+use cases in one transaction is this intent's job, and `4f`'s
+`DeleteHazardousEventUseCase` has the same shape as Create/Update: two sequential
+writes (`IWorkflowRepository.deleteByEntity` then `IHazardousEventRepository.delete`)
+with no atomicity between them. `DEF-033`'s own check-then-delete race (a dependent
+row inserted after the counts pass but before `delete()` commits) needs more than
+plain `tx.transaction` wrapping — the counts and the delete must run under a locking
+or isolation strategy strong enough to prevent that race, not just wrap the writes;
+work out the exact mechanism (e.g. `SELECT ... FOR UPDATE` on the target row before
+the counts, or `SERIALIZABLE` isolation) as part of this intent's own design, not
+assumed here.
+
+**Intent for `/opsx:propose`:**
+
+```
+Thread Tx through IHazardousEventRepository.save()/delete(), IWorkflowRepository.save()/
+deleteByEntity(), and ICausalChainRepository.saveEdge() (each gains an optional
+trailing tx?: Tx parameter, defaulting to the module-level dr connection when
+omitted, matching this codebase's own existing convention across ~95 files) and wrap:
+
+- CreateHazardousEventUseCase's (4b) and UpdateHazardousEventUseCase's (4c)
+  multi-write sequences in one dr.transaction(async (tx) => {...}) block, passing tx
+  to every save() call inside it. Does not change either use case's own write order
+  or error-propagation contract (4b design.md Decision 5, Decision 8) — only makes
+  the existing sequence atomic.
+- DeleteHazardousEventUseCase's (4f) deleteByEntity-then-delete sequence in the same
+  way, closing DEF-033's compounding note in DEF-031 (a delete() failure after
+  deleteByEntity() succeeds can no longer leave a HazardousEvent with no
+  WorkflowInstance). DEF-033's own check-then-delete race needs its own
+  locking/isolation strategy spanning the dependent-count queries and the delete —
+  design this explicitly, it is not satisfied by transaction-wrapping alone.
+
+A rolled-back transaction on any failure means the "HazardousEvent with no
+WorkflowInstance" and "cause event deleted mid-flight" partial-write scenarios
+named in 4b's design.md Decision 5 can no longer occur, for Create/Update/Delete alike.
+```
+
+**Files touched:**
+
+- `app/domains/hazardous-events/infrastructure/DrizzleHazardousEventRepository.server.ts`
+  (modified — `save()`/`delete()` accept optional `tx`)
+- `app/domains/hazardous-events/infrastructure/DrizzleCausalChainRepository.server.ts`
+  (modified — `saveEdge()` accepts optional `tx`, built in `5i`)
+- `app/domains/validation-workflow/infrastructure/DrizzleWorkflowRepository.server.ts`
+  (modified — `save()`/`deleteByEntity()` accept optional `tx`, built in `5a`)
+- `app/domains/hazardous-events/application/use-cases/CreateHazardousEvent.ts` (modified
+  — wraps its three writes in one transaction)
+- `app/domains/hazardous-events/application/use-cases/UpdateHazardousEvent.ts` (modified
+  — same, once `4c` exists)
+- `app/domains/hazardous-events/application/use-cases/DeleteHazardousEvent.ts` (modified
+  — wraps `deleteByEntity`+`delete` in one transaction; dependent-count/delete race
+  needs its own locking strategy, see above)
+- `_docs/refactoring-plan/deferred-items-register.md` (close `DEF-026`, `DEF-033`;
+  update `DEF-031`'s `DeleteHazardousEventUseCase` clause)
+
+**Test tier:** PGlite integration — a forced failure on the second or third write (e.g.
+a stubbed rejection) leaves **zero** rows persisted for the whole operation, not a
+partial write; a caller retry after a rolled-back failure does not leave an orphaned
+row behind (the retry-creates-a-duplicate risk named in `4b` design.md Decision 5
+still applies — a new attempt is still a new logical operation — but a _failed_
+attempt no longer leaves debris); for Delete, a forced failure on the second write
+(`delete()`) after `deleteByEntity()` succeeds leaves the `WorkflowInstance` intact,
+not orphaned-deleted; a dependent row inserted concurrently between the counts and
+the delete is detected, not silently cascaded away.
+
+---
+
+### 🔷 5n — Cross-Tenant Causal-Chain Access Control
+
+**Branch:** `feature/ca-he-causal-chain-access-control`
+
+**Scheduled into Phase 5, 2026-10-07, closes `DEF-012`.** `2e` deliberately allows
+cross-tenant cause/effect links on `hazardous_event_causality` (a real transboundary
+hazard need, e.g. Nepal→India floods) but no sharing/access-control mechanism exists
+— a tenant can see that a cross-tenant link exists (via `4f`'s dependent-check
+disclosure) but today nothing governs who may *view* the other tenant's linked event
+itself. Was previously an unscheduled, watch-for item ("before Phase 3c or Phase 5
+builds real access control around this table") — Phase 3c has since passed with no
+access-control work; this intent is where it's finally picked up. Runs after `5i`
+(needs `DrizzleCausalChainRepository`'s real adapter and queries to wrap).
+
+**Intent for `/opsx:propose`:** genuinely open design work, not an application of an
+established convention — confirm via repo-wide grep (no existing cross-tenant
+sharing/grant mechanism anywhere in this codebase) before assuming the leading
+candidate below is right.
+
+```
+Design and implement an access-control mechanism for cross-tenant
+hazardous_event_causality links. Leading candidate from 2e's own design.md
+Decision 12: explicit per-record sharing grants (Salesforce <Object>Share-style) —
+not yet decided, confirm or replace during this intent's own design phase. Must
+answer: who can grant a cross-tenant share (the owning tenant only, or either
+side), what a grantee tenant can see (the linked event's full detail, or only its
+existence), and how this interacts with 4f's existing dependent-check disclosure
+(same-tenant count vs. cross-tenant-exists boolean) — does a grant change what that
+boolean reveals.
+```
+
+**Files touched:** not yet determined — depends on this intent's own design
+decisions. At minimum: a new table or column for sharing grants, a port/adapter to
+check grant existence, and `ICausalChainRepository`'s (`5i`) queries updated to
+respect grants where they gate visibility.
+
+**Test tier:** PGlite integration — a cross-tenant link with no grant is excluded
+from whatever access check this intent adds; a granted cross-tenant link is
+included; revoking a grant removes access without deleting the underlying link.
 
 ---
 
@@ -1625,6 +2193,12 @@ instead — whichever lands first.
 `yarn test:run2` fully green. `yarn tsc` clean. All PGlite integration tests for both
 modules pass on `dev`, including cross-module resolution (`HazardousEventsModule`
 successfully resolving a use case that depends on `ValidationWorkflowModule`'s port).
+**Blocking, no exceptions (added 2026-09-24, widened 2026-10-07, widened again
+2026-10-12):** `DEF-024`, `DEF-026`, `DEF-033`, and `DEF-037` are all closed — `5j`,
+`5k`, and `5d` (for `DEF-037`'s `IHazardousEventRepository` piece, split from `DEF-024`)
+land and pass their own PGlite tests before this gate is considered passed. None may be
+waved through as "planned but deferred further" once Phase 5 starts; the gate does not
+pass with any still open in the register.
 
 ---
 
@@ -1778,6 +2352,14 @@ behave identically, unlike today where only the missing-header case worked.
 **Branch:** `feature/ca-hazardous-events-rest-controller`
 
 **Depends on:** 5g (`HazardousEventsModule` wired into DI), 6e (`ApiKeyAuthGuard`)
+
+**Checkpoint before `GET /:id` ships (`DEF-031`):** `GetHazardousEventByIdUseCase` throws
+`NotFoundError` for any event with no `WorkflowInstance` row. Every event created before this
+refactor has no such row until Phase M's backfill (`Ma`, being worked by another team member in
+parallel) has actually run against the target environment. Confirm that backfill is complete
+before wiring this endpoint — if it isn't, `GetHazardousEventByIdUseCase`'s missing-`WorkflowInstance`
+handling needs to change first (see `ca-he-get-by-id-use-case` design.md Decision 2), not ship as-is
+against unmigrated data.
 
 **Intent for `/opsx:propose`:**
 
@@ -1994,6 +2576,52 @@ still green against the post-drop, post-move schema.
 
 ---
 
+### ⬜ 7f — ADR-002 Date Precision Migration (`DEF-028`)
+
+**Added 2026-10-01, surfaced during `4c`'s readiness check.** ADR-002 already decided this
+exact question for `startDate`/`endDate`-shaped fields — `TIMESTAMPTZ` (UTC anchor) + a
+`TEXT` precision enum (`YEAR`/`YEAR_MONTH`/`DATE`/`DATETIME`), EDTF/ISO-8601-2-aligned — and
+names `hazardous_event` as the migration's own trigger (ADR-002 Consequences). Still
+unimplemented: the table is still plain `TEXT`. Distinct from `4c`'s own narrow `DEF-020`
+fix (format-validating the existing string comparison, not changing the column type).
+Also distinct from, but related to, `7e`'s own open question about whether
+`startDate`/`endDate`'s `zeroText()` `NOT NULL DEFAULT ''` pattern should become nullable —
+the precision enum supersedes that question for these two columns specifically, since the
+`TIMESTAMPTZ` anchor is always set to a known value once precision is tracked separately.
+
+**Branch:** `feature/ca-he-date-precision-migration`
+
+**Scope:**
+
+```
+Add event_start_precision/event_end_precision TEXT enum columns
+(YEAR|YEAR_MONTH|DATE|DATETIME) alongside hazardousEventTable's startDate/endDate,
+migrate TIMESTAMPTZ (backfilling precision from the existing TEXT values' own
+granularity — a year-only "2015" backfills precision=YEAR, anchor
+2015-01-01T00:00:00Z), update HazardousEvent.create()'s own validation and
+comparison logic to use the new typed Date + precision pair instead of raw
+strings, and update any form/display logic that renders these fields to respect
+the precision flag (show only the fields the user knows, per ADR-002's own
+table). Luxon dependency evaluation (ADR-002 Consequences) belongs here too, not
+assumed available already.
+```
+
+**Files touched:**
+
+- `app/drizzle/migrations/<timestamp>_add_hazardous_event_date_precision.sql` (new)
+- `app/domains/hazardous-events/infrastructure/hazardousEventTable.ts` (modified — new
+  columns, assuming `7e`'s relocation already landed; otherwise the pre-relocation path)
+- `app/domains/hazardous-events/domain/HazardousEvent.ts` (modified — `startDate`/`endDate`
+  become typed `Date` + precision pair, not raw strings)
+- Any presentation-layer form/display code rendering these fields (updated for precision-aware
+  rendering)
+
+**Test tier:** PGlite integration — backfill correctness per precision level; domain-layer
+unit tests — comparison/validation logic for each precision level, matching ADR-002's own
+sorting rule ("year-only records sort to January 1st of that year").
+
+---
+
 ### 🏁 Phase 7 Gate — Refactor Complete
 
 Old implementation fully retired (web, API, model layer, dead code). Schema cleanup landed.
@@ -2099,7 +2727,11 @@ own, non-OpenSpec track alongside both.
    recursive CTE and stop on a repeat, with the depth value repurposed as a high runaway-query
    safety cap (e.g. 500), not the detection mechanism itself. The one gap this doesn't close — two
    concurrent requests racing to create a cycle simultaneously — is accepted as low-probability
-   given this isn't a high-concurrency write path.
+   given this isn't a high-concurrency write path. **Confirmed still the accepted answer for `4b`
+   (2026-09-25):** `CreateHazardousEventUseCase`'s own cycle check (`findReachableEdgesFrom` +
+   `assertCausalLinkDoesNotCreateCycle`) has the identical TOCTOU gap — two opposite-direction
+   link requests could each pass their own check before either write commits. Not a new risk
+   needing its own decision; the same acceptance applies, now with a second concrete instance.
 8. ~~How CSV import/export and the existing API map onto the new time-series
    `hazardous_event_spatial_observation` model~~ — **decided: current/latest observation by
    `observation_time` (not insertion order) is the default read everywhere — UI, CSV export, and

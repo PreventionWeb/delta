@@ -80,6 +80,6 @@ rules:
     - "Quality gate 8 of 10: Code review — run .github/skills/code-review/SKILL.md in full, via a fresh subagent"
     - "Quality gate 9 of 10: Visual/UX parity review — required only if this change touches app/domains/*/presentation/ or app/routes/, else skip and say so explicitly"
     - "Quality gate 10 of 10: Independent second-opinion review, Claude Code only — its built-in code-review at high effort via a second fresh subagent; other tools use an equivalent platform feature or skip"
-    - "If this change adds or modifies anything under app/domains/*/domain/: add a test quality task — invoke test-quality-auditor scoped to the changed files, resolve any real gap found"
+    - "If this change adds or modifies any file under app/domains/** that contains real implementation logic (not a type-only interface/port declaration, not a trivial re-export): add a test quality task — invoke test-quality-auditor scoped to the changed files, resolve any real gap found"
     - "After all applicable gates: add a mandatory regression task — yarn test:run2 (full PGlite suite) must pass with no new failures before archiving; pre-existing failures must be confirmed as pre-existing, not assumed"
     - "Final task after the regression task: run opsx:archive on the same branch before raising the PR."

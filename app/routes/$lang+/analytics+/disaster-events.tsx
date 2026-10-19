@@ -24,7 +24,6 @@ import { sectorChildrenById } from "~/backend.server/models/sector";
 
 import {
 	getDivisionByLevel,
-	getCountDivisionByLevel1,
 } from "~/backend.server/models/division";
 import { dr } from "~/db.server"; // Drizzle ORM instance
 import MapChart, { MapChartRef } from "~/components/MapChart";
@@ -131,9 +130,6 @@ export const loader = authLoaderPublicOrWithPerm(
 
 		// Use the shared public tenant context for analytics
 		const countryAccountsId = await getCountryAccountsIdFromSession(request);
-		const countDivisionByLevel1 =
-			await getCountDivisionByLevel1(countryAccountsId);
-		const geoLevelSelectorOverride = countDivisionByLevel1 === 1 ? 2 : 1; // Adjust geographic level to level 2 if only one value exists in level 1 division
 
 		if (qsDisEventId) {
 			// Pass public tenant context for analytics access
@@ -287,7 +283,7 @@ export const loader = authLoaderPublicOrWithPerm(
 					);
 
 					const divisionLevel1 = await getDivisionByLevel(
-						geoLevelSelectorOverride,
+						1,
 						settings.countryAccountsId,
 					);
 					for (const item of divisionLevel1) {
@@ -1352,6 +1348,7 @@ function DisasterEventsAnalysisContent() {
 														ref={mapChartRef}
 														id="map_viewer"
 														dataSource={activeData}
+														mapMode="light"
 														legendTitle={ctx.t({
 															code: "analysis.total_damage",
 															msg: "Total damage",

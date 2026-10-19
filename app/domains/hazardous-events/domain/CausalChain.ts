@@ -1,4 +1,8 @@
 import { ConflictError, ValidationError } from "~/shared/errors";
+import {
+	isValidFlexibleDateFormat,
+	normalizeFlexibleDateFloor,
+} from "~/domains/shared/domain/flexibleDateFormat";
 
 /** A directed cause -> effect edge in `hazardous_event_causality`'s graph (design.md Decision 6 — plain in-memory shape, no port/DB). */
 export interface CausalEdge {
@@ -78,5 +82,27 @@ export function assertCausalLinkDoesNotCreateCycle(
 			visited.add(next);
 			queue.push(next);
 		}
+	}
+}
+
+/** A malformed causeStartDate or effectStartDate skips this check. */
+export function assertCauseStartsNoLaterThanEffect(
+	causeStartDate: string,
+	effectStartDate: string,
+): void {
+	if (
+		!isValidFlexibleDateFormat(causeStartDate) ||
+		!isValidFlexibleDateFormat(effectStartDate)
+	) {
+		return;
+	}
+	if (
+		normalizeFlexibleDateFloor(causeStartDate) >
+		normalizeFlexibleDateFloor(effectStartDate)
+	) {
+		throw new ConflictError(
+			"The cause event must not start later than the effect event",
+			{ causeStartDate, effectStartDate },
+		);
 	}
 }

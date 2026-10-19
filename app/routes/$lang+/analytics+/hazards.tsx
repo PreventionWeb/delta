@@ -122,6 +122,8 @@ export const action = async (actionArgs: ActionFunctionArgs) => {
 		toDate,
 	};
 
+	
+	
 	const geographicLevel1 = await getDivisionByLevel(1, countryAccountsId);
 
 	const disasterCount = await getDisasterEventCount(filters);

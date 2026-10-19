@@ -419,8 +419,8 @@ export const loader = authLoaderPublicOrWithPerm(
 
 					if (geoHandlerResponse) {
 						// Transform the handler response into proper GeoJSON format
-					if (geoHandlerResponse.success && geoHandlerResponse.divisions) {
-						const features = geoHandlerResponse.divisions
+						if (geoHandlerResponse.success && geoHandlerResponse.divisions) {
+							const features = geoHandlerResponse.divisions
 							.map((division) => {
 								const geometry = toGeoJsonGeometry(division.geojson);
 
