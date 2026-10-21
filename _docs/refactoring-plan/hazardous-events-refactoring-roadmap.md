@@ -2103,25 +2103,84 @@ work out the exact mechanism (e.g. `SELECT ... FOR UPDATE` on the target row bef
 the counts, or `SERIALIZABLE` isolation) as part of this intent's own design, not
 assumed here.
 
+**Corrected 2026-10-19 — method names updated to match `5a`/`5d`/`5i`'s actual
+implementations, found during this intent's own readiness check.** This text originally
+said `save()` for both repositories, written before `5a`/`5d` split that into separate
+`insert()`/`update()` methods, and never named `ICausalChainRepository.replaceCauseEdge()`
+(added by `5i`, which `UpdateHazardousEventUseCase` actually calls — `saveEdge()` is only
+`CreateHazardousEventUseCase`'s call). Scope is unchanged, only the real method names.
+
+**Decided 2026-10-19 (user discussion after this intent's own readiness check) — three
+further points, widening scope beyond the paragraph above:**
+
+1. **Nested-transaction mechanics.** Every write method already opens its own internal
+   `this.db.transaction(...)`. Threading an external `tx` needs no conditional-skip logic
+   — change each to `(tx ?? this.db).transaction(...)`. Drizzle ORM's own docs confirm
+   `.transaction()` called on a handle already inside an open transaction becomes a
+   `SAVEPOINT`, not a new `BEGIN`, on Postgres — this is documented Drizzle behavior, not
+   an assumption.
+2. **`saveEdge`/`replaceCauseEdge`'s advisory-lock lifetime changes, deliberately.**
+   `pg_advisory_xact_lock` is tied to the real underlying transaction, not a savepoint —
+   confirmed against Postgres 17 (this project's own version): a lock acquired after a
+   savepoint is released only if that specific savepoint is rolled back; a successful
+   `RELEASE SAVEPOINT` does not undo it. So once nested inside Create/Update's outer
+   transaction, the lock is held for the whole operation, not just the single edge-write
+   — a benign, more-conservative change, not a bug. Note this in design.md; no decision
+   needed.
+3. **`DEF-033`'s race needs a concrete locking mechanism, and it touches more files than
+   listed below.** Confirmed via schema: `disaster_event.hazardous_event_id`,
+   `event_causality.triggering/triggered_hazardous_event_id`, and
+   `hazardous_event_causality.cause/effect_hazardous_event_id` all FK-reference
+   `hazardousEventTable.id` directly. Mechanism: acquire `SELECT ... FOR UPDATE` on the
+   target `hazardous_event` row (new port method — `findByIdForUpdate` or equivalent),
+   then re-run the three dependent-count queries inside that same transaction before
+   deleting. Any concurrent FK-referencing insert takes an implicit `FOR KEY SHARE` lock
+   on that row and blocks until our transaction ends — confirmed against Postgres's own
+   row-lock-mode documentation. This requires threading `tx` through
+   `IHazardousEventRepository.countReferencingDisasterEvents()`,
+   `IEventCausalityRepository.countReferences()`, and
+   `ICausalChainRepository.countEdgesTouching()` too — not just the five write methods
+   named above.
+4. **`UpdateHazardousEventUseCase`'s delegated spatial-observation write is included,
+   via Option A.** Its third write doesn't call a repository directly — it delegates to
+   `RecordSpatialObservationUseCase.execute()`, which calls
+   `IHazardousEventRepository.saveSpatialObservation()` (still an unimplemented `5e`
+   stub today). Chosen: widen `RecordSpatialObservationCommand` to accept an optional
+   `tx`, threaded down to `saveSpatialObservation()` — a first-of-its-kind pattern (no
+   existing use case in this codebase accepts a `tx` on its own `execute()`), accepted
+   deliberately since the same team picks up `5e` next and can honor the shape it
+   establishes now.
+
 **Intent for `/opsx:propose`:**
 
 ```
-Thread Tx through IHazardousEventRepository.save()/delete(), IWorkflowRepository.save()/
-deleteByEntity(), and ICausalChainRepository.saveEdge() (each gains an optional
-trailing tx?: Tx parameter, defaulting to the module-level dr connection when
-omitted, matching this codebase's own existing convention across ~95 files) and wrap:
+Thread Tx through IHazardousEventRepository.insert()/update()/delete()/
+countReferencingDisasterEvents()/findByIdForUpdate() (new), IWorkflowRepository.
+insert()/update()/deleteByEntity(), ICausalChainRepository.saveEdge()/
+replaceCauseEdge()/countEdgesTouching(), IEventCausalityRepository.countReferences(),
+and RecordSpatialObservationUseCase.execute() (via an optional tx on
+RecordSpatialObservationCommand) — each gains an optional trailing tx?: Tx parameter
+(or, for RecordSpatialObservationCommand, an optional tx field), defaulting to the
+module-level dr connection when omitted, matching this codebase's own existing
+convention across ~95 files. Repository methods that already open their own
+this.db.transaction(...) change to (tx ?? this.db).transaction(...) — Drizzle's
+documented savepoint nesting makes this safe with no conditional-skip logic. Wrap:
 
 - CreateHazardousEventUseCase's (4b) and UpdateHazardousEventUseCase's (4c)
-  multi-write sequences in one dr.transaction(async (tx) => {...}) block, passing tx
-  to every save() call inside it. Does not change either use case's own write order
-  or error-propagation contract (4b design.md Decision 5, Decision 8) — only makes
-  the existing sequence atomic.
-- DeleteHazardousEventUseCase's (4f) deleteByEntity-then-delete sequence in the same
-  way, closing DEF-033's compounding note in DEF-031 (a delete() failure after
-  deleteByEntity() succeeds can no longer leave a HazardousEvent with no
-  WorkflowInstance). DEF-033's own check-then-delete race needs its own
-  locking/isolation strategy spanning the dependent-count queries and the delete —
-  design this explicitly, it is not satisfied by transaction-wrapping alone.
+  multi-write sequences — including Update's delegated RecordSpatialObservationUseCase
+  call — in one this.transactionRunner.run(async (tx) => {...}) call (a new
+  ITransactionRunner port injected into each use case, not a direct dr.transaction()
+  call — the use case never holds a Drizzle handle; see 5k's own design.md Decision 1),
+  passing tx through every call inside it. Does not change either use case's own write
+  order or error-propagation contract (4b design.md Decision 5, Decision 8) — only
+  makes the existing sequence atomic.
+- DeleteHazardousEventUseCase's (4f) sequence in the same way, additionally acquiring
+  findByIdForUpdate()'s row lock before re-running the three dependent-count queries
+  inside the same transaction, then deleteByEntity()+delete() — closing DEF-033's own
+  check-then-delete race via Postgres's FOR UPDATE/FOR KEY SHARE conflict, not just
+  transaction-wrapping, and closing DEF-033's compounding note in DEF-031 (a delete()
+  failure after deleteByEntity() succeeds can no longer leave a HazardousEvent with no
+  WorkflowInstance).
 
 A rolled-back transaction on any failure means the "HazardousEvent with no
 WorkflowInstance" and "cause event deleted mid-flight" partial-write scenarios
@@ -2131,18 +2190,27 @@ named in 4b's design.md Decision 5 can no longer occur, for Create/Update/Delete
 **Files touched:**
 
 - `app/domains/hazardous-events/infrastructure/DrizzleHazardousEventRepository.server.ts`
-  (modified — `save()`/`delete()` accept optional `tx`)
+  (modified — `insert()`/`update()`/`delete()`/`countReferencingDisasterEvents()` accept
+  optional `tx`; new `findByIdForUpdate()`)
 - `app/domains/hazardous-events/infrastructure/DrizzleCausalChainRepository.server.ts`
-  (modified — `saveEdge()` accepts optional `tx`, built in `5i`)
+  (modified — `saveEdge()`/`replaceCauseEdge()`/`countEdgesTouching()` accept optional
+  `tx`, built in `5i`)
+- `app/domains/event-causality/infrastructure/DrizzleEventCausalityRepository.server.ts`
+  (modified — `countReferences()` accepts optional `tx`)
 - `app/domains/validation-workflow/infrastructure/DrizzleWorkflowRepository.server.ts`
-  (modified — `save()`/`deleteByEntity()` accept optional `tx`, built in `5a`)
+  (modified — `insert()`/`update()`/`deleteByEntity()` accept optional `tx`, built in
+  `5a`)
 - `app/domains/hazardous-events/application/use-cases/CreateHazardousEvent.ts` (modified
   — wraps its three writes in one transaction)
 - `app/domains/hazardous-events/application/use-cases/UpdateHazardousEvent.ts` (modified
-  — same, once `4c` exists)
+  — wraps its writes, including the delegated spatial-observation call, in one
+  transaction)
+- `app/domains/hazardous-events/application/use-cases/RecordSpatialObservation.ts`
+  (modified — `RecordSpatialObservationCommand` gains an optional `tx` field, threaded
+  to `saveSpatialObservation()`)
 - `app/domains/hazardous-events/application/use-cases/DeleteHazardousEvent.ts` (modified
-  — wraps `deleteByEntity`+`delete` in one transaction; dependent-count/delete race
-  needs its own locking strategy, see above)
+  — acquires `findByIdForUpdate()`'s lock, re-runs dependent counts, then wraps
+  `deleteByEntity`+`delete` — all in one transaction)
 - `_docs/refactoring-plan/deferred-items-register.md` (close `DEF-026`, `DEF-033`;
   update `DEF-031`'s `DeleteHazardousEventUseCase` clause)
 
