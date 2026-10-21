@@ -11,10 +11,14 @@ explicit tenant-scoping contract on every method that reads, writes, or deletes 
 ### Requirement: IHazardousEventRepository interface compiles as a valid, framework-free TypeScript port
 
 The file `app/domains/hazardous-events/application/ports/IHazardousEventRepository.ts` MUST export
-an interface named `IHazardousEventRepository`. It MUST declare exactly the nine methods
+an interface named `IHazardousEventRepository`. It MUST declare exactly the ten methods
 described below with the exact signatures shown. The file MUST NOT import from any Drizzle,
-NestJS, or Remix module — only from `app/domains/hazardous-events/domain/HazardousEvent.ts` and
-shared value types.
+NestJS, or Remix module, **except** `app/db.server.ts`'s exported `Tx` type, imported as
+`import type { Tx } from "~/db.server"` — a type-only import, erased at compile time, so this
+file never loads `db.server.ts`'s runtime `dr` connection or pool. `Tx` carries no table-shape
+information (it is a union over "the module-level connection" and "an already-open transaction
+handle"), unlike a Drizzle `$inferSelect`/`$inferInsert` row type — the distinction this
+exception exists to preserve (design.md Decision 3).
 
 #### Scenario: TypeScript compilation succeeds
 
@@ -25,9 +29,13 @@ shared value types.
 
 ### Requirement: findById is tenant-scoped and throws NotFoundError when absent
 
-`findById(id: string, tenantId: string): Promise<HazardousEvent>` MUST be declared on the
-interface. An implementation MUST throw `NotFoundError` (from `app/shared/errors/`) when no
-`HazardousEvent` exists for the given `id` within `tenantId` — it MUST NOT resolve `null`.
+`findById(id: string, tenantId: string, tx?: Tx): Promise<HazardousEvent>` MUST be declared on
+the interface. An implementation MUST throw `NotFoundError` (from `app/shared/errors/`) when no
+`HazardousEvent` exists for the given `id` within `tenantId` — it MUST NOT resolve `null`. When
+`tx` is supplied (found during Task 9's own implementation — `RecordSpatialObservationUseCase`
+calls this method while participating in a caller's own open transaction), every statement this
+method issues, including its own `loadChildCollections` rehydration read, MUST execute against
+that same `tx`, not a separate connection.
 
 #### Scenario: Method signature is present with correct arity
 
@@ -35,6 +43,14 @@ interface. An implementation MUST throw `NotFoundError` (from `app/shared/errors
 - **WHEN** a TypeScript class declares `implements IHazardousEventRepository` and omits `tenantId`
   from `findById`
 - **THEN** `yarn tsc` MUST report a type error
+
+#### Scenario: Called under a caller-supplied tx, the read (including child collections) executes against that same tx
+
+- **GIVEN** an open, not-yet-committed transaction `tx` under which this same transaction has
+  already written a change to the target row
+- **WHEN** `findById(id, tenantId, tx)` is called
+- **THEN** the resolved entity, including its four child collections, MUST reflect that same
+  transaction's own uncommitted write — not a separate connection's stale view
 
 ### Requirement: findById propagates a rehydration failure unmodified
 
@@ -91,20 +107,24 @@ invalid row reject the entire call.
 
 ### Requirement: insert persists a brand-new HazardousEvent and its four child collections
 
-`insert(entity: HazardousEvent): Promise<HazardousEvent>` MUST be declared on the
+`insert(entity: HazardousEvent, tx?: Tx): Promise<HazardousEvent>` MUST be declared on the
 interface. An implementation MUST persist the entity's own fields plus all four child
 collections (`hazardDriverIds`, `attachments`, `fieldValues`, `customFieldValues`) as a
 single atomic unit — a failure partway through MUST leave no partial row or partial child
 collection persisted. It MUST NOT declare a separate `tenantId` parameter — the entity's
 own `tenantId` property carries tenancy. A referential-integrity violation or malformed
 input in the write itself (e.g. a child collection referencing a nonexistent id) MUST
-reject with `ValidationError`, not an opaque database error.
+reject with `ValidationError`, not an opaque database error. When `tx` is supplied, every
+statement this method issues — including any read needed to assemble the resolved return
+value — MUST execute against that same `tx`, not a separate connection, so a caller
+nesting this call inside its own open transaction observes this method's own writes.
 
-#### Scenario: Method signature has exactly one parameter
+#### Scenario: Method signature has exactly two parameters, the second optional
 
 - **GIVEN** the `IHazardousEventRepository` interface's `insert` method
 - **WHEN** its parameter list is inspected
-- **THEN** it MUST declare exactly one parameter, `entity: HazardousEvent`
+- **THEN** it MUST declare exactly two parameters, `entity: HazardousEvent` and an optional
+  `tx?: Tx`
 
 #### Scenario: A brand-new entity and its child collections are persisted together
 
@@ -122,9 +142,18 @@ reject with `ValidationError`, not an opaque database error.
 - **WHEN** `insert(entity)` is called with a different entity sharing that same `id`
 - **THEN** the call MUST reject, and MUST NOT silently overwrite the existing row
 
+#### Scenario: A caller-supplied tx sees this method's own writes within the same transaction
+
+- **GIVEN** an open transaction handle `tx`, obtained by a caller that has not yet committed it
+- **WHEN** `insert(entity, tx)` is called, followed — still within the same `tx`, before
+  commit — by a read of the inserted entity's child collections via that same `tx`
+- **THEN** that read MUST reflect the full entity, including all four child collections,
+  exactly as `insert()` itself resolved them — not an empty or partial result caused by
+  reading through a different connection than `tx`
+
 ### Requirement: update persists a change against a previously-read HazardousEvent, guarded by optimistic locking
 
-`update(entity: HazardousEvent, expectedUpdatedAt: Date | null): Promise<HazardousEvent>`
+`update(entity: HazardousEvent, expectedUpdatedAt: Date | null, tx?: Tx): Promise<HazardousEvent>`
 MUST be declared on the interface. `expectedUpdatedAt` is the `updatedAt` value the caller
 read before computing `entity`'s new state — it is `null` when the entity being updated has
 never been updated since its own `insert()` (matching `HazardousEvent.updatedAt`'s own
@@ -139,14 +168,17 @@ with `entity`'s own current values as part of the same guarded operation — a r
 update (stale token, or no matching row) MUST leave every existing child collection
 unchanged. A referential-integrity violation or malformed input in the write itself (e.g. a
 child collection referencing a nonexistent id) MUST reject with `ValidationError`, not an
-opaque database error, and MUST leave every existing child collection unchanged.
+opaque database error, and MUST leave every existing child collection unchanged. When `tx`
+is supplied, every statement this method issues — including the zero-row diagnostic
+re-read and the child-collection read needed to assemble the resolved return value — MUST
+execute against that same `tx`, not a separate connection.
 
-#### Scenario: Method signature has exactly two parameters, the second required
+#### Scenario: Method signature has exactly three parameters, the third optional
 
 - **GIVEN** the `IHazardousEventRepository` interface's `update` method
 - **WHEN** its parameter list is inspected
-- **THEN** it MUST declare exactly two parameters, `entity: HazardousEvent` and
-  `expectedUpdatedAt: Date | null`, with no default value making the second optional
+- **THEN** it MUST declare exactly three parameters: `entity: HazardousEvent` and
+  `expectedUpdatedAt: Date | null`, both required with no default, and an optional `tx?: Tx`
 
 #### Scenario: A matching expectedUpdatedAt persists the change and replaces all four child collections
 
@@ -193,11 +225,21 @@ opaque database error, and MUST leave every existing child collection unchanged.
 - **AND** the final persisted state (scalar fields and all four child collections) MUST
   match exactly the winning call's entity, with no interleaving of the two calls' values
 
+#### Scenario: A caller-supplied tx's zero-row diagnostic reads within the same transaction
+
+- **GIVEN** an open transaction handle `tx` under which this method's conditional UPDATE
+  matches zero rows
+- **WHEN** `update(entity, expectedUpdatedAt, tx)` resolves or rejects
+- **THEN** the diagnostic re-read that classifies the zero-row result MUST execute against
+  that same `tx`, not a separate connection, so it reflects state as this transaction
+  itself sees it
+
 ### Requirement: delete is tenant-scoped
 
-`delete(id: string, tenantId: string): Promise<void>` MUST be declared on the interface, deleting
-only a row matching both `id` and `tenantId`. When no row matches `id` and `tenantId`, an
-implementation MUST resolve normally — it MUST NOT throw `NotFoundError` or any other error.
+`delete(id: string, tenantId: string, tx?: Tx): Promise<void>` MUST be declared on the
+interface, deleting only a row matching both `id` and `tenantId`. When no row matches `id` and
+`tenantId`, an implementation MUST resolve normally — it MUST NOT throw `NotFoundError` or any
+other error.
 
 #### Scenario: Method signature is present with correct arity
 
@@ -270,13 +312,14 @@ resolve normally per its existing no-throw-on-no-match contract.
 
 ### Requirement: countReferencingDisasterEvents counts Disaster Events referencing a hazardous event, not filtered by the referencing event's own tenant
 
-`countReferencingDisasterEvents(hazardousEventId: string, tenantId: string): Promise<number>`
-MUST be declared on the interface. It MUST resolve the count of `disaster_event` rows whose
-`hazardousEventId` column equals the given `hazardousEventId`, regardless of which
+`countReferencingDisasterEvents(hazardousEventId: string, tenantId: string, tx?: Tx):
+Promise<number>` MUST be declared on the interface. It MUST resolve the count of `disaster_event`
+rows whose `hazardousEventId` column equals the given `hazardousEventId`, regardless of which
 `countryAccountsId` those `disaster_event` rows themselves belong to. `tenantId` scopes the
 `HazardousEvent` side only — it MUST NOT be used to filter the counted `disaster_event` rows
 by their own tenant, since a cross-tenant reference is still a real dependent that must be
-counted, not silently excluded.
+counted, not silently excluded. When `tx` is supplied, the count query MUST execute against that
+same `tx`, not a separate connection.
 
 #### Scenario: Method signature is present with correct arity
 
@@ -307,6 +350,15 @@ counted, not silently excluded.
 - **WHEN** `countReferencingDisasterEvents(hazardousEventId, tenantId)` is called
 - **THEN** it MUST resolve `1`, not `0` — the cross-tenant row MUST NOT be excluded
 
+#### Scenario: When called under a caller-supplied tx, the count reflects that transaction's own uncommitted writes
+
+- **GIVEN** an open transaction handle `tx` under which a `disaster_event` row referencing
+  `hazardousEventId` has been inserted but not yet committed
+- **WHEN** `countReferencingDisasterEvents(hazardousEventId, tenantId, tx)` is called
+- **THEN** it MUST resolve a count that includes that uncommitted row — a read via a
+  separate connection would not see it; this method MUST NOT use a separate connection
+  when `tx` is supplied
+
 ### Requirement: findCurrentSpatialObservation returns the latest-by-observationTime reading or null
 
 `findCurrentSpatialObservation(hazardousEventId: string, tenantId: string): Promise<SpatialObservationRecord | null>`
@@ -323,9 +375,11 @@ no spatial observation recorded yet.
 
 ### Requirement: findSpatialObservationByTime performs an exact observationTime lookup
 
-`findSpatialObservationByTime(hazardousEventId: string, observationTime: Date, tenantId: string): Promise<SpatialObservationRecord | null>`
+`findSpatialObservationByTime(hazardousEventId: string, observationTime: Date, tenantId: string, tx?: Tx): Promise<SpatialObservationRecord | null>`
 MUST be declared on the interface, resolving `null` when no observation exists at exactly that
-`observationTime`.
+`observationTime`. When `tx` is supplied, the lookup MUST execute against that same `tx`, not a
+separate connection (needed so `RecordSpatialObservationUseCase`'s delegated call, when nested
+inside a caller's own transaction, never mixes connections — design.md Decision 9).
 
 #### Scenario: Method signature accepts a Date and returns a nullable record
 
@@ -336,11 +390,15 @@ MUST be declared on the interface, resolving `null` when no observation exists a
 
 ### Requirement: saveSpatialObservation is tenant-scoped by the parent hazardousEventId
 
-`saveSpatialObservation(hazardousEventId: string, observation: SpatialObservationRecord, tenantId: string): Promise<SpatialObservationRecord>`
+`saveSpatialObservation(hazardousEventId: string, observation: SpatialObservationRecord, tenantId: string, tx?: Tx): Promise<SpatialObservationRecord>`
 MUST be declared on the interface. `tenantId` exists specifically so an implementation can verify
 `hazardousEventId` belongs to `tenantId` before writing any spatial row (DEF-005) — the port
 signature carries this even though the underlying spatial tables have no `country_accounts_id`
-column of their own.
+column of their own. When `tx` is supplied, the write MUST execute against that same `tx` — this
+is the one method of the three Task 9 touches where `tx`-awareness is load-bearing for
+correctness, not just consistency: a caller nesting this call inside its own open transaction
+(e.g. `UpdateHazardousEventUseCase`'s bundled spatial-observation path) needs this write to roll
+back together with the rest of that transaction (design.md Decision 9).
 
 #### Scenario: Method signature includes an explicit tenantId
 
@@ -374,12 +432,79 @@ its own concurrent-write contract to its future adapter proposal.
 ### Requirement: No method on IHazardousEventRepository accepts a raw Drizzle or infrastructure type
 
 Every method's parameter and return types MUST be expressed in terms of `HazardousEvent`,
-`SpatialObservationRecord`, primitive types, or `Pagination` — never a Drizzle `$inferSelect`/
-`$inferInsert` type from any table file.
+`SpatialObservationRecord`, primitive types, `Pagination`, or `Tx` — never a Drizzle
+`$inferSelect`/`$inferInsert` row type from any table file. This requirement has always been
+about row-shape types specifically — a type that carries a table's own column shape — not about
+an opaque connection or transaction handle. The optional trailing `tx?: Tx` parameter on
+`insert`/`update`/`delete`/`countReferencingDisasterEvents`/`findById`/
+`findSpatialObservationByTime`/`saveSpatialObservation`, and the required `tx: Tx` parameter on
+`findByIdForUpdate`, are explicitly permitted on that basis (design.md Decision 3 and, for the
+last three, Decision 9).
 
 #### Scenario: No Drizzle type appears in the interface's method signatures
 
 - **GIVEN** the `IHazardousEventRepository` interface source
 - **WHEN** its imports and method signatures are inspected
 - **THEN** none MUST reference `SelectHazardousEvent`, `InsertHazardousEvent`, or any other
-  Drizzle-inferred type
+  Drizzle-inferred row type
+- **AND** the presence of `Tx` on `insert`, `update`, `delete`, `countReferencingDisasterEvents`,
+  `findById`, `findSpatialObservationByTime`, `saveSpatialObservation`, or `findByIdForUpdate`
+  MUST NOT be treated as a violation of this requirement
+
+### Requirement: findByIdForUpdate acquires a real row lock, tenant-scoped, requiring an already-open transaction
+
+`findByIdForUpdate(id: string, tenantId: string, tx: Tx): Promise<HazardousEvent>` MUST be
+declared on the interface, with `tx` **required**, not optional — unlike every other method on
+this interface. An implementation MUST issue a `SELECT ... FOR UPDATE` (not `FOR NO KEY UPDATE`
+or any weaker lock mode) against the `hazardous_event` row matching both `id` and `tenantId`,
+executed against the given `tx`, and MUST throw `NotFoundError` when no row matches — the same
+contract as `findById`. The resolved entity MUST include its four child collections, rehydrated
+the same way `findById` rehydrates them; a row that fails rehydration's own validation MUST
+propagate `ValidationError` unmodified, exactly as `findById` does, not resolve a partial entity.
+
+#### Scenario: Method signature requires id, tenantId, and a non-optional tx
+
+- **GIVEN** the `IHazardousEventRepository` interface's `findByIdForUpdate` method
+- **WHEN** its parameter list is inspected
+- **THEN** it MUST declare exactly three required parameters: `id: string`, `tenantId: string`,
+  and `tx: Tx` — `tx` MUST NOT be optional or carry a default value
+
+#### Scenario: A matching row is locked and resolved with its child collections
+
+- **GIVEN** a persisted `HazardousEvent` within a given `tenantId`, with non-empty
+  `hazardDriverIds`
+- **WHEN** `findByIdForUpdate(id, tenantId, tx)` is called within an open transaction `tx`
+- **THEN** it MUST resolve the entity with its child collections populated, matching `findById`'s
+  own resolved shape for the same row
+
+#### Scenario: No matching row throws NotFoundError, same as findById
+
+- **GIVEN** no `HazardousEvent` exists for a given `id`/`tenantId` pair
+- **WHEN** `findByIdForUpdate(id, tenantId, tx)` is called
+- **THEN** it MUST reject with `NotFoundError`
+
+#### Scenario: A foreign-tenant id is rejected with NotFoundError, same as findById
+
+- **GIVEN** a persisted `HazardousEvent` with `id` X under `tenantId` "tenant-1"
+- **WHEN** `findByIdForUpdate(X, "tenant-2", tx)` is called
+- **THEN** it MUST reject with `NotFoundError`, even though the row exists under a different
+  tenant
+
+#### Scenario: The acquired lock blocks a concurrent referencing insert until this transaction ends
+
+- **GIVEN** `findByIdForUpdate(id, tenantId, tx)` has resolved inside an open, not-yet-committed
+  transaction `tx`
+- **WHEN** a concurrent `INSERT` into `disaster_event` (or `event_causality`, or
+  `hazardous_event_causality`) referencing that same `hazardousEventId` is attempted on a
+  separate connection, before `tx` commits or rolls back
+- **THEN** that concurrent `INSERT` MUST block until `tx` commits or rolls back — the implicit
+  `FOR KEY SHARE` lock the insert takes on the referenced row conflicts with the held
+  `FOR UPDATE` lock
+
+#### Scenario: A row that fails rehydration validation propagates ValidationError, not NotFoundError, same as findById
+
+- **GIVEN** a stored row for a given `id`/`tenantId` whose value fails
+  `HazardousEvent.create()`'s own validation during rehydration
+- **WHEN** `findByIdForUpdate(id, tenantId, tx)` is called
+- **THEN** the call MUST reject with `ValidationError`
+- **AND** it MUST NOT reject with `NotFoundError`
