@@ -2,7 +2,7 @@ import { Injectable, Inject } from "@nestjs/common";
 import { eq, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
-import type { Dr } from "~/db.server";
+import type { Dr, Tx } from "~/db.server";
 import { eventCausalityTable } from "~/drizzle/schema/eventCausalityTable";
 import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
@@ -24,6 +24,7 @@ export class DrizzleEventCausalityRepository implements IEventCausalityRepositor
 	async countReferences(
 		hazardousEventId: string,
 		tenantId: string,
+		tx?: Tx,
 	): Promise<EventCausalityReferenceCounts> {
 		// OR, not UNION: a row matching hazardousEventId on both sides still surfaces once, so it
 		// still counts once. Which predicate matched decides which side is "the other side".
@@ -40,7 +41,7 @@ export class DrizzleEventCausalityRepository implements IEventCausalityRepositor
 				END
 		END`;
 
-		const [row] = await this.db
+		const [row] = await (tx ?? this.db)
 			.select({
 				// NULL = tenantId is NULL, not true, so a NULL other-side tenant falls out of this
 				// FILTER into crossTenantCount; `<>` would also yield NULL and wrongly drop the row.

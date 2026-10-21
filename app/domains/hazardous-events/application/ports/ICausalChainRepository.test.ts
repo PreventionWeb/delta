@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CausalEdge } from "../../domain/CausalChain";
+import type { Tx } from "~/db.server";
 import type { ICausalChainRepository } from "./ICausalChainRepository";
 
 /**
@@ -44,6 +45,7 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 	async saveEdge(
 		edge: CausalEdge,
 		causalityExplanation: string | null,
+		_tx?: Tx,
 	): Promise<void> {
 		this.edges.push({ edge, causalityExplanation });
 	}
@@ -51,6 +53,7 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 	async replaceCauseEdge(
 		effectId: string,
 		newCause: { causeId: string; causalityExplanation: string | null } | null,
+		_tx?: Tx,
 	): Promise<void> {
 		this.edges = this.edges.filter(({ edge }) => edge.effectId !== effectId);
 		if (newCause !== null) {
@@ -61,7 +64,7 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 		}
 	}
 
-	async countEdgesTouching(nodeId: string): Promise<number> {
+	async countEdgesTouching(nodeId: string, _tx?: Tx): Promise<number> {
 		return this.edges.filter(
 			({ edge }) => edge.causeId === nodeId || edge.effectId === nodeId,
 		).length;
@@ -271,15 +274,15 @@ const _findReachableEdgesFromArity: AssertEqual<
 > = true;
 const _saveEdgeArity: AssertEqual<
 	Parameters<ICausalChainRepository["saveEdge"]>,
-	[CausalEdge, string | null]
+	[CausalEdge, string | null, Tx?]
 > = true;
 const _replaceCauseEdgeArity: AssertEqual<
 	Parameters<ICausalChainRepository["replaceCauseEdge"]>,
-	[string, { causeId: string; causalityExplanation: string | null } | null]
+	[string, { causeId: string; causalityExplanation: string | null } | null, Tx?]
 > = true;
 const _countEdgesTouchingArity: AssertEqual<
 	Parameters<ICausalChainRepository["countEdgesTouching"]>,
-	[string]
+	[string, Tx?]
 > = true;
 
 void _findReachableEdgesFromArity;

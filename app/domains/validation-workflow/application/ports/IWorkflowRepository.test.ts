@@ -3,6 +3,7 @@ import {
 	WorkflowInstance,
 	type EntityType,
 } from "../../domain/WorkflowInstance";
+import type { Tx } from "~/db.server";
 import { ConcurrentModificationError, ConflictError } from "~/shared/errors";
 import type { IWorkflowRepository } from "./IWorkflowRepository";
 
@@ -26,7 +27,7 @@ class FakeWorkflowRepository implements IWorkflowRepository {
 			.filter((instance): instance is WorkflowInstance => instance != null);
 	}
 
-	async insert(instance: WorkflowInstance) {
+	async insert(instance: WorkflowInstance, _tx?: Tx) {
 		const entityKey = this.key(instance.entityId, instance.entityType);
 		const owner = this.idOwner.get(instance.id);
 		if (owner !== undefined && owner !== entityKey) {
@@ -50,7 +51,7 @@ class FakeWorkflowRepository implements IWorkflowRepository {
 
 	/** In-memory equality against the stored instance's updatedAt — sufficient for interface
 	 * conformance; the real conditional-SQL behavior is DrizzleWorkflowRepository's own concern.*/
-	async update(instance: WorkflowInstance, expectedUpdatedAt: Date) {
+	async update(instance: WorkflowInstance, expectedUpdatedAt: Date, _tx?: Tx) {
 		const entityKey = this.key(instance.entityId, instance.entityType);
 		const owner = this.idOwner.get(instance.id);
 
@@ -87,6 +88,7 @@ class FakeWorkflowRepository implements IWorkflowRepository {
 	async deleteByEntity(
 		entityId: string,
 		entityType: EntityType,
+		_tx?: Tx,
 	): Promise<void> {
 		this.store.delete(this.key(entityId, entityType));
 	}
@@ -235,17 +237,17 @@ const _findByEntityIdsArity: AssertEqual<
 > = true;
 const _insertArity: AssertEqual<
 	Parameters<IWorkflowRepository["insert"]>,
-	[WorkflowInstance]
+	[WorkflowInstance, Tx?]
 > = true;
 // Tuple equality fails to compile if expectedUpdatedAt is made optional (Date | undefined
 // isn't the required tuple) — the compile-time guard design.md Decision 1 relies on.
 const _updateArity: AssertEqual<
 	Parameters<IWorkflowRepository["update"]>,
-	[WorkflowInstance, Date]
+	[WorkflowInstance, Date, Tx?]
 > = true;
 const _deleteByEntityArity: AssertEqual<
 	Parameters<IWorkflowRepository["deleteByEntity"]>,
-	[string, EntityType]
+	[string, EntityType, Tx?]
 > = true;
 
 void _findByEntityArity;

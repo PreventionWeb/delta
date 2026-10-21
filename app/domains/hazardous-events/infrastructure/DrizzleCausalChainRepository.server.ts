@@ -141,12 +141,13 @@ export class DrizzleCausalChainRepository implements ICausalChainRepository {
 	async saveEdge(
 		edge: CausalEdge,
 		causalityExplanation: string | null,
+		tx?: Tx,
 	): Promise<void> {
-		await this.db.transaction(async (tx) => {
-			await this.acquireSortedLocks(tx, [edge.causeId, edge.effectId]);
-			await this.assertNoCycleInTx(tx, edge.causeId, edge.effectId);
+		await (tx ?? this.db).transaction(async (innerTx) => {
+			await this.acquireSortedLocks(innerTx, [edge.causeId, edge.effectId]);
+			await this.assertNoCycleInTx(innerTx, edge.causeId, edge.effectId);
 			await this.insertEdge(
-				tx,
+				innerTx,
 				edge.causeId,
 				edge.effectId,
 				causalityExplanation,
@@ -157,14 +158,15 @@ export class DrizzleCausalChainRepository implements ICausalChainRepository {
 	async replaceCauseEdge(
 		effectId: string,
 		newCause: { causeId: string; causalityExplanation: string | null } | null,
+		tx?: Tx,
 	): Promise<void> {
-		await this.db.transaction(async (tx) => {
+		await (tx ?? this.db).transaction(async (innerTx) => {
 			// Only effectId when clearing — there's no second node to pair with a null cause.
 			const lockIds =
 				newCause !== null ? [effectId, newCause.causeId] : [effectId];
-			await this.acquireSortedLocks(tx, lockIds);
+			await this.acquireSortedLocks(innerTx, lockIds);
 
-			await tx
+			await innerTx
 				.delete(hazardousEventCausalityTable)
 				.where(
 					eq(hazardousEventCausalityTable.effectHazardousEventId, effectId),
@@ -174,9 +176,9 @@ export class DrizzleCausalChainRepository implements ICausalChainRepository {
 				return;
 			}
 			// Skipped entirely when clearing — nothing to check a clear against.
-			await this.assertNoCycleInTx(tx, newCause.causeId, effectId);
+			await this.assertNoCycleInTx(innerTx, newCause.causeId, effectId);
 			await this.insertEdge(
-				tx,
+				innerTx,
 				newCause.causeId,
 				effectId,
 				newCause.causalityExplanation,
@@ -184,8 +186,8 @@ export class DrizzleCausalChainRepository implements ICausalChainRepository {
 		});
 	}
 
-	async countEdgesTouching(nodeId: string): Promise<number> {
-		const result = await this.db.execute(sql`
+	async countEdgesTouching(nodeId: string, tx?: Tx): Promise<number> {
+		const result = await (tx ?? this.db).execute(sql`
 			SELECT COUNT(*)::int AS count
 			FROM hazardous_event_causality
 			WHERE cause_hazardous_event_id = ${nodeId}::uuid
