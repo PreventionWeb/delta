@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import type { MetaFunction } from "react-router";
 import { useLoaderData, useLocation, useSubmit } from "react-router";
 
@@ -614,10 +614,8 @@ function SectorsAnalysisContent() {
 	geographicImpactData;
 	const submit = useSubmit();
 
-	const [filters, setFilters] = useState<Filters | null>(null);
-
 	// Add loading state to track filter application
-	const [pendingFilters, setPendingFilters] = useState<typeof filters>(null);
+	const [pendingFilters, setPendingFilters] = useState<Filters | null>(null);
 
 	const parseFiltersFromSearch = useCallback((search: string): Filters | null => {
 		const searchParams = new URLSearchParams(search);
@@ -642,9 +640,12 @@ function SectorsAnalysisContent() {
 		return hasAnyFilter ? parsedFilters : null;
 	}, []);
 
-	useEffect(() => {
-		setFilters(parseFiltersFromSearch(location.search));
-	}, [location.search, parseFiltersFromSearch]);
+	const urlFilters = useMemo(
+		() => parseFiltersFromSearch(location.search),
+		[location.search, parseFiltersFromSearch],
+	);
+
+	const activeFilters = urlFilters;
 
 	// Apply debounced filters
 	useEffect(() => {
@@ -699,9 +700,6 @@ function SectorsAnalysisContent() {
 						pendingFilters.disasterEventId,
 					);
 
-				// Now set the filters in the state
-				setFilters(pendingFilters);
-
 				// Submit the form to trigger a loader reload with the new filters
 				const formData = new FormData();
 				if (pendingFilters.sectorId)
@@ -749,13 +747,12 @@ function SectorsAnalysisContent() {
 	}, [pendingFilters]);
 
 	// Event handlers for Filters component
-	const handleApplyFilters = useCallback((newFilters: typeof filters) => {
+	const handleApplyFilters = useCallback((newFilters: Filters | null) => {
 		setPendingFilters(newFilters);
 	}, []);
 
 	const handleClearFilters = useCallback(() => {
 		setPendingFilters(null);
-		setFilters(null);
 	}, []);
 
 	return (
@@ -782,7 +779,7 @@ function SectorsAnalysisContent() {
 					</ErrorBoundary>
 
 					{/* Conditional rendering: Display this message until filters are applied */}
-					{!filters && (
+					{!activeFilters && (
 						<div
 							style={{
 								marginTop: "1.43rem",
@@ -817,7 +814,7 @@ function SectorsAnalysisContent() {
 					)}
 
 					{/* Dashboard sections */}
-					{filters && (
+					{activeFilters && (
 						<>
 							<div
 								style={{
@@ -840,13 +837,13 @@ function SectorsAnalysisContent() {
 								}}
 							>
 								{/* Impact on Selected Sector */}
-								{filters.sectorId && (
+								{activeFilters.sectorId && (
 									<div className="space-y-8" style={{ minHeight: "300px" }}>
 										<ErrorBoundary>
 											<ImpactOnSector
 												ctx={ctx}
-												sectorId={filters.sectorId}
-												filters={filters}
+												sectorId={activeFilters.sectorId}
+												filters={activeFilters}
 												currency={currency}
 												sectorImpactData={sectorImpactData}
 												sectorsData={sectorsData}
@@ -860,7 +857,7 @@ function SectorsAnalysisContent() {
 									<ErrorBoundary>
 										<ImpactByHazard
 											ctx={ctx}
-											filters={filters}
+											filters={activeFilters}
 											currency={currency}
 											hazardImpactData={hazardImpactData}
 											sectorsData={sectorsData}
@@ -873,7 +870,7 @@ function SectorsAnalysisContent() {
 									<ErrorBoundary>
 										<ImpactMap
 											ctx={ctx}
-											filters={filters}
+											filters={activeFilters}
 											currency={currency}
 											geographicImpactData={
 												{
@@ -891,7 +888,7 @@ function SectorsAnalysisContent() {
 									<ErrorBoundary>
 										<EffectDetails
 											ctx={ctx}
-											filters={filters}
+											filters={activeFilters}
 											currency={currency}
 											effectDetailsData={effectDetailsData}
 											sectorsData={sectorsData}
@@ -904,7 +901,7 @@ function SectorsAnalysisContent() {
 									<ErrorBoundary>
 										<MostDamagingEvents
 											ctx={ctx}
-											filters={filters}
+											filters={activeFilters}
 											currency={currency}
 											mostDamagingEventsData={mostDamagingEventsData}
 											sectorsData={sectorsData}

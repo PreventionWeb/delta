@@ -49,6 +49,8 @@ type ImpactMapProps = {
 	metricConfigs?: Record<string, MetricConfig>;
 };
 
+const EMPTY_GEO_DATA: interfaceMap[] = [];
+
 const DEFAULT_FILTERS: FilterValues = {
 	sectorId: null,
 	subSectorId: null,
@@ -230,14 +232,15 @@ export default function ImpactMap({
 		}
 	};
 
-	const safedamagesGeoData = geographicImpactData.damagesGeoData ?? [];
-	const safeLossesGeoData = geographicImpactData.lossesGeoData ?? [];
+	const safeDamagesGeoData =
+		geographicImpactData.damagesGeoData ?? EMPTY_GEO_DATA;
+	const safeLossesGeoData =
+		geographicImpactData.lossesGeoData ?? EMPTY_GEO_DATA;
 	const [activeMapLayer, setActiveMapLayer] = useState<"damage" | "losses">(
 		initialMetric === "totalLoss" ? "losses" : "damage",
 	);
-	const [activeData, setActiveData] = useState<interfaceMap[]>(
-		initialMetric === "totalLoss" ? safeLossesGeoData : safedamagesGeoData,
-	); // Default MapChart geoData
+	const activeData =
+		activeMapLayer === "losses" ? safeLossesGeoData : safeDamagesGeoData;
 
 	// Set error message if there's an issue with the data
 	useEffect(() => {
@@ -245,20 +248,16 @@ export default function ImpactMap({
 	}, [geographicImpactData]);
 
 	useEffect(() => {
-		const nextData =
-			activeMapLayer === "losses" ? safeLossesGeoData : safedamagesGeoData;
 		const nextLegendTitle =
 			activeMapLayer === "losses" ? lossesLegendTitle : damageLegendTitle;
 		const nextLegendColor = activeMapLayer === "losses" ? "#58508d" : "#208f04";
 
-		setActiveData(nextData);
-		mapChartRef.current?.setDataSource(nextData);
+		mapChartRef.current?.setDataSource(activeData);
 		mapChartRef.current?.setLegendTitle(nextLegendTitle);
 		mapChartRef.current?.setLegendMaxColor(nextLegendColor);
 	}, [
 		activeMapLayer,
-		safedamagesGeoData,
-		safeLossesGeoData,
+		activeData,
 		damageLegendTitle,
 		lossesLegendTitle,
 	]);
