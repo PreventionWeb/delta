@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { describe, it, expect, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import { dr } from "~/db.server";
+import type { Tx } from "~/db.server";
 import { getPinoLogger } from "~/infrastructure/logging/PinoLogger.server";
 import { eventTable } from "~/drizzle/schema/eventTable";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
@@ -15,15 +16,12 @@ import { hazardousEventCustomFieldValueTable } from "~/domains/hazardous-events/
 import { hazardDriverTable } from "~/domains/hazardous-events/infrastructure/hazardDriverTable";
 import { hazardTypeFieldDefinitionTable } from "~/domains/hazardous-events/infrastructure/hazardTypeFieldDefinitionTable";
 import { hazardTypeCustomFieldDefinitionTable } from "~/domains/hazardous-events/infrastructure/hazardTypeCustomFieldDefinitionTable";
-import { specificHazardTable } from "~/domains/hazardous-events/infrastructure/specificHazardTable";
-import { hazardClusterTable } from "~/domains/hazardous-events/infrastructure/hazardClusterTable";
-import { hazardTypeTable } from "~/domains/hazardous-events/infrastructure/hazardTypeTable";
-import { hipsVersionTable } from "~/domains/hazardous-events/infrastructure/hipsVersionTable";
 import { DrizzleHazardousEventRepository } from "~/domains/hazardous-events/infrastructure/DrizzleHazardousEventRepository.server";
 import { DrizzleWorkflowRepository } from "~/domains/validation-workflow/infrastructure/DrizzleWorkflowRepository.server";
 import { WorkflowInstance } from "~/domains/validation-workflow/domain/WorkflowInstance";
 import { DrizzleHazardTaxonomyRepository } from "~/domains/hazardous-events/infrastructure/DrizzleHazardTaxonomyRepository.server";
 import { DrizzleCausalChainRepository } from "~/domains/hazardous-events/infrastructure/DrizzleCausalChainRepository.server";
+import { DrizzleTransactionRunner } from "~/infrastructure/DrizzleTransactionRunner.server";
 import { UpdateHazardousEventUseCase } from "~/domains/hazardous-events/application/use-cases/UpdateHazardousEvent";
 import type { ILogger } from "~/shared/logging/ILogger";
 import { HazardousEvent } from "~/domains/hazardous-events/domain/HazardousEvent";
@@ -34,43 +32,11 @@ import {
 	NotFoundError,
 	ValidationError,
 } from "~/shared/errors";
-import { seedCountryAccount } from "../models/hazardousEventTestHelpers";
+import {
+	seedCountryAccount,
+	seedSpecificHazard,
+} from "../models/hazardousEventTestHelpers";
 import { seedFieldDefinitionDeps } from "../models/hazardTypeFieldDefinitionTestHelpers";
-import { seedTextContent } from "../models/textContentTestHelpers";
-
-/** Full taxonomy chain (hipsVersion -> hazardType -> hazardCluster -> specificHazard) a specificHazardId FK needs, same shape as specificHazard.test.ts's own helper. */
-async function seedSpecificHazard(): Promise<string> {
-	const [hipsVersion] = await dr
-		.insert(hipsVersionTable)
-		.values({ versionNo: `HIPs ${randomUUID()}` })
-		.returning({ id: hipsVersionTable.id });
-	const [type] = await dr
-		.insert(hazardTypeTable)
-		.values({
-			id: randomUUID(),
-			nameTextContentId: await seedTextContent(`Type ${randomUUID()}`),
-			hipsVersionId: hipsVersion.id,
-		})
-		.returning({ id: hazardTypeTable.id });
-	const [cluster] = await dr
-		.insert(hazardClusterTable)
-		.values({
-			id: randomUUID(),
-			nameTextContentId: await seedTextContent(`Cluster ${randomUUID()}`),
-			hazardTypeId: type.id,
-		})
-		.returning({ id: hazardClusterTable.id });
-	const [specificHazard] = await dr
-		.insert(specificHazardTable)
-		.values({
-			id: randomUUID(),
-			nameTextContentId: await seedTextContent(`Hazard ${randomUUID()}`),
-			code: `code-${randomUUID()}`,
-			hazardClusterId: cluster.id,
-		})
-		.returning({ id: specificHazardTable.id });
-	return specificHazard.id;
-}
 
 async function seedHazardDriverRow(tenantId: string): Promise<string> {
 	const [row] = await dr
@@ -616,6 +582,24 @@ describe("DrizzleHazardousEventRepository", () => {
 				.from(eventTable)
 				.where(eq(eventTable.id, id));
 			expect(eventRows).toHaveLength(0);
+		});
+
+		// Decision 2 regression: loadChildCollections() read via a hard-coded this.db instead of
+		// the resolved executor would see no child rows here, since nothing has committed yet.
+		it("called with an externally-supplied, not-yet-committed tx, resolves with all four child collections populated", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const specificHazardId = await seedSpecificHazard();
+			const hazardDriverId = await seedHazardDriverRow(tenantId);
+			const id = randomUUID();
+			const entity = makeHazardousEventEntity({
+				...baseNewEventProps(id, tenantId, specificHazardId),
+				hazardDriverIds: [hazardDriverId],
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const inserted = await dr.transaction((tx) => repo.insert(entity, tx));
+
+			expect(inserted.hazardDriverIds).toEqual([hazardDriverId]);
 		});
 	});
 
@@ -1349,6 +1333,114 @@ describe("DrizzleHazardousEventRepository", () => {
 			).resolves.toBe(1);
 		});
 	});
+
+	describe("findByIdForUpdate", () => {
+		it("resolves the matching entity, including child collections, under an open tx", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const hazardDriverId = await seedHazardDriverRow(tenantId);
+			await insertHazardDriverLink(id, hazardDriverId);
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const found = await dr.transaction((tx) =>
+				repo.findByIdForUpdate(id, tenantId, tx),
+			);
+
+			expect(found.id).toBe(id);
+			expect(found.hazardDriverIds).toEqual([hazardDriverId]);
+		});
+
+		it("throws NotFoundError for a missing id", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			await expect(
+				dr.transaction((tx) =>
+					repo.findByIdForUpdate(randomUUID(), tenantId, tx),
+				),
+			).rejects.toThrow(NotFoundError);
+		});
+
+		it("throws NotFoundError for a foreign-tenant id, same as findById", async () => {
+			const { id } = await seedRawHazardousEvent();
+			const otherTenantId = (await seedCountryAccount()) as string;
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			await expect(
+				dr.transaction((tx) => repo.findByIdForUpdate(id, otherTenantId, tx)),
+			).rejects.toThrow(NotFoundError);
+		});
+
+		it("propagates ValidationError unmodified for a row that fails rehydration", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent({
+				specificHazardId: null,
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			await expect(
+				dr.transaction((tx) => repo.findByIdForUpdate(id, tenantId, tx)),
+			).rejects.toThrow(ValidationError);
+		});
+
+		// PGlite can't discriminate FOR UPDATE from no lock at all (design.md Risks) — this proves
+		// the write waits for the transaction to end, not specifically that the lock enforces it.
+		it("blocks a concurrent disaster_event insert referencing the locked row until the lock-holding transaction ends, then fails with a foreign-key violation once the row is deleted", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			let releaseLock: () => void = () => {};
+			const lockAcquired = new Promise<void>((resolve) => {
+				releaseLock = resolve;
+			});
+			let finishTx: () => void = () => {};
+			const holdTx = new Promise<void>((resolve) => {
+				finishTx = resolve;
+			});
+
+			const txPromise = dr.transaction(async (tx) => {
+				await repo.findByIdForUpdate(id, tenantId, tx);
+				releaseLock();
+				await holdTx;
+				// Deletes the locked row before the transaction commits -- this is what the
+				// blocked insert, below, must fail against once it's finally allowed through.
+				await repo.delete(id, tenantId, tx);
+			});
+
+			await lockAcquired;
+
+			const insertPromise = (async () => {
+				const [event] = await dr
+					.insert(eventTable)
+					.values({})
+					.returning({ id: eventTable.id });
+				await dr.insert(disasterEventTable).values({
+					id: event.id,
+					hazardousEventId: id,
+					countryAccountsId: tenantId,
+				});
+				return event.id;
+			})();
+
+			const raceOutcome = await Promise.race([
+				insertPromise.then(() => "insert-finished" as const),
+				new Promise<"timeout">((resolve) =>
+					setTimeout(() => resolve("timeout"), 200),
+				),
+			]);
+			expect(raceOutcome).toBe("timeout");
+
+			finishTx();
+			await txPromise;
+
+			// The blocked insert, once unblocked by the commit, fails with a foreign-key
+			// violation against the now-deleted row -- not a silent success (DEF-033's own fix).
+			await expect(insertPromise).rejects.toThrow();
+			const remaining = await dr
+				.select()
+				.from(disasterEventTable)
+				.where(eq(disasterEventTable.hazardousEventId, id));
+			expect(remaining).toHaveLength(0);
+		});
+	});
 });
 
 /** No-op logger -- logging isn't under test here. */
@@ -1359,7 +1451,10 @@ class NoOpLogger implements ILogger {
 	debug(): void {}
 }
 
-/** Test-only subclass: barriers both racers' update() calls until both arrive, so they read the same findById token before either writes (design.md "race against the real adapter"). */
+/** Test-only subclass: barriers both racers' findById() calls so both read the same pre-write
+ * token before either writes. Gated here, not on update() -- PGlite fully serializes concurrent
+ * db.transaction() calls, so gating inside update() (now called within transactionRunner.run())
+ * would deadlock the second caller's transaction open. */
 class RaceBarrierHazardousEventRepository extends DrizzleHazardousEventRepository {
 	private arrivals = 0;
 	private release: () => void = () => {};
@@ -1367,16 +1462,17 @@ class RaceBarrierHazardousEventRepository extends DrizzleHazardousEventRepositor
 		this.release = resolve;
 	});
 
-	override async update(
-		entity: HazardousEvent,
-		expectedUpdatedAt: Date | null,
+	override async findById(
+		id: string,
+		tenantId: string,
+		tx?: Tx,
 	): Promise<HazardousEvent> {
 		this.arrivals += 1;
 		if (this.arrivals >= 2) {
 			this.release();
 		}
 		await this.barrier;
-		return super.update(entity, expectedUpdatedAt);
+		return super.findById(id, tenantId, tx);
 	}
 }
 
@@ -1428,6 +1524,7 @@ describe("UpdateHazardousEventUseCase against the real adapter", () => {
 			workflowRepository,
 			causalChainRepository,
 			recordSpatialObservationUseCase,
+			new DrizzleTransactionRunner(dr),
 		);
 
 		const outcomes = await Promise.allSettled([
