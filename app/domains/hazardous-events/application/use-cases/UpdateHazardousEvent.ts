@@ -19,8 +19,11 @@ import type {
 	RecordSpatialObservationCommand,
 	RecordSpatialObservationUseCase,
 } from "./RecordSpatialObservation";
+import type { SpatialObservationDto } from "../dto/SpatialObservationDto";
 import type { IWorkflowRepository } from "~/domains/validation-workflow/application/ports/IWorkflowRepository";
+import type { Tx } from "~/db.server";
 import type { ILogger } from "~/shared/logging/ILogger";
+import type { ITransactionRunner } from "~/shared/persistence/ITransactionRunner";
 import { NotFoundError, ValidationError } from "~/shared/errors";
 import { assertNonEmptyString } from "../assertNonEmptyString";
 
@@ -49,7 +52,7 @@ export interface UpdateHazardousEventCommand {
 	causalityExplanation?: string | null;
 	spatialObservation?: Omit<
 		RecordSpatialObservationCommand,
-		"tenantId" | "hazardousEventId"
+		"tenantId" | "hazardousEventId" | "tx"
 	>;
 }
 
@@ -167,6 +170,7 @@ export class UpdateHazardousEventUseCase {
 			RecordSpatialObservationUseCase,
 			"execute"
 		>,
+		private readonly transactionRunner: ITransactionRunner,
 	) {}
 
 	async execute(
@@ -234,25 +238,38 @@ export class UpdateHazardousEventUseCase {
 			command.tenantId,
 		);
 
-		const saved = await this.hazardousEventRepository.update(
-			updatedEvent,
-			existingEvent.updatedAt,
-		);
+		// Whole write sequence is one transaction (DEF-026) -- a failure partway rolls back every
+		// earlier write in this same call, including the delegated spatial-observation attempt.
+		const { saved, savedSpatialObservation } = await this.transactionRunner.run(
+			async (tx) => {
+				const saved = await this.hazardousEventRepository.update(
+					updatedEvent,
+					existingEvent.updatedAt,
+					tx,
+				);
 
-		await this.applyCausalEdgeChange(
-			causeAction,
-			cause,
-			saved.id,
-			command.causalityExplanation ?? null,
-		);
+				await this.applyCausalEdgeChange(
+					causeAction,
+					cause,
+					saved.id,
+					command.causalityExplanation ?? null,
+					tx,
+				);
 
-		if (command.spatialObservation !== undefined) {
-			await this.recordSpatialObservationUseCase.execute({
-				...command.spatialObservation,
-				tenantId: command.tenantId,
-				hazardousEventId: saved.id,
-			});
-		}
+				let savedSpatialObservation: SpatialObservationDto | undefined;
+				if (command.spatialObservation !== undefined) {
+					savedSpatialObservation =
+						await this.recordSpatialObservationUseCase.execute({
+							...command.spatialObservation,
+							tenantId: command.tenantId,
+							hazardousEventId: saved.id,
+							tx,
+						});
+				}
+
+				return { saved, savedSpatialObservation };
+			},
+		);
 
 		this.logger.info({
 			msg: "hazardous_event.updated",
@@ -261,6 +278,17 @@ export class UpdateHazardousEventUseCase {
 			causeAction: causeAction.kind,
 			spatialObservationIncluded: command.spatialObservation !== undefined,
 		});
+
+		// Moved here from RecordSpatialObservationUseCase (design.md Decision 6 addendum) -- logs
+		// only after this use case's own outer transaction has committed, not mid-transaction.
+		if (savedSpatialObservation !== undefined) {
+			this.logger.info({
+				msg: "spatial_observation.recorded",
+				hazardousEventId: saved.id,
+				tenantId: command.tenantId,
+				observationTime: savedSpatialObservation.observationTime,
+			});
+		}
 
 		return toHazardousEventDto(saved, existingWorkflow);
 	}
@@ -292,6 +320,7 @@ export class UpdateHazardousEventUseCase {
 		cause: HazardousEvent | undefined,
 		effectId: string,
 		causalityExplanation: string | null,
+		tx: Tx,
 	): Promise<void> {
 		if (causeAction.kind === "unchanged") {
 			return;
@@ -300,6 +329,6 @@ export class UpdateHazardousEventUseCase {
 			causeAction.kind === "set" && cause !== undefined
 				? { causeId: cause.id, causalityExplanation }
 				: null;
-		await this.causalChainRepository.replaceCauseEdge(effectId, newCause);
+		await this.causalChainRepository.replaceCauseEdge(effectId, newCause, tx);
 	}
 }

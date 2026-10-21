@@ -4,6 +4,7 @@ import {
 	type HazardousEventProps,
 } from "../../domain/HazardousEvent";
 import type { CausalEdge } from "../../domain/CausalChain";
+import type { Tx } from "~/db.server";
 import {
 	ConcurrentModificationError,
 	ConflictError,
@@ -11,6 +12,7 @@ import {
 	ValidationError,
 } from "~/shared/errors";
 import type { ILogger } from "~/shared/logging/ILogger";
+import type { ITransactionRunner } from "~/shared/persistence/ITransactionRunner";
 import { WorkflowInstance } from "~/domains/validation-workflow/domain/WorkflowInstance";
 import type { IWorkflowRepository } from "~/domains/validation-workflow/application/ports/IWorkflowRepository";
 import type { IHazardousEventRepository } from "../ports/IHazardousEventRepository";
@@ -27,10 +29,36 @@ import {
 } from "./UpdateHazardousEvent";
 
 class FakeLogger implements ILogger {
-	info = vi.fn();
+	info = vi.fn(() => {
+		this.callLog?.push("logger.info");
+	});
 	warn = vi.fn();
 	error = vi.fn();
 	debug = vi.fn();
+
+	constructor(private readonly callLog?: string[]) {}
+}
+
+/** No real transaction semantics — just invokes fn with a placeholder tx, matching this
+ * codebase's own inline-fake convention for every other port these use cases fake. */
+const fakeTx = {} as Tx;
+
+class FakeTransactionRunner implements ITransactionRunner {
+	runCalls = 0;
+
+	constructor(private readonly callLog: string[] = []) {}
+
+	async run<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
+		this.runCalls += 1;
+		const result = await fn(fakeTx);
+		// A genuine tick between fn resolving and run() itself resolving -- lets a test tell
+		// "logged after run() resolves" apart from "logged as fn's own last line" (the two
+		// produce an identical callLog order without this marker, since there's otherwise no
+		// gap between them).
+		await Promise.resolve();
+		this.callLog.push("transactionRunner.run.resolving");
+		return result;
+	}
 }
 
 interface TaxonomyLookupCall {
@@ -70,6 +98,7 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 	readonly updateCalls: {
 		entity: HazardousEvent;
 		expectedUpdatedAt: Date | null;
+		tx?: Tx;
 	}[] = [];
 	readonly findByIdCalls: { id: string; tenantId: string }[] = [];
 	private readonly store = new Map<string, HazardousEvent>();
@@ -108,6 +137,10 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		throw new Error("not used by UpdateHazardousEventUseCase's own tests");
 	}
 
+	async findByIdForUpdate(): Promise<HazardousEvent> {
+		throw new Error("not used by UpdateHazardousEventUseCase's own tests");
+	}
+
 	async findCurrentSpatialObservation(): Promise<never> {
 		throw new Error("not used by UpdateHazardousEventUseCase's own tests");
 	}
@@ -130,8 +163,9 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 	async update(
 		entity: HazardousEvent,
 		expectedUpdatedAt: Date | null,
+		tx?: Tx,
 	): Promise<HazardousEvent> {
-		this.updateCalls.push({ entity, expectedUpdatedAt });
+		this.updateCalls.push({ entity, expectedUpdatedAt, tx });
 		const key = this.key(entity.id, entity.tenantId);
 		const current = this.store.get(key);
 		if (current === undefined) {
@@ -207,6 +241,7 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 	readonly replaceCauseEdgeCalls: {
 		effectId: string;
 		newCause: { causeId: string; causalityExplanation: string | null } | null;
+		tx?: Tx;
 	}[] = [];
 	findReachableEdgesFromBehavior:
 		| readonly CausalEdge[]
@@ -286,8 +321,9 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 	async replaceCauseEdge(
 		effectId: string,
 		newCause: { causeId: string; causalityExplanation: string | null } | null,
+		tx?: Tx,
 	): Promise<void> {
-		this.replaceCauseEdgeCalls.push({ effectId, newCause });
+		this.replaceCauseEdgeCalls.push({ effectId, newCause, tx });
 		this.edges = this.edges.filter((edge) => edge.effectId !== effectId);
 		if (newCause !== null) {
 			this.edges.push({ causeId: newCause.causeId, effectId });
@@ -402,7 +438,7 @@ interface HarnessOptions {
 
 function createHarness(options: HarnessOptions = {}) {
 	const callLog: string[] = [];
-	const logger = new FakeLogger();
+	const logger = new FakeLogger(callLog);
 	const taxonomyRepository = new FakeHazardTaxonomyRepository(
 		options.validHazardDriverIds ?? new Set(["driver-a"]),
 		options.validCustomFieldDefinitionIds ?? new Set(["custom-a"]),
@@ -419,6 +455,7 @@ function createHarness(options: HarnessOptions = {}) {
 	);
 	const recordSpatialObservationUseCase =
 		new FakeRecordSpatialObservationUseCase(callLog);
+	const transactionRunner = new FakeTransactionRunner(callLog);
 	const useCase = new UpdateHazardousEventUseCase(
 		logger,
 		taxonomyRepository,
@@ -426,6 +463,7 @@ function createHarness(options: HarnessOptions = {}) {
 		workflowRepository,
 		causalChainRepository,
 		recordSpatialObservationUseCase,
+		transactionRunner,
 	);
 	return {
 		callLog,
@@ -435,6 +473,7 @@ function createHarness(options: HarnessOptions = {}) {
 		workflowRepository,
 		causalChainRepository,
 		recordSpatialObservationUseCase,
+		transactionRunner,
 		useCase,
 	};
 }
@@ -583,6 +622,7 @@ describe("UpdateHazardousEventUseCase", () => {
 				),
 			).rejects.toThrow(/hazardDriverId driver-a/);
 			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
+			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 
 		it("re-validates a carried-over customFieldValues definition id and throws if it is no longer valid", async () => {
@@ -601,6 +641,7 @@ describe("UpdateHazardousEventUseCase", () => {
 				),
 			).rejects.toThrow(/hazardTypeCustomFieldDefinitionId custom-a/);
 			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
+			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 
 		it("surfaces HazardousEvent.create()'s ValidationError for a non-array hazardDriverIds, querying taxonomy with an empty id list", async () => {
@@ -617,6 +658,7 @@ describe("UpdateHazardousEventUseCase", () => {
 				{ ids: [], tenantId: "tenant-1" },
 			]);
 			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
+			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 
 		it("surfaces HazardousEvent.create()'s ValidationError for a non-array customFieldValues, querying taxonomy with an empty id list", async () => {
@@ -633,6 +675,7 @@ describe("UpdateHazardousEventUseCase", () => {
 				harness.taxonomyRepository.findValidCustomFieldDefinitionIdsCalls,
 			).toEqual([{ ids: [], tenantId: "tenant-1" }]);
 			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
+			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 
 		it("strips a non-string element from hazardDriverIds before querying the taxonomy repository, surfacing HazardousEvent.create()'s own ValidationError for the raw array", async () => {
@@ -649,6 +692,7 @@ describe("UpdateHazardousEventUseCase", () => {
 				{ ids: ["driver-a"], tenantId: "tenant-1" },
 			]);
 			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
+			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 
 		it("surfaces HazardousEvent.create()'s ValidationError for a null element in customFieldValues", async () => {
@@ -662,6 +706,7 @@ describe("UpdateHazardousEventUseCase", () => {
 				ValidationError,
 			);
 			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
+			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 
 		it("strips a non-object element from customFieldValues before querying the taxonomy repository, surfacing HazardousEvent.create()'s own ValidationError for the raw array", async () => {
@@ -683,6 +728,7 @@ describe("UpdateHazardousEventUseCase", () => {
 				harness.taxonomyRepository.findValidCustomFieldDefinitionIdsCalls,
 			).toEqual([{ ids: ["custom-a"], tenantId: "tenant-1" }]);
 			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
+			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 
 		it("re-validates startDate/endDate ordering against the merged values", async () => {
@@ -702,6 +748,7 @@ describe("UpdateHazardousEventUseCase", () => {
 				),
 			).rejects.toThrow(ValidationError);
 			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
+			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 
 		it("replaces every present field with the command's value", async () => {
@@ -825,6 +872,7 @@ describe("UpdateHazardousEventUseCase", () => {
 		expect(
 			harness.taxonomyRepository.findValidHazardDriverIdsCalls,
 		).toHaveLength(0);
+		expect(harness.logger.info).not.toHaveBeenCalled();
 	});
 
 	it("throws NotFoundError with zero writes for a cross-tenant command.id", async () => {
@@ -836,76 +884,72 @@ describe("UpdateHazardousEventUseCase", () => {
 			),
 		).rejects.toThrow(NotFoundError);
 		expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
+		expect(harness.logger.info).not.toHaveBeenCalled();
 	});
 
 	it("throws NotFoundError for a missing WorkflowInstance before any merge/validation work runs", async () => {
 		const harness = createHarness({ seedWorkflows: [] });
 
-		await expect(
-			harness.useCase.execute(
-				makeCommand({ id: "event-A", tenantId: "tenant-1" }),
-			),
-		).rejects.toThrow(NotFoundError);
+		const error = await harness.useCase
+			.execute(makeCommand({ id: "event-A", tenantId: "tenant-1" }))
+			.catch((e: unknown) => e);
+
+		// Message pinned, not just the class -- the only thing distinguishing this from the
+		// NotFoundError the preceding findById() call would throw for a bad id/tenantId.
+		expect(error).toBeInstanceOf(NotFoundError);
+		expect((error as Error).message).toBe("WorkflowInstance not found");
 		expect(
 			harness.taxonomyRepository.findValidHazardDriverIdsCalls,
 		).toHaveLength(0);
 		expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
+		expect(harness.logger.info).not.toHaveBeenCalled();
 	});
 
-	it("throws ValidationError for a non-string id, with zero writes", async () => {
-		const harness = createHarness();
-		const command = {
-			...makeCommand({ id: "event-A", tenantId: "tenant-1" }),
-			id: 12345,
-		} as unknown as UpdateHazardousEventCommand;
+	// Folded into one parameterized test per field (matching DeleteHazardousEvent.test.ts's own
+	// it.each pattern) -- each pins the exact assertNonEmptyString message, not just the class,
+	// so a mutant swapping the field-name argument (e.g. "tenantId" for "id") still fails.
+	it.each([
+		["id", { id: 12345, tenantId: "tenant-1" }],
+		["tenantId", { id: "event-A", tenantId: 12345 }],
+		[
+			"actingUserId",
+			{ id: "event-A", tenantId: "tenant-1", actingUserId: 12345 },
+		],
+	])(
+		"throws ValidationError for a non-string %s, with zero writes",
+		async (fieldName, overrides) => {
+			const harness = createHarness();
+			const command = {
+				...makeCommand({ id: "event-A", tenantId: "tenant-1" }),
+				...overrides,
+			} as unknown as UpdateHazardousEventCommand;
 
-		await expect(harness.useCase.execute(command)).rejects.toThrow(
-			ValidationError,
-		);
-		expect(harness.hazardousEventRepository.findByIdCalls).toHaveLength(0);
-	});
+			await expect(harness.useCase.execute(command)).rejects.toThrow(
+				new ValidationError(`${fieldName} must not be empty`),
+			);
+			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
+			expect(harness.logger.info).not.toHaveBeenCalled();
+		},
+	);
 
-	it("throws ValidationError for a non-string tenantId, with zero writes", async () => {
-		const harness = createHarness();
-		const command = {
-			...makeCommand({ id: "event-A", tenantId: "tenant-1" }),
-			tenantId: 12345,
-		} as unknown as UpdateHazardousEventCommand;
+	it.each([
+		["id", { id: "", tenantId: "tenant-1" }],
+		["tenantId", { id: "event-A", tenantId: "" }],
+		["actingUserId", { id: "event-A", tenantId: "tenant-1", actingUserId: "" }],
+	])(
+		"throws ValidationError for an empty-string %s, with zero writes",
+		async (fieldName, overrides) => {
+			const harness = createHarness();
+			const command = makeCommand(overrides);
 
-		await expect(harness.useCase.execute(command)).rejects.toThrow(
-			ValidationError,
-		);
-		expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
-	});
-
-	it("throws ValidationError for a non-string actingUserId, with zero writes", async () => {
-		const harness = createHarness();
-		const command = {
-			...makeCommand({ id: "event-A", tenantId: "tenant-1" }),
-			actingUserId: 12345,
-		} as unknown as UpdateHazardousEventCommand;
-
-		await expect(harness.useCase.execute(command)).rejects.toThrow(
-			new ValidationError("actingUserId must not be empty"),
-		);
-		expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
-		expect(harness.hazardousEventRepository.findByIdCalls).toHaveLength(0);
-	});
-
-	it("throws ValidationError for an empty-string actingUserId, with zero writes", async () => {
-		const harness = createHarness();
-		const command = makeCommand({
-			id: "event-A",
-			tenantId: "tenant-1",
-			actingUserId: "",
-		});
-
-		await expect(harness.useCase.execute(command)).rejects.toThrow(
-			new ValidationError("actingUserId must not be empty"),
-		);
-		expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
-		expect(harness.hazardousEventRepository.findByIdCalls).toHaveLength(0);
-	});
+			await expect(harness.useCase.execute(command)).rejects.toThrow(
+				new ValidationError(`${fieldName} must not be empty`),
+			);
+			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.findByIdCalls).toHaveLength(0);
+			expect(harness.logger.info).not.toHaveBeenCalled();
+		},
+	);
 
 	it("rejects a runtime-bypassing null on a non-nullable field, with zero writes", async () => {
 		const harness = createHarness();
@@ -918,6 +962,7 @@ describe("UpdateHazardousEventUseCase", () => {
 			ValidationError,
 		);
 		expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
+		expect(harness.logger.info).not.toHaveBeenCalled();
 	});
 
 	it("propagates a generic Error from the HazardousEvent update, with no causal-chain write", async () => {
@@ -932,6 +977,7 @@ describe("UpdateHazardousEventUseCase", () => {
 			),
 		).rejects.toThrow("boom-hazardous-event-save");
 		expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(0);
+		expect(harness.logger.info).not.toHaveBeenCalled();
 	});
 
 	describe("a changed causal link", () => {
@@ -967,6 +1013,7 @@ describe("UpdateHazardousEventUseCase", () => {
 			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(
 				0,
 			);
+			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 
 		it("rejects a causeId belonging to a different tenant, with zero writes", async () => {
@@ -995,6 +1042,7 @@ describe("UpdateHazardousEventUseCase", () => {
 			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(
 				0,
 			);
+			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 
 		it("rejects a causeId that would close a cycle, with zero writes", async () => {
@@ -1016,6 +1064,7 @@ describe("UpdateHazardousEventUseCase", () => {
 			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(
 				0,
 			);
+			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 
 		it("propagates a generic Error from findReachableEdgesFrom rejecting, with zero writes", async () => {
@@ -1037,6 +1086,7 @@ describe("UpdateHazardousEventUseCase", () => {
 			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(
 				0,
 			);
+			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 
 		it("rejects a causeId whose startDate is later than the updated event's own startDate", async () => {
@@ -1060,6 +1110,7 @@ describe("UpdateHazardousEventUseCase", () => {
 			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toHaveLength(
 				0,
 			);
+			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 
 		it("re-checks the cycle/temporal rules against the merged startDate when both startDate and causeId change together", async () => {
@@ -1175,6 +1226,7 @@ describe("UpdateHazardousEventUseCase", () => {
 				),
 			).rejects.toThrow(ConflictError);
 			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
+			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 
 		it("does not re-trigger the cycle or temporal check, and does not alter the existing link, when startDate changes but causeId is omitted", async () => {
@@ -1237,7 +1289,7 @@ describe("UpdateHazardousEventUseCase", () => {
 			);
 
 			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toEqual([
-				{ effectId: "event-A", newCause: null },
+				{ effectId: "event-A", newCause: null, tx: fakeTx },
 			]);
 			expect(harness.causalChainRepository.all()).toEqual([]);
 		});
@@ -1252,7 +1304,7 @@ describe("UpdateHazardousEventUseCase", () => {
 			);
 
 			expect(harness.causalChainRepository.replaceCauseEdgeCalls).toEqual([
-				{ effectId: "event-A", newCause: null },
+				{ effectId: "event-A", newCause: null, tx: fakeTx },
 			]);
 			expect(harness.causalChainRepository.all()).toEqual([]);
 		});
@@ -1291,6 +1343,7 @@ describe("UpdateHazardousEventUseCase", () => {
 						causeId: "cause-2-canonical",
 						causalityExplanation: null,
 					},
+					tx: fakeTx,
 				},
 			]);
 			expect(harness.causalChainRepository.all()).toEqual([
@@ -1298,8 +1351,8 @@ describe("UpdateHazardousEventUseCase", () => {
 			]);
 		});
 
-		// Folded from the former two-step ("delete then save") shape: replaceCauseEdge's atomicity means there's no longer an observable "prior edge already deleted, then a separate save fails" intermediate state above the port (design.md Decision 4, point 4).
-		it("propagates a generic Error from replaceCauseEdge, after the HazardousEvent save already happened", async () => {
+		// Folded from the former two-step ("delete then save") shape: replaceCauseEdge's atomicity means there's no longer an observable "prior edge already deleted, then a separate save fails" intermediate state above the port (design.md Decision 4, point 4). The real adapter now rolls the HazardousEvent update back too (DEF-026) -- a fake transactionRunner has no rollback semantics, so this only checks call counts, not persisted state.
+		it("propagates a generic Error from replaceCauseEdge, after the HazardousEvent update call was made", async () => {
 			const harness = createHarness();
 			harness.causalChainRepository.replaceCauseEdge = async () => {
 				throw new Error("boom-replace-cause-edge");
@@ -1315,6 +1368,7 @@ describe("UpdateHazardousEventUseCase", () => {
 			expect(
 				harness.hazardousEventRepository.updateCalls[0].expectedUpdatedAt,
 			).toBeNull();
+			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 
 		it("throws ValidationError when causeId is present but not a string", async () => {
@@ -1325,9 +1379,75 @@ describe("UpdateHazardousEventUseCase", () => {
 			} as unknown as UpdateHazardousEventCommand;
 
 			await expect(harness.useCase.execute(command)).rejects.toThrow(
-				ValidationError,
+				new ValidationError("causeId must be a string or null when present"),
 			);
 			expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
+			expect(harness.logger.info).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("transaction wrapping (design.md Decision 1 — ITransactionRunner)", () => {
+		it("calls transactionRunner.run exactly once, passing the same tx to update, replaceCauseEdge, and the delegated spatialObservation call", async () => {
+			const harness = createHarness({
+				seedEvents: [
+					makeEvent({ id: "event-A", startDate: "2026-01-01" }),
+					makeEvent({ id: "cause-1", startDate: "2025-01-01" }),
+				],
+				seedWorkflows: [makeWorkflow("event-A"), makeWorkflow("cause-1")],
+			});
+
+			await harness.useCase.execute(
+				makeCommand({
+					id: "event-A",
+					tenantId: "tenant-1",
+					causeId: "cause-1",
+					spatialObservation: { geometries: [], divisionIds: [] },
+				}),
+			);
+
+			expect(harness.transactionRunner.runCalls).toBe(1);
+			expect(harness.hazardousEventRepository.updateCalls[0].tx).toBe(fakeTx);
+			expect(harness.causalChainRepository.replaceCauseEdgeCalls[0].tx).toBe(
+				fakeTx,
+			);
+			expect(harness.recordSpatialObservationUseCase.executeCalls[0].tx).toBe(
+				fakeTx,
+			);
+		});
+
+		it("a rejection from the delegated spatialObservation call propagates from execute() unmodified", async () => {
+			const harness = createHarness();
+			const thrown = new ConflictError("duplicate observationTime", {});
+			harness.recordSpatialObservationUseCase.executeBehavior = thrown;
+
+			await expect(
+				harness.useCase.execute(
+					makeCommand({
+						id: "event-A",
+						tenantId: "tenant-1",
+						spatialObservation: { geometries: [], divisionIds: [] },
+					}),
+				),
+			).rejects.toBe(thrown);
+			expect(harness.logger.info).not.toHaveBeenCalled();
+		});
+
+		it("emits the structured log only after run() resolves, not as the last operation inside the transaction callback", async () => {
+			const harness = createHarness();
+
+			await harness.useCase.execute(
+				makeCommand({
+					id: "event-A",
+					tenantId: "tenant-1",
+					description: "Updated",
+				}),
+			);
+
+			expect(harness.callLog).toEqual([
+				"hazardousEvent.update",
+				"transactionRunner.run.resolving",
+				"logger.info",
+			]);
 		});
 	});
 
@@ -1389,7 +1509,10 @@ describe("UpdateHazardousEventUseCase", () => {
 			);
 		});
 
-		it("propagates a ConflictError from the delegated call, after the HazardousEvent's own field and causal-link changes have already been persisted", async () => {
+		// The real adapter now rolls back the field/causal-link changes too (DEF-026) --
+		// the fake has no rollback semantics, so this only checks call counts/order, not
+		// persisted state (Task 7.7's PGlite test proves the real rollback).
+		it("propagates a ConflictError from the delegated call, after the HazardousEvent update and causal-link calls were made", async () => {
 			const harness = createHarness({
 				seedEvents: [
 					makeEvent({ id: "event-A", startDate: "2026-01-01" }),
@@ -1421,6 +1544,7 @@ describe("UpdateHazardousEventUseCase", () => {
 				"hazardousEvent.update",
 				"spatialObservation.execute",
 			]);
+			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 	});
 
@@ -1489,6 +1613,9 @@ describe("UpdateHazardousEventUseCase", () => {
 					}),
 				),
 			).rejects.toThrow(ConflictError);
+			// Exactly once, not zero -- the first call above succeeded and logged; only the
+			// second (rejected) call must not add a second log event.
+			expect(harness.logger.info).toHaveBeenCalledTimes(1);
 		});
 
 		// Pre-DEF-037 this test proved the lost-update bug; pins the now-corrected behavior.
@@ -1625,6 +1752,64 @@ describe("UpdateHazardousEventUseCase", () => {
 		);
 	});
 
+	// Migrated from RecordSpatialObservation.test.ts (design.md Decision 6 addendum) --
+	// RecordSpatialObservationUseCase no longer logs its own success; this use case, its only
+	// current caller, does so itself, after its own outer transaction resolves.
+	describe("spatial_observation.recorded logging", () => {
+		it("logs spatial_observation.recorded, after the transaction resolves, when a spatial observation is bundled", async () => {
+			const harness = createHarness();
+			const observationTime = new Date("2026-03-01T00:00:00.000Z");
+
+			await harness.useCase.execute(
+				makeCommand({
+					id: "event-A",
+					tenantId: "tenant-1",
+					spatialObservation: {
+						observationTime,
+						geometries: [],
+						divisionIds: [],
+					},
+				}),
+			);
+
+			expect(harness.logger.info).toHaveBeenCalledWith({
+				msg: "spatial_observation.recorded",
+				hazardousEventId: "event-A",
+				tenantId: "tenant-1",
+				observationTime: observationTime.toISOString(),
+			});
+			// Both log calls (hazardous_event.updated and spatial_observation.recorded) fire
+			// strictly after the transaction-resolving marker, never mid-transaction.
+			const resolvingIndex = harness.callLog.indexOf(
+				"transactionRunner.run.resolving",
+			);
+			const logIndices = harness.callLog.reduce<number[]>(
+				(indices, entry, index) =>
+					entry === "logger.info" ? [...indices, index] : indices,
+				[],
+			);
+			expect(resolvingIndex).toBeGreaterThan(-1);
+			expect(logIndices).toHaveLength(2);
+			expect(logIndices.every((index) => index > resolvingIndex)).toBe(true);
+		});
+
+		it("does not log spatial_observation.recorded when no spatial observation is bundled", async () => {
+			const harness = createHarness();
+
+			await harness.useCase.execute(
+				makeCommand({
+					id: "event-A",
+					tenantId: "tenant-1",
+					description: "Updated",
+				}),
+			);
+
+			expect(harness.logger.info).not.toHaveBeenCalledWith(
+				expect.objectContaining({ msg: "spatial_observation.recorded" }),
+			);
+		});
+	});
+
 	describe("optimistic locking", () => {
 		// A hardcoded `null` 2nd argument would pass every other scenario here undetected.
 		it("calls update() with the previously-read, non-null updatedAt, not a freshly-computed value", async () => {
@@ -1673,6 +1858,7 @@ describe("UpdateHazardousEventUseCase", () => {
 				),
 			).rejects.toBe(thrown);
 			expect(updateCallCount).toBe(1);
+			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 
 		it("lets exactly one of two concurrent execute() calls for the same event win, the other rejecting with ConcurrentModificationError", async () => {

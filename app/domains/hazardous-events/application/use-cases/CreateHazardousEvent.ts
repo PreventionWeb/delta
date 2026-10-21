@@ -14,6 +14,7 @@ import { toHazardousEventDto } from "../dto/HazardousEventDto";
 import { WorkflowInstance } from "~/domains/validation-workflow/domain/WorkflowInstance";
 import type { IWorkflowRepository } from "~/domains/validation-workflow/application/ports/IWorkflowRepository";
 import type { ILogger } from "~/shared/logging/ILogger";
+import type { ITransactionRunner } from "~/shared/persistence/ITransactionRunner";
 import { ValidationError } from "~/shared/errors";
 import { assertNonEmptyString } from "../assertNonEmptyString";
 
@@ -90,6 +91,7 @@ export class CreateHazardousEventUseCase {
 		private readonly hazardousEventRepository: IHazardousEventRepository,
 		private readonly workflowRepository: IWorkflowRepository,
 		private readonly causalChainRepository: ICausalChainRepository,
+		private readonly transactionRunner: ITransactionRunner,
 	) {}
 
 	async execute(
@@ -167,25 +169,40 @@ export class CreateHazardousEventUseCase {
 			assertCausalLinkDoesNotCreateCycle(edges, cause.id, newEvent.id);
 		}
 
-		const saved = await this.hazardousEventRepository.insert(newEvent);
+		// Whole write sequence is one transaction (DEF-026, design.md "The full write sequence
+		// runs as one atomic transaction") -- a failure partway rolls back every earlier write in
+		// this same call, including the HazardousEvent insert.
+		const { saved, savedWorkflow } = await this.transactionRunner.run(
+			async (tx) => {
+				const saved = await this.hazardousEventRepository.insert(newEvent, tx);
 
-		const workflowInstance = WorkflowInstance.createDraft({
-			id: crypto.randomUUID(),
-			entityId: saved.id,
-			entityType: "HE",
-			now,
-		});
-		const savedWorkflow =
-			await this.workflowRepository.insert(workflowInstance);
+				const workflowInstance = WorkflowInstance.createDraft({
+					id: crypto.randomUUID(),
+					entityId: saved.id,
+					entityType: "HE",
+					now,
+				});
+				const savedWorkflow = await this.workflowRepository.insert(
+					workflowInstance,
+					tx,
+				);
 
-		// Edge last (design.md Decision 5) -- only a 2nd-write failure can orphan the event from its WorkflowInstance; no compensating delete on any later failure (DEF-026).
-		if (cause !== undefined) {
-			await this.causalChainRepository.saveEdge(
-				{ causeId: cause.id, effectId: saved.id },
-				command.causalityExplanation ?? null,
-			);
-		}
+				// Edge last (design.md Decision 5) -- kept for determinism/compatibility with the
+				// pre-5k order; a failure anywhere now rolls back the whole transaction regardless.
+				if (cause !== undefined) {
+					await this.causalChainRepository.saveEdge(
+						{ causeId: cause.id, effectId: saved.id },
+						command.causalityExplanation ?? null,
+						tx,
+					);
+				}
 
+				return { saved, savedWorkflow };
+			},
+		);
+
+		// Logged only after the transaction resolves successfully -- a rolled-back transaction
+		// rejects the await above and short-circuits past this call entirely.
 		this.logger.info({
 			msg: "hazardous_event.created",
 			hazardousEventId: saved.id,

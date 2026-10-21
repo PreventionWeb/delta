@@ -6,7 +6,8 @@ import type {
 } from "~/domains/event-causality/application/ports/IEventCausalityRepository";
 import type { IWorkflowRepository } from "~/domains/validation-workflow/application/ports/IWorkflowRepository";
 import type { ILogger } from "~/shared/logging/ILogger";
-import { ConflictError } from "~/shared/errors";
+import type { ITransactionRunner } from "~/shared/persistence/ITransactionRunner";
+import { ConflictError, NotFoundError } from "~/shared/errors";
 import { assertNonEmptyString } from "../assertNonEmptyString";
 
 export interface DeleteHazardousEventCommand {
@@ -57,6 +58,7 @@ export class DeleteHazardousEventUseCase {
 		private readonly eventCausalityRepository: IEventCausalityRepository,
 		private readonly causalChainRepository: ICausalChainRepository,
 		private readonly workflowRepository: IWorkflowRepository,
+		private readonly transactionRunner: ITransactionRunner,
 	) {}
 
 	async execute(command: DeleteHazardousEventCommand): Promise<void> {
@@ -64,39 +66,69 @@ export class DeleteHazardousEventUseCase {
 		assertNonEmptyString(command.tenantId, "tenantId");
 		assertNonEmptyString(command.actingUserId, "actingUserId");
 
+		// Unlocked, unchanged -- still throws NotFoundError unconditionally for a genuinely
+		// missing or foreign-tenant id (design.md Decision 8).
 		await this.hazardousEventRepository.findById(command.id, command.tenantId);
 
-		const [disasterEventCount, eventCausalityCounts, causalChainCount] =
-			await Promise.all([
-				this.hazardousEventRepository.countReferencingDisasterEvents(
+		const deleted = await this.transactionRunner.run(async (tx) => {
+			try {
+				await this.hazardousEventRepository.findByIdForUpdate(
 					command.id,
 					command.tenantId,
-				),
-				this.eventCausalityRepository.countReferences(
-					command.id,
-					command.tenantId,
-				),
-				this.causalChainRepository.countEdgesTouching(command.id),
-			]);
+					tx,
+				);
+			} catch (err) {
+				// Can only mean a concurrent transaction deleted this row while this call waited
+				// for the lock, since the findById above already confirmed it existed.
+				if (err instanceof NotFoundError) {
+					return false;
+				}
+				throw err;
+			}
 
-		const dependents = buildDependents(
-			disasterEventCount,
-			eventCausalityCounts,
-			causalChainCount,
-		);
+			const [disasterEventCount, eventCausalityCounts, causalChainCount] =
+				await Promise.all([
+					this.hazardousEventRepository.countReferencingDisasterEvents(
+						command.id,
+						command.tenantId,
+						tx,
+					),
+					this.eventCausalityRepository.countReferences(
+						command.id,
+						command.tenantId,
+						tx,
+					),
+					this.causalChainRepository.countEdgesTouching(command.id, tx),
+				]);
 
-		if (dependents.length > 0) {
-			throw new ConflictError(
-				"Cannot delete a hazardous event that has dependents",
-				{
-					hazardousEventId: command.id,
-					dependents,
-				},
+			const dependents = buildDependents(
+				disasterEventCount,
+				eventCausalityCounts,
+				causalChainCount,
 			);
-		}
 
-		await this.workflowRepository.deleteByEntity(command.id, "HE");
-		await this.hazardousEventRepository.delete(command.id, command.tenantId);
+			if (dependents.length > 0) {
+				throw new ConflictError(
+					"Cannot delete a hazardous event that has dependents",
+					{
+						hazardousEventId: command.id,
+						dependents,
+					},
+				);
+			}
+
+			await this.workflowRepository.deleteByEntity(command.id, "HE", tx);
+			await this.hazardousEventRepository.delete(
+				command.id,
+				command.tenantId,
+				tx,
+			);
+			return true;
+		});
+
+		if (!deleted) {
+			return;
+		}
 
 		this.logger.info({
 			msg: "hazardous_event.deleted",
