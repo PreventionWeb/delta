@@ -159,6 +159,20 @@ describe("DrizzleCausalChainRepository", () => {
 			expect(otherRows).toHaveLength(1);
 		});
 
+		it("called with an externally-supplied, not-yet-committed tx, the write is visible to a read via that same tx before commit", async () => {
+			const [a, b] = await Promise.all([seedNode(), seedNode()]);
+			const repo = new DrizzleCausalChainRepository(dr);
+
+			await dr.transaction(async (tx) => {
+				await repo.saveEdge({ causeId: a, effectId: b }, null, tx);
+				const rows = await tx
+					.select()
+					.from(hazardousEventCausalityTable)
+					.where(eq(hazardousEventCausalityTable.causeHazardousEventId, a));
+				expect(rows).toHaveLength(1);
+			});
+		});
+
 		// Mandatory concurrent-callers test (DEF-030 Race 1): must be confirmed red — both calls
 		// succeeding, leaving a 2-node cycle — before the lock-guarded implementation is written.
 		it("does not let two concurrent calls jointly close a two-node cycle", async () => {
@@ -269,6 +283,26 @@ describe("DrizzleCausalChainRepository", () => {
 				.where(eq(hazardousEventCausalityTable.effectHazardousEventId, effect));
 			expect(rows).toHaveLength(1);
 		});
+
+		it("called with an externally-supplied, not-yet-committed tx, the write is visible to a read via that same tx before commit", async () => {
+			const [cause, effect] = await Promise.all([seedNode(), seedNode()]);
+			const repo = new DrizzleCausalChainRepository(dr);
+
+			await dr.transaction(async (tx) => {
+				await repo.replaceCauseEdge(
+					effect,
+					{ causeId: cause, causalityExplanation: null },
+					tx,
+				);
+				const rows = await tx
+					.select()
+					.from(hazardousEventCausalityTable)
+					.where(
+						eq(hazardousEventCausalityTable.effectHazardousEventId, effect),
+					);
+				expect(rows).toHaveLength(1);
+			});
+		});
 	});
 
 	describe("countEdgesTouching", () => {
@@ -277,6 +311,16 @@ describe("DrizzleCausalChainRepository", () => {
 			const repo = new DrizzleCausalChainRepository(dr);
 
 			await expect(repo.countEdgesTouching(node)).resolves.toBe(0);
+		});
+
+		it("reflects an uncommitted edge inserted under a caller-supplied tx", async () => {
+			const [a, b] = await Promise.all([seedNode(), seedNode()]);
+			const repo = new DrizzleCausalChainRepository(dr);
+
+			await dr.transaction(async (tx) => {
+				await repo.saveEdge({ causeId: a, effectId: b }, null, tx);
+				await expect(repo.countEdgesTouching(a, tx)).resolves.toBe(1);
+			});
 		});
 
 		it("counts a node that is only ever a cause", async () => {

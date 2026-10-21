@@ -1,7 +1,7 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { and, eq, inArray, sql } from "drizzle-orm";
 
-import type { Dr } from "~/db.server";
+import type { Dr, Tx } from "~/db.server";
 import { DRIZZLE_CLIENT } from "~/infrastructure/DrizzleProvider.server";
 import { getPinoLogger } from "~/infrastructure/logging/PinoLogger.server";
 import { pgErrorCode } from "~/infrastructure/pgErrorCode.server";
@@ -159,12 +159,12 @@ export class DrizzleWorkflowRepository implements IWorkflowRepository {
 
 	/** First-time persistence only (DEF-024, 5j design.md Decision 1) — a plain INSERT relying on
 	 * UNIQUE(entityId, entityType) for the first-insert race, unchanged from the old save(). */
-	async insert(instance: WorkflowInstance): Promise<WorkflowInstance> {
+	async insert(instance: WorkflowInstance, tx?: Tx): Promise<WorkflowInstance> {
 		const row = this.toRow(instance);
 
 		let rows: SelectWorkflowInstance[];
 		try {
-			rows = await this.db
+			rows = await (tx ?? this.db)
 				.insert(workflowInstanceTable)
 				.values(row)
 				.returning();
@@ -184,14 +184,16 @@ export class DrizzleWorkflowRepository implements IWorkflowRepository {
 	async update(
 		instance: WorkflowInstance,
 		expectedUpdatedAt: Date,
+		tx?: Tx,
 	): Promise<WorkflowInstance> {
 		const row = this.toRow(instance);
 		// entityId/entityType/createdAt are immutable after insert, so excluded from SET (5a design.md Decision 2).
 		const { id, entityId, entityType, createdAt, ...setFields } = row;
+		const executor = tx ?? this.db;
 
 		let rows: SelectWorkflowInstance[];
 		try {
-			rows = await this.db
+			rows = await executor
 				.update(workflowInstanceTable)
 				.set(setFields)
 				.where(
@@ -213,17 +215,19 @@ export class DrizzleWorkflowRepository implements IWorkflowRepository {
 			return WorkflowInstance.create(this.toProps(rows[0]));
 		}
 
-		return this.diagnoseUpdateConflict(id, entityId, entityType);
+		return this.diagnoseUpdateConflict(id, entityId, entityType, executor);
 	}
 
 	/** Zero-row UPDATE diagnostic re-read (design.md Decision 4) — classifies the cause, never
-	 * retries the write. Always throws. Split out of update() for SRP. */
+	 * retries the write. Always throws. Split out of update() for SRP. Reads via the caller's own
+	 * resolved executor (design.md Decision 2), never a hard-coded this.db. */
 	private async diagnoseUpdateConflict(
 		id: string,
 		entityId: string,
 		entityType: EntityType,
+		executor: Tx,
 	): Promise<never> {
-		const diagnosticRows = await this.db
+		const diagnosticRows = await executor
 			.select()
 			.from(workflowInstanceTable)
 			.where(eq(workflowInstanceTable.id, id));
@@ -252,8 +256,9 @@ export class DrizzleWorkflowRepository implements IWorkflowRepository {
 	async deleteByEntity(
 		entityId: string,
 		entityType: EntityType,
+		tx?: Tx,
 	): Promise<void> {
-		await this.db
+		await (tx ?? this.db)
 			.delete(workflowInstanceTable)
 			.where(
 				and(
