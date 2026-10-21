@@ -4,8 +4,10 @@ import {
 	type HazardousEventProps,
 } from "../../domain/HazardousEvent";
 import type { CausalEdge } from "../../domain/CausalChain";
+import type { Tx } from "~/db.server";
 import { ConflictError, NotFoundError, ValidationError } from "~/shared/errors";
 import type { ILogger } from "~/shared/logging/ILogger";
+import type { ITransactionRunner } from "~/shared/persistence/ITransactionRunner";
 import type { IHazardousEventRepository } from "../ports/IHazardousEventRepository";
 import type { ICausalChainRepository } from "../ports/ICausalChainRepository";
 import type {
@@ -18,6 +20,19 @@ import {
 	DeleteHazardousEventUseCase,
 	type DeleteHazardousEventCommand,
 } from "./DeleteHazardousEvent";
+
+/** No real transaction semantics — just invokes fn with a placeholder tx, matching this
+ * codebase's own inline-fake convention for every other port these use cases fake. */
+const fakeTx = {} as Tx;
+
+class FakeTransactionRunner implements ITransactionRunner {
+	runCalls = 0;
+
+	async run<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
+		this.runCalls += 1;
+		return fn(fakeTx);
+	}
+}
 
 async function captureThrown(fn: () => Promise<unknown>): Promise<unknown> {
 	try {
@@ -40,14 +55,23 @@ type CountsResult = EventCausalityReferenceCounts | Error;
 
 class FakeHazardousEventRepository implements IHazardousEventRepository {
 	readonly findByIdCalls: { id: string; tenantId: string }[] = [];
-	readonly deleteCalls: { id: string; tenantId: string }[] = [];
+	readonly findByIdForUpdateCalls: {
+		id: string;
+		tenantId: string;
+		tx?: Tx;
+	}[] = [];
+	readonly deleteCalls: { id: string; tenantId: string; tx?: Tx }[] = [];
 	readonly countReferencingDisasterEventsCalls: {
 		id: string;
 		tenantId: string;
+		tx?: Tx;
 	}[] = [];
 	private readonly disasterEventCounts = new Map<string, NumberResult>();
 	private readonly store = new Map<string, HazardousEvent>();
 	findByIdBehavior: Error | undefined;
+	/** Default: the same lookup findById uses. Override to simulate the post-findById race a
+	 * concurrent delete creates (design.md Decision 8, Task 8.2). */
+	findByIdForUpdateBehavior: Error | undefined;
 
 	constructor(
 		seed: readonly HazardousEvent[] = [],
@@ -81,10 +105,12 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 	async countReferencingDisasterEvents(
 		hazardousEventId: string,
 		tenantId: string,
+		tx?: Tx,
 	): Promise<number> {
 		this.countReferencingDisasterEventsCalls.push({
 			id: hazardousEventId,
 			tenantId,
+			tx,
 		});
 		const result = this.disasterEventCounts.get(hazardousEventId) ?? 0;
 		if (result instanceof Error) {
@@ -93,8 +119,24 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		return result;
 	}
 
-	async delete(id: string, tenantId: string): Promise<void> {
-		this.deleteCalls.push({ id, tenantId });
+	async findByIdForUpdate(
+		id: string,
+		tenantId: string,
+		tx: Tx,
+	): Promise<HazardousEvent> {
+		this.findByIdForUpdateCalls.push({ id, tenantId, tx });
+		if (this.findByIdForUpdateBehavior) {
+			throw this.findByIdForUpdateBehavior;
+		}
+		const found = this.store.get(this.key(id, tenantId));
+		if (!found) {
+			throw new NotFoundError("HazardousEvent", id);
+		}
+		return found;
+	}
+
+	async delete(id: string, tenantId: string, tx?: Tx): Promise<void> {
+		this.deleteCalls.push({ id, tenantId, tx });
 		this.callLog.push("hazardousEvent.delete");
 		this.store.delete(this.key(id, tenantId));
 	}
@@ -125,7 +167,11 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 }
 
 class FakeEventCausalityRepository implements IEventCausalityRepository {
-	readonly countReferencesCalls: { id: string; tenantId: string }[] = [];
+	readonly countReferencesCalls: {
+		id: string;
+		tenantId: string;
+		tx?: Tx;
+	}[] = [];
 	private readonly results = new Map<string, CountsResult>();
 
 	setResult(hazardousEventId: string, result: CountsResult): void {
@@ -135,8 +181,9 @@ class FakeEventCausalityRepository implements IEventCausalityRepository {
 	async countReferences(
 		hazardousEventId: string,
 		tenantId: string,
+		tx?: Tx,
 	): Promise<EventCausalityReferenceCounts> {
-		this.countReferencesCalls.push({ id: hazardousEventId, tenantId });
+		this.countReferencesCalls.push({ id: hazardousEventId, tenantId, tx });
 		const result = this.results.get(hazardousEventId) ?? {
 			sameTenantCount: 0,
 			crossTenantCount: 0,
@@ -150,14 +197,16 @@ class FakeEventCausalityRepository implements IEventCausalityRepository {
 
 class FakeCausalChainRepository implements ICausalChainRepository {
 	readonly countEdgesTouchingCalls: string[] = [];
+	readonly countEdgesTouchingTxCalls: (Tx | undefined)[] = [];
 	private readonly results = new Map<string, NumberResult>();
 
 	setCount(nodeId: string, result: NumberResult): void {
 		this.results.set(nodeId, result);
 	}
 
-	async countEdgesTouching(nodeId: string): Promise<number> {
+	async countEdgesTouching(nodeId: string, tx?: Tx): Promise<number> {
 		this.countEdgesTouchingCalls.push(nodeId);
+		this.countEdgesTouchingTxCalls.push(tx);
 		const result = this.results.get(nodeId) ?? 0;
 		if (result instanceof Error) {
 			throw result;
@@ -180,8 +229,11 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 
 /** `concurrentBarrierSize` gates deleteByEntity, the use case's first write -- both calls' own findById/dependent-checks must already be done by the time either reaches it. */
 class FakeWorkflowRepository implements IWorkflowRepository {
-	readonly deleteByEntityCalls: { entityId: string; entityType: EntityType }[] =
-		[];
+	readonly deleteByEntityCalls: {
+		entityId: string;
+		entityType: EntityType;
+		tx?: Tx;
+	}[] = [];
 	deleteByEntityBehavior: "succeed" | Error = "succeed";
 	concurrentBarrierSize = 0;
 	private readonly barrierResolvers: (() => void)[] = [];
@@ -191,8 +243,9 @@ class FakeWorkflowRepository implements IWorkflowRepository {
 	async deleteByEntity(
 		entityId: string,
 		entityType: EntityType,
+		tx?: Tx,
 	): Promise<void> {
-		this.deleteByEntityCalls.push({ entityId, entityType });
+		this.deleteByEntityCalls.push({ entityId, entityType, tx });
 		if (this.concurrentBarrierSize > 0) {
 			await this.awaitBarrier();
 		}
@@ -286,12 +339,14 @@ function createHarness() {
 	const eventCausalityRepository = new FakeEventCausalityRepository();
 	const causalChainRepository = new FakeCausalChainRepository();
 	const workflowRepository = new FakeWorkflowRepository(callLog);
+	const transactionRunner = new FakeTransactionRunner();
 	const useCase = new DeleteHazardousEventUseCase(
 		logger,
 		hazardousEventRepository,
 		eventCausalityRepository,
 		causalChainRepository,
 		workflowRepository,
+		transactionRunner,
 	);
 	return {
 		callLog,
@@ -300,6 +355,7 @@ function createHarness() {
 		eventCausalityRepository,
 		causalChainRepository,
 		workflowRepository,
+		transactionRunner,
 		useCase,
 	};
 }
@@ -315,10 +371,10 @@ describe("DeleteHazardousEventUseCase", () => {
 		).resolves.toBeUndefined();
 
 		expect(harness.workflowRepository.deleteByEntityCalls).toEqual([
-			{ entityId: "event-A", entityType: "HE" },
+			{ entityId: "event-A", entityType: "HE", tx: fakeTx },
 		]);
 		expect(harness.hazardousEventRepository.deleteCalls).toEqual([
-			{ id: "event-A", tenantId: "tenant-1" },
+			{ id: "event-A", tenantId: "tenant-1", tx: fakeTx },
 		]);
 	});
 
@@ -342,6 +398,10 @@ describe("DeleteHazardousEventUseCase", () => {
 		);
 		expect(harness.workflowRepository.deleteByEntityCalls).toHaveLength(0);
 		expect(harness.hazardousEventRepository.deleteCalls).toHaveLength(0);
+		expect(
+			harness.hazardousEventRepository.findByIdForUpdateCalls,
+		).toHaveLength(0);
+		expect(harness.transactionRunner.runCalls).toBe(0);
 	});
 
 	it("propagates NotFoundError for an existing event looked up under a different tenantId, calling no dependent check", async () => {
@@ -355,6 +415,9 @@ describe("DeleteHazardousEventUseCase", () => {
 
 		expect(
 			harness.hazardousEventRepository.countReferencingDisasterEventsCalls,
+		).toHaveLength(0);
+		expect(
+			harness.hazardousEventRepository.findByIdForUpdateCalls,
 		).toHaveLength(0);
 		expect(harness.workflowRepository.deleteByEntityCalls).toHaveLength(0);
 		expect(harness.hazardousEventRepository.deleteCalls).toHaveLength(0);
@@ -778,30 +841,91 @@ describe("DeleteHazardousEventUseCase", () => {
 		});
 	});
 
-	describe("concurrent callers", () => {
-		it("two concurrent deletes of the same zero-dependent event, both reads before either write, both succeed", async () => {
+	describe("transaction wrapping (design.md Decision 1 — ITransactionRunner)", () => {
+		it("calls transactionRunner.run exactly once, passing the same tx to findByIdForUpdate, all three counts, deleteByEntity, and delete", async () => {
 			const harness = createHarness();
-			harness.workflowRepository.concurrentBarrierSize = 2;
 
-			const results = await Promise.allSettled([
-				harness.useCase.execute(
-					makeCommand({ id: "event-A", tenantId: "tenant-1" }),
-				),
-				harness.useCase.execute(
-					makeCommand({ id: "event-A", tenantId: "tenant-1" }),
-				),
-			]);
+			await harness.useCase.execute(
+				makeCommand({ id: "event-A", tenantId: "tenant-1" }),
+			);
 
-			expect(results[0].status).toBe("fulfilled");
-			expect(results[1].status).toBe("fulfilled");
-			expect(harness.workflowRepository.deleteByEntityCalls).toHaveLength(2);
-			expect(harness.hazardousEventRepository.deleteCalls).toHaveLength(2);
-			expect(harness.logger.info).toHaveBeenCalledTimes(2);
-			// Forced read-before-write ordering proves no shared state, not DB-level exclusion.
-			await expect(
-				harness.hazardousEventRepository.findById("event-A", "tenant-1"),
-			).rejects.toThrow(NotFoundError);
+			expect(harness.transactionRunner.runCalls).toBe(1);
+			expect(
+				harness.hazardousEventRepository.findByIdForUpdateCalls[0].tx,
+			).toBe(fakeTx);
+			expect(
+				harness.hazardousEventRepository.countReferencingDisasterEventsCalls[0]
+					.tx,
+			).toBe(fakeTx);
+			expect(harness.eventCausalityRepository.countReferencesCalls[0].tx).toBe(
+				fakeTx,
+			);
+			expect(harness.causalChainRepository.countEdgesTouchingTxCalls[0]).toBe(
+				fakeTx,
+			);
+			expect(harness.workflowRepository.deleteByEntityCalls[0].tx).toBe(fakeTx);
+			expect(harness.hazardousEventRepository.deleteCalls[0].tx).toBe(fakeTx);
 		});
+
+		it("a deleteByEntity rejection propagates unmodified, with no log event", async () => {
+			const harness = createHarness();
+			harness.workflowRepository.deleteByEntityBehavior = new Error(
+				"boom-delete-by-entity",
+			);
+
+			await expect(
+				harness.useCase.execute(
+					makeCommand({ id: "event-A", tenantId: "tenant-1" }),
+				),
+			).rejects.toThrow("boom-delete-by-entity");
+			expect(harness.hazardousEventRepository.deleteCalls).toHaveLength(0);
+			expect(harness.logger.info).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("execute() treats a post-findById NotFoundError from findByIdForUpdate as a successful no-op", () => {
+		it("resolves without throwing, running none of the dependent counts and neither delete call, with no log event", async () => {
+			const harness = createHarness();
+			harness.hazardousEventRepository.findByIdForUpdateBehavior =
+				new NotFoundError("HazardousEvent", "event-A");
+
+			await expect(
+				harness.useCase.execute(
+					makeCommand({ id: "event-A", tenantId: "tenant-1" }),
+				),
+			).resolves.toBeUndefined();
+
+			expect(
+				harness.hazardousEventRepository.countReferencingDisasterEventsCalls,
+			).toHaveLength(0);
+			expect(
+				harness.eventCausalityRepository.countReferencesCalls,
+			).toHaveLength(0);
+			expect(
+				harness.causalChainRepository.countEdgesTouchingCalls,
+			).toHaveLength(0);
+			expect(harness.workflowRepository.deleteByEntityCalls).toHaveLength(0);
+			expect(harness.hazardousEventRepository.deleteCalls).toHaveLength(0);
+			expect(harness.logger.info).not.toHaveBeenCalled();
+		});
+
+		it("a ValidationError from the same findByIdForUpdate call still propagates unmodified, not caught", async () => {
+			const harness = createHarness();
+			const thrown = new ValidationError("malformed row");
+			harness.hazardousEventRepository.findByIdForUpdateBehavior = thrown;
+
+			await expect(
+				harness.useCase.execute(
+					makeCommand({ id: "event-A", tenantId: "tenant-1" }),
+				),
+			).rejects.toBe(thrown);
+		});
+	});
+
+	describe("concurrent callers", () => {
+		// This test moved: the no-op-catch path is unit-tested directly below ("treats a
+		// post-findById NotFoundError ... as a successful no-op"); the real lock guarantee
+		// (design.md Decision 8) needs a real lock, proven in Task 8.4's PGlite test, not a fake.
 
 		it("concurrent callers for different tenants resolve independently, with no cross-contamination", async () => {
 			const callLog: string[] = [];
@@ -825,6 +949,7 @@ describe("DeleteHazardousEventUseCase", () => {
 				eventCausalityRepository,
 				causalChainRepository,
 				workflowRepository,
+				new FakeTransactionRunner(),
 			);
 
 			const results = await Promise.allSettled([
@@ -844,16 +969,16 @@ describe("DeleteHazardousEventUseCase", () => {
 				hazardousEventId: "event-T2",
 			});
 			expect(hazardousEventRepository.deleteCalls).toEqual([
-				{ id: "event-T1", tenantId: "T1" },
+				{ id: "event-T1", tenantId: "T1", tx: fakeTx },
 			]);
 			expect(workflowRepository.deleteByEntityCalls).toEqual([
-				{ entityId: "event-T1", entityType: "HE" },
+				{ entityId: "event-T1", entityType: "HE", tx: fakeTx },
 			]);
 			expect(eventCausalityRepository.countReferencesCalls).toHaveLength(2);
 			expect(eventCausalityRepository.countReferencesCalls).toEqual(
 				expect.arrayContaining([
-					{ id: "event-T1", tenantId: "T1" },
-					{ id: "event-T2", tenantId: "T2" },
+					{ id: "event-T1", tenantId: "T1", tx: fakeTx },
+					{ id: "event-T2", tenantId: "T2", tx: fakeTx },
 				]),
 			);
 		});

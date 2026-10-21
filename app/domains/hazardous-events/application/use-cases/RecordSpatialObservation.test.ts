@@ -3,8 +3,8 @@ import {
 	HazardousEvent,
 	type HazardousEventProps,
 } from "../../domain/HazardousEvent";
+import type { Tx } from "~/db.server";
 import { ConflictError, NotFoundError, ValidationError } from "~/shared/errors";
-import type { ILogger } from "~/shared/logging/ILogger";
 import type {
 	IHazardousEventRepository,
 	SpatialObservationRecord,
@@ -15,28 +15,24 @@ import {
 	type RecordSpatialObservationCommand,
 } from "./RecordSpatialObservation";
 
-class FakeLogger implements ILogger {
-	info = vi.fn();
-	warn = vi.fn();
-	error = vi.fn();
-	debug = vi.fn();
-}
-
 interface FindByIdCall {
 	id: string;
 	tenantId: string;
+	tx?: Tx;
 }
 
 interface FindSpatialObservationByTimeCall {
 	hazardousEventId: string;
 	observationTime: Date;
 	tenantId: string;
+	tx?: Tx;
 }
 
 interface SaveSpatialObservationCall {
 	hazardousEventId: string;
 	observation: SpatialObservationRecord;
 	tenantId: string;
+	tx?: Tx;
 }
 
 /** Call-arg capture fake; saveSpatialObservation returns a distinct record (updatedAt +1s). simulateUniqueConstraint simulates the DB's unique constraint for the concurrent-callers test (Decision 6), off by default. */
@@ -81,8 +77,12 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		);
 	}
 
-	async findById(id: string, tenantId: string): Promise<HazardousEvent> {
-		this.findByIdCalls.push({ id, tenantId });
+	async findById(
+		id: string,
+		tenantId: string,
+		tx?: Tx,
+	): Promise<HazardousEvent> {
+		this.findByIdCalls.push({ id, tenantId, tx });
 		const found = this.events.get(this.eventKey(id, tenantId));
 		if (!found) {
 			throw new NotFoundError("HazardousEvent", id);
@@ -110,6 +110,10 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		throw new Error("not used by RecordSpatialObservationUseCase's own tests");
 	}
 
+	async findByIdForUpdate(): Promise<HazardousEvent> {
+		throw new Error("not used by RecordSpatialObservationUseCase's own tests");
+	}
+
 	async findCurrentSpatialObservation(): Promise<never> {
 		throw new Error("not used by RecordSpatialObservationUseCase's own tests");
 	}
@@ -118,11 +122,13 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		hazardousEventId: string,
 		observationTime: Date,
 		tenantId: string,
+		tx?: Tx,
 	): Promise<SpatialObservationRecord | null> {
 		this.findSpatialObservationByTimeCalls.push({
 			hazardousEventId,
 			observationTime,
 			tenantId,
+			tx,
 		});
 		if (this.findSpatialObservationByTimeOverride !== undefined) {
 			return this.findSpatialObservationByTimeOverride;
@@ -138,11 +144,13 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		hazardousEventId: string,
 		observation: SpatialObservationRecord,
 		tenantId: string,
+		tx?: Tx,
 	): Promise<SpatialObservationRecord> {
 		this.saveSpatialObservationCalls.push({
 			hazardousEventId,
 			observation,
 			tenantId,
+			tx,
 		});
 		const key = this.spatialKey(hazardousEventId, observation.observationTime);
 		if (this.simulateUniqueConstraint && this.spatialObservations.has(key)) {
@@ -252,7 +260,6 @@ function createHarness(
 		validDivisionIds?: ReadonlySet<string>;
 	} = {},
 ) {
-	const logger = new FakeLogger();
 	const hazardousEventRepository = new FakeHazardousEventRepository(
 		options.events ?? [makeHazardousEvent()],
 	);
@@ -260,11 +267,10 @@ function createHarness(
 		options.validDivisionIds ?? new Set(),
 	);
 	const useCase = new RecordSpatialObservationUseCase(
-		logger,
 		hazardousEventRepository,
 		divisionRepository,
 	);
-	return { logger, hazardousEventRepository, divisionRepository, useCase };
+	return { hazardousEventRepository, divisionRepository, useCase };
 }
 
 /** Captures a rejected promise's reason without a repeated `execute()` call (would double-count side-effect assertions); throws if the promise unexpectedly resolves. */
@@ -326,7 +332,6 @@ describe("RecordSpatialObservationUseCase", () => {
 			expect(harness.divisionRepository.findValidDivisionIdsCalls).toHaveLength(
 				0,
 			);
-			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 
 		it("propagates NotFoundError identically for a cross-tenant hazardousEventId", async () => {
@@ -401,7 +406,6 @@ describe("RecordSpatialObservationUseCase", () => {
 			expect(
 				harness.hazardousEventRepository.saveSpatialObservationCalls,
 			).toHaveLength(0);
-			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 
 		it("rejects an explicit null observationTime with ValidationError rather than defaulting it to now", async () => {
@@ -483,7 +487,6 @@ describe("RecordSpatialObservationUseCase", () => {
 			expect(
 				harness.hazardousEventRepository.saveSpatialObservationCalls,
 			).toHaveLength(0);
-			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 
 		it("surfaces ValidationError for a malformed divisionIds even when observationTime is also a duplicate, with zero saveSpatialObservation calls", async () => {
@@ -850,42 +853,45 @@ describe("RecordSpatialObservationUseCase", () => {
 			);
 		});
 
-		it("logs spatial_observation.recorded with replaced: false on a fresh insert", async () => {
+		// This use case no longer logs its own success -- moved to UpdateHazardousEventUseCase,
+		// its only current caller, so the log fires only after the outer transaction commits
+		// (design.md Decision 6 addendum). See UpdateHazardousEvent.test.ts for the migrated
+		// coverage.
+	});
+
+	describe("tx threading (design.md Decision 9)", () => {
+		it("threads command.tx to findById, findSpatialObservationByTime, and saveSpatialObservation when present", async () => {
 			const harness = createHarness();
-			const observationTime = new Date("2026-02-01T00:00:00.000Z");
-			const command = makeCommand({ observationTime });
+			const tx = {} as Tx;
+			const command = makeCommand({ tx });
 
 			await harness.useCase.execute(command);
 
-			expect(harness.logger.info).toHaveBeenCalledTimes(1);
-			expect(harness.logger.info).toHaveBeenCalledWith({
-				msg: "spatial_observation.recorded",
-				hazardousEventId: "he-1",
-				tenantId: "tenant-1",
-				observationTime: observationTime.toISOString(),
-				replaced: false,
-			});
+			expect(harness.hazardousEventRepository.findByIdCalls[0].tx).toBe(tx);
+			expect(
+				harness.hazardousEventRepository.findSpatialObservationByTimeCalls[0]
+					.tx,
+			).toBe(tx);
+			expect(
+				harness.hazardousEventRepository.saveSpatialObservationCalls[0].tx,
+			).toBe(tx);
 		});
 
-		it("logs spatial_observation.recorded with replaced: true on a replace", async () => {
-			const observationTime = new Date("2026-02-01T00:00:00.000Z");
+		it("leaves every call's trailing tx argument undefined when command.tx is omitted", async () => {
 			const harness = createHarness();
-			harness.hazardousEventRepository.seedSpatialObservation(
-				"he-1",
-				makeSpatialObservationRecord({ observationTime }),
-			);
-			const command = makeCommand({ observationTime, confirmReplace: true });
 
-			await harness.useCase.execute(command);
+			await harness.useCase.execute(makeCommand());
 
-			expect(harness.logger.info).toHaveBeenCalledTimes(1);
-			expect(harness.logger.info).toHaveBeenCalledWith({
-				msg: "spatial_observation.recorded",
-				hazardousEventId: "he-1",
-				tenantId: "tenant-1",
-				observationTime: observationTime.toISOString(),
-				replaced: true,
-			});
+			expect(
+				harness.hazardousEventRepository.findByIdCalls[0].tx,
+			).toBeUndefined();
+			expect(
+				harness.hazardousEventRepository.findSpatialObservationByTimeCalls[0]
+					.tx,
+			).toBeUndefined();
+			expect(
+				harness.hazardousEventRepository.saveSpatialObservationCalls[0].tx,
+			).toBeUndefined();
 		});
 	});
 });
