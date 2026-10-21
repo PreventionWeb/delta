@@ -92,6 +92,10 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		throw new Error("not used by GetHazardousEventByIdUseCase's own tests");
 	}
 
+	async findByIdForUpdate(): Promise<HazardousEvent> {
+		throw new Error("not used by GetHazardousEventByIdUseCase's own tests");
+	}
+
 	async findSpatialObservationByTime(): Promise<never> {
 		throw new Error("not used by GetHazardousEventByIdUseCase's own tests");
 	}

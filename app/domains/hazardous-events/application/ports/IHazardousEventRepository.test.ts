@@ -3,6 +3,7 @@ import {
 	HazardousEvent,
 	type HazardousEventProps,
 } from "../../domain/HazardousEvent";
+import type { Tx } from "~/db.server";
 import {
 	ConcurrentModificationError,
 	ConflictError,
@@ -13,6 +14,10 @@ import type {
 	IHazardousEventRepository,
 	SpatialObservationRecord,
 } from "./IHazardousEventRepository";
+
+// This fake has no real transaction semantics — tx is accepted for shape conformance only, never
+// read, matching every other port method's own fake in this file.
+const fakeTx = {} as Tx;
 
 const baseHazardousEventProps: HazardousEventProps = {
 	id: "he-1",
@@ -89,7 +94,11 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		return `${hazardousEventId}:${observationTime.toISOString()}`;
 	}
 
-	async findById(id: string, tenantId: string): Promise<HazardousEvent> {
+	async findById(
+		id: string,
+		tenantId: string,
+		_tx?: Tx,
+	): Promise<HazardousEvent> {
 		const found = this.store.get(this.key(id, tenantId));
 		if (!found) {
 			throw new NotFoundError("HazardousEvent", id);
@@ -108,7 +117,7 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		return all.slice(start, start + pagination.pageSize);
 	}
 
-	async insert(entity: HazardousEvent): Promise<HazardousEvent> {
+	async insert(entity: HazardousEvent, _tx?: Tx): Promise<HazardousEvent> {
 		const key = this.key(entity.id, entity.tenantId);
 		if (this.store.has(key)) {
 			// Plain write that rejects on an id collision, never silently overwriting (port spec).
@@ -125,6 +134,7 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 	async update(
 		entity: HazardousEvent,
 		expectedUpdatedAt: Date | null,
+		_tx?: Tx,
 	): Promise<HazardousEvent> {
 		const key = this.key(entity.id, entity.tenantId);
 		const current = this.store.get(key);
@@ -154,8 +164,20 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		return entity;
 	}
 
-	async delete(id: string, tenantId: string): Promise<void> {
+	async delete(id: string, tenantId: string, _tx?: Tx): Promise<void> {
 		this.store.delete(this.key(id, tenantId));
+	}
+
+	async findByIdForUpdate(
+		id: string,
+		tenantId: string,
+		_tx: Tx,
+	): Promise<HazardousEvent> {
+		const found = this.store.get(this.key(id, tenantId));
+		if (!found) {
+			throw new NotFoundError("HazardousEvent", id);
+		}
+		return found;
 	}
 
 	seedDisasterEventReference(
@@ -171,6 +193,7 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		hazardousEventId: string,
 		// Intentionally unused: scopes the HE side only, never filters the counted disaster_event rows.
 		_tenantId: string,
+		_tx?: Tx,
 	): Promise<number> {
 		return (this.disasterEventReferences.get(hazardousEventId) ?? []).length;
 	}
@@ -195,6 +218,7 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		hazardousEventId: string,
 		observationTime: Date,
 		_tenantId: string,
+		_tx?: Tx,
 	): Promise<SpatialObservationRecord | null> {
 		return (
 			this.spatialObservations.get(
@@ -207,6 +231,7 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		hazardousEventId: string,
 		observation: SpatialObservationRecord,
 		_tenantId: string,
+		_tx?: Tx,
 	): Promise<SpatialObservationRecord> {
 		this.spatialObservations.set(
 			this.spatialKey(hazardousEventId, observation.observationTime),
@@ -374,6 +399,37 @@ describe("IHazardousEventRepository conformance", () => {
 			await expect(repo.findById("he-1", "tenant-1")).rejects.toThrow(
 				NotFoundError,
 			);
+		});
+	});
+
+	describe("findByIdForUpdate", () => {
+		it("resolves the matching entity for the given id and tenantId", async () => {
+			const repo = new FakeHazardousEventRepository();
+			const entity = makeHazardousEvent({ id: "he-2", tenantId: "tenant-2" });
+			await repo.insert(entity);
+
+			await expect(
+				repo.findByIdForUpdate("he-2", "tenant-2", fakeTx),
+			).resolves.toBe(entity);
+		});
+
+		it("throws NotFoundError when no entity exists for the given id/tenantId", async () => {
+			const repo = new FakeHazardousEventRepository();
+
+			await expect(
+				repo.findByIdForUpdate("missing-id", "tenant-1", fakeTx),
+			).rejects.toThrow(NotFoundError);
+		});
+
+		it("throws NotFoundError for a foreign-tenant id, same as findById", async () => {
+			const repo = new FakeHazardousEventRepository();
+			await repo.insert(
+				makeHazardousEvent({ id: "he-1", tenantId: "tenant-1" }),
+			);
+
+			await expect(
+				repo.findByIdForUpdate("he-1", "tenant-2", fakeTx),
+			).rejects.toThrow(NotFoundError);
 		});
 	});
 
@@ -550,7 +606,7 @@ type AssertEqual<A, B> = A extends B ? (B extends A ? true : never) : never;
 
 const _findByIdArity: AssertEqual<
 	Parameters<IHazardousEventRepository["findById"]>,
-	[string, string]
+	[string, string, Tx?]
 > = true;
 const _findAllArity: AssertEqual<
 	Parameters<IHazardousEventRepository["findAll"]>,
@@ -558,16 +614,21 @@ const _findAllArity: AssertEqual<
 > = true;
 const _insertArity: AssertEqual<
 	Parameters<IHazardousEventRepository["insert"]>,
-	[HazardousEvent]
+	[HazardousEvent, Tx?]
 > = true;
 // Fails to compile if expectedUpdatedAt is made optional (Date | null | undefined isn't the required tuple) -- the compile-time guard Decision 2 relies on.
 const _updateArity: AssertEqual<
 	Parameters<IHazardousEventRepository["update"]>,
-	[HazardousEvent, Date | null]
+	[HazardousEvent, Date | null, Tx?]
 > = true;
 const _deleteArity: AssertEqual<
 	Parameters<IHazardousEventRepository["delete"]>,
-	[string, string]
+	[string, string, Tx?]
+> = true;
+// tx is required (not optional) here — the compile-time guard design.md Decision 4 relies on.
+const _findByIdForUpdateArity: AssertEqual<
+	Parameters<IHazardousEventRepository["findByIdForUpdate"]>,
+	[string, string, Tx]
 > = true;
 const _findCurrentSpatialObservationArity: AssertEqual<
 	Parameters<IHazardousEventRepository["findCurrentSpatialObservation"]>,
@@ -575,15 +636,15 @@ const _findCurrentSpatialObservationArity: AssertEqual<
 > = true;
 const _findSpatialObservationByTimeArity: AssertEqual<
 	Parameters<IHazardousEventRepository["findSpatialObservationByTime"]>,
-	[string, Date, string]
+	[string, Date, string, Tx?]
 > = true;
 const _saveSpatialObservationArity: AssertEqual<
 	Parameters<IHazardousEventRepository["saveSpatialObservation"]>,
-	[string, SpatialObservationRecord, string]
+	[string, SpatialObservationRecord, string, Tx?]
 > = true;
 const _countReferencingDisasterEventsArity: AssertEqual<
 	Parameters<IHazardousEventRepository["countReferencingDisasterEvents"]>,
-	[string, string]
+	[string, string, Tx?]
 > = true;
 
 void _findByIdArity;
@@ -591,6 +652,7 @@ void _findAllArity;
 void _insertArity;
 void _updateArity;
 void _deleteArity;
+void _findByIdForUpdateArity;
 void _findCurrentSpatialObservationArity;
 void _findSpatialObservationByTimeArity;
 void _saveSpatialObservationArity;

@@ -166,8 +166,9 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 		}
 	}
 
-	/** Batches each child table with one `inArray` query across all ids, not per-row. */
+	/** Batches each child table with one `inArray` query across all ids, not per-row. `executor` must be the caller's own resolved `tx ?? this.db`, never a hard-coded `this.db` (design.md Decision 2). */
 	private async loadChildCollections(
+		executor: Tx,
 		ids: readonly string[],
 	): Promise<ReadonlyMap<string, ChildCollections>> {
 		const byId = new Map<string, ChildCollections>();
@@ -177,7 +178,7 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 
 		const [driverRows, attachmentRows, fieldValueRows, customFieldValueRows] =
 			await Promise.all([
-				this.db
+				executor
 					.select({
 						hazardousEventId: hazardousEventHazardDriverTable.hazardousEventId,
 						hazardDriverId: hazardousEventHazardDriverTable.hazardDriverId,
@@ -186,13 +187,13 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 					.where(
 						inArray(hazardousEventHazardDriverTable.hazardousEventId, [...ids]),
 					),
-				this.db
+				executor
 					.select()
 					.from(hazardousEventAttachmentTable)
 					.where(
 						inArray(hazardousEventAttachmentTable.hazardousEventId, [...ids]),
 					),
-				this.db
+				executor
 					.select({
 						hazardousEventId: hazardousEventFieldValueTable.hazardousEventId,
 						hazardTypeFieldDefinitionId:
@@ -203,7 +204,7 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 					.where(
 						inArray(hazardousEventFieldValueTable.hazardousEventId, [...ids]),
 					),
-				this.db
+				executor
 					.select({
 						hazardousEventId:
 							hazardousEventCustomFieldValueTable.hazardousEventId,
@@ -285,8 +286,13 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 		);
 	}
 
-	async findById(id: string, tenantId: string): Promise<HazardousEvent> {
-		const rows = await this.db
+	async findById(
+		id: string,
+		tenantId: string,
+		tx?: Tx,
+	): Promise<HazardousEvent> {
+		const executor = tx ?? this.db;
+		const rows = await executor
 			.select()
 			.from(hazardousEventTable)
 			.where(
@@ -300,7 +306,7 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 			throw new NotFoundError("HazardousEvent", id);
 		}
 
-		const children = await this.loadChildCollections([id]);
+		const children = await this.loadChildCollections(executor, [id]);
 		// Unlike findAll's skip-and-log, a requested id should error, not disappear (Decision 5).
 		return this.rehydrate(rows[0], children.get(id) ?? EMPTY_CHILD_COLLECTIONS);
 	}
@@ -318,7 +324,10 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 			.limit(pagination.pageSize)
 			.offset((pagination.page - 1) * pagination.pageSize);
 
-		const children = await this.loadChildCollections(rows.map((row) => row.id));
+		const children = await this.loadChildCollections(
+			this.db,
+			rows.map((row) => row.id),
+		);
 
 		const entities: HazardousEvent[] = [];
 		for (const row of rows) {
@@ -341,27 +350,28 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 		return entities;
 	}
 
-	/** One transaction spans the `event` row, `hazardous_event` row, and all child collections (Decision 4). */
-	async insert(entity: HazardousEvent): Promise<HazardousEvent> {
+	/** One transaction spans the `event` row, `hazardous_event` row, and all child collections (Decision 4). `(tx ?? this.db).transaction()` nests as a SAVEPOINT when `tx` is already inside an open outer transaction (design.md Decision 2). */
+	async insert(entity: HazardousEvent, tx?: Tx): Promise<HazardousEvent> {
 		const row = this.toRow(entity);
+		const executor = tx ?? this.db;
 
 		let inserted: SelectHazardousEvent;
 		try {
-			inserted = await this.db.transaction(async (tx) => {
+			inserted = await executor.transaction(async (innerTx) => {
 				// name/description left unset -- fall back to their zeroText DB default ("").
-				await tx.insert(eventTable).values({ id: entity.id });
-				const [hazardousEventRow] = await tx
+				await innerTx.insert(eventTable).values({ id: entity.id });
+				const [hazardousEventRow] = await innerTx
 					.insert(hazardousEventTable)
 					.values(row)
 					.returning();
-				await this.insertChildCollections(tx, entity.id, entity);
+				await this.insertChildCollections(innerTx, entity.id, entity);
 				return hazardousEventRow;
 			});
 		} catch (err) {
 			this.mapWriteError(err, { id: entity.id });
 		}
 
-		const children = await this.loadChildCollections([entity.id]);
+		const children = await this.loadChildCollections(executor, [entity.id]);
 		return this.rehydrate(
 			inserted,
 			children.get(entity.id) ?? EMPTY_CHILD_COLLECTIONS,
@@ -372,10 +382,12 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 	async update(
 		entity: HazardousEvent,
 		expectedUpdatedAt: Date | null,
+		tx?: Tx,
 	): Promise<HazardousEvent> {
 		const row = this.toRow(entity);
 		const id = entity.id;
 		const tenantId = entity.tenantId;
+		const executor = tx ?? this.db;
 		// id/tenantId/createdAt excluded from SET (immutable); id/tenantId below use entity directly, not row, since row's insert type allows null there.
 		const {
 			id: _id,
@@ -392,8 +404,8 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 
 		let result: SelectHazardousEvent | null;
 		try {
-			result = await this.db.transaction(async (tx) => {
-				const rows = await tx
+			result = await executor.transaction(async (innerTx) => {
+				const rows = await innerTx
 					.update(hazardousEventTable)
 					.set(setFields)
 					.where(
@@ -408,19 +420,19 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 				if (rows.length === 0) {
 					return null;
 				}
-				await tx
+				await innerTx
 					.delete(hazardousEventHazardDriverTable)
 					.where(eq(hazardousEventHazardDriverTable.hazardousEventId, id));
-				await tx
+				await innerTx
 					.delete(hazardousEventAttachmentTable)
 					.where(eq(hazardousEventAttachmentTable.hazardousEventId, id));
-				await tx
+				await innerTx
 					.delete(hazardousEventFieldValueTable)
 					.where(eq(hazardousEventFieldValueTable.hazardousEventId, id));
-				await tx
+				await innerTx
 					.delete(hazardousEventCustomFieldValueTable)
 					.where(eq(hazardousEventCustomFieldValueTable.hazardousEventId, id));
-				await this.insertChildCollections(tx, id, entity);
+				await this.insertChildCollections(innerTx, id, entity);
 				return rows[0];
 			});
 		} catch (err) {
@@ -428,10 +440,10 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 		}
 
 		if (result === null) {
-			return this.diagnoseUpdateConflict(id, tenantId);
+			return this.diagnoseUpdateConflict(id, tenantId, executor);
 		}
 
-		const children = await this.loadChildCollections([id]);
+		const children = await this.loadChildCollections(executor, [id]);
 		return this.rehydrate(result, children.get(id) ?? EMPTY_CHILD_COLLECTIONS);
 	}
 
@@ -473,12 +485,13 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 		throw err;
 	}
 
-	/** Zero-row diagnostic re-read: classifies the cause, always throws, never retries. */
+	/** Zero-row diagnostic re-read: classifies the cause, always throws, never retries. Reads via the caller's own resolved executor, not a separate connection (design.md Decision 2). */
 	private async diagnoseUpdateConflict(
 		id: string,
 		tenantId: string,
+		executor: Tx,
 	): Promise<never> {
-		const rows = await this.db
+		const rows = await executor
 			.select()
 			.from(hazardousEventTable)
 			.where(eq(hazardousEventTable.id, id));
@@ -502,10 +515,10 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 	}
 
 	/** Replicates the legacy cleanup order (event.ts:1728), tenant-gated delete first (Decision 6); outgoing event_relationship gap is inherited, mapped to ConflictError (Decision 8). */
-	async delete(id: string, tenantId: string): Promise<void> {
+	async delete(id: string, tenantId: string, tx?: Tx): Promise<void> {
 		try {
-			await this.db.transaction(async (tx) => {
-				const deleted = await tx
+			await (tx ?? this.db).transaction(async (innerTx) => {
+				const deleted = await innerTx
 					.delete(hazardousEventTable)
 					.where(
 						and(
@@ -517,10 +530,10 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 				if (deleted.length === 0) {
 					return;
 				}
-				await tx
+				await innerTx
 					.delete(eventRelationshipTable)
 					.where(eq(eventRelationshipTable.childId, id));
-				await tx.delete(eventTable).where(eq(eventTable.id, id));
+				await innerTx.delete(eventTable).where(eq(eventTable.id, id));
 			});
 		} catch (err) {
 			if (
@@ -541,16 +554,43 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 		hazardousEventId: string,
 		// Intentionally unused: scopes the HE side only, never filters the counted disaster_event rows.
 		_tenantId: string,
+		tx?: Tx,
 	): Promise<number> {
 		// ::int required: bare count(*) is Postgres bigint, returned as a string by
 		// node-postgres at runtime -- PGlite doesn't reproduce this, so don't rely on
 		// these tests to catch its removal.
-		const [row] = await this.db
+		const [row] = await (tx ?? this.db)
 			.select({ count: sql<number>`count(*)::int` })
 			.from(disasterEventTable)
 			.where(eq(disasterEventTable.hazardousEventId, hazardousEventId));
 		// Safe: an unqualified aggregate with no GROUP BY always returns exactly one row.
 		return row.count;
+	}
+
+	/** `SELECT ... FOR UPDATE`, scoped like findById; tx is required — a lock outside the caller's
+	 * own open transaction releases the instant this statement finishes (design.md Decision 4). */
+	async findByIdForUpdate(
+		id: string,
+		tenantId: string,
+		tx: Tx,
+	): Promise<HazardousEvent> {
+		const rows = await tx
+			.select()
+			.from(hazardousEventTable)
+			.where(
+				and(
+					eq(hazardousEventTable.id, id),
+					eq(hazardousEventTable.countryAccountsId, tenantId),
+				),
+			)
+			.for("update");
+
+		if (rows.length === 0) {
+			throw new NotFoundError("HazardousEvent", id);
+		}
+
+		const children = await this.loadChildCollections(tx, [id]);
+		return this.rehydrate(rows[0], children.get(id) ?? EMPTY_CHILD_COLLECTIONS);
 	}
 
 	// Spatial-observation (5e) is a separate later intent.
@@ -560,13 +600,23 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 		);
 	}
 
-	async findSpatialObservationByTime(): Promise<SpatialObservationRecord | null> {
+	async findSpatialObservationByTime(
+		_hazardousEventId?: string,
+		_observationTime?: Date,
+		_tenantId?: string,
+		_tx?: Tx,
+	): Promise<SpatialObservationRecord | null> {
 		throw new Error(
 			"DrizzleHazardousEventRepository.findSpatialObservationByTime is not implemented yet (5e)",
 		);
 	}
 
-	async saveSpatialObservation(): Promise<SpatialObservationRecord> {
+	async saveSpatialObservation(
+		_hazardousEventId?: string,
+		_observation?: SpatialObservationRecord,
+		_tenantId?: string,
+		_tx?: Tx,
+	): Promise<SpatialObservationRecord> {
 		throw new Error(
 			"DrizzleHazardousEventRepository.saveSpatialObservation is not implemented yet (5e)",
 		);
