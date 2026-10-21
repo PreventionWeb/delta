@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { Tx } from "~/db.server";
 import type {
 	EventCausalityReferenceCounts,
 	IEventCausalityRepository,
@@ -19,6 +20,7 @@ class FakeEventCausalityRepository implements IEventCausalityRepository {
 	async countReferences(
 		hazardousEventId: string,
 		tenantId: string,
+		_tx?: Tx,
 	): Promise<EventCausalityReferenceCounts> {
 		const matching = this.rows.filter(
 			(row) => row.hazardousEventId === hazardousEventId,
@@ -91,7 +93,7 @@ type AssertEqual<A, B> = A extends B ? (B extends A ? true : never) : never;
 
 const _countReferencesArity: AssertEqual<
 	Parameters<IEventCausalityRepository["countReferences"]>,
-	[string, string]
+	[string, string, Tx?]
 > = true;
 
 void _countReferencesArity;

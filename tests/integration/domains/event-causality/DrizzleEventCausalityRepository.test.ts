@@ -213,4 +213,23 @@ describe("DrizzleEventCausalityRepository.countReferences", () => {
 			repository.countReferences(hazardousEventId, tenantId),
 		).resolves.toEqual({ sameTenantCount: 0, crossTenantCount: 1 });
 	});
+
+	it("called under a caller-supplied tx, resolves counts including that same transaction's own uncommitted row", async () => {
+		const { id: hazardousEventId, countryAccountsId: tenantId } =
+			await seedHazardousEvent();
+		const disasterEventId = await seedDisasterEvent(tenantId);
+
+		await dr.transaction(async (tx) => {
+			await tx.insert(eventCausalityTable).values({
+				triggeringEntityType: "HE",
+				triggeringHazardousEventId: hazardousEventId,
+				triggeredEntityType: "DE",
+				triggeredDisasterEventId: disasterEventId,
+			});
+
+			await expect(
+				repository.countReferences(hazardousEventId, tenantId, tx),
+			).resolves.toEqual({ sameTenantCount: 1, crossTenantCount: 0 });
+		});
+	});
 });
