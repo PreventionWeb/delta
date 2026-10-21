@@ -57,13 +57,18 @@ self-reference) rather than looping forever.
 
 ### Requirement: saveEdge persists exactly one cause-effect edge
 
-`ICausalChainRepository.saveEdge(edge, causalityExplanation)` SHALL insert exactly one row into
-`hazardous_event_causality` with `causeHazardousEventId: edge.causeId`,
+`ICausalChainRepository.saveEdge(edge, causalityExplanation, tx?)` SHALL insert exactly one row
+into `hazardous_event_causality` with `causeHazardousEventId: edge.causeId`,
 `effectHazardousEventId: edge.effectId`, and `causalityExplanation`. It relies on the table's own
 FK and CHECK constraints as the authoritative guard against a dangling or self-referencing edge —
 it MUST NOT re-implement that validation itself. When two concurrent calls would jointly close a
 cycle between the same two nodes, at most one of them MUST succeed — the other MUST reject
-rather than silently persist an edge that closes the cycle.
+rather than silently persist an edge that closes the cycle. When an optional `tx` is supplied,
+every statement this method issues (the advisory lock acquisition, the cycle recheck, and the
+insert itself) MUST execute against that same `tx` — if `tx` is itself already inside an open
+transaction, this method's own internal transaction MUST nest as a `SAVEPOINT`, not open a new
+one, and `pg_advisory_xact_lock`'s own lifetime then extends to that outer transaction, not just
+this method's own call (design.md Risks).
 
 #### Scenario: A single edge is persisted with its explanation
 
@@ -95,9 +100,17 @@ rather than silently persist an edge that closes the cycle.
 - **AND** the other SHALL reject with a `ConflictError` identifying a cycle, rather than silently
   persisting a second edge that closes a two-node cycle
 
+#### Scenario: Called with a tx already inside an open outer transaction, the write is visible to that same outer transaction before it commits
+
+- **GIVEN** an open, not-yet-committed transaction `tx`
+- **WHEN** `saveEdge(edge, causalityExplanation, tx)` is called, followed — still within that
+  same `tx`, before commit — by `findReachableEdgesFrom` executed against that same `tx`
+- **THEN** the reachable-edges read MUST include the just-saved edge — the insert MUST NOT be
+  invisible to the outer transaction that is nesting this call
+
 ### Requirement: replaceCauseEdge atomically replaces every existing cause edge for one effect
 
-`ICausalChainRepository.replaceCauseEdge(effectId, newCause)` SHALL, as a single atomic
+`ICausalChainRepository.replaceCauseEdge(effectId, newCause, tx?)` SHALL, as a single atomic
 operation, remove every existing row in `hazardous_event_causality` whose `effectHazardousEventId`
 equals `effectId`, then — if `newCause` is not `null` — insert exactly one new row with
 `causeHazardousEventId: newCause.causeId`, `effectHazardousEventId: effectId`, and
@@ -106,7 +119,9 @@ with no cause edge (the "clear" case). The operation MUST be atomic with respect
 concurrent `replaceCauseEdge` (or `saveEdge`) call touching the same `effectId` or the same
 `causeId`: when two concurrent calls target the same `effectId` with different causes, the
 effect MUST end up with exactly one cause edge afterward, never two, and when a concurrent call
-would close a cycle against the result, it MUST reject rather than silently persist it.
+would close a cycle against the result, it MUST reject rather than silently persist it. When an
+optional `tx` is supplied, the same nested-transaction and lock-lifetime behavior described for
+`saveEdge` applies.
 
 #### Scenario: An existing cause edge is atomically swapped for a new one
 
@@ -143,10 +158,11 @@ would close a cycle against the result, it MUST reject rather than silently pers
 
 ### Requirement: countEdgesTouching counts every edge where the given node is cause or effect, in either direction
 
-`ICausalChainRepository.countEdgesTouching(nodeId)` SHALL resolve the count of every stored
+`ICausalChainRepository.countEdgesTouching(nodeId, tx?)` SHALL resolve the count of every stored
 `hazardous_event_causality` edge where `nodeId` equals either `causeId` or `effectId` — unlike
 `findReachableEdgesFrom`'s forward-only reachability traversal, this answers "does any edge
-touch this node at all," regardless of direction.
+touch this node at all," regardless of direction. When an optional `tx` is supplied, the count
+query MUST execute against that same `tx`, not a separate connection.
 
 #### Scenario: A node with no existing edges resolves zero
 
@@ -183,3 +199,11 @@ touch this node at all," regardless of direction.
   `{ causeId: "X", effectId: "Y" }` both exist
 - **WHEN** `countEdgesTouching("A")` is called
 - **THEN** it SHALL resolve `1`, not `2`
+
+#### Scenario: When called under a caller-supplied tx, the count reflects that transaction's own uncommitted writes
+
+- **GIVEN** an open transaction handle `tx` under which an edge touching `nodeId` has been
+  inserted but not yet committed
+- **WHEN** `countEdgesTouching(nodeId, tx)` is called
+- **THEN** it MUST resolve a count that includes that uncommitted edge — this method MUST NOT
+  use a separate connection when `tx` is supplied

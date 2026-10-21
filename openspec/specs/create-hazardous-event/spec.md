@@ -74,9 +74,11 @@ via `ICausalChainRepository.findReachableEdgesFrom`, call
 initialize and persist its `WorkflowInstance`, and only then persist the new
 `causeId -> effectId` edge via `ICausalChainRepository.saveEdge`. The order MUST be:
 `IHazardousEventRepository.insert` -> `IWorkflowRepository.insert` -> `ICausalChainRepository.saveEdge`
-(design.md Decision 5 — this order is deliberate, not incidental: it makes the harder-to-recover
-failure, a `HazardousEvent` with no `WorkflowInstance`, require the _second_ write to fail rather
-than either of the last two).
+(design.md Decision 5 — this order is kept for determinism and backward compatibility with the
+pre-`5k` sequence; a failure at any step now rolls back every earlier write in the same call
+regardless of position, since all three writes run inside the single transaction described in
+"The full write sequence runs as one atomic transaction" below — ordering no longer affects which
+partial state, if any, could be left behind).
 
 #### Scenario: Happy path with a valid causeId persists the event, the workflow instance, then the edge
 
@@ -95,12 +97,12 @@ than either of the last two).
   `Error`
 - **WHEN** `execute(command)` is called
 - **THEN** the call SHALL reject with that same `Error`, unmodified
-- **AND** the `HazardousEvent` already persisted by `IHazardousEventRepository.insert` SHALL remain
-  persisted — `execute()` MUST NOT attempt to delete or roll back any write that already succeeded
-  (design.md Decision 5, `DEF-026`: no unit-of-work abstraction exists to make these writes
-  atomic; a caller that retries the same logical request on this rejection creates a second,
-  distinct `HazardousEvent` rather than resuming the original, since `id` is freshly generated
-  per call)
+- **AND** the `HazardousEvent` already written earlier in this same call by
+  `IHazardousEventRepository.insert` SHALL NOT exist afterward — the whole transaction rolls back,
+  not just the failing write (`DEF-026`, closed by this change; supersedes this scenario's prior
+  "no compensating delete, already persisted" framing — a caller that retries the same logical
+  request after this rejection still creates a distinct `HazardousEvent` on the retry, since `id`
+  is freshly generated per call, exactly as before)
 
 #### Scenario: Missing cause propagates NotFoundError, no writes occur
 
@@ -188,3 +190,32 @@ resolved value and `IWorkflowRepository.insert()`'s resolved value — never the
 - **THEN** the returned `HazardousEventDto.workflowStatus` SHALL be `"DRAFT"`
 - **AND** the DTO's `id` SHALL equal `IHazardousEventRepository.insert()`'s resolved `id`
 - **AND** `createdAt` SHALL be an ISO 8601 string equal to the saved event's `createdAt`
+
+### Requirement: The full write sequence runs as one atomic transaction
+
+`execute()`'s three writes (`IHazardousEventRepository.insert`, `IWorkflowRepository.insert`, and
+— when a cause is present — `ICausalChainRepository.saveEdge`) SHALL run inside a single
+transaction, with the resulting transaction handle passed to every one of those calls. A
+rejection from any write SHALL roll back every write already made earlier in that same `execute()`
+call — no partial state (e.g. a `HazardousEvent` with no `WorkflowInstance`) SHALL be observable
+afterward. The structured log event on success SHALL be emitted only after the transaction has
+resolved successfully; it SHALL NOT be emitted when the transaction rolls back.
+
+#### Scenario: A successful call commits all writes and logs exactly once, after the transaction resolves
+
+- **GIVEN** a valid `CreateHazardousEventCommand` with `causeId` present
+- **WHEN** `execute(command)` resolves successfully
+- **THEN** the `HazardousEvent`, its `WorkflowInstance`, and the causal edge SHALL all be
+  persisted
+- **AND** exactly one structured log event SHALL be emitted, and only after all three writes have
+  committed
+
+#### Scenario: A rolled-back transaction leaves zero rows persisted, regardless of which write failed
+
+- **GIVEN** a valid `CreateHazardousEventCommand` with `causeId` present, and a fake
+  `ICausalChainRepository.saveEdge` stubbed to reject with a generic `Error`
+- **WHEN** `execute(command)` is called
+- **THEN** the call SHALL reject with that same `Error`
+- **AND** no `HazardousEvent`, no `WorkflowInstance`, and no causal edge from this call SHALL
+  exist afterward
+- **AND** no log event SHALL be emitted
