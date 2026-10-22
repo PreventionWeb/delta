@@ -12,16 +12,10 @@ const VALIDATION_DB_DIR = path.resolve(PROJECT_ROOT, "migration_validation_db");
 const DEFAULT_INPUT = path.resolve(VALIDATION_DB_DIR, "dts_db_pglite.sql");
 const DEFAULT_OUTPUT = path.resolve(VALIDATION_DB_DIR, "migration-validation-report.md");
 const VALIDATION_DB_NAME = process.env.MIGRATION_VALIDATION_DB ?? "dts_db_migration_validation";
-const POSTGRES_ADMIN = {
-  host: "localhost",
-  port: 5432,
-  user: "postgres",
-  password: "postgres",
-  database: "postgres",
-};
+const POSTGRES_URL_BASE = "postgresql://postgres:postgres@localhost:5432";
 
 function buildPgUrl(dbName: string): string {
-  return `postgresql://postgres:postgres@localhost:5432/${dbName}`;
+  return `${POSTGRES_URL_BASE}/${dbName}`;
 }
 
 function truncateForReport(text: string, maxLength = 2000): string {
@@ -29,28 +23,11 @@ function truncateForReport(text: string, maxLength = 2000): string {
   return `${text.slice(0, maxLength - 80)}? [truncated ${text.length - maxLength + 80} chars]`;
 }
 
-function runCommand(command: string, args: string[], options: { cwd?: string; env?: NodeJS.ProcessEnv } = {}): string {
-  const result = spawnSync(command, args, {
-    cwd: options.cwd,
-    env: options.env ?? process.env,
-    encoding: "utf8",
-    stdio: "pipe",
-  });
-
-  if (result.status !== 0) {
-    const output = [result.stdout, result.stderr].filter(Boolean).map((part) => truncateForReport(String(part), 4000)).join("\n");
-    throw new Error(`${command} ${args.join(" ")} failed\n${truncateForReport(output || "unknown error")}`);
-  }
-
-  return `${result.stdout ?? ""}${result.stderr ?? ""}`.trim();
-}
-
 function detectDumpCompatibility(filePath: string): { issues: string[]; summary: string } {
-  const sql = fs.readFileSync(filePath, "utf8");
   const checks = [
     {
       name: "PostgreSQL metadata",
-      predicate: (text: string) => text.includes("COMMENT ON") || text.includes("-- Name: ") && text.includes("Owner:"),
+      predicate: (text: string) => text.includes("COMMENT ON") || (text.includes("-- Name: ") && text.includes("Owner:")),
     },
     {
       name: "Extension creation",
@@ -74,22 +51,40 @@ function detectDumpCompatibility(filePath: string): { issues: string[]; summary:
     },
   ];
 
-  const issues: string[] = [];
-  for (const check of checks) {
-    const seen = check.predicate(sql);
-    if (seen) {
-      issues.push(check.name);
+  const issues = new Set<string>();
+  const chunkSize = 1024 * 1024;
+  const buffer = Buffer.alloc(chunkSize);
+  let carry = "";
+  const fileHandle = fs.openSync(filePath, "r");
+
+  try {
+    while (true) {
+      const bytesRead = fs.readSync(fileHandle, buffer, 0, chunkSize, null);
+      if (bytesRead === 0) break;
+
+      const chunk = buffer.toString("utf8", 0, bytesRead);
+      const combined = `${carry}${chunk}`;
+
+      for (const check of checks) {
+        if (check.predicate(combined)) {
+          issues.add(check.name);
+        }
+      }
+
+      carry = combined.slice(-512);
     }
+  } finally {
+    fs.closeSync(fileHandle);
   }
 
+  const issueList = [...issues];
   const summary =
-    issues.length === 0
+    issueList.length === 0
       ? "No PostgreSQL-only dump metadata or object definitions were detected in the backup file."
-      : `Detected PostgreSQL-specific dump constructs: ${issues.join("; ")}. This validates the need for a real PostgreSQL restore instead of a direct PGlite load.`;
+      : `Detected PostgreSQL-specific dump constructs: ${issueList.join("; ")}. This validates the need for a real PostgreSQL restore instead of a direct PGlite load.`;
 
-  return { issues, summary };
+  return { issues: issueList, summary };
 }
-
 async function ensureFreshDatabase(): Promise<void> {
   const restoreEnv = {
     ...process.env,
@@ -387,7 +382,7 @@ async function main() {
       Table: "public",
       Expected: "Database restore succeeds in a real PostgreSQL instance",
       Actual: VALIDATION_DB_NAME,
-      Details: `The SQL dump was restored into PostgreSQL using postgres/postgres credentials on localhost:5432.`,
+      Details: `The SQL dump was restored into PostgreSQL using postgres/postgres credentials on postgresql://postgres:postgres@localhost:5432.`,
     });
 
     const migrationOutput = await runDrizzleMigration();
