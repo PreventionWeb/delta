@@ -3,10 +3,11 @@ import {
 	HazardousEvent,
 	type HazardousEventProps,
 } from "../../domain/HazardousEvent";
-import { NotFoundError, ValidationError } from "~/shared/errors";
+import { NotFoundError } from "~/shared/errors";
 import type { ILogger } from "~/shared/logging/ILogger";
 import { WorkflowInstance } from "~/domains/validation-workflow/domain/WorkflowInstance";
 import type { IWorkflowRepository } from "~/domains/validation-workflow/application/ports/IWorkflowRepository";
+import { GetWorkflowInstanceByEntityUseCase } from "~/domains/validation-workflow/application/use-cases/GetWorkflowInstanceByEntity";
 import type {
 	IHazardousEventRepository,
 	SpatialObservationRecord,
@@ -232,7 +233,7 @@ describe("GetHazardousEventByIdUseCase", () => {
 		const useCase = new GetHazardousEventByIdUseCase(
 			new FakeLogger(),
 			hazardousEventRepository,
-			workflowRepository,
+			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
 		);
 
 		const result = await useCase.execute(makeQuery());
@@ -252,7 +253,7 @@ describe("GetHazardousEventByIdUseCase", () => {
 		const useCase = new GetHazardousEventByIdUseCase(
 			new FakeLogger(),
 			hazardousEventRepository,
-			workflowRepository,
+			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
 		);
 
 		const result = await useCase.execute(makeQuery());
@@ -266,7 +267,7 @@ describe("GetHazardousEventByIdUseCase", () => {
 		const useCase = new GetHazardousEventByIdUseCase(
 			new FakeLogger(),
 			hazardousEventRepository,
-			workflowRepository,
+			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
 		);
 
 		await expect(useCase.execute(makeQuery({ id: "missing" }))).rejects.toThrow(
@@ -286,11 +287,11 @@ describe("GetHazardousEventByIdUseCase", () => {
 		const useCase = new GetHazardousEventByIdUseCase(
 			logger,
 			hazardousEventRepository,
-			workflowRepository,
+			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
 		);
 
 		await expect(useCase.execute(makeQuery({ tenantId: "" }))).rejects.toThrow(
-			ValidationError,
+			"tenantId must not be empty",
 		);
 
 		expect(hazardousEventRepository.findByIdCalls).toHaveLength(0);
@@ -308,14 +309,16 @@ describe("GetHazardousEventByIdUseCase", () => {
 		const useCase = new GetHazardousEventByIdUseCase(
 			logger,
 			hazardousEventRepository,
-			workflowRepository,
+			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
 		);
 		const query = {
 			id: 42 as unknown as string,
 			tenantId: "tenant-1",
 		} satisfies GetHazardousEventByIdQuery;
 
-		await expect(useCase.execute(query)).rejects.toThrow(ValidationError);
+		await expect(useCase.execute(query)).rejects.toThrow(
+			"id must not be empty",
+		);
 
 		expect(hazardousEventRepository.findByIdCalls).toHaveLength(0);
 		expect(workflowRepository.findByEntityCalls).toHaveLength(0);
@@ -333,7 +336,7 @@ describe("GetHazardousEventByIdUseCase", () => {
 		const useCase = new GetHazardousEventByIdUseCase(
 			logger,
 			hazardousEventRepository,
-			workflowRepository,
+			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
 		);
 
 		await expect(useCase.execute(makeQuery())).rejects.toThrow(NotFoundError);
@@ -360,7 +363,7 @@ describe("GetHazardousEventByIdUseCase", () => {
 		const useCase = new GetHazardousEventByIdUseCase(
 			new FakeLogger(),
 			hazardousEventRepository,
-			workflowRepository,
+			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
 		);
 
 		await useCase.execute(makeQuery({ id: "cosmetically-different-id" }));
@@ -382,7 +385,7 @@ describe("GetHazardousEventByIdUseCase", () => {
 		const useCase = new GetHazardousEventByIdUseCase(
 			logger,
 			hazardousEventRepository,
-			workflowRepository,
+			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
 		);
 
 		await useCase.execute(makeQuery());
@@ -410,7 +413,7 @@ describe("GetHazardousEventByIdUseCase", () => {
 		const useCase = new GetHazardousEventByIdUseCase(
 			logger,
 			hazardousEventRepository,
-			workflowRepository,
+			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
 		);
 
 		await useCase.execute(makeQuery());
@@ -427,7 +430,7 @@ describe("GetHazardousEventByIdUseCase", () => {
 		const useCase = new GetHazardousEventByIdUseCase(
 			logger,
 			hazardousEventRepository,
-			workflowRepository,
+			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
 		);
 
 		await expect(useCase.execute(makeQuery({ id: "missing" }))).rejects.toThrow(
@@ -467,7 +470,7 @@ describe("GetHazardousEventByIdUseCase", () => {
 		const useCase = new GetHazardousEventByIdUseCase(
 			new FakeLogger(),
 			hazardousEventRepository,
-			workflowRepository,
+			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
 		);
 
 		const [resultA, resultB] = await Promise.all([

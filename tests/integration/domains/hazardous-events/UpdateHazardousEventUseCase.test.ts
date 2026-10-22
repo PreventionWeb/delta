@@ -7,6 +7,7 @@ import { DrizzleHazardousEventRepository } from "~/domains/hazardous-events/infr
 import { DrizzleCausalChainRepository } from "~/domains/hazardous-events/infrastructure/DrizzleCausalChainRepository.server";
 import { DrizzleHazardTaxonomyRepository } from "~/domains/hazardous-events/infrastructure/DrizzleHazardTaxonomyRepository.server";
 import { DrizzleWorkflowRepository } from "~/domains/validation-workflow/infrastructure/DrizzleWorkflowRepository.server";
+import { GetWorkflowInstanceByEntityUseCase } from "~/domains/validation-workflow/application/use-cases/GetWorkflowInstanceByEntity";
 import { WorkflowInstance } from "~/domains/validation-workflow/domain/WorkflowInstance";
 import {
 	HazardousEvent,
@@ -107,7 +108,7 @@ describe("UpdateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			new NoOpLogger(),
 			taxonomyRepository,
 			hazardousEventRepository,
-			workflowRepository,
+			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
 			causalChainRepository,
 			recordSpatialObservationUseCase,
 			transactionRunner,
@@ -192,7 +193,7 @@ describe("UpdateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			new NoOpLogger(),
 			taxonomyRepository,
 			hazardousEventRepository,
-			workflowRepository,
+			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
 			causalChainRepository,
 			recordSpatialObservationUseCase,
 			transactionRunner,
@@ -272,7 +273,7 @@ describe("UpdateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			logger,
 			taxonomyRepository,
 			hazardousEventRepository,
-			workflowRepository,
+			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
 			causalChainRepository,
 			recordSpatialObservationUseCase,
 			transactionRunner,

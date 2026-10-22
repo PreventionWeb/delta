@@ -4,7 +4,7 @@ import type {
 	EventCausalityReferenceCounts,
 	IEventCausalityRepository,
 } from "~/domains/event-causality/application/ports/IEventCausalityRepository";
-import type { IWorkflowRepository } from "~/domains/validation-workflow/application/ports/IWorkflowRepository";
+import type { DeleteWorkflowInstanceUseCase } from "~/domains/validation-workflow/application/use-cases/DeleteWorkflowInstance";
 import type { ILogger } from "~/shared/logging/ILogger";
 import type { ITransactionRunner } from "~/shared/persistence/ITransactionRunner";
 import { ConflictError, NotFoundError } from "~/shared/errors";
@@ -57,7 +57,10 @@ export class DeleteHazardousEventUseCase {
 		private readonly hazardousEventRepository: IHazardousEventRepository,
 		private readonly eventCausalityRepository: IEventCausalityRepository,
 		private readonly causalChainRepository: ICausalChainRepository,
-		private readonly workflowRepository: IWorkflowRepository,
+		private readonly deleteWorkflowInstanceUseCase: Pick<
+			DeleteWorkflowInstanceUseCase,
+			"execute"
+		>,
 		private readonly transactionRunner: ITransactionRunner,
 	) {}
 
@@ -117,7 +120,11 @@ export class DeleteHazardousEventUseCase {
 				);
 			}
 
-			await this.workflowRepository.deleteByEntity(command.id, "HE", tx);
+			await this.deleteWorkflowInstanceUseCase.execute({
+				entityId: command.id,
+				entityType: "HE",
+				tx,
+			});
 			await this.hazardousEventRepository.delete(
 				command.id,
 				command.tenantId,

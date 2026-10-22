@@ -1,7 +1,7 @@
 import type { IHazardousEventRepository } from "../ports/IHazardousEventRepository";
 import type { HazardousEventListItemDto } from "../dto/HazardousEventListItemDto";
 import { toHazardousEventListItemDto } from "../dto/HazardousEventListItemDto";
-import type { IWorkflowRepository } from "~/domains/validation-workflow/application/ports/IWorkflowRepository";
+import type { ListWorkflowInstancesByEntityIdsUseCase } from "~/domains/validation-workflow/application/use-cases/ListWorkflowInstancesByEntityIds";
 import type { ILogger } from "~/shared/logging/ILogger";
 import { ValidationError } from "~/shared/errors";
 import { assertNonEmptyString } from "../assertNonEmptyString";
@@ -30,7 +30,10 @@ export class ListHazardousEventsUseCase {
 	constructor(
 		private readonly logger: ILogger,
 		private readonly hazardousEventRepository: IHazardousEventRepository,
-		private readonly workflowRepository: IWorkflowRepository,
+		private readonly listWorkflowInstancesByEntityIdsUseCase: Pick<
+			ListWorkflowInstancesByEntityIdsUseCase,
+			"execute"
+		>,
 	) {}
 
 	async execute(
@@ -47,10 +50,11 @@ export class ListHazardousEventsUseCase {
 		let dtos: HazardousEventListItemDto[] = [];
 		if (events.length > 0) {
 			const ids = events.map((event) => event.id);
-			const workflowInstances = await this.workflowRepository.findByEntityIds(
-				ids,
-				"HE",
-			);
+			const workflowInstances =
+				await this.listWorkflowInstancesByEntityIdsUseCase.execute({
+					entityIds: ids,
+					entityType: "HE",
+				});
 			const byEntityId = new Map(
 				workflowInstances.map((instance) => [instance.entityId, instance]),
 			);
