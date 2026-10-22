@@ -1729,6 +1729,16 @@ is the direct precedent for this kind of cross-tenant-inclusion assertion).
 
 **Branch:** `feature/ca-hazardous-events-module`
 
+**Corrected 2026-10-22 (readiness check, before this intent's own spec-writer run):**
+
+1. **`ValidationWorkflowModule` (5c) doesn't export what this intent needs.** Five of
+   the six use cases (all but `RecordSpatialObservation`) take `IWorkflowRepository`
+   directly (`4b` design, deliberate). `ValidationWorkflowModule` only exports
+   `ProcessWorkflowActionUseCase` — `WORKFLOW_REPOSITORY` is hidden by design
+   (`ca-validation-workflow-module` Decision 4). Resolution: widen its `exports` to
+   include `WORKFLOW_REPOSITORY`, mirroring `EventCausalityModule`'s precedent for a
+   port a cross-domain consumer needs directly.
+
 **Intent for `/opsx:propose`:**
 
 ```
@@ -1737,6 +1747,14 @@ DrizzleHazardousEventRepository as the IHazardousEventRepository provider, impor
 ValidationWorkflowModule (5c) for the workflow port dependency, and exporting all six
 use cases from Phase 4 (Create, Update, GetById, List, Delete,
 RecordSpatialObservation) — import into CoreModule.
+
+ValidationWorkflowModule gains and exports four small use cases
+(InitializeWorkflowInstanceUseCase, DeleteWorkflowInstanceUseCase,
+GetWorkflowInstanceByEntityUseCase, ListWorkflowInstancesByEntityIdsUseCase) for the five
+HE use cases that need workflow-instance access — WORKFLOW_REPOSITORY itself stays
+unexported (Decision 4, `ca-validation-workflow-module`); a repository port is never
+exported directly for cross-domain injection. See the 2026-10-22 correction note above
+and `ca-hazardous-events-module`'s own design.md Decision 4 for the full rationale.
 ```
 
 **Note (2026-09-24):** also register `DrizzleCausalChainRepository` and
@@ -1750,11 +1768,30 @@ unlike the providers above, this one is not registered directly in this module;
 `event-causality` is its own bounded context (not HE-exclusive), so its module is
 imported, matching how this module will itself be imported by `CoreModule`.
 
+**Corrected 2026-10-22 (mid-implementation, this intent's own SOLID review) — the
+widen-`WORKFLOW_REPOSITORY`-exports resolution above is reverted.** That export would
+have exposed `IWorkflowRepository`'s write methods (`insert`, `update`,
+`deleteByEntity`) across the validation-workflow/hazardous-events bounded-context
+boundary — a materially bigger exposure than the `EventCausalityModule` precedent it
+cited, which exports one read-only method. `WORKFLOW_REPOSITORY` stays hidden
+(`ca-validation-workflow-module` Decision 4, unmodified). `ValidationWorkflowModule`
+instead gains and exports four small use cases — `InitializeWorkflowInstanceUseCase`,
+`DeleteWorkflowInstanceUseCase`, `GetWorkflowInstanceByEntityUseCase`,
+`ListWorkflowInstancesByEntityIdsUseCase` — and the five affected HE use cases take
+`Pick<CorrespondingUseCase, "execute">` instead of `IWorkflowRepository` directly. See
+`ca-hazardous-events-module`'s own design.md Decision 4 for the full rationale.
+
 **Files touched:**
 
-- `app/domains/hazardous-events/infrastructure/HazardousEventsModule.ts` (new)
+- `app/domains/hazardous-events/infrastructure/HazardousEventsModule.server.ts` (new)
 - `app/infrastructure/CoreModule.server.ts` (update — add import)
 - `tests/integration/domains/hazardous-events/HazardousEventsModule.test.ts` (new)
+- `app/domains/validation-workflow/infrastructure/ValidationWorkflowModule.server.ts`
+  (modified — exports four new use cases, per the 2026-10-22 correction above;
+  `WORKFLOW_REPOSITORY` stays hidden)
+- `app/domains/validation-workflow/application/use-cases/InitializeWorkflowInstance.ts`,
+  `DeleteWorkflowInstance.ts`, `GetWorkflowInstanceByEntity.ts`,
+  `ListWorkflowInstancesByEntityIds.ts` (new, per the 2026-10-22 correction above)
 
 **Test tier:** Integration — `Test.createTestingModule([HazardousEventsModule])`
 resolves all six use cases using PGlite, including their cross-module dependency on
