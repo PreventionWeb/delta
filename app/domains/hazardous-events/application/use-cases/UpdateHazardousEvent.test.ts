@@ -15,6 +15,7 @@ import type { ILogger } from "~/shared/logging/ILogger";
 import type { ITransactionRunner } from "~/shared/persistence/ITransactionRunner";
 import { WorkflowInstance } from "~/domains/validation-workflow/domain/WorkflowInstance";
 import type { IWorkflowRepository } from "~/domains/validation-workflow/application/ports/IWorkflowRepository";
+import { GetWorkflowInstanceByEntityUseCase } from "~/domains/validation-workflow/application/use-cases/GetWorkflowInstanceByEntity";
 import type { IHazardousEventRepository } from "../ports/IHazardousEventRepository";
 import type { ICausalChainRepository } from "../ports/ICausalChainRepository";
 import type { IHazardTaxonomyRepository } from "../ports/IHazardTaxonomyRepository";
@@ -460,7 +461,7 @@ function createHarness(options: HarnessOptions = {}) {
 		logger,
 		taxonomyRepository,
 		hazardousEventRepository,
-		workflowRepository,
+		new GetWorkflowInstanceByEntityUseCase(workflowRepository),
 		causalChainRepository,
 		recordSpatialObservationUseCase,
 		transactionRunner,

@@ -11,8 +11,7 @@ import type { ICausalChainRepository } from "../ports/ICausalChainRepository";
 import type { IHazardTaxonomyRepository } from "../ports/IHazardTaxonomyRepository";
 import type { HazardousEventDto } from "../dto/HazardousEventDto";
 import { toHazardousEventDto } from "../dto/HazardousEventDto";
-import { WorkflowInstance } from "~/domains/validation-workflow/domain/WorkflowInstance";
-import type { IWorkflowRepository } from "~/domains/validation-workflow/application/ports/IWorkflowRepository";
+import type { InitializeWorkflowInstanceUseCase } from "~/domains/validation-workflow/application/use-cases/InitializeWorkflowInstance";
 import type { ILogger } from "~/shared/logging/ILogger";
 import type { ITransactionRunner } from "~/shared/persistence/ITransactionRunner";
 import { ValidationError } from "~/shared/errors";
@@ -89,7 +88,10 @@ export class CreateHazardousEventUseCase {
 		private readonly logger: ILogger,
 		private readonly taxonomyRepository: IHazardTaxonomyRepository,
 		private readonly hazardousEventRepository: IHazardousEventRepository,
-		private readonly workflowRepository: IWorkflowRepository,
+		private readonly initializeWorkflowInstanceUseCase: Pick<
+			InitializeWorkflowInstanceUseCase,
+			"execute"
+		>,
 		private readonly causalChainRepository: ICausalChainRepository,
 		private readonly transactionRunner: ITransactionRunner,
 	) {}
@@ -176,16 +178,12 @@ export class CreateHazardousEventUseCase {
 			async (tx) => {
 				const saved = await this.hazardousEventRepository.insert(newEvent, tx);
 
-				const workflowInstance = WorkflowInstance.createDraft({
-					id: crypto.randomUUID(),
-					entityId: saved.id,
-					entityType: "HE",
-					now,
-				});
-				const savedWorkflow = await this.workflowRepository.insert(
-					workflowInstance,
-					tx,
-				);
+				const savedWorkflow =
+					await this.initializeWorkflowInstanceUseCase.execute({
+						entityId: saved.id,
+						entityType: "HE",
+						tx,
+					});
 
 				// Edge last (design.md Decision 5) -- kept for determinism/compatibility with the
 				// pre-5k order; a failure anywhere now rolls back the whole transaction regardless.

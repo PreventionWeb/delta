@@ -16,6 +16,7 @@ import type {
 } from "~/domains/event-causality/application/ports/IEventCausalityRepository";
 import type { EntityType } from "~/domains/validation-workflow/domain/WorkflowInstance";
 import type { IWorkflowRepository } from "~/domains/validation-workflow/application/ports/IWorkflowRepository";
+import { DeleteWorkflowInstanceUseCase } from "~/domains/validation-workflow/application/use-cases/DeleteWorkflowInstance";
 import {
 	DeleteHazardousEventUseCase,
 	type DeleteHazardousEventCommand,
@@ -345,7 +346,7 @@ function createHarness() {
 		hazardousEventRepository,
 		eventCausalityRepository,
 		causalChainRepository,
-		workflowRepository,
+		new DeleteWorkflowInstanceUseCase(workflowRepository),
 		transactionRunner,
 	);
 	return {
@@ -948,7 +949,7 @@ describe("DeleteHazardousEventUseCase", () => {
 				hazardousEventRepository,
 				eventCausalityRepository,
 				causalChainRepository,
-				workflowRepository,
+				new DeleteWorkflowInstanceUseCase(workflowRepository),
 				new FakeTransactionRunner(),
 			);
 
