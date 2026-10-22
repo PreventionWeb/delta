@@ -14,6 +14,10 @@ import { NOTIFICATION_PORT } from "~/domains/validation-workflow/infrastructure/
 import { DrizzleWorkflowRepository } from "~/domains/validation-workflow/infrastructure/DrizzleWorkflowRepository.server";
 import { EmailNotificationAdapter } from "~/domains/validation-workflow/infrastructure/EmailNotificationAdapter.server";
 import { ProcessWorkflowActionUseCase } from "~/domains/validation-workflow/application/use-cases/ProcessWorkflowAction";
+import { InitializeWorkflowInstanceUseCase } from "~/domains/validation-workflow/application/use-cases/InitializeWorkflowInstance";
+import { DeleteWorkflowInstanceUseCase } from "~/domains/validation-workflow/application/use-cases/DeleteWorkflowInstance";
+import { GetWorkflowInstanceByEntityUseCase } from "~/domains/validation-workflow/application/use-cases/GetWorkflowInstanceByEntity";
+import { ListWorkflowInstancesByEntityIdsUseCase } from "~/domains/validation-workflow/application/use-cases/ListWorkflowInstancesByEntityIds";
 import { CoreModule } from "~/infrastructure/CoreModule.server";
 import { DrizzleProvider } from "~/infrastructure/DrizzleProvider.server";
 import { NoticesModule } from "~/domains/notices/infrastructure/NoticesModule.server";
@@ -101,6 +105,82 @@ describe("ValidationWorkflowModule", () => {
 		expect(useCase.notificationPort).toBe(module.get(NOTIFICATION_PORT));
 	});
 
+	it("InitializeWorkflowInstanceUseCase resolves to a defined instance with its dependency correctly positioned", () => {
+		// Cast to read a private field for identity assertion only.
+		const useCase = module.get(
+			InitializeWorkflowInstanceUseCase,
+		) as unknown as { workflowRepository: unknown };
+		expect(useCase).toBeInstanceOf(InitializeWorkflowInstanceUseCase);
+		expect(useCase.workflowRepository).toBe(module.get(WORKFLOW_REPOSITORY));
+	});
+
+	it("DeleteWorkflowInstanceUseCase resolves to a defined instance with its dependency correctly positioned", () => {
+		// Cast to read a private field for identity assertion only.
+		const useCase = module.get(DeleteWorkflowInstanceUseCase) as unknown as {
+			workflowRepository: unknown;
+		};
+		expect(useCase).toBeInstanceOf(DeleteWorkflowInstanceUseCase);
+		expect(useCase.workflowRepository).toBe(module.get(WORKFLOW_REPOSITORY));
+	});
+
+	it("GetWorkflowInstanceByEntityUseCase resolves to a defined instance with its dependency correctly positioned", () => {
+		// Cast to read a private field for identity assertion only.
+		const useCase = module.get(
+			GetWorkflowInstanceByEntityUseCase,
+		) as unknown as { workflowRepository: unknown };
+		expect(useCase).toBeInstanceOf(GetWorkflowInstanceByEntityUseCase);
+		expect(useCase.workflowRepository).toBe(module.get(WORKFLOW_REPOSITORY));
+	});
+
+	it("ListWorkflowInstancesByEntityIdsUseCase resolves to a defined instance with its dependency correctly positioned", () => {
+		// Cast to read a private field for identity assertion only.
+		const useCase = module.get(
+			ListWorkflowInstancesByEntityIdsUseCase,
+		) as unknown as { workflowRepository: unknown };
+		expect(useCase).toBeInstanceOf(ListWorkflowInstancesByEntityIdsUseCase);
+		expect(useCase.workflowRepository).toBe(module.get(WORKFLOW_REPOSITORY));
+	});
+
+	describe("exported use cases", () => {
+		// Non-strict test-module resolution ignores `exports`; only a second importing module proves genuine re-export (same precedent as EventCausalityModule.test.ts for EVENT_CAUSALITY_REPOSITORY).
+		it.each([
+			["InitializeWorkflowInstanceUseCase", InitializeWorkflowInstanceUseCase],
+			["DeleteWorkflowInstanceUseCase", DeleteWorkflowInstanceUseCase],
+			[
+				"GetWorkflowInstanceByEntityUseCase",
+				GetWorkflowInstanceByEntityUseCase,
+			],
+			[
+				"ListWorkflowInstancesByEntityIdsUseCase",
+				ListWorkflowInstancesByEntityIdsUseCase,
+			],
+		])(
+			"a second module importing ValidationWorkflowModule can resolve %s directly",
+			async (_name, useCaseClass) => {
+				@Module({
+					imports: [ValidationWorkflowModule],
+					providers: [
+						{
+							provide: "CONSUMER",
+							useFactory: (useCase: unknown) => useCase,
+							inject: [useCaseClass],
+						},
+					],
+				})
+				class ConsumerModule {}
+
+				const consumerModule = await Test.createTestingModule({
+					imports: [ConsumerModule],
+				}).compile();
+				modulesToClose.push(consumerModule);
+
+				expect(consumerModule.get("CONSUMER")).toBe(
+					consumerModule.get(useCaseClass),
+				);
+			},
+		);
+	});
+
 	describe("hidden port tokens", () => {
 		it("a second module importing ValidationWorkflowModule cannot resolve WORKFLOW_REPOSITORY via token injection", async () => {
 			// Generic provider name avoids a false match on the regex below.
@@ -142,12 +222,20 @@ describe("ValidationWorkflowModule", () => {
 	});
 
 	describe("exports metadata", () => {
-		it("exports only ProcessWorkflowActionUseCase", () => {
+		it("exports exactly the five use cases, and neither hidden token", () => {
 			const exported = Reflect.getMetadata(
 				MODULE_METADATA.EXPORTS,
 				ValidationWorkflowModule,
 			) as unknown[];
-			expect(exported).toEqual([ProcessWorkflowActionUseCase]);
+			expect(exported).toEqual([
+				ProcessWorkflowActionUseCase,
+				InitializeWorkflowInstanceUseCase,
+				DeleteWorkflowInstanceUseCase,
+				GetWorkflowInstanceByEntityUseCase,
+				ListWorkflowInstancesByEntityIdsUseCase,
+			]);
+			expect(exported).not.toContain(WORKFLOW_REPOSITORY);
+			expect(exported).not.toContain(NOTIFICATION_PORT);
 		});
 	});
 
@@ -163,21 +251,24 @@ describe("ValidationWorkflowModule", () => {
 			]);
 			modulesToClose.push(moduleA, moduleB);
 
-			expect(moduleA.get(ProcessWorkflowActionUseCase)).toBeInstanceOf(
+			const useCaseClasses = [
 				ProcessWorkflowActionUseCase,
-			);
+				InitializeWorkflowInstanceUseCase,
+				DeleteWorkflowInstanceUseCase,
+				GetWorkflowInstanceByEntityUseCase,
+				ListWorkflowInstancesByEntityIdsUseCase,
+			];
+
+			for (const useCaseClass of useCaseClasses) {
+				expect(moduleA.get(useCaseClass)).toBeInstanceOf(useCaseClass);
+				expect(moduleB.get(useCaseClass)).toBeInstanceOf(useCaseClass);
+				expect(moduleA.get(useCaseClass)).not.toBe(moduleB.get(useCaseClass));
+			}
+
 			expect(moduleA.get(WORKFLOW_REPOSITORY)).toBeDefined();
 			expect(moduleA.get(NOTIFICATION_PORT)).toBeDefined();
-
-			expect(moduleB.get(ProcessWorkflowActionUseCase)).toBeInstanceOf(
-				ProcessWorkflowActionUseCase,
-			);
 			expect(moduleB.get(WORKFLOW_REPOSITORY)).toBeDefined();
 			expect(moduleB.get(NOTIFICATION_PORT)).toBeDefined();
-
-			expect(moduleA.get(ProcessWorkflowActionUseCase)).not.toBe(
-				moduleB.get(ProcessWorkflowActionUseCase),
-			);
 			expect(moduleA.get(WORKFLOW_REPOSITORY)).not.toBe(
 				moduleB.get(WORKFLOW_REPOSITORY),
 			);
