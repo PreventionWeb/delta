@@ -7,6 +7,7 @@ import { ValidationError } from "~/shared/errors";
 import type { ILogger } from "~/shared/logging/ILogger";
 import { WorkflowInstance } from "~/domains/validation-workflow/domain/WorkflowInstance";
 import type { IWorkflowRepository } from "~/domains/validation-workflow/application/ports/IWorkflowRepository";
+import { ListWorkflowInstancesByEntityIdsUseCase } from "~/domains/validation-workflow/application/use-cases/ListWorkflowInstancesByEntityIds";
 import type {
 	IHazardousEventRepository,
 	SpatialObservationRecord,
@@ -195,7 +196,7 @@ describe("ListHazardousEventsUseCase", () => {
 		const useCase = new ListHazardousEventsUseCase(
 			new FakeLogger(),
 			hazardousEventRepository,
-			workflowRepository,
+			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
 		);
 
 		const result = await useCase.execute(makeQuery());
@@ -215,7 +216,7 @@ describe("ListHazardousEventsUseCase", () => {
 		const useCase = new ListHazardousEventsUseCase(
 			new FakeLogger(),
 			hazardousEventRepository,
-			workflowRepository,
+			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
 		);
 
 		await useCase.execute(makeQuery({ page: 2, pageSize: 10 }));
@@ -232,7 +233,7 @@ describe("ListHazardousEventsUseCase", () => {
 		const useCase = new ListHazardousEventsUseCase(
 			logger,
 			hazardousEventRepository,
-			workflowRepository,
+			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
 		);
 
 		await expect(useCase.execute(makeQuery({ tenantId: "" }))).rejects.toThrow(
@@ -254,7 +255,7 @@ describe("ListHazardousEventsUseCase", () => {
 		const useCase = new ListHazardousEventsUseCase(
 			logger,
 			hazardousEventRepository,
-			workflowRepository,
+			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
 		);
 		const query = {
 			tenantId: 42 as unknown as string,
@@ -287,7 +288,7 @@ describe("ListHazardousEventsUseCase", () => {
 			const useCase = new ListHazardousEventsUseCase(
 				logger,
 				hazardousEventRepository,
-				workflowRepository,
+				new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
 			);
 
 			await expect(useCase.execute(makeQuery(overrides))).rejects.toThrow(
@@ -309,7 +310,7 @@ describe("ListHazardousEventsUseCase", () => {
 		const useCase = new ListHazardousEventsUseCase(
 			new FakeLogger(),
 			hazardousEventRepository,
-			workflowRepository,
+			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
 		);
 
 		await expect(
@@ -327,7 +328,7 @@ describe("ListHazardousEventsUseCase", () => {
 		const useCase = new ListHazardousEventsUseCase(
 			new FakeLogger(),
 			hazardousEventRepository,
-			workflowRepository,
+			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
 		);
 
 		await expect(
@@ -348,7 +349,7 @@ describe("ListHazardousEventsUseCase", () => {
 		const useCase = new ListHazardousEventsUseCase(
 			logger,
 			hazardousEventRepository,
-			workflowRepository,
+			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
 		);
 
 		const result = await useCase.execute(makeQuery());
@@ -380,7 +381,7 @@ describe("ListHazardousEventsUseCase", () => {
 		const useCase = new ListHazardousEventsUseCase(
 			new FakeLogger(),
 			hazardousEventRepository,
-			workflowRepository,
+			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
 		);
 
 		await useCase.execute(makeQuery());
@@ -403,7 +404,7 @@ describe("ListHazardousEventsUseCase", () => {
 		const useCase = new ListHazardousEventsUseCase(
 			logger,
 			hazardousEventRepository,
-			workflowRepository,
+			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
 		);
 
 		await expect(useCase.execute(makeQuery())).rejects.toBe(dbError);
@@ -425,7 +426,7 @@ describe("ListHazardousEventsUseCase", () => {
 		const useCase = new ListHazardousEventsUseCase(
 			logger,
 			hazardousEventRepository,
-			workflowRepository,
+			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
 		);
 
 		await expect(useCase.execute(makeQuery())).rejects.toBe(dbError);
@@ -451,7 +452,7 @@ describe("ListHazardousEventsUseCase", () => {
 		const useCase = new ListHazardousEventsUseCase(
 			new FakeLogger(),
 			hazardousEventRepository,
-			workflowRepository,
+			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
 		);
 
 		const result = await useCase.execute(makeQuery());
@@ -476,7 +477,7 @@ describe("ListHazardousEventsUseCase", () => {
 		const useCase = new ListHazardousEventsUseCase(
 			logger,
 			hazardousEventRepository,
-			workflowRepository,
+			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
 		);
 
 		const result = await useCase.execute(makeQuery());
@@ -503,7 +504,7 @@ describe("ListHazardousEventsUseCase", () => {
 		const useCase = new ListHazardousEventsUseCase(
 			logger,
 			hazardousEventRepository,
-			workflowRepository,
+			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
 		);
 
 		await useCase.execute(makeQuery());
@@ -542,7 +543,7 @@ describe("ListHazardousEventsUseCase", () => {
 		const useCase = new ListHazardousEventsUseCase(
 			new FakeLogger(),
 			hazardousEventRepository,
-			workflowRepository,
+			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
 		);
 
 		const [resultT1, resultT2] = await Promise.all([

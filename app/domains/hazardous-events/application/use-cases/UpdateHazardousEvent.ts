@@ -20,7 +20,7 @@ import type {
 	RecordSpatialObservationUseCase,
 } from "./RecordSpatialObservation";
 import type { SpatialObservationDto } from "../dto/SpatialObservationDto";
-import type { IWorkflowRepository } from "~/domains/validation-workflow/application/ports/IWorkflowRepository";
+import type { GetWorkflowInstanceByEntityUseCase } from "~/domains/validation-workflow/application/use-cases/GetWorkflowInstanceByEntity";
 import type { Tx } from "~/db.server";
 import type { ILogger } from "~/shared/logging/ILogger";
 import type { ITransactionRunner } from "~/shared/persistence/ITransactionRunner";
@@ -164,7 +164,10 @@ export class UpdateHazardousEventUseCase {
 		private readonly logger: ILogger,
 		private readonly taxonomyRepository: IHazardTaxonomyRepository,
 		private readonly hazardousEventRepository: IHazardousEventRepository,
-		private readonly workflowRepository: IWorkflowRepository,
+		private readonly getWorkflowInstanceByEntityUseCase: Pick<
+			GetWorkflowInstanceByEntityUseCase,
+			"execute"
+		>,
 		private readonly causalChainRepository: ICausalChainRepository,
 		private readonly recordSpatialObservationUseCase: Pick<
 			RecordSpatialObservationUseCase,
@@ -186,10 +189,11 @@ export class UpdateHazardousEventUseCase {
 		);
 
 		// Defensive: a correctly-created event always has a WorkflowInstance.
-		const existingWorkflow = await this.workflowRepository.findByEntity(
-			existingEvent.id,
-			"HE",
-		);
+		const existingWorkflow =
+			await this.getWorkflowInstanceByEntityUseCase.execute({
+				entityId: existingEvent.id,
+				entityType: "HE",
+			});
 		if (existingWorkflow === null) {
 			throw new NotFoundError("WorkflowInstance", existingEvent.id);
 		}

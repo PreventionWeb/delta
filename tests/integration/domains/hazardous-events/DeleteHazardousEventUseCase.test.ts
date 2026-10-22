@@ -9,6 +9,7 @@ import { DrizzleHazardousEventRepository } from "~/domains/hazardous-events/infr
 import { DrizzleCausalChainRepository } from "~/domains/hazardous-events/infrastructure/DrizzleCausalChainRepository.server";
 import { DrizzleEventCausalityRepository } from "~/domains/event-causality/infrastructure/DrizzleEventCausalityRepository.server";
 import { DrizzleWorkflowRepository } from "~/domains/validation-workflow/infrastructure/DrizzleWorkflowRepository.server";
+import { DeleteWorkflowInstanceUseCase } from "~/domains/validation-workflow/application/use-cases/DeleteWorkflowInstance";
 import { WorkflowInstance } from "~/domains/validation-workflow/domain/WorkflowInstance";
 import {
 	HazardousEvent,
@@ -109,7 +110,7 @@ async function seedEventWithWorkflow(): Promise<{
 		hazardousEventRepository,
 		eventCausalityRepository,
 		causalChainRepository,
-		workflowRepository,
+		new DeleteWorkflowInstanceUseCase(workflowRepository),
 		transactionRunner,
 	);
 
@@ -188,5 +189,25 @@ describe("DeleteHazardousEventUseCase against real adapters (DEF-033 lock proof)
 			harness.workflowRepository.findByEntity(id, "HE"),
 		).resolves.not.toBeNull();
 		expect(harness.logger.infoCalls).toHaveLength(0);
+	});
+
+	// Proves tx threading for a failure *after* deleteByEntity — the test above only stubs
+	// deleteByEntity itself, which can't catch this (design.md "Atomicity" section).
+	it("a stubbed rejection on delete, after deleteByEntity has already run, leaves both the HazardousEvent row and its WorkflowInstance intact", async () => {
+		const { id, tenantId, harness } = await seedEventWithWorkflow();
+		vi.spyOn(harness.hazardousEventRepository, "delete").mockRejectedValueOnce(
+			new Error("boom-hazardous-event-delete"),
+		);
+
+		await expect(
+			harness.useCase.execute({ id, tenantId, actingUserId: "user-1" }),
+		).rejects.toThrow("boom-hazardous-event-delete");
+
+		await expect(
+			harness.workflowRepository.findByEntity(id, "HE"),
+		).resolves.not.toBeNull();
+		await expect(
+			harness.hazardousEventRepository.findById(id, tenantId),
+		).resolves.toBeDefined();
 	});
 });
