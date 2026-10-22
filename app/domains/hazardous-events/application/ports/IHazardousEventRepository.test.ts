@@ -202,6 +202,7 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		hazardousEventId: string,
 		// Intentionally unused by this fake -- the real tenant-scoped check is Phase 3d's adapter job (design.md Decision 6).
 		_tenantId: string,
+		_tx?: Tx,
 	): Promise<SpatialObservationRecord | null> {
 		const observations = [...this.spatialObservations.values()].filter(
 			(observation) => observation.hazardousEventId === hazardousEventId,
@@ -632,7 +633,7 @@ const _findByIdForUpdateArity: AssertEqual<
 > = true;
 const _findCurrentSpatialObservationArity: AssertEqual<
 	Parameters<IHazardousEventRepository["findCurrentSpatialObservation"]>,
-	[string, string]
+	[string, string, Tx?]
 > = true;
 const _findSpatialObservationByTimeArity: AssertEqual<
 	Parameters<IHazardousEventRepository["findSpatialObservationByTime"]>,
