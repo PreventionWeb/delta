@@ -172,6 +172,7 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 interface DivisionLookupCall {
 	ids: readonly string[];
 	tenantId: string;
+	tx?: Tx;
 }
 
 class FakeDivisionRepository implements IDivisionRepository {
@@ -182,8 +183,9 @@ class FakeDivisionRepository implements IDivisionRepository {
 	async findValidDivisionIds(
 		ids: readonly string[],
 		tenantId: string,
+		tx?: Tx,
 	): Promise<ReadonlySet<string>> {
-		this.findValidDivisionIdsCalls.push({ ids, tenantId });
+		this.findValidDivisionIdsCalls.push({ ids, tenantId, tx });
 		return new Set(ids.filter((id) => this.validDivisionIds.has(id)));
 	}
 }
@@ -891,6 +893,28 @@ describe("RecordSpatialObservationUseCase", () => {
 			).toBeUndefined();
 			expect(
 				harness.hazardousEventRepository.saveSpatialObservationCalls[0].tx,
+			).toBeUndefined();
+		});
+
+		it("also threads command.tx to divisionRepository.findValidDivisionIds when present", async () => {
+			const harness = createHarness();
+			const tx = {} as Tx;
+			const command = makeCommand({ tx });
+
+			await harness.useCase.execute(command);
+
+			expect(harness.divisionRepository.findValidDivisionIdsCalls[0].tx).toBe(
+				tx,
+			);
+		});
+
+		it("leaves divisionRepository.findValidDivisionIds's trailing tx argument undefined when command.tx is omitted", async () => {
+			const harness = createHarness();
+
+			await harness.useCase.execute(makeCommand());
+
+			expect(
+				harness.divisionRepository.findValidDivisionIdsCalls[0].tx,
 			).toBeUndefined();
 		});
 	});
