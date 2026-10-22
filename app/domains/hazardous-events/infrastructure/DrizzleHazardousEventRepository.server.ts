@@ -1,5 +1,5 @@
 import { Injectable, Inject } from "@nestjs/common";
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Dr, Tx } from "~/db.server";
 import { DRIZZLE_CLIENT } from "~/infrastructure/DrizzleProvider.server";
 import { getPinoLogger } from "~/infrastructure/logging/PinoLogger.server";
@@ -28,6 +28,7 @@ import type { Pagination } from "~/shared/types";
 import { eventTable } from "~/drizzle/schema/eventTable";
 import { eventRelationshipTable } from "~/drizzle/schema/eventRelationshipTable";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
+import { divisionTable } from "~/drizzle/schema/divisionTable";
 import {
 	hazardousEventTable,
 	type InsertHazardousEvent,
@@ -37,6 +38,22 @@ import { hazardousEventHazardDriverTable } from "./hazardousEventHazardDriverTab
 import { hazardousEventAttachmentTable } from "./hazardousEventAttachmentTable";
 import { hazardousEventFieldValueTable } from "./hazardousEventFieldValueTable";
 import { hazardousEventCustomFieldValueTable } from "./hazardousEventCustomFieldValueTable";
+import {
+	hazardousEventSpatialObservationTable,
+	type SelectHazardousEventSpatialObservation,
+} from "./hazardousEventSpatialObservationTable";
+import { hazardousEventSpatialObservationGeomTable } from "./hazardousEventSpatialObservationGeomTable";
+import { hazardousEventSpatialObservationDivisionTable } from "./hazardousEventSpatialObservationDivisionTable";
+
+/** Parent-table columns only -- avoids an id collision with the joined hazardous_event table. */
+const SPATIAL_OBSERVATION_COLUMNS = {
+	id: hazardousEventSpatialObservationTable.id,
+	hazardousEventId: hazardousEventSpatialObservationTable.hazardousEventId,
+	observationTime: hazardousEventSpatialObservationTable.observationTime,
+	note: hazardousEventSpatialObservationTable.note,
+	createdAt: hazardousEventSpatialObservationTable.createdAt,
+	updatedAt: hazardousEventSpatialObservationTable.updatedAt,
+};
 
 interface ChildCollections {
 	hazardDriverIds: readonly string[];
@@ -593,32 +610,389 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 		return this.rehydrate(rows[0], children.get(id) ?? EMPTY_CHILD_COLLECTIONS);
 	}
 
-	// Spatial-observation (5e) is a separate later intent.
-	async findCurrentSpatialObservation(): Promise<SpatialObservationRecord | null> {
-		throw new Error(
-			"DrizzleHazardousEventRepository.findCurrentSpatialObservation is not implemented yet (5e)",
+	/** Loads geom/division rows for one observation id, geom parsed back from GeoJSON -- shared by every read path, including the post-write re-read. */
+	private async loadSpatialChildren(
+		executor: Tx,
+		observationId: string,
+	): Promise<{
+		geometries: readonly unknown[];
+		divisionIds: readonly string[];
+	}> {
+		const [geomRows, divisionRows] = await Promise.all([
+			executor
+				.select({
+					geom: sql<string>`ST_AsGeoJSON(${hazardousEventSpatialObservationGeomTable.geom})`,
+				})
+				.from(hazardousEventSpatialObservationGeomTable)
+				.where(
+					eq(
+						hazardousEventSpatialObservationGeomTable.hazardousEventSpatialObservationId,
+						observationId,
+					),
+				),
+			executor
+				.select({
+					divisionId: hazardousEventSpatialObservationDivisionTable.divisionId,
+				})
+				.from(hazardousEventSpatialObservationDivisionTable)
+				.where(
+					eq(
+						hazardousEventSpatialObservationDivisionTable.hazardousEventSpatialObservationId,
+						observationId,
+					),
+				),
+		]);
+		return {
+			geometries: geomRows.map((row) => JSON.parse(row.geom) as unknown),
+			divisionIds: divisionRows.map((row) => row.divisionId),
+		};
+	}
+
+	private async toSpatialObservationRecord(
+		executor: Tx,
+		row: SelectHazardousEventSpatialObservation,
+	): Promise<SpatialObservationRecord> {
+		const { geometries, divisionIds } = await this.loadSpatialChildren(
+			executor,
+			row.id,
 		);
+		return {
+			id: row.id,
+			hazardousEventId: row.hazardousEventId,
+			observationTime: row.observationTime,
+			note: row.note,
+			geometries,
+			divisionIds,
+			createdAt: row.createdAt,
+			updatedAt: row.updatedAt,
+		};
+	}
+
+	/** Re-reads by id alone, no tenant filter -- safe because ownership was already verified earlier in the same transaction. */
+	private async loadSpatialObservationById(
+		executor: Tx,
+		observationId: string,
+	): Promise<SpatialObservationRecord> {
+		const [row] = await executor
+			.select(SPATIAL_OBSERVATION_COLUMNS)
+			.from(hazardousEventSpatialObservationTable)
+			.where(eq(hazardousEventSpatialObservationTable.id, observationId));
+		return this.toSpatialObservationRecord(executor, row);
+	}
+
+	/** Neither spatial table carries its own tenant column, so filter via a join to hazardous_event. */
+	async findCurrentSpatialObservation(
+		hazardousEventId: string,
+		tenantId: string,
+		tx?: Tx,
+	): Promise<SpatialObservationRecord | null> {
+		const executor = tx ?? this.db;
+		const rows = await executor
+			.select(SPATIAL_OBSERVATION_COLUMNS)
+			.from(hazardousEventSpatialObservationTable)
+			.innerJoin(
+				hazardousEventTable,
+				eq(
+					hazardousEventSpatialObservationTable.hazardousEventId,
+					hazardousEventTable.id,
+				),
+			)
+			.where(
+				and(
+					eq(
+						hazardousEventSpatialObservationTable.hazardousEventId,
+						hazardousEventId,
+					),
+					eq(hazardousEventTable.countryAccountsId, tenantId),
+				),
+			)
+			.orderBy(desc(hazardousEventSpatialObservationTable.observationTime))
+			.limit(1);
+
+		if (rows.length === 0) {
+			return null;
+		}
+		return this.toSpatialObservationRecord(executor, rows[0]);
 	}
 
 	async findSpatialObservationByTime(
-		_hazardousEventId?: string,
-		_observationTime?: Date,
-		_tenantId?: string,
-		_tx?: Tx,
+		hazardousEventId: string,
+		observationTime: Date,
+		tenantId: string,
+		tx?: Tx,
 	): Promise<SpatialObservationRecord | null> {
-		throw new Error(
-			"DrizzleHazardousEventRepository.findSpatialObservationByTime is not implemented yet (5e)",
-		);
+		const executor = tx ?? this.db;
+		const rows = await executor
+			.select(SPATIAL_OBSERVATION_COLUMNS)
+			.from(hazardousEventSpatialObservationTable)
+			.innerJoin(
+				hazardousEventTable,
+				eq(
+					hazardousEventSpatialObservationTable.hazardousEventId,
+					hazardousEventTable.id,
+				),
+			)
+			.where(
+				and(
+					eq(
+						hazardousEventSpatialObservationTable.hazardousEventId,
+						hazardousEventId,
+					),
+					eq(
+						hazardousEventSpatialObservationTable.observationTime,
+						observationTime,
+					),
+					eq(hazardousEventTable.countryAccountsId, tenantId),
+				),
+			);
+
+		if (rows.length === 0) {
+			return null;
+		}
+		return this.toSpatialObservationRecord(executor, rows[0]);
 	}
 
+	/** Shared error mapping for saveSpatialObservation; a domain error thrown earlier in the same transaction has no matching PG code, so it falls through to the terminal rethrow unchanged -- one mapping call site, like insert()/update()'s own mapWriteError. */
+	private mapSpatialWriteError(
+		err: unknown,
+		context: { hazardousEventId: string; observationTime: Date },
+	): never {
+		const code = pgErrorCode(err);
+		if (code === "23505") {
+			const constraint = pgErrorConstraint(err);
+			if (
+				constraint ===
+				"hazardous_event_spatial_observation_event_id_time_unique"
+			) {
+				throw new ConflictError(
+					"An observation already exists for this hazardousEventId at this observationTime",
+					context,
+				);
+			}
+			if (
+				constraint ===
+				"hazardous_event_spatial_observation_division_obs_div_unique"
+			) {
+				throw new ValidationError(
+					"divisionIds must not contain duplicate values",
+					context,
+				);
+			}
+		}
+		if (code === "23503") {
+			// Parent-row FK: the hazardous_event row vanished between assertEventOwnedByTenant's
+			// check and this insert (concurrent delete) -- same error as the ownership gate itself.
+			if (
+				pgErrorConstraint(err) ===
+				"hazardous_event_spatial_observation_hazardous_event_id_fk"
+			) {
+				throw new NotFoundError("HazardousEvent", context.hazardousEventId);
+			}
+			throw new ValidationError(
+				"SpatialObservation references a nonexistent division id",
+				context,
+			);
+		}
+		if (code === "22P02") {
+			throw new ValidationError(
+				"SpatialObservation has malformed input data",
+				context,
+			);
+		}
+		throw err;
+	}
+
+	/** Decision 6 step 2. @throws {NotFoundError} when hazardousEventId doesn't belong to tenantId. */
+	private async assertEventOwnedByTenant(
+		executor: Tx,
+		hazardousEventId: string,
+		tenantId: string,
+	): Promise<void> {
+		const ownerRows = await executor
+			.select({ id: hazardousEventTable.id })
+			.from(hazardousEventTable)
+			.where(
+				and(
+					eq(hazardousEventTable.id, hazardousEventId),
+					eq(hazardousEventTable.countryAccountsId, tenantId),
+				),
+			);
+		if (ownerRows.length === 0) {
+			throw new NotFoundError("HazardousEvent", hazardousEventId);
+		}
+	}
+
+	/** DB-layer defense-in-depth, deliberately independent of DrizzleDivisionRepository's own
+	 * read-path check (two separate gates, not one shared). @throws {ValidationError} naming any invalid id. */
+	private async assertDivisionIdsInTenant(
+		executor: Tx,
+		divisionIds: readonly string[],
+		tenantId: string,
+		context: { hazardousEventId: string },
+	): Promise<void> {
+		// Distinct count, not raw length -- a duplicate divisionId is caught by the DB's own unique constraint on insert, not this tenant gate.
+		const distinctDivisionIds = [...new Set(divisionIds)];
+		if (distinctDivisionIds.length === 0) {
+			return;
+		}
+		const validDivisionRows = await executor
+			.select({ id: divisionTable.id })
+			.from(divisionTable)
+			.where(
+				and(
+					eq(divisionTable.countryAccountsId, tenantId),
+					inArray(divisionTable.id, distinctDivisionIds),
+				),
+			);
+		if (validDivisionRows.length < distinctDivisionIds.length) {
+			const validIds = new Set(validDivisionRows.map((row) => row.id));
+			const invalid = distinctDivisionIds.filter((id) => !validIds.has(id));
+			throw new ValidationError(
+				`divisionIds not valid for tenant: ${invalid.join(", ")}`,
+				{ ...context, tenantId, invalidDivisionIds: invalid },
+			);
+		}
+	}
+
+	/** Upsert-by-id, mirroring DrizzleNoticeRepository.server.ts's save(). @throws {ConflictError} on an empty RETURNING (id used by a different hazardousEventId). */
+	private async upsertSpatialObservationRow(
+		executor: Tx,
+		hazardousEventId: string,
+		observation: SpatialObservationRecord,
+	): Promise<string> {
+		const upserted = await executor
+			.insert(hazardousEventSpatialObservationTable)
+			.values({
+				id: observation.id,
+				hazardousEventId,
+				observationTime: observation.observationTime,
+				note: observation.note,
+				createdAt: observation.createdAt,
+				updatedAt: observation.updatedAt,
+			})
+			.onConflictDoUpdate({
+				target: hazardousEventSpatialObservationTable.id,
+				set: {
+					observationTime: observation.observationTime,
+					note: observation.note,
+					updatedAt: observation.updatedAt,
+				},
+				where: eq(
+					hazardousEventSpatialObservationTable.hazardousEventId,
+					hazardousEventId,
+				),
+			})
+			.returning();
+
+		if (upserted.length === 0) {
+			throw new ConflictError(
+				"SpatialObservation id already used by a different hazardousEventId",
+				{ id: observation.id, hazardousEventId },
+			);
+		}
+		return upserted[0].id;
+	}
+
+	/** Delete-then-reinsert, skipping insert for an empty collection (matches insertChildCollections' own convention). */
+	private async replaceSpatialChildren(
+		executor: Tx,
+		observationId: string,
+		observation: SpatialObservationRecord,
+		context: { hazardousEventId: string; observationTime: Date },
+	): Promise<void> {
+		await executor
+			.delete(hazardousEventSpatialObservationGeomTable)
+			.where(
+				eq(
+					hazardousEventSpatialObservationGeomTable.hazardousEventSpatialObservationId,
+					observationId,
+				),
+			);
+		await executor
+			.delete(hazardousEventSpatialObservationDivisionTable)
+			.where(
+				eq(
+					hazardousEventSpatialObservationDivisionTable.hazardousEventSpatialObservationId,
+					observationId,
+				),
+			);
+
+		if (observation.geometries.length > 0) {
+			// Scoped here, not in mapSpatialWriteError: malformed GeoJSON raises XX000, Postgres's
+			// generic internal_error -- too broad to map globally, but this insert has no other failure mode of its own.
+			try {
+				await executor.insert(hazardousEventSpatialObservationGeomTable).values(
+					observation.geometries.map((geometry) => ({
+						hazardousEventSpatialObservationId: observationId,
+						geom: sql`ST_GeomFromGeoJSON(${JSON.stringify(geometry)})`,
+					})),
+				);
+			} catch (err) {
+				throw new ValidationError(
+					"SpatialObservation has a malformed geometries element",
+					context,
+				);
+			}
+		}
+		// Full array, not deduped -- a duplicate divisionId must reach the DB's unique constraint and be rejected, not silently collapsed.
+		if (observation.divisionIds.length > 0) {
+			await executor
+				.insert(hazardousEventSpatialObservationDivisionTable)
+				.values(
+					observation.divisionIds.map((divisionId) => ({
+						hazardousEventSpatialObservationId: observationId,
+						divisionId,
+					})),
+				);
+		}
+	}
+
+	/** Orchestrates the ownership check, division tenant re-check, upsert-by-id, and child-collection replacement -- one resolved executor throughout (Decision 6). */
 	async saveSpatialObservation(
-		_hazardousEventId?: string,
-		_observation?: SpatialObservationRecord,
-		_tenantId?: string,
-		_tx?: Tx,
+		hazardousEventId: string,
+		observation: SpatialObservationRecord,
+		tenantId: string,
+		tx?: Tx,
 	): Promise<SpatialObservationRecord> {
-		throw new Error(
-			"DrizzleHazardousEventRepository.saveSpatialObservation is not implemented yet (5e)",
-		);
+		if (observation.hazardousEventId !== hazardousEventId) {
+			throw new ValidationError(
+				"observation.hazardousEventId must match the hazardousEventId parameter",
+				{
+					hazardousEventId,
+					observationHazardousEventId: observation.hazardousEventId,
+				},
+			);
+		}
+
+		try {
+			return await (tx ?? this.db).transaction(async (innerTx) => {
+				await this.assertEventOwnedByTenant(
+					innerTx,
+					hazardousEventId,
+					tenantId,
+				);
+				await this.assertDivisionIdsInTenant(
+					innerTx,
+					observation.divisionIds,
+					tenantId,
+					{ hazardousEventId },
+				);
+				const observationId = await this.upsertSpatialObservationRow(
+					innerTx,
+					hazardousEventId,
+					observation,
+				);
+				await this.replaceSpatialChildren(innerTx, observationId, observation, {
+					hazardousEventId,
+					observationTime: observation.observationTime,
+				});
+				return this.loadSpatialObservationById(innerTx, observationId);
+			});
+		} catch (err) {
+			this.mapSpatialWriteError(err, {
+				hazardousEventId,
+				observationTime: observation.observationTime,
+			});
+		}
 	}
 }
