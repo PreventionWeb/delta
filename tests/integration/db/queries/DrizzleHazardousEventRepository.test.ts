@@ -23,6 +23,7 @@ import { hazardTypeCustomFieldDefinitionTable } from "~/domains/hazardous-events
 import { DrizzleHazardousEventRepository } from "~/domains/hazardous-events/infrastructure/DrizzleHazardousEventRepository.server";
 import type { SpatialObservationRecord } from "~/domains/hazardous-events/application/ports/IHazardousEventRepository";
 import { DrizzleWorkflowRepository } from "~/domains/validation-workflow/infrastructure/DrizzleWorkflowRepository.server";
+import { GetWorkflowInstanceByEntityUseCase } from "~/domains/validation-workflow/application/use-cases/GetWorkflowInstanceByEntity";
 import { WorkflowInstance } from "~/domains/validation-workflow/domain/WorkflowInstance";
 import { DrizzleHazardTaxonomyRepository } from "~/domains/hazardous-events/infrastructure/DrizzleHazardTaxonomyRepository.server";
 import { DrizzleCausalChainRepository } from "~/domains/hazardous-events/infrastructure/DrizzleCausalChainRepository.server";
@@ -2227,7 +2228,7 @@ describe("UpdateHazardousEventUseCase against the real adapter", () => {
 			new NoOpLogger(),
 			taxonomyRepository,
 			raceRepo,
-			workflowRepository,
+			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
 			causalChainRepository,
 			recordSpatialObservationUseCase,
 			new DrizzleTransactionRunner(dr),

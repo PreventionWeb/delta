@@ -9,6 +9,8 @@ import { DrizzleHazardousEventRepository } from "~/domains/hazardous-events/infr
 import { DrizzleCausalChainRepository } from "~/domains/hazardous-events/infrastructure/DrizzleCausalChainRepository.server";
 import { DrizzleHazardTaxonomyRepository } from "~/domains/hazardous-events/infrastructure/DrizzleHazardTaxonomyRepository.server";
 import { DrizzleWorkflowRepository } from "~/domains/validation-workflow/infrastructure/DrizzleWorkflowRepository.server";
+import { InitializeWorkflowInstanceUseCase } from "~/domains/validation-workflow/application/use-cases/InitializeWorkflowInstance";
+import { workflowInstanceTable } from "~/domains/validation-workflow/infrastructure/workflowInstanceTable";
 import { CreateHazardousEventUseCase } from "~/domains/hazardous-events/application/use-cases/CreateHazardousEvent";
 import {
 	HazardousEvent,
@@ -74,7 +76,7 @@ describe("CreateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			new NoOpLogger(),
 			taxonomyRepository,
 			hazardousEventRepository,
-			workflowRepository,
+			new InitializeWorkflowInstanceUseCase(workflowRepository),
 			causalChainRepository,
 			transactionRunner,
 		);
@@ -141,7 +143,7 @@ describe("CreateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			new NoOpLogger(),
 			taxonomyRepository,
 			hazardousEventRepository,
-			workflowRepository,
+			new InitializeWorkflowInstanceUseCase(workflowRepository),
 			causalChainRepository,
 			transactionRunner,
 		);
@@ -185,5 +187,9 @@ describe("CreateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 		await expect(
 			causalChainRepository.findReachableEdgesFrom(causeId),
 		).resolves.toEqual([]);
+		// This is the real tx-threading proof: unlike the test above (whose workflow insert is
+		// mocked out before it ever reaches the DB), this one's InitializeWorkflowInstanceUseCase
+		// call runs for real — a forgotten tx would let this row survive the rollback.
+		expect(await dr.select().from(workflowInstanceTable)).toHaveLength(0);
 	});
 });
