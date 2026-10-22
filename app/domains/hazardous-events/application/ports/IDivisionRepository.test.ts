@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { Tx } from "~/db.server";
 import type { IDivisionRepository } from "./IDivisionRepository";
 
 interface DivisionRow {
@@ -15,6 +16,7 @@ class FakeDivisionRepository implements IDivisionRepository {
 	async findValidDivisionIds(
 		ids: readonly string[],
 		tenantId: string,
+		_tx?: Tx,
 	): Promise<ReadonlySet<string>> {
 		const sameTenantIds = new Set(
 			this.divisions
@@ -100,7 +102,7 @@ type AssertEqual<A, B> = A extends B ? (B extends A ? true : never) : never;
 
 const _findValidDivisionIdsArity: AssertEqual<
 	Parameters<IDivisionRepository["findValidDivisionIds"]>,
-	[readonly string[], string]
+	[readonly string[], string, Tx?]
 > = true;
 
 void _findValidDivisionIdsArity;
