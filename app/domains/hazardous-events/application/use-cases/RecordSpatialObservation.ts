@@ -106,6 +106,7 @@ export class RecordSpatialObservationUseCase {
 		const validDivisionIds = await this.divisionRepository.findValidDivisionIds(
 			toSafeStringArray(command.divisionIds),
 			command.tenantId,
+			command.tx,
 		);
 
 		const existingRecord =
