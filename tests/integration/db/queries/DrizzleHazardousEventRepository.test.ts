@@ -1,7 +1,7 @@
 import "../setup";
 import { randomUUID } from "crypto";
 import { describe, it, expect, vi } from "vitest";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { dr } from "~/db.server";
 import type { Tx } from "~/db.server";
 import { getPinoLogger } from "~/infrastructure/logging/PinoLogger.server";
@@ -9,14 +9,19 @@ import { eventTable } from "~/drizzle/schema/eventTable";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
 import { eventRelationshipTable } from "~/drizzle/schema/eventRelationshipTable";
+import { divisionTable } from "~/drizzle/schema/divisionTable";
 import { hazardousEventHazardDriverTable } from "~/domains/hazardous-events/infrastructure/hazardousEventHazardDriverTable";
 import { hazardousEventAttachmentTable } from "~/domains/hazardous-events/infrastructure/hazardousEventAttachmentTable";
 import { hazardousEventFieldValueTable } from "~/domains/hazardous-events/infrastructure/hazardousEventFieldValueTable";
 import { hazardousEventCustomFieldValueTable } from "~/domains/hazardous-events/infrastructure/hazardousEventCustomFieldValueTable";
+import { hazardousEventSpatialObservationTable } from "~/domains/hazardous-events/infrastructure/hazardousEventSpatialObservationTable";
+import { hazardousEventSpatialObservationGeomTable } from "~/domains/hazardous-events/infrastructure/hazardousEventSpatialObservationGeomTable";
+import { hazardousEventSpatialObservationDivisionTable } from "~/domains/hazardous-events/infrastructure/hazardousEventSpatialObservationDivisionTable";
 import { hazardDriverTable } from "~/domains/hazardous-events/infrastructure/hazardDriverTable";
 import { hazardTypeFieldDefinitionTable } from "~/domains/hazardous-events/infrastructure/hazardTypeFieldDefinitionTable";
 import { hazardTypeCustomFieldDefinitionTable } from "~/domains/hazardous-events/infrastructure/hazardTypeCustomFieldDefinitionTable";
 import { DrizzleHazardousEventRepository } from "~/domains/hazardous-events/infrastructure/DrizzleHazardousEventRepository.server";
+import type { SpatialObservationRecord } from "~/domains/hazardous-events/application/ports/IHazardousEventRepository";
 import { DrizzleWorkflowRepository } from "~/domains/validation-workflow/infrastructure/DrizzleWorkflowRepository.server";
 import { WorkflowInstance } from "~/domains/validation-workflow/domain/WorkflowInstance";
 import { DrizzleHazardTaxonomyRepository } from "~/domains/hazardous-events/infrastructure/DrizzleHazardTaxonomyRepository.server";
@@ -237,6 +242,72 @@ function makeHazardousEventEntity(
 		validHazardDriverIds,
 		validCustomFieldDefinitionIds,
 	);
+}
+
+async function seedDivisionRow(tenantId: string | null): Promise<string> {
+	const [row] = await dr
+		.insert(divisionTable)
+		.values({
+			name: { en: `Division ${randomUUID()}` },
+			countryAccountsId: tenantId,
+		})
+		.returning({ id: divisionTable.id });
+	return row.id;
+}
+
+/** Bypasses the adapter so read-path tests don't depend on saveSpatialObservation. */
+async function seedRawSpatialObservation(
+	hazardousEventId: string,
+	overrides: { id?: string; observationTime?: Date; note?: string | null } = {},
+) {
+	const [row] = await dr
+		.insert(hazardousEventSpatialObservationTable)
+		.values({
+			id: overrides.id,
+			hazardousEventId,
+			observationTime: overrides.observationTime ?? new Date(),
+			note: overrides.note ?? null,
+		})
+		.returning();
+	return row;
+}
+
+async function seedRawGeom(
+	observationId: string,
+	geometry: unknown,
+): Promise<void> {
+	await dr.insert(hazardousEventSpatialObservationGeomTable).values({
+		hazardousEventSpatialObservationId: observationId,
+		geom: sql`ST_GeomFromGeoJSON(${JSON.stringify(geometry)})`,
+	});
+}
+
+async function seedRawDivisionLink(
+	observationId: string,
+	divisionId: string,
+): Promise<void> {
+	await dr.insert(hazardousEventSpatialObservationDivisionTable).values({
+		hazardousEventSpatialObservationId: observationId,
+		divisionId,
+	});
+}
+
+function makeSpatialObservationRecord(
+	hazardousEventId: string,
+	overrides: Partial<SpatialObservationRecord> = {},
+): SpatialObservationRecord {
+	const now = new Date("2026-01-01T00:00:00Z");
+	return {
+		id: randomUUID(),
+		hazardousEventId,
+		observationTime: now,
+		note: null,
+		geometries: [],
+		divisionIds: [],
+		createdAt: now,
+		updatedAt: now,
+		...overrides,
+	};
 }
 
 async function insertCustomFieldValue(
@@ -1439,6 +1510,641 @@ describe("DrizzleHazardousEventRepository", () => {
 				.from(disasterEventTable)
 				.where(eq(disasterEventTable.hazardousEventId, id));
 			expect(remaining).toHaveLength(0);
+		});
+	});
+
+	describe("findCurrentSpatialObservation", () => {
+		it("resolves null when no observation exists", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			await expect(
+				repo.findCurrentSpatialObservation(id, tenantId),
+			).resolves.toBeNull();
+		});
+
+		it("resolves the single observation with geometries and divisionIds populated", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const divisionId = await seedDivisionRow(tenantId);
+			const observation = await seedRawSpatialObservation(id, {
+				observationTime: new Date("2026-01-01T00:00:00Z"),
+				note: "a note",
+			});
+			await seedRawGeom(observation.id, { type: "Point", coordinates: [1, 1] });
+			await seedRawDivisionLink(observation.id, divisionId);
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findCurrentSpatialObservation(id, tenantId);
+
+			expect(result?.id).toBe(observation.id);
+			expect(result?.hazardousEventId).toBe(id);
+			expect(result?.observationTime.getTime()).toBe(
+				observation.observationTime.getTime(),
+			);
+			expect(result?.updatedAt.getTime()).toBe(observation.updatedAt.getTime());
+			expect(result?.note).toBe("a note");
+			expect(result?.geometries).toEqual([
+				{ type: "Point", coordinates: [1, 1] },
+			]);
+			expect(result?.divisionIds).toEqual([divisionId]);
+		});
+
+		// A backfilled earlier observationTime inserted after a later one must not become "current".
+		it("does not select a backfilled earlier observationTime inserted after a later one", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const later = await seedRawSpatialObservation(id, {
+				observationTime: new Date("2026-03-01T00:00:00Z"),
+			});
+			await seedRawSpatialObservation(id, {
+				observationTime: new Date("2026-01-15T00:00:00Z"),
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findCurrentSpatialObservation(id, tenantId);
+
+			expect(result?.id).toBe(later.id);
+		});
+
+		// Companion to the test above with insertion order reversed -- together they rule out a
+		// coincidental insertion-order match standing in for a real ORDER BY.
+		it("still selects the later observationTime when it is inserted first, not just when it is inserted last", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			await seedRawSpatialObservation(id, {
+				observationTime: new Date("2026-01-15T00:00:00Z"),
+			});
+			const later = await seedRawSpatialObservation(id, {
+				observationTime: new Date("2026-03-01T00:00:00Z"),
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findCurrentSpatialObservation(id, tenantId);
+
+			expect(result?.id).toBe(later.id);
+		});
+
+		it("resolves null for a hazardousEventId belonging to a different tenant", async () => {
+			const { id } = await seedRawHazardousEvent();
+			await seedRawSpatialObservation(id, {
+				observationTime: new Date("2026-01-01T00:00:00Z"),
+			});
+			const otherTenantId = (await seedCountryAccount()) as string;
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			await expect(
+				repo.findCurrentSpatialObservation(id, otherTenantId),
+			).resolves.toBeNull();
+		});
+
+		// Decision 2/9 regression shape, same as findSpatialObservationByTime's own tx test below.
+		it("called with an externally-supplied, not-yet-committed tx, sees the caller's own uncommitted observation row", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const specificHazardId = await seedSpecificHazard();
+			const id = randomUUID();
+			const repo = new DrizzleHazardousEventRepository(dr);
+			const entity = makeHazardousEventEntity(
+				baseNewEventProps(id, tenantId, specificHazardId),
+			);
+			const observationTime = new Date("2026-02-01T00:00:00Z");
+
+			const result = await dr.transaction(async (tx) => {
+				await repo.insert(entity, tx);
+				await tx
+					.insert(hazardousEventSpatialObservationTable)
+					.values({ hazardousEventId: id, observationTime });
+				return repo.findCurrentSpatialObservation(id, tenantId, tx);
+			});
+
+			expect(result).not.toBeNull();
+		});
+	});
+
+	describe("findSpatialObservationByTime", () => {
+		it("resolves the exact-time match with geometries/divisionIds populated", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const divisionId = await seedDivisionRow(tenantId);
+			const observationTime = new Date("2026-02-01T00:00:00Z");
+			const observation = await seedRawSpatialObservation(id, {
+				observationTime,
+				note: "exact match",
+			});
+			await seedRawGeom(observation.id, { type: "Point", coordinates: [3, 3] });
+			await seedRawDivisionLink(observation.id, divisionId);
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findSpatialObservationByTime(
+				id,
+				observationTime,
+				tenantId,
+			);
+
+			expect(result?.id).toBe(observation.id);
+			expect(result?.hazardousEventId).toBe(id);
+			expect(result?.updatedAt.getTime()).toBe(observation.updatedAt.getTime());
+			expect(result?.geometries).toEqual([
+				{ type: "Point", coordinates: [3, 3] },
+			]);
+			expect(result?.divisionIds).toEqual([divisionId]);
+		});
+
+		// Decision 2/9 regression shape: a hard-coded this.db read would not see this still-open
+		// transaction's own uncommitted observation row.
+		it("called with an externally-supplied, not-yet-committed tx, sees the caller's own uncommitted observation row", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const specificHazardId = await seedSpecificHazard();
+			const id = randomUUID();
+			const repo = new DrizzleHazardousEventRepository(dr);
+			const entity = makeHazardousEventEntity(
+				baseNewEventProps(id, tenantId, specificHazardId),
+			);
+			const observationTime = new Date("2026-02-01T00:00:00Z");
+
+			const result = await dr.transaction(async (tx) => {
+				await repo.insert(entity, tx);
+				await tx
+					.insert(hazardousEventSpatialObservationTable)
+					.values({ hazardousEventId: id, observationTime });
+				return repo.findSpatialObservationByTime(
+					id,
+					observationTime,
+					tenantId,
+					tx,
+				);
+			});
+
+			expect(result).not.toBeNull();
+		});
+
+		it("resolves null for a different observationTime", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			await seedRawSpatialObservation(id, {
+				observationTime: new Date("2026-02-01T00:00:00Z"),
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			await expect(
+				repo.findSpatialObservationByTime(
+					id,
+					new Date("2026-02-02T00:00:00Z"),
+					tenantId,
+				),
+			).resolves.toBeNull();
+		});
+
+		it("resolves null for a foreign-tenant hazardousEventId at an observationTime that has a real observation under a different tenant", async () => {
+			const { id } = await seedRawHazardousEvent();
+			const observationTime = new Date("2026-02-01T00:00:00Z");
+			await seedRawSpatialObservation(id, { observationTime });
+			const otherTenantId = (await seedCountryAccount()) as string;
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			await expect(
+				repo.findSpatialObservationByTime(id, observationTime, otherTenantId),
+			).resolves.toBeNull();
+		});
+
+		// This is the exact query RecordSpatialObservationUseCase's own duplicate-conflict check relies on.
+		it("resolves the existing record (not null) for an already-seeded exact observationTime", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const observationTime = new Date("2026-02-01T00:00:00Z");
+			const observation = await seedRawSpatialObservation(id, {
+				observationTime,
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findSpatialObservationByTime(
+				id,
+				observationTime,
+				tenantId,
+			);
+
+			expect(result).not.toBeNull();
+			expect(result?.id).toBe(observation.id);
+		});
+	});
+
+	describe("saveSpatialObservation", () => {
+		it("rejects with ValidationError when observation.hazardousEventId differs from the hazardousEventId parameter, writing no row", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const repo = new DrizzleHazardousEventRepository(dr);
+			const observation = makeSpatialObservationRecord(randomUUID());
+
+			await expect(
+				repo.saveSpatialObservation(id, observation, tenantId),
+			).rejects.toThrow(ValidationError);
+
+			const rows = await dr
+				.select()
+				.from(hazardousEventSpatialObservationTable)
+				.where(eq(hazardousEventSpatialObservationTable.hazardousEventId, id));
+			expect(rows).toHaveLength(0);
+		});
+
+		it("rejects with NotFoundError for a hazardousEventId that doesn't exist, writing no row", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const repo = new DrizzleHazardousEventRepository(dr);
+			const missingId = randomUUID();
+			const observation = makeSpatialObservationRecord(missingId);
+
+			await expect(
+				repo.saveSpatialObservation(missingId, observation, tenantId),
+			).rejects.toThrow(NotFoundError);
+
+			const rows = await dr
+				.select()
+				.from(hazardousEventSpatialObservationTable)
+				.where(
+					eq(hazardousEventSpatialObservationTable.hazardousEventId, missingId),
+				);
+			expect(rows).toHaveLength(0);
+		});
+
+		it("rejects with NotFoundError for a hazardousEventId that exists under a different tenant, writing no row", async () => {
+			const { id } = await seedRawHazardousEvent();
+			const otherTenantId = (await seedCountryAccount()) as string;
+			const repo = new DrizzleHazardousEventRepository(dr);
+			const observation = makeSpatialObservationRecord(id);
+
+			await expect(
+				repo.saveSpatialObservation(id, observation, otherTenantId),
+			).rejects.toThrow(NotFoundError);
+
+			const rows = await dr
+				.select()
+				.from(hazardousEventSpatialObservationTable)
+				.where(eq(hazardousEventSpatialObservationTable.hazardousEventId, id));
+			expect(rows).toHaveLength(0);
+		});
+
+		// Guards against a weakened id filter: a tenant that owns other events must still be
+		// rejected for a foreign event, not let the tenant-only half of the check pass it through.
+		it("rejects with NotFoundError for a foreign-tenant hazardousEventId even when the acting tenant owns other hazardous events of its own", async () => {
+			const { id: foreignId } = await seedRawHazardousEvent();
+			const { tenantId: actingTenantId } = await seedRawHazardousEvent();
+			const repo = new DrizzleHazardousEventRepository(dr);
+			const observation = makeSpatialObservationRecord(foreignId);
+
+			await expect(
+				repo.saveSpatialObservation(foreignId, observation, actingTenantId),
+			).rejects.toThrow(NotFoundError);
+
+			const rows = await dr
+				.select()
+				.from(hazardousEventSpatialObservationTable)
+				.where(
+					eq(hazardousEventSpatialObservationTable.hazardousEventId, foreignId),
+				);
+			expect(rows).toHaveLength(0);
+		});
+
+		it("rejects with ValidationError when a divisionIds entry belongs to a different tenant, writing no parent or geometry row", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const otherTenantId = (await seedCountryAccount()) as string;
+			const foreignDivisionId = await seedDivisionRow(otherTenantId);
+			const repo = new DrizzleHazardousEventRepository(dr);
+			const observation = makeSpatialObservationRecord(id, {
+				geometries: [{ type: "Point", coordinates: [1, 1] }],
+				divisionIds: [foreignDivisionId],
+			});
+
+			await expect(
+				repo.saveSpatialObservation(id, observation, tenantId),
+			).rejects.toThrow(ValidationError);
+
+			const rows = await dr
+				.select()
+				.from(hazardousEventSpatialObservationTable)
+				.where(eq(hazardousEventSpatialObservationTable.hazardousEventId, id));
+			expect(rows).toHaveLength(0);
+			// Scoped to this test's own observation.id, not the whole table (shared across every test here).
+			const geomRows = await dr
+				.select()
+				.from(hazardousEventSpatialObservationGeomTable)
+				.where(
+					eq(
+						hazardousEventSpatialObservationGeomTable.hazardousEventSpatialObservationId,
+						observation.id,
+					),
+				);
+			expect(geomRows).toHaveLength(0);
+		});
+
+		// Guards against a weakened division tenant filter: owning a real division of its own
+		// must not let the tenant's foreign-division check pass by coincidence of a non-empty result.
+		it("rejects with ValidationError for a foreign-tenant divisionId even when the acting tenant owns a real division of its own", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const ownDivisionId = await seedDivisionRow(tenantId);
+			const otherTenantId = (await seedCountryAccount()) as string;
+			const foreignDivisionId = await seedDivisionRow(otherTenantId);
+			const repo = new DrizzleHazardousEventRepository(dr);
+			const observation = makeSpatialObservationRecord(id, {
+				divisionIds: [ownDivisionId, foreignDivisionId],
+			});
+
+			await expect(
+				repo.saveSpatialObservation(id, observation, tenantId),
+			).rejects.toThrow(ValidationError);
+
+			const rows = await dr
+				.select()
+				.from(hazardousEventSpatialObservationTable)
+				.where(eq(hazardousEventSpatialObservationTable.hazardousEventId, id));
+			expect(rows).toHaveLength(0);
+		});
+
+		it("persists a brand-new observation across all three tables and round-trips via findSpatialObservationByTime", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const divisionId = await seedDivisionRow(tenantId);
+			const repo = new DrizzleHazardousEventRepository(dr);
+			const createdAt = new Date("2026-01-01T00:00:00Z");
+			const observationTime = new Date("2026-02-01T00:00:00Z");
+			const observation = makeSpatialObservationRecord(id, {
+				observationTime,
+				note: "a note",
+				geometries: [{ type: "Point", coordinates: [1, 1] }],
+				divisionIds: [divisionId],
+				createdAt,
+				updatedAt: createdAt,
+			});
+
+			const saved = await repo.saveSpatialObservation(
+				id,
+				observation,
+				tenantId,
+			);
+
+			expect(saved.geometries).toEqual([
+				{ type: "Point", coordinates: [1, 1] },
+			]);
+			expect(saved.divisionIds).toEqual([divisionId]);
+			expect(saved.createdAt.getTime()).toBe(createdAt.getTime());
+
+			const found = await repo.findSpatialObservationByTime(
+				id,
+				observationTime,
+				tenantId,
+			);
+			expect(found?.geometries).toEqual([
+				{ type: "Point", coordinates: [1, 1] },
+			]);
+			expect(found?.divisionIds).toEqual([divisionId]);
+		});
+
+		it("replacing an existing observation updates its fields, preserves createdAt, and drops stale geom/division rows rather than merging", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const divisionA = await seedDivisionRow(tenantId);
+			const repo = new DrizzleHazardousEventRepository(dr);
+			const createdAt = new Date("2026-01-01T00:00:00Z");
+			const observationTime = new Date("2026-02-01T00:00:00Z");
+			const original = makeSpatialObservationRecord(id, {
+				observationTime,
+				note: "original",
+				geometries: [
+					{ type: "Point", coordinates: [1, 1] },
+					{ type: "Point", coordinates: [2, 2] },
+				],
+				divisionIds: [divisionA],
+				createdAt,
+				updatedAt: createdAt,
+			});
+			await repo.saveSpatialObservation(id, original, tenantId);
+
+			// A caller-supplied createdAt that differs from the original must still be ignored on replace.
+			const replacement = makeSpatialObservationRecord(id, {
+				id: original.id,
+				observationTime,
+				note: "replaced",
+				geometries: [{ type: "Point", coordinates: [9, 9] }],
+				divisionIds: [],
+				createdAt: new Date("2026-05-01T00:00:00Z"),
+				updatedAt: new Date("2026-05-01T00:00:00Z"),
+			});
+
+			const saved = await repo.saveSpatialObservation(
+				id,
+				replacement,
+				tenantId,
+			);
+
+			expect(saved.note).toBe("replaced");
+			expect(saved.geometries).toEqual([
+				{ type: "Point", coordinates: [9, 9] },
+			]);
+			expect(saved.divisionIds).toEqual([]);
+			expect(saved.createdAt.getTime()).toBe(createdAt.getTime());
+			// The SET clause must advance updatedAt on replace -- dropping it from onConflictDoUpdate
+			// would leave this stale at the original insert's value.
+			expect(saved.updatedAt.getTime()).toBe(replacement.updatedAt.getTime());
+
+			const found = await repo.findSpatialObservationByTime(
+				id,
+				observationTime,
+				tenantId,
+			);
+			expect(found?.geometries).toEqual([
+				{ type: "Point", coordinates: [9, 9] },
+			]);
+			expect(found?.divisionIds).toEqual([]);
+			expect(found?.updatedAt.getTime()).toBe(replacement.updatedAt.getTime());
+		});
+
+		it("rejects with ConflictError when observation.id is already used under a different hazardousEventId, leaving the original unchanged", async () => {
+			const { id: hazardousEventIdA, tenantId } = await seedRawHazardousEvent();
+			const { id: hazardousEventIdB } = await seedRawHazardousEvent({
+				tenantId,
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+			const observationA = makeSpatialObservationRecord(hazardousEventIdA, {
+				observationTime: new Date("2026-02-01T00:00:00Z"),
+				note: "original",
+			});
+			await repo.saveSpatialObservation(
+				hazardousEventIdA,
+				observationA,
+				tenantId,
+			);
+
+			const colliding = makeSpatialObservationRecord(hazardousEventIdB, {
+				id: observationA.id,
+				observationTime: new Date("2026-03-01T00:00:00Z"),
+				note: "colliding",
+			});
+
+			await expect(
+				repo.saveSpatialObservation(hazardousEventIdB, colliding, tenantId),
+			).rejects.toThrow(ConflictError);
+
+			const found = await repo.findSpatialObservationByTime(
+				hazardousEventIdA,
+				observationA.observationTime,
+				tenantId,
+			);
+			expect(found?.note).toBe("original");
+		});
+
+		// Regression guard: a hard-coded this.db read inside the ownership check would not see this still-open transaction's own uncommitted hazardous_event row.
+		it("called with an externally-supplied, not-yet-committed tx, sees the caller's own uncommitted hazardous_event row for the ownership check", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const specificHazardId = await seedSpecificHazard();
+			const id = randomUUID();
+			const repo = new DrizzleHazardousEventRepository(dr);
+			const entity = makeHazardousEventEntity(
+				baseNewEventProps(id, tenantId, specificHazardId),
+			);
+			const observation = makeSpatialObservationRecord(id, {
+				observationTime: new Date("2026-02-01T00:00:00Z"),
+			});
+
+			const saved = await dr.transaction(async (tx) => {
+				await repo.insert(entity, tx);
+				return repo.saveSpatialObservation(id, observation, tenantId, tx);
+			});
+
+			expect(saved.id).toBe(observation.id);
+		});
+
+		// Same lock-then-delete race as DEF-033's own test above, but racing saveSpatialObservation's
+		// insert against its own parent-row FK, proving mapSpatialWriteError disambiguates this from
+		// the division-id case rather than mislabeling it.
+		it("maps a 23503 against a hazardous_event row deleted mid-race to NotFoundError, not the division-id message", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const repo = new DrizzleHazardousEventRepository(dr);
+			const observation = makeSpatialObservationRecord(id, {
+				observationTime: new Date("2026-02-01T00:00:00Z"),
+			});
+
+			let releaseLock: () => void = () => {};
+			const lockAcquired = new Promise<void>((resolve) => {
+				releaseLock = resolve;
+			});
+			let finishTx: () => void = () => {};
+			const holdTx = new Promise<void>((resolve) => {
+				finishTx = resolve;
+			});
+
+			const txPromise = dr.transaction(async (tx) => {
+				await repo.findByIdForUpdate(id, tenantId, tx);
+				releaseLock();
+				await holdTx;
+				await repo.delete(id, tenantId, tx);
+			});
+
+			await lockAcquired;
+
+			const savePromise = repo.saveSpatialObservation(
+				id,
+				observation,
+				tenantId,
+			);
+
+			const raceOutcome = await Promise.race([
+				savePromise.then(() => "save-finished" as const),
+				new Promise<"timeout">((resolve) =>
+					setTimeout(() => resolve("timeout"), 200),
+				),
+			]);
+			expect(raceOutcome).toBe("timeout");
+
+			finishTx();
+			await txPromise;
+
+			await expect(savePromise).rejects.toThrow(NotFoundError);
+
+			const rows = await dr
+				.select()
+				.from(hazardousEventSpatialObservationTable)
+				.where(eq(hazardousEventSpatialObservationTable.hazardousEventId, id));
+			expect(rows).toHaveLength(0);
+		});
+
+		it("rejects with ValidationError, writing no row, when observation.id is not a valid uuid (22P02)", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const repo = new DrizzleHazardousEventRepository(dr);
+			const observation = makeSpatialObservationRecord(id, {
+				id: "not-a-uuid",
+				observationTime: new Date("2026-02-01T00:00:00Z"),
+			});
+
+			await expect(
+				repo.saveSpatialObservation(id, observation, tenantId),
+			).rejects.toThrow(ValidationError);
+
+			const rows = await dr
+				.select()
+				.from(hazardousEventSpatialObservationTable)
+				.where(eq(hazardousEventSpatialObservationTable.hazardousEventId, id));
+			expect(rows).toHaveLength(0);
+		});
+
+		it("rejects with ValidationError when divisionIds contains a duplicate id that collides on the DB's own unique constraint", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const divisionId = await seedDivisionRow(tenantId);
+			const repo = new DrizzleHazardousEventRepository(dr);
+			const observation = makeSpatialObservationRecord(id, {
+				observationTime: new Date("2026-02-01T00:00:00Z"),
+				divisionIds: [divisionId, divisionId],
+			});
+
+			await expect(
+				repo.saveSpatialObservation(id, observation, tenantId),
+			).rejects.toThrow(ValidationError);
+		});
+
+		it("rejects a malformed geometries element with ValidationError, writing no row", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const repo = new DrizzleHazardousEventRepository(dr);
+			const observation = makeSpatialObservationRecord(id, {
+				observationTime: new Date("2026-02-01T00:00:00Z"),
+				geometries: [{ type: "Point" }],
+			});
+
+			await expect(
+				repo.saveSpatialObservation(id, observation, tenantId),
+			).rejects.toThrow(ValidationError);
+
+			const rows = await dr
+				.select()
+				.from(hazardousEventSpatialObservationTable)
+				.where(eq(hazardousEventSpatialObservationTable.hazardousEventId, id));
+			expect(rows).toHaveLength(0);
+		});
+
+		it("lets exactly one of two concurrent saveSpatialObservation calls for the same hazardousEventId/observationTime succeed, the other rejecting with ConflictError", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const repo = new DrizzleHazardousEventRepository(dr);
+			const observationTime = new Date("2026-02-01T00:00:00Z");
+			const observationA = makeSpatialObservationRecord(id, {
+				observationTime,
+			});
+			const observationB = makeSpatialObservationRecord(id, {
+				observationTime,
+			});
+
+			const outcomes = await Promise.allSettled([
+				repo.saveSpatialObservation(id, observationA, tenantId),
+				repo.saveSpatialObservation(id, observationB, tenantId),
+			]);
+
+			const fulfilled = outcomes.filter((o) => o.status === "fulfilled");
+			const rejected = outcomes.filter((o) => o.status === "rejected");
+			expect(fulfilled).toHaveLength(1);
+			expect(rejected).toHaveLength(1);
+			expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(
+				ConflictError,
+			);
+
+			const rows = await dr
+				.select()
+				.from(hazardousEventSpatialObservationTable)
+				.where(
+					and(
+						eq(hazardousEventSpatialObservationTable.hazardousEventId, id),
+						eq(
+							hazardousEventSpatialObservationTable.observationTime,
+							observationTime,
+						),
+					),
+				);
+			expect(rows).toHaveLength(1);
 		});
 	});
 });
