@@ -1620,6 +1620,33 @@ settle here whether the port should retype to `SpatialObservation` directly now 
 a real adapter exists, or keep the mapping boundary permanently; a silent divergence
 today would only be caught by `tsc`, not any test.
 
+**Corrected 2026-10-22 (readiness check, before this intent's own spec-writer run) —
+two findings narrow and widen this intent's real scope:**
+
+1. **DEF-027's resolution direction, settled, not left open.** Diffed
+   `SpatialObservationRecord` against `SpatialObservation`'s own `SpatialObservationProps`
+   field-by-field — they are already identical (`id`, `hazardousEventId`,
+   `observationTime`, `note`, `geometries`, `divisionIds`, `createdAt`, `updatedAt`).
+   `RecordSpatialObservationUseCase.execute()` already has a working
+   hydrate-from-trusted-persistence pattern (`SpatialObservation.create(existingRecord,
+new Set(existingRecord.divisionIds))`) for its "existing observation" branch —
+   retyping the port to return `SpatialObservation` directly would only relocate that
+   same hydration hack into the adapter, not remove it. Settled direction: make
+   `SpatialObservationRecord` a genuine type alias of `SpatialObservationProps`
+   (`export type SpatialObservationRecord = SpatialObservationProps`) instead of two
+   hand-maintained interfaces that merely happen to match today — closes DEF-027's
+   actual stated risk (divergence undetected by any test) without touching the use
+   case's already-working reconstruction code or pushing entity validation into
+   infrastructure.
+2. **`IDivisionRepository` has no real adapter yet — folds in `DEF-005`.**
+   `RecordSpatialObservationUseCase` already depends on `IDivisionRepository` (`4g`),
+   but nothing implements it; the use case cannot run end-to-end against real data
+   without one, even once the three spatial methods below exist. `DEF-005` is
+   explicitly triggered "Phase 5e — not yet proposed" — folded into this intent's
+   scope rather than left for a separate pass. Legacy precedent for the query shape:
+   `app/db/queries/hazardousEventDivisionRepository.ts` joins the shared
+   `divisionTable` on its own `countryAccountsId` column for tenant scoping.
+
 **Intent for `/opsx:propose`:**
 
 ```
@@ -1629,21 +1656,30 @@ findCurrentSpatialObservation (latest by observationTime, not insertion order, p
 saveSpatialObservation — against hazardous_event_spatial_observation. Division
 validity checks are tenant-scoped (0d finding #1 — this must not repeat that gap).
 
-Resolve DEF-027 explicitly: either retype IHazardousEventRepository's spatial
-methods to SpatialObservation directly (removing toSpatialObservationRecord) or
-keep SpatialObservationRecord as a deliberate, documented persistence-shape
-boundary distinct from the domain entity — not left as an unexamined duplication.
+Add DrizzleDivisionRepository fulfilling IDivisionRepository.findValidDivisionIds
+against the shared division table, tenant-scoped via countryAccountsId (narrows
+DEF-005's adapter clause; the legacy syncHazardousEventSpatialFootprint function
+stays unguarded until Phase 7 cutover replaces it — never patched directly).
+
+Resolve DEF-027 by making SpatialObservationRecord a type alias of
+SpatialObservation's own SpatialObservationProps (not a port retype to
+SpatialObservation directly — retyping would only relocate the use case's existing
+hydrate-from-trusted-persistence hack into the adapter layer instead of removing it).
 ```
 
 **Files touched:**
 
-- `app/domains/hazardous-events/infrastructure/DrizzleHazardousEventRepository.ts`
+- `app/domains/hazardous-events/infrastructure/DrizzleHazardousEventRepository.server.ts`
   (modified — same file as 5d, this is the spatial-observation half of it)
-- `tests/integration/domains/hazardous-events/DrizzleHazardousEventRepository.test.ts`
+- `tests/integration/db/queries/DrizzleHazardousEventRepository.test.ts`
   (modified)
+- `app/domains/hazardous-events/infrastructure/DrizzleDivisionRepository.server.ts` (new —
+  narrows `DEF-005`'s adapter clause)
+- `tests/integration/db/queries/DrizzleDivisionRepository.test.ts` (new)
 - `app/domains/hazardous-events/application/ports/IHazardousEventRepository.ts`
-  (modified, if DEF-027 resolves toward retyping)
-- `_docs/refactoring-plan/deferred-items-register.md` (close `DEF-027`)
+  (modified — `SpatialObservationRecord` becomes a type alias of
+  `SpatialObservationProps`, closes `DEF-027`)
+- `_docs/refactoring-plan/deferred-items-register.md` (narrow `DEF-005`; close `DEF-027`)
 
 **Test tier:** PGlite integration — a backfilled earlier `observationTime` inserted
 after a later one does not become "current"; a duplicate `observationTime` is
