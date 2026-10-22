@@ -1,7 +1,6 @@
 import { ConflictError, ValidationError } from "~/shared/errors";
 
-/** Field set mirrors the three real Phase 2 tables (parent + geom + division child tables — design.md Context);
- * supersedes `IHazardousEventRepository.ts`'s provisional `SpatialObservationRecord`. */
+/** Field set mirrors the three real Phase 2 tables (parent + geom + division child tables); `IHazardousEventRepository.ts`'s `SpatialObservationRecord` is a type alias of this (closes DEF-027). */
 export interface SpatialObservationProps {
 	readonly id: string;
 	readonly hazardousEventId: string;
