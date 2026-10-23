@@ -1,6 +1,6 @@
 {
 	"name": "undrr-delta",
-	"version": "0.3.1",
+	"version": "0.3.2",
 	"description": "desc",
 	"type": "module",
 	"main": "vite.config.js",

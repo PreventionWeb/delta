@@ -72,8 +72,8 @@ jobs:
       - name: Install dependencies
         run: HUSKY=0 yarn install --frozen-lockfile 
 
-      - name: Install Playwright browser and system deps
-        run: npx playwright install --with-deps chromium
+      # - name: Install Playwright browser and system deps
+      #   run: npx playwright install --with-deps chromium
 
       - name: Create .env.test for real-DB integration tests
         run: |
