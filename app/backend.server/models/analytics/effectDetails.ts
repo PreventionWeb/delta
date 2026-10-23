@@ -102,6 +102,23 @@ export async function getEffectDetails(
 	countryAccountsId: string,
 	filters: FilterParams,
 ) {
+	const hasAnyFilter = Object.values(filters).some((value) => {
+		if (value == null) return false;
+		if (typeof value === "string") return value.trim().length > 0;
+		return true;
+	});
+
+	if (!hasAnyFilter) {
+		logger.debug("No effect-detail filters provided; returning empty result", {
+			filters,
+		});
+		return {
+			damages: [],
+			losses: [],
+			disruptions: [],
+		};
+	}
+
 	let targetSectorIds: string[] = [];
 	if (filters.sectorId) {
 		try {
@@ -265,6 +282,9 @@ export async function getEffectDetails(
 		);
 	}
 
+	const getSectorCondition = (column: any) =>
+		targetSectorIds.length > 0 ? [inArray(column, targetSectorIds)] : [];
+
 	// Fetch damages data with optimized joins and sector filtering
 	const damagesData = await dr
 		.select({
@@ -314,10 +334,7 @@ export async function getEffectDetails(
 		.where(
 			and(
 				...baseConditions,
-				// Add sector filter directly to damages table
-				targetSectorIds.length > 0
-					? inArray(damagesTable.sectorId, targetSectorIds)
-					: undefined,
+				...getSectorCondition(damagesTable.sectorId),
 			),
 		)
 		.groupBy(damagesTable.id, assetTable.id);
@@ -368,10 +385,7 @@ export async function getEffectDetails(
 		.where(
 			and(
 				...baseConditions,
-				// Add sector filter directly to losses table
-				targetSectorIds.length > 0
-					? inArray(lossesTable.sectorId, targetSectorIds)
-					: undefined,
+				...getSectorCondition(lossesTable.sectorId),
 			),
 		)
 		.groupBy(lossesTable.id);
@@ -407,10 +421,7 @@ export async function getEffectDetails(
 		.where(
 			and(
 				...baseConditions,
-				// Add sector filter directly to disruptions table
-				targetSectorIds.length > 0
-					? inArray(disruptionTable.sectorId, targetSectorIds)
-					: undefined,
+				...getSectorCondition(disruptionTable.sectorId),
 			),
 		)
 		.groupBy(disruptionTable.id);

@@ -8555,5 +8555,80 @@
         "id": "session.refresh",
         "description": "File: app/components/InactivityWarning.tsx:127",
         "translation": "刷新会话"
+    },
+    {
+        "id": "admin.country_account_type.desinventar_archive",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:94",
+        "translation": "DesInventar 档案库"
+    },
+    {
+        "id": "admin.instance_type_desinventar_archive",
+        "description": "File: app/routes/$lang+/admin+/country-accounts+/edit.$id.tsx:372",
+        "translation": "DesInventar 档案库"
+    },
+    {
+        "id": "geographies.country_boundary",
+        "description": "File: app/routes/$lang+/settings+/geography+/edit.$id.tsx:576",
+        "translation": "国家边界（第0级）"
+    },
+    {
+        "id": "geographies.country_boundary_hint",
+        "description": "File: app/routes/$lang+/settings+/geography+/edit.$id.tsx:582",
+        "translation": "仅当此为唯一的顶级行政区划且无同级行政区划时才适用。第0级代表国家边界；行政区划从第1级开始。"
+    },
+    {
+        "id": "human_effects.disaggregation_details",
+        "description": "File: app/routes/$lang+/disaster-record+/$id.tsx:400",
+        "translation": "细分详情"
+    },
+    {
+        "id": "nav.about_the_system_description",
+        "description": "File: app/components/RegularMenuBar.tsx:325",
+        "translation": "系统信息"
+    },
+    {
+        "id": "nav.access_management_description",
+        "description": "File: app/components/RegularMenuBar.tsx:395",
+        "translation": "管理用户权限"
+    },
+    {
+        "id": "nav.analysis.disaster_events_description",
+        "description": "File: app/components/RegularMenuBar.tsx:304",
+        "translation": "按灾害事件分析数据"
+    },
+    {
+        "id": "nav.analysis.hazards_description",
+        "description": "File: app/components/RegularMenuBar.tsx:291",
+        "translation": "按危害类型分析数据"
+    },
+    {
+        "id": "nav.analysis.sectors_description",
+        "description": "File: app/components/RegularMenuBar.tsx:281",
+        "translation": "按行业分析数据"
+    },
+    {
+        "id": "nav.disaster_records_description",
+        "description": "File: app/components/RegularMenuBar.tsx:261",
+        "translation": "完整的灾难记录"
+    },
+    {
+        "id": "nav.hazardous_events_description",
+        "description": "File: app/components/RegularMenuBar.tsx:235",
+        "translation": "监测危险情况"
+    },
+    {
+        "id": "nav.human_effects_description",
+        "description": "File: app/components/RegularMenuBar.tsx:444",
+        "translation": "管理拆分"
+    },
+    {
+        "id": "nav.organization_management_description",
+        "description": "File: app/components/RegularMenuBar.tsx:408",
+        "translation": "管理组织"
+    },
+    {
+        "id": "nav.system_settings_description",
+        "description": "File: app/components/RegularMenuBar.tsx:382",
+        "translation": "配置系统偏好设置"
     }
 ]

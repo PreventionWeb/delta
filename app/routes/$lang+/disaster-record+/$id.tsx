@@ -11,6 +11,7 @@ import { disasterRecordsById } from "~/backend.server/models/disaster_record";
 import { nonecoLossesFilderBydisasterRecordsId } from "~/backend.server/models/noneco_losses";
 import { sectorsFilterByDisasterRecordId } from "~/backend.server/models/disaster_record__sectors";
 import { getAffectedByDisasterRecord } from "~/backend.server/models/analytics/affected-people-by-disaster-record";
+import { loadData as loadHumanEffectsData } from "~/backend.server/handlers/human_effects";
 import AuditLogHistory from "~/components/AuditLogHistory";
 import { disasterRecordsTable } from "~/drizzle/schema/disasterRecordsTable";
 import { getTableName } from "drizzle-orm";
@@ -44,6 +45,14 @@ import { LossesDivisionRepository } from "~/db/queries/lossesDivisionRepository"
 import { DamagesRepository } from "~/db/queries/damagesRepository";
 import { DamagesGeomRepository } from "~/db/queries/damagesGeomRepository";
 import { DamagesDivisionRepository } from "~/db/queries/damagesDivisionRepository";
+
+const HUMAN_EFFECT_TABLE_IDS = [
+	"Deaths",
+	"Injured",
+	"Missing",
+	"Affected",
+	"Displaced",
+] as const;
 
 export const loader = async (args: LoaderFunctionArgs) => {
 	const { request, params } = args;
@@ -187,6 +196,32 @@ export const loader = async (args: LoaderFunctionArgs) => {
 		dr,
 		id,
 	);
+	const humanEffectsDisaggregation = await Promise.all(
+		HUMAN_EFFECT_TABLE_IDS.map(async (tableId) => {
+			const tableData = await loadHumanEffectsData(
+				ctx,
+				id,
+				tableId,
+				countryAccountsId,
+			);
+			const dimensionIndexes = tableData.defs
+				.map((def, index) => (def.role === "dimension" ? index : -1))
+				.filter((index) => index >= 0);
+			const rows = tableData.data.filter((row) => {
+				return dimensionIndexes.some((index) => {
+					const value = row[index];
+					return value !== null && value !== undefined && value !== "";
+				});
+			});
+
+			return {
+				tableId,
+				label: tableData.tbl.label,
+				defs: tableData.defs,
+				rows,
+			};
+		}),
+	);
 	const hipEntity = await queryHipEntity(
 		ctx,
 		result.item.hipHazardId,
@@ -225,6 +260,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
 		recordsNonecoLosses: dbNonecoLosses,
 		recordsDisRecSectors: dbDisRecSectors,
 		dbDisRecHumanEffectsSummaryTable,
+		humanEffectsDisaggregation,
 	};
 };
 
@@ -252,6 +288,9 @@ export default function Screen() {
 	const ld = useLoaderData<typeof loader>();
 	const ctx = new ViewContext();
 	const auditLogs = (ld as any).auditLogs as any[] | undefined;
+	const hasHumanEffectsDisaggregation = ld.humanEffectsDisaggregation.some(
+		(table) => table.rows.length > 0,
+	);
 
 	return (
 		<>
@@ -354,6 +393,72 @@ export default function Screen() {
 											</tbody>
 										</table>
 									</div>
+
+									{hasHumanEffectsDisaggregation && (
+										<div className="mt-5">
+											<p className="mb-2 text-sm font-extrabold text-gray-700">
+												{ctx.t({
+													code: "human_effects.disaggregation_details",
+													msg: "Disaggregation details",
+												})}
+											</p>
+											{ld.humanEffectsDisaggregation
+												.filter((table) => table.rows.length > 0)
+												.map((table) => (
+													<div key={table.tableId} className="mb-4">
+														<h4 className="mb-1 text-sm font-semibold text-gray-700">
+															{table.label}
+														</h4>
+														<div className="overflow-x-auto">
+															<table className="w-full border border-gray-300 text-xs">
+																<thead className="bg-gray-50 text-gray-700">
+																	<tr>
+																		{table.defs.map((def) => {
+																			const label =
+																				typeof def.uiName === "string"
+																					? def.uiName
+																					: (def.uiName as any).msg || def.dbName;
+																			return (
+																				<th
+																					key={def.dbName}
+																					className="border border-gray-300 px-2 py-1 text-left font-medium"
+																				>
+																					{label}
+																				</th>
+																			);
+																		})}
+																	</tr>
+																</thead>
+																<tbody>
+																	{table.rows.map((row, rowIndex) => (
+																		<tr key={rowIndex} className="hover:bg-gray-50">
+																			{row.map((value, valueIndex) => (
+																				<td
+																					key={`${table.tableId}-${rowIndex}-${valueIndex}`}
+																					className="border border-gray-300 px-2 py-1"
+																				>
+																					{value === null || value === undefined || value === "" ? (
+																						<span className="text-gray-400">-</span>
+																					) : typeof value === "boolean" ? (
+																						value ? (
+																							ctx.t({ code: "common.yes", msg: "Yes" })
+																						) : (
+																							ctx.t({ code: "common.no", msg: "No" })
+																						)
+																					) : (
+																						String(value)
+																					)}
+																				</td>
+																			))}
+																		</tr>
+																	))}
+																</tbody>
+															</table>
+														</div>
+													</div>
+												))}
+										</div>
+									)}
 								</div>
 							</fieldset>
 						</div>

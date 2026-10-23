@@ -1,12 +1,20 @@
-import { useState, useEffect } from "react";
-import ImpactMapOl from "./Map/ImpactMapOl";
+import { useState, useEffect, useRef } from "react";
 import type { MetricConfig } from "~/components/CustomMap";
 import { ViewContext } from "~/frontend/context";
+import MapChart, { MapChartRef } from "~/components/MapChart";
 
 interface Sector {
 	id: string;
 	sectorname: string;
 	subsectors?: Sector[];
+}
+
+interface interfaceMap {
+	total: number;
+	name: string;
+	description: string;
+	colorPercentage: number;
+	geojson: any;
 }
 
 // Define the filter shape to match ImpactMapOl props
@@ -30,13 +38,18 @@ type ImpactMapProps = {
 	ctx: ViewContext;
 	filters: Filters;
 	currency?: string;
-	geographicImpactData: any;
+	geographicImpactData: {
+		damagesGeoData: any;
+		lossesGeoData: any;
+	};
 	sectorsData?: { sectors: Sector[] | null };
 	// New props for extended functionality
 	availableMetrics?: string[];
 	defaultMetric?: string;
 	metricConfigs?: Record<string, MetricConfig>;
 };
+
+const EMPTY_GEO_DATA: interfaceMap[] = [];
 
 const DEFAULT_FILTERS: FilterValues = {
 	sectorId: null,
@@ -88,21 +101,16 @@ export default function ImpactMap({
 	// Use the provided metricConfigs or generate default ones with the correct currency
 	const effectiveMetricConfigs =
 		metricConfigs || getDefaultMetricConfigs(ctx, currency);
+	const mapChartRef = useRef<MapChartRef>(null); //  Reference to MapChart
+	const initialMetric = availableMetrics.includes(defaultMetric)
+		? defaultMetric
+		: availableMetrics[0] || "totalDamage";
+	const initialTabIndex = Math.max(availableMetrics.indexOf(initialMetric), 0);
 
-	const [selectedMetric, setSelectedMetric] = useState<string>(defaultMetric);
-	const [selectedTab, setSelectedTab] = useState<string>("tab01"); // Add back selectedTab
-	const [error, setError] = useState<string | null>(null);
-
-	// More lenient check for valid data
-	const hasValidData = Boolean(
-		geographicImpactData &&
-		// Either it has features array with items
-		((geographicImpactData.features &&
-			Array.isArray(geographicImpactData.features) &&
-			geographicImpactData.features.length > 0) ||
-			// Or it has type='FeatureCollection' which indicates it's GeoJSON
-			geographicImpactData.type === "FeatureCollection"),
-	);
+	const [selectedTab, setSelectedTab] = useState<string>(
+		`tab${(initialTabIndex + 1).toString().padStart(2, "0")}`,
+	); // Add back selectedTab
+	const [, setError] = useState<string | null>(null);
 
 	// Use sectors data from props for dynamic titles
 	const sectors = sectorsData?.sectors || [];
@@ -196,35 +204,63 @@ export default function ImpactMap({
 		}
 	};
 
+	const damageLegendTitle = ctx.t({
+		code: "analysis.total_damage",
+		msg: "Total damage",
+	});
+	const lossesLegendTitle = ctx.t({
+		code: "analysis.total_losses",
+		msg: "Total losses",
+	});
+
 	// Handle tab selection - Fixed to prevent infinite loop
 	const handleSelectTab = (tabId: string, metric: string) => {
 		setSelectedTab(tabId);
-		setSelectedMetric(metric);
+		if (metric === "totalDamage") {
+			setActiveMapLayer("damage");
+			// setActiveData(geographicImpactData.damagesGeoData ?? []);
+			// mapChartRef.current?.setDataSource(geographicImpactData.damagesGeoData ?? []);
+			// mapChartRef.current?.setLegendTitle(damageLegendTitle);
+			// mapChartRef.current?.setLegendMaxColor("#208f04");
+		}
+		if (metric === "totalLoss") {
+			setActiveMapLayer("losses");
+			// setActiveData(geographicImpactData.lossesGeoData ?? []);
+			// mapChartRef.current?.setDataSource(geographicImpactData.lossesGeoData ?? []);
+			// mapChartRef.current?.setLegendTitle(lossesLegendTitle);
+			// mapChartRef.current?.setLegendMaxColor("#58508d");
+		}
 	};
+
+	const safeDamagesGeoData =
+		geographicImpactData.damagesGeoData ?? EMPTY_GEO_DATA;
+	const safeLossesGeoData =
+		geographicImpactData.lossesGeoData ?? EMPTY_GEO_DATA;
+	const [activeMapLayer, setActiveMapLayer] = useState<"damage" | "losses">(
+		initialMetric === "totalLoss" ? "losses" : "damage",
+	);
+	const activeData =
+		activeMapLayer === "losses" ? safeLossesGeoData : safeDamagesGeoData;
 
 	// Set error message if there's an issue with the data
 	useEffect(() => {
-		if (!geographicImpactData) {
-			setError("Failed to load geographic impact data");
-		} else if (geographicImpactData.error) {
-			const errorMessage =
-				geographicImpactData.error ===
-				"No divisions found for the given criteria"
-					? ctx.t({
-							code: "analysis.no_admin_divisions_available",
-							msg: "No administrative divisions are available in the system. Please contact your administrator to set up geographic boundaries.",
-						})
-					: geographicImpactData.message || geographicImpactData.error
-						? String(geographicImpactData.message || geographicImpactData.error)
-						: ctx.t({
-								code: "analysis.failed_to_fetch_geographic_data",
-								msg: "Failed to fetch geographic data",
-							});
-			setError(errorMessage);
-		} else {
-			setError(null);
-		}
+		setError(null); // Reset error whenever geographicImpactData changes
 	}, [geographicImpactData]);
+
+	useEffect(() => {
+		const nextLegendTitle =
+			activeMapLayer === "losses" ? lossesLegendTitle : damageLegendTitle;
+		const nextLegendColor = activeMapLayer === "losses" ? "#58508d" : "#208f04";
+
+		mapChartRef.current?.setDataSource(activeData);
+		mapChartRef.current?.setLegendTitle(nextLegendTitle);
+		mapChartRef.current?.setLegendMaxColor(nextLegendColor);
+	}, [
+		activeMapLayer,
+		activeData,
+		damageLegendTitle,
+		lossesLegendTitle,
+	]);
 
 	return (
 		<section className="dts-page-section">
@@ -275,40 +311,18 @@ export default function ImpactMap({
 
 					{/* Single tab panel that updates based on selected metric */}
 					<div id="tabpanel01" role="tabpanel" aria-labelledby={selectedTab}>
-						{error ? (
-							<div className="map-error">
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									viewBox="0 0 20 20"
-									fill="currentColor"
-								>
-									<path
-										fillRule="evenodd"
-										d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
-										clipRule="evenodd"
-									/>
-								</svg>
-								<div className="map-error-message">{error}</div>
-							</div>
-						) : !hasValidData ? (
-							<div className="map-no-data">
-								<p>
-									{ctx.t({
-										code: "analysis.no_geographic_data_for_filters",
-										msg: "No geographic data available for the selected filters.",
-									})}
-								</p>
-							</div>
-						) : (
-							<ImpactMapOl
-								ctx={ctx}
-								geoData={geographicImpactData}
-								selectedMetric={selectedMetric}
-								filters={filters || DEFAULT_FILTERS}
-								currency={currency}
-								metricConfig={effectiveMetricConfigs[selectedMetric]}
-							/>
-						)}
+						<MapChart
+							ctx={ctx}
+							ref={mapChartRef}
+							id="map_viewer"
+							dataSource={activeData}
+							mapMode="light"
+							legendTitle={ctx.t({
+								code: "analysis.total_damage",
+								msg: "Total damage",
+							})}
+							legendMaxColor="#208f04"
+						/>
 					</div>
 				</div>
 			</div>

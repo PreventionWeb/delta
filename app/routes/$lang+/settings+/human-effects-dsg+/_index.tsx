@@ -28,8 +28,10 @@ import Messages from "~/components/Messages";
 import { useEffect, useRef } from "react";
 import { Toast } from "primereact/toast";
 
-async function getConfig() {
-	let row = await dr.query.humanDsgConfigTable.findFirst();
+async function getConfig(countryAccountsId: string) {
+	let row = await dr.query.humanDsgConfigTable.findFirst({
+		where: eq(humanDsgConfigTable.countryAccountsId, countryAccountsId),
+	});
 	return new Set(row?.hidden?.cols || []);
 }
 
@@ -40,7 +42,7 @@ export const loader = authLoaderWithPerm(
 		const countryAccountsId = await getCountryAccountsIdFromSession(
 			args.request,
 		);
-		const config = await getConfig();
+		const config = await getConfig(countryAccountsId);
 		const usedColumns = await getUsedBuiltinColumns(dr, countryAccountsId);
 		return {
 			defs: sharedDefsAll(ctx),
@@ -79,7 +81,9 @@ export const action = authActionWithPerm(
 		}
 
 		await dr.transaction(async (tx) => {
-			const row = await tx.query.humanDsgConfigTable.findFirst();
+			const row = await tx.query.humanDsgConfigTable.findFirst({
+				where: eq(humanDsgConfigTable.countryAccountsId, countryAccountsId),
+			});
 			if (!row) {
 				await tx.insert(humanDsgConfigTable).values({
 					hidden: res,

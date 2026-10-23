@@ -1,6 +1,8 @@
+import { and, eq } from "drizzle-orm";
+
 import { authActionWithPerm, authLoaderWithPerm } from "~/utils/auth";
 
-import { InsertDivision } from "~/drizzle/schema/divisionTable";
+import { divisionTable, InsertDivision } from "~/drizzle/schema/divisionTable";
 import { dr } from "~/db.server";
 
 import {
@@ -150,11 +152,17 @@ export const loader = authLoaderWithPerm(
 			throw new Response("Item not found", { status: 404 });
 		}
 
+		const allRows = (await DivisionRepository.getByCountryAccountsId(
+			countryAccountsId,
+		)) as DivisionBreadcrumbSourceRow[];
+		const siblingCount = allRows.filter(
+			(row) => row.parentId === item.parentId && row.id !== item.id,
+		).length;
+		const canSetCountryBoundary =
+			item.level === 1 && item.parentId === null && siblingCount === 0;
+
 		let breadcrumbs: DivisionBreadcrumbRow[] | null = null;
 		if (item.parentId) {
-			const allRows = (await DivisionRepository.getByCountryAccountsId(
-				countryAccountsId,
-			)) as DivisionBreadcrumbSourceRow[];
 			breadcrumbs = buildDivisionBreadcrumbRows(allRows, item.parentId);
 		}
 
@@ -162,6 +170,8 @@ export const loader = authLoaderWithPerm(
 			data: item,
 			breadcrumbs: breadcrumbs,
 			backPath: listPathWithQuery(item.parentId, url.searchParams),
+			canSetCountryBoundary,
+			isCountryBoundary: item.level === 0,
 		};
 	},
 );
@@ -181,6 +191,10 @@ export const action = authActionWithPerm(
 		const rawForm = formStringData(formData);
 		const geometryFile = formData.get("geometryFile");
 		const nationalId = (rawForm.nationalId || "").trim();
+		const isCountryBoundary =
+			rawForm.isCountryBoundary === "on" ||
+			rawForm.isCountryBoundary === "true";
+		const requestedParentId = String(rawForm.parentId ?? "").trim();
 		const { parentId, ...nameFields } = rawForm;
 		const names = Object.entries(nameFields)
 			.filter(([key]) => key.startsWith("names[") && key.endsWith("]"))
@@ -207,7 +221,47 @@ export const action = authActionWithPerm(
 			};
 		}
 
-		if (data.parentId) {
+		const current = await DivisionRepository.getById(id, countryAccountsId);
+		const tenantRows = await DivisionRepository.getByCountryAccountsId(countryAccountsId);
+		const hasExistingCountryBoundary = tenantRows.some(
+			(row) => row.level === 0 && row.id !== id,
+		);
+		const isSettingAsTopLevel =
+			!requestedParentId &&
+			!isCountryBoundary &&
+			current &&
+			current.level !== 0;
+		if (hasExistingCountryBoundary && isSettingAsTopLevel) {
+			throw new Error(
+				"A country boundary record already exists for this tenant. This division cannot be set to top-level because only one level 0 record is allowed.",
+			);
+		}
+
+		if (isCountryBoundary) {
+			if (!current || (current.level !== 0 && current.level !== 1) || current.parentId !== null) {
+				throw new Error(
+					"Only a top-level division with no siblings can be marked as the country boundary.",
+				);
+			}
+			const tenantRows = await DivisionRepository.getByCountryAccountsId(countryAccountsId);
+			if (current.level === 1) {
+				const siblingCount = tenantRows.filter(
+					(row) => row.parentId === current.parentId && row.id !== current.id,
+				).length;
+				if (siblingCount > 0) {
+					throw new Error(
+						"Only a single top-level division without siblings can be marked as the country boundary.",
+					);
+				}
+			}
+			if (current.level !== 0 && tenantRows.some((row) => row.level === 0 && row.id !== current.id)) {
+				throw new Error(
+					"There can only be one country boundary division for this tenant.",
+				);
+			}
+			data.parentId = null;
+			data.level = 0;
+		} else if (data.parentId) {
 			const parentRecord = await DivisionRepository.getById(data.parentId, countryAccountsId);
 			data.level = parentRecord?.level ? parentRecord.level + 1 : 1;
 		} else {
@@ -219,6 +273,53 @@ export const action = authActionWithPerm(
 				const current = await DivisionRepository.getById(id, countryAccountsId, tx);
 				if (!current) {
 					throw new Error("Division not found");
+				}
+
+				const allTenantRows = await DivisionRepository.getByCountryAccountsId(
+					countryAccountsId,
+					tx,
+				);
+				const childrenByParent = new Map<string, string[]>();
+				for (const row of allTenantRows) {
+					if (!row.parentId) {
+						continue;
+					}
+					const children = childrenByParent.get(row.parentId) || [];
+					children.push(row.id);
+					childrenByParent.set(row.parentId, children);
+				}
+
+				const targetRootLevel = isCountryBoundary ? 0 : 1;
+				const queue: Array<{ id: string; depth: number }> = [{ id: current.id, depth: 0 }];
+				const visited = new Set<string>();
+				const levelUpdates: Array<{ id: string; level: number }> = [];
+				while (queue.length > 0) {
+					const currentNode = queue.shift();
+					if (!currentNode || visited.has(currentNode.id)) {
+						continue;
+					}
+					visited.add(currentNode.id);
+					levelUpdates.push({
+						id: currentNode.id,
+						level: targetRootLevel + currentNode.depth,
+					});
+					for (const childId of childrenByParent.get(currentNode.id) || []) {
+						queue.push({ id: childId, depth: currentNode.depth + 1 });
+					}
+				}
+
+				if (current.parentId === null && (isCountryBoundary || current.level === 0 || current.level === 1)) {
+					for (const update of levelUpdates) {
+						await tx
+							.update(divisionTable)
+							.set({ level: update.level })
+							.where(
+								and(
+									eq(divisionTable.id, update.id),
+									eq(divisionTable.countryAccountsId, countryAccountsId),
+								),
+							);
+					}
 				}
 
 				const updateRes = await DivisionRepository.update(
@@ -301,6 +402,8 @@ export default function Screen() {
 	const langs = Object.keys(nameMap).sort();
 	const canUploadGeometry = !loaderData.data.geom && !geometryUploaded;
 	const canDownloadGeoJSON = Boolean(loaderData.data.geom && loaderData.data.geojson);
+	const showCountryBoundaryOption =
+		loaderData.canSetCountryBoundary || loaderData.isCountryBoundary;
 
 	const handleDownloadGeoJSON = () => {
 		if (!loaderData.data.geojson) {
@@ -456,6 +559,35 @@ export default function Screen() {
 								required
 							/>
 						</div>
+
+						{showCountryBoundaryOption && (
+							<div className="rounded border border-slate-200 bg-slate-50 p-3">
+								<label className="flex cursor-pointer items-start gap-3">
+									<input
+										type="checkbox"
+										name="isCountryBoundary"
+										defaultChecked={loaderData.isCountryBoundary}
+										disabled={!loaderData.canSetCountryBoundary && !loaderData.isCountryBoundary}
+										id="field-is-country-boundary"
+										className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+									/>
+									<div className="flex flex-col gap-1">
+										<span className="text-sm font-medium text-gray-700">
+											{ctx.t({
+												code: "geographies.country_boundary",
+												msg: "Country boundary (level 0)",
+											})}
+										</span>
+										<span className="text-xs text-gray-500">
+											{ctx.t({
+												code: "geographies.country_boundary_hint",
+												msg: "Available only when this is the single top-level division and has no siblings. Level 0 represents the country boundary; administrative divisions begin at level 1.",
+											})}
+										</span>
+									</div>
+								</label>
+							</div>
+						)}
 
 						{canDownloadGeoJSON && (
 							<div className="flex flex-col gap-1">

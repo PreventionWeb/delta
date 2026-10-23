@@ -318,7 +318,7 @@ export async function getGeographicImpact(
 
 		// Base conditions for disaster records following DaLA methodology
 		const baseConditions: Array<SQL<unknown>> = [
-			sql<string>`${disasterRecordsTable.approvalStatus} = 'published'`,
+			sql<string>`${disasterRecordsTable.approvalStatus} IN ('published', 'validated')`,
 		];
 
 		// Add sector filtering using sectorDisasterRecordsRelationTable
