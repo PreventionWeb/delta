@@ -2397,6 +2397,15 @@ Phase 7's cutover needs a full replacement for, not a partial one.
 
 **Branch:** `feature/ca-he-route-adapter-read`
 
+**Readiness-check note, 2026-10-23 (`DEF-031`):** `GetHazardousEventByIdUseCase` throws
+`NotFoundError` for any event with no `WorkflowInstance` row — true for every event created
+before this refactor, until Phase M's backfill runs. Per the dependency graph above, Phase 6
+doesn't depend on Phase M, so this intent resolves it directly: make
+`GetHazardousEventByIdUseCase`/`UpdateHazardousEventUseCase` degrade gracefully instead
+(matching `ListHazardousEventsUseCase`'s existing `workflowStatus: null` pattern), and seed
+test data both with and without a `WorkflowInstance` row to cover both states. Exact mechanism
+is this intent's own design decision, not pre-decided here.
+
 **Intent for `/opsx:propose`:**
 
 ```
@@ -2584,6 +2593,44 @@ every endpoint; `/api/v2/docs` serves a valid OpenAPI document.
 > today's `/api+/hazardous-event+/` routes need advance notice of both the URL and
 > response-shape change (resolved open decision #5) before this replaces those
 > routes — a rollout/comms task, not part of this intent's own scope.
+
+---
+
+### 🔷 6g — Analytics Rewrite: `effectDetails.ts` / `geographicImpact.ts` (`DEF-008`)
+
+**Branch:** `feature/ca-he-analytics-rewrite`
+
+**Pulled into Phase 6, 2026-10-23** (previously "Phase 6 or 7, not yet decided").
+`getEffectDetails` is uncallable today by anyone, regardless of input (dead `spatialFootprint`
+references left over from `59f4558e`'s column removal), and separately maps its
+`specificHazardId` filter to `hipTypeId` instead of `hipHazardId` (copy-paste bug). Decided in
+Phase 0's audit: rebuild cleanly against the new `hazard_type`/`hazard_cluster`/
+`specific_hazard` schema, don't patch dead code against the legacy HIP hierarchy.
+
+**Intent for `/opsx:propose`:**
+
+```
+Rewrite effectDetails.ts and geographicImpact.ts's getDisasterRecordsForDivision
+against the new hazard_type/hazard_cluster/specific_hazard schema — drop the dead
+(table as any).spatialFootprint references entirely (the columns they selected no
+longer exist) and correct the specificHazardId-to-hipTypeId mapping bug by
+rebuilding the filter against the new schema's own fields, not by patching the old
+mapping. mostDamagingEvents.ts already has neither bug — confirmed clean, not in
+scope. Re-verify the Phase 0 audit's own characterization-test assumption from
+scratch before reusing it: the "sibling hazard excluded" case was assumed to be the
+pre-fix Red case, but hipTypeId/specificHazardId are different id namespaces that
+likely never collide, so "matching hazard included" is more probably the one that's
+actually broken.
+```
+
+**Files touched:**
+
+- `app/backend.server/models/analytics/effectDetails.ts` (rewritten)
+- `app/backend.server/models/analytics/geographicImpact.ts` (rewritten —
+  `getDisasterRecordsForDivision` only)
+
+**Test tier:** PGlite integration — both filters against the new schema, re-derived
+characterization scenarios (not copied from the Phase 0 audit's own assumption, per above).
 
 ---
 
