@@ -1,7 +1,31 @@
 import { dr } from "~/db.server";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
+import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
 import { eventTable } from "~/drizzle/schema/eventTable";
 import { randomUUID } from "crypto";
+
+export async function createTestHazardousEvent(countryAccountId: string) {
+	const eventId = randomUUID();
+
+	await dr.insert(eventTable).values({
+		id: eventId,
+		name: "Test Hazardous Event",
+		description: "Test Hazardous Event Description",
+	});
+
+	const [hazardousEvent] = await dr
+		.insert(hazardousEventTable)
+		.values({
+			id: eventId,
+			countryAccountsId: countryAccountId,
+		})
+		.returning();
+
+	return {
+		hazardousEventId: hazardousEvent.id,
+		hazardousEvent,
+	};
+}
 
 export async function createTestDisasterEvent(countryAccountId: string) {
 	const eventId = randomUUID();

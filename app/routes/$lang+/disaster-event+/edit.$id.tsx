@@ -32,6 +32,7 @@ import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { dr } from "~/db.server";
 import { divisionTable } from "~/drizzle/schema/divisionTable";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
+import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
 import { eventCausalityTable } from "~/drizzle/schema/eventCausalityTable";
 import { organizationTable } from "~/drizzle/schema/organizationTable";
 import { userCountryAccountsTable } from "~/drizzle/schema/userCountryAccountsTable";
@@ -666,6 +667,49 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 		actionArgs,
 		fieldsDef: fieldsDef(ctx),
 		save: async (tx, id, data) => {
+			// DEF-004 tenant guard — must run before any other write: formSave commits on any
+			// normal return from `save`, ok or not.
+			const allSelectedHazardousEventIds = new Set([
+				...linkedTriggeringHazardousEventIds,
+				...linkedTriggeredHazardousEventIds,
+			]);
+			if (allSelectedHazardousEventIds.size > 0) {
+				const tenantRows = await tx
+					.select({
+						id: hazardousEventTable.id,
+						countryAccountsId: hazardousEventTable.countryAccountsId,
+					})
+					.from(hazardousEventTable)
+					.where(
+						inArray(
+							hazardousEventTable.id,
+							Array.from(allSelectedHazardousEventIds),
+						),
+					);
+				const sameTenantIds = new Set(
+					tenantRows
+						.filter((row) => row.countryAccountsId === countryAccountsId)
+						.map((row) => row.id),
+				);
+				const hasOtherTenantId = Array.from(allSelectedHazardousEventIds).some(
+					(heId) => !sameTenantIds.has(heId),
+				);
+				if (hasOtherTenantId) {
+					return {
+						ok: false as const,
+						errors: {
+							fields: {},
+							form: [
+								ctx.t({
+									code: "hazardous_event.cannot_reference_other_tenant",
+									msg: "Cannot reference hazardous events from other country instances of DELTA",
+								}),
+							],
+						},
+					};
+				}
+			}
+
 			const currentSpatial = Array.isArray(spatialFootprintValue)
 				? spatialFootprintValue
 				: [];
