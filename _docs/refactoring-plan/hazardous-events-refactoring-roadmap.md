@@ -1811,23 +1811,40 @@ intent specifically).** Carried from Phase 0 (`0f`), executed here so it doesn't
 lost, not because it structurally belongs to HE's repository layer. Today's
 `event_causality` HE↔DE linking has no tenant check at all, unlike the singular
 `disasterEventTable.hazardousEventId` field which the same code explicitly guards.
-The fix is a small, standalone patch to `syncLinkedHazardousEvents` in
-`app/routes/$lang+/disaster-event+/edit.$id.tsx` — it does **not** require DE's own
+The fix is a small, standalone patch to `edit.$id.tsx`'s `action` — it does **not** require DE's own
 Clean Architecture domain module to exist first. If Disaster Events gets its own
 Clean Architecture refactor before this phase executes, this fix moves with it as a
 prerequisite for that effort's own causality-linking work instead — whichever lands
 first.
 
+**Corrected 2026-10-23 (readiness check):** `syncLinkedHazardousEvents` is a
+non-exported closure inside `edit.$id.tsx`'s `action` — the existing
+`hazardousEventDisasterEventBoundary.test.ts` tests `EventCausalityRepository.createMany`
+directly, one layer below where this fix lives, so it can't prove the route-level guard
+actually runs. Test instead via the route's exported `action`, alongside the existing
+`loader` test already in `tests/integration-realdb/routes/disaster-event/edit.$id.test.ts`
+(real-Postgres tier, `test:run3` — not PGlite, since that's the tier this route's own
+tests already use).
+
 **Files touched:**
 
-- `app/routes/$lang+/disaster-event+/edit.$id.tsx` (modified — add same-tenant check
-  to `syncLinkedHazardousEvents`, mirroring `disasterEventCreate`/`Update`'s existing
-  `hazardous_event.cannot_reference_other_tenant` guard for the singular field)
+- `app/routes/$lang+/disaster-event+/edit.$id.tsx` (modified — same-tenant guard as
+  the first statement in `formSave`'s `save` callback, before any write; must run
+  there rather than inside `syncLinkedHazardousEvents` since `formSave` commits on
+  any normal `save` return regardless of `ok`)
+- `tests/integration-realdb/routes/disaster-event/edit.$id.test.ts` (modified — new
+  action-level tests for cross-tenant and legacy-field-fallback linking submissions)
+- `tests/integration-realdb/routes/disaster-event/test-helpers.ts` (modified — new
+  `createTestHazardousEvent` helper for this tier)
 - `_docs/refactoring-plan/deferred-items-register.md` (close `DEF-004`)
 
-**Test tier:** PGlite integration — a cross-tenant `linkedTriggeringHazardousEventIds`/
-`linkedTriggeredHazardousEventIds` submission is rejected, extending the existing
-`hazardousEventDisasterEventBoundary.test.ts` from Phase 0's 0f.
+**Test tier:** Integration, real Postgres (`test:run3`) — a cross-tenant
+`linkedTriggeringHazardousEventIds`/`linkedTriggeredHazardousEventIds` submission via the
+route's `action` is rejected, tested alongside the existing `loader` coverage in
+`edit.$id.test.ts`. The existing `hazardousEventDisasterEventBoundary.test.ts` "BUG:"
+characterization test (Phase 0's 0f) documents the pre-fix repository-layer behavior and
+is left as-is — it characterizes `EventCausalityRepository.createMany` itself, which this
+fix does not change.
 
 ---
 
