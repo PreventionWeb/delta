@@ -2320,6 +2320,18 @@ the delete is detected, not silently cascaded away.
 
 **Branch:** `feature/ca-he-causal-chain-access-control`
 
+**Status update 2026-10-23: design proposed, implementation deliberately paused.** A full
+OpenSpec proposal was drafted (readiness-check confirmed no live code path can create a
+cross-tenant `hazardous_event_causality` row today, so nothing is at risk in the meantime) and
+answers all three questions below, but the actual sharing/access-control requirement is still
+undecided at the product level — pending stakeholder/business discussion. Rather than applying
+or archiving it, the full proposal is preserved at
+`_docs/refactoring-plan/proposed-solutions/2026-10-23-ca-he-causal-chain-access-control/` for
+that future discussion to start from. **Does not block the Phase 5 Gate below** (not in its
+blocking-item list) — treat Phase 5 as functionally complete without this. Don't implement the
+preserved proposal as-is without first re-confirming its design decisions against whatever the
+business actually decides.
+
 **Scheduled into Phase 5, 2026-10-07, closes `DEF-012`.** `2e` deliberately allows
 cross-tenant cause/effect links on `hazardous_event_causality` (a real transboundary
 hazard need, e.g. Nepal→India floods) but no sharing/access-control mechanism exists
