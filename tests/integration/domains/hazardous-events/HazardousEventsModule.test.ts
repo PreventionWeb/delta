@@ -17,11 +17,13 @@ import {
 import { HAZARDOUS_EVENT_REPOSITORY } from "~/domains/hazardous-events/infrastructure/HazardousEventRepositoryToken";
 import { CAUSAL_CHAIN_REPOSITORY } from "~/domains/hazardous-events/infrastructure/CausalChainRepositoryToken";
 import { HAZARD_TAXONOMY_REPOSITORY } from "~/domains/hazardous-events/infrastructure/HazardTaxonomyRepositoryToken";
+import { SPECIFIC_HAZARD_TAXONOMY_REPOSITORY } from "~/domains/hazardous-events/infrastructure/SpecificHazardTaxonomyRepositoryToken";
 import { DIVISION_REPOSITORY } from "~/domains/hazardous-events/infrastructure/DivisionRepositoryToken";
 import { HazardousEventsModule } from "~/domains/hazardous-events/infrastructure/HazardousEventsModule.server";
 import { DrizzleHazardousEventRepository } from "~/domains/hazardous-events/infrastructure/DrizzleHazardousEventRepository.server";
 import { DrizzleCausalChainRepository } from "~/domains/hazardous-events/infrastructure/DrizzleCausalChainRepository.server";
 import { DrizzleHazardTaxonomyRepository } from "~/domains/hazardous-events/infrastructure/DrizzleHazardTaxonomyRepository.server";
+import { DrizzleSpecificHazardTaxonomyRepository } from "~/domains/hazardous-events/infrastructure/DrizzleSpecificHazardTaxonomyRepository.server";
 import { DrizzleDivisionRepository } from "~/domains/hazardous-events/infrastructure/DrizzleDivisionRepository.server";
 import { TRANSACTION_RUNNER } from "~/infrastructure/TransactionRunnerToken";
 import { DrizzleTransactionRunner } from "~/infrastructure/DrizzleTransactionRunner.server";
@@ -59,6 +61,10 @@ describe("hazardous-events repository tokens", () => {
 
 	it("DIVISION_REPOSITORY is a symbol-based token", () => {
 		expect(typeof DIVISION_REPOSITORY).toBe("symbol");
+	});
+
+	it("SPECIFIC_HAZARD_TAXONOMY_REPOSITORY is a symbol-based token", () => {
+		expect(typeof SPECIFIC_HAZARD_TAXONOMY_REPOSITORY).toBe("symbol");
 	});
 });
 
@@ -120,6 +126,20 @@ describe("HazardousEventsModule", () => {
 			);
 			expect(module.get(HAZARD_TAXONOMY_REPOSITORY)).toBe(
 				module.get(HAZARD_TAXONOMY_REPOSITORY),
+			);
+		});
+
+		it("SPECIFIC_HAZARD_TAXONOMY_REPOSITORY resolves to an instance of DrizzleSpecificHazardTaxonomyRepository, and to the same singleton on repeated gets", async () => {
+			module = await Test.createTestingModule({
+				imports: [HazardousEventsModule],
+			}).compile();
+			modulesToClose.push(module);
+
+			expect(module.get(SPECIFIC_HAZARD_TAXONOMY_REPOSITORY)).toBeInstanceOf(
+				DrizzleSpecificHazardTaxonomyRepository,
+			);
+			expect(module.get(SPECIFIC_HAZARD_TAXONOMY_REPOSITORY)).toBe(
+				module.get(SPECIFIC_HAZARD_TAXONOMY_REPOSITORY),
 			);
 		});
 
@@ -202,7 +222,7 @@ describe("HazardousEventsModule", () => {
 	});
 
 	describe("six Phase 4 use cases", () => {
-		it("GetHazardousEventByIdUseCase resolves with its two dependencies correctly positioned", async () => {
+		it("GetHazardousEventByIdUseCase resolves with its three dependencies correctly positioned", async () => {
 			module = await Test.createTestingModule({
 				imports: [HazardousEventsModule],
 			}).compile();
@@ -216,6 +236,7 @@ describe("HazardousEventsModule", () => {
 				logger: unknown;
 				hazardousEventRepository: unknown;
 				getWorkflowInstanceByEntityUseCase: unknown;
+				specificHazardTaxonomyRepository: unknown;
 			};
 			expect(fields.logger).toBe(getPinoLogger());
 			expect(fields.hazardousEventRepository).toBe(
@@ -224,9 +245,12 @@ describe("HazardousEventsModule", () => {
 			expect(fields.getWorkflowInstanceByEntityUseCase).toBe(
 				module.get(GetWorkflowInstanceByEntityUseCase),
 			);
+			expect(fields.specificHazardTaxonomyRepository).toBe(
+				module.get(SPECIFIC_HAZARD_TAXONOMY_REPOSITORY),
+			);
 		});
 
-		it("ListHazardousEventsUseCase resolves with its two dependencies correctly positioned", async () => {
+		it("ListHazardousEventsUseCase resolves with its three dependencies correctly positioned", async () => {
 			module = await Test.createTestingModule({
 				imports: [HazardousEventsModule],
 			}).compile();
@@ -240,6 +264,7 @@ describe("HazardousEventsModule", () => {
 				logger: unknown;
 				hazardousEventRepository: unknown;
 				listWorkflowInstancesByEntityIdsUseCase: unknown;
+				specificHazardTaxonomyRepository: unknown;
 			};
 			expect(fields.logger).toBe(getPinoLogger());
 			expect(fields.hazardousEventRepository).toBe(
@@ -247,6 +272,9 @@ describe("HazardousEventsModule", () => {
 			);
 			expect(fields.listWorkflowInstancesByEntityIdsUseCase).toBe(
 				module.get(ListWorkflowInstancesByEntityIdsUseCase),
+			);
+			expect(fields.specificHazardTaxonomyRepository).toBe(
+				module.get(SPECIFIC_HAZARD_TAXONOMY_REPOSITORY),
 			);
 		});
 
@@ -469,13 +497,15 @@ describe("HazardousEventsModule", () => {
 			});
 			expect(fetched.description).toBe("original description");
 			expect(fetched.currentSpatialObservation).toBeNull();
+			// Proves SPECIFIC_HAZARD_TAXONOMY_REPOSITORY is really wired, not just resolve()-able.
+			expect(fetched.specificHazardName).toEqual(expect.any(String));
 
 			const list = await listUseCase.execute({
 				tenantId,
 				page: 1,
 				pageSize: 10,
 			});
-			expect(list.map((item) => item.id)).toContain(created.id);
+			expect(list.items.map((item) => item.id)).toContain(created.id);
 
 			const observationTime = new Date("2026-02-01T00:00:00.000Z");
 			const updated = await updateUseCase.execute({

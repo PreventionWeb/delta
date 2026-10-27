@@ -2,8 +2,8 @@ import type { IHazardousEventRepository } from "../ports/IHazardousEventReposito
 import type { HazardousEventDetailDto } from "../dto/HazardousEventDetailDto";
 import { toHazardousEventDetailDto } from "../dto/HazardousEventDetailDto";
 import type { GetWorkflowInstanceByEntityUseCase } from "~/domains/validation-workflow/application/use-cases/GetWorkflowInstanceByEntity";
+import type { ISpecificHazardTaxonomyRepository } from "../ports/ISpecificHazardTaxonomyRepository";
 import type { ILogger } from "~/shared/logging/ILogger";
-import { NotFoundError } from "~/shared/errors";
 import { assertNonEmptyString } from "../assertNonEmptyString";
 
 export interface GetHazardousEventByIdQuery {
@@ -18,6 +18,10 @@ export class GetHazardousEventByIdUseCase {
 		private readonly getWorkflowInstanceByEntityUseCase: Pick<
 			GetWorkflowInstanceByEntityUseCase,
 			"execute"
+		>,
+		private readonly specificHazardTaxonomyRepository: Pick<
+			ISpecificHazardTaxonomyRepository,
+			"findNamesByIds"
 		>,
 	) {}
 
@@ -37,10 +41,8 @@ export class GetHazardousEventByIdUseCase {
 				entityId: event.id,
 				entityType: "HE",
 			});
-		// A null here means either a real data-integrity gap or a not-yet-backfilled legacy row; indistinguishable from here.
-		if (workflowInstance === null) {
-			throw new NotFoundError("WorkflowInstance", event.id);
-		}
+		// null is ambiguous: a real data-integrity gap vs. a not-yet-backfilled legacy row --
+		// indistinguishable from here (DEF-031; degrades gracefully rather than throwing).
 
 		const currentObservation =
 			await this.hazardousEventRepository.findCurrentSpatialObservation(
@@ -48,17 +50,24 @@ export class GetHazardousEventByIdUseCase {
 				query.tenantId,
 			);
 
+		const taxonomyNames =
+			await this.specificHazardTaxonomyRepository.findNamesByIds([
+				event.specificHazardId,
+			]);
+
 		this.logger.info({
 			msg: "hazardous_event.fetched",
 			hazardousEventId: event.id,
 			tenantId: query.tenantId,
 			hasCurrentSpatialObservation: currentObservation !== null,
+			...(workflowInstance === null ? { workflowStatusMissing: true } : {}),
 		});
 
 		return toHazardousEventDetailDto(
 			event,
 			workflowInstance,
 			currentObservation,
+			taxonomyNames.get(event.specificHazardId) ?? null,
 		);
 	}
 }

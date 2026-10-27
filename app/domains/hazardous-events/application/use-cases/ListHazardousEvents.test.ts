@@ -12,6 +12,10 @@ import type {
 	IHazardousEventRepository,
 	SpatialObservationRecord,
 } from "../ports/IHazardousEventRepository";
+import type {
+	ISpecificHazardTaxonomyRepository,
+	SpecificHazardTaxonomyNames,
+} from "../ports/ISpecificHazardTaxonomyRepository";
 import {
 	ListHazardousEventsUseCase,
 	type ListHazardousEventsQuery,
@@ -30,10 +34,17 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		pagination: { page: number; pageSize: number };
 	}[] = [];
 
+	readonly countAllCalls: { tenantId: string }[] = [];
+
 	constructor(
 		private readonly impl: (
 			tenantId: string,
 		) => Promise<HazardousEvent[]> = () => Promise.resolve([]),
+		/** Defaults to the findAll impl's own result length -- a sensible stand-in when a test
+		 * doesn't care about total count distinctly from the page it seeds. */
+		private readonly countImpl: (tenantId: string) => Promise<number> = async (
+			tenantId,
+		) => (await this.impl(tenantId)).length,
 	) {}
 
 	async findAll(
@@ -42,6 +53,11 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 	): Promise<HazardousEvent[]> {
 		this.findAllCalls.push({ tenantId, pagination });
 		return this.impl(tenantId);
+	}
+
+	async countAll(tenantId: string): Promise<number> {
+		this.countAllCalls.push({ tenantId });
+		return this.countImpl(tenantId);
 	}
 
 	async findById(): Promise<HazardousEvent> {
@@ -123,6 +139,21 @@ class FakeWorkflowRepository implements IWorkflowRepository {
 	}
 }
 
+class FakeSpecificHazardTaxonomyRepository implements ISpecificHazardTaxonomyRepository {
+	constructor(
+		private readonly impl: () => ReadonlyMap<
+			string,
+			SpecificHazardTaxonomyNames
+		> = () => new Map(),
+	) {}
+
+	async findNamesByIds(): Promise<
+		ReadonlyMap<string, SpecificHazardTaxonomyNames>
+	> {
+		return this.impl();
+	}
+}
+
 const baseHazardousEventProps: HazardousEventProps = {
 	id: "he-1",
 	tenantId: "tenant-1",
@@ -197,17 +228,76 @@ describe("ListHazardousEventsUseCase", () => {
 			new FakeLogger(),
 			hazardousEventRepository,
 			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 
 		const result = await useCase.execute(makeQuery());
 
-		expect(result).toHaveLength(3);
-		expect(result[0].id).toBe("he-A");
-		expect(result[0].workflowStatus).toBe("SUBMITTED");
-		expect(result[1].id).toBe("he-B");
-		expect(result[1].workflowStatus).toBe("DRAFT");
-		expect(result[2].id).toBe("he-C");
-		expect(result[2].workflowStatus).toBe("APPROVED");
+		expect(result.items).toHaveLength(3);
+		expect(result.items[0].id).toBe("he-A");
+		expect(result.items[0].workflowStatus).toBe("SUBMITTED");
+		expect(result.items[1].id).toBe("he-B");
+		expect(result.items[1].workflowStatus).toBe("DRAFT");
+		expect(result.items[2].id).toBe("he-C");
+		expect(result.items[2].workflowStatus).toBe("APPROVED");
+	});
+
+	it("resolves specificHazardName per event from the taxonomy repository, keyed by specificHazardId", async () => {
+		const eventA = makeEvent({ id: "he-A", specificHazardId: "hazard-A" });
+		const eventB = makeEvent({ id: "he-B", specificHazardId: "hazard-B" });
+		const hazardousEventRepository = new FakeHazardousEventRepository(() =>
+			Promise.resolve([eventA, eventB]),
+		);
+		const taxonomyRepository = new FakeSpecificHazardTaxonomyRepository(
+			() =>
+				new Map([
+					[
+						"hazard-A",
+						{
+							specificHazardName: "Drought",
+							hazardClusterName: "Climatological",
+							hazardTypeName: "Natural",
+						},
+					],
+				]),
+		);
+		const useCase = new ListHazardousEventsUseCase(
+			new FakeLogger(),
+			hazardousEventRepository,
+			new ListWorkflowInstancesByEntityIdsUseCase(new FakeWorkflowRepository()),
+			taxonomyRepository,
+		);
+
+		const result = await useCase.execute(makeQuery());
+
+		expect(
+			result.items.find((dto) => dto.id === "he-A")?.specificHazardName,
+		).toBe("Drought");
+		expect(
+			result.items.find((dto) => dto.id === "he-B")?.specificHazardName,
+		).toBeNull();
+	});
+
+	it("returns totalCount from the repository's own countAll, independent of the page size", async () => {
+		const events = [makeEvent({ id: "he-A" }), makeEvent({ id: "he-B" })];
+		const hazardousEventRepository = new FakeHazardousEventRepository(
+			() => Promise.resolve(events),
+			() => Promise.resolve(42),
+		);
+		const useCase = new ListHazardousEventsUseCase(
+			new FakeLogger(),
+			hazardousEventRepository,
+			new ListWorkflowInstancesByEntityIdsUseCase(new FakeWorkflowRepository()),
+			new FakeSpecificHazardTaxonomyRepository(),
+		);
+
+		const result = await useCase.execute(makeQuery({ page: 2, pageSize: 2 }));
+
+		expect(result.totalCount).toBe(42);
+		expect(result.items).toHaveLength(2);
+		expect(hazardousEventRepository.countAllCalls).toEqual([
+			{ tenantId: "tenant-1" },
+		]);
 	});
 
 	it("passes tenantId and pagination to findAll exactly once, unchanged", async () => {
@@ -217,6 +307,7 @@ describe("ListHazardousEventsUseCase", () => {
 			new FakeLogger(),
 			hazardousEventRepository,
 			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 
 		await useCase.execute(makeQuery({ page: 2, pageSize: 10 }));
@@ -234,6 +325,7 @@ describe("ListHazardousEventsUseCase", () => {
 			logger,
 			hazardousEventRepository,
 			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 
 		await expect(useCase.execute(makeQuery({ tenantId: "" }))).rejects.toThrow(
@@ -256,6 +348,7 @@ describe("ListHazardousEventsUseCase", () => {
 			logger,
 			hazardousEventRepository,
 			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 		const query = {
 			tenantId: 42 as unknown as string,
@@ -289,6 +382,7 @@ describe("ListHazardousEventsUseCase", () => {
 				logger,
 				hazardousEventRepository,
 				new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+				new FakeSpecificHazardTaxonomyRepository(),
 			);
 
 			await expect(useCase.execute(makeQuery(overrides))).rejects.toThrow(
@@ -311,11 +405,12 @@ describe("ListHazardousEventsUseCase", () => {
 			new FakeLogger(),
 			hazardousEventRepository,
 			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 
 		await expect(
 			useCase.execute(makeQuery({ page: 1, pageSize: 100 })),
-		).resolves.toEqual([]);
+		).resolves.toEqual({ items: [], totalCount: 0 });
 
 		expect(hazardousEventRepository.findAllCalls).toEqual([
 			{ tenantId: "tenant-1", pagination: { page: 1, pageSize: 100 } },
@@ -329,11 +424,12 @@ describe("ListHazardousEventsUseCase", () => {
 			new FakeLogger(),
 			hazardousEventRepository,
 			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 
 		await expect(
 			useCase.execute(makeQuery({ page: 1, pageSize: 1 })),
-		).resolves.toEqual([]);
+		).resolves.toEqual({ items: [], totalCount: 0 });
 
 		expect(hazardousEventRepository.findAllCalls).toEqual([
 			{ tenantId: "tenant-1", pagination: { page: 1, pageSize: 1 } },
@@ -350,11 +446,12 @@ describe("ListHazardousEventsUseCase", () => {
 			logger,
 			hazardousEventRepository,
 			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 
 		const result = await useCase.execute(makeQuery());
 
-		expect(result).toEqual([]);
+		expect(result.items).toEqual([]);
 		expect(workflowRepository.findByEntityIdsCalls).toHaveLength(0);
 		expect(logger.info).toHaveBeenCalledOnce();
 		expect(logger.info).toHaveBeenCalledWith(
@@ -382,6 +479,7 @@ describe("ListHazardousEventsUseCase", () => {
 			new FakeLogger(),
 			hazardousEventRepository,
 			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 
 		await useCase.execute(makeQuery());
@@ -405,6 +503,7 @@ describe("ListHazardousEventsUseCase", () => {
 			logger,
 			hazardousEventRepository,
 			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 
 		await expect(useCase.execute(makeQuery())).rejects.toBe(dbError);
@@ -427,6 +526,7 @@ describe("ListHazardousEventsUseCase", () => {
 			logger,
 			hazardousEventRepository,
 			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 
 		await expect(useCase.execute(makeQuery())).rejects.toBe(dbError);
@@ -453,14 +553,15 @@ describe("ListHazardousEventsUseCase", () => {
 			new FakeLogger(),
 			hazardousEventRepository,
 			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 
 		const result = await useCase.execute(makeQuery());
 
-		expect(result.map((d) => d.id)).toEqual(["he-A", "he-B", "he-C"]);
-		expect(result[0].workflowStatus).toBe("SUBMITTED");
-		expect(result[1].workflowStatus).toBeNull();
-		expect(result[2].workflowStatus).toBe("APPROVED");
+		expect(result.items.map((d) => d.id)).toEqual(["he-A", "he-B", "he-C"]);
+		expect(result.items[0].workflowStatus).toBe("SUBMITTED");
+		expect(result.items[1].workflowStatus).toBeNull();
+		expect(result.items[2].workflowStatus).toBe("APPROVED");
 	});
 
 	it("returns every row, including one with no WorkflowInstance, with workflowStatus null, and does not throw", async () => {
@@ -478,14 +579,15 @@ describe("ListHazardousEventsUseCase", () => {
 			logger,
 			hazardousEventRepository,
 			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 
 		const result = await useCase.execute(makeQuery());
 
-		expect(result).toHaveLength(2);
-		expect(result[1].id).toBe("he-B");
-		expect(result[1].workflowStatus).toBeNull();
-		expect(result[1].tenantId).toBe(eventB.tenantId);
+		expect(result.items).toHaveLength(2);
+		expect(result.items[1].id).toBe("he-B");
+		expect(result.items[1].workflowStatus).toBeNull();
+		expect(result.items[1].tenantId).toBe(eventB.tenantId);
 	});
 
 	it("logs count and missingWorkflowStatusCount once on success", async () => {
@@ -505,6 +607,7 @@ describe("ListHazardousEventsUseCase", () => {
 			logger,
 			hazardousEventRepository,
 			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 
 		await useCase.execute(makeQuery());
@@ -544,6 +647,7 @@ describe("ListHazardousEventsUseCase", () => {
 			new FakeLogger(),
 			hazardousEventRepository,
 			new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 
 		const [resultT1, resultT2] = await Promise.all([
@@ -551,13 +655,13 @@ describe("ListHazardousEventsUseCase", () => {
 			useCase.execute({ tenantId: "T2", page: 1, pageSize: 10 }),
 		]);
 
-		expect(resultT1).toHaveLength(2);
-		expect(resultT1.map((d) => d.id)).toEqual(["t1-a", "t1-b"]);
-		expect(resultT1[0].workflowStatus).toBe("SUBMITTED");
-		expect(resultT1[1].workflowStatus).toBe("DRAFT");
-		expect(resultT2).toHaveLength(1);
-		expect(resultT2[0].id).toBe("t2-a");
-		expect(resultT2[0].workflowStatus).toBe("APPROVED");
+		expect(resultT1.items).toHaveLength(2);
+		expect(resultT1.items.map((d) => d.id)).toEqual(["t1-a", "t1-b"]);
+		expect(resultT1.items[0].workflowStatus).toBe("SUBMITTED");
+		expect(resultT1.items[1].workflowStatus).toBe("DRAFT");
+		expect(resultT2.items).toHaveLength(1);
+		expect(resultT2.items[0].id).toBe("t2-a");
+		expect(resultT2.items[0].workflowStatus).toBe("APPROVED");
 		expect(workflowRepository.findByEntityIdsCalls).toHaveLength(2);
 		for (const call of workflowRepository.findByEntityIdsCalls) {
 			if (call.entityIds.includes("t1-a")) {
