@@ -463,6 +463,13 @@
       "when": 1792058482745,
       "tag": "20261015100122_migrate_validation_workflow",
       "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1793020858486,
+      "tag": "20261026185058_revert_workflow_instance_validated_rename",
+      "breakpoints": true
     }
   ]
 }
