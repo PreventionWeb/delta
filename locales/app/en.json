@@ -482,7 +482,7 @@
   {
     "id": "analysis.distribution_of_impacts_geographic_levels",
     "translation": "Distribution of impacts across different geographic levels",
-    "description": "File: app/frontend/analytics/sectors/sections/ImpactMap.tsx:234"
+    "description": "File: app/frontend/analytics/sectors/sections/ImpactMap.tsx:270"
   },
   {
     "id": "analysis.duration_days",
@@ -533,11 +533,6 @@
     "id": "analysis.events_over_time_tooltip",
     "translation": "Distribution of events over time showing frequency and patterns",
     "description": "File: app/frontend/analytics/sectors/sections/ImpactOnSector.tsx:515"
-  },
-  {
-    "id": "analysis.failed_to_fetch_geographic_data",
-    "translation": "Failed to fetch geographic data",
-    "description": "File: app/frontend/analytics/sectors/sections/ImpactMap.tsx:219"
   },
   {
     "id": "analysis.failed_to_load_hazard_impact_data",
@@ -662,7 +657,7 @@
   {
     "id": "analysis.impact_by_geographic_level",
     "translation": "Impact by geographic level",
-    "description": "File: app/frontend/analytics/sectors/sections/ImpactMap.tsx:134"
+    "description": "File: app/frontend/analytics/sectors/sections/ImpactMap.tsx:142"
   },
   {
     "id": "analysis.impact_by_hazard_type",
@@ -677,7 +672,7 @@
   {
     "id": "analysis.impact_in_sector_by_geographic_level",
     "translation": "Impact in {sector} Sector by Geographic level",
-    "description": "Title for impact analysis in a sector, broken down by geographic level. {sector} is the name of the sector. File: app/frontend/analytics/sectors/sections/ImpactMap.tsx:161"
+    "description": "Title for impact analysis in a sector, broken down by geographic level. {sector} is the name of the sector. File: app/frontend/analytics/sectors/sections/ImpactMap.tsx:169"
   },
   {
     "id": "analysis.impact_in_sector_by_hazard_type",
@@ -687,7 +682,7 @@
   {
     "id": "analysis.impact_in_subsector_by_geographic_level",
     "translation": "Impact in {subsector} ({sector} Sector) by Geographic level",
-    "description": "Title for impact analysis in a subsector under a main sector, broken down by geographic level. {subsector} is the subsector name, {sector} is the main sector name. File: app/frontend/analytics/sectors/sections/ImpactMap.tsx:149"
+    "description": "Title for impact analysis in a subsector under a main sector, broken down by geographic level. {subsector} is the subsector name, {sector} is the main sector name. File: app/frontend/analytics/sectors/sections/ImpactMap.tsx:157"
   },
   {
     "id": "analysis.impact_in_subsector_by_hazard_type",
@@ -777,7 +772,7 @@
   {
     "id": "analysis.metric_in_currency",
     "translation": "{label} in {currency}",
-    "description": "Displays a metric label followed by the currency. {label} is the metric (e.g. Total damages), {currency} is the currency code (e.g. USD). File: app/frontend/analytics/sectors/sections/ImpactMap.tsx:184"
+    "description": "Displays a metric label followed by the currency. {label} is the metric (e.g. Total damages), {currency} is the currency code (e.g. USD). File: app/frontend/analytics/sectors/sections/ImpactMap.tsx:192"
   },
   {
     "id": "analysis.missing",
@@ -818,11 +813,6 @@
     "id": "analysis.most_recent_events_in_geographic",
     "translation": "Most recent {hazard} events in {geographic}",
     "description": "Header for the most recent events of a hazard in a specific geographic area. {hazard}=hazard name, {geographic}=geographic name. File: app/frontend/analytics/hazards/sections/DisasterEventsList.tsx:24"
-  },
-  {
-    "id": "analysis.no_admin_divisions_available",
-    "translation": "No administrative divisions are available in the system. Please contact your administrator to set up geographic boundaries.",
-    "description": "File: app/frontend/analytics/sectors/sections/ImpactMap.tsx:213"
   },
   {
     "id": "analysis.no_damage_records_details",
@@ -868,11 +858,6 @@
     "id": "analysis.no_geographic_data_available",
     "translation": "No geographic data available",
     "description": "File: app/components/CustomMap.tsx:848"
-  },
-  {
-    "id": "analysis.no_geographic_data_for_filters",
-    "translation": "No geographic data available for the selected filters.",
-    "description": "File: app/frontend/analytics/sectors/sections/ImpactMap.tsx:296"
   },
   {
     "id": "analysis.no_geographic_impact_data_found_for_filters",
@@ -1072,7 +1057,7 @@
   {
     "id": "analysis.sectors",
     "translation": "Sectors analysis",
-    "description": "File: app/routes/$lang+/analytics+/sectors.tsx:793"
+    "description": "File: app/routes/$lang+/analytics+/sectors.tsx:760"
   },
   {
     "id": "analysis.select_and_apply_filters",
@@ -1157,7 +1142,7 @@
   {
     "id": "analysis.total_damages",
     "translation": "Total damages",
-    "description": "File: app/frontend/analytics/sectors/sections/ImpactMap.tsx:62"
+    "description": "File: app/frontend/analytics/sectors/sections/ImpactMap.tsx:75"
   },
   {
     "id": "analysis.total_damages_in_currency",
@@ -1302,7 +1287,7 @@
   {
     "id": "analysis.welcome_to_sectors_dashboard",
     "translation": "Welcome to the sectors dashboard! 🌟",
-    "description": "File: app/routes/$lang+/analytics+/sectors.tsx:835"
+    "description": "File: app/routes/$lang+/analytics+/sectors.tsx:802"
   },
   {
     "id": "analysis.zero_impact_confirmed",
@@ -2832,7 +2817,7 @@
   {
     "id": "common.user_no_instance_assigned",
     "translation": "User has no instance assigned to.",
-    "description": "File: app/backend.server/models/event.ts:1937"
+    "description": "File: app/backend.server/models/event.ts:1938"
   },
   {
     "id": "common.uuid",
@@ -3037,7 +3022,7 @@
   {
     "id": "disaster_event.cycle_conflicts",
     "translation": "Conflicting events:",
-    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.tsx:764"
+    "description": "File: app/routes/$lang+/disaster-event+/edit.$id.tsx:808"
   },
   {
     "id": "disaster_event.damages_subtotal_local_currency",
@@ -3752,7 +3737,7 @@
   {
     "id": "disaster_event.invalid_hazardous_event_reference",
     "translation": "Invalid hazardous event reference for this instance",
-    "description": "File: app/backend.server/models/event.ts:1989"
+    "description": "File: app/backend.server/models/event.ts:1990"
   },
   {
     "id": "disaster_event.linking_parameter",
@@ -3792,12 +3777,12 @@
   {
     "id": "disaster_event.no_permission_delete",
     "translation": "You don't have permission to delete this disaster event",
-    "description": "File: app/backend.server/models/event.ts:2387"
+    "description": "File: app/backend.server/models/event.ts:2388"
   },
   {
     "id": "disaster_event.no_permission_update",
     "translation": "You don't have permission to update this disaster event",
-    "description": "File: app/backend.server/models/event.ts:1962"
+    "description": "File: app/backend.server/models/event.ts:1963"
   },
   {
     "id": "disaster_event.non_economic_losses",
@@ -5232,12 +5217,12 @@
   {
     "id": "hazardous_event.cannot_delete_linked_to_disaster",
     "translation": "Cannot delete hazard event because it is linked to one or more disaster events. Please delete the associated disaster events first.",
-    "description": "File: app/backend.server/models/event.ts:1743"
+    "description": "File: app/backend.server/models/event.ts:1744"
   },
   {
     "id": "hazardous_event.cannot_reference_other_tenant",
     "translation": "Cannot reference hazardous events from other country instances of DELTA",
-    "description": "File: app/backend.server/models/event.ts:1854"
+    "description": "File: app/backend.server/models/event.ts:1855"
   },
   {
     "id": "hazardous_event.caused_by",
@@ -5262,7 +5247,7 @@
   {
     "id": "hazardous_event.delete_cause_events_first",
     "translation": "Delete events that are caused by this event first",
-    "description": "File: app/backend.server/models/event.ts:1797"
+    "description": "File: app/backend.server/models/event.ts:1798"
   },
   {
     "id": "hazardous_event.filter.all_event_statuses",
@@ -5287,7 +5272,7 @@
   {
     "id": "hazardous_event.not_found",
     "translation": "Hazardous event not found",
-    "description": "File: app/backend.server/models/event.ts:1837"
+    "description": "File: app/backend.server/models/event.ts:1838"
   },
   {
     "id": "hazardous_event.not_linked",
@@ -6177,7 +6162,7 @@
   {
     "id": "meta.sectors_analysis",
     "translation": "Sectors analysis",
-    "description": "File: app/routes/$lang+/analytics+/sectors.tsx:607"
+    "description": "File: app/routes/$lang+/analytics+/sectors.tsx:573"
   },
   {
     "id": "meta.sectors_disaster_records",
