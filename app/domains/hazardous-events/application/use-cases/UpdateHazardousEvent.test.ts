@@ -130,6 +130,10 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		throw new Error("not used by UpdateHazardousEventUseCase's own tests");
 	}
 
+	async countAll(): Promise<number> {
+		throw new Error("not used by UpdateHazardousEventUseCase's own tests");
+	}
+
 	async delete(): Promise<void> {
 		throw new Error("not used by UpdateHazardousEventUseCase's own tests");
 	}
@@ -888,22 +892,53 @@ describe("UpdateHazardousEventUseCase", () => {
 		expect(harness.logger.info).not.toHaveBeenCalled();
 	});
 
-	it("throws NotFoundError for a missing WorkflowInstance before any merge/validation work runs", async () => {
+	it("updates successfully with workflowStatus null when no WorkflowInstance exists for the existing event (DEF-031)", async () => {
 		const harness = createHarness({ seedWorkflows: [] });
 
-		const error = await harness.useCase
-			.execute(makeCommand({ id: "event-A", tenantId: "tenant-1" }))
-			.catch((e: unknown) => e);
+		const dto = await harness.useCase.execute(
+			makeCommand({
+				id: "event-A",
+				tenantId: "tenant-1",
+				description: "Updated",
+			}),
+		);
 
-		// Message pinned, not just the class -- the only thing distinguishing this from the
-		// NotFoundError the preceding findById() call would throw for a bad id/tenantId.
-		expect(error).toBeInstanceOf(NotFoundError);
-		expect((error as Error).message).toBe("WorkflowInstance not found");
-		expect(
-			harness.taxonomyRepository.findValidHazardDriverIdsCalls,
-		).toHaveLength(0);
-		expect(harness.hazardousEventRepository.updateCalls).toHaveLength(0);
-		expect(harness.logger.info).not.toHaveBeenCalled();
+		expect(dto.workflowStatus).toBeNull();
+		expect(dto.description).toBe("Updated");
+		expect(harness.hazardousEventRepository.updateCalls).toHaveLength(1);
+	});
+
+	it("logs workflowStatusMissing true on success when no WorkflowInstance exists (DEF-031)", async () => {
+		const harness = createHarness({ seedWorkflows: [] });
+
+		await harness.useCase.execute(
+			makeCommand({ id: "event-A", tenantId: "tenant-1" }),
+		);
+
+		expect(harness.logger.info).toHaveBeenCalledWith(
+			expect.objectContaining({
+				msg: "hazardous_event.updated",
+				workflowStatusMissing: true,
+			}),
+		);
+	});
+
+	it("does not log workflowStatusMissing when a WorkflowInstance exists", async () => {
+		const harness = createHarness();
+
+		await harness.useCase.execute(
+			makeCommand({ id: "event-A", tenantId: "tenant-1" }),
+		);
+
+		expect(harness.logger.info).toHaveBeenCalledWith(
+			expect.objectContaining({ msg: "hazardous_event.updated" }),
+		);
+		expect(harness.logger.info).not.toHaveBeenCalledWith(
+			expect.objectContaining({
+				msg: "hazardous_event.updated",
+				workflowStatusMissing: true,
+			}),
+		);
 	});
 
 	// Folded into one parameterized test per field (matching DeleteHazardousEvent.test.ts's own
