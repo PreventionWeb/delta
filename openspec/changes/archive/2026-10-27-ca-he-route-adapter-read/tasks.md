@@ -308,4 +308,4 @@ proposal.md each time.
 - [x] 14.4 Live-verify 14.1–14.3 via computed-style inspection (heading font-size/class, all three
       group gaps' actual pixel measurements) — see final report.
 
-- [ ] 9.4 Run `opsx:archive` on this branch before raising the PR.
+- [x] 9.4 Run `opsx:archive` on this branch before raising the PR.
