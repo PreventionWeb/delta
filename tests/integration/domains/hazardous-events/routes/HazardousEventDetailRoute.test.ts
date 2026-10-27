@@ -307,9 +307,8 @@ describe("Hazardous event detail route loader", () => {
 		const id = await seedEventWithWorkflow(tenantId, specificHazardId);
 		const url = `http://localhost/en/he-preview/${id}`;
 		const context = await makeI18nContext(url);
-		const { GetHazardousEventByIdUseCase } = await import(
-			"~/domains/hazardous-events/application/use-cases/GetHazardousEventById"
-		);
+		const { GetHazardousEventByIdUseCase } =
+			await import("~/domains/hazardous-events/application/use-cases/GetHazardousEventById");
 		const { ValidationError } = await import("~/shared/errors/DomainError");
 		const executeSpy = vi
 			.spyOn(testingModule.get(GetHazardousEventByIdUseCase), "execute")
@@ -340,9 +339,8 @@ describe("Hazardous event detail route loader", () => {
 
 	it("generates a fresh traceId when no request context is active", async () => {
 		const id = await seedEventWithWorkflow(tenantId, specificHazardId);
-		const { GetHazardousEventByIdUseCase } = await import(
-			"~/domains/hazardous-events/application/use-cases/GetHazardousEventById"
-		);
+		const { GetHazardousEventByIdUseCase } =
+			await import("~/domains/hazardous-events/application/use-cases/GetHazardousEventById");
 		const { ValidationError } = await import("~/shared/errors/DomainError");
 		const executeSpy = vi
 			.spyOn(testingModule.get(GetHazardousEventByIdUseCase), "execute")
@@ -377,9 +375,8 @@ describe("Hazardous event detail route loader", () => {
 			headers: { Location: "/en/user/login" },
 		});
 		mockRequireUser.mockRejectedValueOnce(redirect);
-		const { GetHazardousEventByIdUseCase } = await import(
-			"~/domains/hazardous-events/application/use-cases/GetHazardousEventById"
-		);
+		const { GetHazardousEventByIdUseCase } =
+			await import("~/domains/hazardous-events/application/use-cases/GetHazardousEventById");
 		const executeSpy = vi.spyOn(
 			testingModule.get(GetHazardousEventByIdUseCase),
 			"execute",
