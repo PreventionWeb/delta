@@ -2393,6 +2393,30 @@ deliberately: Notices' pilot could defer create/edit/delete UI entirely (read-on
 existing production UI to eventually retire); HE has a real, currently-paused production UI that
 Phase 7's cutover needs a full replacement for, not a partial one.
 
+**UI library decision, confirmed 2026-10-23: React Aria, not PrimeReact — a DELTA-wide mandate, not
+an HE-specific choice.** PrimeReact's open-source edition no longer receives updates/maintenance;
+every CA-refactored module's presentation layer (HE first, other domains as their own Phase
+6-equivalent work begins) uses React Aria instead, going forward. Supersedes this section's
+earlier framing (the `feature/poc-react-aria-hazardous-event` rejection above was about not using
+that specific HE-only POC branch as a starting point, not about rejecting React Aria itself).
+Applies to `6a` onward — Notices' own presentation layer stayed PrimeReact-based (it predates this
+decision) and is **not** a precedent for Phase 6's UI component layer, only for its backend
+loader/action pattern (`getAppContext().get(...)`, `withRequestContext`, ADR-007). Do not use
+`feature/poc-react-aria-hazardous-event` or `spike/react-aria-consumption` as a reference — both
+are unrelated exploratory branches; build each intent's components fresh from React Aria's own
+docs. **Golden rule, non-negotiable:** every new route must look and behave identically to today's
+current legacy HE UI — layout, spacing, fonts, alignment, buttons, styles, and behavior — since
+React Aria ships unstyled, this means building custom-styled components that faithfully replicate
+the current UI's actual design, using the current legacy pages as the styling source of truth.
+These components are meant to become a real, reusable DELTA design system, not one-off per-page
+styling — built incrementally (each intent adds only the components it needs, starting with `6a`'s
+own), not as a single upfront pass, but with reuse by later Phase 6 intents and future domains in
+mind from the start; exact shared location is each intent's own design decision, informed by
+existing conventions (e.g. `app/frontend/components`). Legacy, not-yet-migrated UI keeps using
+PrimeReact until its own domain's cutover retires it — same Strangler Fig pattern as the rest of
+this refactor, not an urgent rip-out. See `design-system-unification-roadmap.md` — its "Pass 1"
+PrimeReact-token-extraction plan is superseded for any module moving to React Aria.
+
 ### 🔷 6a — Web Route Adapters: List + Detail
 
 **Branch:** `feature/ca-he-route-adapter-read`
@@ -2631,6 +2655,63 @@ actually broken.
 
 **Test tier:** PGlite integration — both filters against the new schema, re-derived
 characterization scenarios (not copied from the Phase 0 audit's own assumption, per above).
+
+---
+
+### 🔷 6h — List Page Filters
+
+**Scheduled immediately after `6a`, 2026-10-26** — run before `6b`/`6c`/etc. despite the letter.
+**Narrowed 2026-10-27**: total-count and the record-status legend, originally scoped here, moved
+into `6a` itself once `6a`'s own manual review pulled in numbered pagination (which needs the same
+total-count query) — see `6a`'s own design.md. Only the filter bar itself remains here. Surfaced
+during `6a`'s own manual review: the legacy list page's filter bar was never scoped into `6a` at
+all (confirmed via grep — zero mentions anywhere in `6a`'s proposal/design/tasks), not a disclosed
+cut. Assessed by `6a`'s own implementer as too large to bolt on: the legacy `hazardevent-filters.tsx`
+component is 594 lines with 11 distinct filter inputs, including a cascading
+hazard-type→cluster→specific-hazard combobox with live search; `ListHazardousEventsUseCase.execute()`
+has no filter support anywhere in the application or repository layer; and none of the needed
+design-system form primitives (select, combobox, date-range picker, checkbox) exist yet in
+`app/design-system/components/` (only `Table`/`TableColumn`/`TableRow`/`TableCell`/`Link` do).
+
+**Open question, flagged 2026-10-27:** `6a`'s `@theme` block (`app/styles/all.css`, design.md
+Decision 8) stayed inline rather than a dedicated theme file, deliberately deferred until the
+token set "grows large enough" — this intent's new form primitives will likely add enough tokens
+to cross that threshold. Evaluate extracting a dedicated theme file as part of this intent's own
+design, rather than defaulting to more inline growth.
+
+**Layering guidance, researched 2026-10-26, binding unless this intent's own design finds a
+reason to deviate:** same split as `6a`'s pagination — presentation parses/validates the URL
+query into a typed filter object and renders the inputs; the use case takes that typed object
+as part of its query input; the repository adapter is the only layer that turns it into real
+`WHERE`/`JOIN` clauses. Reusable, logic-free input primitives (`Select`, a searchable `Combobox`,
+`DateRangePicker`, `Checkbox`) belong in `app/design-system/components/`, same bar as `6a`'s own
+primitives; the actual filter _composition_ (which fields, wired to `ListHazardousEventsQuery`)
+stays HE-owned in its own `presentation/` folder, since the fields themselves are domain-specific
+and other domains' future filters won't share them. Legacy's own precedent only half-commits to
+this: a shared `Filters` shell exists (`app/frontend/components/list-page-filters.tsx`) but
+`hazardevent-filters.tsx`/`list-page-disasterevents-filters.tsx`/`DisasterRecordsFilter.tsx` each
+roll their own form instead of composing on it — don't copy that part.
+
+**Intent for `/opsx:propose`:**
+
+```
+Add filtering (hazard type, cluster, specific hazard search, date range, recording
+organization, hazardous-event status, record status, "view my records"/"pending my
+action") to ListHazardousEventsUseCase and its repository query, matching the legacy
+filter set in app/frontend/events/hazardevent-filters.tsx exactly. Build whatever new
+design-system form primitives this needs (select, combobox with live search,
+date-range picker, checkbox) as additions to app/design-system/components/, same
+reusable-across-domains bar as 6a's own primitives — not HE-owned, not one-off.
+```
+
+**Files touched:** not yet determined — depends on this intent's own design decisions
+(repository filter-clause shape, how the cascading combobox's live search is implemented).
+At minimum: `ListHazardousEventsUseCase`, `IHazardousEventRepository`/its Drizzle adapter,
+`HazardousEventListPage.tsx`, several new `app/design-system/components/` primitives.
+
+**Test tier:** PGlite integration — each filter dimension narrows results correctly, filters
+compose (AND, not OR), an empty result set renders cleanly; unit tests for the new design-system
+primitives, matching `6a`'s own precedent.
 
 ---
 
