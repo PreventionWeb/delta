@@ -128,13 +128,54 @@ describe("DrizzleWorkflowRepository", () => {
 			).resolves.not.toBeNull();
 		});
 
-		it("rejects with ValidationError when the persisted row fails WorkflowInstance.create()'s own invariant", async () => {
+		it("resolves null, without throwing, when the persisted row fails WorkflowInstance.create()'s own invariant", async () => {
 			const entityId = randomUUID();
 			await insertInvalidRow(entityId);
 
-			await expect(repository.findByEntity(entityId, "HE")).rejects.toThrow(
-				ValidationError,
-			);
+			await expect(repository.findByEntity(entityId, "HE")).resolves.toBeNull();
+		});
+
+		it("logs a WARN for a row that fails invariant validation, matching findByEntityIds's own skip pattern", async () => {
+			const entityId = randomUUID();
+			await insertInvalidRow(entityId);
+
+			const warnSpy = vi
+				.spyOn(getPinoLogger(), "warn")
+				.mockImplementation(() => {});
+			try {
+				await repository.findByEntity(entityId, "HE");
+
+				expect(warnSpy).toHaveBeenCalledTimes(1);
+				expect(warnSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						msg: "workflow_instance.invariant_violation_skipped",
+						entityId,
+						entityType: "HE",
+					}),
+				);
+			} finally {
+				warnSpy.mockRestore();
+			}
+		});
+
+		it("propagates a non-ValidationError thrown during row mapping, rather than swallowing it (per ADR-003)", async () => {
+			const entityId = randomUUID();
+			await repository.insert(draft(entityId));
+
+			const programmerError = new TypeError("boom");
+			const createSpy = vi
+				.spyOn(WorkflowInstance, "create")
+				.mockImplementation(() => {
+					throw programmerError;
+				});
+
+			try {
+				await expect(repository.findByEntity(entityId, "HE")).rejects.toBe(
+					programmerError,
+				);
+			} finally {
+				createSpy.mockRestore();
+			}
 		});
 	});
 

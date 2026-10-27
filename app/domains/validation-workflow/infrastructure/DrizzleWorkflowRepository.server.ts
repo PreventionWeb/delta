@@ -87,7 +87,21 @@ export class DrizzleWorkflowRepository implements IWorkflowRepository {
 			return null;
 		}
 
-		return WorkflowInstance.create(this.toProps(rows[0]));
+		try {
+			return WorkflowInstance.create(this.toProps(rows[0]));
+		} catch (err) {
+			// Matches findByEntityIds's own skip pattern (Decision 7, ADR-003).
+			if (!(err instanceof ValidationError)) {
+				throw err;
+			}
+			getPinoLogger().warn({
+				msg: "workflow_instance.invariant_violation_skipped",
+				entityId: rows[0].entityId,
+				entityType: rows[0].entityType,
+				err,
+			});
+			return null;
+		}
 	}
 
 	async findByEntityIds(
