@@ -6,6 +6,18 @@ This document exists so the reasoning below isn't lost between sessions. It is *
 to execute. Revisit and plan out the concrete phases/intents after the Notices pilot
 (`_docs/refactoring-plan/notices-pilot-roadmap.md`) finishes.
 
+**Superseded by a DELTA-wide library decision, 2026-10-23:** PrimeReact's open-source edition no
+longer receives updates/maintenance, so this document's "Pass 1" plan (extract tokens, remap
+PrimeReact's own CSS variables so new PrimeReact components visually match today's app) no longer
+describes the path forward for any CA-refactored module — not an HE-specific choice. Hazardous
+Events' Phase 6 (`hazardous-events-refactoring-roadmap.md`) is the first to apply this: React Aria
+instead of PrimeReact, starting `6a`, building a real reusable design system incrementally
+(component-by-component, as each intent needs them), documented in that roadmap's Phase 6 intro.
+Every future domain's own presentation-layer work should follow the same direction. This
+document's token-extraction reasoning still applies only to whatever legacy, not-yet-migrated UI
+keeps using PrimeReact until its own domain's cutover retires it (Strangler Fig, same as the rest
+of this refactor) — it no longer describes any CA-refactored module's own forward path.
+
 ## Purpose
 
 Capture the strategy for closing the design-token gap discovered while building the Notices
@@ -22,6 +34,7 @@ memory for the verified specifics. Three uncoordinated styling layers exist: Pri
 
 If each domain migration defers this individually ("just this once, we'll fix it later"), two
 bad outcomes compound:
+
 1. **The refactor is never actually "done."** Backend architecture gets migrated domain by
    domain; the presentation layer accumulates the same inconsistency it started with, just
    wrapped in newer components. "We completed the Clean Architecture refactor" becomes true only
@@ -36,6 +49,7 @@ bad outcomes compound:
 Two decoupled passes, so engineering work is never blocked on design-team availability:
 
 **Pass 1 — Token extraction (mechanical, no design input needed, do this soon):**
+
 - Extract today's actual colors/spacing into a real token layer (a Tailwind v4 `@theme` block,
   or equivalent), calibrated to **visually match the current app exactly** — not a new look.
 - Critically, this must cover **two** surfaces, not one:
@@ -56,7 +70,8 @@ Two decoupled passes, so engineering work is never blocked on design-team availa
 
 **Pass 2 — Re-skin (design-team-driven, do this once, later — after most/all domains are
 migrated and the old raw-table/legacy-CSS UI is deleted):**
-- Design team provides new token *values* (not a new token *system* — that already exists from
+
+- Design team provides new token _values_ (not a new token _system_ — that already exists from
   Pass 1).
 - Because every migrated page already consumes tokens rather than hardcoded styles, updating
   token values cascades the new look/feel across the entire app in one motion — no per-page
