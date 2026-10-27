@@ -3,3 +3,20 @@
 @import "~/frontend/human_effects/styles.css";
 @import "react-json-view-lite/dist/index.css";
 @import "tailwindcss";
+
+/*
+ * Minimal, 6a-scoped design-system tokens (ca-he-route-adapter-read design.md Decision 8).
+ * Only the tokens app/design-system/components/ actually consumes, extracted from the exact
+ * legacy public/assets/css/style-dts.css rules being pixel-matched -- NOT a DEF-014 Pass-1
+ * app-wide token extraction. style-dts.css itself is never edited or made to reference these.
+ */
+@theme {
+	--color-dts-table-border: #f2f2f2;
+	--color-dts-table-header-bg: #f2f2f2;
+	--color-dts-action: #106cb8;
+	/* No legacy source -- DEF-031's own new null-workflowStatus state (design.md Decision 8). */
+	--color-dts-status-missing: #808080;
+	--spacing-dts-cell-padding: 0.57rem;
+	--spacing-dts-row-height: 3.86rem;
+	--radius-dts-button: 0.57rem;
+}
