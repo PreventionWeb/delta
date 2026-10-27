@@ -80,7 +80,7 @@ describe("toHazardousEventDetailDto", () => {
 		const workflow = makeWorkflow(event.id);
 		const expectedBase = toHazardousEventDto(event, workflow);
 
-		const result = toHazardousEventDetailDto(event, workflow, null);
+		const result = toHazardousEventDetailDto(event, workflow, null, null);
 
 		expect(result).toMatchObject(expectedBase);
 	});
@@ -89,7 +89,7 @@ describe("toHazardousEventDetailDto", () => {
 		const event = makeEvent();
 		const workflow = makeWorkflow(event.id);
 
-		const result = toHazardousEventDetailDto(event, workflow, null);
+		const result = toHazardousEventDetailDto(event, workflow, null, null);
 
 		expect(result.currentSpatialObservation).toBeNull();
 	});
@@ -99,10 +99,52 @@ describe("toHazardousEventDetailDto", () => {
 		const workflow = makeWorkflow(event.id);
 		const record = makeObservationRecord();
 
-		const result = toHazardousEventDetailDto(event, workflow, record);
+		const result = toHazardousEventDetailDto(event, workflow, record, null);
 
 		expect(result.currentSpatialObservation).toEqual(
 			toSpatialObservationDto(record),
 		);
+	});
+
+	it("resolves workflowStatus to null when given a null WorkflowInstance (DEF-031)", () => {
+		const event = makeEvent();
+
+		const result = toHazardousEventDetailDto(event, null, null, null);
+
+		expect(result.workflowStatus).toBeNull();
+		expect(result.id).toBe(event.id);
+	});
+
+	it("resolves workflowStatus to the instance's own status when given a real WorkflowInstance", () => {
+		const event = makeEvent();
+		const workflow = makeWorkflow(event.id);
+
+		const result = toHazardousEventDetailDto(event, workflow, null, null);
+
+		expect(result.workflowStatus).toBe(workflow.status);
+	});
+
+	it("resolves the three taxonomy name fields when given a match", () => {
+		const event = makeEvent();
+
+		const result = toHazardousEventDetailDto(event, null, null, {
+			specificHazardName: "Cholera",
+			hazardClusterName: "Infectious disease",
+			hazardTypeName: "Biological",
+		});
+
+		expect(result.specificHazardName).toBe("Cholera");
+		expect(result.hazardClusterName).toBe("Infectious disease");
+		expect(result.hazardTypeName).toBe("Biological");
+	});
+
+	it("resolves all three taxonomy name fields to null when no match is given", () => {
+		const event = makeEvent();
+
+		const result = toHazardousEventDetailDto(event, null, null, null);
+
+		expect(result.specificHazardName).toBeNull();
+		expect(result.hazardClusterName).toBeNull();
+		expect(result.hazardTypeName).toBeNull();
 	});
 });

@@ -12,6 +12,10 @@ import type {
 	IHazardousEventRepository,
 	SpatialObservationRecord,
 } from "../ports/IHazardousEventRepository";
+import type {
+	ISpecificHazardTaxonomyRepository,
+	SpecificHazardTaxonomyNames,
+} from "../ports/ISpecificHazardTaxonomyRepository";
 import { toSpatialObservationDto } from "../dto/SpatialObservationDto";
 import {
 	GetHazardousEventByIdUseCase,
@@ -85,6 +89,10 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		throw new Error("not used by GetHazardousEventByIdUseCase's own tests");
 	}
 
+	async countAll(): Promise<number> {
+		throw new Error("not used by GetHazardousEventByIdUseCase's own tests");
+	}
+
 	async delete(): Promise<void> {
 		throw new Error("not used by GetHazardousEventByIdUseCase's own tests");
 	}
@@ -146,6 +154,21 @@ class FakeWorkflowRepository implements IWorkflowRepository {
 
 	async deleteByEntity(): Promise<void> {
 		throw new Error("not used by GetHazardousEventByIdUseCase's own tests");
+	}
+}
+
+class FakeSpecificHazardTaxonomyRepository implements ISpecificHazardTaxonomyRepository {
+	constructor(
+		private readonly impl: () => ReadonlyMap<
+			string,
+			SpecificHazardTaxonomyNames
+		> = () => new Map(),
+	) {}
+
+	async findNamesByIds(): Promise<
+		ReadonlyMap<string, SpecificHazardTaxonomyNames>
+	> {
+		return this.impl();
 	}
 }
 
@@ -234,6 +257,7 @@ describe("GetHazardousEventByIdUseCase", () => {
 			new FakeLogger(),
 			hazardousEventRepository,
 			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 
 		const result = await useCase.execute(makeQuery());
@@ -245,6 +269,38 @@ describe("GetHazardousEventByIdUseCase", () => {
 		);
 	});
 
+	it("resolves specificHazardName from the taxonomy repository, keyed by the event's own specificHazardId", async () => {
+		const event = makeEvent({ specificHazardId: "hazard-X" });
+		const workflow = makeWorkflow(event.id);
+		const hazardousEventRepository = new FakeHazardousEventRepository([event]);
+		const workflowRepository = new FakeWorkflowRepository([workflow]);
+		const taxonomyRepository = new FakeSpecificHazardTaxonomyRepository(
+			() =>
+				new Map([
+					[
+						"hazard-X",
+						{
+							specificHazardName: "Cholera",
+							hazardClusterName: "Infectious disease",
+							hazardTypeName: "Biological",
+						},
+					],
+				]),
+		);
+		const useCase = new GetHazardousEventByIdUseCase(
+			new FakeLogger(),
+			hazardousEventRepository,
+			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+			taxonomyRepository,
+		);
+
+		const result = await useCase.execute(makeQuery());
+
+		expect(result.specificHazardName).toBe("Cholera");
+		expect(result.hazardClusterName).toBe("Infectious disease");
+		expect(result.hazardTypeName).toBe("Biological");
+	});
+
 	it("resolves currentSpatialObservation as null and does not throw when no observation has been recorded", async () => {
 		const event = makeEvent();
 		const workflow = makeWorkflow(event.id);
@@ -254,6 +310,7 @@ describe("GetHazardousEventByIdUseCase", () => {
 			new FakeLogger(),
 			hazardousEventRepository,
 			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 
 		const result = await useCase.execute(makeQuery());
@@ -268,6 +325,7 @@ describe("GetHazardousEventByIdUseCase", () => {
 			new FakeLogger(),
 			hazardousEventRepository,
 			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 
 		await expect(useCase.execute(makeQuery({ id: "missing" }))).rejects.toThrow(
@@ -288,6 +346,7 @@ describe("GetHazardousEventByIdUseCase", () => {
 			logger,
 			hazardousEventRepository,
 			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 
 		await expect(useCase.execute(makeQuery({ tenantId: "" }))).rejects.toThrow(
@@ -310,6 +369,7 @@ describe("GetHazardousEventByIdUseCase", () => {
 			logger,
 			hazardousEventRepository,
 			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 		const query = {
 			id: 42 as unknown as string,
@@ -328,26 +388,31 @@ describe("GetHazardousEventByIdUseCase", () => {
 		expect(logger.info).not.toHaveBeenCalled();
 	});
 
-	it("throws NotFoundError and performs no spatial-observation lookup when no WorkflowInstance exists for an otherwise-valid event", async () => {
+	it("resolves with workflowStatus null and still performs the spatial-observation lookup when no WorkflowInstance exists for an otherwise-valid event (DEF-031)", async () => {
 		const event = makeEvent();
-		const hazardousEventRepository = new FakeHazardousEventRepository([event]);
+		const record = makeObservationRecord();
+		const hazardousEventRepository = new FakeHazardousEventRepository(
+			[event],
+			new Map([[event.id, record]]),
+		);
 		const workflowRepository = new FakeWorkflowRepository([]);
 		const logger = new FakeLogger();
 		const useCase = new GetHazardousEventByIdUseCase(
 			logger,
 			hazardousEventRepository,
 			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 
-		await expect(useCase.execute(makeQuery())).rejects.toThrow(NotFoundError);
-		await expect(useCase.execute(makeQuery())).rejects.toMatchObject({
-			context: { entity: "WorkflowInstance", id: event.id },
-		});
+		const result = await useCase.execute(makeQuery());
 
-		expect(
-			hazardousEventRepository.findCurrentSpatialObservationCalls,
-		).toHaveLength(0);
-		expect(logger.info).not.toHaveBeenCalled();
+		expect(result.workflowStatus).toBeNull();
+		expect(result.currentSpatialObservation).toEqual(
+			toSpatialObservationDto(record),
+		);
+		expect(hazardousEventRepository.findCurrentSpatialObservationCalls).toEqual(
+			[{ hazardousEventId: event.id, tenantId: "tenant-1" }],
+		);
 	});
 
 	it("keys the workflow and spatial-observation lookups off the resolved event's own id, not the raw query id", async () => {
@@ -364,6 +429,7 @@ describe("GetHazardousEventByIdUseCase", () => {
 			new FakeLogger(),
 			hazardousEventRepository,
 			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 
 		await useCase.execute(makeQuery({ id: "cosmetically-different-id" }));
@@ -386,6 +452,7 @@ describe("GetHazardousEventByIdUseCase", () => {
 			logger,
 			hazardousEventRepository,
 			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 
 		await useCase.execute(makeQuery());
@@ -393,10 +460,51 @@ describe("GetHazardousEventByIdUseCase", () => {
 		expect(logger.info).toHaveBeenCalledOnce();
 		expect(logger.info).toHaveBeenCalledWith(
 			expect.objectContaining({
+				msg: "hazardous_event.fetched",
 				hazardousEventId: event.id,
 				tenantId: "tenant-1",
 				hasCurrentSpatialObservation: false,
 			}),
+		);
+	});
+
+	it("logs workflowStatusMissing true, without throwing, when no WorkflowInstance exists (DEF-031)", async () => {
+		const event = makeEvent();
+		const hazardousEventRepository = new FakeHazardousEventRepository([event]);
+		const workflowRepository = new FakeWorkflowRepository([]);
+		const logger = new FakeLogger();
+		const useCase = new GetHazardousEventByIdUseCase(
+			logger,
+			hazardousEventRepository,
+			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
+		);
+
+		await useCase.execute(makeQuery());
+
+		expect(logger.info).toHaveBeenCalledOnce();
+		expect(logger.info).toHaveBeenCalledWith(
+			expect.objectContaining({ workflowStatusMissing: true }),
+		);
+	});
+
+	it("does not log workflowStatusMissing when a WorkflowInstance exists", async () => {
+		const event = makeEvent();
+		const workflow = makeWorkflow(event.id);
+		const hazardousEventRepository = new FakeHazardousEventRepository([event]);
+		const workflowRepository = new FakeWorkflowRepository([workflow]);
+		const logger = new FakeLogger();
+		const useCase = new GetHazardousEventByIdUseCase(
+			logger,
+			hazardousEventRepository,
+			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
+		);
+
+		await useCase.execute(makeQuery());
+
+		expect(logger.info).not.toHaveBeenCalledWith(
+			expect.objectContaining({ workflowStatusMissing: true }),
 		);
 	});
 
@@ -414,6 +522,7 @@ describe("GetHazardousEventByIdUseCase", () => {
 			logger,
 			hazardousEventRepository,
 			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 
 		await useCase.execute(makeQuery());
@@ -431,6 +540,7 @@ describe("GetHazardousEventByIdUseCase", () => {
 			logger,
 			hazardousEventRepository,
 			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 
 		await expect(useCase.execute(makeQuery({ id: "missing" }))).rejects.toThrow(
@@ -471,6 +581,7 @@ describe("GetHazardousEventByIdUseCase", () => {
 			new FakeLogger(),
 			hazardousEventRepository,
 			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+			new FakeSpecificHazardTaxonomyRepository(),
 		);
 
 		const [resultA, resultB] = await Promise.all([

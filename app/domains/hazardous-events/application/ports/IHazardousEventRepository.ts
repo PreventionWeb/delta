@@ -20,6 +20,10 @@ export interface IHazardousEventRepository {
 	/** Tenant-scoped, paginated list. */
 	findAll(tenantId: string, pagination: Pagination): Promise<HazardousEvent[]>;
 
+	/** Tenant-scoped total count, ignoring pagination -- feeds the list page's own total-count
+	 * summary and numbered pagination (human decision, 2026-10-27). */
+	countAll(tenantId: string, tx?: Tx): Promise<number>;
+
 	/** First-time persistence of all four child collections as one atomic unit; no separate `tenantId` param -- the entity's own property carries tenancy (Decision 1). */
 	insert(entity: HazardousEvent, tx?: Tx): Promise<HazardousEvent>;
 

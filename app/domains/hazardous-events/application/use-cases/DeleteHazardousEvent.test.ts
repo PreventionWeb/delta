@@ -146,6 +146,10 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		throw new Error("not used by DeleteHazardousEventUseCase's own tests");
 	}
 
+	async countAll(): Promise<number> {
+		throw new Error("not used by DeleteHazardousEventUseCase's own tests");
+	}
+
 	async insert(): Promise<HazardousEvent> {
 		throw new Error("not used by DeleteHazardousEventUseCase's own tests");
 	}

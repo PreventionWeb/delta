@@ -209,6 +209,10 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		throw new Error("not used by CreateHazardousEventUseCase's own tests");
 	}
 
+	async countAll(): Promise<number> {
+		throw new Error("not used by CreateHazardousEventUseCase's own tests");
+	}
+
 	async findByIdForUpdate(): Promise<HazardousEvent> {
 		throw new Error("not used by CreateHazardousEventUseCase's own tests");
 	}

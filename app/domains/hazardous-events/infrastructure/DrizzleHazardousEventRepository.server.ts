@@ -328,7 +328,8 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 		return this.rehydrate(rows[0], children.get(id) ?? EMPTY_CHILD_COLLECTIONS);
 	}
 
-	/** `created_at, id` ordering -- needed for pagination to behave deterministically. */
+	/** `updated_at desc, id` ordering -- matches legacy's own hazardevent.ts:244 orderBy
+	 * (most-recently-updated first); `id` is a tiebreaker for deterministic pagination. */
 	async findAll(
 		tenantId: string,
 		pagination: Pagination,
@@ -337,7 +338,7 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 			.select()
 			.from(hazardousEventTable)
 			.where(eq(hazardousEventTable.countryAccountsId, tenantId))
-			.orderBy(asc(hazardousEventTable.createdAt), asc(hazardousEventTable.id))
+			.orderBy(desc(hazardousEventTable.updatedAt), asc(hazardousEventTable.id))
 			.limit(pagination.pageSize)
 			.offset((pagination.page - 1) * pagination.pageSize);
 
@@ -365,6 +366,18 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 			}
 		}
 		return entities;
+	}
+
+	async countAll(tenantId: string, tx?: Tx): Promise<number> {
+		// ::int required: bare count(*) is Postgres bigint, returned as a string by
+		// node-postgres at runtime -- PGlite doesn't reproduce this, so don't rely on
+		// these tests to catch its removal.
+		const [row] = await (tx ?? this.db)
+			.select({ count: sql<number>`count(*)::int` })
+			.from(hazardousEventTable)
+			.where(eq(hazardousEventTable.countryAccountsId, tenantId));
+		// Safe: an unqualified aggregate with no GROUP BY always returns exactly one row.
+		return row.count;
 	}
 
 	/** One transaction spans the `event` row, `hazardous_event` row, and all child collections (Decision 4). `(tx ?? this.db).transaction()` nests as a SAVEPOINT when `tx` is already inside an open outer transaction (design.md Decision 2). */
