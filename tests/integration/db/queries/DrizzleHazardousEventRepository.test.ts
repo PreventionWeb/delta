@@ -390,20 +390,21 @@ describe("DrizzleHazardousEventRepository", () => {
 	});
 
 	describe("findAll", () => {
-		it("returns only rows for the given tenantId, paginated, in deterministic order across repeated calls", async () => {
+		// Matches legacy's own hazardevent.ts:244 orderBy (desc(updatedAt)) -- most-recently-updated
+		// first, not insertion/creation order.
+		it("returns only rows for the given tenantId, most-recently-updated first, deterministic across repeated calls", async () => {
 			const tenantId = (await seedCountryAccount()) as string;
 			const otherTenantId = (await seedCountryAccount()) as string;
-			// Explicit createdAt: CURRENT_TIMESTAMP's resolution isn't guaranteed distinct per row.
 			const base = new Date("2026-02-01T00:00:00Z").getTime();
 			const seeded = [
-				await seedRawHazardousEvent({ tenantId, createdAt: new Date(base) }),
+				await seedRawHazardousEvent({ tenantId, updatedAt: new Date(base) }),
 				await seedRawHazardousEvent({
 					tenantId,
-					createdAt: new Date(base + 1000),
+					updatedAt: new Date(base + 1000),
 				}),
 				await seedRawHazardousEvent({
 					tenantId,
-					createdAt: new Date(base + 2000),
+					updatedAt: new Date(base + 2000),
 				}),
 			];
 			await seedRawHazardousEvent({ tenantId: otherTenantId });
@@ -415,7 +416,9 @@ describe("DrizzleHazardousEventRepository", () => {
 				pageSize: 10,
 			});
 
-			expect(firstCall.map((e) => e.id)).toEqual(seeded.map((s) => s.id));
+			expect(firstCall.map((e) => e.id)).toEqual(
+				[...seeded].reverse().map((s) => s.id),
+			);
 			expect(secondCall.map((e) => e.id)).toEqual(firstCall.map((e) => e.id));
 		});
 
@@ -423,14 +426,14 @@ describe("DrizzleHazardousEventRepository", () => {
 			const tenantId = (await seedCountryAccount()) as string;
 			const base = new Date("2026-02-02T00:00:00Z").getTime();
 			const seeded = [
-				await seedRawHazardousEvent({ tenantId, createdAt: new Date(base) }),
+				await seedRawHazardousEvent({ tenantId, updatedAt: new Date(base) }),
 				await seedRawHazardousEvent({
 					tenantId,
-					createdAt: new Date(base + 1000),
+					updatedAt: new Date(base + 1000),
 				}),
 				await seedRawHazardousEvent({
 					tenantId,
-					createdAt: new Date(base + 2000),
+					updatedAt: new Date(base + 2000),
 				}),
 			];
 			const repo = new DrizzleHazardousEventRepository(dr);
@@ -441,12 +444,8 @@ describe("DrizzleHazardousEventRepository", () => {
 				pageSize: 2,
 			});
 
-			expect(firstPage.map((e) => e.id)).toEqual(
-				seeded.slice(0, 2).map((s) => s.id),
-			);
-			expect(secondPage.map((e) => e.id)).toEqual(
-				seeded.slice(2).map((s) => s.id),
-			);
+			expect(firstPage.map((e) => e.id)).toEqual([seeded[2].id, seeded[1].id]);
+			expect(secondPage.map((e) => e.id)).toEqual([seeded[0].id]);
 		});
 
 		it("skips a row that fails rehydration, logging a warning, without affecting other rows on the page", async () => {
@@ -477,6 +476,27 @@ describe("DrizzleHazardousEventRepository", () => {
 			} finally {
 				warnSpy.mockRestore();
 			}
+		});
+	});
+
+	describe("countAll", () => {
+		it("counts only rows for the given tenantId, ignoring pagination", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const otherTenantId = (await seedCountryAccount()) as string;
+			await seedRawHazardousEvent({ tenantId });
+			await seedRawHazardousEvent({ tenantId });
+			await seedRawHazardousEvent({ tenantId });
+			await seedRawHazardousEvent({ tenantId: otherTenantId });
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			await expect(repo.countAll(tenantId)).resolves.toBe(3);
+		});
+
+		it("resolves 0 for a tenant with no rows", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			await expect(repo.countAll(tenantId)).resolves.toBe(0);
 		});
 	});
 

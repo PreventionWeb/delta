@@ -26,14 +26,17 @@ import type { IHazardousEventRepository } from "~/domains/hazardous-events/appli
 import type { IDivisionRepository } from "~/domains/hazardous-events/application/ports/IDivisionRepository";
 import type { ICausalChainRepository } from "~/domains/hazardous-events/application/ports/ICausalChainRepository";
 import type { IHazardTaxonomyRepository } from "~/domains/hazardous-events/application/ports/IHazardTaxonomyRepository";
+import type { ISpecificHazardTaxonomyRepository } from "~/domains/hazardous-events/application/ports/ISpecificHazardTaxonomyRepository";
 
 import { DrizzleHazardousEventRepository } from "./DrizzleHazardousEventRepository.server";
 import { DrizzleCausalChainRepository } from "./DrizzleCausalChainRepository.server";
 import { DrizzleHazardTaxonomyRepository } from "./DrizzleHazardTaxonomyRepository.server";
+import { DrizzleSpecificHazardTaxonomyRepository } from "./DrizzleSpecificHazardTaxonomyRepository.server";
 import { DrizzleDivisionRepository } from "./DrizzleDivisionRepository.server";
 import { HAZARDOUS_EVENT_REPOSITORY } from "./HazardousEventRepositoryToken";
 import { CAUSAL_CHAIN_REPOSITORY } from "./CausalChainRepositoryToken";
 import { HAZARD_TAXONOMY_REPOSITORY } from "./HazardTaxonomyRepositoryToken";
+import { SPECIFIC_HAZARD_TAXONOMY_REPOSITORY } from "./SpecificHazardTaxonomyRepositoryToken";
 import { DIVISION_REPOSITORY } from "./DivisionRepositoryToken";
 
 @Module({
@@ -60,6 +63,10 @@ import { DIVISION_REPOSITORY } from "./DivisionRepositoryToken";
 			useClass: DrizzleHazardTaxonomyRepository,
 		},
 		{
+			provide: SPECIFIC_HAZARD_TAXONOMY_REPOSITORY,
+			useClass: DrizzleSpecificHazardTaxonomyRepository,
+		},
+		{
 			provide: DIVISION_REPOSITORY,
 			useClass: DrizzleDivisionRepository,
 		},
@@ -76,13 +83,19 @@ import { DIVISION_REPOSITORY } from "./DivisionRepositoryToken";
 					GetWorkflowInstanceByEntityUseCase,
 					"execute"
 				>,
+				specificHazardTaxonomyRepository: ISpecificHazardTaxonomyRepository,
 			) =>
 				new GetHazardousEventByIdUseCase(
 					getPinoLogger(),
 					hazardousEventRepository,
 					getWorkflowInstanceByEntityUseCase,
+					specificHazardTaxonomyRepository,
 				),
-			inject: [HAZARDOUS_EVENT_REPOSITORY, GetWorkflowInstanceByEntityUseCase],
+			inject: [
+				HAZARDOUS_EVENT_REPOSITORY,
+				GetWorkflowInstanceByEntityUseCase,
+				SPECIFIC_HAZARD_TAXONOMY_REPOSITORY,
+			],
 		},
 		{
 			provide: ListHazardousEventsUseCase,
@@ -92,15 +105,18 @@ import { DIVISION_REPOSITORY } from "./DivisionRepositoryToken";
 					ListWorkflowInstancesByEntityIdsUseCase,
 					"execute"
 				>,
+				specificHazardTaxonomyRepository: ISpecificHazardTaxonomyRepository,
 			) =>
 				new ListHazardousEventsUseCase(
 					getPinoLogger(),
 					hazardousEventRepository,
 					listWorkflowInstancesByEntityIdsUseCase,
+					specificHazardTaxonomyRepository,
 				),
 			inject: [
 				HAZARDOUS_EVENT_REPOSITORY,
 				ListWorkflowInstancesByEntityIdsUseCase,
+				SPECIFIC_HAZARD_TAXONOMY_REPOSITORY,
 			],
 		},
 		{

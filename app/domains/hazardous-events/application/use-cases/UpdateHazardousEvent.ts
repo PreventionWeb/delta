@@ -14,18 +14,29 @@ import type { IHazardousEventRepository } from "../ports/IHazardousEventReposito
 import type { ICausalChainRepository } from "../ports/ICausalChainRepository";
 import type { IHazardTaxonomyRepository } from "../ports/IHazardTaxonomyRepository";
 import type { HazardousEventDto } from "../dto/HazardousEventDto";
-import { toHazardousEventDto } from "../dto/HazardousEventDto";
+import { mapHazardousEventFields } from "../dto/HazardousEventDto";
 import type {
 	RecordSpatialObservationCommand,
 	RecordSpatialObservationUseCase,
 } from "./RecordSpatialObservation";
 import type { SpatialObservationDto } from "../dto/SpatialObservationDto";
 import type { GetWorkflowInstanceByEntityUseCase } from "~/domains/validation-workflow/application/use-cases/GetWorkflowInstanceByEntity";
+import type {
+	Status,
+	WorkflowInstance,
+} from "~/domains/validation-workflow/domain/WorkflowInstance";
 import type { Tx } from "~/db.server";
 import type { ILogger } from "~/shared/logging/ILogger";
 import type { ITransactionRunner } from "~/shared/persistence/ITransactionRunner";
-import { NotFoundError, ValidationError } from "~/shared/errors";
+import { ValidationError } from "~/shared/errors";
 import { assertNonEmptyString } from "../assertNonEmptyString";
+
+// Local override, not HazardousEventDetailDto/HazardousEventListItemDto (wrong semantics for
+// Update) -- same Omit-and-override shape as both, repeated rather than generalized (design.md Decision 3).
+export type UpdateHazardousEventResult = Omit<
+	HazardousEventDto,
+	"workflowStatus"
+> & { workflowStatus: Status | null };
 
 export interface UpdateHazardousEventCommand {
 	id: string;
@@ -178,7 +189,7 @@ export class UpdateHazardousEventUseCase {
 
 	async execute(
 		command: UpdateHazardousEventCommand,
-	): Promise<HazardousEventDto> {
+	): Promise<UpdateHazardousEventResult> {
 		assertNonEmptyString(command.tenantId, "tenantId");
 		assertNonEmptyString(command.id, "id");
 		assertNonEmptyString(command.actingUserId, "actingUserId");
@@ -188,15 +199,13 @@ export class UpdateHazardousEventUseCase {
 			command.tenantId,
 		);
 
-		// Defensive: a correctly-created event always has a WorkflowInstance.
-		const existingWorkflow =
+		// DEF-031: degrades gracefully instead of throwing -- every event created before this
+		// refactor has no WorkflowInstance row until Phase M's backfill runs.
+		const existingWorkflow: WorkflowInstance | null =
 			await this.getWorkflowInstanceByEntityUseCase.execute({
 				entityId: existingEvent.id,
 				entityType: "HE",
 			});
-		if (existingWorkflow === null) {
-			throw new NotFoundError("WorkflowInstance", existingEvent.id);
-		}
 
 		const causeAction = resolveCauseAction(command);
 
@@ -281,6 +290,7 @@ export class UpdateHazardousEventUseCase {
 			tenantId: command.tenantId,
 			causeAction: causeAction.kind,
 			spatialObservationIncluded: command.spatialObservation !== undefined,
+			...(existingWorkflow === null ? { workflowStatusMissing: true } : {}),
 		});
 
 		// Moved here from RecordSpatialObservationUseCase (design.md Decision 6 addendum) -- logs
@@ -294,7 +304,10 @@ export class UpdateHazardousEventUseCase {
 			});
 		}
 
-		return toHazardousEventDto(saved, existingWorkflow);
+		return {
+			...mapHazardousEventFields(saved),
+			workflowStatus: existingWorkflow?.status ?? null,
+		};
 	}
 
 	private async validateCauseIfSet(

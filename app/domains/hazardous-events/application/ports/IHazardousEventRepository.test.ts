@@ -117,6 +117,12 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		return all.slice(start, start + pagination.pageSize);
 	}
 
+	async countAll(tenantId: string, _tx?: Tx): Promise<number> {
+		return [...this.store.values()].filter(
+			(entity) => entity.tenantId === tenantId,
+		).length;
+	}
+
 	async insert(entity: HazardousEvent, _tx?: Tx): Promise<HazardousEvent> {
 		const key = this.key(entity.id, entity.tenantId);
 		if (this.store.has(key)) {
@@ -299,6 +305,23 @@ describe("IHazardousEventRepository conformance", () => {
 
 			expect(firstPage.map((entity) => entity.id)).toEqual(["he-1", "he-2"]);
 			expect(secondPage.map((entity) => entity.id)).toEqual(["he-3"]);
+		});
+	});
+
+	describe("countAll", () => {
+		it("counts only entities matching the given tenantId, ignoring pagination", async () => {
+			const repo = new FakeHazardousEventRepository();
+			await repo.insert(
+				makeHazardousEvent({ id: "he-1", tenantId: "tenant-1" }),
+			);
+			await repo.insert(
+				makeHazardousEvent({ id: "he-2", tenantId: "tenant-1" }),
+			);
+			await repo.insert(
+				makeHazardousEvent({ id: "he-3", tenantId: "tenant-2" }),
+			);
+
+			await expect(repo.countAll("tenant-1")).resolves.toBe(2);
 		});
 	});
 
@@ -613,6 +636,10 @@ const _findAllArity: AssertEqual<
 	Parameters<IHazardousEventRepository["findAll"]>,
 	[string, Pagination]
 > = true;
+const _countAllArity: AssertEqual<
+	Parameters<IHazardousEventRepository["countAll"]>,
+	[string, Tx?]
+> = true;
 const _insertArity: AssertEqual<
 	Parameters<IHazardousEventRepository["insert"]>,
 	[HazardousEvent, Tx?]
@@ -650,6 +677,7 @@ const _countReferencingDisasterEventsArity: AssertEqual<
 
 void _findByIdArity;
 void _findAllArity;
+void _countAllArity;
 void _insertArity;
 void _updateArity;
 void _deleteArity;
