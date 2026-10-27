@@ -159,29 +159,43 @@ new tests under `tests/` — Vitest for unit/integration, Playwright for routing
 request-lifecycle changes (see test tier check above).
 
 **Visual/UX parity review (Gate 9):** Passing tests and `tsc` prove code correctness, not
-feature correctness — they do not catch a missing page-header wrapper, an unstyled heading,
-or a list with no way to reach its own detail page. Presentation-layer styling and layout must
-be in-line with other pages in the app — use the same shared layout components, heading
-classes, and navigation patterns as existing pages, not a page-specific invention. Do this for
-real, don't just assert you did:
+feature correctness — they do not catch a missing page-header wrapper, an unstyled heading, a
+list with no way to reach its own detail page, or a field set/order/pagination default that
+silently diverges from the ground truth. Presentation-layer styling and layout must be in-line
+with other pages in the app — use the same shared layout components, heading classes, and
+navigation patterns as existing pages, not a page-specific invention. Do this for real, don't
+just assert you did:
 
-1. Name a real, existing reference page of the same page-type already in the app (a list page
-   for a new list page, a detail/form page for a new detail/form page) — not a hypothetical.
-2. Start `yarn dev`, seed minimal real data if the page needs it to render meaningfully, and
-   actually render both the new page and the reference page — via a real browser screenshot
-   (Playwright: `chromium.launch()` + `page.screenshot()`), not a mental simulation.
-3. Read the screenshot image yourself (the `Read` tool renders images) and compare: page-header/
-   layout wrapper present, headings using the app's real typography classes (not bare `<h1>`),
-   and any navigation affordance a user would expect (e.g. a list page needs a way to reach its
-   detail view — check how the cited reference page solves this, copy that exact pattern).
-4. If you don't have a login session handy, create one: insert a temporary user row (bcrypt
-   password hash) tied to an existing tenant directly via SQL/the DB client, log in through the
-   real `/en/user/login` form with Playwright, take your screenshots, then delete the temporary
-   user afterward. Do not skip this step because "the tests already cover the behavior" — tests
-   assert on text content, not layout.
-5. Fix anything that doesn't match, citing the real precedent you compared against (not an
-   invented pattern) — same rigor as any other design decision: verify against real code, don't
-   guess.
+1. Read `design.md`'s reference-source identification and content-level ground-truth checklist
+   (spec-writer is required to have written these for any presentation-layer change). If either
+   is missing for a change that clearly touches rendered output, stop and get it added before
+   proceeding — don't reconstruct it yourself from the source as a substitute.
+2. Render the new page: start `yarn dev`, seed minimal real data if the page needs it to render
+   meaningfully, and capture it via a real browser screenshot (Playwright: `chromium.launch()` +
+   `page.screenshot()`), not a mental simulation. If you don't have a login session handy,
+   create one: insert a temporary user row (bcrypt password hash) tied to an existing tenant
+   directly via SQL/the DB client, log in through the real `/en/user/login` form with
+   Playwright, take your screenshots, then delete the temporary user afterward. Do not skip this
+   step because "the tests already cover the behavior" — tests assert on text content, not
+   layout.
+3. Get the comparison target based on `design.md`'s stated reference-source type:
+   - **Code-readable reference page in this app:** render and screenshot it the same way as
+     step 2.
+   - **Design artifact, written spec/playbook, or screenshots-only:** use that artifact
+     directly as the comparison target — there is no second page to render.
+   - **No reference exists (new design):** compare against the content-level checklist alone;
+     there is no second artifact to render or view.
+4. Read the screenshot(s)/artifact yourself (the `Read` tool renders images) and compare against
+   both: (a) the content-level checklist item by item — field/column set and order, labels/copy,
+   sort/pagination defaults, emphasis pattern, grouping/spacing, interaction behavior, state
+   variants; and (b) the structural conventions — page-header/layout wrapper present, headings
+   using the app's real typography classes (not bare `<h1>`), and any navigation affordance a
+   user would expect (e.g. a list page needs a way to reach its detail view).
+5. Fix anything that doesn't match, citing the real checklist item or precedent you compared
+   against (not an invented pattern) — same rigor as any other design decision: verify against
+   the ground truth, don't guess. If the checklist itself turns out to be wrong or incomplete
+   (the source had more detail than `design.md` captured), fix `design.md` too, not just the
+   code — per the artifact-drift rule above.
 
 **Code review:** Invoke the `code-review` skill at `high` effort via a fresh subagent (`Agent`
 tool, not `fork`) with no prior context — same-context self-review is not a substitute.
