@@ -6247,7 +6247,7 @@
     {
         "id": "meta.invite_user",
         "description": "File: routes/$lang+/settings+/access-mgmnt+/invite.tsx:47",
-        "translation": "Invite User"
+        "translation": "Inviter un utilisateur"
     },
     {
         "id": "meta.list_of_disaster_events",
@@ -6257,7 +6257,7 @@
     {
         "id": "meta.login",
         "description": "File: routes/$lang+/admin+/login.tsx:367",
-        "translation": "Connexion"
+        "translation": "Se connecter"
     },
     {
         "id": "meta.methodologies",
@@ -6292,7 +6292,7 @@
     {
         "id": "meta.sectors_page",
         "description": "File: routes/$lang+/disaster-record+/edit-sec.$disRecId+/_index.tsx:43",
-        "translation": "Page secteurs"
+        "translation": "page Secteurs"
     },
     {
         "id": "meta.sign_in_super_admin",
@@ -6974,7 +6974,7 @@
     {
         "id": "meta.change_password",
         "description": "File: app/routes/$lang+/user+/change-password.tsx:281",
-        "translation": "Modifier le mot de passe"
+        "translation": "Changer le mot de passe"
     },
     {
         "id": "meta.user_profile",
