@@ -5597,7 +5597,7 @@
     {
         "id": "users.password_changed_successfully",
         "description": "File: routes/$lang+/user+/reset-password.tsx:87",
-        "translation": "Le mot de passe a été modifié avec succès !"
+        "translation": "Le mot de passe a été modifié avec succès !"
     },
     {
         "id": "users.recover_account",
