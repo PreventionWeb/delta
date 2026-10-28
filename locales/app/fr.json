@@ -3822,7 +3822,7 @@
     {
         "id": "human_effects.group_total",
         "description": "File: frontend/editabletable/view.tsx:661",
-        "translation": "Total du groupe :"
+        "translation": "Total du groupe :"
     },
     {
         "id": "human_effects.group_total_cannot_calculate_as_of_date",
@@ -3897,17 +3897,17 @@
     {
         "id": "human_effects.sex",
         "description": "Sex (Possible values: male, female, other non-binary) File: backend.server/models/human_effects.ts:432",
-        "translation": "Sexe"
+        "translation": "Le sexe"
     },
     {
         "id": "human_effects.sex.f",
         "description": "Abbreviation for female sex. Format: 'Letter-Description' (e.g. F-Female). File: backend.server/models/human_effects.ts:453",
-        "translation": "F – Féminin"
+        "translation": "F-Femme"
     },
     {
         "id": "human_effects.sex.m",
         "description": "Abbreviation for male sex. Format: 'Letter-Description' (e.g. M-Male). File: backend.server/models/human_effects.ts:445",
-        "translation": "M – Masculin"
+        "translation": "M-Male"
     },
     {
         "id": "human_effects.sex.o",
@@ -6934,7 +6934,7 @@
     {
         "id": "human_effects.human_effects_configure_builtin_disaggregations",
         "description": "File: app/routes/$lang+/settings+/human-effects-dsg+/_index.tsx:105",
-        "translation": "Effets sur l'homme : configurer les ventilations intégrées"
+        "translation": "Effets sur l'homme : configurer les ventilations intégrées"
     },
     {
         "id": "human_effects.in_use",
@@ -6959,7 +6959,7 @@
     {
         "id": "human_effects.men",
         "description": "File: app/routes/$lang+/analytics+/disaster-events.tsx:1105",
-        "translation": "Hommes"
+        "translation": "Mais"
     },
     {
         "id": "human_effects.other_non_binary",
@@ -8565,7 +8565,7 @@
     {
         "id": "human_effects.disaggregation_details",
         "description": "File: app/routes/$lang+/disaster-record+/$id.tsx:400",
-        "translation": "Détails de la désagrégation"
+        "translation": "Détails de la ventilation"
     },
     {
         "id": "nav.about_the_system_description",
