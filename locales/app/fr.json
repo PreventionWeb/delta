@@ -2072,12 +2072,12 @@
     {
         "id": "hazardous_event.select_parent_for_event",
         "description": "File: routes/$lang+/hazardous-event+/picker.tsx:28",
-        "translation": "Sélectionner le parent pour l'événement"
+        "translation": "Sélectionner un parent pour l'événement"
     },
     {
         "id": "hazardous_event.status",
         "description": "File: frontend/events/hazardeventform.tsx:132",
-        "translation": "État de l’événement dangereux"
+        "translation": "Événement dangereux État"
     },
     {
         "id": "hazardous_event.status.forecasted",
@@ -2092,12 +2092,12 @@
     {
         "id": "hazardous_event.status.passed",
         "description": "Label for passed hazardous event status File: frontend/events/hazardevent-filters.tsx:46",
-        "translation": "Passé"
+        "translation": "Adopté"
     },
     {
         "id": "hazardous_event.uuid",
         "description": "Label for the UUID of a hazardous event File: frontend/events/hazardeventlist.tsx:294",
-        "translation": "UUID de l’événement dangereux"
+        "translation": "Événement dangereux UUID"
     },
     {
         "id": "hazardous_events",
@@ -2132,12 +2132,12 @@
     {
         "id": "hip.cluster",
         "description": "File: frontend/events/hazardevent-filters.tsx:203",
-        "translation": "Groupe"
+        "translation": "Groupes"
     },
     {
         "id": "hip.cluster_short",
         "description": "HIP hazard cluster (in HIP classification context, short) File: frontend/hip/hip.tsx:34",
-        "translation": "Groupe"
+        "translation": "Cluster"
     },
     {
         "id": "hip.enter_hazard_name_or_hips_id",
@@ -2147,7 +2147,7 @@
     {
         "id": "hip.error_processing_hazard_clusters",
         "description": "File: frontend/analytics/sectors/sections/Filters.tsx:311",
-        "translation": "Erreur lors du traitement des regroupements de risques"
+        "translation": "Traitement des erreurs grappes de risques"
     },
     {
         "id": "hip.error_processing_hazard_types",
@@ -2157,7 +2157,7 @@
     {
         "id": "hip.error_processing_specific_hazards",
         "description": "File: frontend/analytics/sectors/sections/Filters.tsx:397",
-        "translation": "Erreur lors du traitement de risques spécifiques"
+        "translation": "Traitement des erreurs Risques spécifiques"
     },
     {
         "id": "hip.failed_to_process_hazard_clusters",
@@ -2187,7 +2187,7 @@
     {
         "id": "hip.hazard",
         "description": "File: frontend/disaster-record/form.tsx:183",
-        "translation": "Risques"
+        "translation": "Aléa"
     },
     {
         "id": "hip.hazard_classification",
@@ -2202,12 +2202,12 @@
     {
         "id": "hip.hazard_short",
         "description": "HIP hazard name (in HIP classification context, short) File: frontend/hip/hip.tsx:43",
-        "translation": "Risques"
+        "translation": "Risque"
     },
     {
         "id": "hip.hazard_type",
         "description": "Label for hazard type File: frontend/events/hazardeventlist.tsx:278",
-        "translation": "Type de risque"
+        "translation": "Type de danger"
     },
     {
         "id": "hip.select_cluster",
@@ -2217,7 +2217,7 @@
     {
         "id": "hip.select_hazard",
         "description": "File: frontend/hip/hazardpicker.tsx:272",
-        "translation": "Sélectionner un danger"
+        "translation": "Sélectionner le danger"
     },
     {
         "id": "hip.select_hazard_type",
@@ -3557,7 +3557,7 @@
     {
         "id": "hip.hip_cluster_required",
         "description": "File: backend.server/models/event.ts:74",
-        "translation": "Un cluster HIP est nécessaire"
+        "translation": "Un cluster HIP est requis"
     },
     {
         "id": "hip.hip_type_required",
