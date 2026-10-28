@@ -7173,7 +7173,7 @@
     {
         "id": "user.totp_manual_key",
         "description": "File: app/routes/$lang+/user+/totp-enable.tsx:122",
-        "translation": "Vous n'arrivez pas à scanner le code QR ? Utilisez cette clé de configuration :"
+        "translation": "Vous n'arrivez pas à scanner le code QR ? Utilisez cette clé de configuration :"
     },
     {
         "id": "user.totp_setup_steps_title",
