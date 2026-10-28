@@ -6437,7 +6437,7 @@
     {
         "id": "geodata.switch_drawing_mode_confirmation",
         "description": "Confirmation message when switching drawing mode. {lastMode} is the previous mode, {newMode} is the current mode. Clears current drawing. File: components/ContentRepeater/controls/mapper/index.tsx:211",
-        "translation": "Le passage de \"{lastMode}\" à \"{newMode}\" efface le dessin en cours. Voulez-vous continuer ?"
+        "translation": "Le passage de \"{lastMode}\" à \"{newMode}\" efface le dessin en cours. Voulez-vous continuer ?"
     },
     {
         "id": "geographies.geographic_level",
@@ -8560,7 +8560,7 @@
     {
         "id": "geographies.country_boundary_hint",
         "description": "File: app/routes/$lang+/settings+/geography+/edit.$id.tsx:582",
-        "translation": "Disponible uniquement lorsque cette division est la seule division de premier niveau et qu'elle n'a pas de divisions de même niveau. Le niveau 0 correspond aux limites nationales ; les divisions administratives commencent au niveau 1."
+        "translation": "Disponible uniquement lorsque cette division est la seule division de premier niveau et qu'elle n'a pas de divisions de même niveau. Le niveau 0 correspond aux frontières nationales ; les divisions administratives commencent au niveau 1."
     },
     {
         "id": "human_effects.disaggregation_details",
