@@ -2217,7 +2217,7 @@
     {
         "id": "hip.select_hazard",
         "description": "File: frontend/hip/hazardpicker.tsx:272",
-        "translation": "Sélectionner le danger"
+        "translation": "Sélectionner un danger"
     },
     {
         "id": "hip.select_hazard_type",
@@ -3602,7 +3602,7 @@
     {
         "id": "human_effects.age_group.elder",
         "description": "Age group for elderly, 65 years and older. Display uses (65-) format. File: backend.server/models/human_effects.ts:499",
-        "translation": "Ancien (65-)"
+        "translation": "Personne âgée (65 ans et plus)"
     },
     {
         "id": "human_effects.as_of",
@@ -3697,7 +3697,7 @@
     {
         "id": "human_effects.disability.multiple_deaf_blindness",
         "description": "Type of disability. File: backend.server/models/human_effects.ts:624",
-        "translation": "Multiple, cécité sourde"
+        "translation": "Multiple, surdité et cécité"
     },
     {
         "id": "human_effects.disability.multiple_other_multiple",
@@ -6652,7 +6652,7 @@
     {
         "id": "hip.unknown_cluster",
         "description": "File: routes/$lang+/analytics+/hazards.tsx:386",
-        "translation": "Cluster inconnu"
+        "translation": "Groupe inconnu"
     },
     {
         "id": "hip.unknown_hazard",
