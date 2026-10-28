@@ -5117,7 +5117,7 @@
     {
         "id": "user.password_requirements.must_include_two_of_following",
         "description": "File: routes/$lang+/user+/change-password.tsx:215",
-        "translation": "Doit comprendre deux des éléments suivants :"
+        "translation": "Doit comprendre deux des éléments suivants :"
     },
     {
         "id": "user.password_requirements.numbers",
