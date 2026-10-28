@@ -3037,7 +3037,7 @@
     {
         "id": "user_change_password.new_password_required",
         "description": "File: backend.server/models/user/password.ts:242",
-        "translation": "Un nouveau mot de passe est nécessaire"
+        "translation": "Un nouveau mot de passe est requis."
     },
     {
         "id": "user_change_password.user_not_found",
