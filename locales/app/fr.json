@@ -2707,7 +2707,7 @@
     {
         "id": "settings.access_mgmnt.current_user_count",
         "description": "File: routes/$lang+/settings+/access-mgmnt+/_index.tsx:153",
-        "translation": "Actuellement, le système compte [{totalUsers}] utilisateurs."
+        "translation": "Le système compte actuellement [{totalUsers}] utilisateurs."
     },
     {
         "id": "settings.access_mgmnt.date_added",
@@ -2747,7 +2747,7 @@
     {
         "id": "settings.access_mgmnt.user_added_successfully",
         "description": "File: routes/$lang+/settings+/access-mgmnt+/invite.tsx:119",
-        "translation": "L'utilisateur a été ajouté avec succès !"
+        "translation": "L'utilisateur a été ajouté avec succès !"
     },
     {
         "id": "settings.sectors.table_view",
