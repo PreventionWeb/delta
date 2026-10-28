@@ -3467,12 +3467,12 @@
     {
         "id": "email.validation_workflow.body_needs_revision_html",
         "description": "File: backend.server/services/emailValidationWorkflowService.ts:258",
-        "translation": "<p>Cher {submitterName},</p> <p>Votre {recordTypeData} a été renvoyé pour révision.\n<p>Votre {1} a été renvoyé pour révision.</p> <p>Les commentaires de {0} sont les bienvenus.\n<p>Commentaires : {rejectionComments}</p>\n<p><a href=\"{recordUrl}\">Voir et modifier l'enregistrement</a></p> <p>Les commentaires de {1} ont été retournés pour révision."
+        "translation": "<p>Cher {submitterName},</p> <p>Votre {recordTypeData} a été renvoyé pour révision.\n<p>Votre {1} a été renvoyé pour révision.</p> <p>Les commentaires de {0} sont les bienvenus.\n<p>Commentaires : {rejectionComments}</p>\n<p><a href=\"{recordUrl}\">Voir et modifier l'enregistrement</a></p> <p>Les commentaires de {1} ont été retournés pour révision."
     },
     {
         "id": "email.validation_workflow.body_needs_revision_text",
         "description": "File: backend.server/services/emailValidationWorkflowService.ts:273",
-        "translation": "Cher {submitterName},\n\nVotre {recordTypeData} a été renvoyé pour révision.\n\nCommentaires : {rejectionComments}\n\nVoir et modifier l'enregistrement : {recordUrl}"
+        "translation": "Cher {submitterName},\n\nVotre {recordTypeData} a été renvoyé pour révision.\n\nCommentaires : {rejectionComments}\n\nVoir et modifier l'enregistrement : {recordUrl}"
     },
     {
         "id": "email.validation_workflow.body_published_html",
@@ -3482,7 +3482,7 @@
     {
         "id": "email.validation_workflow.body_published_text",
         "description": "File: backend.server/services/emailValidationWorkflowService.ts:233",
-        "translation": "Cher {submitterName},\n\nVotre {recordTypeData} a été publié et est désormais accessible au public.\n\nVoir l'enregistrement : {recordUrl}"
+        "translation": "Cher {submitterName},\n\nVotre {recordTypeData} a été publié et est désormais accessible au public.\n\nVoir l'enregistrement : {recordUrl}"
     },
     {
         "id": "email.validation_workflow.body_validated_html",
@@ -3492,7 +3492,7 @@
     {
         "id": "email.validation_workflow.body_validated_text",
         "description": "File: backend.server/services/emailValidationWorkflowService.ts:315",
-        "translation": "Cher {submitterName},\n\nVotre {recordTypeData} a été validé.\n\nVoir l'enregistrement : {recordUrl}"
+        "translation": "Cher {submitterName},\n\nVotre {recordTypeData} a été validé.\n\nVoir l'enregistrement : {recordUrl}"
     },
     {
         "id": "email.validation_workflow.subject_needs_revision",
@@ -8025,7 +8025,7 @@
     {
         "id": "disruption.duration_days",
         "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:419",
-        "translation": "Duration (days)"
+        "translation": "Durée (jours)"
     },
     {
         "id": "disruption.duration_hours",
@@ -8035,7 +8035,7 @@
     {
         "id": "disruption.people_affected",
         "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:422",
-        "translation": "Personnes concernées"
+        "translation": "Personnes touchées"
     },
     {
         "id": "disruption.response_operation",
@@ -8050,12 +8050,12 @@
     {
         "id": "email.assigned_validators.body_html",
         "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:117",
-        "translation": "<p>Cher {validatorName},</p>\n<p>Un nouvel {recordType} attend votre réaction. Cliquez sur le lien ci-dessous pour consulter l'événement.</p>\n<p>Nom de l'événement : {recordEventName} <br />Date de l'événement : {recordDate} <br />Soumis par : {recordSubmitterName}</p>\n<p><a href=\"{recordUrl}\">Consulter l'événement</a></p>"
+        "translation": "<p>Cher {validatorName},</p>\n<p>Un nouvel {recordType} attend votre réaction. Cliquez sur le lien ci-dessous pour consulter l'événement.</p>\n<p>Nom de l'événement : {recordEventName} <br />Date de l'événement : {recordDate} <br />Soumis par : {recordSubmitterName}</p>\n<p><a href=\"{recordUrl}\">Consulter l'événement</a></p>"
     },
     {
         "id": "email.assigned_validators.body_text",
         "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:137",
-        "translation": "Cher {validatorName},\n\nUn nouvel {recordType} attend que vous réagissiez. Cliquez sur le lien ci-dessous pour consulter l'événement.\n\nNom de l'événement : {recordEventName}\nDate de l'événement : {recordDate}\nSoumis par : {recordSubmitterName}\n\nConsulter l'événement : {recordUrl}"
+        "translation": "Cher {validatorName},\n\nUn nouvel {recordType} attend que vous réagissiez. Cliquez sur le lien ci-dessous pour consulter l'événement.\n\nNom de l'événement : {recordEventName}\nDate de l'événement : {recordDate}\nSoumis par : {recordSubmitterName}\n\nConsulter l'événement : {recordUrl}"
     },
     {
         "id": "email.assigned_validators.subject",
@@ -8065,12 +8065,12 @@
     {
         "id": "email.assignees_notification.body_returned_html",
         "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:504",
-        "translation": "<p>Cher {assigneeName},</p>\n<p>Un {recordType} a été renvoyé pour révision.</p>\n<p>Renvoyé par : {recordSubmitterName}</p>\n<p>Commentaires : {rejectionMessage}</p>\n<p><a href=\"{recordUrl}\">Afficher</a></p>"
+        "translation": "<p>Cher {assigneeName},</p>\n<p>Un {recordType} a été renvoyé pour révision.</p>\n<p>Renvoyé par : {recordSubmitterName}</p>\n<p>Commentaires : {rejectionMessage}</p>\n<p><a href=\"{recordUrl}\">Afficher</a></p>"
     },
     {
         "id": "email.assignees_notification.body_returned_text",
         "description": "File: app/backend.server/services/emailValidationWorkflowService.ts:524",
-        "translation": "Cher {assigneeName},\n\nUn {recordType} a été renvoyé pour révision.\n\nRenvoyé par : {recordSubmitterName}\n\nCommentaires : {rejectionMessage}\n\nConsulter : {recordUrl}"
+        "translation": "Cher {assigneeName},\n\nUn {recordType} a été renvoyé pour révision.\n\nRenvoyé par : {recordSubmitterName}\n\nCommentaires : {rejectionMessage}\n\nConsulter : {recordUrl}"
     },
     {
         "id": "email.assignees_notification.subject_returned",
