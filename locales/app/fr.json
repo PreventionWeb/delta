@@ -2527,7 +2527,7 @@
     {
         "id": "record.delete_confirmation",
         "description": "Confirmation message shown when deleting a record File: frontend/components/delete-dialog.tsx:106",
-        "translation": "Êtes-vous sûr de vouloir supprimer cet enregistrement ?"
+        "translation": "Êtes-vous sûr de vouloir supprimer cet enregistrement ?"
     },
     {
         "id": "record.delete_confirmation_message",
