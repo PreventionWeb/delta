@@ -7040,8 +7040,8 @@
         "id": "session.expiry_warning_minutes",
         "description": "File: app/components/InactivityWarning.tsx:102",
         "translation": {
-            "one": "Pour votre sécurité, votre session expirera dans {n} minute en raison d'une inactivité prolongée.",
-            "many": "Pour votre sécurité, votre session expirera dans {n} minutes en raison d'une inactivité prolongée.",
+            "one": "Pour votre sécurité, votre session expirera dans {n} minutes en raison de l'inactivité.",
+            "many": "Pour votre sécurité, votre session expirera dans {n} minutes en raison de l'inactivité.",
             "other": "Pour votre sécurité, votre session expirera dans {n} minute en raison d'une inactivité prolongée."
         }
     },
