@@ -2317,7 +2317,7 @@
     {
         "id": "nav.analysis.hazards",
         "description": "File: frontend/header/header.tsx:120",
-        "translation": "Risques"
+        "translation": "Aléas"
     },
     {
         "id": "nav.analysis.sectors",
@@ -2332,7 +2332,7 @@
     {
         "id": "nav.assets",
         "description": "File: frontend/header/header.tsx:330",
-        "translation": "Actifs"
+        "translation": "Biens"
     },
     {
         "id": "nav.change_email",
@@ -2342,7 +2342,7 @@
     {
         "id": "nav.change_password",
         "description": "File: frontend/header/header.tsx:200",
-        "translation": "Modifier le mot de passe"
+        "translation": "Changer le mot de passe"
     },
     {
         "id": "nav.data",
@@ -2392,7 +2392,7 @@
     {
         "id": "nav.hazards",
         "description": "File: routes/$lang+/settings/nav.tsx:20",
-        "translation": "Risques"
+        "translation": "Aléas"
     },
     {
         "id": "nav.main_settings",
@@ -8595,7 +8595,7 @@
     {
         "id": "nav.disaster_records_description",
         "description": "File: app/components/RegularMenuBar.tsx:261",
-        "translation": "Documentation complète en cas de catastrophe"
+        "translation": "Documentation complète relative aux sinistres"
     },
     {
         "id": "nav.hazardous_events_description",
@@ -8605,7 +8605,7 @@
     {
         "id": "nav.human_effects_description",
         "description": "File: app/components/RegularMenuBar.tsx:444",
-        "translation": "Gérer les désagrégations"
+        "translation": "Gérer les ventilations"
     },
     {
         "id": "nav.organization_management_description",
