@@ -1647,7 +1647,7 @@
     {
         "id": "disaster_event.global_regional_name",
         "description": "File: frontend/events/disastereventform.tsx:279",
-        "translation": "Nom global/régional"
+        "translation": "Nom mondial/régional"
     },
     {
         "id": "disaster_event.global_regional_name_description",
@@ -1657,7 +1657,7 @@
     {
         "id": "disaster_event.had_official_warning_or_weather_advisory",
         "description": "Label for the warning/advisory boolean field File: frontend/events/disastereventform.tsx:381",
-        "translation": "Y a-t-il eu une alerte et/ou un avis météorologique officiellement émis ?"
+        "translation": "Y a-t-il eu une alerte et/ou un avis météorologique officiellement émis ?"
     },
     {
         "id": "disaster_event.humanitarian_needs_description",
@@ -1697,7 +1697,7 @@
     {
         "id": "disaster_event.national_disaster_id",
         "description": "File: frontend/events/disastereventform.tsx:244",
-        "translation": "Carte d'identité nationale en cas de catastrophe"
+        "translation": "Carte nationale d'identité en cas de catastrophe"
     },
     {
         "id": "disaster_event.national_name",
@@ -1717,7 +1717,7 @@
     {
         "id": "disaster_event.official_warning_affected_areas",
         "description": "Label for textarea listing areas covered by the warning File: frontend/events/disastereventform.tsx:397",
-        "translation": "Quelles sont les zones touchées par l'alerte ?"
+        "translation": "Quelles sont les zones touchées par l'alerte ?"
     },
     {
         "id": "disaster_event.other_assessment",
@@ -1762,12 +1762,12 @@
     {
         "id": "disaster_event.rehabilitation_costs_local_currency_override",
         "description": "File: frontend/events/disastereventform.tsx:553",
-        "translation": "Coûts de réhabilitation - total en monnaie locale"
+        "translation": "Frais de réparation - total en monnaie locale"
     },
     {
         "id": "disaster_event.repair_costs_local_currency_override",
         "description": "File: frontend/events/disastereventform.tsx:562",
-        "translation": "Frais de réparation - total en monnaie locale"
+        "translation": "Coûts de remplacement - total en monnaie locale"
     },
     {
         "id": "disaster_event.replacement_costs_local_currency_override",
@@ -1777,12 +1777,12 @@
     {
         "id": "disaster_event.response_cost_total_local_currency",
         "description": "Label for emergency response cost total in local currency File: frontend/events/disastereventform.tsx:508",
-        "translation": "(Urgence) Coût de l'intervention - total - en monnaie locale"
+        "translation": "(Urgence) Coût de l'intervention - total - en USD"
     },
     {
         "id": "disaster_event.response_cost_total_usd",
         "description": "Label for emergency response cost total in USD File: frontend/events/disastereventform.tsx:518",
-        "translation": "(Urgence) Coût de l'intervention - total - en USD"
+        "translation": "(Urgence) Coût de l'intervention - total - en monnaie locale"
     },
     {
         "id": "disaster_event.response_operations",
@@ -1832,7 +1832,7 @@
     {
         "id": "disaster_events",
         "description": "File: frontend/events/disastereventform.tsx:1037",
-        "translation": "Catastrophes"
+        "translation": "Événements catastrophiques"
     },
     {
         "id": "disaster_events.showing_filtered_of_total",
@@ -1857,7 +1857,7 @@
     {
         "id": "disaster_record.count_header",
         "description": "Header text showing total number of disaster records and instance name. {total_items} is the number of records, {instance_name} is the name of the current instance. File: routes/$lang+/disaster-record+/_index.tsx:102",
-        "translation": "{total_items} enregistrements de catastrophes dans {instance_name}"
+        "translation": "{total} événements catastrophiques dans {instance_name}"
     },
     {
         "id": "disaster_record.data_collector",
@@ -3447,12 +3447,12 @@
     {
         "id": "disaster_event.no_permission_delete",
         "description": "File: backend.server/models/event.ts:1595",
-        "translation": "Vous n'avez pas l'autorisation de supprimer cet événement catastrophique."
+        "translation": "Vous n'avez pas l'autorisation de mettre à jour cet événement catastrophique."
     },
     {
         "id": "disaster_event.no_permission_update",
         "description": "File: backend.server/models/event.ts:1313",
-        "translation": "Vous n'avez pas l'autorisation de mettre à jour cet événement catastrophique."
+        "translation": "Vous n'avez pas l'autorisation de supprimer cet événement catastrophique."
     },
     {
         "id": "disaster_event.select",
@@ -3462,7 +3462,7 @@
     {
         "id": "disaster_records.disaster_records_sectors",
         "description": "File: routes/$lang+/disaster-record+/edit-sec.$disRecId+/_index.tsx:180",
-        "translation": "Dossiers de catastrophes : Secteurs"
+        "translation": "Dossiers de catastrophes : Secteurs"
     },
     {
         "id": "email.validation_workflow.body_needs_revision_html",
@@ -4247,7 +4247,7 @@
     {
         "id": "disaster_record.asset",
         "description": "File: routes/$lang+/disaster-record+/edit-sub.$disRecId+/damages+/_index.tsx:146",
-        "translation": "Actif"
+        "translation": "Bien"
     },
     {
         "id": "disaster_record.damage",
@@ -4272,7 +4272,7 @@
     {
         "id": "disaster_record.damages.add_label",
         "description": "File: frontend/damages.tsx:357",
-        "translation": "Ajouter les dommages"
+        "translation": "Ajouter un nouveau dommage"
     },
     {
         "id": "disaster_record.damages.amount_of_units",
@@ -4287,12 +4287,12 @@
     {
         "id": "disaster_record.damages.assets",
         "description": "File: backend.server/models/damages.ts:172",
-        "translation": "Actifs"
+        "translation": "Biens"
     },
     {
         "id": "disaster_record.damages.comment",
         "description": "File: backend.server/models/damages.ts:148",
-        "translation": "Comment"
+        "translation": "Commentaires"
     },
     {
         "id": "disaster_record.damages.currency",
@@ -4302,12 +4302,12 @@
     {
         "id": "disaster_record.damages.duration_days",
         "description": "File: backend.server/models/damages.ts:115",
-        "translation": "Duration (days)"
+        "translation": "Durée (jours)"
     },
     {
         "id": "disaster_record.damages.duration_hours",
         "description": "File: backend.server/models/damages.ts:124",
-        "translation": "Duration (hours)"
+        "translation": "Durée (heures)"
     },
     {
         "id": "disaster_record.damages.edit_label",
@@ -4377,27 +4377,27 @@
     {
         "id": "disaster_record.damages.unit_repair_or_replacement_cost",
         "description": "File: backend.server/models/damages.ts:44",
-        "translation": "Coût de l'unité {repairOrReplacement}"
+        "translation": "Coût total {repairOrReplacement}"
     },
     {
         "id": "disaster_record.damages_sector_effects_path",
         "description": "Plural label for damages, showing the sector path. {path} is replaced with the full sector path. File: routes/$lang+/disaster-record+/edit-sub.$disRecId+/damages+/_index.tsx:133",
-        "translation": "Dommages : Effets sectoriels : {path}"
+        "translation": "Dommages : Effets sectoriels : {path}"
     },
     {
         "id": "disaster_record.disruption",
         "description": "File: frontend/damages.tsx:375",
-        "translation": "Perturbation"
+        "translation": "Perturbations"
     },
     {
         "id": "disaster_record.disruption.add",
         "description": "File: frontend/damages.tsx:373",
-        "translation": "Ajouter une perturbation"
+        "translation": "Ajouter des perturbations"
     },
     {
         "id": "disaster_record.disruption.hide",
         "description": "File: frontend/damages.tsx:374",
-        "translation": "Cacher les perturbations"
+        "translation": "Ajouter des perturbations"
     },
     {
         "id": "disaster_record.disruption_section_title",
@@ -4442,7 +4442,7 @@
     {
         "id": "disaster_record.losses_section_title",
         "description": "File: routes/$lang+/disaster-record+/edit-sec.$disRecId+/_index.tsx:372",
-        "translation": "Pertes"
+        "translation": "ID des pertes"
     },
     {
         "id": "disaster_record.recovery_cost",
@@ -4497,7 +4497,7 @@
     {
         "id": "disaster_records.disruption.duration_days",
         "description": "File: backend.server/models/disruption.ts:34",
-        "translation": "Duration (days)"
+        "translation": "Durée (days)"
     },
     {
         "id": "disaster_records.disruption.duration_days_must_be_gte_zero",
@@ -6627,7 +6627,7 @@
     {
         "id": "disaster_record.disaster_records_non_economic_losses",
         "description": "File: routes/$lang+/disaster-record+/non-economic-losses.$id+/_index.tsx:133",
-        "translation": "Registres des catastrophes : pertes non économiques"
+        "translation": "Registres des catastrophes : pertes non économiques"
     },
     {
         "id": "disaster_record.non_economic_losses.describe_effect_criteria",
@@ -7570,12 +7570,12 @@
     {
         "id": "disaster_event.form.loading_linked_triggering_events_selector",
         "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4521",
-        "translation": "Chargement du sélecteur d'événements déclencheurs liés"
+        "translation": "Chargement du sélecteur d'événements dangereux liés au déclenchement"
     },
     {
         "id": "disaster_event.form.loading_linked_triggering_hazardous_events_selector",
         "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4410",
-        "translation": "Chargement du sélecteur d'événements dangereux liés au déclenchement"
+        "translation": "Chargement du sélecteur d'événements dangereux déclenchés par un lien"
     },
     {
         "id": "disaster_event.form.loading_spatial_footprint_editor",
@@ -7590,12 +7590,12 @@
     {
         "id": "disaster_event.form.manage_linked_triggered_events",
         "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4444",
-        "translation": "Gérer les événements déclenchés associés"
+        "translation": "Gérer les événements déclencheurs associés"
     },
     {
         "id": "disaster_event.form.manage_linked_triggering_events",
         "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4397",
-        "translation": "Gérer les événements déclencheurs associés"
+        "translation": "Gérer les événements déclenchés associés"
     },
     {
         "id": "disaster_event.form.name_global_other",
@@ -7665,17 +7665,17 @@
     {
         "id": "disaster_event.form.select_hazard_cluster",
         "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4041",
-        "translation": "Sélectionner un groupe de risques"
+        "translation": "Sélectionner un groupe"
     },
     {
         "id": "disaster_event.form.select_hazard_type",
         "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4002",
-        "translation": "Sélectionnez le type de risque"
+        "translation": "Sélectionner le danger"
     },
     {
         "id": "disaster_event.form.select_sectors",
         "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5068",
-        "translation": "Sélectionner des secteurs"
+        "translation": "Sélectionner un secteur"
     },
     {
         "id": "disaster_event.form.select_status",
@@ -7685,7 +7685,7 @@
     {
         "id": "disaster_event.form.select_type",
         "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4906",
-        "translation": "Sélectionner le type"
+        "translation": "Sélectionner la date"
     },
     {
         "id": "disaster_event.form.spatial_footprint_description",
@@ -7760,7 +7760,7 @@
     {
         "id": "disaster_event.form.validation.is_invalid",
         "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:909",
-        "translation": "{label} n'est pas valide"
+        "translation": "{label} mois n'est pas valide"
     },
     {
         "id": "disaster_event.form.validation.month_invalid",
@@ -8325,7 +8325,7 @@
     {
         "id": "disaster_event.form.stepper_status.optional",
         "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:1768",
-        "translation": "Facultatif"
+        "translation": "(Optionnel)"
     },
     {
         "id": "disaster_event.form.stepper_status.required",
@@ -8335,7 +8335,7 @@
     {
         "id": "disaster_event.form.url",
         "description": "File: app/frontend/disaster-event/DisasterEventLink.tsx:234",
-        "translation": "Adresse Web"
+        "translation": "URL"
     },
     {
         "id": "common.clear_all",
@@ -8375,12 +8375,12 @@
     {
         "id": "disaster_event.form.linked_records_search_description",
         "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:249",
-        "translation": "Recherchez et sélectionnez les fiches relatives à la catastrophe afin de les associer à cet événement."
+        "translation": "Recherchez et sélectionnez les enregistrements de catastrophes pour les relier à cet événement."
     },
     {
         "id": "disaster_event.form.linked_records_search_placeholder",
         "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:260",
-        "translation": "Recherche par classification des risques, date (aaaa-mm-jj), niveau géographique ou UUID..."
+        "translation": "Recherche par nom, classification des risques, date (aaaa-mm-jj), niveau géographique ou UUID..."
     },
     {
         "id": "disaster_event.form.locations_selected_multiple",
@@ -8390,7 +8390,7 @@
     {
         "id": "disaster_event.form.locations_selected_single",
         "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:287",
-        "translation": "{count} lieu sélectionné"
+        "translation": "{count} lieux sélectionnés"
     },
     {
         "id": "disaster_event.form.no_linked_records",
@@ -8420,7 +8420,7 @@
     {
         "id": "disaster_event.form.select_geographic_levels",
         "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:250",
-        "translation": "Sélectionner les niveaux géographiques"
+        "translation": "Sélectionner le niveau géographique"
     },
     {
         "id": "disaster_event.form.select_geographic_levels_description",
@@ -8450,12 +8450,12 @@
     {
         "id": "disaster_event.form.linked_hazardous_events_search_placeholder",
         "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:307",
-        "translation": "Recherche par classification des risques, date (aaaa-mm-jj), niveau géographique ou UUID..."
+        "translation": "Recherche par nom, classification des risques, date (aaaa-mm-jj), niveau géographique ou UUID..."
     },
     {
         "id": "disaster_event.form.linked_triggered_disaster_events_search_description",
         "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggered-disaster-events-modal.tsx:347",
-        "translation": "Recherchez et sélectionnez les sinistres qui ont été déclenchés par cet événement."
+        "translation": "Recherchez et sélectionnez les catastrophes déclenchées par cet événement."
     },
     {
         "id": "disaster_event.form.linked_triggered_disaster_events_search_placeholder",
