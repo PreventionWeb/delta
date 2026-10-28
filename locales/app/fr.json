@@ -5382,7 +5382,7 @@
     {
         "id": "user.setup_sso_email_requirement_please_use_same_email_as_invitation",
         "description": "File: routes/$lang+/user+/accept-invite-welcome.tsx:97",
-        "translation": "Note : Pour l'installation à l'aide de SSO, veuillez utiliser la même adresse e-mail que celle où vous avez reçu l'invitation."
+        "translation": "Note : Pour l'installation à l'aide de SSO, veuillez utiliser la même adresse e-mail que celle où vous avez reçu l'invitation."
     },
     {
         "id": "user.setup_using_sso",
@@ -5787,7 +5787,7 @@
     {
         "id": "user.role.super_admin.label",
         "description": "File: frontend/user/roles.ts:64",
-        "translation": "Super Admin"
+        "translation": "Super Administrateur"
     },
     {
         "id": "admin.country_account_type.official",
