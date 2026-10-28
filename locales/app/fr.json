@@ -5747,7 +5747,7 @@
     {
         "id": "user.role.can_do",
         "description": "File: routes/$lang+/settings+/access-mgmnt+/invite.tsx:371",
-        "translation": "Un {label} est capable de :"
+        "translation": "Un {label} est capable de :"
     },
     {
         "id": "user.role.data_collector.desc",
@@ -7148,7 +7148,7 @@
     {
         "id": "user.permission.edit_fictitious_country.label",
         "description": "File: app/frontend/user/roles.ts:242",
-        "translation": "Modifier un pays fictif"
+        "translation": "Editer le pays fictif"
     },
     {
         "id": "user.permission.view_country_accounts.label",
