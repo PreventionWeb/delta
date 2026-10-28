@@ -1987,7 +1987,7 @@
     {
         "id": "hazardous_event.causing",
         "description": "Label for the list of events caused by this event File: frontend/events/hazardeventform.tsx:688",
-        "translation": "Cause"
+        "translation": "Provoquant"
     },
     {
         "id": "hazardous_event.chains_explanation",
@@ -2037,7 +2037,7 @@
     {
         "id": "hazardous_event.record_status.draft",
         "description": "Label for draft record status File: frontend/events/hazardevent-filters.tsx:56",
-        "translation": "Projet"
+        "translation": "Brouillon"
     },
     {
         "id": "hazardous_event.record_status.needs_revision",
@@ -2072,12 +2072,12 @@
     {
         "id": "hazardous_event.select_parent_for_event",
         "description": "File: routes/$lang+/hazardous-event+/picker.tsx:28",
-        "translation": "Sélectionner un parent pour l'événement"
+        "translation": "Sélectionner le parent pour l'événement"
     },
     {
         "id": "hazardous_event.status",
         "description": "File: frontend/events/hazardeventform.tsx:132",
-        "translation": "Événement dangereux État"
+        "translation": "État de l’événement dangereux"
     },
     {
         "id": "hazardous_event.status.forecasted",
@@ -2092,12 +2092,12 @@
     {
         "id": "hazardous_event.status.passed",
         "description": "Label for passed hazardous event status File: frontend/events/hazardevent-filters.tsx:46",
-        "translation": "Adopté"
+        "translation": "Passé"
     },
     {
         "id": "hazardous_event.uuid",
         "description": "Label for the UUID of a hazardous event File: frontend/events/hazardeventlist.tsx:294",
-        "translation": "Événement dangereux UUID"
+        "translation": "UUID de l’événement dangereux"
     },
     {
         "id": "hazardous_events",
@@ -2107,7 +2107,7 @@
     {
         "id": "hazardous_events.showing_filtered_of_total",
         "description": "Shows how many hazardous events are displayed. {filtered} is the number of matching events, {total} is the total number of events. File: frontend/events/hazardeventlist.tsx:250",
-        "translation": "Montrant {filtered} de {total} événement(s) dangereux"
+        "translation": "Affichage de {filtered} événement(s) dangereux sur un total de {total}"
     },
     {
         "id": "hazardous_events_count_in_instance",
@@ -6137,7 +6137,7 @@
     {
         "id": "geographies.successfully_imported_records",
         "description": "File: routes/$lang+/settings+/geography+/upload.tsx:69",
-        "translation": "Importation réussie de {imported} enregistrements"
+        "translation": "{imported} enregistrements importés avec succès"
     },
     {
         "id": "human_effects.error.disaggregation_min_options",
