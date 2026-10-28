@@ -3077,12 +3077,12 @@
     {
         "id": "user_invite.new_email_text",
         "description": "File: backend.server/models/user/invite.ts:179",
-        "translation": "Vous avez été invité à rejoindre le système DELTA Resilience {siteName} en tant que\nun {role} utilisateur pour le pays {countryName} {countryAccountType}.\nCopiez et collez le lien suivant dans l'url de votre navigateur pour créer votre compte :\n{inviteURL}"
+        "translation": "Vous avez été invité à rejoindre le système DELTA Resilience {siteName} en tant que\nun {role} utilisateur pour le pays {countryName} {countryAccountType}.\nCopiez et collez le lien suivant dans l'url de votre navigateur pour créer votre compte :\n{inviteURL}"
     },
     {
         "id": "user_invite.welcome_email_html",
         "description": "File: backend.server/models/user/invite.ts:465",
-        "translation": "</p> <p>Cher {firstName} {lastName},</p> <p>Bienvenue au système DELTA Resilience {siteName}.\n</p> <p>Bienvenue sur le système DELTA Resilience {2}.Votre compte utilisateur a été créé avec succès.</p> <p>Cliquez sur le lien ci-dessous pour accéder à votre compte.\n<p>Cliquez sur le lien ci-dessous pour accéder à votre compte.</p>\n<p>\n<a href=\"{accessAccountURL}\" style=\"display : inline-block ; padding : 10px 20px ; font-size : 16px ; color : #ffffff ; background-color : #007BFF ; text-decoration : none ; border-radius : 5px ;\">\nAccéder au compte\n</a>\n</p>"
+        "translation": "</p> <p>Cher {firstName} {lastName},</p> <p>Bienvenue au système DELTA Resilience {siteName}.\n</p> <p>Bienvenue sur le système DELTA Resilience {2}.Votre compte utilisateur a été créé avec succès.</p> <p>Cliquez sur le lien ci-dessous pour accéder à votre compte.\n<p>Cliquez sur le lien ci-dessous pour accéder à votre compte.</p>\n<p>\n<a href=\"{accessAccountURL}\" style=\"display : inline-block ; padding : 10px 20px ; font-size : 16px ; color : #ffffff ; background-color : #007BFF ; text-decoration : none ; border-radius : 5px ;\">\nAccéder au compte\n</a>\n</p>"
     },
     {
         "id": "user_invite.welcome_email_subject",
@@ -3097,7 +3097,7 @@
     {
         "id": "user_password.password_insufficient_character_classes",
         "description": "File: backend.server/models/user/password.ts:147",
-        "translation": "Doit comprendre deux des éléments suivants : majuscules, minuscules, chiffres, lettres, caractères spéciaux."
+        "translation": "Doit comprendre deux des éléments suivants : majuscules, minuscules, chiffres, lettres, caractères spéciaux"
     },
     {
         "id": "user_password.password_same_as_current",
@@ -3157,7 +3157,7 @@
     {
         "id": "user_reset_password.user_not_found",
         "description": "File: backend.server/models/user/password.ts:83",
-        "translation": "Utilisateur non trouvé"
+        "translation": "Utilisateur introuvable"
     },
     {
         "id": "common.back_to_disaster_record",
@@ -5642,7 +5642,7 @@
     {
         "id": "user.delete_user",
         "description": "File: routes/$lang+/settings+/access-mgmnt+/edit.$id.tsx:552",
-        "translation": "Supprimer un utilisateur"
+        "translation": "Supprimer l'utilisateur"
     },
     {
         "id": "user.edit_user",
@@ -7083,7 +7083,7 @@
     {
         "id": "user_select_instance.loading_instance_msg",
         "description": "File: app/routes/$lang+/user+/select-instance.tsx:293",
-        "translation": "Nous sommes en train de récupérer les données ; cela peut prendre quelques minutes. Veuillez ne pas fermer la fenêtre."
+        "translation": "Nous sommes en train de récupérer les données ; cela peut prendre quelques minutes. Veuillez ne pas fermer la fenêtre."
     },
     {
         "id": "user_select_instance.loading_instance_title",
@@ -7098,7 +7098,7 @@
     {
         "id": "user_select_instance.no_instance_question",
         "description": "File: app/routes/$lang+/user+/select-instance.tsx:323",
-        "translation": "Vous ne trouvez pas l'instance qui vous convient ?"
+        "translation": "Vous ne trouvez pas l'instance qui vous convient ?"
     },
     {
         "id": "user_select_instance.no_selection_redirect_login",
