@@ -1987,7 +1987,7 @@
     {
         "id": "hazardous_event.causing",
         "description": "Label for the list of events caused by this event File: frontend/events/hazardeventform.tsx:688",
-        "translation": "Provoquant"
+        "translation": "Cause"
     },
     {
         "id": "hazardous_event.chains_explanation",
@@ -6137,7 +6137,7 @@
     {
         "id": "geographies.successfully_imported_records",
         "description": "File: routes/$lang+/settings+/geography+/upload.tsx:69",
-        "translation": "{imported} enregistrements importés avec succès"
+        "translation": "Importation réussie de {imported} enregistrements"
     },
     {
         "id": "human_effects.error.disaggregation_min_options",
