@@ -161,7 +161,7 @@
     },
     {
         "id": "asset.name.3f9dcebd-ed55-4fea-aeb7-105aa50f9f17.1b4f2e",
-        "translation": "Forages"
+        "translation": "forages"
     },
     {
         "id": "asset.name.3f603498-c258-4dfd-9eb7-d06eff817386.76b0af",
@@ -561,7 +561,7 @@
     },
     {
         "id": "asset.name.50cb4070-bbff-47d0-8f49-f1624546d9d7.ac7b79",
-        "translation": "Autres céréales, n.c.a."
+        "translation": "Autres céréales, n.c.a"
     },
     {
         "id": "asset.name.51a9ce6f-a8c5-42fc-82c0-e173c721d612.fbb525",
@@ -817,7 +817,7 @@
     },
     {
         "id": "asset.name.674d2a6d-ef36-40c2-84b4-545192682372.600d1f",
-        "translation": "Autres cultures perennes d'épices, n.c.a."
+        "translation": "Autres cultures permanentes d'épices, n.c.a"
     },
     {
         "id": "asset.name.714f7327-ead1-44bb-88c9-60410773ccef.07f510",
@@ -1429,7 +1429,7 @@
     },
     {
         "id": "asset.name.c94da795-3f88-4ddf-b092-b7ac0b83d469.29200f",
-        "translation": "Autres cultures oléagineuses temporaires, n.c.a."
+        "translation": "Autres cultures oléagineuses temporaires, n.c.a"
     },
     {
         "id": "asset.name.c0641bd2-2bc3-481c-bfd7-42f2f40e0b67.81308d",
@@ -1601,7 +1601,7 @@
     },
     {
         "id": "asset.name.ddfe13e9-9d67-49fa-b706-0f8a49c2d45e.036650",
-        "translation": "Autres cultures d'épices permanentes, n.c.a."
+        "translation": "Autres cultures permanentes d'épices, n.c.a-"
     },
     {
         "id": "asset.name.de5a74a9-f5a8-4979-bfcf-2ab813a90351.a8ac1b",
@@ -2481,7 +2481,7 @@
     },
     {
         "id": "hip_hazard.name.78522.e14929",
-        "translation": "Airburst"
+        "translation": "explosion aérienne"
     },
     {
         "id": "hip_hazard.name.78523.4b96c9",
@@ -2489,7 +2489,7 @@
     },
     {
         "id": "hip_hazard.name.78524.f4f747",
-        "translation": "Ultraviolet Radiation"
+        "translation": "Rayonnement ultraviolet"
     },
     {
         "id": "hip_hazard.name.78525.e98f3d",
@@ -2533,7 +2533,7 @@
     },
     {
         "id": "hip_hazard.name.78543.bb7e23",
-        "translation": "Lahars"
+        "translation": "Coulée boueuse volcanique"
     },
     {
         "id": "hip_hazard.name.78546.293e4d",
@@ -2649,7 +2649,7 @@
     },
     {
         "id": "hip_hazard.name.78582.577ad4",
-        "translation": "Haze"
+        "translation": "Brume"
     },
     {
         "id": "hip_hazard.name.78584.a39527",
@@ -2665,7 +2665,7 @@
     },
     {
         "id": "hip_hazard.name.78587.76746d",
-        "translation": "Rogue Wave"
+        "translation": "Vague scélérate"
     },
     {
         "id": "hip_hazard.name.78588.fbc942",
@@ -2745,7 +2745,7 @@
     },
     {
         "id": "hip_hazard.name.78608.1452af",
-        "translation": "Givre (Givre blanc)"
+        "translation": "Gel (Givre)"
     },
     {
         "id": "hip_hazard.name.78609.aab2cb",
@@ -2781,11 +2781,11 @@
     },
     {
         "id": "hip_hazard.name.78619.6cd374",
-        "translation": "Gale (Strong Gale)"
+        "translation": "Coup de vent (Fort coup de vent)"
     },
     {
         "id": "hip_hazard.name.78620.9b31aa",
-        "translation": "Squall"
+        "translation": "Bourrasque"
     },
     {
         "id": "hip_hazard.name.78622.d11603",
@@ -3205,7 +3205,7 @@
     },
     {
         "id": "sector.name.1e3bc7ec-a023-4a1f-aadd-d77b3cc12ab4.6f4301",
-        "translation": "Fabrication de produits en cuir et de produits connexes"
+        "translation": "Fabrication de produits en cuir et de produits connexes. "
     },
     {
         "id": "sector.name.1e4cc659-c250-4f90-a107-294a85034790.04f33c",
@@ -3273,7 +3273,7 @@
     },
     {
         "id": "sector.name.3ff29932-17dc-401c-ab1d-ee84f682f228.1c8cf7",
-        "translation": "Fabrication de produits chimiques"
+        "translation": "Fabrication de produits chimiques. "
     },
     {
         "id": "sector.name.4a39d053-a4cf-41f8-93c0-7c30e60f3b42.558984",
@@ -3389,7 +3389,7 @@
     },
     {
         "id": "sector.name.6c05c5c3-321c-42b4-beef-c89d4d04f9a0.58dec2",
-        "translation": " Fabrication de machines et d'équipements"
+        "translation": " Fabrication de machines et d'équipements. "
     },
     {
         "id": "sector.name.6c9c7298-1808-46d6-bbfc-a6adca79bf30.2f35f5",
@@ -3417,7 +3417,7 @@
     },
     {
         "id": "sector.name.7c29f01a-f0f2-425e-b076-9cf981a5768d.64dc1b",
-        "translation": " Extraction de minerais métalliques"
+        "translation": " Extraction de minerais métalliques. "
     },
     {
         "id": "sector.name.7c468c3e-806c-4196-b17a-7d21dbca4d7b.dac93c",
@@ -3437,7 +3437,7 @@
     },
     {
         "id": "sector.name.7dc1b459-d76c-45e4-aa13-e3abc4b2f21d.c00b02",
-        "translation": " Extraction de pétrole brut et de gaz naturel"
+        "translation": " Extraction de pétrole brut et de gaz naturel. "
     },
     {
         "id": "sector.name.7f43540e-aa42-4f64-9e94-1b8441394a29.dac93c",
@@ -3457,7 +3457,7 @@
     },
     {
         "id": "sector.name.8b4e9bac-6b73-4781-8318-7abc35516cf1.113966",
-        "translation": " Fabrication de produits pharmaceutiques de base et de préparations pharmaceutiques"
+        "translation": " . Fabrication de produits pharmaceutiques de base et de préparations pharmaceutiques. "
     },
     {
         "id": "sector.name.8b6b1396-8cd6-4e1d-9959-b24e7c1e120c.c90099",
@@ -3473,7 +3473,7 @@
     },
     {
         "id": "sector.name.8ebd270d-05ce-4239-83bf-5390d62626b6.16c611",
-        "translation": " Fabrication de meubles"
+        "translation": " . Fabrication de meubles. "
     },
     {
         "id": "sector.name.8f48c5d3-b8c7-4972-a874-101709f28868.d7b488",
@@ -3509,7 +3509,7 @@
     },
     {
         "id": "sector.name.17e8b94c-2362-4dd9-89e0-4240df53110a.1d227e",
-        "translation": "Large scale sanitation"
+        "translation": "Assainissement à grande échelle"
     },
     {
         "id": "sector.name.18a71ba6-7ce6-46ec-a109-b22e55c96742.270a76",
@@ -3541,11 +3541,11 @@
     },
     {
         "id": "sector.name.27a3a37b-c0ca-422c-b62c-b6cb48d2eeb3.4359a6",
-        "translation": "Fabrication de produits informatiques, électroniques et optiques"
+        "translation": "Fabrication de produits informatiques, électroniques et optiques. "
     },
     {
         "id": "sector.name.28a159d2-393b-41f6-bf49-ec06cb3fe962.0c86dc",
-        "translation": "Gouvernement"
+        "translation": "Gouvernement. "
     },
     {
         "id": "sector.name.30c2090f-5751-4920-a01f-9c80b3f225bd.9193f7",
@@ -3557,7 +3557,7 @@
     },
     {
         "id": "sector.name.32f349cc-a884-477a-a9cb-a3dbd82a6396.106681",
-        "translation": "Travail du bois et fabrication d'articles en bois et en liège, à l'exception des meubles, fabrication d'articles en vannerie et sparterie"
+        "translation": "Travail du bois et fabrication d'articles en bois et en liège, à l'exception des meubles, fabrication d'articles en vannerie et sparterie. "
     },
     {
         "id": "sector.name.033fa443-4b45-4755-9ac9-eef89703f598.ef629a",
@@ -3629,7 +3629,7 @@
     },
     {
         "id": "sector.name.69e9e911-89ea-494a-ba94-d594d4ae7697.758270",
-        "translation": "les connaissances traditionnelles,"
+        "translation": "les connaissances traditionnelles,. "
     },
     {
         "id": "sector.name.74e0f62a-e9c7-48b6-8882-6988bb474899.ebdad9",
@@ -3665,7 +3665,7 @@
     },
     {
         "id": "sector.name.91fba313-7f2e-41f7-9ab9-dcfe7f8e01ae.e3036f",
-        "translation": " Fabrication de boissons"
+        "translation": " . Fabrication de boissons. "
     },
     {
         "id": "sector.name.92b69a99-1512-4142-9257-3da487c12596.3f5a37",
@@ -3725,7 +3725,7 @@
     },
     {
         "id": "sector.name.613c270d-1f39-4c69-869d-7f0d0b2c567f.efa077",
-        "translation": "Fabrication de véhicules automobiles, de remorques et de semi-remorques"
+        "translation": "Fabrication de véhicules automobiles, de remorques et de semi-remorques. "
     },
     {
         "id": "sector.name.630e9cad-91ad-4926-ba8e-b60371f5f4fd.416273",
@@ -3745,7 +3745,7 @@
     },
     {
         "id": "sector.name.750b090b-b564-4da9-a176-b7d041a0e0d0.35ce66",
-        "translation": "Fabrication de produits alimentaires"
+        "translation": "Fabrication de produits alimentaires. "
     },
     {
         "id": "sector.name.755cc4c7-e571-4123-b785-5ae5860de70d.55f864",
@@ -3765,7 +3765,7 @@
     },
     {
         "id": "sector.name.853f7da3-df07-48da-b2b6-50ae0c4034a8.084b2e",
-        "translation": "Traitement physique de l'eau"
+        "translation": "Traitement physique de l'eau. "
     },
     {
         "id": "sector.name.870c5468-2d47-434e-94fb-9fc3c3306b0e.46865c",
@@ -3777,11 +3777,11 @@
     },
     {
         "id": "sector.name.893f398a-37e6-4934-8112-d7d8989cf537.5fe606",
-        "translation": "Fabrication de produits en caoutchouc et en plastique"
+        "translation": "Fabrication de produits en caoutchouc et en plastique. "
     },
     {
         "id": "sector.name.920e07c3-d109-4ea8-b3df-4e9d76fe794e.d0d960",
-        "translation": "Traiteur et autres activités de restauration,"
+        "translation": "Traiteur et autres activités de restauration,. "
     },
     {
         "id": "sector.name.948d0024-f77c-444a-820c-9a0e9a2a1961.03fbf0",
@@ -3809,7 +3809,7 @@
     },
     {
         "id": "sector.name.2620f256-b5fb-4da5-b7ca-c7fe9a0cbb2c.3c8d99",
-        "translation": "Transport ferroviaire"
+        "translation": "Transport ferroviaire. "
     },
     {
         "id": "sector.name.2635d93d-724b-48ae-b1f4-ff794334dfce.7ab78b",
@@ -3825,7 +3825,7 @@
     },
     {
         "id": "sector.name.5089f10a-2674-4bc0-8c2f-c2d0077d0972.03ad75",
-        "translation": "Distribution d'eau par canalisation"
+        "translation": "Distribution d'eau par canalisation. "
     },
     {
         "id": "sector.name.6443ee09-b5de-419c-910d-669b6e96a6d5.12a28f",
@@ -3937,7 +3937,7 @@
     },
     {
         "id": "sector.name.1279965a-ab82-4e3d-97ce-40c02ed58a5e.09f0c8",
-        "translation": "Mer et littoral"
+        "translation": "Mer et littoral. "
     },
     {
         "id": "sector.name.2207291f-04e2-4779-b10b-57f921b59bbf.fa2809",
@@ -3949,7 +3949,7 @@
     },
     {
         "id": "sector.name.7891381c-b7a9-4fe8-bbfa-bb8fcc3d9c26.2a1a5b",
-        "translation": "Extraction de charbon et de lignite"
+        "translation": "Extraction de charbon et de lignite. "
     },
     {
         "id": "sector.name.7982185b-6fea-4159-a4a1-2a302473ed55.9e614e",
@@ -3989,7 +3989,7 @@
     },
     {
         "id": "sector.name.41744964-bb4e-4da4-8547-340d3f6df50f.ad400b",
-        "translation": "festivals,"
+        "translation": "festivals,..  "
     },
     {
         "id": "sector.name.a0a82c7e-8575-4218-950b-228bbc3cb31f.e8ac96",
@@ -4005,7 +4005,7 @@
     },
     {
         "id": "sector.name.a04acdb4-f30f-4f2e-911c-17352f4cc940.17dd9e",
-        "translation": "Fabrication d'autres matériels de transport"
+        "translation": "Fabrication d'autres matériels de transport. "
     },
     {
         "id": "sector.name.a4c97a9f-2fb1-4210-a989-b8a9289d0610.03e120",
@@ -4045,7 +4045,7 @@
     },
     {
         "id": "sector.name.a722a6de-49bb-4d82-ba90-59bf2cda7fd0.4965e4",
-        "translation": "rituels,"
+        "translation": "rituels,. "
     },
     {
         "id": "sector.name.a906b6a2-6bf0-49c0-9553-e62f93123b23.057a44",
@@ -4053,7 +4053,7 @@
     },
     {
         "id": "sector.name.a2597dc0-2032-421e-9848-7034e715dbc4.95643b",
-        "translation": "Fabrication de textiles"
+        "translation": "Fabrication de textiles. "
     },
     {
         "id": "sector.name.a54887da-b58d-44be-90fa-91849e9856cb.564ba2",
@@ -4077,7 +4077,7 @@
     },
     {
         "id": "sector.name.ad895a04-068e-4cac-9fd1-aba6d3a154e2.ec1f39",
-        "translation": "Transport par pipeline"
+        "translation": "Transport par pipeline. "
     },
     {
         "id": "sector.name.adc919fb-f4b3-4314-87ae-42b13f85186e.ec1dca",
@@ -4089,7 +4089,7 @@
     },
     {
         "id": "sector.name.aeb21813-7ffd-4a89-b046-2570b3ddb8ab.6f34ac",
-        "translation": "Services d'appui"
+        "translation": "Services d'appui. "
     },
     {
         "id": "sector.name.b1dfc9d3-9b54-4d02-81d3-637988b4d0a2.c23108",
@@ -4201,7 +4201,7 @@
     },
     {
         "id": "sector.name.c61cfa1e-0ebe-4362-8e1a-07b1f72f0716.fa6442",
-        "translation": "secondaire"
+        "translation": "secondaire. "
     },
     {
         "id": "sector.name.c82d7874-ab80-497f-8bdb-52e0e885c11b.5ac694",
@@ -4237,7 +4237,7 @@
     },
     {
         "id": "sector.name.ca3709b9-e04c-4b56-9454-dd17994cf137.6397b0",
-        "translation": "Autres industries extractives"
+        "translation": "Autres industries extractives..  "
     },
     {
         "id": "sector.name.caf3cc98-6395-427a-b785-983ab9a2124b.8c7ada",
@@ -4281,7 +4281,7 @@
     },
     {
         "id": "sector.name.ce1d178d-96ea-43d9-88e2-469d01f0d600.eed775",
-        "translation": "Hébergement dans des terrains de camping, des parcs pour véhicules de loisirs et des parcs pour caravanes,"
+        "translation": "Hébergement dans des terrains de camping, des parcs pour véhicules de loisirs et des parcs pour caravanes,. "
     },
     {
         "id": "sector.name.ce23b2a5-506a-4b99-88d9-6ef1ff3e4a45.a5e8bd",
@@ -4361,7 +4361,7 @@
     },
     {
         "id": "sector.name.da8c1129-b486-4e19-8094-58c3bb2568d0.2ae81e",
-        "translation": "Tribunaux"
+        "translation": "Tribunaux. "
     },
     {
         "id": "sector.name.da9f4174-6ffc-4a38-b307-7a49e8fc0f4c.32128e",
@@ -4429,7 +4429,7 @@
     },
     {
         "id": "sector.name.dfc398b4-ba68-4fcc-8dba-f14480ab9952.e9cc00",
-        "translation": "Distribution du gaz"
+        "translation": "Distribution du gaz. "
     },
     {
         "id": "sector.name.dfdea11e-f480-4a9e-90cc-be0aad7d281d.de4c81",
@@ -4441,7 +4441,7 @@
     },
     {
         "id": "sector.name.e1fe4767-6a35-436e-acdf-ae943e490d5b.8175dc",
-        "translation": "Raffinerie de pétrole"
+        "translation": "Raffinerie de pétrole. "
     },
     {
         "id": "sector.name.e03d35db-ef39-45a2-aa7b-e87110794294.285a76",
@@ -4449,7 +4449,7 @@
     },
     {
         "id": "sector.name.e5b25acf-d490-407c-8f0a-490b96c5f627.1fd781",
-        "translation": "Activités de débit de boissons dans les bars, les tavernes, les bars à cocktails, les discothèques, les salons de bière et les pubs, les cafés, les bars à jus de fruits et les vendeurs de boissons ambulants."
+        "translation": "Activités de débit de boissons dans les bars, les tavernes, les bars à cocktails, les discothèques, les salons de bière et les pubs, les cafés, les bars à jus de fruits et les vendeurs de boissons ambulants. "
     },
     {
         "id": "sector.name.e5f7dd46-ab53-4585-8fbe-08bc10ab1607.2790e2",
@@ -4485,7 +4485,7 @@
     },
     {
         "id": "sector.name.e4375f70-3fa0-48ec-b127-9618fc59535a.b0800d",
-        "translation": " Fabrication d'équipements électriques"
+        "translation": " Fabrication d'équipements électriques. "
     },
     {
         "id": "sector.name.e7249d26-c14a-4c8a-8b78-9fcb5aefc946.cdad5a",
@@ -4501,7 +4501,7 @@
     },
     {
         "id": "sector.name.e366836c-a373-4286-a312-71654fc4dbdf.a7bf12",
-        "translation": "Activités de télécommunication par satellite,"
+        "translation": "Activités de télécommunication par satellite,. "
     },
     {
         "id": "sector.name.ed2b7a44-fd4b-46b4-9c86-98d1a4a1d15f.982cdd",
@@ -4537,7 +4537,7 @@
     },
     {
         "id": "sector.name.f34e60af-384a-4045-8325-ddbdad75e67e.026dce",
-        "translation": "langue"
+        "translation": "langue. "
     },
     {
         "id": "sector.name.f57c9597-420a-4df4-94a2-bd12345b7584.f0e8e0",
