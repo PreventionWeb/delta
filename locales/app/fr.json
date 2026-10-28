@@ -2242,7 +2242,7 @@
     {
         "id": "human_effects",
         "description": "File: routes/$lang+/disaster-record+/edit.$id.tsx:268",
-        "translation": "Effets sur l'homme"
+        "translation": "Effets humains"
     },
     {
         "id": "human_effects.affected_old_desinventar",
@@ -3582,7 +3582,7 @@
     {
         "id": "human_effects.affected",
         "description": "File: frontend/human_effects/defs.ts:27",
-        "translation": "Affecté"
+        "translation": "Touché"
     },
     {
         "id": "human_effects.age",
@@ -3602,7 +3602,7 @@
     {
         "id": "human_effects.age_group.elder",
         "description": "Age group for elderly, 65 years and older. Display uses (65-) format. File: backend.server/models/human_effects.ts:499",
-        "translation": "Personne âgée (65 ans et plus)"
+        "translation": "Ancien (65-)"
     },
     {
         "id": "human_effects.as_of",
@@ -6652,7 +6652,7 @@
     {
         "id": "hip.unknown_cluster",
         "description": "File: routes/$lang+/analytics+/hazards.tsx:386",
-        "translation": "Groupe inconnu"
+        "translation": "Cluster inconnu"
     },
     {
         "id": "hip.unknown_hazard",
