@@ -3992,7 +3992,7 @@
     {
         "id": "sectors.id",
         "description": "File: frontend/asset-content-picker-config.tsx:25",
-        "translation": "Id"
+        "translation": "ID de secteur"
     },
     {
         "id": "sectors.name",
@@ -7042,7 +7042,7 @@
         "translation": {
             "one": "Pour votre sécurité, votre session expirera dans {n} minute en raison d'une inactivité prolongée.",
             "many": "Pour votre sécurité, votre session expirera dans {n} minutes en raison d'une inactivité prolongée.",
-            "other": ""
+            "other": "Pour votre sécurité, votre session expirera dans {n} minute en raison d'une inactivité prolongée."
         }
     },
     {
