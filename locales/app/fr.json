@@ -3652,7 +3652,7 @@
     {
         "id": "human_effects.custom_disaggregations",
         "description": "File: routes/$lang+/settings+/human-effects-dsg+/custom.tsx:125",
-        "translation": "Effets humains : Désagrégations personnalisées"
+        "translation": "Effets humains : Désagrégations personnalisées"
     },
     {
         "id": "human_effects.custom_disaggregations.add",
@@ -3697,7 +3697,7 @@
     {
         "id": "human_effects.disability.multiple_deaf_blindness",
         "description": "Type of disability. File: backend.server/models/human_effects.ts:624",
-        "translation": "Multiple, surdité et cécité"
+        "translation": "Multiple, cécité sourde"
     },
     {
         "id": "human_effects.disability.multiple_other_multiple",
