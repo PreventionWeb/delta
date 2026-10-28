@@ -2132,12 +2132,12 @@
     {
         "id": "hip.cluster",
         "description": "File: frontend/events/hazardevent-filters.tsx:203",
-        "translation": "Cluster"
+        "translation": "Groupe"
     },
     {
         "id": "hip.cluster_short",
         "description": "HIP hazard cluster (in HIP classification context, short) File: frontend/hip/hip.tsx:34",
-        "translation": "Cluster"
+        "translation": "Groupe"
     },
     {
         "id": "hip.enter_hazard_name_or_hips_id",
@@ -2147,7 +2147,7 @@
     {
         "id": "hip.error_processing_hazard_clusters",
         "description": "File: frontend/analytics/sectors/sections/Filters.tsx:311",
-        "translation": "Traitement des erreurs grappes de risques"
+        "translation": "Erreur lors du traitement des regroupements de risques"
     },
     {
         "id": "hip.error_processing_hazard_types",
@@ -2157,12 +2157,12 @@
     {
         "id": "hip.error_processing_specific_hazards",
         "description": "File: frontend/analytics/sectors/sections/Filters.tsx:397",
-        "translation": "Traitement des erreurs Risques spécifiques"
+        "translation": "Erreur lors du traitement de risques spécifiques"
     },
     {
         "id": "hip.failed_to_process_hazard_clusters",
         "description": "File: frontend/analytics/sectors/sections/Filters.tsx:312",
-        "translation": "Échec du traitement des données sur les grappes d'aléas. Veuillez réessayer plus tard."
+        "translation": "Le traitement des données relatives aux regroupements de risques a échoué. Veuillez réessayer plus tard."
     },
     {
         "id": "hip.failed_to_process_hazard_types",
@@ -2207,7 +2207,7 @@
     {
         "id": "hip.hazard_type",
         "description": "Label for hazard type File: frontend/events/hazardeventlist.tsx:278",
-        "translation": "Type de danger"
+        "translation": "Type de risque"
     },
     {
         "id": "hip.select_cluster",
