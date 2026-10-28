@@ -1912,7 +1912,7 @@
     {
         "id": "disaster_records.edit",
         "description": "File: frontend/disaster-record/form.tsx:278",
-        "translation": "Modifier les dossiers de catastrophe"
+        "translation": "Modifier le registre des catastrophes"
     },
     {
         "id": "disaster_records.showing_filtered_of_total",
@@ -4567,12 +4567,12 @@
     {
         "id": "disaster_records.disruptions.edit_label",
         "description": "File: frontend/disruption.tsx:46",
-        "translation": "Perturbations de l'édition"
+        "translation": "Modifier les perturbations"
     },
     {
         "id": "disaster_records.disruptions.sector_effects",
         "description": "File: routes/$lang+/disaster-record+/edit-sub.$disRecId+/disruptions+/_index.tsx:125",
-        "translation": "Perturbations : Effets sectoriels : {sectorFullPath}"
+        "translation": "Perturbations : Effets sectoriels : {sectorFullPath}"
     },
     {
         "id": "disaster_records.disruptions.title",
@@ -4582,7 +4582,7 @@
     {
         "id": "disaster_records.id",
         "description": "File: frontend/damages.tsx:402",
-        "translation": "ID de l'enregistrement de la catastrophe"
+        "translation": "Identifiant du dossier de catastrophe"
     },
     {
         "id": "disaster_records.losses",
