@@ -4652,7 +4652,7 @@
     {
         "id": "disaster_records.losses.sector_effects",
         "description": "File: routes/$lang+/disaster-record+/edit-sub.$disRecId+/losses+/_index.tsx:120",
-        "translation": "Pertes : Effets de secteur : {sectorFullPath}"
+        "translation": "Pertes : Effets de secteur : {sectorFullPath}"
     },
     {
         "id": "disaster_records.losses.select_type_first",
