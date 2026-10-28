@@ -2832,7 +2832,7 @@
     {
         "id": "settings.system.system_email_routing_configuration",
         "description": "File: routes/$lang+/settings+/system.tsx:276",
-        "translation": "Routage des e-mails"
+        "translation": "Configuration de l'acheminement du courrier électronique du système"
     },
     {
         "id": "settings.system.system_language",
