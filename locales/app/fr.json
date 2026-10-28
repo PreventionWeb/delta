@@ -2312,7 +2312,7 @@
     {
         "id": "nav.analysis.disaster_events",
         "description": "File: frontend/header/header.tsx:121",
-        "translation": "Catastrophes"
+        "translation": "Événements catastrophiques"
     },
     {
         "id": "nav.analysis.hazards",
@@ -2357,7 +2357,7 @@
     {
         "id": "nav.disaster_events",
         "description": "File: frontend/header/header.tsx:255",
-        "translation": "Catastrophes"
+        "translation": "Événements catastrophiques"
     },
     {
         "id": "nav.disaster_records",
@@ -2582,7 +2582,7 @@
     {
         "id": "record.status.draft",
         "description": "File: components/ListLegend.tsx:24",
-        "translation": "Projet"
+        "translation": "Brouillon"
     },
     {
         "id": "record.status.needs_revision",
@@ -2707,7 +2707,7 @@
     {
         "id": "settings.access_mgmnt.current_user_count",
         "description": "File: routes/$lang+/settings+/access-mgmnt+/_index.tsx:153",
-        "translation": "Le système compte actuellement [{totalUsers}] utilisateurs."
+        "translation": "Actuellement, le système compte [{totalUsers}] utilisateurs."
     },
     {
         "id": "settings.access_mgmnt.date_added",
@@ -2727,7 +2727,7 @@
     {
         "id": "settings.access_mgmnt.delete_user_title",
         "description": "File: routes/$lang+/settings+/access-mgmnt+/edit.$id.tsx:552",
-        "translation": "Êtes-vous sûr de vouloir supprimer cet utilisateur ?"
+        "translation": "Supprimer l'utilisateur"
     },
     {
         "id": "settings.access_mgmnt.generated_system_identifier",
@@ -2752,7 +2752,7 @@
     {
         "id": "settings.sectors.table_view",
         "description": "File: routes/$lang+/settings+/sectors.tsx:173",
-        "translation": "Table view"
+        "translation": "Affichage sous forme de tableau"
     },
     {
         "id": "settings.sectors.tree_view",
@@ -2767,7 +2767,7 @@
     {
         "id": "settings.system.application_url",
         "description": "File: routes/$lang+/settings+/system.tsx:317",
-        "translation": "Application URL"
+        "translation": "URL de l'application"
     },
     {
         "id": "settings.system.approved_records_visibility",
@@ -2832,7 +2832,7 @@
     {
         "id": "settings.system.system_email_routing_configuration",
         "description": "File: routes/$lang+/settings+/system.tsx:276",
-        "translation": "Configuration de l'acheminement du courrier électronique du système"
+        "translation": "Routage des e-mails"
     },
     {
         "id": "settings.system.system_language",
@@ -3897,17 +3897,17 @@
     {
         "id": "human_effects.sex",
         "description": "Sex (Possible values: male, female, other non-binary) File: backend.server/models/human_effects.ts:432",
-        "translation": "Le sexe"
+        "translation": "Sexe"
     },
     {
         "id": "human_effects.sex.f",
         "description": "Abbreviation for female sex. Format: 'Letter-Description' (e.g. F-Female). File: backend.server/models/human_effects.ts:453",
-        "translation": "F-Femme"
+        "translation": "F – Féminin"
     },
     {
         "id": "human_effects.sex.m",
         "description": "Abbreviation for male sex. Format: 'Letter-Description' (e.g. M-Male). File: backend.server/models/human_effects.ts:445",
-        "translation": "M-Male"
+        "translation": "M – Masculin"
     },
     {
         "id": "human_effects.sex.o",
@@ -3977,7 +3977,7 @@
     {
         "id": "human_effects.your_configuration",
         "description": "File: routes/$lang+/settings+/human-effects-dsg+/custom.tsx:132",
-        "translation": "Your configuration"
+        "translation": "Votre configuration"
     },
     {
         "id": "sectors",
@@ -4892,7 +4892,7 @@
     {
         "id": "unit.duration",
         "description": "File: frontend/unit_picker.tsx:47",
-        "translation": "Duration"
+        "translation": "Durée"
     },
     {
         "id": "unit.gallons",
@@ -5042,12 +5042,12 @@
     {
         "id": "user.disable_totp",
         "description": "File: routes/$lang+/user+/totp-disable.tsx:85",
-        "translation": "Disable TOTP"
+        "translation": "Désactiver TOTP"
     },
     {
         "id": "user.disable_totp_button",
         "description": "File: routes/$lang+/user+/totp-disable.tsx:96",
-        "translation": "Disable TOTP"
+        "translation": "Désactiver TOTP"
     },
     {
         "id": "user.disable_totp_link",
@@ -5672,7 +5672,7 @@
     {
         "id": "user.permission.edit_api_keys.label",
         "description": "File: frontend/user/roles.ts:131",
-        "translation": "Edit API Keys"
+        "translation": "Modifier les clés API"
     },
     {
         "id": "user.permission.edit_data.label",
@@ -6227,7 +6227,7 @@
     {
         "id": "meta.disaster_events_analysis",
         "description": "File: routes/$lang+/analytics+/disaster-events.tsx:403",
-        "translation": "Analyse des catastrophes"
+        "translation": "Analyse des événements catastrophiques"
     },
     {
         "id": "meta.edit_user",
@@ -6292,7 +6292,7 @@
     {
         "id": "meta.sectors_page",
         "description": "File: routes/$lang+/disaster-record+/edit-sec.$disRecId+/_index.tsx:43",
-        "translation": "Sectors page"
+        "translation": "Page secteurs"
     },
     {
         "id": "meta.sign_in_super_admin",
@@ -6959,7 +6959,7 @@
     {
         "id": "human_effects.men",
         "description": "File: app/routes/$lang+/analytics+/disaster-events.tsx:1105",
-        "translation": "Mais"
+        "translation": "Hommes"
     },
     {
         "id": "human_effects.other_non_binary",
@@ -7048,7 +7048,7 @@
     {
         "id": "settings.system.instance_configuration",
         "description": "File: app/routes/$lang+/settings+/system.tsx:295",
-        "translation": "Instance configuration"
+        "translation": "Configuration de l'instance"
     },
     {
         "id": "settings.system.software",
@@ -8155,7 +8155,7 @@
     {
         "id": "nav.human_effects",
         "description": "File: app/components/RegularMenuBar.tsx:413",
-        "translation": "Effets sur l'homme"
+        "translation": "Effets humains"
     },
     {
         "id": "no_disaster_events_found",
@@ -8245,7 +8245,7 @@
     {
         "id": "user.permission.disaster_event_list.label",
         "description": "File: app/frontend/user/roles.ts:157",
-        "translation": "Liste des catastrophes"
+        "translation": "Liste des événements catastrophiques"
     },
     {
         "id": "user.permission.edit_disaster_event.label",
@@ -8565,7 +8565,7 @@
     {
         "id": "human_effects.disaggregation_details",
         "description": "File: app/routes/$lang+/disaster-record+/$id.tsx:400",
-        "translation": "Détails de la ventilation"
+        "translation": "Détails de la désagrégation"
     },
     {
         "id": "nav.about_the_system_description",
@@ -8595,7 +8595,7 @@
     {
         "id": "nav.disaster_records_description",
         "description": "File: app/components/RegularMenuBar.tsx:261",
-        "translation": "Documentation complète relative aux sinistres"
+        "translation": "Documentation complète en cas de catastrophe"
     },
     {
         "id": "nav.hazardous_events_description",
@@ -8605,7 +8605,7 @@
     {
         "id": "nav.human_effects_description",
         "description": "File: app/components/RegularMenuBar.tsx:444",
-        "translation": "Gérer les ventilations"
+        "translation": "Gérer les désagrégations"
     },
     {
         "id": "nav.organization_management_description",
