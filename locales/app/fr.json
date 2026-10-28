@@ -357,7 +357,7 @@
     {
         "id": "analysis.human_effects.total_people_affected_tooltip",
         "description": "File: routes/$lang+/analytics+/disaster-events.tsx:811",
-        "translation": "Le nombre total de personnes affectées est la somme des blessés, des disparus, des personnes directement affectées et des personnes déplacées."
+        "translation": "Le nombre total de personnes affectées est la somme des blessés, des disparus, des personnes directement affectées et des personnes déplacées"
     },
     {
         "id": "analysis.impact_by_geographic_level",
@@ -832,7 +832,7 @@
     {
         "id": "analysis.total_people_affected_tooltip",
         "description": "File: frontend/analytics/hazards/sections/HumanAffects.tsx:101",
-        "translation": "Le nombre total de personnes touchées est la somme des blessés, des disparus, des personnes directement touchées et des personnes déplacées."
+        "translation": "Le nombre total de personnes touchées est la somme des blessés, des disparus, des personnes directement touchées et des personnes déplacées"
     },
     {
         "id": "analysis.total_people_directly_affected",
@@ -1517,7 +1517,7 @@
     {
         "id": "common.unset",
         "description": "Label for unset or clear value action File: frontend/events/hazardeventform.tsx:567",
-        "translation": "Unset"
+        "translation": "Non défini"
     },
     {
         "id": "common.updated",
@@ -1597,7 +1597,7 @@
     {
         "id": "disaster_event.duration_days",
         "description": "File: frontend/events/disastereventform.tsx:326",
-        "translation": "Duration (days)"
+        "translation": "Durée (jours)"
     },
     {
         "id": "disaster_event.duration_days_description",
@@ -1762,12 +1762,12 @@
     {
         "id": "disaster_event.rehabilitation_costs_local_currency_override",
         "description": "File: frontend/events/disastereventform.tsx:553",
-        "translation": "Frais de réparation - total en monnaie locale"
+        "translation": "Coûts de réadaptation - total en monnaie locale"
     },
     {
         "id": "disaster_event.repair_costs_local_currency_override",
         "description": "File: frontend/events/disastereventform.tsx:562",
-        "translation": "Coûts de remplacement - total en monnaie locale"
+        "translation": "Coûts de réparation - total en monnaie locale"
     },
     {
         "id": "disaster_event.replacement_costs_local_currency_override",
@@ -1777,7 +1777,7 @@
     {
         "id": "disaster_event.response_cost_total_local_currency",
         "description": "Label for emergency response cost total in local currency File: frontend/events/disastereventform.tsx:508",
-        "translation": "(Urgence) Coût de l'intervention - total - en USD"
+        "translation": "Coût de l'intervention (d'urgence) — Total — en monnaie locale"
     },
     {
         "id": "disaster_event.response_cost_total_usd",
@@ -1857,7 +1857,7 @@
     {
         "id": "disaster_record.count_header",
         "description": "Header text showing total number of disaster records and instance name. {total_items} is the number of records, {instance_name} is the name of the current instance. File: routes/$lang+/disaster-record+/_index.tsx:102",
-        "translation": "{total} événements catastrophiques dans {instance_name}"
+        "translation": "{total_items} dossiers liés à des catastrophes dans {instance_name}"
     },
     {
         "id": "disaster_record.data_collector",
@@ -1877,7 +1877,7 @@
     {
         "id": "disaster_record.location_description",
         "description": "File: frontend/disaster-record/form.tsx:42",
-        "translation": "Location description"
+        "translation": "Description du lieu"
     },
     {
         "id": "disaster_record.other_data_source",
@@ -2217,7 +2217,7 @@
     {
         "id": "hip.select_hazard",
         "description": "File: frontend/hip/hazardpicker.tsx:272",
-        "translation": "Sélectionner le danger"
+        "translation": "Sélectionner un risque"
     },
     {
         "id": "hip.select_hazard_type",
@@ -2897,7 +2897,7 @@
     {
         "id": "spatial_footprint.longitude",
         "description": "Label for longitude value (short) File: components/ContentRepeater/index.tsx:1640",
-        "translation": "Lng"
+        "translation": "Lnghttps://tools.undrr.org/weblate/js/ignore-check/23934/"
     },
     {
         "id": "spatial_footprint.map_coordinates",
@@ -2972,7 +2972,7 @@
     {
         "id": "user_login.forgot_password",
         "description": "Link text for forgot password on login form File: routes/$lang+/user+/login.tsx:382",
-        "translation": "Mot de passe oublié?"
+        "translation": "Mot de passe oublié ?"
     },
     {
         "id": "user_login.intro",
@@ -3037,7 +3037,7 @@
     {
         "id": "user_change_password.new_password_required",
         "description": "File: backend.server/models/user/password.ts:242",
-        "translation": "Un nouveau mot de passe est requis."
+        "translation": "Un nouveau mot de passe est requis"
     },
     {
         "id": "user_change_password.user_not_found",
@@ -3132,7 +3132,7 @@
     {
         "id": "user_reset_password.password_change_confirmation_email_html",
         "description": "File: backend.server/models/user/password.ts:200",
-        "translation": "<p>Votre mot de passe a été modifié avec succès. Si vous n'avez pas demandé ce changement, veuillez contacter votre administrateur."
+        "translation": "<p>Votre mot de passe a été modifié avec succès. Si vous n'avez pas demandé ce changement, veuillez contacter votre administrateur.</p>"
     },
     {
         "id": "user_reset_password.password_change_confirmation_email_subject",
@@ -3447,12 +3447,12 @@
     {
         "id": "disaster_event.no_permission_delete",
         "description": "File: backend.server/models/event.ts:1595",
-        "translation": "Vous n'avez pas l'autorisation de mettre à jour cet événement catastrophique."
+        "translation": "Vous n'avez pas l'autorisation de mettre à jour cet événement catastrophique"
     },
     {
         "id": "disaster_event.no_permission_update",
         "description": "File: backend.server/models/event.ts:1313",
-        "translation": "Vous n'avez pas l'autorisation de supprimer cet événement catastrophique."
+        "translation": "Vous n'avez pas l'autorisation de supprimer cet événement catastrophique"
     },
     {
         "id": "disaster_event.select",
@@ -3467,7 +3467,7 @@
     {
         "id": "email.validation_workflow.body_needs_revision_html",
         "description": "File: backend.server/services/emailValidationWorkflowService.ts:258",
-        "translation": "<p>Cher {submitterName},</p> <p>Votre {recordTypeData} a été renvoyé pour révision.\n<p>Votre {1} a été renvoyé pour révision.</p> <p>Les commentaires de {0} sont les bienvenus.\n<p>Commentaires : {rejectionComments}</p>\n<p><a href=\"{recordUrl}\">Voir et modifier l'enregistrement</a></p> <p>Les commentaires de {1} ont été retournés pour révision."
+        "translation": "<p>Cher {submitterName},</p> <p>Votre {recordTypeData} a été renvoyé pour révision.\n<p>Votre {1} a été renvoyé pour révision.</p> <p>Les commentaires de {0} sont les bienvenus.\n<p>Commentaires : {rejectionComments}</p>\n<p><a href=\"{recordUrl}\">Voir et modifier l'enregistrement</a></p> <p>Les commentaires de {1} ont été retournés pour révision"
     },
     {
         "id": "email.validation_workflow.body_needs_revision_text",
@@ -3477,7 +3477,7 @@
     {
         "id": "email.validation_workflow.body_published_html",
         "description": "File: backend.server/services/emailValidationWorkflowService.ts:221",
-        "translation": "</p> <p>Cher {submitterName},</p> <p>Votre {recordTypeData} a été publié.\n<p>Votre {1} a été publié et est maintenant accessible au public.</p> <p><a href=\"{recordUrl}\">Voir l'enregistrement</a></p> <p>\n</p><a href=\"{2}\">Voir l'enregistrement</a></p><a href=\"{2}\">Voir l'enregistrement</a>."
+        "translation": "</p> <p>Cher {submitterName},</p> <p>Votre {recordTypeData} a été publié.\n<p>Votre {1} a été publié et est maintenant accessible au public.</p> <p><a href=\"{recordUrl}\">Voir l'enregistrement</a></p> <p>\n</p><a href=\"{2}\">Voir l'enregistrement</a></p><a href=\"{2}\">Voir l'enregistrement</a>"
     },
     {
         "id": "email.validation_workflow.body_published_text",
@@ -3487,7 +3487,7 @@
     {
         "id": "email.validation_workflow.body_validated_html",
         "description": "File: backend.server/services/emailValidationWorkflowService.ts:303",
-        "translation": "<p>Cher {submitterName},</p> <p>Votre {recordTypeData} a été validé.\n<p>Votre {1} a été validé.</p> <p><a href=\"{recordUrl}\">Voir l'enregistrement</a></p> <p>\n<p><a href=\"{2}\">Voir l'enregistrement</a></p> <p>L'enregistrement a été validé."
+        "translation": "<p>Cher {submitterName},</p> <p>Votre {recordTypeData} a été validé.\n<p>Votre {1} a été validé.</p> <p><a href=\"{recordUrl}\">Voir l'enregistrement</a></p> <p>\n<p><a href=\"{2}\">Voir l'enregistrement</a></p> <p>L'enregistrement a été validé"
     },
     {
         "id": "email.validation_workflow.body_validated_text",
@@ -3792,7 +3792,7 @@
     {
         "id": "human_effects.error.no_dimension_data",
         "description": "Error shown when a row has no dimension data but is not a totals row. File: frontend/editabletable/validate.ts:144",
-        "translation": "Il existe une ligne sans données de dimension (et il ne s'agit pas d'une ligne de totaux)."
+        "translation": "Il existe une ligne sans données de dimension (et il ne s'agit pas d'une ligne de totaux)"
     },
     {
         "id": "human_effects.error.row_with_all_metrics_zeroes",
@@ -4272,7 +4272,7 @@
     {
         "id": "disaster_record.damages.add_label",
         "description": "File: frontend/damages.tsx:357",
-        "translation": "Ajouter un nouveau dommage"
+        "translation": "Ajouter des dégâts"
     },
     {
         "id": "disaster_record.damages.amount_of_units",
@@ -4352,7 +4352,7 @@
     {
         "id": "disaster_record.damages.total_repair_or_replacement_cost",
         "description": "File: backend.server/models/damages.ts:62",
-        "translation": "Coût total {repairOrReplacement}"
+        "translation": "Coût total de la réparation ou du remplacement"
     },
     {
         "id": "disaster_record.damages.total_repair_replacement",
@@ -4377,7 +4377,7 @@
     {
         "id": "disaster_record.damages.unit_repair_or_replacement_cost",
         "description": "File: backend.server/models/damages.ts:44",
-        "translation": "Coût total {repairOrReplacement}"
+        "translation": "Coût unitaire {réparation ou remplacement}"
     },
     {
         "id": "disaster_record.damages_sector_effects_path",
@@ -4387,17 +4387,17 @@
     {
         "id": "disaster_record.disruption",
         "description": "File: frontend/damages.tsx:375",
-        "translation": "Perturbations"
+        "translation": "Perturbation"
     },
     {
         "id": "disaster_record.disruption.add",
         "description": "File: frontend/damages.tsx:373",
-        "translation": "Ajouter des perturbations"
+        "translation": "Ajouter une perturbation"
     },
     {
         "id": "disaster_record.disruption.hide",
         "description": "File: frontend/damages.tsx:374",
-        "translation": "Ajouter des perturbations"
+        "translation": "Masquer les perturbations"
     },
     {
         "id": "disaster_record.disruption_section_title",
@@ -4427,7 +4427,7 @@
     {
         "id": "disaster_record.has_disruption",
         "description": "File: routes/$lang+/disaster-record+/edit-sec.$disRecId+/_index.tsx:461",
-        "translation": "Perturbations"
+        "translation": "A perturbé"
     },
     {
         "id": "disaster_record.has_losses",
@@ -4442,7 +4442,7 @@
     {
         "id": "disaster_record.losses_section_title",
         "description": "File: routes/$lang+/disaster-record+/edit-sec.$disRecId+/_index.tsx:372",
-        "translation": "ID des pertes"
+        "translation": "Pertes"
     },
     {
         "id": "disaster_record.recovery_cost",
@@ -4487,7 +4487,7 @@
     {
         "id": "disaster_records.disruption.comment",
         "description": "File: routes/$lang+/disaster-record+/edit-sub.$disRecId+/disruptions+/_index.tsx:136",
-        "translation": "Comment"
+        "translation": "Commentaire"
     },
     {
         "id": "disaster_records.disruption.currency",
@@ -4507,7 +4507,7 @@
     {
         "id": "disaster_records.disruption.duration_hours",
         "description": "File: backend.server/models/disruption.ts:44",
-        "translation": "Duration (hours)"
+        "translation": "Durée (heures)"
     },
     {
         "id": "disaster_records.disruption.duration_hours_must_be_gte_zero",
@@ -4977,7 +4977,7 @@
     {
         "id": "assets.is_custom",
         "description": "File: routes/$lang+/settings+/assets+/_index.tsx:39",
-        "translation": "Est-il personnalisé ?"
+        "translation": "Est-il personnalisé"
     },
     {
         "id": "assets.is_custom_question",
@@ -5327,7 +5327,7 @@
     {
         "id": "common.short_description",
         "description": "File: routes/$lang+/admin+/country-accounts.tsx:257",
-        "translation": "Short description"
+        "translation": "Brève description"
     },
     {
         "id": "common.signin",
@@ -5507,7 +5507,7 @@
     {
         "id": "users.password.numbers",
         "description": "File: routes/$lang+/user+/accept-invite.tsx:400",
-        "translation": "Chiffres"
+        "translation": "Nombres"
     },
     {
         "id": "users.password.special_characters",
@@ -5517,7 +5517,7 @@
     {
         "id": "users.password.two_conditions",
         "description": "Password must include two of the specified character types File: routes/$lang+/user+/accept-invite.tsx:380",
-        "translation": "Doit comprendre deux des éléments suivants :"
+        "translation": "Doit inclure deux des éléments suivants :"
     },
     {
         "id": "users.password.uppercase",
@@ -5537,7 +5537,7 @@
     {
         "id": "users.reset_your_password",
         "description": "File: routes/$lang+/user+/reset-password.tsx:109",
-        "translation": "Réinitialiser votre mot de passe"
+        "translation": "Réinitialisez votre mot de passe"
     },
     {
         "id": "users.send_again",
@@ -5822,7 +5822,7 @@
     {
         "id": "geographies.edit_division",
         "description": "File: frontend/division.tsx:28",
-        "translation": "Edit division"
+        "translation": "Modifier la division"
     },
     {
         "id": "geographies.name_with_lang",
@@ -5857,7 +5857,7 @@
     {
         "id": "api_keys.edit",
         "description": "File: frontend/api_key.tsx:101",
-        "translation": "Edit API key"
+        "translation": "Modifier la clé API"
     },
     {
         "id": "assets",
@@ -5877,7 +5877,7 @@
     {
         "id": "assets.edit",
         "description": "File: frontend/asset.tsx:35",
-        "translation": "Edit asset"
+        "translation": "Modifier un élément"
     },
     {
         "id": "disaster_record.add_new",
@@ -5967,7 +5967,7 @@
     {
         "id": "analysis.hazard_events_distribution_tooltip",
         "description": "Tooltip describing the distribution of events for a given hazard over time. File: frontend/analytics/hazards/sections/ImpactByHazard.tsx:160",
-        "translation": "Distribution des événements {hazard} dans le temps montrant la fréquence et les tendances"
+        "translation": "Distribution des événements {hazard} dans le temps montrant la fréquence et les tendances."
     },
     {
         "id": "analysis.hazard_impacts_across_country",
@@ -6492,7 +6492,7 @@
     {
         "id": "common.provide_comments",
         "description": "File: frontend/form.tsx:1717",
-        "translation": "Fournissez des commentaires sur les modifications à apporter à cet enregistrement."
+        "translation": "Fournissez des commentaires sur les modifications à apporter à cet enregistrement"
     },
     {
         "id": "common.publish_undrr_instance",
@@ -6532,7 +6532,7 @@
     {
         "id": "common.returned_to_submitter_for_changes",
         "description": "File: frontend/form.tsx:1544",
-        "translation": "L'événement ci-dessous a été renvoyé à son auteur pour modification."
+        "translation": "L'événement ci-dessous a été renvoyé à son auteur pour modification"
     },
     {
         "id": "common.returned_with_comments",
@@ -6607,7 +6607,7 @@
     {
         "id": "common.validated_and_ready_to_publish",
         "description": "File: frontend/form.tsx:1549",
-        "translation": "L'événement ci-dessous a été validé et est prêt à être publié."
+        "translation": "L'événement ci-dessous a été validé et est prêt à être publié"
     },
     {
         "id": "common.view_all_events",
@@ -6712,17 +6712,17 @@
     {
         "id": "human_effects.group_doesnt_have_disaggregations_set",
         "description": "File: frontend/editabletable/view.tsx:176",
-        "translation": "Le groupe n'a pas défini de désagrégations."
+        "translation": "Le groupe n'a pas défini de désagrégations"
     },
     {
         "id": "human_effects.select_group_to_use_as_source_for_total",
         "description": "File: frontend/editabletable/view.tsx:190",
-        "translation": "Veuillez sélectionner un groupe à utiliser comme source pour le total."
+        "translation": "Veuillez sélectionner un groupe à utiliser comme source pour le total"
     },
     {
         "id": "human_effects.your_changes_have_been_saved_on_server",
         "description": "File: frontend/editabletable/view.tsx:229",
-        "translation": "Vos modifications ont été enregistrées sur le serveur."
+        "translation": "Vos modifications ont été enregistrées sur le serveur"
     },
     {
         "id": "user_login.enter_your_email",
@@ -6754,7 +6754,7 @@
     },
     {
         "id": "admin.delete_instance_confirm_message",
-        "translation": "Etes-vous certain de vouloir supprimer cette instance? Aucun retour en arrière possible"
+        "translation": "Etes-vous certain de vouloir supprimer cette instance ? Aucun retour en arrière possible."
     },
     {
         "id": "admin.edit_fictitious_country",
@@ -6894,7 +6894,7 @@
     {
         "id": "content_repeater.file_upload_max_size_error",
         "description": "{maxSizeMB} is replaced with the max file size in MB. File: app/components/ContentRepeater/PreUploadFile.tsx:69",
-        "translation": "Une erreur s'est produite lors du traitement du téléchargement du fichier ; la taille du fichier dépasse la limite de {maxSizeMB} Mo."
+        "translation": "Une erreur s'est produite lors du traitement du téléchargement du fichier ; la taille du fichier dépasse la limite de {maxSizeMB} Mo"
     },
     {
         "id": "geographies.edit_division_subtitle",
@@ -7560,7 +7560,7 @@
     {
         "id": "disaster_event.form.loading_linked_triggered_events_selector",
         "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4568",
-        "translation": "Chargement du sélecteur d'événements déclenchés liés"
+        "translation": "Sélecteur d'événements déclenchés liés en cours de chargement"
     },
     {
         "id": "disaster_event.form.loading_linked_triggered_hazardous_events_selector",
@@ -7570,12 +7570,12 @@
     {
         "id": "disaster_event.form.loading_linked_triggering_events_selector",
         "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4521",
-        "translation": "Chargement du sélecteur d'événements dangereux liés au déclenchement"
+        "translation": "Chargement du sélecteur d'événements déclencheurs associés"
     },
     {
         "id": "disaster_event.form.loading_linked_triggering_hazardous_events_selector",
         "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4410",
-        "translation": "Chargement du sélecteur d'événements dangereux déclenchés par un lien"
+        "translation": "Chargement du sélecteur d'événements dangereux liés à un déclenchement"
     },
     {
         "id": "disaster_event.form.loading_spatial_footprint_editor",
@@ -7590,7 +7590,7 @@
     {
         "id": "disaster_event.form.manage_linked_triggered_events",
         "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4444",
-        "translation": "Gérer les événements déclencheurs associés"
+        "translation": "Gérer les événements déclenchés associés"
     },
     {
         "id": "disaster_event.form.manage_linked_triggering_events",
@@ -7665,17 +7665,17 @@
     {
         "id": "disaster_event.form.select_hazard_cluster",
         "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4041",
-        "translation": "Sélectionner un groupe"
+        "translation": "Sélectionner un groupe de risques"
     },
     {
         "id": "disaster_event.form.select_hazard_type",
         "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4002",
-        "translation": "Sélectionner le danger"
+        "translation": "Sélectionnez le type de risque"
     },
     {
         "id": "disaster_event.form.select_sectors",
         "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:5068",
-        "translation": "Sélectionner un secteur"
+        "translation": "Sélectionner les secteurs"
     },
     {
         "id": "disaster_event.form.select_status",
@@ -7685,7 +7685,7 @@
     {
         "id": "disaster_event.form.select_type",
         "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4906",
-        "translation": "Sélectionner la date"
+        "translation": "Sélectionner le type"
     },
     {
         "id": "disaster_event.form.spatial_footprint_description",
@@ -7760,7 +7760,7 @@
     {
         "id": "disaster_event.form.validation.is_invalid",
         "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:909",
-        "translation": "{label} mois n'est pas valide"
+        "translation": "{label} n'est pas valide"
     },
     {
         "id": "disaster_event.form.validation.month_invalid",
@@ -8030,7 +8030,7 @@
     {
         "id": "disruption.duration_hours",
         "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:420",
-        "translation": "Duration (hours)"
+        "translation": "Durée (heures)"
     },
     {
         "id": "disruption.people_affected",
@@ -8220,7 +8220,7 @@
     {
         "id": "unit.miles",
         "description": "File: app/frontend/unit_picker.tsx:180",
-        "translation": "Miles (mi)"
+        "translation": "Milles (mi)"
     },
     {
         "id": "unit.millimeters",
@@ -8270,7 +8270,7 @@
     {
         "id": "common.provide_comments_for_return",
         "description": "File: app/frontend/components/data-collection/View.tsx:115",
-        "translation": "Veuillez formuler vos commentaires concernant les modifications à apporter à cette fiche."
+        "translation": "Veuillez formuler vos commentaires concernant les modifications à apporter à cette fiche"
     },
     {
         "id": "common.something_went_wrong",
@@ -8380,7 +8380,7 @@
     {
         "id": "disaster_event.form.linked_records_search_placeholder",
         "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-disaster-records-modal.tsx:260",
-        "translation": "Recherche par nom, classification des risques, date (aaaa-mm-jj), niveau géographique ou UUID..."
+        "translation": "Recherche par classification des risques, date (aaaa-mm-jj), niveau géographique ou UUID..."
     },
     {
         "id": "disaster_event.form.locations_selected_multiple",
@@ -8420,7 +8420,7 @@
     {
         "id": "disaster_event.form.select_geographic_levels",
         "description": "File: app/routes/$lang+/disaster-event+/edit.$id.affected-areas-modal.tsx:250",
-        "translation": "Sélectionner le niveau géographique"
+        "translation": "Sélectionner les niveaux géographiques"
     },
     {
         "id": "disaster_event.form.select_geographic_levels_description",
@@ -8450,7 +8450,7 @@
     {
         "id": "disaster_event.form.linked_hazardous_events_search_placeholder",
         "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:307",
-        "translation": "Recherche par nom, classification des risques, date (aaaa-mm-jj), niveau géographique ou UUID..."
+        "translation": "Recherche par classification des risques, date (aaaa-mm-jj), niveau géographique ou UUID..."
     },
     {
         "id": "disaster_event.form.linked_triggered_disaster_events_search_description",
@@ -8465,7 +8465,7 @@
     {
         "id": "disaster_event.form.manage_linked_triggering_hazardous_events",
         "description": "File: app/routes/$lang+/disaster-event+/edit.$id.linked-triggering-hazardous-events-modal.tsx:279",
-        "translation": "Gérer les événements dangereux liés (causaux)"
+        "translation": "Gérer les événements dangereux déclencheurs liés (causaux)"
     },
     {
         "id": "disaster_event.form.no_disaster_events_available",
