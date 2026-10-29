@@ -17,12 +17,12 @@ describe("requireViewDataPermission", () => {
 		mockGetUserRoleFromSession.mockReset();
 	});
 
-	it("resolves without throwing for a role that has ViewData", async () => {
+	it("resolves with the role for a role that has ViewData", async () => {
 		mockGetUserRoleFromSession.mockResolvedValue("data-viewer");
 
-		await expect(
-			requireViewDataPermission(makeArgs()),
-		).resolves.toBeUndefined();
+		await expect(requireViewDataPermission(makeArgs())).resolves.toBe(
+			"data-viewer",
+		);
 	});
 
 	it("throws a 403 Response with error.code FORBIDDEN for a role without ViewData", async () => {
