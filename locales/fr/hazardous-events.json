@@ -14,6 +14,26 @@
 		},
 		"page_size": "{{count}} / page"
 	},
+	"filters": {
+		"hazard_type": "Type d'aléa",
+		"all_hazard_types": "Tous les types d'aléa",
+		"cluster": "Groupe",
+		"all_clusters": "Tous les groupes",
+		"specific_hazard": "Aléa spécifique",
+		"enter_hazard_name_or_hips_id": "Saisir le nom de l'aléa ou l'identifiant HIPS...",
+		"from": "Du",
+		"to": "Au",
+		"recording_organization": "Organisme d'enregistrement",
+		"search_organization": "Rechercher un organisme...",
+		"hazardous_event_status": "Statut de l'événement dangereux",
+		"all_event_statuses": "Tous les statuts d'événement",
+		"record_status": "Statut de l'enregistrement",
+		"all_record_statuses": "Tous les statuts d'enregistrement",
+		"view_my_records": "Voir mes enregistrements",
+		"pending_my_action": "En attente de mon action",
+		"clear": "Effacer",
+		"apply_filters": "Appliquer les filtres"
+	},
 	"status": {
 		"draft": "Brouillon",
 		"waiting_for_validation": "En attente de validation",
