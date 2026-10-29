@@ -10,10 +10,13 @@ import { throwHazardousEventLoaderError } from "./throwHazardousEventLoaderError
  *
  * MUST be called after `requireUser()`/`resolveTenantId()` — calling it first wrongly 403s an
  * authenticated user who simply hasn't picked a tenant yet, instead of redirecting them.
+ *
+ * Returns the resolved role so callers that also need it (the list loader, for its data-viewer
+ * filter restriction) don't re-run `getUserRoleFromSession` a second time.
  */
 export async function requireViewDataPermission(args: {
 	request: Request;
-}): Promise<void> {
+}): Promise<string | undefined> {
 	const role = await getUserRoleFromSession(args.request);
 	if (!roleHasPermission(role, "ViewData")) {
 		throwHazardousEventLoaderError(
@@ -24,4 +27,5 @@ export async function requireViewDataPermission(args: {
 			},
 		);
 	}
+	return role;
 }
