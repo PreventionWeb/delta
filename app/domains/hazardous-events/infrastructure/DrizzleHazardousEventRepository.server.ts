@@ -1,5 +1,18 @@
 import { Injectable, Inject } from "@nestjs/common";
-import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import {
+	and,
+	asc,
+	desc,
+	eq,
+	exists,
+	ilike,
+	inArray,
+	isNull,
+	or,
+	sql,
+	type SQL,
+} from "drizzle-orm";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import type { Dr, Tx } from "~/db.server";
 import { DRIZZLE_CLIENT } from "~/infrastructure/DrizzleProvider.server";
 import { getPinoLogger } from "~/infrastructure/logging/PinoLogger.server";
@@ -21,6 +34,7 @@ import {
 	type HazardousEventProps,
 } from "../domain/HazardousEvent";
 import type {
+	HazardousEventRepositoryFilters,
 	IHazardousEventRepository,
 	SpatialObservationRecord,
 } from "../application/ports/IHazardousEventRepository";
@@ -29,6 +43,9 @@ import { eventTable } from "~/drizzle/schema/eventTable";
 import { eventRelationshipTable } from "~/drizzle/schema/eventRelationshipTable";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import { divisionTable } from "~/drizzle/schema/divisionTable";
+import { specificHazardTable } from "./specificHazardTable";
+import { hazardClusterTable } from "./hazardClusterTable";
+import { workflowInstanceTable } from "~/domains/validation-workflow/infrastructure/workflowInstanceTable";
 import {
 	hazardousEventTable,
 	type InsertHazardousEvent,
@@ -68,6 +85,12 @@ const EMPTY_CHILD_COLLECTIONS: ChildCollections = {
 	fieldValues: [],
 	customFieldValues: [],
 };
+
+/** Escapes a value's own literal `%`/`_` before it's wrapped in ILIKE wildcards, so an organization
+ * name containing either matches itself, not a wildcard. */
+function escapeLikePattern(value: string): string {
+	return value.replace(/[%_\\]/g, "\\$&");
+}
 
 @Injectable()
 export class DrizzleHazardousEventRepository implements IHazardousEventRepository {
@@ -328,16 +351,189 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 		return this.rehydrate(rows[0], children.get(id) ?? EMPTY_CHILD_COLLECTIONS);
 	}
 
+	/** Legacy's own hazardevent.ts:116-151 partial-date CASE ladder, ported verbatim per filter
+	 * dimension (design.md Decision 6) -- both sides parsed at the row's own detected precision, so
+	 * a year-only stored value compares at year precision against any fromDate/toDate given. */
+	private dateCondition(
+		column: AnyPgColumn,
+		operator: ">=" | "<=",
+		value: string,
+	): SQL {
+		const cmp = operator === ">=" ? sql`>=` : sql`<=`;
+		// Safe cast: and() with 2 fixed args is never undefined, just typed loosely.
+		return and(
+			sql`${column} != ''`,
+			sql`
+				CASE
+					WHEN ${column} ~ '^[0-9]{4}$' THEN TO_DATE(${column}, 'YYYY') ${cmp} TO_DATE(${value}, 'YYYY')
+					WHEN ${column} ~ '^[0-9]{4}-[0-9]{1}$' THEN TO_DATE(${column}, 'YYYY-MM') ${cmp} TO_DATE(${value}, 'YYYY-MM')
+					WHEN ${column} ~ '^[0-9]{4}-[0-9]{2}$' THEN TO_DATE(${column}, 'YYYY-MM') ${cmp} TO_DATE(${value}, 'YYYY-MM')
+					WHEN ${column} ~ '^[0-9]{4}-[0-9]{1}-[0-9]{1}$' THEN TO_DATE(${column}, 'YYYY-MM-DD') ${cmp} TO_DATE(${value}, 'YYYY-MM-DD')
+					WHEN ${column} ~ '^[0-9]{4}-[0-9]{1}-[0-9]{2}$' THEN TO_DATE(${column}, 'YYYY-MM-DD') ${cmp} TO_DATE(${value}, 'YYYY-MM-DD')
+					WHEN ${column} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{1}$' THEN TO_DATE(${column}, 'YYYY-MM-DD') ${cmp} TO_DATE(${value}, 'YYYY-MM-DD')
+					WHEN ${column} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(${column}, 'YYYY-MM-DD') ${cmp} TO_DATE(${value}, 'YYYY-MM-DD')
+				ELSE
+					${column} ${cmp} ${value}
+				END
+			`,
+		) as SQL;
+	}
+
+	/** EXISTS against this event's own workflow_instance row, ANDed with `extra` -- shared by every
+	 * workflow_instance-backed filter dimension below so the `(entityId, entityType)` correlation
+	 * has exactly one place to change. */
+	private workflowInstanceExists(extra: SQL): SQL {
+		return exists(
+			this.db
+				.select({ one: sql`1` })
+				.from(workflowInstanceTable)
+				.where(
+					and(
+						eq(workflowInstanceTable.entityId, hazardousEventTable.id),
+						eq(workflowInstanceTable.entityType, "HE"),
+						extra,
+					),
+				),
+		);
+	}
+
+	/** One EXISTS per workflow_instance-backed dimension, not a JOIN, which would drop rows with
+	 * none (design.md Decision 2). Shared by findAll/countAll so filter logic can't diverge (Risks). */
+	private buildListConditions(
+		tenantId: string,
+		filters: HazardousEventRepositoryFilters,
+	): SQL | undefined {
+		const conditions = [eq(hazardousEventTable.countryAccountsId, tenantId)];
+
+		if (filters.specificHazardId) {
+			conditions.push(
+				eq(hazardousEventTable.specificHazardId, filters.specificHazardId),
+			);
+		}
+
+		if (filters.hazardClusterId) {
+			conditions.push(
+				inArray(
+					hazardousEventTable.specificHazardId,
+					this.db
+						.select({ id: specificHazardTable.id })
+						.from(specificHazardTable)
+						.where(
+							eq(specificHazardTable.hazardClusterId, filters.hazardClusterId),
+						),
+				),
+			);
+		}
+
+		if (filters.hazardTypeId) {
+			conditions.push(
+				inArray(
+					hazardousEventTable.specificHazardId,
+					this.db
+						.select({ id: specificHazardTable.id })
+						.from(specificHazardTable)
+						.innerJoin(
+							hazardClusterTable,
+							eq(hazardClusterTable.id, specificHazardTable.hazardClusterId),
+						)
+						.where(eq(hazardClusterTable.hazardTypeId, filters.hazardTypeId)),
+				),
+			);
+		}
+
+		if (filters.recordStatus) {
+			conditions.push(
+				this.workflowInstanceExists(
+					eq(workflowInstanceTable.status, filters.recordStatus),
+				),
+			);
+		}
+
+		if (filters.allowedStatuses && filters.allowedStatuses.length > 0) {
+			conditions.push(
+				this.workflowInstanceExists(
+					inArray(workflowInstanceTable.status, [...filters.allowedStatuses]),
+				),
+			);
+		}
+
+		if (filters.viewMyRecords && filters.userId) {
+			// Safe cast: or() with 2 fixed args is never undefined, just typed loosely.
+			conditions.push(
+				or(
+					eq(hazardousEventTable.createdByUserId, filters.userId),
+					this.workflowInstanceExists(
+						// Safe cast: or() with 3 fixed args is never undefined, just typed loosely.
+						or(
+							eq(workflowInstanceTable.validatedByUserId, filters.userId),
+							eq(workflowInstanceTable.approvedByUserId, filters.userId),
+							eq(workflowInstanceTable.publishedByUserId, filters.userId),
+						) as SQL,
+					),
+				) as SQL,
+			);
+		}
+
+		if (filters.pendingMyAction && filters.userId) {
+			conditions.push(
+				this.workflowInstanceExists(
+					// Safe cast: and() with 2 fixed args is never undefined, just typed loosely.
+					and(
+						eq(workflowInstanceTable.status, "REVISION_REQUESTED"),
+						eq(workflowInstanceTable.submittedByUserId, filters.userId),
+					) as SQL,
+				),
+			);
+		}
+
+		if (filters.fromDate) {
+			conditions.push(
+				this.dateCondition(
+					hazardousEventTable.startDate,
+					">=",
+					filters.fromDate,
+				),
+			);
+		}
+
+		if (filters.toDate) {
+			conditions.push(
+				this.dateCondition(hazardousEventTable.endDate, "<=", filters.toDate),
+			);
+		}
+
+		if (filters.recordingOrganization) {
+			conditions.push(
+				ilike(
+					hazardousEventTable.recordOriginator,
+					`%${escapeLikePattern(filters.recordingOrganization)}%`,
+				),
+			);
+		}
+
+		if (filters.hazardousEventStatus) {
+			conditions.push(
+				eq(
+					hazardousEventTable.hazardousEventStatus,
+					filters.hazardousEventStatus,
+				),
+			);
+		}
+
+		return and(...conditions);
+	}
+
 	/** `updated_at desc, id` ordering -- matches legacy's own hazardevent.ts:244 orderBy
 	 * (most-recently-updated first); `id` is a tiebreaker for deterministic pagination. */
 	async findAll(
 		tenantId: string,
 		pagination: Pagination,
+		filters: HazardousEventRepositoryFilters = {},
 	): Promise<HazardousEvent[]> {
 		const rows = await this.db
 			.select()
 			.from(hazardousEventTable)
-			.where(eq(hazardousEventTable.countryAccountsId, tenantId))
+			.where(this.buildListConditions(tenantId, filters))
 			.orderBy(desc(hazardousEventTable.updatedAt), asc(hazardousEventTable.id))
 			.limit(pagination.pageSize)
 			.offset((pagination.page - 1) * pagination.pageSize);
@@ -368,14 +564,18 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 		return entities;
 	}
 
-	async countAll(tenantId: string, tx?: Tx): Promise<number> {
+	async countAll(
+		tenantId: string,
+		filters: HazardousEventRepositoryFilters = {},
+		tx?: Tx,
+	): Promise<number> {
 		// ::int required: bare count(*) is Postgres bigint, returned as a string by
 		// node-postgres at runtime -- PGlite doesn't reproduce this, so don't rely on
 		// these tests to catch its removal.
 		const [row] = await (tx ?? this.db)
 			.select({ count: sql<number>`count(*)::int` })
 			.from(hazardousEventTable)
-			.where(eq(hazardousEventTable.countryAccountsId, tenantId));
+			.where(this.buildListConditions(tenantId, filters));
 		// Safe: an unqualified aggregate with no GROUP BY always returns exactly one row.
 		return row.count;
 	}

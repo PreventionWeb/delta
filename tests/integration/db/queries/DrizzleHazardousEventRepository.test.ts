@@ -28,6 +28,12 @@ import { WorkflowInstance } from "~/domains/validation-workflow/domain/WorkflowI
 import { DrizzleHazardTaxonomyRepository } from "~/domains/hazardous-events/infrastructure/DrizzleHazardTaxonomyRepository.server";
 import { DrizzleCausalChainRepository } from "~/domains/hazardous-events/infrastructure/DrizzleCausalChainRepository.server";
 import { DrizzleTransactionRunner } from "~/infrastructure/DrizzleTransactionRunner.server";
+import { workflowInstanceTable } from "~/domains/validation-workflow/infrastructure/workflowInstanceTable";
+import { hipsVersionTable } from "~/domains/hazardous-events/infrastructure/hipsVersionTable";
+import { hazardTypeTable } from "~/domains/hazardous-events/infrastructure/hazardTypeTable";
+import { hazardClusterTable } from "~/domains/hazardous-events/infrastructure/hazardClusterTable";
+import { specificHazardTable } from "~/domains/hazardous-events/infrastructure/specificHazardTable";
+import { seedTextContent } from "../models/textContentTestHelpers";
 import { UpdateHazardousEventUseCase } from "~/domains/hazardous-events/application/use-cases/UpdateHazardousEvent";
 import type { ILogger } from "~/shared/logging/ILogger";
 import { HazardousEvent } from "~/domains/hazardous-events/domain/HazardousEvent";
@@ -41,6 +47,7 @@ import {
 import {
 	seedCountryAccount,
 	seedSpecificHazard,
+	seedUser,
 } from "../models/hazardousEventTestHelpers";
 import { seedFieldDefinitionDeps } from "../models/hazardTypeFieldDefinitionTestHelpers";
 
@@ -90,6 +97,10 @@ interface RawHazardousEventOverrides {
 	tenantId?: string;
 	specificHazardId?: string | null;
 	startDate?: string;
+	endDate?: string;
+	recordOriginator?: string;
+	hazardousEventStatus?: "forecasted" | "ongoing" | "passed";
+	createdByUserId?: string | null;
 	updatedAt?: Date | null;
 	createdAt?: Date;
 }
@@ -112,19 +123,94 @@ async function seedRawHazardousEvent(
 		countryAccountsId: tenantId,
 		specificHazardId,
 		startDate: overrides.startDate ?? "2026-01-01",
-		endDate: "",
+		endDate: overrides.endDate ?? "",
 		nationalSpecification: "",
 		description: "",
 		chainsExplanation: "",
 		magnitude: "",
-		recordOriginator: "",
+		recordOriginator: overrides.recordOriginator ?? "",
 		dataSource: "",
+		createdByUserId: overrides.createdByUserId ?? null,
 		updatedAt: overrides.updatedAt ?? null,
 		...(overrides.createdAt !== undefined
 			? { createdAt: overrides.createdAt }
 			: {}),
+		...(overrides.hazardousEventStatus !== undefined
+			? { hazardousEventStatus: overrides.hazardousEventStatus }
+			: {}),
 	});
 	return { id: event.id, tenantId: tenantId as string };
+}
+
+/** Full type->cluster->specificHazard chain; returns all three ids, unlike seedSpecificHazard()'s leaf-only id. */
+async function seedTaxonomyChain(): Promise<{
+	hazardTypeId: string;
+	hazardClusterId: string;
+	specificHazardId: string;
+}> {
+	const [hipsVersion] = await dr
+		.insert(hipsVersionTable)
+		.values({ versionNo: `HIPs ${randomUUID()}` })
+		.returning({ id: hipsVersionTable.id });
+	const [type] = await dr
+		.insert(hazardTypeTable)
+		.values({
+			id: randomUUID(),
+			nameTextContentId: await seedTextContent(`Type ${randomUUID()}`),
+			hipsVersionId: hipsVersion.id,
+		})
+		.returning({ id: hazardTypeTable.id });
+	const [cluster] = await dr
+		.insert(hazardClusterTable)
+		.values({
+			id: randomUUID(),
+			nameTextContentId: await seedTextContent(`Cluster ${randomUUID()}`),
+			hazardTypeId: type.id,
+		})
+		.returning({ id: hazardClusterTable.id });
+	const [specificHazard] = await dr
+		.insert(specificHazardTable)
+		.values({
+			id: randomUUID(),
+			nameTextContentId: await seedTextContent(`Hazard ${randomUUID()}`),
+			code: `code-${randomUUID()}`,
+			hazardClusterId: cluster.id,
+		})
+		.returning({ id: specificHazardTable.id });
+	return {
+		hazardTypeId: type.id,
+		hazardClusterId: cluster.id,
+		specificHazardId: specificHazard.id,
+	};
+}
+
+/** Raw insert into workflow_instance for a HazardousEvent entity -- same raw-insert style as
+ * DrizzleWorkflowRepository.test.ts's own insertInvalidRow(). */
+async function seedWorkflowInstance(
+	entityId: string,
+	overrides: {
+		status?:
+			| "DRAFT"
+			| "SUBMITTED"
+			| "REVISION_REQUESTED"
+			| "APPROVED"
+			| "REJECTED"
+			| "PUBLISHED";
+		submittedByUserId?: string | null;
+		validatedByUserId?: string | null;
+		approvedByUserId?: string | null;
+		publishedByUserId?: string | null;
+	} = {},
+): Promise<void> {
+	await dr.insert(workflowInstanceTable).values({
+		entityId,
+		entityType: "HE",
+		status: overrides.status ?? "DRAFT",
+		submittedByUserId: overrides.submittedByUserId ?? null,
+		validatedByUserId: overrides.validatedByUserId ?? null,
+		approvedByUserId: overrides.approvedByUserId ?? null,
+		publishedByUserId: overrides.publishedByUserId ?? null,
+	});
 }
 
 async function insertHazardDriverLink(
@@ -497,6 +583,633 @@ describe("DrizzleHazardousEventRepository", () => {
 			const repo = new DrizzleHazardousEventRepository(dr);
 
 			await expect(repo.countAll(tenantId)).resolves.toBe(0);
+		});
+	});
+
+	describe("findAll with specificHazardId filter", () => {
+		it("matches only the event with that specificHazardId", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const firstSpecificHazardId = await seedSpecificHazard();
+			const secondSpecificHazardId = await seedSpecificHazard();
+			const first = await seedRawHazardousEvent({
+				tenantId,
+				specificHazardId: firstSpecificHazardId,
+			});
+			await seedRawHazardousEvent({
+				tenantId,
+				specificHazardId: secondSpecificHazardId,
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ specificHazardId: firstSpecificHazardId },
+			);
+
+			expect(result.map((e) => e.id)).toEqual([first.id]);
+		});
+	});
+
+	describe("findAll with hazardClusterId filter", () => {
+		it("matches via the taxonomy join", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const firstChain = await seedTaxonomyChain();
+			const secondChain = await seedTaxonomyChain();
+			const first = await seedRawHazardousEvent({
+				tenantId,
+				specificHazardId: firstChain.specificHazardId,
+			});
+			await seedRawHazardousEvent({
+				tenantId,
+				specificHazardId: secondChain.specificHazardId,
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ hazardClusterId: firstChain.hazardClusterId },
+			);
+
+			expect(result.map((e) => e.id)).toEqual([first.id]);
+		});
+	});
+
+	describe("findAll with hazardTypeId filter", () => {
+		it("matches via the two-hop taxonomy join", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const firstChain = await seedTaxonomyChain();
+			const secondChain = await seedTaxonomyChain();
+			const first = await seedRawHazardousEvent({
+				tenantId,
+				specificHazardId: firstChain.specificHazardId,
+			});
+			await seedRawHazardousEvent({
+				tenantId,
+				specificHazardId: secondChain.specificHazardId,
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ hazardTypeId: firstChain.hazardTypeId },
+			);
+
+			expect(result.map((e) => e.id)).toEqual([first.id]);
+		});
+	});
+
+	describe("findAll with recordStatus filter", () => {
+		it("restricts to matching workflow_instance rows", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const matching = await seedRawHazardousEvent({ tenantId });
+			await seedWorkflowInstance(matching.id, { status: "SUBMITTED" });
+			const nonMatching = await seedRawHazardousEvent({ tenantId });
+			await seedWorkflowInstance(nonMatching.id, { status: "DRAFT" });
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ recordStatus: "SUBMITTED" },
+			);
+
+			expect(result.map((e) => e.id)).toEqual([matching.id]);
+		});
+
+		it("excludes a row with no workflow_instance when recordStatus is set", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const noInstance = await seedRawHazardousEvent({ tenantId });
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ recordStatus: "SUBMITTED" },
+			);
+
+			expect(result.map((e) => e.id)).not.toContain(noInstance.id);
+		});
+
+		it("includes a row with no workflow_instance when recordStatus is not set", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const noInstance = await seedRawHazardousEvent({ tenantId });
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{},
+			);
+
+			expect(result.map((e) => e.id)).toContain(noInstance.id);
+		});
+	});
+
+	describe("findAll with allowedStatuses filter", () => {
+		it("restricts to the given set", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const matching = await seedRawHazardousEvent({ tenantId });
+			await seedWorkflowInstance(matching.id, { status: "APPROVED" });
+			const nonMatching = await seedRawHazardousEvent({ tenantId });
+			await seedWorkflowInstance(nonMatching.id, { status: "DRAFT" });
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ allowedStatuses: ["APPROVED", "PUBLISHED"] },
+			);
+
+			expect(result.map((e) => e.id)).toEqual([matching.id]);
+		});
+
+		it("combines with recordStatus as AND, excluding a contradictory combination", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const event = await seedRawHazardousEvent({ tenantId });
+			await seedWorkflowInstance(event.id, { status: "DRAFT" });
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ recordStatus: "DRAFT", allowedStatuses: ["APPROVED", "PUBLISHED"] },
+			);
+
+			expect(result.map((e) => e.id)).not.toContain(event.id);
+		});
+
+		it("includes a matching combination", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const event = await seedRawHazardousEvent({ tenantId });
+			await seedWorkflowInstance(event.id, { status: "PUBLISHED" });
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{
+					recordStatus: "PUBLISHED",
+					allowedStatuses: ["APPROVED", "PUBLISHED"],
+				},
+			);
+
+			expect(result.map((e) => e.id)).toContain(event.id);
+		});
+	});
+
+	describe("findAll with viewMyRecords filter", () => {
+		it("matches by creation", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const userId = await seedUser();
+			const event = await seedRawHazardousEvent({
+				tenantId,
+				createdByUserId: userId,
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ viewMyRecords: true, userId },
+			);
+
+			expect(result.map((e) => e.id)).toContain(event.id);
+		});
+
+		it("matches by a workflow_instance action, not creation", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const userId = await seedUser();
+			const otherUserId = await seedUser();
+			const event = await seedRawHazardousEvent({
+				tenantId,
+				createdByUserId: otherUserId,
+			});
+			await seedWorkflowInstance(event.id, { publishedByUserId: userId });
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ viewMyRecords: true, userId },
+			);
+
+			expect(result.map((e) => e.id)).toContain(event.id);
+		});
+
+		it("matches by a workflow_instance approvedByUserId action", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const userId = await seedUser();
+			const otherUserId = await seedUser();
+			const event = await seedRawHazardousEvent({
+				tenantId,
+				createdByUserId: otherUserId,
+			});
+			await seedWorkflowInstance(event.id, { approvedByUserId: userId });
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ viewMyRecords: true, userId },
+			);
+
+			expect(result.map((e) => e.id)).toContain(event.id);
+		});
+
+		it("matches by a workflow_instance validatedByUserId action", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const userId = await seedUser();
+			const otherUserId = await seedUser();
+			const event = await seedRawHazardousEvent({
+				tenantId,
+				createdByUserId: otherUserId,
+			});
+			await seedWorkflowInstance(event.id, { validatedByUserId: userId });
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ viewMyRecords: true, userId },
+			);
+
+			expect(result.map((e) => e.id)).toContain(event.id);
+		});
+
+		it("excludes a record with no relation to the given user", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const userId = await seedUser();
+			const otherUserId = await seedUser();
+			const event = await seedRawHazardousEvent({
+				tenantId,
+				createdByUserId: otherUserId,
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ viewMyRecords: true, userId },
+			);
+
+			expect(result.map((e) => e.id)).not.toContain(event.id);
+		});
+	});
+
+	describe("findAll with pendingMyAction filter", () => {
+		it("matches a record awaiting revision from the given user", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const userId = await seedUser();
+			const event = await seedRawHazardousEvent({ tenantId });
+			await seedWorkflowInstance(event.id, {
+				status: "REVISION_REQUESTED",
+				submittedByUserId: userId,
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ pendingMyAction: true, userId },
+			);
+
+			expect(result.map((e) => e.id)).toContain(event.id);
+		});
+
+		it("excludes a different status even with a matching submitter", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const userId = await seedUser();
+			const event = await seedRawHazardousEvent({ tenantId });
+			await seedWorkflowInstance(event.id, {
+				status: "SUBMITTED",
+				submittedByUserId: userId,
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ pendingMyAction: true, userId },
+			);
+
+			expect(result.map((e) => e.id)).not.toContain(event.id);
+		});
+
+		// Mutation-audit gap: a matching status alone isn't enough -- the submitter check must
+		// also run (catches and() silently losing its submittedByUserId condition).
+		it("excludes a matching status submitted by a different user", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const userId = await seedUser();
+			const otherUserId = await seedUser();
+			const event = await seedRawHazardousEvent({ tenantId });
+			await seedWorkflowInstance(event.id, {
+				status: "REVISION_REQUESTED",
+				submittedByUserId: otherUserId,
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ pendingMyAction: true, userId },
+			);
+
+			expect(result.map((e) => e.id)).not.toContain(event.id);
+		});
+	});
+
+	describe("findAll with fromDate/toDate filters", () => {
+		it("fromDate excludes a row with an earlier startDate", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			await seedRawHazardousEvent({ tenantId, startDate: "2023-01-01" });
+			const later = await seedRawHazardousEvent({
+				tenantId,
+				startDate: "2024-06-01",
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ fromDate: "2024-01-01" },
+			);
+
+			expect(result.map((e) => e.id)).toEqual([later.id]);
+		});
+
+		// Mutation-audit gap: a row exactly ON the boundary had no assertion (catches >= vs > ).
+		it("fromDate includes a row whose startDate exactly equals the filter boundary", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const onBoundary = await seedRawHazardousEvent({
+				tenantId,
+				startDate: "2024-01-01",
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ fromDate: "2024-01-01" },
+			);
+
+			expect(result.map((e) => e.id)).toContain(onBoundary.id);
+		});
+
+		// countAll, not findAll: an empty startDate fails HazardousEvent.create()'s invariant, so
+		// findAll would silently skip it regardless of filter (false positive); countAll never rehydrates.
+		it("fromDate excludes a row with an empty startDate", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			await seedRawHazardousEvent({ tenantId, startDate: "" });
+			await seedRawHazardousEvent({ tenantId, startDate: "2024-06-01" });
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const count = await repo.countAll(tenantId, { fromDate: "2024-01-01" });
+
+			expect(count).toBe(1);
+		});
+
+		it("a year-only startDate compares at year precision", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const yearOnly = await seedRawHazardousEvent({
+				tenantId,
+				startDate: "2024",
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ fromDate: "2024-01-01" },
+			);
+
+			expect(result.map((e) => e.id)).toContain(yearOnly.id);
+		});
+
+		// toDate mirrors fromDate but on endDate with <=, not >= -- a distinct column/operator pair
+		// the dateCondition helper also handles; this closes a code-review-flagged coverage gap.
+		it("toDate excludes a row with a later endDate", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			// startDate must precede endDate (HazardousEvent.create()'s own ordering invariant,
+			// Decision 3) or the row fails rehydration and findAll silently skips it -- a
+			// false-positive pass, the exact trap the "empty startDate" test above avoids by using
+			// countAll instead.
+			const earlier = await seedRawHazardousEvent({
+				tenantId,
+				startDate: "2020-01-01",
+				endDate: "2024-01-01",
+			});
+			await seedRawHazardousEvent({
+				tenantId,
+				startDate: "2020-01-01",
+				endDate: "2024-06-01",
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ toDate: "2024-03-01" },
+			);
+
+			expect(result.map((e) => e.id)).toEqual([earlier.id]);
+		});
+
+		// Mutation-audit gap: a row exactly ON the boundary had no assertion (catches <= vs <).
+		it("toDate includes a row whose endDate exactly equals the filter boundary", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const onBoundary = await seedRawHazardousEvent({
+				tenantId,
+				startDate: "2020-01-01",
+				endDate: "2024-03-01",
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ toDate: "2024-03-01" },
+			);
+
+			expect(result.map((e) => e.id)).toContain(onBoundary.id);
+		});
+
+		it("toDate excludes a row with an empty endDate", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			await seedRawHazardousEvent({ tenantId, endDate: "" });
+			await seedRawHazardousEvent({ tenantId, endDate: "2024-01-01" });
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const count = await repo.countAll(tenantId, { toDate: "2024-06-01" });
+
+			expect(count).toBe(1);
+		});
+	});
+
+	describe("findAll with recordingOrganization filter", () => {
+		it("a partial match qualifies", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const event = await seedRawHazardousEvent({
+				tenantId,
+				recordOriginator: "Ministry of Health",
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ recordingOrganization: "Ministry" },
+			);
+
+			expect(result.map((e) => e.id)).toContain(event.id);
+		});
+
+		it("match is case-insensitive", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const event = await seedRawHazardousEvent({
+				tenantId,
+				recordOriginator: "Ministry of Health",
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ recordingOrganization: "ministry" },
+			);
+
+			expect(result.map((e) => e.id)).toContain(event.id);
+		});
+
+		it("a non-matching value excludes the row", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const event = await seedRawHazardousEvent({
+				tenantId,
+				recordOriginator: "Ministry of Health",
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ recordingOrganization: "Ministry of Finance" },
+			);
+
+			expect(result.map((e) => e.id)).not.toContain(event.id);
+		});
+
+		// Code-review finding: a literal '_' in the filter value (SQL LIKE's single-char wildcard)
+		// must match itself only -- an unescaped "_" would also match "NorthXEast", which must stay
+		// excluded.
+		it("a literal underscore in the filter value does not act as a single-char SQL wildcard", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const event = await seedRawHazardousEvent({
+				tenantId,
+				recordOriginator: "North_East Office",
+			});
+			const other = await seedRawHazardousEvent({
+				tenantId,
+				recordOriginator: "NorthXEast Office",
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ recordingOrganization: "North_East" },
+			);
+
+			expect(result.map((e) => e.id)).toContain(event.id);
+			expect(result.map((e) => e.id)).not.toContain(other.id);
+		});
+
+		// Mutation-audit gap: only "_" was tested; a narrowed regex that stops escaping "%" would
+		// let it act as SQL LIKE's own any-sequence wildcard instead of matching itself literally.
+		it("a literal percent sign in the filter value does not act as a SQL wildcard", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const event = await seedRawHazardousEvent({
+				tenantId,
+				recordOriginator: "100% Ready Office",
+			});
+			const other = await seedRawHazardousEvent({
+				tenantId,
+				recordOriginator: "100X Ready Office",
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ recordingOrganization: "100%" },
+			);
+
+			expect(result.map((e) => e.id)).toContain(event.id);
+			expect(result.map((e) => e.id)).not.toContain(other.id);
+		});
+	});
+
+	describe("findAll with multiple filter dimensions (AND composition)", () => {
+		it("two dimensions both narrow the result", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const chain = await seedTaxonomyChain();
+			await seedRawHazardousEvent({
+				tenantId,
+				specificHazardId: chain.specificHazardId,
+				hazardousEventStatus: "forecasted",
+			});
+			const matching = await seedRawHazardousEvent({
+				tenantId,
+				specificHazardId: chain.specificHazardId,
+				hazardousEventStatus: "ongoing",
+			});
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const result = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				{ hazardTypeId: chain.hazardTypeId, hazardousEventStatus: "ongoing" },
+			);
+
+			expect(result.map((e) => e.id)).toEqual([matching.id]);
+		});
+	});
+
+	describe("countAll reflects the same filters as findAll", () => {
+		it("countAll and findAll agree on a filtered query", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const matchingA = await seedRawHazardousEvent({ tenantId });
+			await seedWorkflowInstance(matchingA.id, { status: "SUBMITTED" });
+			const matchingB = await seedRawHazardousEvent({ tenantId });
+			await seedWorkflowInstance(matchingB.id, { status: "SUBMITTED" });
+			const matchingC = await seedRawHazardousEvent({ tenantId });
+			await seedWorkflowInstance(matchingC.id, { status: "SUBMITTED" });
+			const nonMatchingD = await seedRawHazardousEvent({ tenantId });
+			await seedWorkflowInstance(nonMatchingD.id, { status: "DRAFT" });
+			await seedRawHazardousEvent({ tenantId });
+			const repo = new DrizzleHazardousEventRepository(dr);
+			const filters = { recordStatus: "SUBMITTED" as const };
+
+			const count = await repo.countAll(tenantId, filters);
+			const found = await repo.findAll(
+				tenantId,
+				{ page: 1, pageSize: 10 },
+				filters,
+			);
+
+			expect(count).toBe(found.length);
+			expect(count).toBe(3);
+		});
+
+		it("omitting filters counts every tenant-scoped row", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			await seedRawHazardousEvent({ tenantId });
+			await seedRawHazardousEvent({ tenantId });
+			await seedRawHazardousEvent({ tenantId });
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			await expect(repo.countAll(tenantId)).resolves.toBe(3);
 		});
 	});
 
