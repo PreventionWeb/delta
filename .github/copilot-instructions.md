@@ -118,14 +118,22 @@ When adding a column to the production schema, also update `tests/integration/db
 
 Scope to `npx prettier --check <files>`; preview `--write` on a copy first.
 
-### Test infrastructure — four tiers, two orphaned
+### Test infrastructure — five tiers, two orphaned
 
-| Suite                     | Runner        | Command          | CI?         |
-| ------------------------- | ------------- | ---------------- | ----------- |
-| Unit + PGlite integration | Vitest        | `yarn test:run2` | ✅          |
-| Real-DB integration       | Vitest        | `yarn test:run3` | ✅          |
-| E2E                       | Playwright    | `yarn test:e2e`  | ✅          |
-| Model + handler tests     | **node:test** | none             | ❌ Orphaned |
+| Suite                                | Runner         | Command          | CI?\*              |
+| ------------------------------------ | -------------- | ---------------- | ------------------ |
+| Unit + PGlite integration            | Vitest         | `yarn test:run2` | \* commented out   |
+| DOM-interaction component unit tests | Vitest + jsdom | `yarn test:dom`  | \*\* not wired yet |
+| Real-DB integration                  | Vitest         | `yarn test:run3` | \* commented out   |
+| E2E                                  | Playwright     | `yarn test:e2e`  | \* commented out   |
+| Model + handler tests                | **node:test**  | none             | ❌ Orphaned        |
+
+\* Wired in `.github/workflows/unog-prod.deploy.yml` but currently commented out there — none of
+these three actually run in CI today, a pre-existing gap this change found but doesn't fix.
+\*\* `test:dom` is new for this change and isn't referenced in that workflow file at all yet, not
+even commented out.
+
+`yarn test:dom` (added for `ca-he-list-filters`, 6h) runs under a separate config, `vitest.dom.config.ts` — it carries no `reactRouter()` Vite plugin and no shared `setupFiles`, so it's the right tier for a component test that needs real keyboard/typing interaction (`@testing-library/react` + `@testing-library/user-event`), not for anything touching the DB or a `.server.ts` import. See that config file's own comment for why it's separate from the main `vitest.config.ts`.
 
 `app/backend.server/models/*_test.ts` and `app/backend.server/handlers/form/form_test.ts` use Node.js's built-in `node:test` and are **not run by any yarn script**. Do not add new tests using `node:test` — use Vitest, placing files under `tests/`. See [`_docs/code-structure/testing.md`](../_docs/code-structure/testing.md).
 
