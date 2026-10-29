@@ -2,9 +2,28 @@ import type { HazardousEvent } from "../../domain/HazardousEvent";
 import type { SpatialObservationProps } from "../../domain/SpatialObservation";
 import type { Tx } from "~/db.server";
 import type { Pagination } from "~/shared/types";
+import type { Status } from "~/domains/validation-workflow/domain/WorkflowInstance";
 
 /** Type alias, not a separate interface — a field change is one edit, not two (closes DEF-027). */
 export type SpatialObservationRecord = SpatialObservationProps;
+
+/** Repository-facing filter shape, distinct from the use-case-facing one -- every
+ * `HazardousEventListFilterInput` field plus `userId` (resolves viewMyRecords/pendingMyAction) and
+ * `allowedStatuses` (data-viewer restriction, AND-composed with `recordStatus` -- Decisions 3-4). */
+export interface HazardousEventRepositoryFilters {
+	hazardTypeId?: string;
+	hazardClusterId?: string;
+	specificHazardId?: string;
+	fromDate?: string;
+	toDate?: string;
+	recordingOrganization?: string;
+	hazardousEventStatus?: "forecasted" | "ongoing" | "passed";
+	recordStatus?: Status;
+	viewMyRecords?: boolean;
+	pendingMyAction?: boolean;
+	userId?: string;
+	allowedStatuses?: readonly Status[];
+}
 
 /**
  * Repository port for the `HazardousEvent` aggregate and its child spatial observations;
@@ -17,12 +36,21 @@ export interface IHazardousEventRepository {
 	/** @throws {NotFoundError} when no HazardousEvent exists for `id` within `tenantId`. `tx` lets a caller nesting this inside its own open transaction avoid mixing connections (design.md Decision 9). */
 	findById(id: string, tenantId: string, tx?: Tx): Promise<HazardousEvent>;
 
-	/** Tenant-scoped, paginated list. */
-	findAll(tenantId: string, pagination: Pagination): Promise<HazardousEvent[]>;
+	/** Tenant-scoped, paginated list. `filters` defaults to unfiltered when omitted. */
+	findAll(
+		tenantId: string,
+		pagination: Pagination,
+		filters?: HazardousEventRepositoryFilters,
+	): Promise<HazardousEvent[]>;
 
 	/** Tenant-scoped total count, ignoring pagination -- feeds the list page's own total-count
-	 * summary and numbered pagination (human decision, 2026-10-27). */
-	countAll(tenantId: string, tx?: Tx): Promise<number>;
+	 * summary and numbered pagination (human decision). Shares its filter-to-SQL
+	 * translation with `findAll`, not a separately-maintained condition tree (design.md Decision 2). */
+	countAll(
+		tenantId: string,
+		filters?: HazardousEventRepositoryFilters,
+		tx?: Tx,
+	): Promise<number>;
 
 	/** First-time persistence of all four child collections as one atomic unit; no separate `tenantId` param -- the entity's own property carries tenancy (Decision 1). */
 	insert(entity: HazardousEvent, tx?: Tx): Promise<HazardousEvent>;

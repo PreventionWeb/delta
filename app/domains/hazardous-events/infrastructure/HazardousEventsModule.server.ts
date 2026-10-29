@@ -18,6 +18,7 @@ import type { IEventCausalityRepository } from "~/domains/event-causality/applic
 
 import { GetHazardousEventByIdUseCase } from "~/domains/hazardous-events/application/use-cases/GetHazardousEventById";
 import { ListHazardousEventsUseCase } from "~/domains/hazardous-events/application/use-cases/ListHazardousEvents";
+import { GetHazardTaxonomyOptionsUseCase } from "~/domains/hazardous-events/application/use-cases/GetHazardTaxonomyOptionsUseCase";
 import { RecordSpatialObservationUseCase } from "~/domains/hazardous-events/application/use-cases/RecordSpatialObservation";
 import { CreateHazardousEventUseCase } from "~/domains/hazardous-events/application/use-cases/CreateHazardousEvent";
 import { DeleteHazardousEventUseCase } from "~/domains/hazardous-events/application/use-cases/DeleteHazardousEvent";
@@ -118,6 +119,14 @@ import { DIVISION_REPOSITORY } from "./DivisionRepositoryToken";
 				ListWorkflowInstancesByEntityIdsUseCase,
 				SPECIFIC_HAZARD_TAXONOMY_REPOSITORY,
 			],
+		},
+		{
+			provide: GetHazardTaxonomyOptionsUseCase,
+			useFactory: (
+				specificHazardTaxonomyRepository: ISpecificHazardTaxonomyRepository,
+			) =>
+				new GetHazardTaxonomyOptionsUseCase(specificHazardTaxonomyRepository),
+			inject: [SPECIFIC_HAZARD_TAXONOMY_REPOSITORY],
 		},
 		{
 			provide: RecordSpatialObservationUseCase,
@@ -231,6 +240,7 @@ import { DIVISION_REPOSITORY } from "./DivisionRepositoryToken";
 	exports: [
 		GetHazardousEventByIdUseCase,
 		ListHazardousEventsUseCase,
+		GetHazardTaxonomyOptionsUseCase,
 		RecordSpatialObservationUseCase,
 		CreateHazardousEventUseCase,
 		DeleteHazardousEventUseCase,
