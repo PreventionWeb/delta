@@ -13,6 +13,7 @@ import type {
 	SpatialObservationRecord,
 } from "../ports/IHazardousEventRepository";
 import type {
+	HazardTaxonomyOptions,
 	ISpecificHazardTaxonomyRepository,
 	SpecificHazardTaxonomyNames,
 } from "../ports/ISpecificHazardTaxonomyRepository";
@@ -169,6 +170,10 @@ class FakeSpecificHazardTaxonomyRepository implements ISpecificHazardTaxonomyRep
 		ReadonlyMap<string, SpecificHazardTaxonomyNames>
 	> {
 		return this.impl();
+	}
+
+	async listAll(): Promise<HazardTaxonomyOptions> {
+		throw new Error("not used by GetHazardousEventByIdUseCase's own tests");
 	}
 }
 
