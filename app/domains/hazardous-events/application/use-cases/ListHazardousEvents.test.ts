@@ -9,10 +9,12 @@ import { WorkflowInstance } from "~/domains/validation-workflow/domain/WorkflowI
 import type { IWorkflowRepository } from "~/domains/validation-workflow/application/ports/IWorkflowRepository";
 import { ListWorkflowInstancesByEntityIdsUseCase } from "~/domains/validation-workflow/application/use-cases/ListWorkflowInstancesByEntityIds";
 import type {
+	HazardousEventRepositoryFilters,
 	IHazardousEventRepository,
 	SpatialObservationRecord,
 } from "../ports/IHazardousEventRepository";
 import type {
+	HazardTaxonomyOptions,
 	ISpecificHazardTaxonomyRepository,
 	SpecificHazardTaxonomyNames,
 } from "../ports/ISpecificHazardTaxonomyRepository";
@@ -32,9 +34,10 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 	readonly findAllCalls: {
 		tenantId: string;
 		pagination: { page: number; pageSize: number };
+		filters: unknown;
 	}[] = [];
 
-	readonly countAllCalls: { tenantId: string }[] = [];
+	readonly countAllCalls: { tenantId: string; filters: unknown }[] = [];
 
 	constructor(
 		private readonly impl: (
@@ -42,22 +45,28 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		) => Promise<HazardousEvent[]> = () => Promise.resolve([]),
 		/** Defaults to the findAll impl's own result length -- a sensible stand-in when a test
 		 * doesn't care about total count distinctly from the page it seeds. */
-		private readonly countImpl: (tenantId: string) => Promise<number> = async (
-			tenantId,
-		) => (await this.impl(tenantId)).length,
+		private readonly countImpl: (
+			tenantId: string,
+			filters: HazardousEventRepositoryFilters,
+		) => Promise<number> = async (tenantId) =>
+			(await this.impl(tenantId)).length,
 	) {}
 
 	async findAll(
 		tenantId: string,
 		pagination: { page: number; pageSize: number },
+		filters: HazardousEventRepositoryFilters,
 	): Promise<HazardousEvent[]> {
-		this.findAllCalls.push({ tenantId, pagination });
+		this.findAllCalls.push({ tenantId, pagination, filters });
 		return this.impl(tenantId);
 	}
 
-	async countAll(tenantId: string): Promise<number> {
-		this.countAllCalls.push({ tenantId });
-		return this.countImpl(tenantId);
+	async countAll(
+		tenantId: string,
+		filters: HazardousEventRepositoryFilters,
+	): Promise<number> {
+		this.countAllCalls.push({ tenantId, filters });
+		return this.countImpl(tenantId, filters);
 	}
 
 	async findById(): Promise<HazardousEvent> {
@@ -152,6 +161,10 @@ class FakeSpecificHazardTaxonomyRepository implements ISpecificHazardTaxonomyRep
 	> {
 		return this.impl();
 	}
+
+	async listAll(): Promise<HazardTaxonomyOptions> {
+		throw new Error("not used by ListHazardousEventsUseCase's own tests");
+	}
 }
 
 const baseHazardousEventProps: HazardousEventProps = {
@@ -204,7 +217,14 @@ function makeWorkflow(entityId: string): WorkflowInstance {
 function makeQuery(
 	overrides: Partial<ListHazardousEventsQuery> = {},
 ): ListHazardousEventsQuery {
-	return { tenantId: "tenant-1", page: 1, pageSize: 10, ...overrides };
+	return {
+		tenantId: "tenant-1",
+		userId: "user-1",
+		role: null,
+		page: 1,
+		pageSize: 10,
+		...overrides,
+	};
 }
 
 describe("ListHazardousEventsUseCase", () => {
@@ -295,8 +315,11 @@ describe("ListHazardousEventsUseCase", () => {
 
 		expect(result.totalCount).toBe(42);
 		expect(result.items).toHaveLength(2);
+		// Two countAll calls (Decision 13): the filtered one (same filters as findAll), then the
+		// role-safe unfiltered one (no user-chosen fields) for the summary line's denominator.
 		expect(hazardousEventRepository.countAllCalls).toEqual([
-			{ tenantId: "tenant-1" },
+			{ tenantId: "tenant-1", filters: { userId: "user-1" } },
+			{ tenantId: "tenant-1", filters: {} },
 		]);
 	});
 
@@ -313,7 +336,11 @@ describe("ListHazardousEventsUseCase", () => {
 		await useCase.execute(makeQuery({ page: 2, pageSize: 10 }));
 
 		expect(hazardousEventRepository.findAllCalls).toEqual([
-			{ tenantId: "tenant-1", pagination: { page: 2, pageSize: 10 } },
+			{
+				tenantId: "tenant-1",
+				pagination: { page: 2, pageSize: 10 },
+				filters: { userId: "user-1" },
+			},
 		]);
 	});
 
@@ -352,6 +379,8 @@ describe("ListHazardousEventsUseCase", () => {
 		);
 		const query = {
 			tenantId: 42 as unknown as string,
+			userId: "user-1",
+			role: null,
 			page: 1,
 			pageSize: 10,
 		} satisfies ListHazardousEventsQuery;
@@ -410,10 +439,14 @@ describe("ListHazardousEventsUseCase", () => {
 
 		await expect(
 			useCase.execute(makeQuery({ page: 1, pageSize: 100 })),
-		).resolves.toEqual({ items: [], totalCount: 0 });
+		).resolves.toEqual({ items: [], totalCount: 0, unfilteredTotalCount: 0 });
 
 		expect(hazardousEventRepository.findAllCalls).toEqual([
-			{ tenantId: "tenant-1", pagination: { page: 1, pageSize: 100 } },
+			{
+				tenantId: "tenant-1",
+				pagination: { page: 1, pageSize: 100 },
+				filters: { userId: "user-1" },
+			},
 		]);
 	});
 
@@ -429,10 +462,14 @@ describe("ListHazardousEventsUseCase", () => {
 
 		await expect(
 			useCase.execute(makeQuery({ page: 1, pageSize: 1 })),
-		).resolves.toEqual({ items: [], totalCount: 0 });
+		).resolves.toEqual({ items: [], totalCount: 0, unfilteredTotalCount: 0 });
 
 		expect(hazardousEventRepository.findAllCalls).toEqual([
-			{ tenantId: "tenant-1", pagination: { page: 1, pageSize: 1 } },
+			{
+				tenantId: "tenant-1",
+				pagination: { page: 1, pageSize: 1 },
+				filters: { userId: "user-1" },
+			},
 		]);
 	});
 
@@ -651,8 +688,20 @@ describe("ListHazardousEventsUseCase", () => {
 		);
 
 		const [resultT1, resultT2] = await Promise.all([
-			useCase.execute({ tenantId: "T1", page: 1, pageSize: 10 }),
-			useCase.execute({ tenantId: "T2", page: 1, pageSize: 10 }),
+			useCase.execute({
+				tenantId: "T1",
+				userId: "user-1",
+				role: null,
+				page: 1,
+				pageSize: 10,
+			}),
+			useCase.execute({
+				tenantId: "T2",
+				userId: "user-1",
+				role: null,
+				page: 1,
+				pageSize: 10,
+			}),
 		]);
 
 		expect(resultT1.items).toHaveLength(2);
@@ -670,5 +719,265 @@ describe("ListHazardousEventsUseCase", () => {
 				expect(call.entityIds).toEqual(["t2-a"]);
 			}
 		}
+	});
+
+	describe("filters forwarding", () => {
+		it("forwards a supplied filter value to findAll and countAll unreinterpreted", async () => {
+			const hazardousEventRepository = new FakeHazardousEventRepository();
+			const workflowRepository = new FakeWorkflowRepository();
+			const useCase = new ListHazardousEventsUseCase(
+				new FakeLogger(),
+				hazardousEventRepository,
+				new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+				new FakeSpecificHazardTaxonomyRepository(),
+			);
+
+			await useCase.execute(makeQuery({ filters: { hazardTypeId: "t1" } }));
+
+			expect(
+				(
+					hazardousEventRepository.findAllCalls[0].filters as {
+						hazardTypeId: string;
+					}
+				).hazardTypeId,
+			).toBe("t1");
+			expect(
+				(
+					hazardousEventRepository.countAllCalls[0].filters as {
+						hazardTypeId: string;
+					}
+				).hazardTypeId,
+			).toBe("t1");
+		});
+
+		it("forwards an empty-equivalent filters object when none is supplied", async () => {
+			const hazardousEventRepository = new FakeHazardousEventRepository();
+			const workflowRepository = new FakeWorkflowRepository();
+			const useCase = new ListHazardousEventsUseCase(
+				new FakeLogger(),
+				hazardousEventRepository,
+				new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+				new FakeSpecificHazardTaxonomyRepository(),
+			);
+
+			await useCase.execute(makeQuery());
+
+			const forwardedFilters = hazardousEventRepository.findAllCalls[0]
+				.filters as { userId?: string; hazardTypeId?: string };
+			expect(forwardedFilters.userId).toBe("user-1");
+			expect(forwardedFilters.hazardTypeId).toBeUndefined();
+		});
+	});
+
+	describe("data-viewer allowedStatuses restriction", () => {
+		it("sets allowedStatuses to APPROVED/PUBLISHED for a data-viewer role, even with no explicit recordStatus", async () => {
+			const hazardousEventRepository = new FakeHazardousEventRepository();
+			const workflowRepository = new FakeWorkflowRepository();
+			const useCase = new ListHazardousEventsUseCase(
+				new FakeLogger(),
+				hazardousEventRepository,
+				new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+				new FakeSpecificHazardTaxonomyRepository(),
+			);
+
+			await useCase.execute(makeQuery({ role: "data-viewer" }));
+
+			expect(
+				(
+					hazardousEventRepository.findAllCalls[0].filters as {
+						allowedStatuses?: string[];
+					}
+				).allowedStatuses,
+			).toEqual(["APPROVED", "PUBLISHED"]);
+		});
+
+		it("sets both recordStatus and allowedStatuses when a data-viewer role supplies an explicit recordStatus", async () => {
+			const hazardousEventRepository = new FakeHazardousEventRepository();
+			const workflowRepository = new FakeWorkflowRepository();
+			const useCase = new ListHazardousEventsUseCase(
+				new FakeLogger(),
+				hazardousEventRepository,
+				new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+				new FakeSpecificHazardTaxonomyRepository(),
+			);
+
+			await useCase.execute(
+				makeQuery({
+					role: "data-viewer",
+					filters: { recordStatus: "DRAFT" },
+				}),
+			);
+
+			const forwardedFilters = hazardousEventRepository.findAllCalls[0]
+				.filters as { recordStatus?: string; allowedStatuses?: string[] };
+			expect(forwardedFilters.recordStatus).toBe("DRAFT");
+			expect(forwardedFilters.allowedStatuses).toEqual([
+				"APPROVED",
+				"PUBLISHED",
+			]);
+		});
+
+		it("sets no allowedStatuses for a non-data-viewer role", async () => {
+			const hazardousEventRepository = new FakeHazardousEventRepository();
+			const workflowRepository = new FakeWorkflowRepository();
+			const useCase = new ListHazardousEventsUseCase(
+				new FakeLogger(),
+				hazardousEventRepository,
+				new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+				new FakeSpecificHazardTaxonomyRepository(),
+			);
+
+			await useCase.execute(makeQuery({ role: "data-admin" }));
+
+			expect(
+				(
+					hazardousEventRepository.findAllCalls[0].filters as {
+						allowedStatuses?: string[];
+					}
+				).allowedStatuses,
+			).toBeUndefined();
+		});
+
+		it("sets no allowedStatuses when role is null", async () => {
+			const hazardousEventRepository = new FakeHazardousEventRepository();
+			const workflowRepository = new FakeWorkflowRepository();
+			const useCase = new ListHazardousEventsUseCase(
+				new FakeLogger(),
+				hazardousEventRepository,
+				new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+				new FakeSpecificHazardTaxonomyRepository(),
+			);
+
+			await useCase.execute(makeQuery());
+
+			expect(
+				(
+					hazardousEventRepository.findAllCalls[0].filters as {
+						allowedStatuses?: string[];
+					}
+				).allowedStatuses,
+			).toBeUndefined();
+		});
+	});
+
+	describe("unfilteredTotalCount (Decision 13)", () => {
+		it("calls countAll a second time with every user-chosen field omitted", async () => {
+			const hazardousEventRepository = new FakeHazardousEventRepository();
+			const workflowRepository = new FakeWorkflowRepository();
+			const useCase = new ListHazardousEventsUseCase(
+				new FakeLogger(),
+				hazardousEventRepository,
+				new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+				new FakeSpecificHazardTaxonomyRepository(),
+			);
+
+			await useCase.execute(
+				makeQuery({
+					userId: "u1",
+					filters: {
+						hazardTypeId: "t1",
+						recordingOrganization: "Ministry",
+						viewMyRecords: true,
+					},
+				}),
+			);
+
+			expect(hazardousEventRepository.countAllCalls).toHaveLength(2);
+			// Call 0 is the filtered count (same filters as findAll); call 1 is the unfiltered one.
+			expect(hazardousEventRepository.countAllCalls[1].filters).toEqual({});
+		});
+
+		it("the unfiltered count still applies the data-viewer allowedStatuses restriction, not a truly empty filter", async () => {
+			const hazardousEventRepository = new FakeHazardousEventRepository();
+			const workflowRepository = new FakeWorkflowRepository();
+			const useCase = new ListHazardousEventsUseCase(
+				new FakeLogger(),
+				hazardousEventRepository,
+				new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+				new FakeSpecificHazardTaxonomyRepository(),
+			);
+
+			await useCase.execute(
+				makeQuery({
+					role: "data-viewer",
+					filters: { hazardTypeId: "t1" },
+				}),
+			);
+
+			expect(hazardousEventRepository.countAllCalls[1].filters).toEqual({
+				allowedStatuses: ["APPROVED", "PUBLISHED"],
+			});
+		});
+
+		it("resolves unfilteredTotalCount from the second countAll call, independent of totalCount", async () => {
+			const hazardousEventRepository = new FakeHazardousEventRepository(
+				() => Promise.resolve([]),
+				(_tenantId, filters) =>
+					Promise.resolve(
+						(filters as { hazardTypeId?: string }).hazardTypeId ? 4 : 25,
+					),
+			);
+			const workflowRepository = new FakeWorkflowRepository();
+			const useCase = new ListHazardousEventsUseCase(
+				new FakeLogger(),
+				hazardousEventRepository,
+				new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+				new FakeSpecificHazardTaxonomyRepository(),
+			);
+
+			const result = await useCase.execute(
+				makeQuery({ filters: { hazardTypeId: "t1" } }),
+			);
+
+			expect(result.totalCount).toBe(4);
+			expect(result.unfilteredTotalCount).toBe(25);
+		});
+	});
+
+	describe("userId requirement and scoping", () => {
+		it("scopes viewMyRecords to the calling user's own id", async () => {
+			const hazardousEventRepository = new FakeHazardousEventRepository();
+			const workflowRepository = new FakeWorkflowRepository();
+			const useCase = new ListHazardousEventsUseCase(
+				new FakeLogger(),
+				hazardousEventRepository,
+				new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+				new FakeSpecificHazardTaxonomyRepository(),
+			);
+
+			await useCase.execute(
+				makeQuery({ userId: "u1", filters: { viewMyRecords: true } }),
+			);
+
+			const forwardedFilters = hazardousEventRepository.findAllCalls[0]
+				.filters as { userId?: string; viewMyRecords?: boolean };
+			expect(forwardedFilters.userId).toBe("u1");
+			expect(forwardedFilters.viewMyRecords).toBe(true);
+		});
+
+		it("throws ValidationError and performs no repository lookup when userId is missing", async () => {
+			const hazardousEventRepository = new FakeHazardousEventRepository();
+			const workflowRepository = new FakeWorkflowRepository();
+			const logger = new FakeLogger();
+			const useCase = new ListHazardousEventsUseCase(
+				logger,
+				hazardousEventRepository,
+				new ListWorkflowInstancesByEntityIdsUseCase(workflowRepository),
+				new FakeSpecificHazardTaxonomyRepository(),
+			);
+			const query = {
+				tenantId: "tenant-1",
+				page: 1,
+				pageSize: 10,
+			} as unknown as ListHazardousEventsQuery;
+
+			await expect(useCase.execute(query)).rejects.toThrow(ValidationError);
+			await expect(useCase.execute(query)).rejects.toThrow(/userId/);
+
+			expect(hazardousEventRepository.findAllCalls).toHaveLength(0);
+			expect(hazardousEventRepository.countAllCalls).toHaveLength(0);
+			expect(workflowRepository.findByEntityIdsCalls).toHaveLength(0);
+			expect(logger.info).not.toHaveBeenCalled();
+		});
 	});
 });

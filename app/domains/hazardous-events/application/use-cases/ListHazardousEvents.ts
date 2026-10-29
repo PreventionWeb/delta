@@ -1,23 +1,56 @@
-import type { IHazardousEventRepository } from "../ports/IHazardousEventRepository";
+import type {
+	IHazardousEventRepository,
+	HazardousEventRepositoryFilters,
+} from "../ports/IHazardousEventRepository";
 import type { HazardousEventListItemDto } from "../dto/HazardousEventListItemDto";
 import { toHazardousEventListItemDto } from "../dto/HazardousEventListItemDto";
 import type { ListWorkflowInstancesByEntityIdsUseCase } from "~/domains/validation-workflow/application/use-cases/ListWorkflowInstancesByEntityIds";
 import type { ISpecificHazardTaxonomyRepository } from "../ports/ISpecificHazardTaxonomyRepository";
+import type { Status } from "~/domains/validation-workflow/domain/WorkflowInstance";
 import type { ILogger } from "~/shared/logging/ILogger";
 import { ValidationError } from "~/shared/errors";
 import { assertNonEmptyString } from "../assertNonEmptyString";
 
-export interface ListHazardousEventsQuery {
-	tenantId: string;
-	page: number;
-	pageSize: number;
+/** Use-case-facing filter shape -- presentation imports this, never the repository-facing
+ * `HazardousEventRepositoryFilters` (design.md Decision 3's naming/layering note). */
+export interface HazardousEventListFilterInput {
+	hazardTypeId?: string;
+	hazardClusterId?: string;
+	specificHazardId?: string;
+	fromDate?: string;
+	toDate?: string;
+	recordingOrganization?: string;
+	hazardousEventStatus?: "forecasted" | "ongoing" | "passed";
+	recordStatus?: Status;
+	viewMyRecords?: boolean;
+	pendingMyAction?: boolean;
 }
 
-/** Not an ADR-007 envelope -- `totalCount` is real list data (feeds the summary line and
- * numbered pagination), not a generic success/error wrapper (human decision, 2026-10-27). */
+/** A data-viewer's forced visibility restriction (Decision 4) -- exported so the presentation
+ * layer's own UI-level option restriction (same Decision) reuses this exact set, not a second
+ * hand-copied literal. */
+export const DATA_VIEWER_ALLOWED_STATUSES: readonly Status[] = [
+	"APPROVED",
+	"PUBLISHED",
+];
+
+export interface ListHazardousEventsQuery {
+	tenantId: string;
+	userId: string;
+	// Required (not optional), still nullable: an omitted role would silently skip the
+	// data-viewer restriction below (design.md Decision 4, second-opinion-review finding).
+	role: string | null;
+	page: number;
+	pageSize: number;
+	filters?: HazardousEventListFilterInput;
+}
+
+/** Not an ADR-007 envelope (human decision). `unfilteredTotalCount` is Decision 13: summary line's
+ * "of Y" is the role-safe unfiltered total, not `totalCount`. */
 export interface ListHazardousEventsResult {
 	items: HazardousEventListItemDto[];
 	totalCount: number;
+	unfilteredTotalCount: number;
 }
 
 /** Matches parsePagination.ts's own cap (Notices), not an arbitrary number. */
@@ -52,14 +85,33 @@ export class ListHazardousEventsUseCase {
 		query: ListHazardousEventsQuery,
 	): Promise<ListHazardousEventsResult> {
 		assertNonEmptyString(query.tenantId, "tenantId");
+		assertNonEmptyString(query.userId, "userId");
 		assertValidPagination(query.page, query.pageSize);
 
-		const [events, totalCount] = await Promise.all([
-			this.hazardousEventRepository.findAll(query.tenantId, {
-				page: query.page,
-				pageSize: query.pageSize,
-			}),
-			this.hazardousEventRepository.countAll(query.tenantId),
+		// Spread, then augment -- never reinterprets a value the caller already supplied
+		// (list-hazardous-events spec).
+		const roleFilter = {
+			...(query.role === "data-viewer"
+				? { allowedStatuses: DATA_VIEWER_ALLOWED_STATUSES }
+				: {}),
+		};
+		const filters: HazardousEventRepositoryFilters = {
+			...query.filters,
+			userId: query.userId,
+			...roleFilter,
+		};
+		// Every user-chosen field omitted -- only the role restriction carries over, or a
+		// data-viewer's own narrowing would leak into the "unfiltered" denominator (Decision 13).
+		const unfilteredFilters: HazardousEventRepositoryFilters = roleFilter;
+
+		const [events, totalCount, unfilteredTotalCount] = await Promise.all([
+			this.hazardousEventRepository.findAll(
+				query.tenantId,
+				{ page: query.page, pageSize: query.pageSize },
+				filters,
+			),
+			this.hazardousEventRepository.countAll(query.tenantId, filters),
+			this.hazardousEventRepository.countAll(query.tenantId, unfilteredFilters),
 		]);
 
 		let dtos: HazardousEventListItemDto[] = [];
@@ -97,6 +149,6 @@ export class ListHazardousEventsUseCase {
 			missingWorkflowStatusCount,
 		});
 
-		return { items: dtos, totalCount };
+		return { items: dtos, totalCount, unfilteredTotalCount };
 	}
 }

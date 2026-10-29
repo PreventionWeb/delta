@@ -502,6 +502,8 @@ describe("HazardousEventsModule", () => {
 
 			const list = await listUseCase.execute({
 				tenantId,
+				userId: randomUUID(),
+				role: null,
 				page: 1,
 				pageSize: 10,
 			});

@@ -11,6 +11,7 @@ import {
 } from "~/shared/errors";
 import type { Pagination } from "~/shared/types";
 import type {
+	HazardousEventRepositoryFilters,
 	IHazardousEventRepository,
 	SpatialObservationRecord,
 } from "./IHazardousEventRepository";
@@ -117,7 +118,11 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		return all.slice(start, start + pagination.pageSize);
 	}
 
-	async countAll(tenantId: string, _tx?: Tx): Promise<number> {
+	async countAll(
+		tenantId: string,
+		_filters?: HazardousEventRepositoryFilters,
+		_tx?: Tx,
+	): Promise<number> {
 		return [...this.store.values()].filter(
 			(entity) => entity.tenantId === tenantId,
 		).length;
@@ -634,11 +639,11 @@ const _findByIdArity: AssertEqual<
 > = true;
 const _findAllArity: AssertEqual<
 	Parameters<IHazardousEventRepository["findAll"]>,
-	[string, Pagination]
+	[string, Pagination, HazardousEventRepositoryFilters?]
 > = true;
 const _countAllArity: AssertEqual<
 	Parameters<IHazardousEventRepository["countAll"]>,
-	[string, Tx?]
+	[string, HazardousEventRepositoryFilters?, Tx?]
 > = true;
 const _insertArity: AssertEqual<
 	Parameters<IHazardousEventRepository["insert"]>,
