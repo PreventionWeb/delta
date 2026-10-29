@@ -93,6 +93,7 @@ type SpatialCloneSpec = {
 	sourceIdKey: string;
 	targetIdKey: string;
 	entityLabel: string;
+	divisionIdMap?: Map<string, string>;
 	tx: Tx;
 	getGeomRows: (ids: string[], tx?: Tx) => Promise<any[]>;
 	getDivisionRows: (ids: string[], tx?: Tx) => Promise<any[]>;
@@ -127,15 +128,27 @@ async function cloneSpatialFootprintForEntity(spec: SpatialCloneSpec) {
 
 	if (divisionRows.length > 0) {
 		await spec.createDivisionRows(
-			divisionRows.map((row: any) => ({
-				...row,
-				id: randomUUID(),
-				[spec.targetIdKey]: getMappedId(
-					spec.idMap,
-					row[spec.sourceIdKey],
-					spec.entityLabel,
-				),
-			})),
+			divisionRows.map((row: any) => {
+				const clonedRow = {
+					...row,
+					id: randomUUID(),
+					[spec.targetIdKey]: getMappedId(
+						spec.idMap,
+						row[spec.sourceIdKey],
+						spec.entityLabel,
+					),
+				};
+
+				if (spec.divisionIdMap && row.divisionId) {
+					clonedRow.divisionId = getMappedId(
+						spec.divisionIdMap,
+						row.divisionId,
+						"division",
+					);
+				}
+
+				return clonedRow;
+			}),
 			spec.tx,
 		);
 	}
@@ -862,6 +875,7 @@ export const CountryAccountService = {
 					sourceIdKey: "hazardousEventId",
 					targetIdKey: "hazardousEventId",
 					entityLabel: "hazardous event",
+					divisionIdMap,
 					tx,
 					getGeomRows: HazardousEventGeomRepository.getByHazardousEventIds,
 					getDivisionRows:
@@ -1002,6 +1016,7 @@ export const CountryAccountService = {
 					sourceIdKey: "disasterRecordId",
 					targetIdKey: "disasterRecordId",
 					entityLabel: "disaster record",
+					divisionIdMap,
 					tx,
 					getGeomRows: DisasterRecordsGeomRepository.getByDisasterRecordIds,
 					getDivisionRows:
@@ -1158,6 +1173,7 @@ export const CountryAccountService = {
 						sourceIdKey: "disruptionId",
 						targetIdKey: "disruptionId",
 						entityLabel: "disruption",
+						divisionIdMap,
 						tx,
 						getGeomRows: DisruptionGeomRepository.getByDisruptionIds,
 						getDivisionRows: DisruptionDivisionRepository.getByDisruptionIds,
@@ -1267,6 +1283,7 @@ export const CountryAccountService = {
 						sourceIdKey: "lossId",
 						targetIdKey: "lossId",
 						entityLabel: "loss",
+						divisionIdMap,
 						tx,
 						getGeomRows: LossesGeomRepository.getByLossIds,
 						getDivisionRows: LossesDivisionRepository.getByLossIds,
@@ -1310,6 +1327,7 @@ export const CountryAccountService = {
 						sourceIdKey: "damageId",
 						targetIdKey: "damageId",
 						entityLabel: "damage",
+						divisionIdMap,
 						tx,
 						getGeomRows: DamagesGeomRepository.getByDamageIds,
 						getDivisionRows: DamagesDivisionRepository.getByDamageIds,

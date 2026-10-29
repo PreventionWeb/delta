@@ -307,7 +307,10 @@ export async function getSectorImpactTotal(
 			)
 			SELECT 1
 			FROM disaster_records_division drd
-			WHERE drd.disaster_record_id = ${disasterRecordsTable.id}
+			INNER JOIN disaster_records dr
+				ON dr.id = drd.disaster_record_id
+			WHERE drd.disaster_record_id = disaster_records.id
+				AND dr.country_accounts_id = ${args.countryAccountsId}::uuid
 				AND drd.division_id IN (SELECT id FROM division_tree)
 		)`);
 	}
