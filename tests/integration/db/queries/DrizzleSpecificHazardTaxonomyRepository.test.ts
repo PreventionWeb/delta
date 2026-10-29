@@ -1,6 +1,7 @@
 import "../setup";
 import { randomUUID } from "crypto";
 import { describe, it, expect, vi } from "vitest";
+import { eq } from "drizzle-orm";
 import { dr } from "~/db.server";
 import { hipsVersionTable } from "~/domains/hazardous-events/infrastructure/hipsVersionTable";
 import { hazardTypeTable } from "~/domains/hazardous-events/infrastructure/hazardTypeTable";
@@ -103,6 +104,76 @@ describe("DrizzleSpecificHazardTaxonomyRepository", () => {
 
 			expect(result.get(firstId)?.specificHazardName).toBe("Flash Flooding");
 			expect(result.get(secondId)?.specificHazardName).toBe("Drought");
+		});
+	});
+
+	describe("listAll", () => {
+		it("returns every hazard type, cluster, and specific hazard, each sorted by name", async () => {
+			await seedTaxonomyChain({
+				type: "Zebra Type",
+				cluster: "Zebra Cluster",
+				specificHazard: "Zebra Hazard",
+			});
+			await seedTaxonomyChain({
+				type: "Alpha Type",
+				cluster: "Alpha Cluster",
+				specificHazard: "Alpha Hazard",
+			});
+			const repo = new DrizzleSpecificHazardTaxonomyRepository(dr);
+
+			const result = await repo.listAll();
+
+			const typeNames = result.types.map((t) => t.name);
+			const clusterNames = result.clusters.map((c) => c.name);
+			const specificHazardNames = result.specificHazards.map((h) => h.name);
+			expect(typeNames).toEqual([...typeNames].sort());
+			expect(clusterNames).toEqual([...clusterNames].sort());
+			expect(specificHazardNames).toEqual([...specificHazardNames].sort());
+			expect(typeNames).toEqual(
+				expect.arrayContaining(["Zebra Type", "Alpha Type"]),
+			);
+			expect(clusterNames).toEqual(
+				expect.arrayContaining(["Zebra Cluster", "Alpha Cluster"]),
+			);
+			expect(specificHazardNames).toEqual(
+				expect.arrayContaining(["Zebra Hazard", "Alpha Hazard"]),
+			);
+		});
+
+		it("includes clusterId and code on each specificHazards entry, matching the real row exactly", async () => {
+			const id = await seedTaxonomyChain({
+				type: "Biological",
+				cluster: "Infectious disease",
+				specificHazard: "Cholera",
+			});
+			const [seededRow] = await dr
+				.select({
+					hazardClusterId: specificHazardTable.hazardClusterId,
+					code: specificHazardTable.code,
+				})
+				.from(specificHazardTable)
+				.where(eq(specificHazardTable.id, id));
+			const [seededCluster] = await dr
+				.select({ hazardTypeId: hazardClusterTable.hazardTypeId })
+				.from(hazardClusterTable)
+				.where(eq(hazardClusterTable.id, seededRow.hazardClusterId));
+			const repo = new DrizzleSpecificHazardTaxonomyRepository(dr);
+
+			const result = await repo.listAll();
+
+			const entry = result.specificHazards.find((h) => h.id === id);
+			expect(entry).toBeDefined();
+			expect(entry?.clusterId).toBe(seededRow.hazardClusterId);
+			expect(entry?.code).toBe(seededRow.code);
+
+			const clusterEntry = result.clusters.find(
+				(c) => c.id === seededRow.hazardClusterId,
+			);
+			expect(clusterEntry).toBeDefined();
+			expect(clusterEntry?.typeId).toBe(seededCluster.hazardTypeId);
+			expect(
+				result.types.some((t) => t.id === seededCluster.hazardTypeId),
+			).toBe(true);
 		});
 	});
 });
