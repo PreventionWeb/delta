@@ -14,6 +14,26 @@
 		},
 		"page_size": "{{count}} / page"
 	},
+	"filters": {
+		"hazard_type": "Hazard type",
+		"all_hazard_types": "All hazard types",
+		"cluster": "Cluster",
+		"all_clusters": "All clusters",
+		"specific_hazard": "Specific hazard",
+		"enter_hazard_name_or_hips_id": "Enter hazard name or HIPS ID ...",
+		"from": "From",
+		"to": "To",
+		"recording_organization": "Recording organization",
+		"search_organization": "Search organization...",
+		"hazardous_event_status": "Hazardous event status",
+		"all_event_statuses": "All event statuses",
+		"record_status": "Record status",
+		"all_record_statuses": "All record statuses",
+		"view_my_records": "View my records",
+		"pending_my_action": "Pending my action",
+		"clear": "Clear",
+		"apply_filters": "Apply filters"
+	},
 	"status": {
 		"draft": "Draft",
 		"waiting_for_validation": "Waiting for validation",
