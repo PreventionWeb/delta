@@ -59,6 +59,9 @@ const mockGetCountryAccountsIdFromSession = vi.mocked(
 const mockGetUserRoleFromSession = vi.mocked(getUserRoleFromSession);
 const mockRequireUser = vi.mocked(requireUser);
 
+const TEST_USER_ID = randomUUID();
+const NO_FILTERS = { viewMyRecords: false, pendingMyAction: false };
+
 function baseEventProps(
 	id: string,
 	tenantId: string,
@@ -164,7 +167,10 @@ async function makeArgs(
 		tenantIdForSession ?? undefined,
 	);
 	mockGetUserRoleFromSession.mockResolvedValue((role ?? undefined) as never);
-	mockRequireUser.mockResolvedValue({} as never);
+	mockRequireUser.mockResolvedValue({
+		user: { id: TEST_USER_ID },
+		session: {},
+	} as never);
 	const request = new Request(url);
 	const context = await makeI18nContext(url);
 	// Cast needed: the loader only destructures request/params/context, so the
@@ -209,8 +215,11 @@ describe("Hazardous event list route loader", () => {
 
 		expect(executeSpy).toHaveBeenCalledWith({
 			tenantId,
+			userId: TEST_USER_ID,
+			role: "data-viewer",
 			page: 1,
 			pageSize: 50,
+			filters: NO_FILTERS,
 		});
 		executeSpy.mockRestore();
 	});
@@ -232,8 +241,11 @@ describe("Hazardous event list route loader", () => {
 
 		expect(executeSpy).toHaveBeenCalledWith({
 			tenantId,
+			userId: TEST_USER_ID,
+			role: "data-viewer",
 			page: 3,
 			pageSize: 50,
+			filters: NO_FILTERS,
 		});
 		executeSpy.mockRestore();
 	});
@@ -255,8 +267,11 @@ describe("Hazardous event list route loader", () => {
 
 		expect(executeSpy).toHaveBeenCalledWith({
 			tenantId,
+			userId: TEST_USER_ID,
+			role: "data-viewer",
 			page: 1,
 			pageSize: 50,
+			filters: NO_FILTERS,
 		});
 		executeSpy.mockRestore();
 	});
@@ -275,9 +290,62 @@ describe("Hazardous event list route loader", () => {
 
 		expect(executeSpy).toHaveBeenCalledWith({
 			tenantId,
+			userId: TEST_USER_ID,
+			role: "data-viewer",
 			page: 1,
 			pageSize: 100,
+			filters: NO_FILTERS,
 		});
+		executeSpy.mockRestore();
+	});
+
+	it("parses and forwards filter query params to the use case's filters field", async () => {
+		const { ListHazardousEventsUseCase } =
+			await import("~/domains/hazardous-events/application/use-cases/ListHazardousEvents");
+		const executeSpy = vi.spyOn(
+			testingModule.get(ListHazardousEventsUseCase),
+			"execute",
+		);
+		const hazardTypeId = randomUUID();
+
+		await loader(
+			await makeArgs(
+				`http://localhost/en/he-preview?hazardTypeId=${hazardTypeId}&recordStatus=SUBMITTED`,
+				tenantId,
+			),
+		);
+
+		expect(executeSpy).toHaveBeenCalledWith(
+			expect.objectContaining({
+				filters: expect.objectContaining({
+					hazardTypeId,
+					recordStatus: "SUBMITTED",
+				}),
+			}),
+		);
+		executeSpy.mockRestore();
+	});
+
+	it("calls GetHazardTaxonomyOptionsUseCase exactly once and includes its result as taxonomyOptions", async () => {
+		const { GetHazardTaxonomyOptionsUseCase } =
+			await import("~/domains/hazardous-events/application/use-cases/GetHazardTaxonomyOptionsUseCase");
+		const taxonomyUseCase = testingModule.get(GetHazardTaxonomyOptionsUseCase);
+		const executeSpy = vi.spyOn(taxonomyUseCase, "execute");
+
+		const result = (await loader(
+			await makeArgs("http://localhost/en/he-preview", tenantId),
+		)) as {
+			taxonomyOptions: {
+				types: unknown[];
+				clusters: unknown[];
+				specificHazards: unknown[];
+			};
+		};
+
+		expect(executeSpy).toHaveBeenCalledTimes(1);
+		expect(Array.isArray(result.taxonomyOptions.types)).toBe(true);
+		expect(Array.isArray(result.taxonomyOptions.clusters)).toBe(true);
+		expect(Array.isArray(result.taxonomyOptions.specificHazards)).toBe(true);
 		executeSpy.mockRestore();
 	});
 
@@ -291,8 +359,15 @@ describe("Hazardous event list route loader", () => {
 			specificHazardId,
 		);
 
+		// Non-data-viewer role: this test exercises the DEF-031 missing-workflow-status display, not
+		// the data-viewer allowedStatuses restriction (Open Decision 1), and neither seeded event's
+		// workflow status is APPROVED/PUBLISHED.
 		const result = (await loader(
-			await makeArgs("http://localhost/en/he-preview", tenantId),
+			await makeArgs(
+				"http://localhost/en/he-preview",
+				tenantId,
+				"data-collector",
+			),
 		)) as { items: HazardousEventListItemDto[]; totalCount: number };
 
 		expect(Array.isArray(result.items)).toBe(true);
@@ -339,7 +414,10 @@ describe("Hazardous event list route loader", () => {
 		const url = "http://localhost/en/he-preview";
 		const context = await makeI18nContext(url);
 		mockGetUserRoleFromSession.mockResolvedValue("data-viewer" as never);
-		mockRequireUser.mockResolvedValue({} as never);
+		mockRequireUser.mockResolvedValue({
+			user: { id: TEST_USER_ID },
+			session: {},
+		} as never);
 		const result = await withRequestContext(async () => {
 			const ctx = getRequestContext();
 			if (ctx) ctx.tenantId = tenantId;
@@ -377,6 +455,34 @@ describe("Hazardous event list route loader", () => {
 		expect(body.success).toBe(false);
 		expect(body.error.code).toBe("VALIDATION_ERROR");
 		expect(body.error.details).toEqual({ field: "page" });
+
+		executeSpy.mockRestore();
+	});
+
+	// Code-review finding: the two use cases in the loader's own Promise.all were only ever tested
+	// with ListHazardousEventsUseCase rejecting -- confirms the taxonomy use case's own rejection
+	// path is handled identically (same try/catch, same throwHazardousEventLoaderError), not special-cased.
+	it("throws the same ADR-003 envelope when GetHazardTaxonomyOptionsUseCase rejects instead", async () => {
+		const { GetHazardTaxonomyOptionsUseCase } =
+			await import("~/domains/hazardous-events/application/use-cases/GetHazardTaxonomyOptionsUseCase");
+		const { ValidationError } = await import("~/shared/errors/DomainError");
+		const domainError = new ValidationError("taxonomy lookup failed");
+		const executeSpy = vi
+			.spyOn(testingModule.get(GetHazardTaxonomyOptionsUseCase), "execute")
+			.mockRejectedValueOnce(domainError);
+
+		let thrown: unknown;
+		try {
+			await loader(await makeArgs("http://localhost/en/he-preview", tenantId));
+		} catch (err) {
+			thrown = err;
+		}
+
+		expect(thrown).toBeInstanceOf(Response);
+		const response = thrown as Response;
+		expect(response.status).toBe(422);
+		const body = (await response.json()) as ErrorResponse;
+		expect(body.error.code).toBe("VALIDATION_ERROR");
 
 		executeSpy.mockRestore();
 	});

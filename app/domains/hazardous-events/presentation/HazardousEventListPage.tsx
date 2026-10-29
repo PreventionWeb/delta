@@ -1,6 +1,10 @@
 import { Link as RouterLink, useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
-import type { ListHazardousEventsResult } from "~/domains/hazardous-events/application/use-cases/ListHazardousEvents";
+import type {
+	HazardousEventListFilterInput,
+	ListHazardousEventsResult,
+} from "~/domains/hazardous-events/application/use-cases/ListHazardousEvents";
+import type { HazardTaxonomyOptions } from "~/domains/hazardous-events/application/use-cases/GetHazardTaxonomyOptionsUseCase";
 import type { PageProps } from "~/frontend/page-props";
 import { useViewContext } from "~/frontend/context";
 import { formatDateDisplay } from "~/utils/date";
@@ -12,13 +16,20 @@ import { Link } from "~/design-system/components/Link";
 import { workflowStatusDisplay } from "./workflowStatusDisplay";
 import { hazardLabel } from "./hazardLabel";
 import { parsePagination } from "./parsePagination";
+import { parseHazardousEventListFilters } from "./parseHazardousEventListFilters";
+import { HazardousEventFilterBar } from "./HazardousEventFilterBar";
+
+export interface HazardousEventListPageData extends ListHazardousEventsResult {
+	taxonomyOptions: HazardTaxonomyOptions;
+	role?: string | null;
+}
 
 // Legacy's own pagination/view.tsx PAGE_SIZE_OPTIONS -- minimal, 6a-scoped selector; 6h may
 // later generalize/relocate this into the shared design system (design.md Decision).
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 40, 50];
 
 // Legacy's own ListLegend.tsx statuses, in its own order -- the null/"missing" DEF-031 state has
-// no legacy equivalent and is deliberately left out here (human decision, 2026-10-27).
+// no legacy equivalent and is deliberately left out here (human decision).
 const LEGEND_STATUSES = [
 	"DRAFT",
 	"SUBMITTED",
@@ -28,7 +39,10 @@ const LEGEND_STATUSES = [
 ] as const;
 
 /** Ports legacy's own pagination/view.tsx getPaginationWindow() exactly: 1 … [page-2..page+2] … n. */
-function paginationWindow(page: number, totalPages: number): (number | "...")[] {
+function paginationWindow(
+	page: number,
+	totalPages: number,
+): (number | "...")[] {
 	const delta = 2;
 	const range: (number | "...")[] = [];
 	const left = Math.max(2, page - delta);
@@ -45,15 +59,18 @@ function paginationWindow(page: number, totalPages: number): (number | "...")[] 
 
 export function HazardousEventListPage({
 	data,
-}: PageProps<ListHazardousEventsResult>) {
+}: PageProps<HazardousEventListPageData>) {
 	const ctx = useViewContext();
 	const { t } = useTranslation("hazardous-events");
 	const { t: tCommon } = useTranslation("common");
 	const [searchParams] = useSearchParams();
 	const navigate = useNavigate();
 
-	const { items, totalCount } = data;
+	const { items, totalCount, unfilteredTotalCount, taxonomyOptions, role } =
+		data;
 	const { page, pageSize } = parsePagination(searchParams);
+	const currentFilters: HazardousEventListFilterInput =
+		parseHazardousEventListFilters(searchParams);
 	const totalPages = Math.ceil(totalCount / pageSize);
 
 	function pageHref(targetPage: number, targetPageSize = pageSize): string {
@@ -68,33 +85,45 @@ export function HazardousEventListPage({
 	}
 
 	return (
-		<section className="dts-page-section">
-			{items.length === 0 ? (
-				<p>{t("list.empty")}</p>
-			) : (
-				<>
-					<div className="dts-heading-4">
-						<p>
-							{t("list.showing_of_total", {
-								filtered: items.length,
-								total: totalCount,
-							})}
-						</p>
-					</div>
-					<div className="dts-legend">
-						<span className="dts-body-label">
-							{t("list.columns.record_status")}
-						</span>
-						{LEGEND_STATUSES.map((legendStatus) => {
-							const status = workflowStatusDisplay(legendStatus);
-							return (
-								<div className="dts-legend__item" key={legendStatus}>
-									<span className={status.className} />
-									<span>{t(`status.${status.labelKey}`)}</span>
-								</div>
-							);
+		<>
+			<HazardousEventFilterBar
+				// Forces a remount on Clear/Apply so uncontrolled field defaults re-sync (Gate 9).
+				// page/pageSize excluded so pagination alone doesn't remount.
+				key={JSON.stringify(currentFilters)}
+				taxonomyOptions={taxonomyOptions}
+				role={role ?? null}
+				clearFiltersUrl={ctx.url("/he-preview")}
+				currentPageSize={pageSize}
+				currentFilters={currentFilters}
+			/>
+			<section className="dts-page-section">
+				<div className="dts-heading-4">
+					<p>
+						{t("list.showing_of_total", {
+							// Decision 13: filtered total / role-safe unfiltered total,
+							// matching legacy -- not this page's own row count / the filtered total.
+							filtered: totalCount,
+							total: unfilteredTotalCount,
 						})}
-					</div>
+					</p>
+				</div>
+				<div className="dts-legend">
+					<span className="dts-body-label">
+						{t("list.columns.record_status")}
+					</span>
+					{LEGEND_STATUSES.map((legendStatus) => {
+						const status = workflowStatusDisplay(legendStatus);
+						return (
+							<div className="dts-legend__item" key={legendStatus}>
+								<span className={status.className} />
+								<span>{t(`status.${status.labelKey}`)}</span>
+							</div>
+						);
+					})}
+				</div>
+				{items.length === 0 ? (
+					<p>{t("list.empty")}</p>
+				) : (
 					<Table
 						aria-label={t("title")}
 						className="width-override-data-collection"
@@ -172,93 +201,93 @@ export function HazardousEventListPage({
 							);
 						})}
 					</Table>
-					<nav className="dts-pagination" aria-label={t("pagination.label")}>
-						<ul>
-							{page > 1 && (
-								<li>
+				)}
+				<nav className="dts-pagination" aria-label={t("pagination.label")}>
+					<ul>
+						{page > 1 && (
+							<li>
+								<RouterLink
+									className="mg-button mg-button--small mg-button-ghost"
+									to={pageHref(page - 1)}
+									aria-label={t("pagination.previous")}
+								>
+									<img
+										src="/assets/icons/chevron-left-white.svg"
+										alt=""
+										width={20}
+										height={20}
+									/>
+								</RouterLink>
+							</li>
+						)}
+						{paginationWindow(page, totalPages).map((num, idx) =>
+							num === "..." ? (
+								<li key={`ellipsis-${idx}`}>
+									<span
+										className="mg-button mg-button--small mg-button-ghost"
+										aria-hidden="true"
+										tabIndex={-1}
+									>
+										...
+									</span>
+								</li>
+							) : num === page ? (
+								<li key={num}>
+									<span
+										className="mg-button mg-button--small mg-button-ghost"
+										aria-label={t("pagination.current_page", {
+											page_number: num,
+										})}
+										aria-current="true"
+									>
+										{num}
+									</span>
+								</li>
+							) : (
+								<li key={num}>
 									<RouterLink
 										className="mg-button mg-button--small mg-button-ghost"
-										to={pageHref(page - 1)}
-										aria-label={t("pagination.previous")}
+										to={pageHref(num)}
+										aria-label={t("pagination.page_n", { page_number: num })}
 									>
-										<img
-											src="/assets/icons/chevron-left-white.svg"
-											alt=""
-											width={20}
-											height={20}
-										/>
+										{num}
 									</RouterLink>
 								</li>
-							)}
-							{paginationWindow(page, totalPages).map((num, idx) =>
-								num === "..." ? (
-									<li key={`ellipsis-${idx}`}>
-										<span
-											className="mg-button mg-button--small mg-button-ghost"
-											aria-hidden="true"
-											tabIndex={-1}
-										>
-											...
-										</span>
-									</li>
-								) : num === page ? (
-									<li key={num}>
-										<span
-											className="mg-button mg-button--small mg-button-ghost"
-											aria-label={t("pagination.current_page", {
-												page_number: num,
-											})}
-											aria-current="true"
-										>
-											{num}
-										</span>
-									</li>
-								) : (
-									<li key={num}>
-										<RouterLink
-											className="mg-button mg-button--small mg-button-ghost"
-											to={pageHref(num)}
-											aria-label={t("pagination.page_n", { page_number: num })}
-										>
-											{num}
-										</RouterLink>
-									</li>
-								),
-							)}
-							{page < totalPages && (
-								<li>
-									<RouterLink
-										className="mg-button mg-button--small mg-button-ghost"
-										to={pageHref(page + 1)}
-										aria-label={t("pagination.next")}
-									>
-										<img
-											src="/assets/icons/chevron-right-white.svg"
-											alt=""
-											width={20}
-											height={20}
-										/>
-									</RouterLink>
-								</li>
-							)}
-						</ul>
-						<div className="dts-form-component">
-							<select
-								value={pageSize}
-								onChange={handlePageSizeChange}
-								aria-label={t("pagination.items_per_page")}
-								id="dts-pagination-page-size"
-							>
-								{PAGE_SIZE_OPTIONS.map((size) => (
-									<option key={size} value={size}>
-										{t("list.page_size", { count: size })}
-									</option>
-								))}
-							</select>
-						</div>
-					</nav>
-				</>
-			)}
-		</section>
+							),
+						)}
+						{page < totalPages && (
+							<li>
+								<RouterLink
+									className="mg-button mg-button--small mg-button-ghost"
+									to={pageHref(page + 1)}
+									aria-label={t("pagination.next")}
+								>
+									<img
+										src="/assets/icons/chevron-right-white.svg"
+										alt=""
+										width={20}
+										height={20}
+									/>
+								</RouterLink>
+							</li>
+						)}
+					</ul>
+					<div className="dts-form-component">
+						<select
+							value={pageSize}
+							onChange={handlePageSizeChange}
+							aria-label={t("pagination.items_per_page")}
+							id="dts-pagination-page-size"
+						>
+							{PAGE_SIZE_OPTIONS.map((size) => (
+								<option key={size} value={size}>
+									{t("list.page_size", { count: size })}
+								</option>
+							))}
+						</select>
+					</div>
+				</nav>
+			</section>
+		</>
 	);
 }

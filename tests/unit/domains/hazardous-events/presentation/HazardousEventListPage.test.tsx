@@ -5,7 +5,7 @@ import i18n, { type i18n as I18n } from "i18next";
 import { initReactI18next, I18nextProvider } from "react-i18next";
 import { TranslationGetter } from "~/utils/translator";
 import type { HazardousEventListItemDto } from "~/domains/hazardous-events/application/dto/HazardousEventListItemDto";
-import type { ListHazardousEventsResult } from "~/domains/hazardous-events/application/use-cases/ListHazardousEvents";
+import type { HazardousEventListPageData } from "~/domains/hazardous-events/presentation/HazardousEventListPage";
 
 // Satisfies useViewContext()'s unconditional .t build (kept only for .lang/.url here).
 const stubTranslationGetter: TranslationGetter = (params) => ({
@@ -118,13 +118,21 @@ function makeItem(
 	};
 }
 
-/** Defaults totalCount to items.length -- most tests don't care about a total distinct from the
- * page they seed; items 2-4's own tests override it explicitly. */
+/** Defaults totalCount to items.length and unfilteredTotalCount to totalCount (same value, as if
+ * unfiltered) -- callers that need to distinguish filtered from unfiltered (Decision 13) pass both
+ * explicitly. `taxonomyOptions`/`role` are minimal filter-bar fixtures (ca-he-list-filters 6h). */
 function makeResult(
 	items: HazardousEventListItemDto[],
 	totalCount = items.length,
-): ListHazardousEventsResult {
-	return { items, totalCount };
+	unfilteredTotalCount = totalCount,
+): HazardousEventListPageData {
+	return {
+		items,
+		totalCount,
+		unfilteredTotalCount,
+		taxonomyOptions: { types: [], clusters: [], specificHazards: [] },
+		role: "data-collector",
+	};
 }
 
 describe("HazardousEventListPage", () => {
@@ -300,20 +308,21 @@ describe("HazardousEventListPage", () => {
 		expect(html).toContain("09-04-2026");
 	});
 
-	// Human decision, 2026-10-27: real total-count query + the summary line it feeds, matching
-	// legacy's own hazardeventlist.tsx exactly.
-	it("renders the Showing X of Y summary line", () => {
+	// Human decision (Decision 13): "X of Y" is the filtered
+	// total (not this page's own row count) of the role-safe unfiltered total (not the filtered
+	// total), matching legacy's own hazardeventlist.tsx exactly.
+	it("renders the Showing X of Y summary line, filtered total of unfiltered total", () => {
 		const html = renderAt(
 			"/en/he-preview",
 			<HazardousEventListPage
-				data={makeResult([makeItem(), makeItem()], 25)}
+				data={makeResult([makeItem(), makeItem()], 4, 25)}
 			/>,
 		);
 
-		expect(html).toContain("Showing 2 of 25 hazardous event(s)");
+		expect(html).toContain("Showing 4 of 25 hazardous event(s)");
 	});
 
-	// Human decision, 2026-10-27: reuse workflowStatusDisplay's own dot-color mapping, not a
+	// Human decision: reuse workflowStatusDisplay's own dot-color mapping, not a
 	// rebuild -- matching legacy's own ListLegend.tsx exactly (no "missing"/DEF-031 entry, since
 	// legacy has none).
 	it("renders the record-status color legend with legacy's own five statuses", () => {
@@ -372,7 +381,7 @@ describe("HazardousEventListPage", () => {
 			expect(lastPageHtml).not.toContain(hazardousEvents.pagination.next);
 		});
 
-		// Human decision, 2026-10-27: real numbered pages (1 2 3 ... n), matching legacy's own
+		// Human decision: real numbered pages (1 2 3 ... n), matching legacy's own
 		// pagination/view.tsx getPaginationWindow() exactly (delta=2, condenses with "...").
 		it("renders every page number when the total is small enough to need no condensing", () => {
 			// totalPages=4, page=1: legacy's own delta=2 window is [1,2,3,4] -- no "...".
@@ -421,5 +430,41 @@ describe("HazardousEventListPage", () => {
 		for (const size of [10, 20, 30, 40, 50]) {
 			expect(html).toMatch(new RegExp(`<option value="${size}"`));
 		}
+	});
+
+	describe("filter bar placement and zero-result rendering (design.md Decision 8a)", () => {
+		it("renders the filter bar even when the result set is empty", () => {
+			const html = renderAt(
+				"/en/he-preview",
+				<HazardousEventListPage data={makeResult([])} />,
+			);
+
+			expect(html).toMatch(/<form class="dts-form"/);
+		});
+
+		it("renders the filter bar's <form> as a sibling before dts-page-section, not nested inside it", () => {
+			const html = renderAt(
+				"/en/he-preview",
+				<HazardousEventListPage data={makeResult([makeItem()])} />,
+			);
+
+			const formIndex = html.indexOf('<form class="dts-form"');
+			const sectionIndex = html.indexOf('<section class="dts-page-section"');
+			expect(formIndex).toBeGreaterThan(-1);
+			expect(sectionIndex).toBeGreaterThan(-1);
+			expect(formIndex).toBeLessThan(sectionIndex);
+		});
+
+		it("renders the summary line and legend on a zero-result page, with the table replaced by the empty message", () => {
+			const html = renderAt(
+				"/en/he-preview",
+				<HazardousEventListPage data={makeResult([])} />,
+			);
+
+			expect(html).toContain("Showing 0 of 0 hazardous event(s)");
+			expect(html).toMatch(/<div class="dts-legend">/);
+			expect(html).toContain(hazardousEvents.list.empty);
+			expect(html).not.toContain("<table");
+		});
 	});
 });

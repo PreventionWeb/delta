@@ -6,7 +6,13 @@ import {
 } from "~/domains/shared/domain/flexibleDateFormat";
 
 /** DB enum on `hazardous_event.hazardous_event_status` — physical/temporal classification, distinct from approval status (design.md Context, DEF-009's surviving leg). */
-export type HazardousEventStatus = "forecasted" | "ongoing" | "passed";
+export const HAZARDOUS_EVENT_STATUS_VALUES = [
+	"forecasted",
+	"ongoing",
+	"passed",
+] as const;
+export type HazardousEventStatus =
+	(typeof HAZARDOUS_EVENT_STATUS_VALUES)[number];
 
 /** Full set of retained persisted fields, using domain names — excludes approval-status and HIP-hierarchy fields entirely (design.md Context; spec: "carries no approval-status or HIP-hierarchy field"). */
 export interface HazardousEventProps {
