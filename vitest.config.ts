@@ -29,6 +29,12 @@ export default mergeConfig(
 				"**/__tests__/**",
 				"app/entry.client.tsx",
 				"app/entry.server.tsx",
+				// Moved to vitest.dom.config.ts (`yarn test:dom`) -- see its own comment for why.
+				"tests/unit/design-system/components/Checkbox.test.tsx",
+				"tests/unit/design-system/components/Select.test.tsx",
+				"tests/unit/design-system/components/DateRangePicker.test.tsx",
+				"tests/unit/design-system/components/Combobox.test.tsx",
+				"app/domains/hazardous-events/presentation/HazardousEventFilterBar.test.tsx",
 			],
 			coverage: {
 				provider: "v8",
