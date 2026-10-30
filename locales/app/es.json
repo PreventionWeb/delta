@@ -8632,5 +8632,10 @@
         "id": "nav.system_settings_description",
         "description": "File: app/components/RegularMenuBar.tsx:382",
         "translation": "Configurar las preferencias del sistema"
+    },
+    {
+        "id": "analysis.data_based_on_validated_published_records",
+        "description": "File: app/routes/$lang+/analytics+/disaster-events.tsx:1574",
+        "translation": "Los datos que se muestran se basan en registros validados y publicados."
     }
 ]

@@ -350,8 +350,8 @@
     "description": "File: app/frontend/analytics/sectors/sections/ImpactOnSector.tsx:439"
   },
   {
-    "id": "analysis.data_based_on_published_records",
-    "translation": "Data shown is based on published records",
+    "id": "analysis.data_based_on_validated_published_records",
+    "translation": "Data shown is based on validated and published records",
     "description": "File: app/routes/$lang+/analytics+/disaster-events.tsx:1574"
   },
   {
@@ -6132,7 +6132,7 @@
   {
     "id": "meta.hazards_analysis",
     "translation": "Hazards analysis",
-    "description": "File: app/routes/$lang+/analytics+/hazards.tsx:538"
+    "description": "File: app/routes/$lang+/analytics+/hazards.tsx:550"
   },
   {
     "id": "meta.invite_user",

@@ -8630,5 +8630,10 @@
         "id": "nav.system_settings_description",
         "description": "File: app/components/RegularMenuBar.tsx:382",
         "translation": "配置系统偏好设置"
+    },
+    {
+        "id": "analysis.data_based_on_validated_published_records",
+        "description": "File: app/routes/$lang+/analytics+/disaster-events.tsx:1574",
+        "translation": "所示数据基于经过验证并已发表的记录"
     }
 ]
