@@ -88,7 +88,7 @@ docker-compose up -d
 docker-compose exec app yarn dbsync   # apply DB migrations
 ```
 
-Open http://localhost:3000. Use `docker-compose logs -f app` to tail logs.
+Open http://localhost:3000. The React Router app and NestJS API share the same listener, with the API mounted under `/api` and browser requests staying on the same origin. Use `docker-compose logs -f app` to tail logs.
 
 ### Manual setup
 

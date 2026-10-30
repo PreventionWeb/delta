@@ -72,25 +72,23 @@ flowchart TB
     Integrator["Country integrator / script"]
 
     subgraph Deployable["One deployable unit"]
-        SSR["Remix / Express SSR (port 3000)\nhuman-facing routes"]
-        API["NestJS HTTP API (port 4000)\nOpenAPI-documented REST\nfor external integration & mobile"]
+        SSR["React Router + NestJS on one listener\nport 3000\nhuman-facing routes + /api routes"]
         Core["NestJS application context\ndomain + application + infrastructure"]
         SSR --> Core
-        API --> Core
     end
 
     DB[("PostgreSQL 17 + PostGIS")]
     Logs["Structured logs (Pino)"]
 
     Browser --> SSR
-    Integrator --> API
+    Integrator --> SSR
     Core --> DB
     Core --> Logs
 
     style Deployable fill:#FEF3DC,stroke:#B5680A,stroke-width:2px,color:#0B1929
 ```
 
-The Remix/Express app serves every human-facing route via React Router v8's file-based routing; loaders and actions call use cases directly through the shared NestJS application context — no HTTP hop. The NestJS HTTP API runs on port 4000 as a proper, OpenAPI-documented REST surface, not an internal-only convenience layer — it's built so any external system can integrate with DELTA, and so a future mobile app has a stable API to build against. Every endpoint is guarded by a global error filter that turns every thrown domain error into one consistent response envelope (a success flag, machine-readable code, message, trace ID, timestamp) — never a raw stack trace.
+The unified Express listener serves both React Router and the NestJS API on a single port. Human-facing routes fall through to React Router, while requests under `/api/*` remain owned by NestJS. Browser API calls use the same origin, avoiding mandatory CORS in default local development. Every endpoint is guarded by a global error filter that turns every thrown domain error into one consistent response envelope (a success flag, machine-readable code, message, trace ID, timestamp) — never a raw stack trace.
 
 ## Codemap: the four layers
 
