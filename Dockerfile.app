@@ -1,4 +1,4 @@
-# Use the official Node.js 22 image as the base
+# Use the official Node.js 24 image as the base
 FROM node:24-bookworm-slim
 
 # Set the working directory to /delta

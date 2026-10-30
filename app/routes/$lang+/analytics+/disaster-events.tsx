@@ -1572,8 +1572,8 @@ function DisasterEventsAnalysisContent() {
 					<span>
 						*{" "}
 						{ctx.t({
-							code: "analysis.data_based_on_published_records",
-							msg: "Data shown is based on published records",
+							code: "analysis.data_based_on_validated_published_records",
+							msg: "Data shown is based on validated and published records",
 						})}
 					</span>
 				</div>
