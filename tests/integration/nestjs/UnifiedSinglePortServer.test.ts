@@ -43,10 +43,17 @@ describe("Unified single-port server", () => {
 		expect(aliasDocs.headers.location).toBe("/api/v2/docs");
 	});
 
-	it("allows non-API requests to fall through to the React Router catch-all", async () => {
+	it(
+		"allows non-API requests to fall through to the React Router catch-all",
+		async () => {
 		const home = await request.get("/");
-		expect(home.status).toBeLessThan(500);
+		expect(home.status).toBe(200);
+		expect(home.headers["content-type"]).toMatch(/html|text/);
+		expect(home.text).toContain("DELTA Resilience");
+
 		const deepLink = await request.get("/en/disaster-record");
 		expect(deepLink.status).toBeLessThan(500);
-	});
+		},
+		20_000,
+	);
 });

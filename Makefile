@@ -4,7 +4,7 @@
 .DEFAULT_GOAL := help
 
 # Setting phony targets for Make commands
-.PHONY: help build start stop restart rebuild down logs app-logs db-logs app-shell db-shell db-psql status migrate rollback tsc
+.PHONY: help build start stop restart rebuild recreate-core down logs logs-follow app-logs app-logs-follow db-logs db-logs-follow app-shell db-shell db-psql status migrate rollback tsc
 
 # Show available commands
 help:
@@ -16,10 +16,14 @@ help:
 	@echo "  make stop      - Stop running containers"
 	@echo "  make restart   - Restart running services"
 	@echo "  make rebuild   - Rebuild images and restart services"
+	@echo "  make recreate-core - Recreate db/adminer/app containers"
 	@echo "  make down      - Stop and remove containers and volumes"
-	@echo "  make logs      - Follow service logs"
-	@echo "  make app-logs  - Follow app service logs"
-	@echo "  make db-logs   - Follow database service logs"
+	@echo "  make logs      - Show recent container logs"
+	@echo "  make logs-follow - Follow container logs until Ctrl+C"
+	@echo "  make app-logs  - Show recent app service logs"
+	@echo "  make app-logs-follow - Follow app service logs until Ctrl+C"
+	@echo "  make db-logs   - Show recent database service logs"
+	@echo "  make db-logs-follow - Follow database service logs until Ctrl+C"
 	@echo "  make app-shell - Open shell inside the app container"
 	@echo "  make db-shell  - Open shell inside the database container"
 	@echo "  make db-psql   - Open psql inside the database container"
@@ -44,27 +48,43 @@ stop:
 	docker compose stop
 
 # Restart running services
-restart:
-	docker compose restart
+restart: stop start
+	@echo "Restarting services..."
 
 # Rebuild images and restart services
 rebuild:
 	docker compose up -d --build
 
+# Recreate core services (useful when service DNS/network gets stale)
+recreate-core:
+	docker compose up -d --force-recreate db adminer app
+
 # Take down all containers and remove volumes
 down:
 	docker compose down -v
 
-# View logs for services
+# View recent logs for all services
 logs:
+	docker compose logs --tail=100
+
+# Follow logs for all services until Ctrl+C
+logs-follow:
 	docker compose logs -f
 
-# View logs for the app service
+# View recent logs for the app service
 app-logs:
+	docker compose logs --tail=100 app
+
+# Follow logs for the app service until Ctrl+C
+app-logs-follow:
 	docker compose logs -f app
 
-# View logs for the database service
+# View recent logs for the database service
 db-logs:
+	docker compose logs --tail=100 db
+
+# Follow logs for the database service until Ctrl+C
+db-logs-follow:
 	docker compose logs -f db
 
 # Open a shell inside the app container

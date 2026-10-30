@@ -12,7 +12,7 @@
 		"test:run3": "vitest run --config vitest.integration-realdb.config.ts",
 		"test:dom": "vitest run --config vitest.dom.config.ts",
 		"test:run1-3": "yarn test:run1 && yarn test:run2 && yarn test:run3 && yarn test:dom",
-		"dev": "yarn install && yarn dbsync && PORT=3000 node --watch --clear-screen=false --import tsx server.ts",
+		"dev": "yarn install && yarn dbsync && PORT=3000 node --watch --watch-preserve-output --import tsx server.ts",
 		"dev2": "yarn install && PORT=3000 node --import tsx server.ts",
 		"start": "PORT=3000 node --import tsx server.ts",
 		"tsc": "tsc",

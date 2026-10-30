@@ -45,6 +45,24 @@ export async function createUnifiedServer() {
 		res.status(200).json({ ok: true, status: "ready" });
 	});
 
+	const reactHandler = createRequestHandler({
+		build: (isProduction
+			? () => import("./build/server/index.js")
+			: () =>
+					viteDevServer!.ssrLoadModule(
+						"virtual:react-router/server-build",
+					)) as any,
+		mode: isProduction ? "production" : "development",
+	});
+
+	app.use((req: Request, res: Response, next: NextFunction) => {
+		if (req.path === "/api" || req.path.startsWith("/api/")) {
+			return next();
+		}
+
+		return reactHandler(req, res, next);
+	});
+
 	const adapter = new ExpressAdapter(app);
 	const nestApp = await NestFactory.create(CoreModule, adapter, {
 		logger: false,
@@ -52,20 +70,6 @@ export async function createUnifiedServer() {
 	nestApp.setGlobalPrefix(API_GLOBAL_PREFIX);
 	mountOpenApiDocs(nestApp);
 	await nestApp.init();
-
-	app.use((req: Request, res: Response, next: NextFunction) => {
-		if (req.path === "/api" || req.path.startsWith("/api/")) {
-			return next();
-		}
-
-		const reactHandler = createRequestHandler({
-			build: (isProduction
-				? () => import("./build/server/index.js")
-				: () => viteDevServer!.ssrLoadModule("virtual:react-router/server-build")) as any,
-			mode: isProduction ? "production" : "development",
-		});
-		return reactHandler(req, res, next);
-	});
 
 	return {
 		app,
