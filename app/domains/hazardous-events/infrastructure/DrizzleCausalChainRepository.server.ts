@@ -2,6 +2,7 @@ import { Injectable, Inject } from "@nestjs/common";
 import { eq, sql } from "drizzle-orm";
 import type { Dr, Tx } from "~/db.server";
 import { DRIZZLE_CLIENT } from "~/infrastructure/DrizzleProvider.server";
+import { pgErrorCode } from "~/infrastructure/pgErrorCode.server";
 import { ValidationError } from "~/shared/errors";
 import {
 	assertCausalLinkDoesNotCreateCycle,
@@ -16,24 +17,6 @@ export const DEFAULT_ADAPTER_ROW_BOUND = 5000;
 interface RawCausalEdgeRow {
 	cause_id: string;
 	effect_id: string;
-}
-
-/** Checks both `.code` and `.cause.code` — drizzle-orm's error wrapping varies by driver (same
- * helper as `DrizzleWorkflowRepository.server.ts`). */
-function pgErrorCode(err: unknown): string | undefined {
-	if (typeof err !== "object" || err === null) {
-		return undefined;
-	}
-	const code = "code" in err ? err.code : undefined;
-	if (typeof code === "string") {
-		return code;
-	}
-	const cause = "cause" in err ? err.cause : undefined;
-	const causeCode =
-		typeof cause === "object" && cause !== null && "code" in cause
-			? cause.code
-			: undefined;
-	return typeof causeCode === "string" ? causeCode : undefined;
 }
 
 function dedupeByCauseEffectPair(
@@ -158,12 +141,13 @@ export class DrizzleCausalChainRepository implements ICausalChainRepository {
 	async saveEdge(
 		edge: CausalEdge,
 		causalityExplanation: string | null,
+		tx?: Tx,
 	): Promise<void> {
-		await this.db.transaction(async (tx) => {
-			await this.acquireSortedLocks(tx, [edge.causeId, edge.effectId]);
-			await this.assertNoCycleInTx(tx, edge.causeId, edge.effectId);
+		await (tx ?? this.db).transaction(async (innerTx) => {
+			await this.acquireSortedLocks(innerTx, [edge.causeId, edge.effectId]);
+			await this.assertNoCycleInTx(innerTx, edge.causeId, edge.effectId);
 			await this.insertEdge(
-				tx,
+				innerTx,
 				edge.causeId,
 				edge.effectId,
 				causalityExplanation,
@@ -174,14 +158,15 @@ export class DrizzleCausalChainRepository implements ICausalChainRepository {
 	async replaceCauseEdge(
 		effectId: string,
 		newCause: { causeId: string; causalityExplanation: string | null } | null,
+		tx?: Tx,
 	): Promise<void> {
-		await this.db.transaction(async (tx) => {
+		await (tx ?? this.db).transaction(async (innerTx) => {
 			// Only effectId when clearing — there's no second node to pair with a null cause.
 			const lockIds =
 				newCause !== null ? [effectId, newCause.causeId] : [effectId];
-			await this.acquireSortedLocks(tx, lockIds);
+			await this.acquireSortedLocks(innerTx, lockIds);
 
-			await tx
+			await innerTx
 				.delete(hazardousEventCausalityTable)
 				.where(
 					eq(hazardousEventCausalityTable.effectHazardousEventId, effectId),
@@ -191,9 +176,9 @@ export class DrizzleCausalChainRepository implements ICausalChainRepository {
 				return;
 			}
 			// Skipped entirely when clearing — nothing to check a clear against.
-			await this.assertNoCycleInTx(tx, newCause.causeId, effectId);
+			await this.assertNoCycleInTx(innerTx, newCause.causeId, effectId);
 			await this.insertEdge(
-				tx,
+				innerTx,
 				newCause.causeId,
 				effectId,
 				newCause.causalityExplanation,
@@ -201,8 +186,8 @@ export class DrizzleCausalChainRepository implements ICausalChainRepository {
 		});
 	}
 
-	async countEdgesTouching(nodeId: string): Promise<number> {
-		const result = await this.db.execute(sql`
+	async countEdgesTouching(nodeId: string, tx?: Tx): Promise<number> {
+		const result = await (tx ?? this.db).execute(sql`
 			SELECT COUNT(*)::int AS count
 			FROM hazardous_event_causality
 			WHERE cause_hazardous_event_id = ${nodeId}::uuid

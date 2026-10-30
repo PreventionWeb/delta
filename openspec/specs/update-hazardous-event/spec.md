@@ -8,13 +8,45 @@ bundled spatial reading against the same event in the same submission.
 
 ## Requirements
 
+### Requirement: A missing WorkflowInstance on the existing event degrades gracefully
+
+`execute()` SHALL NOT throw when no `WorkflowInstance` exists for the existing event identified by
+`command.id`/`command.tenantId`. The resolved result's `workflowStatus` SHALL be `null` in this
+case, and the rest of the update (merge, persist, causal-link revalidation, bundled spatial
+observation) SHALL proceed exactly as it would for an event with a `WorkflowInstance`. This
+resolves `DEF-031` for this use case: every event created before this refactor has no
+`WorkflowInstance` row until Phase M's backfill runs, and Phase 6 does not depend on Phase M.
+
+This requirement was not previously documented in this spec even though the superseded behavior
+(throwing `NotFoundError`) was already implemented and tested — a pre-existing spec/test gap, not
+introduced by this change.
+
+#### Scenario: An existing event with no WorkflowInstance can still be updated
+
+- **GIVEN** an existing `HazardousEvent` within `command.tenantId` that has no associated
+  `WorkflowInstance`
+- **WHEN** `execute(command)` is called with valid field changes for that event
+- **THEN** `execute()` SHALL NOT throw
+- **AND** the update SHALL be persisted
+- **AND** the resolved result's `workflowStatus` SHALL be `null`
+
+#### Scenario: An existing event with a WorkflowInstance is unaffected
+
+- **GIVEN** an existing `HazardousEvent` within `command.tenantId` with an associated
+  `WorkflowInstance`
+- **WHEN** `execute(command)` is called with valid field changes for that event
+- **THEN** the resolved result's `workflowStatus` SHALL equal the `WorkflowInstance`'s current
+  status, not `null`
+
 ### Requirement: Update an existing event's fields via a partial-patch command
 
 `UpdateHazardousEventUseCase.execute(command)` SHALL load the existing `HazardousEvent` identified
 by `command.id` within `command.tenantId`, apply only the fields present in `command` (a field
 absent from `command`, i.e. `undefined`, MUST leave the existing entity's stored value for that
-field unchanged), re-validate the resulting merged entity, persist it, and resolve a
-`HazardousEventDto` reflecting the merged, persisted state.
+field unchanged), re-validate the resulting merged entity, persist it, and resolve a result
+reflecting the merged, persisted state — including a `workflowStatus` that is `null` when the
+existing event has no associated `WorkflowInstance` (see "A missing WorkflowInstance on the
+existing event degrades gracefully" above), rather than always a definite `Status` value.
 
 An explicit `null` on a nullable field (`hazardousEventStatus`, `specificHazardLocalName`,
 `specificHazardNationalName`) MUST set that field to `null`, distinct from the field being absent
@@ -30,7 +62,7 @@ existing entity's stored collection for that field entirely unchanged.
 - **GIVEN** an existing `HazardousEvent` with `description: "Original"`
 - **WHEN** `execute()` is called with `command.description: "Updated"` and every other field
   absent
-- **THEN** the resolved `HazardousEventDto.description` SHALL equal `"Updated"`
+- **THEN** the resolved result's `description` SHALL equal `"Updated"`
 - **AND** every other field SHALL equal the existing entity's stored value, unchanged
 
 #### Scenario: An absent scalar field leaves the existing value unchanged
@@ -38,20 +70,20 @@ existing entity's stored collection for that field entirely unchanged.
 - **GIVEN** an existing `HazardousEvent` with `magnitude: "5.2"`
 - **WHEN** `execute()` is called with `command.magnitude` absent (not present on the command
   object) and at least one other field present
-- **THEN** the resolved `HazardousEventDto.magnitude` SHALL equal `"5.2"`, unchanged
+- **THEN** the resolved result's `magnitude` SHALL equal `"5.2"`, unchanged
 
 #### Scenario: An explicit null on a nullable field sets it to null, distinct from absence
 
 - **GIVEN** an existing `HazardousEvent` with `specificHazardLocalName: "Local name"`
 - **WHEN** `execute()` is called with `command.specificHazardLocalName: null`
-- **THEN** the resolved `HazardousEventDto.specificHazardLocalName` SHALL be `null`
+- **THEN** the resolved result's `specificHazardLocalName` SHALL be `null`
 
 #### Scenario: A present collection field fully replaces the existing collection
 
 - **GIVEN** an existing `HazardousEvent` with `hazardDriverIds: ["driver-a", "driver-b"]`
 - **WHEN** `execute()` is called with `command.hazardDriverIds: ["driver-c"]`, where `"driver-c"`
   is present in the tenant's valid hazard driver set
-- **THEN** the resolved `HazardousEventDto.hazardDriverIds` SHALL equal exactly `["driver-c"]`,
+- **THEN** the resolved result's `hazardDriverIds` SHALL equal exactly `["driver-c"]`,
   not a union with the prior collection
 
 #### Scenario: A carried-over collection id is re-validated, not assumed still valid
@@ -171,10 +203,12 @@ cause to this event.
 ### Requirement: A bundled spatial reading is delegated, not duplicated
 
 When `command.spatialObservation` is present, `execute()` SHALL record it against the
-just-updated event by delegating to `RecordSpatialObservationUseCase`, supplying `tenantId` and
-`hazardousEventId` from the already-validated update itself (never from caller-supplied values
-inside `command.spatialObservation`). Any error the delegated call raises SHALL propagate to
-`execute()`'s own caller unmodified.
+just-updated event by delegating to `RecordSpatialObservationUseCase`, supplying `tenantId`,
+`hazardousEventId`, and this call's own transaction handle (see "The full write sequence runs as
+one atomic transaction" below) from the already-validated update itself (never from
+caller-supplied values inside `command.spatialObservation` — `UpdateHazardousEventCommand.
+spatialObservation`'s type excludes `tenantId`, `hazardousEventId`, and `tx` for this reason).
+Any error the delegated call raises SHALL propagate to `execute()`'s own caller unmodified.
 
 #### Scenario: A bundled spatial reading is recorded against the updated event
 
@@ -196,8 +230,10 @@ inside `command.spatialObservation`). Any error the delegated call raises SHALL 
   reading, and `command.spatialObservation.confirmReplace` is absent or `false`
 - **WHEN** `execute()` is called
 - **THEN** it SHALL throw `ConflictError`
-- **AND** the `HazardousEvent`'s own field and causal-link changes from this same call SHALL
-  already be persisted (not rolled back)
+- **AND** the `HazardousEvent`'s own field and causal-link changes from this same call SHALL NOT
+  be persisted — the whole transaction, including the already-attempted field/causal-link
+  writes earlier in this same `execute()` call, rolls back together (supersedes this scenario's
+  prior "already persisted, not rolled back" framing, `DEF-026`, closed by this change)
 
 ### Requirement: Concurrent callers racing to set each other's causeId can jointly write a cycle
 
@@ -219,3 +255,78 @@ snapshot it read.
 - **AND** the two calls' writes, taken together, MAY result in a stored cycle (`A` causes `B` and
   `B` causes `A`) — a documented, accepted race (design.md Risks), not silently prevented by this
   change
+
+### Requirement: A stale read is rejected via optimistic locking, not silently overwritten
+
+`UpdateHazardousEventUseCase.execute(command)` SHALL persist the merged entity via
+`IHazardousEventRepository.update(mergedEntity, existingEvent.updatedAt)` —
+`existingEvent.updatedAt` is the value read earlier in the same `execute()` call via
+`findById`, before any merge or re-validation. `execute()` SHALL NOT catch
+`ConcurrentModificationError` thrown by `update()` — it SHALL propagate unmodified to
+`execute()`'s own caller, matching `5j`'s identical "propagate unmodified, no retry loop"
+precedent for `ProcessWorkflowActionUseCase` (design.md Decision 6 there).
+
+#### Scenario: update() is called with the previously-read updatedAt, not a freshly-computed one
+
+- **GIVEN** an existing `HazardousEvent` whose stored `updatedAt` is read via `findById`
+  at the start of `execute()`
+- **WHEN** `execute()` persists the merged entity
+- **THEN** `IHazardousEventRepository.update` SHALL be called with that exact
+  previously-read `updatedAt` value as its second argument, not any value computed later
+  in the same call
+
+#### Scenario: A ConcurrentModificationError from update() propagates unmodified, no retry
+
+- **GIVEN** a fake `IHazardousEventRepository.update` stubbed to reject with
+  `ConcurrentModificationError`
+- **WHEN** `execute(command)` is called
+- **THEN** the call SHALL reject with that same `ConcurrentModificationError`, unmodified
+- **AND** `IHazardousEventRepository.update` SHALL have been called exactly once — no
+  retry of any kind SHALL be attempted
+
+#### Scenario: Concurrent callers updating the same event, each reading before either writes — the losing call is rejected
+
+- **GIVEN** an existing `HazardousEvent`, and two concurrent `execute()` calls for the
+  same `command.id`/`command.tenantId`, each with a different field change, both calling
+  `findById` (and so reading the same `updatedAt`) before either call's own `update()`
+  resolves
+- **WHEN** both calls' `update()` invocations race against the real adapter
+- **THEN** exactly one call SHALL resolve successfully
+- **AND** the other call SHALL reject with `ConcurrentModificationError`, unmodified,
+  from `execute()` itself
+- **AND** the final persisted state SHALL reflect only the winning call's change, with no
+  silent last-write-wins merge of the two calls' distinct field changes
+
+### Requirement: The full write sequence runs as one atomic transaction, including the delegated spatial-observation call
+
+`execute()`'s writes — `IHazardousEventRepository.update`, the causal-link change (when present,
+via `ICausalChainRepository.replaceCauseEdge`), and the delegated
+`RecordSpatialObservationUseCase.execute()` call (when `command.spatialObservation` is present) —
+SHALL run inside a single transaction, with the resulting transaction handle passed to every one
+of those calls. A rejection from any of them SHALL roll back every write already made earlier in
+that same `execute()` call. The structured log event on success SHALL be emitted only after the
+transaction has resolved successfully; it SHALL NOT be emitted when the transaction rolls back.
+This does not change `execute()`'s own write order (unchanged from today) or its
+`ConcurrentModificationError` propagation contract (unchanged — see "A stale read is rejected via
+optimistic locking, not silently overwritten," unaffected by this change).
+
+#### Scenario: A successful call with a causal-link change and a bundled spatial reading commits all three writes and logs exactly once
+
+- **GIVEN** a valid `UpdateHazardousEventCommand` with a new `causeId` and a
+  `spatialObservation`
+- **WHEN** `execute(command)` resolves successfully
+- **THEN** the updated `HazardousEvent`, its new causal edge, and the spatial observation SHALL
+  all be persisted
+- **AND** exactly one structured log event SHALL be emitted, and only after all writes have
+  committed
+
+#### Scenario: A rolled-back transaction leaves the HazardousEvent's prior field values and causal link intact, regardless of which write failed
+
+- **GIVEN** a valid `UpdateHazardousEventCommand` with a changed `description` and a new
+  `causeId`, and a fake `ICausalChainRepository.replaceCauseEdge` stubbed to reject with a
+  generic `Error`
+- **WHEN** `execute(command)` is called
+- **THEN** the call SHALL reject with that same `Error`
+- **AND** a subsequent `findById` for the same event SHALL resolve the event's prior
+  `description` and prior causal link, unchanged — not the attempted new values
+- **AND** no log event SHALL be emitted

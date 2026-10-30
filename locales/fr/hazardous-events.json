@@ -1,0 +1,89 @@
+{
+	"title": "Événements dangereux",
+	"list": {
+		"empty": "Aucun événement dangereux trouvé.",
+		"showing_of_total": "Affichage de {{filtered}} sur {{total}} événement(s) dangereux",
+		"columns": {
+			"hazard": "Type d'aléa",
+			"hazard_id_fallback_title": "Aucun nom d'aléa disponible — affichage de l'identifiant brut",
+			"record_status": "Statut de l'enregistrement",
+			"hazardous_event_uuid": "UUID de l'événement dangereux",
+			"created_at": "Créé",
+			"updated_at": "Mise à jour",
+			"actions": "Actions"
+		},
+		"page_size": "{{count}} / page"
+	},
+	"filters": {
+		"hazard_type": "Type d'aléa",
+		"all_hazard_types": "Tous les types d'aléa",
+		"cluster": "Groupe",
+		"all_clusters": "Tous les groupes",
+		"specific_hazard": "Aléa spécifique",
+		"enter_hazard_name_or_hips_id": "Saisir le nom de l'aléa ou l'identifiant HIPS...",
+		"from": "Du",
+		"to": "Au",
+		"recording_organization": "Organisme d'enregistrement",
+		"search_organization": "Rechercher un organisme...",
+		"hazardous_event_status": "Statut de l'événement dangereux",
+		"all_event_statuses": "Tous les statuts d'événement",
+		"record_status": "Statut de l'enregistrement",
+		"all_record_statuses": "Tous les statuts d'enregistrement",
+		"view_my_records": "Voir mes enregistrements",
+		"pending_my_action": "En attente de mon action",
+		"clear": "Effacer",
+		"apply_filters": "Appliquer les filtres"
+	},
+	"status": {
+		"draft": "Brouillon",
+		"waiting_for_validation": "En attente de validation",
+		"needs_revision": "Révision nécessaire",
+		"validated": "Validé",
+		"rejected": "Rejeté",
+		"published": "Publié",
+		"missing": "Non encore déterminé"
+	},
+	"pagination": {
+		"label": "Pagination",
+		"previous": "Page précédente",
+		"next": "Page suivante",
+		"current_page": "Page actuelle, page {{page_number}}",
+		"page_n": "Page {{page_number}}",
+		"items_per_page": "Éléments par page"
+	},
+	"detail": {
+		"id_label": "ID",
+		"classification": {
+			"heading": "Classification de l'aléa",
+			"type": "Type",
+			"cluster": "Groupe",
+			"hazard": "Aléa"
+		},
+		"fields": {
+			"national_specification": "Spécification nationale",
+			"start_date": "Date de début",
+			"end_date": "Date de fin",
+			"description": "Description",
+			"chains_explanation": "Événement composite - explication des chaînes",
+			"magnitude": "Magnitude",
+			"spatial_footprint": "Empreinte spatiale",
+			"attachments": "Pièces jointes",
+			"record_originator": "Origine de l'enregistrement",
+			"hazardous_event_status": "Statut de l'événement dangereux",
+			"data_source": "Source des données",
+			"created_at": "Créé le",
+			"updated_at": "Mis à jour le"
+		},
+		"spatial_observation": {
+			"none": "Aucune observation spatiale enregistrée",
+			"observation_time": "Heure d'observation",
+			"note": "Note"
+		},
+		"attachments_none": "Aucune pièce jointe",
+		"hazardous_event_status_values": {
+			"forecasted": "Prévu",
+			"ongoing": "En cours",
+			"passed": "Terminé"
+		}
+	}
+}

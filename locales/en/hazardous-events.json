@@ -1,0 +1,89 @@
+{
+	"title": "Hazardous events",
+	"list": {
+		"empty": "No hazardous events found.",
+		"showing_of_total": "Showing {{filtered}} of {{total}} hazardous event(s)",
+		"columns": {
+			"hazard": "Hazard type",
+			"hazard_id_fallback_title": "No hazard name available — showing the raw hazard id",
+			"record_status": "Record status",
+			"hazardous_event_uuid": "Hazardous event UUID",
+			"created_at": "Created",
+			"updated_at": "Updated",
+			"actions": "Actions"
+		},
+		"page_size": "{{count}} / page"
+	},
+	"filters": {
+		"hazard_type": "Hazard type",
+		"all_hazard_types": "All hazard types",
+		"cluster": "Cluster",
+		"all_clusters": "All clusters",
+		"specific_hazard": "Specific hazard",
+		"enter_hazard_name_or_hips_id": "Enter hazard name or HIPS ID ...",
+		"from": "From",
+		"to": "To",
+		"recording_organization": "Recording organization",
+		"search_organization": "Search organization...",
+		"hazardous_event_status": "Hazardous event status",
+		"all_event_statuses": "All event statuses",
+		"record_status": "Record status",
+		"all_record_statuses": "All record statuses",
+		"view_my_records": "View my records",
+		"pending_my_action": "Pending my action",
+		"clear": "Clear",
+		"apply_filters": "Apply filters"
+	},
+	"status": {
+		"draft": "Draft",
+		"waiting_for_validation": "Waiting for validation",
+		"needs_revision": "Needs revision",
+		"validated": "Validated",
+		"rejected": "Rejected",
+		"published": "Published",
+		"missing": "Not yet determined"
+	},
+	"pagination": {
+		"label": "Pagination",
+		"previous": "Previous page",
+		"next": "Next page",
+		"current_page": "Current page, page {{page_number}}",
+		"page_n": "Page {{page_number}}",
+		"items_per_page": "Items per page"
+	},
+	"detail": {
+		"id_label": "ID",
+		"classification": {
+			"heading": "Hazard classification",
+			"type": "Type",
+			"cluster": "Cluster",
+			"hazard": "Hazard"
+		},
+		"fields": {
+			"national_specification": "National specification",
+			"start_date": "Start date",
+			"end_date": "End date",
+			"description": "Description",
+			"chains_explanation": "Composite event - chains explanation",
+			"magnitude": "Magnitude",
+			"spatial_footprint": "Spatial footprint",
+			"attachments": "Attachments",
+			"record_originator": "Record originator",
+			"hazardous_event_status": "Hazardous event Status",
+			"data_source": "Data source",
+			"created_at": "Created at",
+			"updated_at": "Updated at"
+		},
+		"spatial_observation": {
+			"none": "No spatial observation recorded",
+			"observation_time": "Observation time",
+			"note": "Note"
+		},
+		"attachments_none": "No attachments",
+		"hazardous_event_status_values": {
+			"forecasted": "Forecasted",
+			"ongoing": "Ongoing",
+			"passed": "Passed"
+		}
+	}
+}

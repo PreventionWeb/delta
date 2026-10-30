@@ -14,6 +14,11 @@ import { eventTable } from "../testSchema/eventTable";
 import { hazardousEventTable } from "../testSchema/hazardousEventTable";
 import { HazardousEventFields } from "~/backend.server/models/event";
 import { createTestBackendContext } from "~/backend.server/context";
+import { hipsVersionTable } from "~/domains/hazardous-events/infrastructure/hipsVersionTable";
+import { hazardTypeTable } from "~/domains/hazardous-events/infrastructure/hazardTypeTable";
+import { hazardClusterTable } from "~/domains/hazardous-events/infrastructure/hazardClusterTable";
+import { specificHazardTable } from "~/domains/hazardous-events/infrastructure/specificHazardTable";
+import { seedTextContent } from "./textContentTestHelpers";
 
 // The real BackendContext needs globalThis.createTranslationGetter wired up (app bootstrap
 // does this at startup); tests don't have that, so use the same lightweight ctx.t double
@@ -111,6 +116,42 @@ export async function baseFields(
 		publishedByUserId: null,
 		...overrides,
 	} as HazardousEventFields;
+}
+
+/** Minimal real-schema FK chain (hipsVersion -> hazardType -> hazardCluster -> specificHazard) a
+ * CA Phase 4/5 specificHazardId needs — distinct from this file's own legacy seedHipChain(),
+ * which seeds the pre-CA testSchema tables instead. */
+export async function seedSpecificHazard(): Promise<string> {
+	const [hipsVersion] = await dr
+		.insert(hipsVersionTable)
+		.values({ versionNo: `HIPs ${randomUUID()}` })
+		.returning({ id: hipsVersionTable.id });
+	const [type] = await dr
+		.insert(hazardTypeTable)
+		.values({
+			id: randomUUID(),
+			nameTextContentId: await seedTextContent(`Type ${randomUUID()}`),
+			hipsVersionId: hipsVersion.id,
+		})
+		.returning({ id: hazardTypeTable.id });
+	const [cluster] = await dr
+		.insert(hazardClusterTable)
+		.values({
+			id: randomUUID(),
+			nameTextContentId: await seedTextContent(`Cluster ${randomUUID()}`),
+			hazardTypeId: type.id,
+		})
+		.returning({ id: hazardClusterTable.id });
+	const [specificHazard] = await dr
+		.insert(specificHazardTable)
+		.values({
+			id: randomUUID(),
+			nameTextContentId: await seedTextContent(`Hazard ${randomUUID()}`),
+			code: `code-${randomUUID()}`,
+			hazardClusterId: cluster.id,
+		})
+		.returning({ id: specificHazardTable.id });
+	return specificHazard.id;
 }
 
 /** Directly seeds a hazardous_event row bypassing hazardousEventCreate, for tests that

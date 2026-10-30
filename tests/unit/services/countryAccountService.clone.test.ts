@@ -18,6 +18,10 @@ const eventRepositoryCreateManyMock = vi.fn();
 const eventRelationshipRepositoryGetByEventIdsMock = vi.fn();
 const disasterRecordsRepositoryGetByCountryAccountsIdMock = vi.fn();
 const disasterRecordsRepositoryCreateManyMock = vi.fn();
+const disasterRecordsGeomRepositoryGetByDisasterRecordIdsMock = vi.fn();
+const disasterRecordsGeomRepositoryCreateManyMock = vi.fn();
+const disasterRecordsDivisionRepositoryGetByDisasterRecordIdsMock = vi.fn();
+const disasterRecordsDivisionRepositoryCreateManyMock = vi.fn();
 const humanDsgConfigRepositoryGetByCountryAccountsIdMock = vi.fn();
 const humanDsgConfigRepositoryCreateManyMock = vi.fn();
 const divisionRepositoryGetByCountryAccountsIdMock = vi.fn();
@@ -167,6 +171,21 @@ vi.mock("~/db/queries/disasterRecordsRepository", () => ({
 	DisasterRecordsRepository: {
 		getByCountryAccountsId: disasterRecordsRepositoryGetByCountryAccountsIdMock,
 		createMany: disasterRecordsRepositoryCreateManyMock,
+	},
+}));
+
+vi.mock("~/db/queries/disasterRecordsGeomRepository", () => ({
+	DisasterRecordsGeomRepository: {
+		getByDisasterRecordIds: disasterRecordsGeomRepositoryGetByDisasterRecordIdsMock,
+		createMany: disasterRecordsGeomRepositoryCreateManyMock,
+	},
+}));
+
+vi.mock("~/db/queries/disasterRecordsDivisionRepository", () => ({
+	DisasterRecordsDivisionRepository: {
+		getByDisasterRecordIds:
+			disasterRecordsDivisionRepositoryGetByDisasterRecordIdsMock,
+		createMany: disasterRecordsDivisionRepositoryCreateManyMock,
 	},
 }));
 
@@ -320,6 +339,14 @@ describe("CountryAccountService.clone", () => {
 		disasterEventLinkRepositoryGetByDisasterEventIdsMock.mockResolvedValue([]);
 		disasterRecordsRepositoryGetByCountryAccountsIdMock.mockResolvedValue([]);
 		disasterRecordsRepositoryCreateManyMock.mockResolvedValue([]);
+		disasterRecordsGeomRepositoryGetByDisasterRecordIdsMock.mockResolvedValue(
+			[],
+		);
+		disasterRecordsGeomRepositoryCreateManyMock.mockResolvedValue([]);
+		disasterRecordsDivisionRepositoryGetByDisasterRecordIdsMock.mockResolvedValue(
+			[],
+		);
+		disasterRecordsDivisionRepositoryCreateManyMock.mockResolvedValue([]);
 		humanDsgRepositoryGetByRecordIdsMock.mockResolvedValue([]);
 		humanDsgRepositoryCreateManyMock.mockResolvedValue([]);
 		affectedRepositoryGetByDsgIdsMock.mockResolvedValue([]);
@@ -364,5 +391,40 @@ describe("CountryAccountService.clone", () => {
 		const clonedRows = disasterEventRepositoryCreateManyMock.mock.calls[0][0];
 		expect(clonedRows[0].recordingOrganizationId).not.toBe("old-org-1");
 		expect(clonedRows[0].recordingOrganizationId).toEqual(expect.any(String));
+	}, 20000);
+
+	it("remaps division IDs on cloned disaster record spatial links", async () => {
+		const { CountryAccountService } =
+			await import("~/services/countryAccountService");
+
+		divisionRepositoryGetByCountryAccountsIdMock.mockResolvedValue([
+			{ id: "old-division-1" },
+		]);
+		disasterRecordsRepositoryGetByCountryAccountsIdMock.mockResolvedValue([
+			{
+				id: "old-record-1",
+				countryAccountsId: "source-ca",
+				attachments: null,
+				disasterEventId: null,
+			},
+		]);
+		disasterRecordsGeomRepositoryGetByDisasterRecordIdsMock.mockResolvedValue([
+			{ id: "old-geom-1", disasterRecordId: "old-record-1" },
+		]);
+		disasterRecordsDivisionRepositoryGetByDisasterRecordIdsMock.mockResolvedValue([
+			{
+				id: "old-link-1",
+				disasterRecordId: "old-record-1",
+				divisionId: "old-division-1",
+			},
+		]);
+
+		await CountryAccountService.clone("source-ca", "Training copy");
+
+		const clonedDivisionRows =
+			disasterRecordsDivisionRepositoryCreateManyMock.mock.calls[0][0];
+		expect(clonedDivisionRows[0].disasterRecordId).not.toBe("old-record-1");
+		expect(clonedDivisionRows[0].divisionId).not.toBe("old-division-1");
+		expect(clonedDivisionRows[0].divisionId).toEqual(expect.any(String));
 	}, 20000);
 });

@@ -14,7 +14,11 @@ same-tenant and cross-tenant counts so a caller can shape what it discloses.
 The file `app/domains/event-causality/application/ports/IEventCausalityRepository.ts` MUST
 export an interface named `IEventCausalityRepository`. It MUST declare exactly the one method
 described below with the exact signature shown. The file MUST NOT import from any Drizzle,
-NestJS, or Remix module.
+NestJS, or Remix module, **except** `app/db.server.ts`'s exported `Tx` type, imported as
+`import type { Tx } from "~/db.server"` — a type-only import, erased at compile time, so this
+file never loads `db.server.ts`'s runtime `dr` connection or pool. `Tx` carries no table-shape
+information, unlike a Drizzle `$inferSelect`/`$inferInsert` row type — the distinction this
+exception exists to preserve (design.md Decision 3).
 
 #### Scenario: TypeScript compilation succeeds
 
@@ -25,14 +29,17 @@ NestJS, or Remix module.
 
 ### Requirement: countReferences counts event_causality rows referencing a hazardous event, split into same-tenant and cross-tenant counts
 
-`countReferences(hazardousEventId: string, tenantId: string):
+`countReferences(hazardousEventId: string, tenantId: string, tx?: Tx):
 Promise<EventCausalityReferenceCounts>` MUST be declared on the interface, where
 `EventCausalityReferenceCounts` is `{ sameTenantCount: number; crossTenantCount: number }`. It
 MUST resolve counts of `event_causality` rows where `hazardousEventId` equals either the
 `triggeringHazardousEventId` column or the `triggeredHazardousEventId` column, regardless of
 direction. `sameTenantCount` MUST count only rows whose own other side (the entity on whichever
 side `hazardousEventId` does not occupy) belongs to `tenantId`; `crossTenantCount` MUST count
-the remaining matching rows, whose own other side belongs to a different tenant.
+the remaining matching rows, whose own other side belongs to a different tenant. When `tx` is
+supplied, the count query MUST execute against that same `tx`, not a separate connection, so a
+caller nesting this call inside its own open transaction observes that transaction's own
+uncommitted writes.
 
 #### Scenario: Method signature is present with correct arity
 
@@ -80,28 +87,42 @@ the remaining matching rows, whose own other side belongs to a different tenant.
 - **WHEN** `countReferences(hazardousEventId, tenantId)` is called
 - **THEN** it MUST resolve `{ sameTenantCount: 1, crossTenantCount: 1 }`
 
+#### Scenario: When called under a caller-supplied tx, the counts reflect that transaction's own uncommitted writes
+
+- **GIVEN** an open transaction handle `tx` under which an `event_causality` row referencing
+  `hazardousEventId` has been inserted but not yet committed
+- **WHEN** `countReferences(hazardousEventId, tenantId, tx)` is called
+- **THEN** it MUST resolve counts that include that uncommitted row — this method MUST NOT use
+  a separate connection when `tx` is supplied
+
 ### Requirement: No method on IEventCausalityRepository accepts a raw Drizzle or infrastructure type
 
 `countReferences`'s parameter and return types MUST be expressed only in terms of primitive
-types and `EventCausalityReferenceCounts` — never a Drizzle `$inferSelect`/`$inferInsert` type
-from `eventCausalityTable.ts`.
+types, `EventCausalityReferenceCounts`, or `Tx` — never a Drizzle `$inferSelect`/`$inferInsert`
+row type from `eventCausalityTable.ts`. This requirement has always been about row-shape types
+specifically, not about an opaque connection or transaction handle. The optional trailing
+`tx?: Tx` parameter is explicitly permitted on that basis (design.md Decision 3).
 
 #### Scenario: No Drizzle type appears in the interface's method signature
 
 - **GIVEN** the `IEventCausalityRepository` interface source
 - **WHEN** its imports and method signature are inspected
 - **THEN** none MUST reference `SelectEventCausality`, `InsertEventCausality`, or any other
-  Drizzle-inferred type
+  Drizzle-inferred row type
+- **AND** the presence of `Tx` on `countReferences` MUST NOT be treated as a violation of this
+  requirement
 
 ### Requirement: DrizzleEventCausalityRepository resolves counts against event_causality, classifying the other side's tenant via a join
 
 `DrizzleEventCausalityRepository`, the first adapter fulfilling `IEventCausalityRepository`,
-MUST resolve `countReferences(hazardousEventId, tenantId)` against the real, pre-existing
+MUST resolve `countReferences(hazardousEventId, tenantId, tx?)` against the real, pre-existing
 `event_causality` table. For each matching row, the row's *other side* (the side that is not
 `hazardousEventId`) MUST be classified by its own tenant — read via a join to
 `hazardousEventTable` when that side's `entity_type` is `'HE'`, or `disasterEventTable` when
 `'DE'` — compared against the given `tenantId`. A row matching `hazardousEventId` on both its
 triggering and triggered side simultaneously MUST still contribute exactly one count, not two.
+When `tx` is supplied, the adapter MUST execute its select (including both joins) against `tx`
+directly — it MUST NOT fall back to the module-level connection when `tx` is present.
 
 #### Scenario: Zero rows resolves zero for both counts
 
@@ -165,6 +186,14 @@ triggering and triggered side simultaneously MUST still contribute exactly one c
   a second, distinct row referencing it as the triggered side
 - **WHEN** `countReferences(hazardousEventId, tenantId)` is called
 - **THEN** both rows are reflected in the result — neither direction is silently skipped
+
+#### Scenario: Called under a caller-supplied tx, the join query executes against that same tx
+
+- **GIVEN** an open, not-yet-committed transaction `tx` under which an `event_causality` row
+  referencing `hazardousEventId` has been inserted
+- **WHEN** `countReferences(hazardousEventId, tenantId, tx)` is called, still within that same
+  `tx`, before commit
+- **THEN** the resolved counts MUST include that uncommitted row
 
 ### Requirement: EventCausalityModule exposes the repository port directly, without a use case in front of it
 

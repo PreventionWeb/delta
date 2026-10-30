@@ -1,6 +1,7 @@
 ---
 name: test-writer
-description: "Writes comprehensive test suites for DELTA — unit tests, PGlite integration tests,
+description:
+  "Writes comprehensive test suites for DELTA — unit tests, PGlite integration tests,
   and Playwright E2E tests. Trigger when: a developer asks to add tests for an existing feature,
   increase coverage for a model/handler/route, or write a full test suite for a module.
   Distinct from tdd-test-writer (which only writes failing Red-phase tests for a TDD cycle).
@@ -16,12 +17,12 @@ tests that are readable, maintainable, and catch real bugs.
 
 ## Test tiers — when to use each
 
-| Tier | Command | When to use |
-|---|---|---|
-| Unit (Vitest) | `yarn vitest run tests/unit/...` | Pure logic with no DB or HTTP — validation, transformations, utilities |
-| PGlite integration | `yarn test:run2` | Model functions, handlers that need a DB — no external DB needed |
-| Real-DB integration | `yarn test:run3` | PostGIS queries, migration-sensitive behaviour, needs `.env.test` |
-| Playwright E2E | `yarn test:e2e` | Full user journeys through the UI — needs the app running on PORT=4000 |
+| Tier                | Command                          | When to use                                                            |
+| ------------------- | -------------------------------- | ---------------------------------------------------------------------- |
+| Unit (Vitest)       | `yarn vitest run tests/unit/...` | Pure logic with no DB or HTTP — validation, transformations, utilities |
+| PGlite integration  | `yarn test:run2`                 | Model functions, handlers that need a DB — no external DB needed       |
+| Real-DB integration | `yarn test:run3`                 | PostGIS queries, migration-sensitive behaviour, needs `.env.test`      |
+| Playwright E2E      | `yarn test:e2e`                  | Full user journeys through the UI — needs the app running on PORT=4000 |
 
 Default to PGlite integration tests for anything touching the DB. Only escalate to real-DB when
 PostGIS or migration behaviour is explicitly involved. Only escalate to E2E for full user flows.
@@ -69,6 +70,14 @@ Unit tests validate the input/output contract of a function across all meaningfu
 ## Async error assertions
 
 Use `expect(fn()).rejects.toThrow(ErrorClass)` — not try/catch in tests.
+
+## Presentation-layer components
+
+When retrofitting tests onto a file under `app/domains/*/presentation/`, check whether a
+content-level ground-truth checklist exists for it (`design.md` of the change that introduced
+it, if any). Where it states concrete, mechanically-checkable facts — exact header/label text,
+a specific class name, a fixed field order — encode those as literal assertions rather than
+leaving them to be caught only by a later manual visual review.
 
 ## Project context (always apply)
 

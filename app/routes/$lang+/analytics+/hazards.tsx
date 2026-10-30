@@ -523,6 +523,18 @@ export default function HazardAnalysis() {
 						</div>
 					)}
 				</div>
+
+				<p>&nbsp;</p>
+				<p>&nbsp;</p>
+				<div className="dts-caption mt-4">
+					<span>
+						*{" "}
+						{ctx.t({
+							code: "analysis.data_based_on_validated_published_records",
+							msg: "Data shown is based on validated and published records",
+						})}
+					</span>
+				</div>
 			</div>
 		</MainContainer>
 	);

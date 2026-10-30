@@ -3,3 +3,147 @@
 @import "~/frontend/human_effects/styles.css";
 @import "react-json-view-lite/dist/index.css";
 @import "tailwindcss";
+
+/*
+ * Minimal, 6a-scoped design-system tokens (ca-he-route-adapter-read design.md Decision 8).
+ * Only the tokens app/design-system/components/ actually consumes, extracted from the exact
+ * legacy public/assets/css/style-dts.css rules being pixel-matched -- NOT a DEF-014 Pass-1
+ * app-wide token extraction. style-dts.css itself is never edited or made to reference these.
+ */
+@theme {
+	--color-dts-table-border: #f2f2f2;
+	--color-dts-table-header-bg: #f2f2f2;
+	--color-dts-action: #106cb8;
+	/* No legacy source -- DEF-031's own new null-workflowStatus state (design.md Decision 8). */
+	--color-dts-status-missing: #808080;
+	--spacing-dts-cell-padding: 0.57rem;
+	--spacing-dts-row-height: 3.86rem;
+	--radius-dts-button: 0.57rem;
+
+	/* ca-he-list-filters (6h) form-input tokens -- design.md Decision 12 + its Task 0.1 addendum. */
+	--color-dts-input-border: #cccccc;
+	--color-dts-input-border-hover: #004f91;
+	--radius-dts-input: 6px;
+	--spacing-dts-input-padding: 0.4rem 0.57rem;
+	--spacing-dts-select-padding: 5px 2.4rem 3px 0.57rem;
+	--spacing-dts-checkbox-size: 1.71rem;
+	--color-dts-checkbox-checked: #004f91;
+	--shadow-dts-checkbox-glow: 0px 1px 8px 0px rgba(0, 79, 145, 0.41);
+
+	/* Gate 9 findings -- legacy's own hazard-search dropdown hover color and <li> padding. */
+	--color-dts-option-hover: #f5f5f5;
+	--spacing-dts-option-padding: 5px 12px;
+}
+
+/* ca-he-list-filters (6h) -- pseudo-class states aren't expressible via inline style/@theme alone. */
+.dts-checkbox-label {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	cursor: pointer;
+}
+
+.dts-checkbox {
+	appearance: none;
+	-webkit-appearance: none;
+	cursor: pointer;
+	width: var(--spacing-dts-checkbox-size);
+	height: var(--spacing-dts-checkbox-size);
+	margin: 0;
+	padding: 0;
+	flex-shrink: 0;
+	background-color: #fff;
+	border: 1px solid var(--color-dts-input-border);
+	border-radius: var(--radius-dts-input);
+}
+
+.dts-checkbox:hover:not(:disabled),
+.dts-checkbox:focus-visible {
+	box-shadow: var(--shadow-dts-checkbox-glow);
+	/* Legacy's checkbox also inherits border-color from the generic input:hover rule (Gate 9). */
+	border-color: var(--color-dts-input-border-hover);
+	outline: none;
+}
+
+.dts-checkbox:checked {
+	background: var(--color-dts-checkbox-checked)
+		url("/assets/icons/tick-white.svg") 3px 3px no-repeat;
+}
+
+.dts-select-trigger {
+	appearance: none;
+	background: #fff url("/assets/icons/chevron-down.svg") no-repeat;
+	background-size: 10px;
+	background-position: top 48% right 0.57rem;
+	border: 1px solid var(--color-dts-input-border);
+	border-radius: var(--radius-dts-input);
+	padding: var(--spacing-dts-select-padding);
+	width: 100%;
+	text-align: left;
+	cursor: pointer;
+	/* Matches legacy's own input/select line-height (style-dts.css:1553) -- that rule's selector
+	   list excludes `button`, so without this a <button> trigger falls back to the browser's
+	   much shorter default line-height (Gate 9 finding). */
+	line-height: 1.7;
+}
+
+.dts-select-trigger:hover,
+.dts-select-trigger:focus-visible {
+	border-color: var(--color-dts-input-border-hover);
+	outline: none;
+}
+
+.dts-select-popover {
+	background: #fff;
+	border: 1px solid var(--color-dts-input-border);
+	border-radius: var(--radius-dts-input);
+	box-shadow: 0 2px 4px rgba(9, 3, 3, 0.1);
+	/* !important: RAC's own inline collision-avoidance max-height otherwise wins (Gate 9). */
+	max-height: 200px !important;
+	overflow-y: auto;
+	/* RAC sets --trigger-width inline for exactly this; nothing consumed it (Gate 9 finding),
+	   so the popover collapsed to its content's width instead of the trigger's. */
+	width: var(--trigger-width);
+}
+
+/* Legacy's own hover highlight for its hazard-search dropdown (hazardevent-filters.tsx's inline
+   onMouseEnter/onMouseLeave) -- applied to both hover and keyboard focus here since RAC's
+   ListBoxItem, unlike legacy's unaccessible dropdown, supports real keyboard navigation too.
+   Shared .dts-select-popover class, so this covers every Select/Combobox dropdown. */
+.dts-select-popover [data-hovered],
+.dts-select-popover [data-focused] {
+	background-color: var(--color-dts-option-hover);
+}
+
+/* Same legacy source's own <li> padding (hazardevent-filters.tsx), options had none before
+   (Gate 9). Shared .dts-select-popover class covers every Select/Combobox dropdown. */
+.dts-select-popover [role="option"] {
+	padding: var(--spacing-dts-option-padding);
+}
+
+/* Legacy's label-to-control gap (style-dts.css:1517-1523) only works because it wraps both as
+   children of one real <label> participating in .dts-form-component's own subgrid -- RAC's
+   Select/ComboBox render a <div>, not a <label>, so that rule never matches them (Gate 9 finding).
+   Same gap value, via flex instead of subgrid since these aren't a real <label>. */
+.dts-form-component .react-aria-Select,
+.dts-form-component .react-aria-ComboBox {
+	display: flex;
+	flex-direction: column;
+	gap: 0.57rem;
+}
+
+.dts-date-input,
+.dts-text-input {
+	border: 1px solid var(--color-dts-input-border);
+	border-radius: var(--radius-dts-input);
+	padding: var(--spacing-dts-input-padding);
+	width: 100%;
+}
+
+.dts-date-input:hover,
+.dts-date-input:focus-visible,
+.dts-text-input:hover,
+.dts-text-input:focus-visible {
+	border-color: var(--color-dts-input-border-hover);
+	outline: none;
+}

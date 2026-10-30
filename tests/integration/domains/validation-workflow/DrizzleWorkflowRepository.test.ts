@@ -128,13 +128,54 @@ describe("DrizzleWorkflowRepository", () => {
 			).resolves.not.toBeNull();
 		});
 
-		it("rejects with ValidationError when the persisted row fails WorkflowInstance.create()'s own invariant", async () => {
+		it("resolves null, without throwing, when the persisted row fails WorkflowInstance.create()'s own invariant", async () => {
 			const entityId = randomUUID();
 			await insertInvalidRow(entityId);
 
-			await expect(repository.findByEntity(entityId, "HE")).rejects.toThrow(
-				ValidationError,
-			);
+			await expect(repository.findByEntity(entityId, "HE")).resolves.toBeNull();
+		});
+
+		it("logs a WARN for a row that fails invariant validation, matching findByEntityIds's own skip pattern", async () => {
+			const entityId = randomUUID();
+			await insertInvalidRow(entityId);
+
+			const warnSpy = vi
+				.spyOn(getPinoLogger(), "warn")
+				.mockImplementation(() => {});
+			try {
+				await repository.findByEntity(entityId, "HE");
+
+				expect(warnSpy).toHaveBeenCalledTimes(1);
+				expect(warnSpy).toHaveBeenCalledWith(
+					expect.objectContaining({
+						msg: "workflow_instance.invariant_violation_skipped",
+						entityId,
+						entityType: "HE",
+					}),
+				);
+			} finally {
+				warnSpy.mockRestore();
+			}
+		});
+
+		it("propagates a non-ValidationError thrown during row mapping, rather than swallowing it (per ADR-003)", async () => {
+			const entityId = randomUUID();
+			await repository.insert(draft(entityId));
+
+			const programmerError = new TypeError("boom");
+			const createSpy = vi
+				.spyOn(WorkflowInstance, "create")
+				.mockImplementation(() => {
+					throw programmerError;
+				});
+
+			try {
+				await expect(repository.findByEntity(entityId, "HE")).rejects.toBe(
+					programmerError,
+				);
+			} finally {
+				createSpy.mockRestore();
+			}
 		});
 	});
 
@@ -329,6 +370,22 @@ describe("DrizzleWorkflowRepository", () => {
 
 			const rows = await rowsFor(entityId, "HE");
 			expect(rows).toHaveLength(1);
+		});
+
+		it("called under a caller-supplied tx, the insert is visible to that same tx before commit", async () => {
+			const entityId = randomUUID();
+			const instance = draft(entityId);
+
+			// A cross-session read (e.g. via this.db/repository.findByEntity) while tx is still
+			// open would deadlock PGlite's single-instance model, so this only checks same-tx.
+			await dr.transaction(async (tx) => {
+				await repository.insert(instance, tx);
+				const rows = await tx
+					.select()
+					.from(workflowInstanceTable)
+					.where(eq(workflowInstanceTable.entityId, entityId));
+				expect(rows).toHaveLength(1);
+			});
 		});
 	});
 
@@ -553,6 +610,22 @@ describe("DrizzleWorkflowRepository", () => {
 				repository.update(invalidUpdate, instance.updatedAt),
 			).rejects.toBeInstanceOf(ValidationError);
 		});
+
+		it("called under a caller-supplied tx that already deleted the target row earlier in the same tx, the zero-row diagnostic reflects that same transaction's own delete, not a stale separate-connection view", async () => {
+			const entityId = randomUUID();
+			const instance = draft(entityId);
+			await repository.insert(instance);
+
+			await dr.transaction(async (tx) => {
+				await repository.deleteByEntity(entityId, "HE", tx);
+
+				const err = await repository
+					.update(instance, instance.updatedAt, tx)
+					.catch((e: unknown) => e);
+
+				expect(err).toBeInstanceOf(ConcurrentModificationError);
+			});
+		});
 	});
 
 	describe("update — identity-mismatch guard", () => {
@@ -774,6 +847,20 @@ describe("DrizzleWorkflowRepository", () => {
 			await repository.deleteByEntity(entityId, "HE");
 
 			await expect(repository.findByEntity(entityId, "HE")).resolves.toBeNull();
+		});
+
+		it("called under a caller-supplied tx, the delete is visible to that same tx before commit", async () => {
+			const entityId = randomUUID();
+			await repository.insert(draft(entityId));
+
+			await dr.transaction(async (tx) => {
+				await repository.deleteByEntity(entityId, "HE", tx);
+				const rows = await tx
+					.select()
+					.from(workflowInstanceTable)
+					.where(eq(workflowInstanceTable.entityId, entityId));
+				expect(rows).toHaveLength(0);
+			});
 		});
 
 		it("leaves a different entityType's row for the same entityId intact", async () => {

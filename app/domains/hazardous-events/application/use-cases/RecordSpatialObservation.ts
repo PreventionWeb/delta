@@ -1,4 +1,5 @@
 import { SpatialObservation } from "../../domain/SpatialObservation";
+import type { Tx } from "~/db.server";
 import type {
 	IHazardousEventRepository,
 	SpatialObservationRecord,
@@ -6,7 +7,6 @@ import type {
 import type { IDivisionRepository } from "../ports/IDivisionRepository";
 import type { SpatialObservationDto } from "../dto/SpatialObservationDto";
 import { toSpatialObservationDto } from "../dto/SpatialObservationDto";
-import type { ILogger } from "~/shared/logging/ILogger";
 import { ValidationError } from "~/shared/errors";
 import { assertNonEmptyString } from "../assertNonEmptyString";
 
@@ -25,6 +25,8 @@ export interface RecordSpatialObservationCommand {
 	/** Defaults to `null` when omitted -- including on a replace, where an omitted `note` resets to `null`. */
 	note?: string | null;
 	confirmReplace?: boolean;
+	/** Participates in a caller's own open transaction when present (threaded in Section 9). */
+	tx?: Tx;
 }
 
 /** Same predicate as SpatialObservation.ts's own isInvalidDate -- redefined locally to keep each
@@ -62,10 +64,12 @@ function toSpatialObservationRecord(
  * Use case: validate + persist one spatial reading against an existing, tenant-owned
  * HazardousEvent, enforcing SpatialObservation's own duplicate-observationTime conflict rule by
  * calling its real static method rather than reimplementing it (design.md Decision 2).
+ *
+ * Does not log its own success -- its only current caller, UpdateHazardousEventUseCase, logs
+ * after its own outer transaction commits (design.md Decision 6 addendum).
  */
 export class RecordSpatialObservationUseCase {
 	constructor(
-		private readonly logger: ILogger,
 		private readonly hazardousEventRepository: IHazardousEventRepository,
 		private readonly divisionRepository: IDivisionRepository,
 	) {}
@@ -83,6 +87,7 @@ export class RecordSpatialObservationUseCase {
 		await this.hazardousEventRepository.findById(
 			command.hazardousEventId,
 			command.tenantId,
+			command.tx,
 		);
 
 		// Only `undefined` counts as omitted -- an explicit non-Date value (including null)
@@ -101,6 +106,7 @@ export class RecordSpatialObservationUseCase {
 		const validDivisionIds = await this.divisionRepository.findValidDivisionIds(
 			toSafeStringArray(command.divisionIds),
 			command.tenantId,
+			command.tx,
 		);
 
 		const existingRecord =
@@ -108,6 +114,7 @@ export class RecordSpatialObservationUseCase {
 				command.hazardousEventId,
 				observationTime,
 				command.tenantId,
+				command.tx,
 			);
 
 		// Reconstructed so assertNoConflictingObservationTime can read its own fields (Decision 3).
@@ -146,15 +153,8 @@ export class RecordSpatialObservationUseCase {
 				command.hazardousEventId,
 				toSpatialObservationRecord(newObservation),
 				command.tenantId,
+				command.tx,
 			);
-
-		this.logger.info({
-			msg: "spatial_observation.recorded",
-			hazardousEventId: command.hazardousEventId,
-			tenantId: command.tenantId,
-			observationTime: observationTime.toISOString(),
-			replaced: existingEntity !== null,
-		});
 
 		return toSpatialObservationDto(savedRecord);
 	}

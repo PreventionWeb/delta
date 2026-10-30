@@ -1501,23 +1501,35 @@ correctness); `save()` round-trips every status transition correctly.
 
 **Branch:** `feature/ca-workflow-notification-adapter`
 
+**Corrected 2026-10-16 — the original citation was wrong and the scope understated by
+roughly 3x, both found during this intent's own readiness check.** It cited "0c's audit"
+for the legacy email behavior, but `0c`'s own findings never mention email. The real
+source is `app/backend.server/services/emailValidationWorkflowService.ts` and its two
+live callers (`approvalWorkflowService.ts`, `approvalStatusWorkflowService.ts`) — three
+functions dispatched via two mutually exclusive paths (validators on submission;
+submitter on validate/publish/most rejections; a distinct assignee list only for the
+legacy `submit-return` action), not one generic "status-change notification." Faithful
+parity needs a rejection-comments field and an assignees-vs-submitter distinction neither
+`INotificationPort` nor `ProcessWorkflowActionCommand` carry today — human-confirmed to
+widen both now, not defer. Full trace in this intent's own `design.md`.
+
 **Intent for `/opsx:propose`:**
 
 ```
-Implement an email-based INotificationPort adapter — sends the validator-assignment
-notification on submit-validation and the status-change notification on
-validate/publish/reject/return, matching today's actual email behavior found in 0c's
-audit (assigns validators, emails them on submission). Injectable via NestJS DI so
-ProcessWorkflowActionUseCase's tests can use a no-op double instead.
+Implement an email-based INotificationPort adapter faithfully matching the real legacy
+email behavior (see correction above, not the original understated sketch) — widening
+WorkflowActionNotification/ProcessWorkflowActionCommand to carry rejection comments and
+distinguish an assignees-targeted notification from a submitter-targeted one. Injectable
+via NestJS DI so ProcessWorkflowActionUseCase's tests can use a no-op double instead.
+Entity-type-generic (HE/DE/DR) from the start, matching the domain's existing EntityType.
 ```
 
-**Files touched:**
-
-- `app/domains/validation-workflow/infrastructure/EmailNotificationAdapter.ts` (new)
-- `app/domains/validation-workflow/infrastructure/EmailNotificationAdapter.test.ts` (new)
+**Files touched:** `EmailNotificationAdapter.server.ts`/`.test.ts`,
+`EmailNotificationTemplates.ts` (new); `INotificationPort.ts`,
+`ProcessWorkflowAction.ts`/`.test.ts` (widened).
 
 **Test tier:** Unit — mocked mail sender; correct recipients/template selected per
-action type.
+action type, including the assignees-vs-submitter branch.
 
 ---
 
@@ -1553,7 +1565,7 @@ resolves `ProcessWorkflowActionUseCase` using PGlite.
 **Branch:** `feature/ca-he-drizzle-repository-core`
 
 **Owner-corrected 2026-10-07: closes `DEF-035`, not `5f`.** The register originally
-pointed `DEF-035` at `5f`, but `5f` only ever covered the dependent-check *count*
+pointed `DEF-035` at `5f`, but `5f` only ever covered the dependent-check _count_
 queries — the real `delete()` method (with its legacy multi-table replication
 requirement) is this intent's own scope. `hazardousEventTable.id` is a FK into the
 shared `eventTable.id` supertype; `delete()` must replicate the live legacy
@@ -1608,6 +1620,33 @@ settle here whether the port should retype to `SpatialObservation` directly now 
 a real adapter exists, or keep the mapping boundary permanently; a silent divergence
 today would only be caught by `tsc`, not any test.
 
+**Corrected 2026-10-22 (readiness check, before this intent's own spec-writer run) —
+two findings narrow and widen this intent's real scope:**
+
+1. **DEF-027's resolution direction, settled, not left open.** Diffed
+   `SpatialObservationRecord` against `SpatialObservation`'s own `SpatialObservationProps`
+   field-by-field — they are already identical (`id`, `hazardousEventId`,
+   `observationTime`, `note`, `geometries`, `divisionIds`, `createdAt`, `updatedAt`).
+   `RecordSpatialObservationUseCase.execute()` already has a working
+   hydrate-from-trusted-persistence pattern (`SpatialObservation.create(existingRecord,
+new Set(existingRecord.divisionIds))`) for its "existing observation" branch —
+   retyping the port to return `SpatialObservation` directly would only relocate that
+   same hydration hack into the adapter, not remove it. Settled direction: make
+   `SpatialObservationRecord` a genuine type alias of `SpatialObservationProps`
+   (`export type SpatialObservationRecord = SpatialObservationProps`) instead of two
+   hand-maintained interfaces that merely happen to match today — closes DEF-027's
+   actual stated risk (divergence undetected by any test) without touching the use
+   case's already-working reconstruction code or pushing entity validation into
+   infrastructure.
+2. **`IDivisionRepository` has no real adapter yet — folds in `DEF-005`.**
+   `RecordSpatialObservationUseCase` already depends on `IDivisionRepository` (`4g`),
+   but nothing implements it; the use case cannot run end-to-end against real data
+   without one, even once the three spatial methods below exist. `DEF-005` is
+   explicitly triggered "Phase 5e — not yet proposed" — folded into this intent's
+   scope rather than left for a separate pass. Legacy precedent for the query shape:
+   `app/db/queries/hazardousEventDivisionRepository.ts` joins the shared
+   `divisionTable` on its own `countryAccountsId` column for tenant scoping.
+
 **Intent for `/opsx:propose`:**
 
 ```
@@ -1617,21 +1656,30 @@ findCurrentSpatialObservation (latest by observationTime, not insertion order, p
 saveSpatialObservation — against hazardous_event_spatial_observation. Division
 validity checks are tenant-scoped (0d finding #1 — this must not repeat that gap).
 
-Resolve DEF-027 explicitly: either retype IHazardousEventRepository's spatial
-methods to SpatialObservation directly (removing toSpatialObservationRecord) or
-keep SpatialObservationRecord as a deliberate, documented persistence-shape
-boundary distinct from the domain entity — not left as an unexamined duplication.
+Add DrizzleDivisionRepository fulfilling IDivisionRepository.findValidDivisionIds
+against the shared division table, tenant-scoped via countryAccountsId (narrows
+DEF-005's adapter clause; the legacy syncHazardousEventSpatialFootprint function
+stays unguarded until Phase 7 cutover replaces it — never patched directly).
+
+Resolve DEF-027 by making SpatialObservationRecord a type alias of
+SpatialObservation's own SpatialObservationProps (not a port retype to
+SpatialObservation directly — retyping would only relocate the use case's existing
+hydrate-from-trusted-persistence hack into the adapter layer instead of removing it).
 ```
 
 **Files touched:**
 
-- `app/domains/hazardous-events/infrastructure/DrizzleHazardousEventRepository.ts`
+- `app/domains/hazardous-events/infrastructure/DrizzleHazardousEventRepository.server.ts`
   (modified — same file as 5d, this is the spatial-observation half of it)
-- `tests/integration/domains/hazardous-events/DrizzleHazardousEventRepository.test.ts`
+- `tests/integration/db/queries/DrizzleHazardousEventRepository.test.ts`
   (modified)
+- `app/domains/hazardous-events/infrastructure/DrizzleDivisionRepository.server.ts` (new —
+  narrows `DEF-005`'s adapter clause)
+- `tests/integration/db/queries/DrizzleDivisionRepository.test.ts` (new)
 - `app/domains/hazardous-events/application/ports/IHazardousEventRepository.ts`
-  (modified, if DEF-027 resolves toward retyping)
-- `_docs/refactoring-plan/deferred-items-register.md` (close `DEF-027`)
+  (modified — `SpatialObservationRecord` becomes a type alias of
+  `SpatialObservationProps`, closes `DEF-027`)
+- `_docs/refactoring-plan/deferred-items-register.md` (narrow `DEF-005`; close `DEF-027`)
 
 **Test tier:** PGlite integration — a backfilled earlier `observationTime` inserted
 after a later one does not become "current"; a duplicate `observationTime` is
@@ -1681,6 +1729,16 @@ is the direct precedent for this kind of cross-tenant-inclusion assertion).
 
 **Branch:** `feature/ca-hazardous-events-module`
 
+**Corrected 2026-10-22 (readiness check, before this intent's own spec-writer run):**
+
+1. **`ValidationWorkflowModule` (5c) doesn't export what this intent needs.** Five of
+   the six use cases (all but `RecordSpatialObservation`) take `IWorkflowRepository`
+   directly (`4b` design, deliberate). `ValidationWorkflowModule` only exports
+   `ProcessWorkflowActionUseCase` — `WORKFLOW_REPOSITORY` is hidden by design
+   (`ca-validation-workflow-module` Decision 4). Resolution: widen its `exports` to
+   include `WORKFLOW_REPOSITORY`, mirroring `EventCausalityModule`'s precedent for a
+   port a cross-domain consumer needs directly.
+
 **Intent for `/opsx:propose`:**
 
 ```
@@ -1689,6 +1747,14 @@ DrizzleHazardousEventRepository as the IHazardousEventRepository provider, impor
 ValidationWorkflowModule (5c) for the workflow port dependency, and exporting all six
 use cases from Phase 4 (Create, Update, GetById, List, Delete,
 RecordSpatialObservation) — import into CoreModule.
+
+ValidationWorkflowModule gains and exports four small use cases
+(InitializeWorkflowInstanceUseCase, DeleteWorkflowInstanceUseCase,
+GetWorkflowInstanceByEntityUseCase, ListWorkflowInstancesByEntityIdsUseCase) for the five
+HE use cases that need workflow-instance access — WORKFLOW_REPOSITORY itself stays
+unexported (Decision 4, `ca-validation-workflow-module`); a repository port is never
+exported directly for cross-domain injection. See the 2026-10-22 correction note above
+and `ca-hazardous-events-module`'s own design.md Decision 4 for the full rationale.
 ```
 
 **Note (2026-09-24):** also register `DrizzleCausalChainRepository` and
@@ -1702,11 +1768,30 @@ unlike the providers above, this one is not registered directly in this module;
 `event-causality` is its own bounded context (not HE-exclusive), so its module is
 imported, matching how this module will itself be imported by `CoreModule`.
 
+**Corrected 2026-10-22 (mid-implementation, this intent's own SOLID review) — the
+widen-`WORKFLOW_REPOSITORY`-exports resolution above is reverted.** That export would
+have exposed `IWorkflowRepository`'s write methods (`insert`, `update`,
+`deleteByEntity`) across the validation-workflow/hazardous-events bounded-context
+boundary — a materially bigger exposure than the `EventCausalityModule` precedent it
+cited, which exports one read-only method. `WORKFLOW_REPOSITORY` stays hidden
+(`ca-validation-workflow-module` Decision 4, unmodified). `ValidationWorkflowModule`
+instead gains and exports four small use cases — `InitializeWorkflowInstanceUseCase`,
+`DeleteWorkflowInstanceUseCase`, `GetWorkflowInstanceByEntityUseCase`,
+`ListWorkflowInstancesByEntityIdsUseCase` — and the five affected HE use cases take
+`Pick<CorrespondingUseCase, "execute">` instead of `IWorkflowRepository` directly. See
+`ca-hazardous-events-module`'s own design.md Decision 4 for the full rationale.
+
 **Files touched:**
 
-- `app/domains/hazardous-events/infrastructure/HazardousEventsModule.ts` (new)
+- `app/domains/hazardous-events/infrastructure/HazardousEventsModule.server.ts` (new)
 - `app/infrastructure/CoreModule.server.ts` (update — add import)
 - `tests/integration/domains/hazardous-events/HazardousEventsModule.test.ts` (new)
+- `app/domains/validation-workflow/infrastructure/ValidationWorkflowModule.server.ts`
+  (modified — exports four new use cases, per the 2026-10-22 correction above;
+  `WORKFLOW_REPOSITORY` stays hidden)
+- `app/domains/validation-workflow/application/use-cases/InitializeWorkflowInstance.ts`,
+  `DeleteWorkflowInstance.ts`, `GetWorkflowInstanceByEntity.ts`,
+  `ListWorkflowInstancesByEntityIds.ts` (new, per the 2026-10-22 correction above)
 
 **Test tier:** Integration — `Test.createTestingModule([HazardousEventsModule])`
 resolves all six use cases using PGlite, including their cross-module dependency on
@@ -1726,23 +1811,40 @@ intent specifically).** Carried from Phase 0 (`0f`), executed here so it doesn't
 lost, not because it structurally belongs to HE's repository layer. Today's
 `event_causality` HE↔DE linking has no tenant check at all, unlike the singular
 `disasterEventTable.hazardousEventId` field which the same code explicitly guards.
-The fix is a small, standalone patch to `syncLinkedHazardousEvents` in
-`app/routes/$lang+/disaster-event+/edit.$id.tsx` — it does **not** require DE's own
+The fix is a small, standalone patch to `edit.$id.tsx`'s `action` — it does **not** require DE's own
 Clean Architecture domain module to exist first. If Disaster Events gets its own
 Clean Architecture refactor before this phase executes, this fix moves with it as a
 prerequisite for that effort's own causality-linking work instead — whichever lands
 first.
 
+**Corrected 2026-10-23 (readiness check):** `syncLinkedHazardousEvents` is a
+non-exported closure inside `edit.$id.tsx`'s `action` — the existing
+`hazardousEventDisasterEventBoundary.test.ts` tests `EventCausalityRepository.createMany`
+directly, one layer below where this fix lives, so it can't prove the route-level guard
+actually runs. Test instead via the route's exported `action`, alongside the existing
+`loader` test already in `tests/integration-realdb/routes/disaster-event/edit.$id.test.ts`
+(real-Postgres tier, `test:run3` — not PGlite, since that's the tier this route's own
+tests already use).
+
 **Files touched:**
 
-- `app/routes/$lang+/disaster-event+/edit.$id.tsx` (modified — add same-tenant check
-  to `syncLinkedHazardousEvents`, mirroring `disasterEventCreate`/`Update`'s existing
-  `hazardous_event.cannot_reference_other_tenant` guard for the singular field)
+- `app/routes/$lang+/disaster-event+/edit.$id.tsx` (modified — same-tenant guard as
+  the first statement in `formSave`'s `save` callback, before any write; must run
+  there rather than inside `syncLinkedHazardousEvents` since `formSave` commits on
+  any normal `save` return regardless of `ok`)
+- `tests/integration-realdb/routes/disaster-event/edit.$id.test.ts` (modified — new
+  action-level tests for cross-tenant and legacy-field-fallback linking submissions)
+- `tests/integration-realdb/routes/disaster-event/test-helpers.ts` (modified — new
+  `createTestHazardousEvent` helper for this tier)
 - `_docs/refactoring-plan/deferred-items-register.md` (close `DEF-004`)
 
-**Test tier:** PGlite integration — a cross-tenant `linkedTriggeringHazardousEventIds`/
-`linkedTriggeredHazardousEventIds` submission is rejected, extending the existing
-`hazardousEventDisasterEventBoundary.test.ts` from Phase 0's 0f.
+**Test tier:** Integration, real Postgres (`test:run3`) — a cross-tenant
+`linkedTriggeringHazardousEventIds`/`linkedTriggeredHazardousEventIds` submission via the
+route's `action` is rejected, tested alongside the existing `loader` coverage in
+`edit.$id.test.ts`. The existing `hazardousEventDisasterEventBoundary.test.ts` "BUG:"
+characterization test (Phase 0's 0f) documents the pre-fix repository-layer behavior and
+is left as-is — it characterizes `EventCausalityRepository.createMany` itself, which this
+fix does not change.
 
 ---
 
@@ -2091,25 +2193,84 @@ work out the exact mechanism (e.g. `SELECT ... FOR UPDATE` on the target row bef
 the counts, or `SERIALIZABLE` isolation) as part of this intent's own design, not
 assumed here.
 
+**Corrected 2026-10-19 — method names updated to match `5a`/`5d`/`5i`'s actual
+implementations, found during this intent's own readiness check.** This text originally
+said `save()` for both repositories, written before `5a`/`5d` split that into separate
+`insert()`/`update()` methods, and never named `ICausalChainRepository.replaceCauseEdge()`
+(added by `5i`, which `UpdateHazardousEventUseCase` actually calls — `saveEdge()` is only
+`CreateHazardousEventUseCase`'s call). Scope is unchanged, only the real method names.
+
+**Decided 2026-10-19 (user discussion after this intent's own readiness check) — three
+further points, widening scope beyond the paragraph above:**
+
+1. **Nested-transaction mechanics.** Every write method already opens its own internal
+   `this.db.transaction(...)`. Threading an external `tx` needs no conditional-skip logic
+   — change each to `(tx ?? this.db).transaction(...)`. Drizzle ORM's own docs confirm
+   `.transaction()` called on a handle already inside an open transaction becomes a
+   `SAVEPOINT`, not a new `BEGIN`, on Postgres — this is documented Drizzle behavior, not
+   an assumption.
+2. **`saveEdge`/`replaceCauseEdge`'s advisory-lock lifetime changes, deliberately.**
+   `pg_advisory_xact_lock` is tied to the real underlying transaction, not a savepoint —
+   confirmed against Postgres 17 (this project's own version): a lock acquired after a
+   savepoint is released only if that specific savepoint is rolled back; a successful
+   `RELEASE SAVEPOINT` does not undo it. So once nested inside Create/Update's outer
+   transaction, the lock is held for the whole operation, not just the single edge-write
+   — a benign, more-conservative change, not a bug. Note this in design.md; no decision
+   needed.
+3. **`DEF-033`'s race needs a concrete locking mechanism, and it touches more files than
+   listed below.** Confirmed via schema: `disaster_event.hazardous_event_id`,
+   `event_causality.triggering/triggered_hazardous_event_id`, and
+   `hazardous_event_causality.cause/effect_hazardous_event_id` all FK-reference
+   `hazardousEventTable.id` directly. Mechanism: acquire `SELECT ... FOR UPDATE` on the
+   target `hazardous_event` row (new port method — `findByIdForUpdate` or equivalent),
+   then re-run the three dependent-count queries inside that same transaction before
+   deleting. Any concurrent FK-referencing insert takes an implicit `FOR KEY SHARE` lock
+   on that row and blocks until our transaction ends — confirmed against Postgres's own
+   row-lock-mode documentation. This requires threading `tx` through
+   `IHazardousEventRepository.countReferencingDisasterEvents()`,
+   `IEventCausalityRepository.countReferences()`, and
+   `ICausalChainRepository.countEdgesTouching()` too — not just the five write methods
+   named above.
+4. **`UpdateHazardousEventUseCase`'s delegated spatial-observation write is included,
+   via Option A.** Its third write doesn't call a repository directly — it delegates to
+   `RecordSpatialObservationUseCase.execute()`, which calls
+   `IHazardousEventRepository.saveSpatialObservation()` (still an unimplemented `5e`
+   stub today). Chosen: widen `RecordSpatialObservationCommand` to accept an optional
+   `tx`, threaded down to `saveSpatialObservation()` — a first-of-its-kind pattern (no
+   existing use case in this codebase accepts a `tx` on its own `execute()`), accepted
+   deliberately since the same team picks up `5e` next and can honor the shape it
+   establishes now.
+
 **Intent for `/opsx:propose`:**
 
 ```
-Thread Tx through IHazardousEventRepository.save()/delete(), IWorkflowRepository.save()/
-deleteByEntity(), and ICausalChainRepository.saveEdge() (each gains an optional
-trailing tx?: Tx parameter, defaulting to the module-level dr connection when
-omitted, matching this codebase's own existing convention across ~95 files) and wrap:
+Thread Tx through IHazardousEventRepository.insert()/update()/delete()/
+countReferencingDisasterEvents()/findByIdForUpdate() (new), IWorkflowRepository.
+insert()/update()/deleteByEntity(), ICausalChainRepository.saveEdge()/
+replaceCauseEdge()/countEdgesTouching(), IEventCausalityRepository.countReferences(),
+and RecordSpatialObservationUseCase.execute() (via an optional tx on
+RecordSpatialObservationCommand) — each gains an optional trailing tx?: Tx parameter
+(or, for RecordSpatialObservationCommand, an optional tx field), defaulting to the
+module-level dr connection when omitted, matching this codebase's own existing
+convention across ~95 files. Repository methods that already open their own
+this.db.transaction(...) change to (tx ?? this.db).transaction(...) — Drizzle's
+documented savepoint nesting makes this safe with no conditional-skip logic. Wrap:
 
 - CreateHazardousEventUseCase's (4b) and UpdateHazardousEventUseCase's (4c)
-  multi-write sequences in one dr.transaction(async (tx) => {...}) block, passing tx
-  to every save() call inside it. Does not change either use case's own write order
-  or error-propagation contract (4b design.md Decision 5, Decision 8) — only makes
-  the existing sequence atomic.
-- DeleteHazardousEventUseCase's (4f) deleteByEntity-then-delete sequence in the same
-  way, closing DEF-033's compounding note in DEF-031 (a delete() failure after
-  deleteByEntity() succeeds can no longer leave a HazardousEvent with no
-  WorkflowInstance). DEF-033's own check-then-delete race needs its own
-  locking/isolation strategy spanning the dependent-count queries and the delete —
-  design this explicitly, it is not satisfied by transaction-wrapping alone.
+  multi-write sequences — including Update's delegated RecordSpatialObservationUseCase
+  call — in one this.transactionRunner.run(async (tx) => {...}) call (a new
+  ITransactionRunner port injected into each use case, not a direct dr.transaction()
+  call — the use case never holds a Drizzle handle; see 5k's own design.md Decision 1),
+  passing tx through every call inside it. Does not change either use case's own write
+  order or error-propagation contract (4b design.md Decision 5, Decision 8) — only
+  makes the existing sequence atomic.
+- DeleteHazardousEventUseCase's (4f) sequence in the same way, additionally acquiring
+  findByIdForUpdate()'s row lock before re-running the three dependent-count queries
+  inside the same transaction, then deleteByEntity()+delete() — closing DEF-033's own
+  check-then-delete race via Postgres's FOR UPDATE/FOR KEY SHARE conflict, not just
+  transaction-wrapping, and closing DEF-033's compounding note in DEF-031 (a delete()
+  failure after deleteByEntity() succeeds can no longer leave a HazardousEvent with no
+  WorkflowInstance).
 
 A rolled-back transaction on any failure means the "HazardousEvent with no
 WorkflowInstance" and "cause event deleted mid-flight" partial-write scenarios
@@ -2119,18 +2280,27 @@ named in 4b's design.md Decision 5 can no longer occur, for Create/Update/Delete
 **Files touched:**
 
 - `app/domains/hazardous-events/infrastructure/DrizzleHazardousEventRepository.server.ts`
-  (modified — `save()`/`delete()` accept optional `tx`)
+  (modified — `insert()`/`update()`/`delete()`/`countReferencingDisasterEvents()` accept
+  optional `tx`; new `findByIdForUpdate()`)
 - `app/domains/hazardous-events/infrastructure/DrizzleCausalChainRepository.server.ts`
-  (modified — `saveEdge()` accepts optional `tx`, built in `5i`)
+  (modified — `saveEdge()`/`replaceCauseEdge()`/`countEdgesTouching()` accept optional
+  `tx`, built in `5i`)
+- `app/domains/event-causality/infrastructure/DrizzleEventCausalityRepository.server.ts`
+  (modified — `countReferences()` accepts optional `tx`)
 - `app/domains/validation-workflow/infrastructure/DrizzleWorkflowRepository.server.ts`
-  (modified — `save()`/`deleteByEntity()` accept optional `tx`, built in `5a`)
+  (modified — `insert()`/`update()`/`deleteByEntity()` accept optional `tx`, built in
+  `5a`)
 - `app/domains/hazardous-events/application/use-cases/CreateHazardousEvent.ts` (modified
   — wraps its three writes in one transaction)
 - `app/domains/hazardous-events/application/use-cases/UpdateHazardousEvent.ts` (modified
-  — same, once `4c` exists)
+  — wraps its writes, including the delegated spatial-observation call, in one
+  transaction)
+- `app/domains/hazardous-events/application/use-cases/RecordSpatialObservation.ts`
+  (modified — `RecordSpatialObservationCommand` gains an optional `tx` field, threaded
+  to `saveSpatialObservation()`)
 - `app/domains/hazardous-events/application/use-cases/DeleteHazardousEvent.ts` (modified
-  — wraps `deleteByEntity`+`delete` in one transaction; dependent-count/delete race
-  needs its own locking strategy, see above)
+  — acquires `findByIdForUpdate()`'s lock, re-runs dependent counts, then wraps
+  `deleteByEntity`+`delete` — all in one transaction)
 - `_docs/refactoring-plan/deferred-items-register.md` (close `DEF-026`, `DEF-033`;
   update `DEF-031`'s `DeleteHazardousEventUseCase` clause)
 
@@ -2150,11 +2320,23 @@ the delete is detected, not silently cascaded away.
 
 **Branch:** `feature/ca-he-causal-chain-access-control`
 
+**Status update 2026-10-23: design proposed, implementation deliberately paused.** A full
+OpenSpec proposal was drafted (readiness-check confirmed no live code path can create a
+cross-tenant `hazardous_event_causality` row today, so nothing is at risk in the meantime) and
+answers all three questions below, but the actual sharing/access-control requirement is still
+undecided at the product level — pending stakeholder/business discussion. Rather than applying
+or archiving it, the full proposal is preserved at
+`_docs/refactoring-plan/proposed-solutions/2026-10-23-ca-he-causal-chain-access-control/` for
+that future discussion to start from. **Does not block the Phase 5 Gate below** (not in its
+blocking-item list) — treat Phase 5 as functionally complete without this. Don't implement the
+preserved proposal as-is without first re-confirming its design decisions against whatever the
+business actually decides.
+
 **Scheduled into Phase 5, 2026-10-07, closes `DEF-012`.** `2e` deliberately allows
 cross-tenant cause/effect links on `hazardous_event_causality` (a real transboundary
 hazard need, e.g. Nepal→India floods) but no sharing/access-control mechanism exists
 — a tenant can see that a cross-tenant link exists (via `4f`'s dependent-check
-disclosure) but today nothing governs who may *view* the other tenant's linked event
+disclosure) but today nothing governs who may _view_ the other tenant's linked event
 itself. Was previously an unscheduled, watch-for item ("before Phase 3c or Phase 5
 builds real access control around this table") — Phase 3c has since passed with no
 access-control work; this intent is where it's finally picked up. Runs after `5i`
@@ -2211,9 +2393,42 @@ deliberately: Notices' pilot could defer create/edit/delete UI entirely (read-on
 existing production UI to eventually retire); HE has a real, currently-paused production UI that
 Phase 7's cutover needs a full replacement for, not a partial one.
 
+**UI library decision, confirmed 2026-10-23: React Aria, not PrimeReact — a DELTA-wide mandate, not
+an HE-specific choice.** PrimeReact's open-source edition no longer receives updates/maintenance;
+every CA-refactored module's presentation layer (HE first, other domains as their own Phase
+6-equivalent work begins) uses React Aria instead, going forward. Supersedes this section's
+earlier framing (the `feature/poc-react-aria-hazardous-event` rejection above was about not using
+that specific HE-only POC branch as a starting point, not about rejecting React Aria itself).
+Applies to `6a` onward — Notices' own presentation layer stayed PrimeReact-based (it predates this
+decision) and is **not** a precedent for Phase 6's UI component layer, only for its backend
+loader/action pattern (`getAppContext().get(...)`, `withRequestContext`, ADR-007). Do not use
+`feature/poc-react-aria-hazardous-event` or `spike/react-aria-consumption` as a reference — both
+are unrelated exploratory branches; build each intent's components fresh from React Aria's own
+docs. **Golden rule, non-negotiable:** every new route must look and behave identically to today's
+current legacy HE UI — layout, spacing, fonts, alignment, buttons, styles, and behavior — since
+React Aria ships unstyled, this means building custom-styled components that faithfully replicate
+the current UI's actual design, using the current legacy pages as the styling source of truth.
+These components are meant to become a real, reusable DELTA design system, not one-off per-page
+styling — built incrementally (each intent adds only the components it needs, starting with `6a`'s
+own), not as a single upfront pass, but with reuse by later Phase 6 intents and future domains in
+mind from the start; exact shared location is each intent's own design decision, informed by
+existing conventions (e.g. `app/frontend/components`). Legacy, not-yet-migrated UI keeps using
+PrimeReact until its own domain's cutover retires it — same Strangler Fig pattern as the rest of
+this refactor, not an urgent rip-out. See `design-system-unification-roadmap.md` — its "Pass 1"
+PrimeReact-token-extraction plan is superseded for any module moving to React Aria.
+
 ### 🔷 6a — Web Route Adapters: List + Detail
 
 **Branch:** `feature/ca-he-route-adapter-read`
+
+**Readiness-check note, 2026-10-23 (`DEF-031`):** `GetHazardousEventByIdUseCase` throws
+`NotFoundError` for any event with no `WorkflowInstance` row — true for every event created
+before this refactor, until Phase M's backfill runs. Per the dependency graph above, Phase 6
+doesn't depend on Phase M, so this intent resolves it directly: make
+`GetHazardousEventByIdUseCase`/`UpdateHazardousEventUseCase` degrade gracefully instead
+(matching `ListHazardousEventsUseCase`'s existing `workflowStatus: null` pattern), and seed
+test data both with and without a `WorkflowInstance` row to cover both states. Exact mechanism
+is this intent's own design decision, not pre-decided here.
 
 **Intent for `/opsx:propose`:**
 
@@ -2402,6 +2617,101 @@ every endpoint; `/api/v2/docs` serves a valid OpenAPI document.
 > today's `/api+/hazardous-event+/` routes need advance notice of both the URL and
 > response-shape change (resolved open decision #5) before this replaces those
 > routes — a rollout/comms task, not part of this intent's own scope.
+
+---
+
+### 🔷 6g — Analytics Rewrite: `effectDetails.ts` / `geographicImpact.ts` (`DEF-008`)
+
+**Branch:** `feature/ca-he-analytics-rewrite`
+
+**Pulled into Phase 6, 2026-10-23** (previously "Phase 6 or 7, not yet decided").
+`getEffectDetails` is uncallable today by anyone, regardless of input (dead `spatialFootprint`
+references left over from `59f4558e`'s column removal), and separately maps its
+`specificHazardId` filter to `hipTypeId` instead of `hipHazardId` (copy-paste bug). Decided in
+Phase 0's audit: rebuild cleanly against the new `hazard_type`/`hazard_cluster`/
+`specific_hazard` schema, don't patch dead code against the legacy HIP hierarchy.
+
+**Intent for `/opsx:propose`:**
+
+```
+Rewrite effectDetails.ts and geographicImpact.ts's getDisasterRecordsForDivision
+against the new hazard_type/hazard_cluster/specific_hazard schema — drop the dead
+(table as any).spatialFootprint references entirely (the columns they selected no
+longer exist) and correct the specificHazardId-to-hipTypeId mapping bug by
+rebuilding the filter against the new schema's own fields, not by patching the old
+mapping. mostDamagingEvents.ts already has neither bug — confirmed clean, not in
+scope. Re-verify the Phase 0 audit's own characterization-test assumption from
+scratch before reusing it: the "sibling hazard excluded" case was assumed to be the
+pre-fix Red case, but hipTypeId/specificHazardId are different id namespaces that
+likely never collide, so "matching hazard included" is more probably the one that's
+actually broken.
+```
+
+**Files touched:**
+
+- `app/backend.server/models/analytics/effectDetails.ts` (rewritten)
+- `app/backend.server/models/analytics/geographicImpact.ts` (rewritten —
+  `getDisasterRecordsForDivision` only)
+
+**Test tier:** PGlite integration — both filters against the new schema, re-derived
+characterization scenarios (not copied from the Phase 0 audit's own assumption, per above).
+
+---
+
+### 🔷 6h — List Page Filters
+
+**Scheduled immediately after `6a`, 2026-10-26** — run before `6b`/`6c`/etc. despite the letter.
+**Narrowed 2026-10-27**: total-count and the record-status legend, originally scoped here, moved
+into `6a` itself once `6a`'s own manual review pulled in numbered pagination (which needs the same
+total-count query) — see `6a`'s own design.md. Only the filter bar itself remains here. Surfaced
+during `6a`'s own manual review: the legacy list page's filter bar was never scoped into `6a` at
+all (confirmed via grep — zero mentions anywhere in `6a`'s proposal/design/tasks), not a disclosed
+cut. Assessed by `6a`'s own implementer as too large to bolt on: the legacy `hazardevent-filters.tsx`
+component is 594 lines with 11 distinct filter inputs, including a cascading
+hazard-type→cluster→specific-hazard combobox with live search; `ListHazardousEventsUseCase.execute()`
+has no filter support anywhere in the application or repository layer; and none of the needed
+design-system form primitives (select, combobox, date-range picker, checkbox) exist yet in
+`app/design-system/components/` (only `Table`/`TableColumn`/`TableRow`/`TableCell`/`Link` do).
+
+**Open question, flagged 2026-10-27:** `6a`'s `@theme` block (`app/styles/all.css`, design.md
+Decision 8) stayed inline rather than a dedicated theme file, deliberately deferred until the
+token set "grows large enough" — this intent's new form primitives will likely add enough tokens
+to cross that threshold. Evaluate extracting a dedicated theme file as part of this intent's own
+design, rather than defaulting to more inline growth.
+
+**Layering guidance, researched 2026-10-26, binding unless this intent's own design finds a
+reason to deviate:** same split as `6a`'s pagination — presentation parses/validates the URL
+query into a typed filter object and renders the inputs; the use case takes that typed object
+as part of its query input; the repository adapter is the only layer that turns it into real
+`WHERE`/`JOIN` clauses. Reusable, logic-free input primitives (`Select`, a searchable `Combobox`,
+`DateRangePicker`, `Checkbox`) belong in `app/design-system/components/`, same bar as `6a`'s own
+primitives; the actual filter _composition_ (which fields, wired to `ListHazardousEventsQuery`)
+stays HE-owned in its own `presentation/` folder, since the fields themselves are domain-specific
+and other domains' future filters won't share them. Legacy's own precedent only half-commits to
+this: a shared `Filters` shell exists (`app/frontend/components/list-page-filters.tsx`) but
+`hazardevent-filters.tsx`/`list-page-disasterevents-filters.tsx`/`DisasterRecordsFilter.tsx` each
+roll their own form instead of composing on it — don't copy that part.
+
+**Intent for `/opsx:propose`:**
+
+```
+Add filtering (hazard type, cluster, specific hazard search, date range, recording
+organization, hazardous-event status, record status, "view my records"/"pending my
+action") to ListHazardousEventsUseCase and its repository query, matching the legacy
+filter set in app/frontend/events/hazardevent-filters.tsx exactly. Build whatever new
+design-system form primitives this needs (select, combobox with live search,
+date-range picker, checkbox) as additions to app/design-system/components/, same
+reusable-across-domains bar as 6a's own primitives — not HE-owned, not one-off.
+```
+
+**Files touched:** not yet determined — depends on this intent's own design decisions
+(repository filter-clause shape, how the cascading combobox's live search is implemented).
+At minimum: `ListHazardousEventsUseCase`, `IHazardousEventRepository`/its Drizzle adapter,
+`HazardousEventListPage.tsx`, several new `app/design-system/components/` primitives.
+
+**Test tier:** PGlite integration — each filter dimension narrows results correctly, filters
+compose (AND, not OR), an empty result set renders cleanly; unit tests for the new design-system
+primitives, matching `6a`'s own precedent.
 
 ---
 

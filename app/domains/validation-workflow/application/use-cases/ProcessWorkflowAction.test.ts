@@ -123,9 +123,8 @@ interface BuildInstanceOptions {
 	updatedAt?: Date;
 }
 
-/** `??` would treat an explicit `null` override the same as "not passed" and
- * fall back to the status default — checking `undefined` specifically lets a
- * scenario force a field to `null` against its status default if it ever needs to. */
+/** Checks `undefined` specifically (not `??`), so an explicit `null` override isn't confused
+ * with "not passed" — lets a scenario force a field to `null` against its status default. */
 function withDefault<T>(
 	value: T | null | undefined,
 	fallback: T | null,
@@ -261,6 +260,9 @@ describe("ProcessWorkflowActionUseCase — action to entity-method mapping", () 
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-1",
+			validatorUserIds: ["validator-1"],
+			recordDisplayName: "Flood",
+			recordDate: "2026-10-01",
 		};
 
 		const dto = await useCase.execute(command);
@@ -299,6 +301,9 @@ describe("ProcessWorkflowActionUseCase — action to entity-method mapping", () 
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-1",
+			validatorUserIds: ["validator-1"],
+			recordDisplayName: "Flood",
+			recordDate: "2026-10-01",
 		};
 
 		await useCase.execute(command);
@@ -433,6 +438,7 @@ describe("ProcessWorkflowActionUseCase — action to entity-method mapping", () 
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-5",
+			rejectionComments: "Please revise the start date",
 		};
 
 		await useCase.execute(command);
@@ -447,6 +453,30 @@ describe("ProcessWorkflowActionUseCase — action to entity-method mapping", () 
 				toStatus: "REVISION_REQUESTED",
 			}),
 		);
+	});
+
+	it("return with assigneeUserIds still calls requestRevision() from SUBMITTED — identical transition, only the notification payload differs", async () => {
+		const instance = buildInstance({ status: "SUBMITTED" });
+		const repo = makeRepository(instance);
+		const notificationPort = makeNotificationPort();
+		const useCase = new ProcessWorkflowActionUseCase(
+			new NoOpLogger(),
+			repo,
+			notificationPort,
+		);
+		const command: ProcessWorkflowActionCommand = {
+			action: "return",
+			entityId: instance.entityId,
+			entityType: instance.entityType,
+			actingUserId: "user-5",
+			rejectionComments: "Please revise the start date",
+			assigneeUserIds: ["assignee-1"],
+		};
+
+		await useCase.execute(command);
+
+		const updateArgs = vi.mocked(repo.update).mock.calls[0];
+		expect(updateArgs[0].status).toBe("REVISION_REQUESTED");
 	});
 });
 
@@ -471,9 +501,8 @@ describe("ProcessWorkflowActionUseCase — ConflictError propagation", () => {
 			actingUserId: "user-6",
 		};
 
-		// Capture the exact error the entity method throws, so we can prove
-		// execute() propagates that same instance rather than
-		// catching and re-throwing a new one.
+		// Capture the exact error thrown, to prove execute() propagates that same instance
+		// rather than catching and re-throwing a new one.
 		const realPublish = WorkflowInstance.prototype.publish;
 		let thrown: unknown;
 		vi.spyOn(WorkflowInstance.prototype, "publish").mockImplementation(
@@ -487,9 +516,8 @@ describe("ProcessWorkflowActionUseCase — ConflictError propagation", () => {
 			},
 		);
 
-		// Single call, captured via try/catch (not two separate rejects.* chains,
-		// which would each invoke execute() — and the mock — independently,
-		// making a same-instance comparison meaningless across two calls).
+		// Single call via try/catch, not two separate rejects.* chains — each would invoke
+		// execute() (and the mock) independently, making a same-instance comparison meaningless.
 		let caught: unknown;
 		try {
 			await useCase.execute(command);
@@ -548,6 +576,9 @@ describe("ProcessWorkflowActionUseCase — not-found and update-error propagatio
 			entityId: "missing-entity",
 			entityType: "HE",
 			actingUserId: "user-8",
+			validatorUserIds: ["validator-1"],
+			recordDisplayName: "Flood",
+			recordDate: "2026-10-01",
 		};
 
 		await expect(useCase.execute(command)).rejects.toBeInstanceOf(
@@ -572,6 +603,9 @@ describe("ProcessWorkflowActionUseCase — not-found and update-error propagatio
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-9",
+			validatorUserIds: ["validator-1"],
+			recordDisplayName: "Flood",
+			recordDate: "2026-10-01",
 		};
 
 		await expect(useCase.execute(command)).rejects.toBe(dbError);
@@ -673,17 +707,16 @@ describe("ProcessWorkflowActionUseCase — notification", () => {
 			actingUserId: "user-12",
 		};
 
-		// Awaiting without a catch is itself the assertion that execute()'s
-		// promise does not reject: if notify()'s rejection propagated instead
-		// of being swallowed, this await would throw and fail the test.
+		// Awaiting without a catch is itself the assertion that execute()'s promise doesn't
+		// reject — if notify()'s rejection propagated instead of being swallowed, this await
+		// would throw.
 		const dto = await useCase.execute(command);
 		const updateArgs = vi.mocked(repo.update).mock.calls[0];
 
 		expect(dto.status).toBe(updateArgs[0].status);
 		expect(dto.updatedAt).toBe(updateArgs[0].updatedAt.toISOString());
-		// WARN, not ERROR: a swallowed, tolerated degradation (ADR-004), not a broken system.
-		// Full record, not just "was called" — this log line is the only record
-		// of a swallowed notify() failure (DEF-023, no retry mechanism).
+		// WARN not ERROR: a tolerated degradation (ADR-004), not a broken system. Full record
+		// (not just "was called") since this is the only trace of the swallowed failure (DEF-023).
 		expect(warnSpy).toHaveBeenCalledWith(
 			expect.objectContaining({
 				msg: "workflow_action.notify_failed",
@@ -802,6 +835,9 @@ describe("ProcessWorkflowActionUseCase — DTO and notify() reflect update()'s r
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-13",
+			validatorUserIds: ["validator-1"],
+			recordDisplayName: "Flood",
+			recordDate: "2026-10-01",
 		};
 
 		const dto = await useCase.execute(command);
@@ -853,11 +889,11 @@ describe("ProcessWorkflowActionUseCase — concurrent callers race at the reposi
 			entityId: "entity-concurrent",
 			entityType: "HE",
 			actingUserId: "user-a",
+			rejectionComments: "Please revise the start date",
 		};
 		const aPromise = useCase.execute(aCommand);
-		// Race against aPromise itself: if A's execute() rejects before ever
-		// reaching update() (e.g. a ConflictError from a wrong invariant above),
-		// this fails fast instead of hanging until aEntered's gate times out.
+		// Races against aPromise itself: if A's execute() rejects before reaching update() (e.g.
+		// a ConflictError from a bad invariant), this fails fast instead of hanging on the gate.
 		await Promise.race([aEntered, aPromise]);
 
 		// (b) Only now run B's call to completion — validate()+approve() composed into one
@@ -891,5 +927,139 @@ describe("ProcessWorkflowActionUseCase — concurrent callers race at the reposi
 		expect(notificationPort.notify).toHaveBeenCalledTimes(1);
 		expect(notifications[0].toStatus).toBe("APPROVED");
 		expect(notifications[0].action).toBe("validate");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// 2.1 (ADDED requirement) — action-specific notification-payload pass-through
+// ---------------------------------------------------------------------------
+
+describe("ProcessWorkflowActionUseCase — notification payload action-specific field pass-through", () => {
+	it("submit-validation's command fields reach the notification payload unmodified", async () => {
+		const instance = buildInstance({ status: "DRAFT" });
+		const repo = makeRepository(instance);
+		const notificationPort = makeNotificationPort();
+		const useCase = new ProcessWorkflowActionUseCase(
+			new NoOpLogger(),
+			repo,
+			notificationPort,
+		);
+		const command: ProcessWorkflowActionCommand = {
+			action: "submit-validation",
+			entityId: instance.entityId,
+			entityType: instance.entityType,
+			actingUserId: "user-1",
+			validatorUserIds: ["v1", "v2"],
+			recordDisplayName: "Flood",
+			recordDate: "2026-10-01",
+		};
+
+		await useCase.execute(command);
+
+		const notification = vi.mocked(notificationPort.notify).mock.calls[0][0];
+		if (notification.action !== "submit-validation") {
+			throw new Error("expected a submit-validation notification");
+		}
+		expect(notification.validatorUserIds).toEqual(["v1", "v2"]);
+		expect(notification.recordDisplayName).toBe("Flood");
+		expect(notification.recordDate).toBe("2026-10-01");
+	});
+
+	it("return's rejectionComments and assigneeUserIds reach the notification payload unmodified, alongside the saved instance's submittedByUserId", async () => {
+		const instance = buildInstance({
+			status: "SUBMITTED",
+			submittedByUserId: "submitter-1",
+		});
+		const repo = makeRepository(instance);
+		const notificationPort = makeNotificationPort();
+		const useCase = new ProcessWorkflowActionUseCase(
+			new NoOpLogger(),
+			repo,
+			notificationPort,
+		);
+		const command: ProcessWorkflowActionCommand = {
+			action: "return",
+			entityId: instance.entityId,
+			entityType: instance.entityType,
+			actingUserId: "user-5",
+			rejectionComments: "Fix the location",
+			assigneeUserIds: ["assignee-1", "assignee-2"],
+		};
+
+		await useCase.execute(command);
+
+		const notification = vi.mocked(notificationPort.notify).mock.calls[0][0];
+		if (notification.action !== "return") {
+			throw new Error("expected a return notification");
+		}
+		expect(notification.rejectionComments).toBe("Fix the location");
+		expect(notification.assigneeUserIds).toEqual(["assignee-1", "assignee-2"]);
+		expect(notification.submittedByUserId).toBe("submitter-1");
+	});
+
+	it("return without assigneeUserIds omits the field from the notification payload", async () => {
+		const instance = buildInstance({
+			status: "SUBMITTED",
+			submittedByUserId: "submitter-1",
+		});
+		const repo = makeRepository(instance);
+		const notificationPort = makeNotificationPort();
+		const useCase = new ProcessWorkflowActionUseCase(
+			new NoOpLogger(),
+			repo,
+			notificationPort,
+		);
+		const command: ProcessWorkflowActionCommand = {
+			action: "return",
+			entityId: instance.entityId,
+			entityType: instance.entityType,
+			actingUserId: "user-5",
+			rejectionComments: "Fix the location",
+		};
+
+		await useCase.execute(command);
+
+		const notification = vi.mocked(notificationPort.notify).mock.calls[0][0];
+		if (notification.action !== "return") {
+			throw new Error("expected a return notification");
+		}
+		expect(notification.rejectionComments).toBe("Fix the location");
+		// toBeUndefined() alone passes whether the key is absent or present-as-undefined —
+		// `in` is what actually proves the conditional spread (ProcessWorkflowAction.ts)
+		// omits the key entirely rather than setting it to undefined.
+		expect("assigneeUserIds" in notification).toBe(false);
+		expect(notification.submittedByUserId).toBe("submitter-1");
+	});
+
+	it("validate and publish notification payloads never carry the five action-specific fields", async () => {
+		const instance = buildInstance({
+			status: "APPROVED",
+			submittedByUserId: "submitter-2",
+		});
+		const repo = makeRepository(instance);
+		const notificationPort = makeNotificationPort();
+		const useCase = new ProcessWorkflowActionUseCase(
+			new NoOpLogger(),
+			repo,
+			notificationPort,
+		);
+		const command: ProcessWorkflowActionCommand = {
+			action: "publish",
+			entityId: instance.entityId,
+			entityType: instance.entityType,
+			actingUserId: "user-4",
+		};
+
+		await useCase.execute(command);
+
+		const notification = vi.mocked(notificationPort.notify).mock.calls[0][0];
+		// "publish"'s branch declares none of these fields (ISP finding) — `in` checks the
+		// object directly since the type doesn't admit accessing them as properties.
+		expect("validatorUserIds" in notification).toBe(false);
+		expect("recordDisplayName" in notification).toBe(false);
+		expect("recordDate" in notification).toBe(false);
+		expect("rejectionComments" in notification).toBe(false);
+		expect("assigneeUserIds" in notification).toBe(false);
+		expect(notification.submittedByUserId).toBe("submitter-2");
 	});
 });

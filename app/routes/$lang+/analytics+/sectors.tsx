@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import type { MetaFunction } from "react-router";
 import { useLoaderData, useLocation, useSubmit } from "react-router";
 
@@ -19,8 +19,7 @@ import {
 	getCountryAccountsIdFromSession,
 	getCountrySettingsFromSession,
 } from "~/utils/session";
-import { getImpactOnSector } from "~/backend.server/handlers/analytics/ImpactonSectors";
-import { handleGeographicImpactQuery } from "~/backend.server/handlers/analytics/geographicImpact";
+import { getImpactOnSector, getSectorImpactTotal } from "~/backend.server/handlers/analytics/ImpactonSectors";
 import { getHazardImpact } from "~/backend.server/handlers/analytics/hazardImpact";
 import { getEffectDetailsHandler } from "~/backend.server/handlers/analytics/effectDetails";
 import { handleMostDamagingEventsRequest } from "~/backend.server/handlers/analytics/mostDamagingEvents";
@@ -39,6 +38,7 @@ import { ViewContext } from "~/frontend/context";
 
 import { BackendContext } from "~/backend.server/context";
 import { htmlTitle } from "~/utils/htmlmeta";
+import { getDivisionByLevel } from "~/backend.server/models/division";
 
 // Define the type for filters to match what the component expects
 interface Filters {
@@ -97,6 +97,15 @@ interface HazardImpactApiResponse {
 	};
 }
 
+// Define an interface for the structure of the JSON objects
+interface interfaceMap {
+	total: number;
+	name: string;
+	description: string;
+	colorPercentage: number;
+	geojson: any;
+}
+
 /**
  * Loader with authentication restriction for sectors analytics page
  */
@@ -106,6 +115,9 @@ export const loader = authLoaderPublicOrWithPerm(
 		const ctx = new BackendContext(loaderArgs);
 		const { request } = loaderArgs;
 		const countryAccountsId = await getCountryAccountsIdFromSession(request);
+
+		let damagesGeoData: interfaceMap[] = [];
+		let lossesGeoData: interfaceMap[] = [];
 
 		// TEMPORARY RESTRICTION: Redirect unauthenticated users to unauthorized page
 		// This is a temporary measure until business rules for public access are defined
@@ -117,51 +129,6 @@ export const loader = authLoaderPublicOrWithPerm(
 		}
 
 		try {
-			const toGeoJsonGeometry = (rawGeojson: unknown) => {
-				if (!rawGeojson) {
-					return null;
-				}
-
-				let parsedGeojson: any = rawGeojson;
-				if (typeof rawGeojson === "string") {
-					try {
-						parsedGeojson = JSON.parse(rawGeojson);
-					} catch {
-						return null;
-					}
-				}
-
-				if (
-					typeof parsedGeojson === "object" &&
-					parsedGeojson !== null &&
-					typeof parsedGeojson.type === "string"
-				) {
-					if (parsedGeojson.type === "Feature") {
-						return parsedGeojson.geometry ?? null;
-					}
-
-					if (parsedGeojson.type === "FeatureCollection") {
-						if (!Array.isArray(parsedGeojson.features)) {
-							return null;
-						}
-
-						const firstFeatureWithGeometry = parsedGeojson.features.find(
-							(feature: any) => feature?.geometry,
-						);
-						return firstFeatureWithGeometry?.geometry ?? null;
-					}
-
-					if (
-						"coordinates" in parsedGeojson ||
-						"geometries" in parsedGeojson
-					) {
-						return parsedGeojson;
-					}
-				}
-
-				return null;
-			};
-
 			// Parse URL to extract query parameters
 			const url = new URL(request.url);
 			const sectorId = url.searchParams.get("sectorId");
@@ -398,75 +365,72 @@ export const loader = authLoaderPublicOrWithPerm(
 					hazardImpactData = null;
 				}
 				// Fetch geographic impact data
-				try {
-					// Convert filters to the format expected by the geographic impact handler
-					const geoFilters = {
-						sectorId: subSectorId || sectorId || undefined,
-						subSectorId: subSectorId || undefined,
-						hazardTypeId: filters.hazardTypeId || undefined,
-						hazardClusterId: filters.hazardClusterId || undefined,
-						specificHazardId: filters.specificHazardId || undefined,
-						geographicLevelId: filters.geographicLevelId || undefined,
-						fromDate: filters.fromDate || undefined,
-						toDate: filters.toDate || undefined,
-						disasterEventId: filters.disasterEventId || undefined,
-					};
-
-					const geoHandlerResponse = await handleGeographicImpactQuery(
+				var tmpSector = subSectorId || sectorId || null;
+				if (tmpSector && tmpSector.length > 0) {
+					// Populate data for damages and losses geo data
+					const divisionLevel1 = await getDivisionByLevel(
+						1,
 						countryAccountsId,
-						geoFilters,
 					);
 
-					if (geoHandlerResponse) {
-						// Transform the handler response into proper GeoJSON format
-						if (geoHandlerResponse.success && geoHandlerResponse.divisions) {
-							const features = geoHandlerResponse.divisions
-							.map((division) => {
-								const geometry = toGeoJsonGeometry(division.geojson);
+					for (const item of divisionLevel1) {
+						const lossesMapTotal = await getSectorImpactTotal({
+							impact: "losses",
+							countryAccountsId: countryAccountsId,
+							type: {
+								sectorId: tmpSector || "",
+							},
+							divisionId: item.id,
+						});
+						const damagesMapTotal = await getSectorImpactTotal({
+							impact: "damages",
+							countryAccountsId: countryAccountsId,
+							type: {
+								sectorId: tmpSector || "" 
+							},
+							divisionId: item.id,
+						});
+						
+						// Populate the geoData for the map for losses
+						lossesGeoData.push({
+							total: lossesMapTotal?.lossesTotal || 0,
+							name: String(item.name["en"]),
+							description:
+								ctx.t({
+									code: "analysis.total_losses",
+									msg: "Total losses",
+								}) +
+								": " +
+								currency +
+								" " +
+								lossesMapTotal?.lossesTotal?.toLocaleString(
+									navigator.language,
+									{ minimumFractionDigits: 0 },
+								),
+							colorPercentage: 1,
+							geojson: item.geojson,
+						});
 
-								if (!geometry) {
-									return null;
-								}
-
-								return {
-									type: "Feature",
-									geometry,
-									properties: {
-										id: division.id,
-										name: division.name,
-										level: division.level,
-										parentId: division.parentId,
-										values: geoHandlerResponse.values[division.id.toString()] || {
-											totalDamage: 0,
-											totalLoss: 0,
-											metadata: {
-												assessmentType: filters.assessmentType || "rapid",
-												confidenceLevel: filters.confidenceLevel || "low",
-											},
-											dataAvailability: "no_data",
-										},
-									},
-								};
-							})
-							.filter((feature): feature is NonNullable<typeof feature> =>
-								Boolean(feature),
-							);
-
-							geographicImpactData = {
-								type: "FeatureCollection",
-								features,
-							};
-						} else {
-							geographicImpactData = {
-								type: "FeatureCollection",
-								features: [],
-							};
-						}
-					} else {
-						geographicImpactData = { type: "FeatureCollection", features: [] };
+						// Populate the geoData for the map for damages
+						damagesGeoData.push({
+							total: damagesMapTotal?.damagesTotal || 0,
+							name: String(item.name["en"]),
+							description:
+								ctx.t({
+									code: "analysis.total_damage",
+									msg: "Total damage",
+								}) +
+								": " +
+								currency +
+								" " +
+								damagesMapTotal?.damagesTotal?.toLocaleString(
+									navigator.language,
+									{ minimumFractionDigits: 0 },
+								),
+							colorPercentage: 1,
+							geojson: item.geojson,
+						});
 					}
-				} catch (error) {
-					geographicImpactData = { type: "FeatureCollection", features: [] };
 				}
 			}
 
@@ -566,7 +530,7 @@ export const loader = authLoaderPublicOrWithPerm(
 					error,
 				);
 				relatedHazardData = null;
-			}
+			}		
 
 			return {
 				settings,
@@ -583,6 +547,8 @@ export const loader = authLoaderPublicOrWithPerm(
 				hazardClustersData,
 				specificHazardsData,
 				relatedHazardData,
+				damagesGeoData: damagesGeoData,
+				lossesGeoData: lossesGeoData,
 			};
 		} catch (error) {
 			console.error("Failed to load sectors analytics data", {
@@ -624,6 +590,7 @@ function SectorsAnalysisContent() {
 	const ld = useLoaderData<typeof loader>();
 	const location = useLocation();
 	const ctx = new ViewContext();
+	
 
 	// Get data from loader
 	const {
@@ -640,14 +607,15 @@ function SectorsAnalysisContent() {
 		hazardTypesData,
 		hazardClustersData,
 		specificHazardsData,
+		damagesGeoData,
+		lossesGeoData,
 	} = ld;
 
+	geographicImpactData;
 	const submit = useSubmit();
 
-	const [filters, setFilters] = useState<Filters | null>(null);
-
 	// Add loading state to track filter application
-	const [pendingFilters, setPendingFilters] = useState<typeof filters>(null);
+	const [pendingFilters, setPendingFilters] = useState<Filters | null>(null);
 
 	const parseFiltersFromSearch = useCallback((search: string): Filters | null => {
 		const searchParams = new URLSearchParams(search);
@@ -672,9 +640,12 @@ function SectorsAnalysisContent() {
 		return hasAnyFilter ? parsedFilters : null;
 	}, []);
 
-	useEffect(() => {
-		setFilters(parseFiltersFromSearch(location.search));
-	}, [location.search, parseFiltersFromSearch]);
+	const urlFilters = useMemo(
+		() => parseFiltersFromSearch(location.search),
+		[location.search, parseFiltersFromSearch],
+	);
+
+	const activeFilters = urlFilters;
 
 	// Apply debounced filters
 	useEffect(() => {
@@ -729,9 +700,6 @@ function SectorsAnalysisContent() {
 						pendingFilters.disasterEventId,
 					);
 
-				// Now set the filters in the state
-				setFilters(pendingFilters);
-
 				// Submit the form to trigger a loader reload with the new filters
 				const formData = new FormData();
 				if (pendingFilters.sectorId)
@@ -779,13 +747,12 @@ function SectorsAnalysisContent() {
 	}, [pendingFilters]);
 
 	// Event handlers for Filters component
-	const handleApplyFilters = useCallback((newFilters: typeof filters) => {
+	const handleApplyFilters = useCallback((newFilters: Filters | null) => {
 		setPendingFilters(newFilters);
 	}, []);
 
 	const handleClearFilters = useCallback(() => {
 		setPendingFilters(null);
-		setFilters(null);
 	}, []);
 
 	return (
@@ -812,7 +779,7 @@ function SectorsAnalysisContent() {
 					</ErrorBoundary>
 
 					{/* Conditional rendering: Display this message until filters are applied */}
-					{!filters && (
+					{!activeFilters && (
 						<div
 							style={{
 								marginTop: "1.43rem",
@@ -847,7 +814,7 @@ function SectorsAnalysisContent() {
 					)}
 
 					{/* Dashboard sections */}
-					{filters && (
+					{activeFilters && (
 						<>
 							<div
 								style={{
@@ -870,13 +837,13 @@ function SectorsAnalysisContent() {
 								}}
 							>
 								{/* Impact on Selected Sector */}
-								{filters.sectorId && (
+								{activeFilters.sectorId && (
 									<div className="space-y-8" style={{ minHeight: "300px" }}>
 										<ErrorBoundary>
 											<ImpactOnSector
 												ctx={ctx}
-												sectorId={filters.sectorId}
-												filters={filters}
+												sectorId={activeFilters.sectorId}
+												filters={activeFilters}
 												currency={currency}
 												sectorImpactData={sectorImpactData}
 												sectorsData={sectorsData}
@@ -890,7 +857,7 @@ function SectorsAnalysisContent() {
 									<ErrorBoundary>
 										<ImpactByHazard
 											ctx={ctx}
-											filters={filters}
+											filters={activeFilters}
 											currency={currency}
 											hazardImpactData={hazardImpactData}
 											sectorsData={sectorsData}
@@ -903,9 +870,14 @@ function SectorsAnalysisContent() {
 									<ErrorBoundary>
 										<ImpactMap
 											ctx={ctx}
-											filters={filters}
+											filters={activeFilters}
 											currency={currency}
-											geographicImpactData={geographicImpactData}
+											geographicImpactData={
+												{
+													damagesGeoData: damagesGeoData,
+													lossesGeoData: lossesGeoData,
+												}
+											}
 											sectorsData={sectorsData}
 										/>
 									</ErrorBoundary>
@@ -916,7 +888,7 @@ function SectorsAnalysisContent() {
 									<ErrorBoundary>
 										<EffectDetails
 											ctx={ctx}
-											filters={filters}
+											filters={activeFilters}
 											currency={currency}
 											effectDetailsData={effectDetailsData}
 											sectorsData={sectorsData}
@@ -929,7 +901,7 @@ function SectorsAnalysisContent() {
 									<ErrorBoundary>
 										<MostDamagingEvents
 											ctx={ctx}
-											filters={filters}
+											filters={activeFilters}
 											currency={currency}
 											mostDamagingEventsData={mostDamagingEventsData}
 											sectorsData={sectorsData}
@@ -945,8 +917,8 @@ function SectorsAnalysisContent() {
 						<p>
 							{"* " +
 								ctx.t({
-									code: "analysis.data_based_on_published_records",
-									msg: "Data shown is based on published records",
+									code: "analysis.data_based_on_validated_published_records",
+									msg: "Data shown is based on validated and published records",
 								})}
 						</p>
 					</div>

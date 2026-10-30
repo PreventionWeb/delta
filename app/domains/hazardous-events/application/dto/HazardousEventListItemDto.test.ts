@@ -118,7 +118,7 @@ describe("toHazardousEventListItemDto", () => {
 			submittedAt: new Date("2026-01-02T00:00:00.000Z"),
 		});
 
-		const dto = toHazardousEventListItemDto(event, workflowInstance);
+		const dto = toHazardousEventListItemDto(event, workflowInstance, null);
 
 		expect(dto.workflowStatus).toBe("SUBMITTED");
 		expectFieldsMatchEvent(dto);
@@ -127,9 +127,29 @@ describe("toHazardousEventListItemDto", () => {
 	it("sets workflowStatus to null when given a null WorkflowInstance, with every other field still mapped from event", () => {
 		const event = makeHazardousEvent();
 
-		const dto = toHazardousEventListItemDto(event, null);
+		const dto = toHazardousEventListItemDto(event, null, null);
 
 		expect(dto.workflowStatus).toBeNull();
 		expectFieldsMatchEvent(dto);
+	});
+
+	it("sets specificHazardName from the resolved taxonomy names when given", () => {
+		const event = makeHazardousEvent();
+
+		const dto = toHazardousEventListItemDto(event, null, {
+			specificHazardName: "Drought",
+			hazardClusterName: "Climatological",
+			hazardTypeName: "Natural",
+		});
+
+		expect(dto.specificHazardName).toBe("Drought");
+	});
+
+	it("sets specificHazardName to null when no taxonomy match is given", () => {
+		const event = makeHazardousEvent();
+
+		const dto = toHazardousEventListItemDto(event, null, null);
+
+		expect(dto.specificHazardName).toBeNull();
 	});
 });

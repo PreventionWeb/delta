@@ -1,4 +1,5 @@
 import type { CausalEdge } from "../../domain/CausalChain";
+import type { Tx } from "~/db.server";
 
 /** Port for `hazardous_event_causality`. No whole-table load (design.md Decision 2). */
 export interface ICausalChainRepository {
@@ -12,6 +13,7 @@ export interface ICausalChainRepository {
 	saveEdge(
 		edge: CausalEdge,
 		causalityExplanation: string | null,
+		tx?: Tx,
 	): Promise<void>;
 
 	/** Atomically replaces every cause edge for `effectId` with `newCause` (`null` clears it),
@@ -20,9 +22,10 @@ export interface ICausalChainRepository {
 	replaceCauseEdge(
 		effectId: string,
 		newCause: { causeId: string; causalityExplanation: string | null } | null,
+		tx?: Tx,
 	): Promise<void>;
 
 	/** Counts every edge touching nodeId as cause or effect. Not tenant-scoped (matches this
 	 * port's other methods). */
-	countEdgesTouching(nodeId: string): Promise<number>;
+	countEdgesTouching(nodeId: string, tx?: Tx): Promise<number>;
 }

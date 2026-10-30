@@ -1,6 +1,7 @@
 ---
 name: tdd-test-writer
-description: "Writes failing Vitest tests (Red phase of TDD) from an OpenSpec change proposal.
+description:
+  "Writes failing Vitest tests (Red phase of TDD) from an OpenSpec change proposal.
   Trigger when: an OpenSpec change has been proposed and the next step is writing tests before
   implementation, or when a developer asks to write tests for a spec, model function, or handler.
   Produces only failing tests — does not implement the fix."
@@ -43,6 +44,11 @@ as the tests exist and are confirmed to fail.
 - Use `expect(...).rejects.toThrow(...)` for async error cases
 - Avoid mocking the database unless absolutely necessary — use PGlite for integration tests
 - Tests must be independently runnable: `yarn vitest run tests/path/to/file.test.ts`
+- **Presentation-layer components:** when `design.md`'s content-level ground-truth checklist
+  (required for any `app/domains/*/presentation/` change) states concrete, mechanically-
+  checkable facts — exact header/label text, a specific class name, a fixed field order —
+  encode those as literal assertions in the component test, rather than leaving them to be
+  caught only by a later manual visual review.
 
 ## Red phase discipline
 
