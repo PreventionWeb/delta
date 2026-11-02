@@ -238,3 +238,36 @@ export function configIsPublicUrlValid(): { ok: boolean; error: string } {
 
 	return { ok: true, error: "" };
 }
+
+export const DEFAULT_SUPPORTED_LANGUAGES = [
+	"en",
+	"fr",
+	"ar",
+	"ru",
+	"sq",
+	"sr",
+];
+
+/**
+ * Get whitelisted languages for the system settings language dropdown.
+ * Configurable via SUPPORTED_LANGUAGES env var (comma-separated language codes),
+ * defaulting to ["en", "fr", "ar", "ru", "sq", "sr"].
+ */
+export function configSupportedLanguages(
+	availableLanguages: string[],
+): string[] {
+	const raw = process.env.SUPPORTED_LANGUAGES;
+	const whitelist = raw
+		? raw
+				.split(",")
+				.map((lang) => lang.trim())
+				.filter(Boolean)
+		: DEFAULT_SUPPORTED_LANGUAGES;
+
+	const filtered = availableLanguages.filter((lang) =>
+		whitelist.includes(lang),
+	);
+
+	return filtered.length > 0 ? filtered : ["en"];
+}
+

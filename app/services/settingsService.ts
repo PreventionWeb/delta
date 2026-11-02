@@ -1,6 +1,7 @@
 import { getAvailableLanguages } from "~/backend.server/translations";
 import { dr } from "~/db.server";
 import { InstanceSystemSettingRepository } from "~/db/queries/instanceSystemSettingRepository";
+import { configSupportedLanguages } from "~/utils/config";
 
 export class SettingsValidationError extends Error {
 	errors: Record<string, string>;
@@ -52,7 +53,8 @@ export const SettingsService = {
 		// 		"Approved records visibility is required";
 		// }
 
-		if (!language || !getAvailableLanguages().includes(language)) {
+		const allowedLanguages = configSupportedLanguages(getAvailableLanguages());
+		if (!language || !allowedLanguages.includes(language)) {
 			errors.language = "Language is required and must be supported";
 		}
 

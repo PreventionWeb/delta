@@ -2,7 +2,11 @@ import type { ActionFunction, MetaFunction } from "react-router";
 import { Form, useActionData, useLoaderData } from "react-router";
 import { useEffect, useRef, useState } from "react";
 import { authLoaderWithPerm } from "~/utils/auth";
-import { configApplicationEmail, configPublicUrl } from "~/utils/config";
+import {
+	configApplicationEmail,
+	configPublicUrl,
+	configSupportedLanguages,
+} from "~/utils/config";
 import { NavSettings } from "~/frontend/components/NavSettings";
 import { MainContainer } from "~/frontend/container";
 import { getSystemInfo } from "~/db/queries/dtsSystemInfo";
@@ -64,7 +68,7 @@ export const loader = authLoaderWithPerm(
 		return {
 			publicURL: configPublicUrl(),
 			currencyArray: currencies,
-			availableLanguages: getAvailableLanguages(),
+			availableLanguages: configSupportedLanguages(getAvailableLanguages()),
 			systemLanguage: settings?.language,
 			confEmailObj,
 			instanceSystemSettings: settings,
