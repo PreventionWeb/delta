@@ -55,6 +55,14 @@ export async function createUnifiedServer() {
 		mode: isProduction ? "production" : "development",
 	});
 
+	if (isProduction) {
+		app.use(
+			"/assets",
+			express.static("build/client/assets", { immutable: true, maxAge: "1y" }),
+		);
+		app.use(express.static("build/client", { maxAge: "1h" }));
+	}
+
 	app.use((req: Request, res: Response, next: NextFunction) => {
 		if (req.path === "/api" || req.path.startsWith("/api/")) {
 			return next();
