@@ -96,7 +96,10 @@ function escapeLikePattern(value: string): string {
 export class DrizzleHazardousEventRepository implements IHazardousEventRepository {
 	constructor(@Inject(DRIZZLE_CLIENT) private readonly db: Dr) {}
 
-	/** Strict subset of the table's columns -- excludes legacy approval/HIP/attachments-JSONB (Decision 4). */
+	/** Strict subset of the table's columns -- excludes legacy approval/HIP/attachments-JSONB
+	 * (Decision 4). Deliberately still true after design.md Decision 17 (`IHipCrosswalkPort`):
+	 * the three HIP columns are now write-populated, but never read back here into the domain
+	 * entity -- don't mistake that write-side change for the domain gaining a HIP field. */
 	private toProps(
 		row: SelectHazardousEvent,
 		children: ChildCollections,
@@ -131,7 +134,10 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 		};
 	}
 
-	/** Inverse of toProps (Decision 4); updatedAt set explicitly even when null, or Drizzle would apply the column's own default instead. */
+	/** Inverse of toProps (Decision 4); updatedAt set explicitly even when null, or Drizzle would
+	 * apply the column's own default instead. Still never sets the three HIP columns (Decision
+	 * 17) -- `IHipCrosswalkPort.stamp()` writes them separately, in its own UPDATE, right after
+	 * this repository's own insert()/update() call. */
 	private toRow(entity: HazardousEvent): InsertHazardousEvent & { id: string } {
 		return {
 			id: entity.id,
