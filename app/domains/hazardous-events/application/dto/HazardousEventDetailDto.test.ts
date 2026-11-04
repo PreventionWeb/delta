@@ -147,4 +147,27 @@ describe("toHazardousEventDetailDto", () => {
 		expect(result.hazardClusterName).toBeNull();
 		expect(result.hazardTypeName).toBeNull();
 	});
+
+	describe("cause", () => {
+		it("defaults to null when omitted", () => {
+			const event = makeEvent();
+
+			const result = toHazardousEventDetailDto(event, null, null, null);
+
+			expect(result.cause).toBeNull();
+		});
+
+		it("resolves to the given cause object unchanged when provided", () => {
+			const event = makeEvent();
+			const cause = {
+				id: "cause-1",
+				displayName: "Flood",
+				causalityExplanation: "upstream flooding",
+			};
+
+			const result = toHazardousEventDetailDto(event, null, null, null, cause);
+
+			expect(result.cause).toEqual(cause);
+		});
+	});
 });

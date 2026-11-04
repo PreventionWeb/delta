@@ -70,6 +70,19 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 		).length;
 	}
 
+	async findCauseEdge(
+		effectId: string,
+		_tx?: Tx,
+	): Promise<{ causeId: string; causalityExplanation: string | null } | null> {
+		const found = this.edges.find(({ edge }) => edge.effectId === effectId);
+		return found
+			? {
+					causeId: found.edge.causeId,
+					causalityExplanation: found.causalityExplanation,
+				}
+			: null;
+	}
+
 	all(): readonly { edge: CausalEdge; causalityExplanation: string | null }[] {
 		return this.edges;
 	}
@@ -263,6 +276,46 @@ describe("ICausalChainRepository conformance", () => {
 			]);
 		});
 	});
+
+	describe("findCauseEdge", () => {
+		it("resolves null when effectId has no cause edge", async () => {
+			const repo = new FakeCausalChainRepository();
+
+			await expect(repo.findCauseEdge("solo-node")).resolves.toBeNull();
+		});
+
+		it("resolves the current cause edge's causeId/causalityExplanation", async () => {
+			const repo = new FakeCausalChainRepository();
+			await repo.saveEdge({ causeId: "A", effectId: "B" }, "upstream flooding");
+
+			await expect(repo.findCauseEdge("B")).resolves.toEqual({
+				causeId: "A",
+				causalityExplanation: "upstream flooding",
+			});
+		});
+
+		it("reflects replaceCauseEdge's delete-then-insert -- resolves the latest cause, not a stale one", async () => {
+			const repo = new FakeCausalChainRepository();
+			await repo.saveEdge({ causeId: "A", effectId: "B" }, null);
+			await repo.replaceCauseEdge("B", {
+				causeId: "C",
+				causalityExplanation: "new cause",
+			});
+
+			await expect(repo.findCauseEdge("B")).resolves.toEqual({
+				causeId: "C",
+				causalityExplanation: "new cause",
+			});
+		});
+
+		it("resolves null after replaceCauseEdge clears the cause", async () => {
+			const repo = new FakeCausalChainRepository();
+			await repo.saveEdge({ causeId: "A", effectId: "B" }, null);
+			await repo.replaceCauseEdge("B", null);
+
+			await expect(repo.findCauseEdge("B")).resolves.toBeNull();
+		});
+	});
 });
 
 // Tuple equality (not plain assignability), so a dropped/added param fails to compile (matches IHazardousEventRepository.test.ts).
@@ -284,8 +337,13 @@ const _countEdgesTouchingArity: AssertEqual<
 	Parameters<ICausalChainRepository["countEdgesTouching"]>,
 	[string, Tx?]
 > = true;
+const _findCauseEdgeArity: AssertEqual<
+	Parameters<ICausalChainRepository["findCauseEdge"]>,
+	[string, Tx?]
+> = true;
 
 void _findReachableEdgesFromArity;
 void _saveEdgeArity;
 void _replaceCauseEdgeArity;
 void _countEdgesTouchingArity;
+void _findCauseEdgeArity;
