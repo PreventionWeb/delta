@@ -21,6 +21,13 @@ export interface HazardousEventDetailDto extends Omit<
 	specificHazardName: string | null;
 	hazardClusterName: string | null;
 	hazardTypeName: string | null;
+	/** Null when this event has no causal-chain parent; resolved via
+	 * ICausalChainRepository.findCauseEdge(), not carried on HazardousEvent itself. */
+	cause: {
+		id: string;
+		displayName: string;
+		causalityExplanation: string | null;
+	} | null;
 }
 
 export function toHazardousEventDetailDto(
@@ -28,6 +35,7 @@ export function toHazardousEventDetailDto(
 	workflowInstance: WorkflowInstance | null,
 	currentObservation: SpatialObservationRecord | null,
 	taxonomyNames: SpecificHazardTaxonomyNames | null,
+	cause: HazardousEventDetailDto["cause"] = null,
 ): HazardousEventDetailDto {
 	return {
 		...mapHazardousEventFields(event),
@@ -39,5 +47,6 @@ export function toHazardousEventDetailDto(
 		specificHazardName: taxonomyNames?.specificHazardName ?? null,
 		hazardClusterName: taxonomyNames?.hazardClusterName ?? null,
 		hazardTypeName: taxonomyNames?.hazardTypeName ?? null,
+		cause,
 	};
 }

@@ -12,7 +12,9 @@ import type {
 import type { WorkflowInstanceDto } from "../dto/WorkflowInstanceDto";
 import { toWorkflowInstanceDto } from "../dto/WorkflowInstanceDto";
 import { WorkflowInstanceNotFoundError } from "../errors/WorkflowInstanceErrors";
+import { isWorkflowActionAuthorized } from "../isWorkflowActionAuthorized";
 import type { ILogger } from "~/shared/logging/ILogger";
+import { AuthorizationError, ValidationError } from "~/shared/errors";
 
 interface ProcessWorkflowActionCommandBase {
 	entityId: string;
@@ -41,7 +43,42 @@ export type ProcessWorkflowActionCommand =
 			rejectionComments: string;
 			/** Non-empty: notify these assignees instead of the submitter (design.md Decision 2). */
 			assigneeUserIds?: readonly string[];
+	  })
+	| (ProcessWorkflowActionCommandBase & {
+			action: "submit-draft";
+			/** Decision 26: a minimal generic backstop (reject undefined/"data-viewer"), not a
+			 * replica of HE's own richer status-aware edit-permission rule. */
+			actingUserRole: string | undefined;
+	  })
+	| (ProcessWorkflowActionCommandBase & {
+			action: "direct-validate";
+			/** Checked here, not only at the route layer (code review finding, same precedent as
+			 * the submit-validation empty-validator check) -- a future caller (e.g. a REST
+			 * controller) gets the invariant for free instead of having to reimplement it. */
+			actingUserRole: string | undefined;
+	  })
+	| (ProcessWorkflowActionCommandBase & {
+			action: "direct-publish";
+			actingUserRole: string | undefined;
 	  });
+
+/** Excludes the three no-notify actions (Decision 5/6) so buildNotification()'s exhaustiveness check stays scoped to the four that notify. */
+type NotifiableCommand = Exclude<
+	ProcessWorkflowActionCommand,
+	| { action: "submit-draft" }
+	| { action: "direct-validate" }
+	| { action: "direct-publish" }
+>;
+
+function isNotifiable(
+	command: ProcessWorkflowActionCommand,
+): command is NotifiableCommand {
+	return (
+		command.action !== "submit-draft" &&
+		command.action !== "direct-validate" &&
+		command.action !== "direct-publish"
+	);
+}
 
 /** Entity-type-agnostic: processes a validation-workflow action for a WorkflowInstance. */
 export class ProcessWorkflowActionUseCase {
@@ -54,6 +91,40 @@ export class ProcessWorkflowActionUseCase {
 	async execute(
 		command: ProcessWorkflowActionCommand,
 	): Promise<WorkflowInstanceDto> {
+		// Authoritative here, not just at the route layer (SOLID review, DIP finding) -- every
+		// caller gets the invariant; composeWorkflowAction.server.ts's own check just skips a lookup.
+		if (
+			command.action === "submit-validation" &&
+			command.validatorUserIds.length === 0
+		) {
+			throw new ValidationError(
+				"At least one validator must be selected for submit-validation",
+			);
+		}
+
+		// Authorization is a business rule, not a presentation concern (code review finding,
+		// researched) -- same reasoning as above, moved here so every caller enforces it.
+		// isWorkflowActionAuthorized is the single predicate shared with HE's own
+		// presentation-layer fail-fast guard (drift risk closed -- see its own docstring).
+		if (
+			(command.action === "direct-validate" ||
+				command.action === "direct-publish") &&
+			!isWorkflowActionAuthorized(command.action, command.actingUserRole)
+		) {
+			throw new AuthorizationError(`${command.action} requires the admin role`);
+		}
+
+		// Decision 26: resetToDraft's own allowedFrom is every status, so the entity
+		// provides no backstop against who calls it, unlike direct-validate/direct-publish.
+		if (
+			command.action === "submit-draft" &&
+			!isWorkflowActionAuthorized("submit-draft", command.actingUserRole)
+		) {
+			throw new AuthorizationError(
+				"submit-draft requires an edit-capable role",
+			);
+		}
+
 		// Single internally-computed clock reading, not accepted from the command (design.md Decision 10).
 		const now = new Date();
 
@@ -88,35 +159,37 @@ export class ProcessWorkflowActionUseCase {
 			existing.updatedAt,
 		);
 
-		// Notify fires exactly once per successful execute(), even if status is
-		// unchanged (Decision 7); a notify() failure is logged, not propagated — no rollback exists (Decision 8).
-		const notification = this.buildNotification(
-			command,
-			saved,
-			fromStatus,
-			now,
-		);
-		try {
-			await this.notificationPort.notify(notification);
-		} catch (err) {
-			// WARN, not ERROR: a handled, tolerated degradation (ADR-004) — the transition
-			// already succeeded, notify() failing doesn't break anything. Guarded so execute()
-			// still resolves after a successful update() (Decision 8) even if the injected
-			// ILogger itself throws; console.error is the deliberate last resort, reachable
-			// only when ILogger has also failed (DEF-023).
+		// Notify fires once per notifiable action (Decision 7); the three no-notify actions skip
+		// it entirely (Decision 5/6). A notify() failure is logged, not propagated (Decision 8).
+		if (isNotifiable(command)) {
+			const notification = this.buildNotification(
+				command,
+				saved,
+				fromStatus,
+				now,
+			);
 			try {
-				this.logger.warn({
-					msg: "workflow_action.notify_failed",
-					err,
-					...notification,
-				});
-			} catch {
-				// eslint-disable-next-line no-console -- last resort once ILogger itself has failed
-				console.error(
-					"workflow_action.notify_failed (logger also failed)",
-					err,
-					notification,
-				);
+				await this.notificationPort.notify(notification);
+			} catch (err) {
+				// WARN, not ERROR: a handled, tolerated degradation (ADR-004) — the transition
+				// already succeeded, notify() failing doesn't break anything. Guarded so execute()
+				// still resolves after a successful update() (Decision 8) even if the injected
+				// ILogger itself throws; console.error is the deliberate last resort, reachable
+				// only when ILogger has also failed (DEF-023).
+				try {
+					this.logger.warn({
+						msg: "workflow_action.notify_failed",
+						err,
+						...notification,
+					});
+				} catch {
+					// eslint-disable-next-line no-console -- last resort once ILogger itself has failed
+					console.error(
+						"workflow_action.notify_failed (logger also failed)",
+						err,
+						notification,
+					);
+				}
 			}
 		}
 
@@ -153,6 +226,12 @@ export class ProcessWorkflowActionUseCase {
 				return existing.publish(transitionParams);
 			case "return":
 				return existing.requestRevision(transitionParams);
+			case "submit-draft":
+				return existing.resetToDraft(transitionParams);
+			case "direct-validate":
+				return existing.directValidate(transitionParams);
+			case "direct-publish":
+				return existing.directPublish(transitionParams);
 			default: {
 				// Exhaustiveness guard — a new action added to the union without a matching case fails to compile.
 				const exhaustiveCheck: never = command;
@@ -168,7 +247,7 @@ export class ProcessWorkflowActionUseCase {
 	 * conditional spread for `assigneeUserIds` keeps it absent (not present-but-undefined)
 	 * when omitted. */
 	private buildNotification(
-		command: ProcessWorkflowActionCommand,
+		command: NotifiableCommand,
 		saved: WorkflowInstance,
 		fromStatus: Status,
 		now: Date,

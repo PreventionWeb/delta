@@ -64,14 +64,17 @@ function pairFields(
 	}
 }
 
-/** Status → attribution pairs required set/null (design.md Decision 7). REJECTED is unvalidated below — no transition targets it yet (Decision 4). */
+/** Status → attribution pairs required set/null (Decision 7). REJECTED unvalidated below — no
+ * transition targets it yet (Decision 4). APPROVED/PUBLISHED relaxed for directValidate/
+ * directPublish's narrower shape (Decision 5/6) — still just a minimum, so the normal flow's
+ * fuller shape still passes. */
 const REQUIRED_SET: Record<Status, readonly PairName[]> = {
 	DRAFT: [],
 	SUBMITTED: ["submitted"],
 	REVISION_REQUESTED: ["submitted"],
-	APPROVED: ["submitted", "approved"],
+	APPROVED: [],
 	REJECTED: [],
-	PUBLISHED: ["submitted", "validated", "approved", "published"],
+	PUBLISHED: ["validated", "published"],
 };
 
 const REQUIRED_NULL: Record<Status, readonly PairName[]> = {
@@ -232,7 +235,10 @@ export class WorkflowInstance {
 			| "validate"
 			| "approve"
 			| "requestRevision"
-			| "publish",
+			| "publish"
+			| "resetToDraft"
+			| "directValidate"
+			| "directPublish",
 		now: Date,
 		patch: Partial<WorkflowInstanceProps>,
 	): WorkflowInstance {
@@ -310,6 +316,57 @@ export class WorkflowInstance {
 				? {}
 				: { validatedByUserId: userId, validatedAt: now }),
 		});
+	}
+
+	/** Callable from any status -- clears every attribution pair so a later content edit doesn't
+	 * leave stale attribution behind. userId unused, same precedent as requestRevision(). */
+	resetToDraft({ now }: TransitionParams): WorkflowInstance {
+		return this.transition(STATUS_VALUES, "resetToDraft", now, {
+			status: "DRAFT",
+			submittedByUserId: null,
+			submittedAt: null,
+			validatedByUserId: null,
+			validatedAt: null,
+			approvedByUserId: null,
+			approvedAt: null,
+			publishedByUserId: null,
+			publishedAt: null,
+			updatedAt: now,
+		});
+	}
+
+	/** Admin-only shortcut (design.md Decision 6) -- sets only validator attribution, leaving
+	 * submittedByUserId/At exactly as-is (never populated, unlike submit()). */
+	directValidate({ userId, now }: TransitionParams): WorkflowInstance {
+		return this.transition(
+			["DRAFT", "REVISION_REQUESTED"],
+			"directValidate",
+			now,
+			{
+				status: "APPROVED",
+				validatedByUserId: userId,
+				validatedAt: now,
+				updatedAt: now,
+			},
+		);
+	}
+
+	/** Admin-only shortcut (design.md Decision 6) -- sets validator and publisher attribution,
+	 * leaving submittedByUserId/At exactly as-is. */
+	directPublish({ userId, now }: TransitionParams): WorkflowInstance {
+		return this.transition(
+			["DRAFT", "REVISION_REQUESTED"],
+			"directPublish",
+			now,
+			{
+				status: "PUBLISHED",
+				validatedByUserId: userId,
+				validatedAt: now,
+				publishedByUserId: userId,
+				publishedAt: now,
+				updatedAt: now,
+			},
+		);
 	}
 
 	get id(): string {

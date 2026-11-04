@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { ValidationError } from "~/shared/errors";
-import { HazardousEvent, type HazardousEventProps } from "./HazardousEvent";
+import {
+	HazardousEvent,
+	HAZARDOUS_EVENT_STATUS_VALUES,
+	type HazardousEventProps,
+} from "./HazardousEvent";
 
 const baseProps: HazardousEventProps = {
 	id: "hazardous-event-1",
@@ -1390,6 +1394,51 @@ describe("HazardousEvent.create()", () => {
 			);
 
 			expect(instance.customFieldValues).toEqual([customFieldValue]);
+		});
+	});
+
+	describe("hazardousEventStatus enum validation (spec: hazardous-event-entity, task 9k.1-9k.2)", () => {
+		it("does not throw for a valid hazardousEventStatus value", () => {
+			const props: HazardousEventProps = {
+				...baseProps,
+				hazardousEventStatus: "ongoing",
+			};
+
+			const instance = createHazardousEvent(props);
+
+			expect(instance.hazardousEventStatus).toBe("ongoing");
+		});
+
+		it("does not throw when hazardousEventStatus is null", () => {
+			const props: HazardousEventProps = {
+				...baseProps,
+				hazardousEventStatus: null,
+			};
+
+			expect(() => createHazardousEvent(props)).not.toThrow();
+		});
+
+		// Simulates a tampered/hand-crafted form submission bypassing the UI's own <select>, which
+		// only ever offers a value from HAZARDOUS_EVENT_STATUS_VALUES.
+		it("throws ValidationError when hazardousEventStatus is a non-null string outside HAZARDOUS_EVENT_STATUS_VALUES", () => {
+			const props = {
+				...baseProps,
+				hazardousEventStatus: "archived",
+			} as unknown as HazardousEventProps;
+
+			expect(() => createHazardousEvent(props)).toThrow(ValidationError);
+			expect(() => createHazardousEvent(props)).toThrow(/hazardousEventStatus/);
+		});
+
+		it("references every valid value in the error message", () => {
+			const props = {
+				...baseProps,
+				hazardousEventStatus: "archived",
+			} as unknown as HazardousEventProps;
+
+			for (const value of HAZARDOUS_EVENT_STATUS_VALUES) {
+				expect(() => createHazardousEvent(props)).toThrow(new RegExp(value));
+			}
 		});
 	});
 });
