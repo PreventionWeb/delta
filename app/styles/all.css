@@ -33,6 +33,21 @@
 	/* Gate 9 findings -- legacy's own hazard-search dropdown hover color and <li> padding. */
 	--color-dts-option-hover: #f5f5f5;
 	--spacing-dts-option-padding: 5px 12px;
+
+	/* ca-he-route-adapter-write (6c) -- legacy's own FieldErrors2 uses an inline style for this;
+	   extracted here so the new create/edit form can reuse a shared class instead (no inline styles). */
+	--color-dts-error: red;
+}
+
+/* ca-he-route-adapter-write (6c) -- generic per-field server-error list, shared across every
+   field in the create/edit form, not scoped to one. */
+.dts-field-error-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+.dts-field-error-list li {
+	color: var(--color-dts-error);
 }
 
 /* ca-he-list-filters (6h) -- pseudo-class states aren't expressible via inline style/@theme alone. */
