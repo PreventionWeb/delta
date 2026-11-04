@@ -6,6 +6,7 @@ import { DrizzleTransactionRunner } from "~/infrastructure/DrizzleTransactionRun
 import { DrizzleHazardousEventRepository } from "~/domains/hazardous-events/infrastructure/DrizzleHazardousEventRepository.server";
 import { DrizzleCausalChainRepository } from "~/domains/hazardous-events/infrastructure/DrizzleCausalChainRepository.server";
 import { DrizzleHazardTaxonomyRepository } from "~/domains/hazardous-events/infrastructure/DrizzleHazardTaxonomyRepository.server";
+import { DrizzleHipCrosswalkAdapter } from "~/domains/hazardous-events/infrastructure/DrizzleHipCrosswalkAdapter.server";
 import { DrizzleWorkflowRepository } from "~/domains/validation-workflow/infrastructure/DrizzleWorkflowRepository.server";
 import { GetWorkflowInstanceByEntityUseCase } from "~/domains/validation-workflow/application/use-cases/GetWorkflowInstanceByEntity";
 import { WorkflowInstance } from "~/domains/validation-workflow/domain/WorkflowInstance";
@@ -82,6 +83,7 @@ describe("UpdateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 		const causalChainRepository = new DrizzleCausalChainRepository(dr);
 		const taxonomyRepository = new DrizzleHazardTaxonomyRepository(dr);
 		const transactionRunner = new DrizzleTransactionRunner(dr);
+		const hipCrosswalkPort = new DrizzleHipCrosswalkAdapter(dr);
 
 		await hazardousEventRepository.insert(
 			HazardousEvent.create(
@@ -112,6 +114,7 @@ describe("UpdateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			causalChainRepository,
 			recordSpatialObservationUseCase,
 			transactionRunner,
+			hipCrosswalkPort,
 		);
 
 		await expect(
@@ -189,6 +192,7 @@ describe("UpdateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 		const recordSpatialObservationUseCase = {
 			execute: vi.fn(),
 		};
+		const hipCrosswalkPort = new DrizzleHipCrosswalkAdapter(dr);
 		const useCase = new UpdateHazardousEventUseCase(
 			new NoOpLogger(),
 			taxonomyRepository,
@@ -197,6 +201,7 @@ describe("UpdateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			causalChainRepository,
 			recordSpatialObservationUseCase,
 			transactionRunner,
+			hipCrosswalkPort,
 		);
 		vi.spyOn(causalChainRepository, "replaceCauseEdge").mockRejectedValueOnce(
 			new Error("boom-replace-cause-edge"),
@@ -269,6 +274,7 @@ describe("UpdateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 				updatedAt: observationTime.toISOString(),
 			}),
 		};
+		const hipCrosswalkPort = new DrizzleHipCrosswalkAdapter(dr);
 		const useCase = new UpdateHazardousEventUseCase(
 			logger,
 			taxonomyRepository,
@@ -277,6 +283,7 @@ describe("UpdateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			causalChainRepository,
 			recordSpatialObservationUseCase,
 			transactionRunner,
+			hipCrosswalkPort,
 		);
 
 		await useCase.execute({
@@ -300,5 +307,62 @@ describe("UpdateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			tenantId,
 			observationTime: observationTime.toISOString(),
 		});
+	});
+
+	// design.md Decision 17 (task 9d.12's real-rollback proof) -- stamp() runs inside the same tx
+	// as the update, immediately after it; a failure there must roll back the update too.
+	it("a stubbed rejection on IHipCrosswalkPort.stamp() leaves the HazardousEvent's prior field values intact", async () => {
+		const tenantId = (await seedCountryAccount()) as string;
+		const specificHazardId = await seedSpecificHazard();
+		const id = randomUUID();
+		const hazardousEventRepository = new DrizzleHazardousEventRepository(dr);
+		const workflowRepository = new DrizzleWorkflowRepository(dr);
+		const causalChainRepository = new DrizzleCausalChainRepository(dr);
+		const taxonomyRepository = new DrizzleHazardTaxonomyRepository(dr);
+		const transactionRunner = new DrizzleTransactionRunner(dr);
+		const hipCrosswalkPort = new DrizzleHipCrosswalkAdapter(dr);
+
+		await hazardousEventRepository.insert(
+			HazardousEvent.create(
+				baseEventProps(id, tenantId, specificHazardId),
+				new Set(),
+				new Set(),
+			),
+		);
+		await workflowRepository.insert(
+			WorkflowInstance.createDraft({
+				id: randomUUID(),
+				entityId: id,
+				entityType: "HE",
+				now: new Date("2026-01-01T00:00:00Z"),
+			}),
+		);
+
+		const recordSpatialObservationUseCase = { execute: vi.fn() };
+		const useCase = new UpdateHazardousEventUseCase(
+			new NoOpLogger(),
+			taxonomyRepository,
+			hazardousEventRepository,
+			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+			causalChainRepository,
+			recordSpatialObservationUseCase,
+			transactionRunner,
+			hipCrosswalkPort,
+		);
+		vi.spyOn(hipCrosswalkPort, "stamp").mockRejectedValueOnce(
+			new Error("boom-stamp"),
+		);
+
+		await expect(
+			useCase.execute({
+				id,
+				tenantId,
+				actingUserId: randomUUID(),
+				description: "attempted new description",
+			}),
+		).rejects.toThrow("boom-stamp");
+
+		const found = await hazardousEventRepository.findById(id, tenantId);
+		expect(found.description).toBe("original description");
 	});
 });
