@@ -3,6 +3,9 @@
 	"list": {
 		"empty": "No hazardous events found.",
 		"showing_of_total": "Showing {{filtered}} of {{total}} hazardous event(s)",
+		"count_in_instance": "{{count}} hazardous event(s) in {{instance}}",
+		"add_new_event": "Add new event",
+		"resource_actions": "Resource actions",
 		"columns": {
 			"hazard": "Hazard type",
 			"hazard_id_fallback_title": "No hazard name available — showing the raw hazard id",
@@ -51,6 +54,69 @@
 		"page_n": "Page {{page_number}}",
 		"items_per_page": "Items per page"
 	},
+	"picker": {
+		"title": "Select parent for event",
+		"select": "Select"
+	},
+	"form": {
+		"create_title": "Add hazardous event",
+		"edit_title": "Edit hazardous event",
+		"partial_transition_failed": "Event saved; the requested submission could not be completed. Please retry.",
+		"fields": {
+			"parent": "Parent",
+			"select_type": "Select type",
+			"select_cluster": "Select cluster",
+			"select_specific_hazard": "Select specific hazard",
+			"spatial_footprint_placeholder": "Spatial footprint entry is not yet available on this form.",
+			"date_format_label": "Format",
+			"date_format_options": {
+				"full_date": "Full date",
+				"year_month": "Year and month",
+				"year_only": "Year only"
+			},
+			"date_value_label": "Date",
+			"date_year_label": "Year",
+			"date_month_label": "Month",
+			"select_month": "Select",
+			"filter_by_hazard_name": "Filter by hazard name",
+			"hazard_type": "Hazard type",
+			"hazard_cluster": "Hazard cluster",
+			"specific_hazard": "Specific hazard"
+		},
+		"actions": {
+			"change": "Change",
+			"unset": "Unset",
+			"save_or_submit": "Save or submit",
+			"discard": "Discard"
+		},
+		"save_submit": {
+			"title": "Save or submit",
+			"decide_action": "Decide what you'd like to do with this data that you've added or updated.",
+			"select_validators": "Select validator(s)",
+			"publish_to_undrr": "Publish to UNDRR instance",
+			"publish_to_undrr_description": "Data from this event will be made publicly available.",
+			"actions": {
+				"save_draft": "Save as draft",
+				"validate": "Validate record",
+				"validate_and_publish": "Validate and publish record",
+				"submit_for_validation": "Submit for validation"
+			},
+			"card_titles": {
+				"validate": "Validate"
+			},
+			"descriptions": {
+				"save_draft": "Store this entry for future editing",
+				"validate": "This indicates that the event has been checked for accuracy.",
+				"submit_for_validation": "Request this entry to be validated"
+			}
+		},
+		"discard": {
+			"title": "Discard changes",
+			"confirm_message": "Save this record as a draft, or discard your changes and exit without saving.",
+			"save_as_draft": "Save as draft",
+			"discard_and_exit": "Discard work and exit"
+		}
+	},
 	"detail": {
 		"id_label": "ID",
 		"classification": {
@@ -84,6 +150,8 @@
 			"forecasted": "Forecasted",
 			"ongoing": "Ongoing",
 			"passed": "Passed"
-		}
+		},
+		"edit": "Edit",
+		"add_cause": "Add hazardous event caused by this event"
 	}
 }

@@ -40,10 +40,8 @@ export function HazardousEventFilterBar({
 	const [selectedClusterId, setSelectedClusterId] = useState(
 		currentFilters?.hazardClusterId,
 	);
-	// Each bumped only when that field's value changes from an EXTERNAL driver (another field),
-	// forcing a remount so the uncontrolled Select/Combobox picks up the new defaultSelectedKey --
-	// never bumped by the field's own onChange, which would needlessly remount (and drop keyboard
-	// focus from) a Select the user just operated directly (code-review finding).
+	// Bumped only when a field's value changes from an EXTERNAL driver, forcing a remount so the
+	// uncontrolled Select/Combobox picks up the new default -- never on its own onChange (would drop focus).
 	const [typeResetKey, setTypeResetKey] = useState(0);
 	const [clusterResetKey, setClusterResetKey] = useState(0);
 	const [comboboxResetKey, setComboboxResetKey] = useState(0);
