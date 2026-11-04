@@ -134,6 +134,16 @@ export function configAuthSupportedAzureSSOB2C(): boolean {
 }
 
 /**
+ * Check whether UNDRR-wide client scripts (cookie banner, emergency
+ * messaging, analytics) should be included. Only for UNDRR-hosted instances.
+ * @returns boolean | default is false.
+ */
+export function configUndrrSiteScriptsEnabled(): boolean {
+	const value = process.env.UNDRR_SITE_SCRIPTS_ENABLED || "";
+	return value.trim().toLowerCase() === "true";
+}
+
+/**
  * Retrieves the application's version from the package.json file.
  *
  * This function reads the package.json file located in the current working directory,
