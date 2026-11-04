@@ -7,12 +7,16 @@ import { InitializeWorkflowInstanceUseCase } from "~/domains/validation-workflow
 import { DeleteWorkflowInstanceUseCase } from "~/domains/validation-workflow/application/use-cases/DeleteWorkflowInstance";
 import { GetWorkflowInstanceByEntityUseCase } from "~/domains/validation-workflow/application/use-cases/GetWorkflowInstanceByEntity";
 import { ListWorkflowInstancesByEntityIdsUseCase } from "~/domains/validation-workflow/application/use-cases/ListWorkflowInstancesByEntityIds";
+import { FindValidatorCandidatesUseCase } from "~/domains/validation-workflow/application/use-cases/FindValidatorCandidates";
 import type { IWorkflowRepository } from "~/domains/validation-workflow/application/ports/IWorkflowRepository";
 import type { INotificationPort } from "~/domains/validation-workflow/application/ports/INotificationPort";
+import type { IValidatorCandidateRepository } from "~/domains/validation-workflow/application/ports/IValidatorCandidateRepository";
 import { DrizzleWorkflowRepository } from "./DrizzleWorkflowRepository.server";
 import { EmailNotificationAdapter } from "./EmailNotificationAdapter.server";
+import { DrizzleValidatorCandidateRepository } from "./DrizzleValidatorCandidateRepository.server";
 import { WORKFLOW_REPOSITORY } from "./WorkflowRepositoryToken";
 import { NOTIFICATION_PORT } from "./NotificationPortToken";
+import { VALIDATOR_CANDIDATE_REPOSITORY } from "./ValidatorCandidateRepositoryToken";
 
 @Module({
 	providers: [
@@ -21,6 +25,10 @@ import { NOTIFICATION_PORT } from "./NotificationPortToken";
 		{
 			provide: WORKFLOW_REPOSITORY,
 			useClass: DrizzleWorkflowRepository,
+		},
+		{
+			provide: VALIDATOR_CANDIDATE_REPOSITORY,
+			useClass: DrizzleValidatorCandidateRepository,
 		},
 		// useFactory, not useClass — design.md Decision 2.
 		{
@@ -57,6 +65,12 @@ import { NOTIFICATION_PORT } from "./NotificationPortToken";
 				new ListWorkflowInstancesByEntityIdsUseCase(repo),
 			inject: [WORKFLOW_REPOSITORY],
 		},
+		{
+			provide: FindValidatorCandidatesUseCase,
+			useFactory: (repo: IValidatorCandidateRepository) =>
+				new FindValidatorCandidatesUseCase(repo),
+			inject: [VALIDATOR_CANDIDATE_REPOSITORY],
+		},
 	],
 	// Tokens stay hidden — design.md Decision 4.
 	exports: [
@@ -65,6 +79,7 @@ import { NOTIFICATION_PORT } from "./NotificationPortToken";
 		DeleteWorkflowInstanceUseCase,
 		GetWorkflowInstanceByEntityUseCase,
 		ListWorkflowInstancesByEntityIdsUseCase,
+		FindValidatorCandidatesUseCase,
 	],
 })
 export class ValidationWorkflowModule {}
