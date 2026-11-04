@@ -23,7 +23,7 @@ vi.mock("react-router", async (importOriginal) => {
 	};
 });
 
-import { HazardousEventDetailPage } from "~/domains/hazardous-events/presentation/HazardousEventDetailPage";
+import { HazardousEventDetailPage } from "~/domains/hazardous-events/presentation/web/HazardousEventDetailPage";
 
 // Inline mirror of locales/en/hazardous-events.json (Notices precedent — no file import).
 const hazardousEvents = {
@@ -72,6 +72,8 @@ const hazardousEvents = {
 			ongoing: "Ongoing",
 			passed: "Passed",
 		},
+		edit: "Edit",
+		add_cause: "Add hazardous event caused by this event",
 	},
 };
 
@@ -130,6 +132,7 @@ function makeDetail(
 		customFieldValues: [],
 		workflowStatus: "APPROVED",
 		currentSpatialObservation: null,
+		cause: null,
 		...overrides,
 	};
 }
@@ -506,5 +509,119 @@ describe("HazardousEventDetailPage", () => {
 
 		expect(html).toContain("2026-02-01");
 		expect(html).toContain("Flooded road");
+	});
+
+	// design.md Decision 16 (corrected): add-cause is role-only, matching legacy's canAddNewRecord.
+	// Edit also reuses Decision 2's status-aware predicate (isStatusAwareEditBlocked), matching
+	// legacy's real canEditDataCollectionRecord gate (Gate 9 live-comparison finding).
+	describe("Edit link and add-cause link (task 9b)", () => {
+		it("shows the Edit link, targeting he-preview/edit/{id}, for a role with EditData and an editable status (DRAFT)", () => {
+			const html = renderWithI18n(
+				<HazardousEventDetailPage
+					data={makeDetail({ id: "event-A", workflowStatus: "DRAFT" })}
+					role="data-collector"
+				/>,
+			);
+
+			expect(html).toMatch(/<a[^>]*href="\/en\/he-preview\/edit\/event-A"/);
+		});
+
+		it("shows the Edit link for a role with EditData and a null workflowStatus (DEF-031 legacy row)", () => {
+			const html = renderWithI18n(
+				<HazardousEventDetailPage
+					data={makeDetail({ id: "event-A", workflowStatus: null })}
+					role="data-collector"
+				/>,
+			);
+
+			expect(html).toMatch(/<a[^>]*href="\/en\/he-preview\/edit\/event-A"/);
+		});
+
+		it("shows the Edit link for REVISION_REQUESTED, the other editable status", () => {
+			const html = renderWithI18n(
+				<HazardousEventDetailPage
+					data={makeDetail({
+						id: "event-A",
+						workflowStatus: "REVISION_REQUESTED",
+					})}
+					role="admin"
+				/>,
+			);
+
+			expect(html).toMatch(/<a[^>]*href="\/en\/he-preview\/edit\/event-A"/);
+		});
+
+		// Gate 9 finding: legacy shows no Edit button for admin on a waiting-for-validation record.
+		it.each(["SUBMITTED", "APPROVED", "PUBLISHED"] as const)(
+			"hides the Edit link for a locked status (%s), even for admin",
+			(workflowStatus) => {
+				const html = renderWithI18n(
+					<HazardousEventDetailPage
+						data={makeDetail({ id: "event-A", workflowStatus })}
+						role="admin"
+					/>,
+				);
+
+				expect(html).not.toMatch(/he-preview\/edit\/event-A/);
+			},
+		);
+
+		it("shows the add-cause link, targeting he-preview/new?parent={id}, for a role with EditData, regardless of workflowStatus", () => {
+			const html = renderWithI18n(
+				<HazardousEventDetailPage
+					data={makeDetail({ id: "event-A", workflowStatus: "PUBLISHED" })}
+					role="data-collector"
+				/>,
+			);
+
+			expect(html).toMatch(
+				/<a[^>]*href="\/en\/he-preview\/new\?parent=event-A"/,
+			);
+		});
+
+		it("never shows either link for data-viewer", () => {
+			const html = renderWithI18n(
+				<HazardousEventDetailPage
+					data={makeDetail({ id: "event-A" })}
+					role="data-viewer"
+				/>,
+			);
+
+			expect(html).not.toMatch(/he-preview\/edit\/event-A/);
+			expect(html).not.toMatch(/he-preview\/new\?parent=event-A/);
+		});
+
+		it("never shows either link when role is null", () => {
+			const html = renderWithI18n(
+				<HazardousEventDetailPage
+					data={makeDetail({ id: "event-A" })}
+					role={null}
+				/>,
+			);
+
+			expect(html).not.toMatch(/he-preview\/edit\/event-A/);
+			expect(html).not.toMatch(/he-preview\/new\?parent=event-A/);
+		});
+
+		it("places both links after the back-link and before the Hazardous events heading", () => {
+			const html = renderWithI18n(
+				<HazardousEventDetailPage
+					// DRAFT, not makeDetail()'s own default (APPROVED, now a locked status for
+					// Edit) -- this test is about placement, not status-gating.
+					data={makeDetail({ id: "event-A", workflowStatus: "DRAFT" })}
+					role="data-collector"
+				/>,
+			);
+
+			const backLinkIndex = html.indexOf('href="/en/he-preview"');
+			const editLinkIndex = html.indexOf("he-preview/edit/event-A");
+			const addCauseLinkIndex = html.indexOf("he-preview/new?parent=event-A");
+			const headingIndex = html.indexOf('class="dts-heading-5 mt-[0.86rem]"');
+
+			expect(backLinkIndex).toBeGreaterThan(-1);
+			expect(editLinkIndex).toBeGreaterThan(backLinkIndex);
+			expect(addCauseLinkIndex).toBeGreaterThan(editLinkIndex);
+			expect(headingIndex).toBeGreaterThan(addCauseLinkIndex);
+		});
 	});
 });
