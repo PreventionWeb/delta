@@ -363,4 +363,39 @@ describe("DrizzleCausalChainRepository", () => {
 			await expect(repo.countEdgesTouching(a)).resolves.toBe(1);
 		});
 	});
+
+	describe("findCauseEdge", () => {
+		it("resolves null when effectId has no cause edge", async () => {
+			const node = await seedNode();
+			const repo = new DrizzleCausalChainRepository(dr);
+
+			await expect(repo.findCauseEdge(node)).resolves.toBeNull();
+		});
+
+		it("resolves the current cause edge's causeId/causalityExplanation", async () => {
+			const [a, b] = await Promise.all([seedNode(), seedNode()]);
+			await insertEdge(a, b, "upstream flooding");
+			const repo = new DrizzleCausalChainRepository(dr);
+
+			await expect(repo.findCauseEdge(b)).resolves.toEqual({
+				causeId: a,
+				causalityExplanation: "upstream flooding",
+			});
+		});
+
+		it("reflects replaceCauseEdge's latest state, not a stale row", async () => {
+			const [a, b, c] = await Promise.all([seedNode(), seedNode(), seedNode()]);
+			await insertEdge(a, b);
+			const repo = new DrizzleCausalChainRepository(dr);
+			await repo.replaceCauseEdge(b, {
+				causeId: c,
+				causalityExplanation: "revised",
+			});
+
+			await expect(repo.findCauseEdge(b)).resolves.toEqual({
+				causeId: c,
+				causalityExplanation: "revised",
+			});
+		});
+	});
 });
