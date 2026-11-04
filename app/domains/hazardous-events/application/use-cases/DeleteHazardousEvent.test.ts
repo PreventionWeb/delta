@@ -223,6 +223,10 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 		throw new Error("not used by DeleteHazardousEventUseCase's own tests");
 	}
 
+	async findCauseEdge(): Promise<never> {
+		throw new Error("not used by DeleteHazardousEventUseCase's own tests");
+	}
+
 	async saveEdge(): Promise<void> {
 		throw new Error("not used by DeleteHazardousEventUseCase's own tests");
 	}

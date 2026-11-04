@@ -13,6 +13,7 @@ import {
 import type { IHazardousEventRepository } from "../ports/IHazardousEventRepository";
 import type { ICausalChainRepository } from "../ports/ICausalChainRepository";
 import type { IHazardTaxonomyRepository } from "../ports/IHazardTaxonomyRepository";
+import type { IHipCrosswalkPort } from "../ports/IHipCrosswalkPort";
 import type { HazardousEventDto } from "../dto/HazardousEventDto";
 import { mapHazardousEventFields } from "../dto/HazardousEventDto";
 import type {
@@ -185,6 +186,9 @@ export class UpdateHazardousEventUseCase {
 			"execute"
 		>,
 		private readonly transactionRunner: ITransactionRunner,
+		// TEMPORARY (DEF-055, design.md Decision 17) -- deleted once every dependent domain stops
+		// reading hip_hazard_id/hip_cluster_id/hip_type_id off hazardous_event.
+		private readonly hipCrosswalkPort: IHipCrosswalkPort,
 	) {}
 
 	async execute(
@@ -245,6 +249,14 @@ export class UpdateHazardousEventUseCase {
 			validCustomFieldDefinitionIds,
 		);
 
+		// Re-resolved from the merged, final specificHazardId on every update, unconditionally --
+		// not only when the command changes it (design.md Decision 17: resting correctness on an
+		// unverified assumption about Phase M's own backfill is exactly the kind of guess this
+		// project's standing rule against assuming is written to prevent).
+		const hipCrosswalkIds = await this.hipCrosswalkPort.resolve(
+			updatedEvent.specificHazardId,
+		);
+
 		const cause = await this.validateCauseIfSet(
 			causeAction,
 			updatedEvent,
@@ -258,6 +270,17 @@ export class UpdateHazardousEventUseCase {
 				const saved = await this.hazardousEventRepository.update(
 					updatedEvent,
 					existingEvent.updatedAt,
+					tx,
+				);
+
+				// Immediately after update() succeeds, same tx -- update()'s own optimistic-lock
+				// check means a losing concurrent caller rejects before ever reaching this line
+				// (design.md Decision 17's concurrency note), and a stamp() failure rolls back the
+				// update too.
+				await this.hipCrosswalkPort.stamp(
+					saved.id,
+					command.tenantId,
+					hipCrosswalkIds,
 					tx,
 				);
 
