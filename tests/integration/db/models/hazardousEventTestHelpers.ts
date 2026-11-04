@@ -120,8 +120,19 @@ export async function baseFields(
 
 /** Minimal real-schema FK chain (hipsVersion -> hazardType -> hazardCluster -> specificHazard) a
  * CA Phase 4/5 specificHazardId needs — distinct from this file's own legacy seedHipChain(),
- * which seeds the pre-CA testSchema tables instead. */
-export async function seedSpecificHazard(): Promise<string> {
+ * which seeds the pre-CA testSchema tables instead.
+ *
+ * `sourceRefIds` (design.md Decision 17, 9d) optionally stamps each CA taxonomy row's own
+ * `sourceRefId` -- the legacy HIP id it was migrated from. Omitted (the default, unchanged from
+ * every existing caller's behavior), each level's `sourceRefId` stays null, same as before this
+ * parameter existed. */
+export async function seedSpecificHazard(
+	sourceRefIds: {
+		hipTypeId?: string | null;
+		hipClusterId?: string | null;
+		hipHazardId?: string | null;
+	} = {},
+): Promise<string> {
 	const [hipsVersion] = await dr
 		.insert(hipsVersionTable)
 		.values({ versionNo: `HIPs ${randomUUID()}` })
@@ -132,6 +143,7 @@ export async function seedSpecificHazard(): Promise<string> {
 			id: randomUUID(),
 			nameTextContentId: await seedTextContent(`Type ${randomUUID()}`),
 			hipsVersionId: hipsVersion.id,
+			sourceRefId: sourceRefIds.hipTypeId ?? null,
 		})
 		.returning({ id: hazardTypeTable.id });
 	const [cluster] = await dr
@@ -140,6 +152,7 @@ export async function seedSpecificHazard(): Promise<string> {
 			id: randomUUID(),
 			nameTextContentId: await seedTextContent(`Cluster ${randomUUID()}`),
 			hazardTypeId: type.id,
+			sourceRefId: sourceRefIds.hipClusterId ?? null,
 		})
 		.returning({ id: hazardClusterTable.id });
 	const [specificHazard] = await dr
@@ -149,9 +162,28 @@ export async function seedSpecificHazard(): Promise<string> {
 			nameTextContentId: await seedTextContent(`Hazard ${randomUUID()}`),
 			code: `code-${randomUUID()}`,
 			hazardClusterId: cluster.id,
+			sourceRefId: sourceRefIds.hipHazardId ?? null,
 		})
 		.returning({ id: specificHazardTable.id });
 	return specificHazard.id;
+}
+
+/** Full chain for design.md Decision 17's HIP crosswalk: seeds a real hip_class/hip_cluster/
+ * hip_hazard trio (seedHipChain()) plus a CA taxonomy chain whose sourceRefIds point at them --
+ * what `IHipCrosswalkPort.resolve()` needs to resolve a non-null crosswalk end to end. */
+export async function seedSpecificHazardWithHipCrosswalk(): Promise<{
+	specificHazardId: string;
+	hipHazardId: string;
+	hipClusterId: string;
+	hipTypeId: string;
+}> {
+	const hip = await seedHipChain();
+	const specificHazardId = await seedSpecificHazard({
+		hipTypeId: hip.hipTypeId,
+		hipClusterId: hip.hipClusterId,
+		hipHazardId: hip.hipHazardId,
+	});
+	return { specificHazardId, ...hip };
 }
 
 /** Directly seeds a hazardous_event row bypassing hazardousEventCreate, for tests that

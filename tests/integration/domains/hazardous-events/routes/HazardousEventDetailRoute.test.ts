@@ -204,6 +204,18 @@ describe("Hazardous event detail route loader", () => {
 		expect(result).not.toHaveProperty("success");
 	});
 
+	// design.md Decision 16: the loader already calls requireViewDataPermission() but discards
+	// its return value -- $id.tsx's default export needs the role to gate the new Edit/add-cause
+	// links. Uses a non-default role ("data-collector"), not makeArgs's own "data-viewer" default,
+	// so a hardcoded/wrong-role passthrough can't accidentally satisfy this assertion.
+	it("includes the resolved role alongside the detail DTO (design.md Decision 16)", async () => {
+		const id = await seedEventWithWorkflow(tenantId, specificHazardId);
+
+		const result = await loader(await makeArgs(id, tenantId, "data-collector"));
+
+		expect(result).toMatchObject({ id, tenantId, role: "data-collector" });
+	});
+
 	it("returns workflowStatus null (DEF-031), not a thrown error, for a known id with no WorkflowInstance", async () => {
 		const id = await seedEventWithoutWorkflow(tenantId, specificHazardId);
 
