@@ -478,14 +478,15 @@ describe("WorkflowInstance.create()", () => {
 			expect(() => WorkflowInstance.create(props)).toThrow(ValidationError);
 		});
 
-		it("throws ValidationError when APPROVED has no approved attribution", () => {
+		// REQUIRED_SET.APPROVED relaxed to [] (design.md Decision 5/6) -- this shape now passes.
+		it("no longer throws when APPROVED is missing approved attribution (REQUIRED_SET relaxation, design.md Decision 5/6)", () => {
 			const props = {
 				...baseProps,
 				...validPropsForStatus("SUBMITTED"),
 				status: "APPROVED" as const,
 			};
 
-			expect(() => WorkflowInstance.create(props)).toThrow(ValidationError);
+			expect(() => WorkflowInstance.create(props)).not.toThrow();
 		});
 
 		it("throws ValidationError when PUBLISHED has no validated attribution", () => {
@@ -989,6 +990,284 @@ describe("WorkflowInstance.publish()", () => {
 			).toThrow(ConflictError);
 		},
 	);
+});
+
+describe("WorkflowInstance.resetToDraft()", () => {
+	it("resets from PUBLISHED to DRAFT, clearing every attribution pair", () => {
+		const instance = WorkflowInstance.create({
+			...baseProps,
+			...validPropsForStatus("PUBLISHED"),
+		});
+		const now = new Date("2024-05-01T00:00:00Z");
+
+		const result = instance.resetToDraft({ userId: "user-1", now });
+
+		expect(result.status).toBe("DRAFT");
+		expect(result.submittedByUserId).toBeNull();
+		expect(result.submittedAt).toBeNull();
+		expect(result.validatedByUserId).toBeNull();
+		expect(result.validatedAt).toBeNull();
+		expect(result.approvedByUserId).toBeNull();
+		expect(result.approvedAt).toBeNull();
+		expect(result.publishedByUserId).toBeNull();
+		expect(result.publishedAt).toBeNull();
+	});
+
+	it("does not mutate the original instance", () => {
+		const instance = WorkflowInstance.create({
+			...baseProps,
+			...validPropsForStatus("PUBLISHED"),
+		});
+
+		instance.resetToDraft({ userId: "user-1", now: new Date() });
+
+		expect(instance.status).toBe("PUBLISHED");
+	});
+
+	it.each(STATUS_VALUES)(
+		"is callable from %s without throwing ConflictError",
+		(status) => {
+			const instance = WorkflowInstance.create({
+				...baseProps,
+				...validPropsForStatus(status),
+			});
+
+			const result = instance.resetToDraft({
+				userId: "user-1",
+				now: new Date(),
+			});
+
+			expect(result.status).toBe("DRAFT");
+		},
+	);
+
+	it("stamps updatedAt with the transition's own now", () => {
+		const instance = WorkflowInstance.create(baseProps);
+		const now = new Date("2024-05-01T00:00:00Z");
+
+		const result = instance.resetToDraft({ userId: "user-1", now });
+
+		expect(result.updatedAt).toEqual(now);
+	});
+
+	it("throws ValidationError, not ConflictError, when now is invalid", () => {
+		const instance = WorkflowInstance.create(baseProps);
+
+		expect(() =>
+			instance.resetToDraft({
+				userId: "user-1",
+				now: new Date("not-a-date"),
+			}),
+		).toThrow(ValidationError);
+	});
+});
+
+describe("WorkflowInstance.directValidate()", () => {
+	it("transitions DRAFT to APPROVED, setting only validator attribution", () => {
+		const instance = WorkflowInstance.create(baseProps);
+		const now = new Date("2024-06-01T00:00:00Z");
+
+		const result = instance.directValidate({ userId: "admin-1", now });
+
+		expect(result.status).toBe("APPROVED");
+		expect(result.validatedByUserId).toBe("admin-1");
+		expect(result.validatedAt).toEqual(now);
+		expect(result.submittedByUserId).toBeNull();
+		expect(result.approvedByUserId).toBeNull();
+		expect(result.publishedByUserId).toBeNull();
+	});
+
+	it("from REVISION_REQUESTED preserves carried-over submission attribution", () => {
+		const submittedAt = new Date("2024-01-10T00:00:00Z");
+		const instance = WorkflowInstance.create({
+			...baseProps,
+			status: "REVISION_REQUESTED",
+			submittedByUserId: "user-old",
+			submittedAt,
+		});
+		const now = new Date("2024-06-01T00:00:00Z");
+
+		const result = instance.directValidate({ userId: "admin-1", now });
+
+		expect(result.status).toBe("APPROVED");
+		expect(result.submittedByUserId).toBe("user-old");
+		expect(result.submittedAt).toEqual(submittedAt);
+	});
+
+	it("stamps updatedAt with the transition's own now", () => {
+		const instance = WorkflowInstance.create(baseProps);
+		const now = new Date("2024-06-01T00:00:00Z");
+
+		const result = instance.directValidate({ userId: "admin-1", now });
+
+		expect(result.updatedAt).toEqual(now);
+	});
+
+	it.each(["SUBMITTED", "APPROVED", "REJECTED", "PUBLISHED"] as const)(
+		"throws ConflictError when called from %s",
+		(status) => {
+			const instance = WorkflowInstance.create({
+				...baseProps,
+				...validPropsForStatus(status),
+			});
+
+			expect(() =>
+				instance.directValidate({ userId: "admin-1", now: new Date() }),
+			).toThrow(ConflictError);
+		},
+	);
+
+	it("ConflictError context names directValidate as the attempted transition", () => {
+		const instance = WorkflowInstance.create({
+			...baseProps,
+			...validPropsForStatus("SUBMITTED"),
+		});
+
+		try {
+			instance.directValidate({ userId: "admin-1", now: new Date() });
+			expect.unreachable("directValidate() should have thrown");
+		} catch (error) {
+			expect((error as ConflictError).context).toMatchObject({
+				attemptedTransition: "directValidate",
+			});
+		}
+	});
+
+	it("throws ValidationError, not ConflictError, when now is invalid from a disallowed status", () => {
+		const instance = WorkflowInstance.create({
+			...baseProps,
+			...validPropsForStatus("SUBMITTED"),
+		});
+
+		expect(() =>
+			instance.directValidate({
+				userId: "admin-1",
+				now: new Date("not-a-date"),
+			}),
+		).toThrow(ValidationError);
+	});
+});
+
+describe("WorkflowInstance.directPublish()", () => {
+	it("transitions DRAFT to PUBLISHED, setting validator and publisher attribution only", () => {
+		const instance = WorkflowInstance.create(baseProps);
+		const now = new Date("2024-07-01T00:00:00Z");
+
+		const result = instance.directPublish({ userId: "admin-1", now });
+
+		expect(result.status).toBe("PUBLISHED");
+		expect(result.validatedByUserId).toBe("admin-1");
+		expect(result.validatedAt).toEqual(now);
+		expect(result.publishedByUserId).toBe("admin-1");
+		expect(result.publishedAt).toEqual(now);
+		expect(result.submittedByUserId).toBeNull();
+		expect(result.approvedByUserId).toBeNull();
+	});
+
+	it("from REVISION_REQUESTED preserves carried-over submission attribution", () => {
+		const submittedAt = new Date("2024-01-10T00:00:00Z");
+		const instance = WorkflowInstance.create({
+			...baseProps,
+			status: "REVISION_REQUESTED",
+			submittedByUserId: "user-old",
+			submittedAt,
+		});
+		const now = new Date("2024-07-01T00:00:00Z");
+
+		const result = instance.directPublish({ userId: "admin-1", now });
+
+		expect(result.submittedByUserId).toBe("user-old");
+		expect(result.submittedAt).toEqual(submittedAt);
+	});
+
+	it("stamps updatedAt with the transition's own now", () => {
+		const instance = WorkflowInstance.create(baseProps);
+		const now = new Date("2024-07-01T00:00:00Z");
+
+		const result = instance.directPublish({ userId: "admin-1", now });
+
+		expect(result.updatedAt).toEqual(now);
+	});
+
+	it.each(["SUBMITTED", "APPROVED", "REJECTED", "PUBLISHED"] as const)(
+		"throws ConflictError when called from %s",
+		(status) => {
+			const instance = WorkflowInstance.create({
+				...baseProps,
+				...validPropsForStatus(status),
+			});
+
+			expect(() =>
+				instance.directPublish({ userId: "admin-1", now: new Date() }),
+			).toThrow(ConflictError);
+		},
+	);
+
+	it("ConflictError context names directPublish as the attempted transition", () => {
+		const instance = WorkflowInstance.create({
+			...baseProps,
+			...validPropsForStatus("SUBMITTED"),
+		});
+
+		try {
+			instance.directPublish({ userId: "admin-1", now: new Date() });
+			expect.unreachable("directPublish() should have thrown");
+		} catch (error) {
+			expect((error as ConflictError).context).toMatchObject({
+				attemptedTransition: "directPublish",
+			});
+		}
+	});
+});
+
+describe("WorkflowInstance.create() reconstitution of direct-transition shapes (design.md Decision 5/6)", () => {
+	it("APPROVED with only validatedByUserId/At set no longer throws (directValidate's own shape)", () => {
+		const props = {
+			...baseProps,
+			status: "APPROVED" as const,
+			validatedByUserId: "admin-1",
+			validatedAt: fixtureNow,
+		};
+
+		expect(() => WorkflowInstance.create(props)).not.toThrow();
+	});
+
+	it("APPROVED with the normal flow's fuller shape (submitted+approved) still does not throw", () => {
+		const props = {
+			...baseProps,
+			status: "APPROVED" as const,
+			submittedByUserId: "user-1",
+			submittedAt: fixtureNow,
+			approvedByUserId: "approver-1",
+			approvedAt: fixtureNow,
+		};
+
+		expect(() => WorkflowInstance.create(props)).not.toThrow();
+	});
+
+	it("PUBLISHED with only validated+published pairs set no longer throws", () => {
+		const props = {
+			...baseProps,
+			status: "PUBLISHED" as const,
+			validatedByUserId: "admin-1",
+			validatedAt: fixtureNow,
+			publishedByUserId: "admin-1",
+			publishedAt: fixtureNow,
+		};
+
+		expect(() => WorkflowInstance.create(props)).not.toThrow();
+	});
+
+	it("PUBLISHED missing validated attribution still throws", () => {
+		const props = {
+			...baseProps,
+			status: "PUBLISHED" as const,
+			publishedByUserId: "admin-1",
+			publishedAt: fixtureNow,
+		};
+
+		expect(() => WorkflowInstance.create(props)).toThrow(ValidationError);
+	});
 });
 
 describe("WorkflowInstance transition purity", () => {

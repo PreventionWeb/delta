@@ -20,6 +20,10 @@ import type { IHazardousEventRepository } from "../ports/IHazardousEventReposito
 import type { ICausalChainRepository } from "../ports/ICausalChainRepository";
 import type { IHazardTaxonomyRepository } from "../ports/IHazardTaxonomyRepository";
 import type {
+	HipCrosswalkIds,
+	IHipCrosswalkPort,
+} from "../ports/IHipCrosswalkPort";
+import type {
 	RecordSpatialObservationCommand,
 	RecordSpatialObservationUseCase,
 } from "./RecordSpatialObservation";
@@ -339,6 +343,10 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 		throw new Error("not used by UpdateHazardousEventUseCase's own tests");
 	}
 
+	async findCauseEdge(): Promise<never> {
+		throw new Error("not used by UpdateHazardousEventUseCase's own tests");
+	}
+
 	all(): readonly CausalEdge[] {
 		return [...this.edges];
 	}
@@ -372,6 +380,45 @@ class FakeRecordSpatialObservationUseCase implements Pick<
 			createdAt: now,
 			updatedAt: now,
 		};
+	}
+}
+
+const DEFAULT_HIP_IDS: HipCrosswalkIds = {
+	hipHazardId: null,
+	hipClusterId: null,
+	hipTypeId: null,
+};
+
+class FakeHipCrosswalkPort implements IHipCrosswalkPort {
+	readonly resolveCalls: string[] = [];
+	readonly stampCalls: {
+		eventId: string;
+		tenantId: string;
+		ids: HipCrosswalkIds;
+		tx: Tx;
+	}[] = [];
+	resolveResult: HipCrosswalkIds = DEFAULT_HIP_IDS;
+	stampBehavior: "succeed" | Error = "succeed";
+
+	constructor(private readonly callLog: string[] = []) {}
+
+	async resolve(specificHazardId: string): Promise<HipCrosswalkIds> {
+		this.resolveCalls.push(specificHazardId);
+		this.callLog.push("hipCrosswalkPort.resolve");
+		return this.resolveResult;
+	}
+
+	async stamp(
+		eventId: string,
+		tenantId: string,
+		ids: HipCrosswalkIds,
+		tx: Tx,
+	): Promise<void> {
+		this.stampCalls.push({ eventId, tenantId, ids, tx });
+		this.callLog.push("hipCrosswalkPort.stamp");
+		if (this.stampBehavior instanceof Error) {
+			throw this.stampBehavior;
+		}
 	}
 }
 
@@ -461,6 +508,7 @@ function createHarness(options: HarnessOptions = {}) {
 	const recordSpatialObservationUseCase =
 		new FakeRecordSpatialObservationUseCase(callLog);
 	const transactionRunner = new FakeTransactionRunner(callLog);
+	const hipCrosswalkPort = new FakeHipCrosswalkPort(callLog);
 	const useCase = new UpdateHazardousEventUseCase(
 		logger,
 		taxonomyRepository,
@@ -469,9 +517,11 @@ function createHarness(options: HarnessOptions = {}) {
 		causalChainRepository,
 		recordSpatialObservationUseCase,
 		transactionRunner,
+		hipCrosswalkPort,
 	);
 	return {
 		callLog,
+		hipCrosswalkPort,
 		logger,
 		taxonomyRepository,
 		hazardousEventRepository,
@@ -1480,7 +1530,9 @@ describe("UpdateHazardousEventUseCase", () => {
 			);
 
 			expect(harness.callLog).toEqual([
+				"hipCrosswalkPort.resolve",
 				"hazardousEvent.update",
+				"hipCrosswalkPort.stamp",
 				"transactionRunner.run.resolving",
 				"logger.info",
 			]);
@@ -1577,7 +1629,9 @@ describe("UpdateHazardousEventUseCase", () => {
 				1,
 			);
 			expect(harness.callLog).toEqual([
+				"hipCrosswalkPort.resolve",
 				"hazardousEvent.update",
+				"hipCrosswalkPort.stamp",
 				"spatialObservation.execute",
 			]);
 			expect(harness.logger.info).not.toHaveBeenCalled();
@@ -1935,6 +1989,111 @@ describe("UpdateHazardousEventUseCase", () => {
 			).value.description;
 			expect(persisted.description).toBe(winnerDescription);
 			expect(["caller A", "caller B"]).toContain(persisted.description);
+		});
+	});
+
+	// design.md Decision 17 (task 9d): IHipCrosswalkPort composition -- resolve() with the
+	// merged, final specificHazardId (command's new value when present, else the existing
+	// event's own), before the transaction; stamp() inside it, immediately after update().
+	describe("IHipCrosswalkPort composition (design.md Decision 17)", () => {
+		it("re-stamps using the existing event's own specificHazardId when the command omits it", async () => {
+			const harness = createHarness();
+
+			await harness.useCase.execute(
+				makeCommand({ id: "event-A", tenantId: "tenant-1", description: "x" }),
+			);
+
+			expect(harness.hipCrosswalkPort.resolveCalls).toEqual(["hazard-1"]);
+		});
+
+		it("re-stamps using the command's new specificHazardId when provided", async () => {
+			const harness = createHarness();
+
+			await harness.useCase.execute(
+				makeCommand({
+					id: "event-A",
+					tenantId: "tenant-1",
+					specificHazardId: "hazard-2",
+				}),
+			);
+
+			expect(harness.hipCrosswalkPort.resolveCalls).toEqual(["hazard-2"]);
+		});
+
+		it("stamp() writes an explicit null for a level the new crosswalk resolves to null, clearing any previously-stamped value rather than leaving it stale", async () => {
+			const harness = createHarness();
+			const partiallyNullIds: HipCrosswalkIds = {
+				hipHazardId: "hip-hazard-2",
+				hipClusterId: null,
+				hipTypeId: "hip-type-2",
+			};
+			harness.hipCrosswalkPort.resolveResult = partiallyNullIds;
+
+			await harness.useCase.execute(
+				makeCommand({
+					id: "event-A",
+					tenantId: "tenant-1",
+					specificHazardId: "hazard-2",
+				}),
+			);
+
+			expect(harness.hipCrosswalkPort.stampCalls).toEqual([
+				{
+					eventId: "event-A",
+					tenantId: "tenant-1",
+					ids: partiallyNullIds,
+					tx: expect.anything(),
+				},
+			]);
+		});
+
+		// Same fake-level limitation noted on CreateHazardousEvent.test.ts's own equivalent test
+		// (FakeTransactionRunner has no rollback semantics) -- the real rollback guarantee is
+		// proven against the real adapter (DEF-026 rollback-proof integration suite).
+		it("propagates a rejection from stamp(), logging nothing", async () => {
+			const harness = createHarness();
+			const thrown = new Error("boom-stamp");
+			harness.hipCrosswalkPort.stampBehavior = thrown;
+
+			await expect(
+				harness.useCase.execute(
+					makeCommand({ id: "event-A", tenantId: "tenant-1" }),
+				),
+			).rejects.toBe(thrown);
+
+			expect(harness.logger.info).not.toHaveBeenCalled();
+		});
+
+		// Mandatory concurrent-callers scenario (design.md, under Decision 17's "Concurrency"
+		// passage): stamp() is strictly placed
+		// after update() succeeds, so the losing caller -- rejected by update()'s own optimistic
+		// lock -- must never reach stamp() at all.
+		it("never calls stamp() for the losing caller of two concurrent execute() calls on the same event", async () => {
+			const harness = createHarness();
+
+			const outcomes = await Promise.allSettled([
+				harness.useCase.execute(
+					makeCommand({
+						id: "event-A",
+						tenantId: "tenant-1",
+						description: "caller A",
+					}),
+				),
+				harness.useCase.execute(
+					makeCommand({
+						id: "event-A",
+						tenantId: "tenant-1",
+						description: "caller B",
+					}),
+				),
+			]);
+
+			const rejected = outcomes.filter((o) => o.status === "rejected");
+			expect(rejected).toHaveLength(1);
+			expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(
+				ConcurrentModificationError,
+			);
+			expect(harness.hipCrosswalkPort.stampCalls).toHaveLength(1);
 		});
 	});
 });

@@ -5,12 +5,21 @@ import {
 	type HazardousEventFieldValueProps,
 	type HazardousEventStatus,
 } from "../../domain/HazardousEvent";
-import { assertCausalLinkDoesNotCreateCycle } from "../../domain/CausalChain";
+import {
+	assertCausalLinkDoesNotCreateCycle,
+	assertCauseStartsNoLaterThanEffect,
+} from "../../domain/CausalChain";
 import type { IHazardousEventRepository } from "../ports/IHazardousEventRepository";
 import type { ICausalChainRepository } from "../ports/ICausalChainRepository";
 import type { IHazardTaxonomyRepository } from "../ports/IHazardTaxonomyRepository";
+import type { IHipCrosswalkPort } from "../ports/IHipCrosswalkPort";
 import type { HazardousEventDto } from "../dto/HazardousEventDto";
 import { toHazardousEventDto } from "../dto/HazardousEventDto";
+import type {
+	RecordSpatialObservationCommand,
+	RecordSpatialObservationUseCase,
+} from "./RecordSpatialObservation";
+import type { SpatialObservationDto } from "../dto/SpatialObservationDto";
 import type { InitializeWorkflowInstanceUseCase } from "~/domains/validation-workflow/application/use-cases/InitializeWorkflowInstance";
 import type { ILogger } from "~/shared/logging/ILogger";
 import type { ITransactionRunner } from "~/shared/persistence/ITransactionRunner";
@@ -42,6 +51,12 @@ export interface CreateHazardousEventCommand {
 	causeId?: string;
 	/** Only meaningful when `causeId` is present; ignored otherwise.*/
 	causalityExplanation?: string | null;
+	/** Mirrors UpdateHazardousEventCommand's own field -- recorded inside the same transaction
+	 * as the event/workflow insert when present. */
+	spatialObservation?: Omit<
+		RecordSpatialObservationCommand,
+		"tenantId" | "hazardousEventId" | "tx"
+	>;
 }
 
 /** `""`/`undefined` both count as absent -- narrowed once so downstream code agrees without a cast; a non-string `causeId` throws rather than silently no-op. */
@@ -93,7 +108,14 @@ export class CreateHazardousEventUseCase {
 			"execute"
 		>,
 		private readonly causalChainRepository: ICausalChainRepository,
+		private readonly recordSpatialObservationUseCase: Pick<
+			RecordSpatialObservationUseCase,
+			"execute"
+		>,
 		private readonly transactionRunner: ITransactionRunner,
+		// TEMPORARY (DEF-055, design.md Decision 17) -- deleted once every dependent domain stops
+		// reading hip_hazard_id/hip_cluster_id/hip_type_id off hazardous_event.
+		private readonly hipCrosswalkPort: IHipCrosswalkPort,
 	) {}
 
 	async execute(
@@ -169,14 +191,30 @@ export class CreateHazardousEventUseCase {
 				newEvent.id,
 			);
 			assertCausalLinkDoesNotCreateCycle(edges, cause.id, newEvent.id);
+			// Mirrors UpdateHazardousEvent.ts:331 -- malformed startDate skips rather than fails closed.
+			assertCauseStartsNoLaterThanEffect(cause.startDate, newEvent.startDate);
 		}
 
-		// Whole write sequence is one transaction (DEF-026, design.md "The full write sequence
-		// runs as one atomic transaction") -- a failure partway rolls back every earlier write in
-		// this same call, including the HazardousEvent insert.
-		const { saved, savedWorkflow } = await this.transactionRunner.run(
-			async (tx) => {
+		// After HazardousEvent.create() so a malformed specificHazardId surfaces as
+		// ValidationError, not a raw Postgres error (Decision 17 only requires "before the transaction").
+		const hipCrosswalkIds = await this.hipCrosswalkPort.resolve(
+			command.specificHazardId,
+		);
+
+		// Whole write sequence is one transaction (DEF-026) -- a failure partway rolls back
+		// every earlier write in this call, including the HazardousEvent insert.
+		const { saved, savedWorkflow, savedSpatialObservation } =
+			await this.transactionRunner.run(async (tx) => {
 				const saved = await this.hazardousEventRepository.insert(newEvent, tx);
+
+				// Immediately after the event insert, same tx -- a stamp() failure rolls back the
+				// insert too (design.md Decision 17).
+				await this.hipCrosswalkPort.stamp(
+					saved.id,
+					command.tenantId,
+					hipCrosswalkIds,
+					tx,
+				);
 
 				const savedWorkflow =
 					await this.initializeWorkflowInstanceUseCase.execute({
@@ -195,9 +233,21 @@ export class CreateHazardousEventUseCase {
 					);
 				}
 
-				return { saved, savedWorkflow };
-			},
-		);
+				// Mirrors UpdateHazardousEvent.ts's own composition -- same transaction, so a
+				// failure here rolls back the HazardousEvent/WorkflowInstance inserts above too.
+				let savedSpatialObservation: SpatialObservationDto | undefined;
+				if (command.spatialObservation !== undefined) {
+					savedSpatialObservation =
+						await this.recordSpatialObservationUseCase.execute({
+							...command.spatialObservation,
+							tenantId: command.tenantId,
+							hazardousEventId: saved.id,
+							tx,
+						});
+				}
+
+				return { saved, savedWorkflow, savedSpatialObservation };
+			});
 
 		// Logged only after the transaction resolves successfully -- a rolled-back transaction
 		// rejects the await above and short-circuits past this call entirely.
@@ -207,6 +257,16 @@ export class CreateHazardousEventUseCase {
 			tenantId: command.tenantId,
 			hasCause,
 		});
+
+		// Mirrors UpdateHazardousEvent.ts's own post-commit log for the same event.
+		if (savedSpatialObservation !== undefined) {
+			this.logger.info({
+				msg: "spatial_observation.recorded",
+				hazardousEventId: saved.id,
+				tenantId: command.tenantId,
+				observationTime: savedSpatialObservation.observationTime,
+			});
+		}
 
 		return toHazardousEventDto(saved, savedWorkflow);
 	}

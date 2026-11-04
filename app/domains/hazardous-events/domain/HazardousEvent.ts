@@ -268,7 +268,8 @@ export class HazardousEvent {
 	 *
 	 * @throws {ValidationError} for an empty, whitespace-only, or non-string tenantId/specificHazardId/startDate
 	 *   (Decision 2/10), an invalid createdAt/updatedAt/submittedAt (Decision 9), a present but non-string
-	 *   endDate (Decision 11), startDate later than endDate (Decision 3), or any shape/duplicate/membership
+	 *   endDate (Decision 11), a non-null hazardousEventStatus outside HAZARDOUS_EVENT_STATUS_VALUES
+	 *   (spec: hazardous-event-entity), startDate later than endDate (Decision 3), or any shape/duplicate/membership
 	 *   violation in hazardDriverIds/attachments/fieldValues/customFieldValues (Decision 6).
 	 */
 	static create(
@@ -299,6 +300,17 @@ export class HazardousEvent {
 		if (props.endDate != null && typeof props.endDate !== "string") {
 			throw new ValidationError("endDate must be a string");
 		}
+
+		// No DB CHECK constraint; mirrors WorkflowInstance.create()'s enum-guard pattern (spec: hazardous-event-entity).
+		if (
+			props.hazardousEventStatus !== null &&
+			!HAZARDOUS_EVENT_STATUS_VALUES.includes(props.hazardousEventStatus)
+		) {
+			throw new ValidationError(
+				`hazardousEventStatus must be one of ${HAZARDOUS_EVENT_STATUS_VALUES.join(", ")}, or null`,
+			);
+		}
+
 		// A malformed or not-set startDate/endDate skips this check.
 		if (
 			props.endDate != null &&

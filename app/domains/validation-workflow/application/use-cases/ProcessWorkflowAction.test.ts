@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { NoOpLogger } from "~/shared/logging/NoOpLogger";
-import { ConcurrentModificationError, ConflictError } from "~/shared/errors";
+import {
+	AuthorizationError,
+	ConcurrentModificationError,
+	ConflictError,
+	ValidationError,
+} from "~/shared/errors";
 
 import {
 	WorkflowInstance,
@@ -480,6 +485,125 @@ describe("ProcessWorkflowActionUseCase — action to entity-method mapping", () 
 	});
 });
 
+describe("ProcessWorkflowActionUseCase — submit-validation requires a validator (SOLID review, DIP finding)", () => {
+	it("rejects with ValidationError when validatorUserIds is empty, without reading the repository", async () => {
+		const repo = makeRepository(buildInstance({ status: "DRAFT" }));
+		const notificationPort = makeNotificationPort();
+		const useCase = new ProcessWorkflowActionUseCase(
+			new NoOpLogger(),
+			repo,
+			notificationPort,
+		);
+		const command: ProcessWorkflowActionCommand = {
+			action: "submit-validation",
+			entityId: "entity-1",
+			entityType: "HE",
+			actingUserId: "user-1",
+			validatorUserIds: [],
+			recordDisplayName: "Flood",
+			recordDate: "2026-10-01",
+		};
+
+		await expect(useCase.execute(command)).rejects.toBeInstanceOf(
+			ValidationError,
+		);
+		// Exact message, not just the error type (test-quality-auditor finding) -- this text
+		// reaches the end user via the ADR-003 error envelope.
+		await expect(useCase.execute(command)).rejects.toThrow(
+			"At least one validator must be selected for submit-validation",
+		);
+		expect(repo.findByEntity).not.toHaveBeenCalled();
+		expect(repo.update).not.toHaveBeenCalled();
+		expect(notificationPort.notify).not.toHaveBeenCalled();
+	});
+});
+
+describe("ProcessWorkflowActionUseCase — direct-validate/direct-publish require the admin role (code review finding, researched -- authorization is a business rule, not a presentation concern)", () => {
+	it.each(["direct-validate", "direct-publish"] as const)(
+		"rejects %s with AuthorizationError when actingUserRole is not admin, without reading the repository",
+		async (action) => {
+			const repo = makeRepository(buildInstance({ status: "DRAFT" }));
+			const notificationPort = makeNotificationPort();
+			const useCase = new ProcessWorkflowActionUseCase(
+				new NoOpLogger(),
+				repo,
+				notificationPort,
+			);
+			const command: ProcessWorkflowActionCommand = {
+				action,
+				entityId: "entity-1",
+				entityType: "HE",
+				actingUserId: "user-1",
+				actingUserRole: "data-collector",
+			};
+
+			await expect(useCase.execute(command)).rejects.toBeInstanceOf(
+				AuthorizationError,
+			);
+			// Exact message, not just the error type (test-quality-auditor finding).
+			await expect(useCase.execute(command)).rejects.toThrow(
+				`${action} requires the admin role`,
+			);
+			expect(repo.findByEntity).not.toHaveBeenCalled();
+			expect(repo.update).not.toHaveBeenCalled();
+			expect(notificationPort.notify).not.toHaveBeenCalled();
+		},
+	);
+
+	it.each(["direct-validate", "direct-publish"] as const)(
+		"rejects %s with AuthorizationError when actingUserRole is undefined",
+		async (action) => {
+			const repo = makeRepository(buildInstance({ status: "DRAFT" }));
+			const notificationPort = makeNotificationPort();
+			const useCase = new ProcessWorkflowActionUseCase(
+				new NoOpLogger(),
+				repo,
+				notificationPort,
+			);
+			const command: ProcessWorkflowActionCommand = {
+				action,
+				entityId: "entity-1",
+				entityType: "HE",
+				actingUserId: "user-1",
+				actingUserRole: undefined,
+			};
+
+			await expect(useCase.execute(command)).rejects.toBeInstanceOf(
+				AuthorizationError,
+			);
+		},
+	);
+});
+
+describe("ProcessWorkflowActionUseCase — submit-draft requires an edit-capable role (design.md Decision 26)", () => {
+	it.each(["data-viewer", undefined])(
+		"submit-draft is rejected with AuthorizationError when actingUserRole is %s, before findByEntity is called",
+		async (role) => {
+			const repo = makeRepository(buildInstance({ status: "DRAFT" }));
+			const notificationPort = makeNotificationPort();
+			const useCase = new ProcessWorkflowActionUseCase(
+				new NoOpLogger(),
+				repo,
+				notificationPort,
+			);
+			const command: ProcessWorkflowActionCommand = {
+				action: "submit-draft",
+				entityId: "entity-1",
+				entityType: "HE",
+				actingUserId: "user-1",
+				actingUserRole: role,
+			};
+
+			await expect(useCase.execute(command)).rejects.toBeInstanceOf(
+				AuthorizationError,
+			);
+			expect(repo.findByEntity).not.toHaveBeenCalled();
+			expect(repo.update).not.toHaveBeenCalled();
+			expect(notificationPort.notify).not.toHaveBeenCalled();
+		},
+	);
+});
+
 // ---------------------------------------------------------------------------
 // 4.2 — ConflictError propagation
 // ---------------------------------------------------------------------------
@@ -928,6 +1052,61 @@ describe("ProcessWorkflowActionUseCase — concurrent callers race at the reposi
 		expect(notifications[0].toStatus).toBe("APPROVED");
 		expect(notifications[0].action).toBe("validate");
 	});
+
+	it("two admins racing direct-publish on the same DRAFT event: the stale caller rejects with ConcurrentModificationError, the winner's PUBLISHED state is not overwritten", async () => {
+		const initial = buildInstance({
+			status: "DRAFT",
+			entityId: "entity-concurrent-publish",
+			entityType: "HE",
+		});
+		const {
+			repo,
+			getCurrentStatus,
+			getThrownConcurrencyError,
+			gateNextUpdate,
+			releaseGatedUpdate,
+		} = makeConcurrencyRepository(initial);
+		const notificationPort = makeNotificationPort();
+		const useCase = new ProcessWorkflowActionUseCase(
+			new NoOpLogger(),
+			repo,
+			notificationPort,
+		);
+
+		const aEntered = gateNextUpdate();
+		const aCommand: ProcessWorkflowActionCommand = {
+			action: "direct-publish",
+			entityId: "entity-concurrent-publish",
+			entityType: "HE",
+			actingUserId: "admin-a",
+			actingUserRole: "admin",
+		};
+		const aPromise = useCase.execute(aCommand);
+		await Promise.race([aEntered, aPromise]);
+
+		const bCommand: ProcessWorkflowActionCommand = {
+			action: "direct-publish",
+			entityId: "entity-concurrent-publish",
+			entityType: "HE",
+			actingUserId: "admin-b",
+			actingUserRole: "admin",
+		};
+		const bDto = await useCase.execute(bCommand);
+
+		releaseGatedUpdate();
+		let aError: unknown;
+		try {
+			await aPromise;
+		} catch (err) {
+			aError = err;
+		}
+
+		expect(aError).toBeInstanceOf(ConcurrentModificationError);
+		expect(aError).toBe(getThrownConcurrencyError());
+		expect(getCurrentStatus()).toBe("PUBLISHED");
+		expect(bDto.status).toBe("PUBLISHED");
+		expect(bDto.publishedByUserId).toBe("admin-b");
+	});
 });
 
 // ---------------------------------------------------------------------------
@@ -1062,4 +1241,214 @@ describe("ProcessWorkflowActionUseCase — notification payload action-specific 
 		expect("assigneeUserIds" in notification).toBe(false);
 		expect(notification.submittedByUserId).toBe("submitter-2");
 	});
+});
+
+// ---------------------------------------------------------------------------
+// Section 4 — submit-draft, direct-validate, direct-publish (design.md Decision 5/6)
+// ---------------------------------------------------------------------------
+
+describe("ProcessWorkflowActionUseCase — submit-draft/direct-validate/direct-publish mapping", () => {
+	it("submit-draft calls resetToDraft from any status (PUBLISHED here)", async () => {
+		const instance = buildInstance({ status: "PUBLISHED" });
+		const repo = makeRepository(instance);
+		const notificationPort = makeNotificationPort();
+		const useCase = new ProcessWorkflowActionUseCase(
+			new NoOpLogger(),
+			repo,
+			notificationPort,
+		);
+		const command: ProcessWorkflowActionCommand = {
+			action: "submit-draft",
+			entityId: instance.entityId,
+			entityType: instance.entityType,
+			actingUserId: "user-1",
+			actingUserRole: "data-collector",
+		};
+
+		await useCase.execute(command);
+
+		expect(repo.update).toHaveBeenCalledOnce();
+		const updateArgs = vi.mocked(repo.update).mock.calls[0];
+		expect(updateArgs[0].status).toBe("DRAFT");
+		expect(updateArgs[0].submittedByUserId).toBeNull();
+		expect(updateArgs[0].validatedByUserId).toBeNull();
+		expect(updateArgs[0].approvedByUserId).toBeNull();
+		expect(updateArgs[0].publishedByUserId).toBeNull();
+	});
+
+	it("direct-validate calls directValidate from DRAFT", async () => {
+		const instance = buildInstance({ status: "DRAFT" });
+		const repo = makeRepository(instance);
+		const notificationPort = makeNotificationPort();
+		const useCase = new ProcessWorkflowActionUseCase(
+			new NoOpLogger(),
+			repo,
+			notificationPort,
+		);
+		const command: ProcessWorkflowActionCommand = {
+			action: "direct-validate",
+			entityId: instance.entityId,
+			entityType: instance.entityType,
+			actingUserId: "admin-1",
+			actingUserRole: "admin",
+		};
+
+		const dto = await useCase.execute(command);
+
+		const updateArgs = vi.mocked(repo.update).mock.calls[0];
+		expect(updateArgs[0].status).toBe("APPROVED");
+		expect(updateArgs[0].validatedByUserId).toBe("admin-1");
+		expect(dto.status).toBe("APPROVED");
+	});
+
+	it("direct-publish calls directPublish from REVISION_REQUESTED", async () => {
+		const instance = buildInstance({ status: "REVISION_REQUESTED" });
+		const repo = makeRepository(instance);
+		const notificationPort = makeNotificationPort();
+		const useCase = new ProcessWorkflowActionUseCase(
+			new NoOpLogger(),
+			repo,
+			notificationPort,
+		);
+		const command: ProcessWorkflowActionCommand = {
+			action: "direct-publish",
+			entityId: instance.entityId,
+			entityType: instance.entityType,
+			actingUserId: "admin-1",
+			actingUserRole: "admin",
+		};
+
+		const dto = await useCase.execute(command);
+
+		const updateArgs = vi.mocked(repo.update).mock.calls[0];
+		expect(updateArgs[0].status).toBe("PUBLISHED");
+		expect(updateArgs[0].validatedByUserId).toBe("admin-1");
+		expect(updateArgs[0].publishedByUserId).toBe("admin-1");
+		expect(dto.status).toBe("PUBLISHED");
+	});
+
+	it("direct-validate from a disallowed status (SUBMITTED) propagates ConflictError without updating", async () => {
+		const instance = buildInstance({ status: "SUBMITTED" });
+		const repo = makeRepository(instance);
+		const notificationPort = makeNotificationPort();
+		const useCase = new ProcessWorkflowActionUseCase(
+			new NoOpLogger(),
+			repo,
+			notificationPort,
+		);
+		const command: ProcessWorkflowActionCommand = {
+			action: "direct-validate",
+			entityId: instance.entityId,
+			entityType: instance.entityType,
+			actingUserId: "admin-1",
+			actingUserRole: "admin",
+		};
+
+		await expect(useCase.execute(command)).rejects.toBeInstanceOf(
+			ConflictError,
+		);
+		expect(repo.update).not.toHaveBeenCalled();
+	});
+
+	it("a successful submit-draft does not call notify", async () => {
+		const instance = buildInstance({ status: "APPROVED" });
+		const repo = makeRepository(instance);
+		const notificationPort = makeNotificationPort();
+		const useCase = new ProcessWorkflowActionUseCase(
+			new NoOpLogger(),
+			repo,
+			notificationPort,
+		);
+		const command: ProcessWorkflowActionCommand = {
+			action: "submit-draft",
+			entityId: instance.entityId,
+			entityType: instance.entityType,
+			actingUserId: "user-1",
+			actingUserRole: "data-collector",
+		};
+
+		await useCase.execute(command);
+
+		expect(notificationPort.notify).not.toHaveBeenCalled();
+	});
+
+	it("a successful direct-validate does not call notify", async () => {
+		const instance = buildInstance({ status: "DRAFT" });
+		const repo = makeRepository(instance);
+		const notificationPort = makeNotificationPort();
+		const useCase = new ProcessWorkflowActionUseCase(
+			new NoOpLogger(),
+			repo,
+			notificationPort,
+		);
+		const command: ProcessWorkflowActionCommand = {
+			action: "direct-validate",
+			entityId: instance.entityId,
+			entityType: instance.entityType,
+			actingUserId: "admin-1",
+			actingUserRole: "admin",
+		};
+
+		await useCase.execute(command);
+
+		expect(notificationPort.notify).not.toHaveBeenCalled();
+	});
+
+	it("a successful direct-publish does not call notify", async () => {
+		const instance = buildInstance({ status: "DRAFT" });
+		const repo = makeRepository(instance);
+		const notificationPort = makeNotificationPort();
+		const useCase = new ProcessWorkflowActionUseCase(
+			new NoOpLogger(),
+			repo,
+			notificationPort,
+		);
+		const command: ProcessWorkflowActionCommand = {
+			action: "direct-publish",
+			entityId: instance.entityId,
+			entityType: instance.entityType,
+			actingUserId: "admin-1",
+			actingUserRole: "admin",
+		};
+
+		await useCase.execute(command);
+
+		expect(notificationPort.notify).not.toHaveBeenCalled();
+	});
+
+	it.each(["submit-draft", "direct-validate", "direct-publish"] as const)(
+		"%s still logs one INFO line reflecting fromStatus/toStatus",
+		async (action) => {
+			const fromStatus = action === "submit-draft" ? "APPROVED" : "DRAFT";
+			const instance = buildInstance({ status: fromStatus });
+			const repo = makeRepository(instance);
+			const notificationPort = makeNotificationPort();
+			const logger = new NoOpLogger();
+			const infoSpy = vi.spyOn(logger, "info");
+			const useCase = new ProcessWorkflowActionUseCase(
+				logger,
+				repo,
+				notificationPort,
+			);
+			const command = {
+				action,
+				entityId: instance.entityId,
+				entityType: instance.entityType,
+				actingUserId: "user-1",
+				// Harmless on submit-draft (ignored there) -- avoids a per-branch command shape
+				// just to satisfy direct-validate/direct-publish's own required field.
+				actingUserRole: "admin",
+			} as ProcessWorkflowActionCommand;
+
+			await useCase.execute(command);
+
+			expect(infoSpy).toHaveBeenCalledWith(
+				expect.objectContaining({
+					msg: "workflow_action.processed",
+					action,
+					fromStatus,
+				}),
+			);
+		},
+	);
 });
