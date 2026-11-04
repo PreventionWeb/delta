@@ -5,8 +5,10 @@ import { useViewContext } from "~/frontend/context";
 // formatDate, not formatDateDisplay -- legacy's detail view uses raw ISO dates (Gate 9 finding).
 import { formatDate } from "~/utils/date";
 import { Link } from "~/design-system/components/Link";
+import { roleHasPermission } from "~/frontend/user/roles";
 import { workflowStatusDisplay } from "./workflowStatusDisplay";
 import { hazardLabel } from "./hazardLabel";
+import { isStatusAwareEditBlocked } from "./isStatusAwareEditBlocked";
 
 /** Legacy shows "-" for an empty field value; the DTO carries "" for an unset string field. */
 function orDash(value: string): string {
@@ -17,11 +19,17 @@ function orDash(value: string): string {
  * legacy transcription -- see design.md Decision 7/9 for the full rationale. */
 export function HazardousEventDetailPage({
 	data,
-}: PageProps<HazardousEventDetailDto>) {
+	role,
+}: PageProps<HazardousEventDetailDto> & { role?: string | null }) {
 	const ctx = useViewContext();
 	const { t } = useTranslation("hazardous-events");
 	const status = workflowStatusDisplay(data.workflowStatus);
 	const hazard = hazardLabel(data);
+	// design.md Decision 16: add-cause is role-only; Edit also reuses Decision 2's status-aware
+	// predicate (isStatusAwareEditBlocked), matching legacy's canEditDataCollectionRecord.
+	const canAddCause = roleHasPermission(role ?? null, "EditData");
+	const canEditNow =
+		canAddCause && !isStatusAwareEditBlocked(role ?? null, data.workflowStatus);
 
 	return (
 		<form className="dts-form">
@@ -29,9 +37,25 @@ export function HazardousEventDetailPage({
 			<p>
 				<Link href={ctx.url("/he-preview")}>{t("title")}</Link>
 			</p>
-			{/* mt-[0.86rem]: Tailwind utility, reusing dts-heading-5's own margin scale for the gap
-			 * above it -- human decision: unified heading treatment, not legacy's own inconsistent
-			 * bare h2/h5. */}
+			{canAddCause && (
+				<div className="text-right">
+					{canEditNow && (
+						<Link
+							href={ctx.url(`/he-preview/edit/${data.id}`)}
+							className="mg-button mg-button-secondary"
+						>
+							{t("detail.edit")}
+						</Link>
+					)}
+					<p>
+						<Link href={ctx.url(`/he-preview/new?parent=${data.id}`)}>
+							{t("detail.add_cause")}
+						</Link>
+					</p>
+				</div>
+			)}
+			{/* mt-[0.86rem]: reuses dts-heading-5's own margin scale -- unified heading treatment,
+			 * not legacy's own inconsistent bare h2/h5 (human decision). */}
 			<h5 className="dts-heading-5 mt-[0.86rem]">{t("title")}</h5>
 			{/* mb-[0.86rem]: Tailwind utility separating this group (heading + ID) from the next --
 			 * new structural grouping, no legacy precedent. */}

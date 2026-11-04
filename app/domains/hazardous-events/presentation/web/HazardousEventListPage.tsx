@@ -4,9 +4,11 @@ import type {
 	HazardousEventListFilterInput,
 	ListHazardousEventsResult,
 } from "~/domains/hazardous-events/application/use-cases/ListHazardousEvents";
+import type { HazardousEventListItemDto } from "~/domains/hazardous-events/application/dto/HazardousEventListItemDto";
 import type { HazardTaxonomyOptions } from "~/domains/hazardous-events/application/use-cases/GetHazardTaxonomyOptionsUseCase";
 import type { PageProps } from "~/frontend/page-props";
 import { useViewContext } from "~/frontend/context";
+import { roleHasPermission } from "~/frontend/user/roles";
 import { formatDateDisplay } from "~/utils/date";
 import { Table } from "~/design-system/components/Table";
 import { TableColumn } from "~/design-system/components/TableColumn";
@@ -14,6 +16,7 @@ import { TableRow } from "~/design-system/components/TableRow";
 import { TableCell } from "~/design-system/components/TableCell";
 import { Link } from "~/design-system/components/Link";
 import { workflowStatusDisplay } from "./workflowStatusDisplay";
+import { isStatusAwareEditBlocked } from "./isStatusAwareEditBlocked";
 import { hazardLabel } from "./hazardLabel";
 import { parsePagination } from "./parsePagination";
 import { parseHazardousEventListFilters } from "./parseHazardousEventListFilters";
@@ -22,6 +25,15 @@ import { HazardousEventFilterBar } from "./HazardousEventFilterBar";
 export interface HazardousEventListPageData extends ListHazardousEventsResult {
 	taxonomyOptions: HazardTaxonomyOptions;
 	role?: string | null;
+}
+
+export interface HazardousEventListPageProps extends PageProps<HazardousEventListPageData> {
+	/** Overrides the actions column's default view-icon link -- the picker route reuses this
+	 * component with a "Select" action instead. */
+	renderActionsCell?: (item: HazardousEventListItemDto) => React.ReactNode;
+	/** Base path for this page's own pagination/filter-clear links. Each row's own hazard-id/view
+	 * links always point at the detail page ("/he-preview/:id"), unaffected by this prop. */
+	basePath?: string;
 }
 
 // Legacy's own pagination/view.tsx PAGE_SIZE_OPTIONS -- minimal, 6a-scoped selector; 6h may
@@ -59,7 +71,9 @@ function paginationWindow(
 
 export function HazardousEventListPage({
 	data,
-}: PageProps<HazardousEventListPageData>) {
+	renderActionsCell,
+	basePath = "/he-preview",
+}: HazardousEventListPageProps) {
 	const ctx = useViewContext();
 	const { t } = useTranslation("hazardous-events");
 	const { t: tCommon } = useTranslation("common");
@@ -77,7 +91,7 @@ export function HazardousEventListPage({
 		const params = new URLSearchParams(searchParams);
 		params.set("page", String(targetPage));
 		params.set("pageSize", String(targetPageSize));
-		return ctx.url(`/he-preview?${params.toString()}`);
+		return ctx.url(`${basePath}?${params.toString()}`);
 	}
 
 	function handlePageSizeChange(e: React.ChangeEvent<HTMLSelectElement>) {
@@ -92,7 +106,7 @@ export function HazardousEventListPage({
 				key={JSON.stringify(currentFilters)}
 				taxonomyOptions={taxonomyOptions}
 				role={role ?? null}
-				clearFiltersUrl={ctx.url("/he-preview")}
+				clearFiltersUrl={ctx.url(basePath)}
 				currentPageSize={pageSize}
 				currentFilters={currentFilters}
 			/>
@@ -187,15 +201,49 @@ export function HazardousEventListPage({
 										{formatDateDisplay(item.updatedAt, "dd-MM-yyyy")}
 									</TableCell>
 									<TableCell centered className="dts-table__actions" focusChild>
-										<Link
-											href={ctx.url(`/he-preview/${item.id}`)}
-											aria-label={tCommon("view")}
-											className="mg-button mg-button-table"
-										>
-											<svg aria-hidden="true" focusable="false" role="img">
-												<use href="/assets/icons/eye-show-password.svg#eye-show" />
-											</svg>
-										</Link>
+										{renderActionsCell ? (
+											renderActionsCell(item)
+										) : (
+											<span className="flex items-center gap-1">
+												{/* Decision 24: same-sized placeholder (not nothing) keeps the group's
+												width constant so the centered View icon never shifts position. */}
+												{roleHasPermission(role ?? null, "EditData") &&
+												!isStatusAwareEditBlocked(
+													role ?? null,
+													item.workflowStatus,
+												) ? (
+													<Link
+														href={ctx.url(`/he-preview/edit/${item.id}`)}
+														aria-label={t("detail.edit")}
+														className="mg-button mg-button-table"
+													>
+														<svg
+															aria-hidden="true"
+															focusable="false"
+															role="img"
+														>
+															<use href="/assets/icons/edit.svg#edit" />
+														</svg>
+													</Link>
+												) : (
+													<span
+														className="mg-button mg-button-table invisible"
+														aria-hidden="true"
+													>
+														<svg aria-hidden="true" focusable="false" />
+													</span>
+												)}
+												<Link
+													href={ctx.url(`/he-preview/${item.id}`)}
+													aria-label={tCommon("view")}
+													className="mg-button mg-button-table"
+												>
+													<svg aria-hidden="true" focusable="false" role="img">
+														<use href="/assets/icons/eye-show-password.svg#eye-show" />
+													</svg>
+												</Link>
+											</span>
+										)}
 									</TableCell>
 								</TableRow>
 							);
