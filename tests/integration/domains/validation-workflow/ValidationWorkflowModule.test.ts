@@ -11,13 +11,16 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ValidationWorkflowModule } from "~/domains/validation-workflow/infrastructure/ValidationWorkflowModule.server";
 import { WORKFLOW_REPOSITORY } from "~/domains/validation-workflow/infrastructure/WorkflowRepositoryToken";
 import { NOTIFICATION_PORT } from "~/domains/validation-workflow/infrastructure/NotificationPortToken";
+import { VALIDATOR_CANDIDATE_REPOSITORY } from "~/domains/validation-workflow/infrastructure/ValidatorCandidateRepositoryToken";
 import { DrizzleWorkflowRepository } from "~/domains/validation-workflow/infrastructure/DrizzleWorkflowRepository.server";
 import { EmailNotificationAdapter } from "~/domains/validation-workflow/infrastructure/EmailNotificationAdapter.server";
+import { DrizzleValidatorCandidateRepository } from "~/domains/validation-workflow/infrastructure/DrizzleValidatorCandidateRepository.server";
 import { ProcessWorkflowActionUseCase } from "~/domains/validation-workflow/application/use-cases/ProcessWorkflowAction";
 import { InitializeWorkflowInstanceUseCase } from "~/domains/validation-workflow/application/use-cases/InitializeWorkflowInstance";
 import { DeleteWorkflowInstanceUseCase } from "~/domains/validation-workflow/application/use-cases/DeleteWorkflowInstance";
 import { GetWorkflowInstanceByEntityUseCase } from "~/domains/validation-workflow/application/use-cases/GetWorkflowInstanceByEntity";
 import { ListWorkflowInstancesByEntityIdsUseCase } from "~/domains/validation-workflow/application/use-cases/ListWorkflowInstancesByEntityIds";
+import { FindValidatorCandidatesUseCase } from "~/domains/validation-workflow/application/use-cases/FindValidatorCandidates";
 import { CoreModule } from "~/infrastructure/CoreModule.server";
 import { DrizzleProvider } from "~/infrastructure/DrizzleProvider.server";
 import { NoticesModule } from "~/domains/notices/infrastructure/NoticesModule.server";
@@ -79,6 +82,37 @@ describe("ValidationWorkflowModule", () => {
 
 	it("NOTIFICATION_PORT resolves to the same singleton on repeated gets", () => {
 		expect(module.get(NOTIFICATION_PORT)).toBe(module.get(NOTIFICATION_PORT));
+	});
+
+	it("VALIDATOR_CANDIDATE_REPOSITORY is a symbol-based token", () => {
+		expect(typeof VALIDATOR_CANDIDATE_REPOSITORY).toBe("symbol");
+	});
+
+	it('a plain string "VALIDATOR_CANDIDATE_REPOSITORY" does not resolve the same provider as the Symbol token', () => {
+		expect(() => module.get("VALIDATOR_CANDIDATE_REPOSITORY")).toThrow();
+	});
+
+	it("VALIDATOR_CANDIDATE_REPOSITORY resolves to an instance of DrizzleValidatorCandidateRepository", () => {
+		expect(module.get(VALIDATOR_CANDIDATE_REPOSITORY)).toBeInstanceOf(
+			DrizzleValidatorCandidateRepository,
+		);
+	});
+
+	it("VALIDATOR_CANDIDATE_REPOSITORY resolves to the same singleton on repeated gets", () => {
+		expect(module.get(VALIDATOR_CANDIDATE_REPOSITORY)).toBe(
+			module.get(VALIDATOR_CANDIDATE_REPOSITORY),
+		);
+	});
+
+	it("FindValidatorCandidatesUseCase resolves to a defined instance with its dependency correctly positioned", () => {
+		// Cast to read a private field for identity assertion only.
+		const useCase = module.get(FindValidatorCandidatesUseCase) as unknown as {
+			validatorCandidateRepository: unknown;
+		};
+		expect(useCase).toBeInstanceOf(FindValidatorCandidatesUseCase);
+		expect(useCase.validatorCandidateRepository).toBe(
+			module.get(VALIDATOR_CANDIDATE_REPOSITORY),
+		);
 	});
 
 	it("ProcessWorkflowActionUseCase resolves to a defined instance", () => {
@@ -154,6 +188,7 @@ describe("ValidationWorkflowModule", () => {
 				"ListWorkflowInstancesByEntityIdsUseCase",
 				ListWorkflowInstancesByEntityIdsUseCase,
 			],
+			["FindValidatorCandidatesUseCase", FindValidatorCandidatesUseCase],
 		])(
 			"a second module importing ValidationWorkflowModule can resolve %s directly",
 			async (_name, useCaseClass) => {
@@ -219,10 +254,29 @@ describe("ValidationWorkflowModule", () => {
 				Test.createTestingModule({ imports: [ConsumerModule] }).compile(),
 			).rejects.toThrow(/Symbol\(NOTIFICATION_PORT\)/);
 		});
+
+		it("a second module importing ValidationWorkflowModule cannot resolve VALIDATOR_CANDIDATE_REPOSITORY via token injection", async () => {
+			// Generic provider name avoids a false match on the regex below.
+			@Module({
+				imports: [ValidationWorkflowModule],
+				providers: [
+					{
+						provide: "CONSUMER",
+						useFactory: (repo: unknown) => repo,
+						inject: [VALIDATOR_CANDIDATE_REPOSITORY],
+					},
+				],
+			})
+			class ConsumerModule {}
+
+			await expect(
+				Test.createTestingModule({ imports: [ConsumerModule] }).compile(),
+			).rejects.toThrow(/Symbol\(VALIDATOR_CANDIDATE_REPOSITORY\)/);
+		});
 	});
 
 	describe("exports metadata", () => {
-		it("exports exactly the five use cases, and neither hidden token", () => {
+		it("exports exactly the six use cases, and no hidden token", () => {
 			const exported = Reflect.getMetadata(
 				MODULE_METADATA.EXPORTS,
 				ValidationWorkflowModule,
@@ -233,9 +287,11 @@ describe("ValidationWorkflowModule", () => {
 				DeleteWorkflowInstanceUseCase,
 				GetWorkflowInstanceByEntityUseCase,
 				ListWorkflowInstancesByEntityIdsUseCase,
+				FindValidatorCandidatesUseCase,
 			]);
 			expect(exported).not.toContain(WORKFLOW_REPOSITORY);
 			expect(exported).not.toContain(NOTIFICATION_PORT);
+			expect(exported).not.toContain(VALIDATOR_CANDIDATE_REPOSITORY);
 		});
 	});
 
@@ -257,6 +313,7 @@ describe("ValidationWorkflowModule", () => {
 				DeleteWorkflowInstanceUseCase,
 				GetWorkflowInstanceByEntityUseCase,
 				ListWorkflowInstancesByEntityIdsUseCase,
+				FindValidatorCandidatesUseCase,
 			];
 
 			for (const useCaseClass of useCaseClasses) {
