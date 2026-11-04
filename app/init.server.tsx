@@ -19,6 +19,10 @@ import type {} from "~/types/createTranslationGetter.d";
 import { CoreModule } from "~/infrastructure/CoreModule.server";
 import {
 	API_GLOBAL_PREFIX,
+	OPENAPI_DOCS_LEGACY_JSON_PATH,
+	OPENAPI_DOCS_LEGACY_PATH,
+	OPENAPI_DOCS_JSON_PATH,
+	OPENAPI_DOCS_PATH,
 	OPENAPI_DOCS_SUBPATH,
 } from "~/shared/openApiDocsPath";
 
@@ -41,6 +45,13 @@ export function mountOpenApiDocs(app: INestApplication): void {
 	);
 	SwaggerModule.setup(OPENAPI_DOCS_SUBPATH, app, cleanupOpenApiDoc(document), {
 		useGlobalPrefix: true,
+	});
+	const httpAdapter = app.getHttpAdapter();
+	httpAdapter.get(OPENAPI_DOCS_LEGACY_PATH, (_req, res) => {
+		httpAdapter.redirect(res, 308, OPENAPI_DOCS_PATH);
+	});
+	httpAdapter.get(OPENAPI_DOCS_LEGACY_JSON_PATH, (_req, res) => {
+		httpAdapter.redirect(res, 308, OPENAPI_DOCS_JSON_PATH);
 	});
 }
 

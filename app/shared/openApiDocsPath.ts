@@ -4,3 +4,6 @@
 export const API_GLOBAL_PREFIX = "/api/v2";
 export const OPENAPI_DOCS_SUBPATH = "docs";
 export const OPENAPI_DOCS_PATH = `${API_GLOBAL_PREFIX}/${OPENAPI_DOCS_SUBPATH}`;
+export const OPENAPI_DOCS_JSON_PATH = `${OPENAPI_DOCS_PATH}-json`;
+export const OPENAPI_DOCS_LEGACY_PATH = "/api/docs";
+export const OPENAPI_DOCS_LEGACY_JSON_PATH = "/api/docs-json";

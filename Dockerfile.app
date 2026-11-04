@@ -11,5 +11,5 @@ EXPOSE 3000
 ENV NODE_ENV=development
 ENV PORT=3000
 
-# Run the command to start the application using Yarn
-CMD ["sh", "-c", "HUSKY=0 yarn install --frozen-lockfile && yarn dbsync && yarn react-router dev --host 0.0.0.0 --port ${PORT:-3000}"]
+# Run the command to start the application using the unified single-port server
+CMD ["sh", "-c", "PORT=${PORT:-3000} yarn dev"]

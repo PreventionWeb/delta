@@ -1,4 +1,12 @@
-## ADDED Requirements
+# nestjs-http-server-bootstrap Specification
+
+## Purpose
+
+Define the runtime behavior for bootstrapping and shutting down the NestJS HTTP
+server in parallel with the application context, including concurrency safety
+and startup logging expectations.
+
+## Requirements
 
 ### Requirement: HTTP server starts on API_PORT alongside the application context
 
@@ -87,3 +95,21 @@ port the server is listening on). Internal error details SHALL NOT be included i
 > **Test requirement:** A dedicated `it()` block MUST spy on `console.info` and assert it was
 > called with an object containing both `msg` (server start description) and `port` (numeric).
 > The spy must be set up before `initServer()` is called and restored after.
+
+### Requirement: Unified HTTP Server Bootstrap
+The application SHALL expose one HTTP listener for API and frontend traffic.
+
+#### Scenario: Unified startup
+- **WHEN** the application starts
+- **THEN** one server port is used for both API and frontend requests
+
+### Requirement: Unified Health and Readiness Endpoints
+The unified server SHALL expose health and readiness endpoints.
+
+#### Scenario: Health check
+- **WHEN** `/healthz` is requested
+- **THEN** the server returns a health response
+
+#### Scenario: Readiness check
+- **WHEN** `/readyz` is requested
+- **THEN** the server returns a readiness response
