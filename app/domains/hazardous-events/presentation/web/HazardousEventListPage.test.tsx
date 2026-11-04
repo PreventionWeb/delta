@@ -5,7 +5,7 @@ import i18n, { type i18n as I18n } from "i18next";
 import { initReactI18next, I18nextProvider } from "react-i18next";
 import { TranslationGetter } from "~/utils/translator";
 import type { HazardousEventListItemDto } from "~/domains/hazardous-events/application/dto/HazardousEventListItemDto";
-import type { HazardousEventListPageData } from "~/domains/hazardous-events/presentation/HazardousEventListPage";
+import type { HazardousEventListPageData } from "~/domains/hazardous-events/presentation/web/HazardousEventListPage";
 
 // Satisfies useViewContext()'s unconditional .t build (kept only for .lang/.url here).
 const stubTranslationGetter: TranslationGetter = (params) => ({
@@ -24,11 +24,12 @@ vi.mock("react-router", async (importOriginal) => {
 	};
 });
 
-import { HazardousEventListPage } from "~/domains/hazardous-events/presentation/HazardousEventListPage";
+import { HazardousEventListPage } from "~/domains/hazardous-events/presentation/web/HazardousEventListPage";
 
 // Inline mirror of locales/en/{hazardous-events,common}.json (Notices precedent — no file import).
 const hazardousEvents = {
 	title: "Hazardous events",
+	detail: { edit: "Edit" },
 	list: {
 		empty: "No hazardous events found.",
 		showing_of_total: "Showing {{filtered}} of {{total}} hazardous event(s)",
@@ -291,6 +292,111 @@ describe("HazardousEventListPage", () => {
 		expect(html).toContain(
 			'<use href="/assets/icons/eye-show-password.svg#eye-show">',
 		);
+	});
+
+	// design.md Decision 23 (found live, 2026-11-03): the default actions cell gains a
+	// status-aware Edit link before the existing View link, reusing isStatusAwareEditBlocked
+	// (same predicate the detail page's own Edit-link gate already uses).
+	describe("row-level Edit action (design.md Decision 23)", () => {
+		function renderWithRole(
+			role: string | null,
+			workflowStatus: HazardousEventListItemDto["workflowStatus"],
+			id = "abc",
+		): string {
+			const item = makeItem({ id, workflowStatus });
+			const data = makeResult([item]);
+			return renderAt(
+				"/en/he-preview",
+				<HazardousEventListPage data={{ ...data, role }} />,
+			);
+		}
+
+		it("renders an Edit link before the View link for an editable-status row when role has EditData", () => {
+			const html = renderWithRole("data-collector", "DRAFT");
+
+			const editIndex = html.indexOf(
+				'<use href="/assets/icons/edit.svg#edit">',
+			);
+			const viewIndex = html.indexOf(
+				'<use href="/assets/icons/eye-show-password.svg#eye-show">',
+			);
+			expect(editIndex).toBeGreaterThan(-1);
+			expect(viewIndex).toBeGreaterThan(-1);
+			expect(editIndex).toBeLessThan(viewIndex);
+			expect(html).toMatch(
+				/<a[^>]*class="mg-button mg-button-table"[^>]*href="\/en\/he-preview\/edit\/abc"/,
+			);
+		});
+
+		it.each(["SUBMITTED", "APPROVED", "PUBLISHED"] as const)(
+			"renders no Edit link for a %s row even when role has EditData",
+			(workflowStatus) => {
+				const html = renderWithRole("admin", workflowStatus);
+
+				expect(html).not.toContain('<use href="/assets/icons/edit.svg#edit">');
+				expect(html).toContain(
+					'<use href="/assets/icons/eye-show-password.svg#eye-show">',
+				);
+				// design.md Decision 24: the Edit slot must be an inert placeholder, not absent.
+				expect(html).toContain(
+					'<span class="mg-button mg-button-table invisible" aria-hidden="true">',
+				);
+			},
+		);
+
+		it("renders no Edit link for data-viewer regardless of workflowStatus", () => {
+			const html = renderWithRole("data-viewer", "DRAFT");
+
+			expect(html).not.toContain('<use href="/assets/icons/edit.svg#edit">');
+			expect(html).toContain(
+				'<span class="mg-button mg-button-table invisible" aria-hidden="true">',
+			);
+		});
+
+		it("renders no Edit link when role is null", () => {
+			const html = renderWithRole(null, "DRAFT");
+
+			expect(html).not.toContain('<use href="/assets/icons/edit.svg#edit">');
+			expect(html).toContain(
+				'<span class="mg-button mg-button-table invisible" aria-hidden="true">',
+			);
+		});
+
+		// design.md Decision 24 (found live, 2026-11-03): corrects Decision 23's own "no
+		// placeholder needed" reasoning. Centering a variable-width icon group recenters the View
+		// icon row-to-row; a same-sized inert placeholder in the Edit slot keeps the group's total
+		// width constant so View's own offset never shifts.
+		it("renders a same-sized inert placeholder (not nothing) in the Edit slot for a locked row, so the View icon's position stays constant across rows", () => {
+			const draftId = "draft-id";
+			const submittedId = "submitted-id";
+			const draftItem = makeItem({ id: draftId, workflowStatus: "DRAFT" });
+			const submittedItem = makeItem({
+				id: submittedId,
+				workflowStatus: "SUBMITTED",
+			});
+			const data = makeResult([draftItem, submittedItem]);
+
+			const html = renderAt(
+				"/en/he-preview",
+				<HazardousEventListPage data={{ ...data, role: "data-collector" }} />,
+			);
+
+			// DRAFT row: real Edit link immediately precedes the View link, both for draftId.
+			expect(html).toMatch(
+				new RegExp(
+					`<a[^>]*class="mg-button mg-button-table"[^>]*href="/en/he-preview/edit/${draftId}"[^>]*>[\\s\\S]*?<\\/a>\\s*<a[^>]*class="mg-button mg-button-table"[^>]*href="/en/he-preview/${draftId}"`,
+				),
+			);
+
+			// SUBMITTED row: inert placeholder immediately precedes the View link for submittedId,
+			// occupying the Edit slot's position rather than leaving nothing there.
+			expect(html).toMatch(
+				new RegExp(
+					`<span class="mg-button mg-button-table invisible" aria-hidden="true">[\\s\\S]*?<\\/span>\\s*<a[^>]*class="mg-button mg-button-table"[^>]*href="/en/he-preview/${submittedId}"`,
+				),
+			);
+			expect(html).not.toContain(`href="/en/he-preview/edit/${submittedId}"`);
+		});
 	});
 
 	it("formats createdAt/updatedAt as dd-MM-yyyy, matching the legacy list table's own format", () => {

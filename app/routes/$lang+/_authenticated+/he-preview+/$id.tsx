@@ -5,10 +5,10 @@ import { useTranslation } from "react-i18next";
 import { getAppContext } from "~/init.server";
 import { requireUser } from "~/utils/auth";
 import { GetHazardousEventByIdUseCase } from "~/domains/hazardous-events/application/use-cases/GetHazardousEventById";
-import { HazardousEventDetailPage } from "~/domains/hazardous-events/presentation/HazardousEventDetailPage";
-import { resolveTenantId } from "~/domains/hazardous-events/presentation/resolveTenantId.server";
-import { throwHazardousEventLoaderError } from "~/domains/hazardous-events/presentation/throwHazardousEventLoaderError.server";
-import { requireViewDataPermission } from "~/domains/hazardous-events/presentation/requireViewDataPermission.server";
+import { HazardousEventDetailPage } from "~/domains/hazardous-events/presentation/web/HazardousEventDetailPage";
+import { resolveTenantId } from "~/domains/hazardous-events/presentation/web/resolveTenantId.server";
+import { throwHazardousEventLoaderError } from "~/domains/hazardous-events/presentation/web/throwHazardousEventLoaderError.server";
+import { requireViewDataPermission } from "~/domains/hazardous-events/presentation/web/requireViewDataPermission.server";
 import { MainContainer } from "~/frontend/container";
 import { getInstance } from "~/middleware/i18next.server";
 
@@ -18,7 +18,9 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
 	// requireViewDataPermission.server.ts for why reversing the last two mis-fires a 403).
 	await requireUser({ request, params });
 	const tenantId = await resolveTenantId(request, params.lang ?? "en");
-	await requireViewDataPermission({ request });
+	// Captured (was previously discarded) -- design.md Decision 16 needs it to gate the detail
+	// page's new Edit/add-cause links.
+	const role = await requireViewDataPermission({ request });
 
 	await getInstance(context).loadNamespaces(["hazardous-events", "common"]);
 
@@ -27,10 +29,11 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
 	);
 
 	try {
-		return await getHazardousEventByIdUseCase.execute({
+		const dto = await getHazardousEventByIdUseCase.execute({
 			id: params.id ?? "",
 			tenantId,
 		});
+		return { ...dto, role };
 	} catch (err) {
 		throwHazardousEventLoaderError(err, {
 			logMsg: "Unhandled error in hazardous-event detail loader",
@@ -44,7 +47,7 @@ export default function HazardousEventDetailRoute() {
 	const { t } = useTranslation("hazardous-events");
 	return (
 		<MainContainer title={t("title")}>
-			<HazardousEventDetailPage data={data} />
+			<HazardousEventDetailPage data={data} role={data.role} />
 		</MainContainer>
 	);
 }
