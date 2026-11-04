@@ -3,6 +3,9 @@
 	"list": {
 		"empty": "Aucun événement dangereux trouvé.",
 		"showing_of_total": "Affichage de {{filtered}} sur {{total}} événement(s) dangereux",
+		"count_in_instance": "{{count}} événement(s) dangereux dans {{instance}}",
+		"add_new_event": "Ajouter un nouvel événement",
+		"resource_actions": "Actions sur les ressources",
 		"columns": {
 			"hazard": "Type d'aléa",
 			"hazard_id_fallback_title": "Aucun nom d'aléa disponible — affichage de l'identifiant brut",
@@ -51,6 +54,69 @@
 		"page_n": "Page {{page_number}}",
 		"items_per_page": "Éléments par page"
 	},
+	"picker": {
+		"title": "Sélectionner un parent pour l'événement",
+		"select": "Sélectionner"
+	},
+	"form": {
+		"create_title": "Ajouter un événement dangereux",
+		"edit_title": "Modifier l'événement dangereux",
+		"partial_transition_failed": "Événement enregistré ; la soumission demandée n'a pas pu être effectuée. Veuillez réessayer.",
+		"fields": {
+			"parent": "Parent",
+			"select_type": "Sélectionner le type",
+			"select_cluster": "Sélectionner le groupe",
+			"select_specific_hazard": "Sélectionner l'aléa spécifique",
+			"spatial_footprint_placeholder": "La saisie de l'empreinte spatiale n'est pas encore disponible sur ce formulaire.",
+			"date_format_label": "Format",
+			"date_format_options": {
+				"full_date": "Date complète",
+				"year_month": "Année et mois",
+				"year_only": "Année uniquement"
+			},
+			"date_value_label": "Date",
+			"date_year_label": "Année",
+			"date_month_label": "Mois",
+			"select_month": "Sélectionner",
+			"filter_by_hazard_name": "Filtrer par nom d'aléa",
+			"hazard_type": "Type de danger",
+			"hazard_cluster": "Groupe de risques",
+			"specific_hazard": "Risque spécifique"
+		},
+		"actions": {
+			"change": "Changer",
+			"unset": "Désassocier",
+			"save_or_submit": "Enregistrer ou soumettre",
+			"discard": "Abandonner"
+		},
+		"save_submit": {
+			"title": "Enregistrer ou soumettre",
+			"decide_action": "Décidez de ce que vous souhaitez faire de ces données que vous avez ajoutées ou mises à jour.",
+			"select_validators": "Sélectionner le(s) validateur(s)",
+			"publish_to_undrr": "Publier sur l'instance UNDRR",
+			"publish_to_undrr_description": "Les données de cet événement seront rendues publiques.",
+			"actions": {
+				"save_draft": "Enregistrer comme brouillon",
+				"validate": "Valider l'enregistrement",
+				"validate_and_publish": "Valider et publier l'enregistrement",
+				"submit_for_validation": "Soumettre pour validation"
+			},
+			"descriptions": {
+				"save_draft": "Conserver cette entrée pour une modification future",
+				"validate": "Indique que l'événement a été vérifié pour son exactitude.",
+				"submit_for_validation": "Demander la validation de cette entrée"
+			},
+			"card_titles": {
+				"validate": "Valider"
+			}
+		},
+		"discard": {
+			"title": "Abandonner les modifications",
+			"confirm_message": "Enregistrez cet enregistrement comme brouillon, ou abandonnez vos modifications et quittez sans enregistrer.",
+			"save_as_draft": "Enregistrer comme brouillon",
+			"discard_and_exit": "Abandonner et quitter"
+		}
+	},
 	"detail": {
 		"id_label": "ID",
 		"classification": {
@@ -84,6 +150,8 @@
 			"forecasted": "Prévu",
 			"ongoing": "En cours",
 			"passed": "Terminé"
-		}
+		},
+		"edit": "Modifier",
+		"add_cause": "Ajouter un événement dangereux causé par cet événement"
 	}
 }
