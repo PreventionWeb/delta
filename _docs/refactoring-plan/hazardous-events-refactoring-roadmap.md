@@ -2461,7 +2461,7 @@ ErrorResponse (Response.json) for DomainError, return the use case's result dire
 
 ```
 Add HazardousEventErrorBoundary in
-app/domains/hazardous-events/presentation/HazardousEventErrorBoundary.tsx — mirrors
+app/domains/hazardous-events/presentation/web/HazardousEventErrorBoundary.tsx — mirrors
 NoticeErrorBoundary exactly: useRouteError(), narrows on isRouteErrorResponse first,
 renders the DomainError message plus a copyable traceId, falls back to a generic
 message for a non-Response error. Export as ErrorBoundary from every route in 6a/6c.
@@ -2469,7 +2469,9 @@ message for a non-Response error. Export as ErrorBoundary from every route in 6a
 
 **Files touched:**
 
-- `app/domains/hazardous-events/presentation/HazardousEventErrorBoundary.tsx` (new)
+- `app/domains/hazardous-events/presentation/web/HazardousEventErrorBoundary.tsx` (new) —
+  `presentation/` was split into `presentation/web/`/`presentation/rest/` ahead of this
+  phase (6c cleanup); this is a web-layer adapter, so it belongs under `web/`.
 - route files from 6a/6c (update — add `export { ErrorBoundary }`)
 
 **Test tier:** E2E Playwright — force a `DomainError`; verify the boundary renders
@@ -2542,7 +2544,7 @@ ignored, not honored.
 
 ```
 Add ApiKeyAuthGuard implementing NestJS CanActivate in
-app/domains/hazardous-events/presentation/guards/ApiKeyAuthGuard.server.ts —
+app/domains/hazardous-events/presentation/rest/guards/ApiKeyAuthGuard.server.ts —
 mirrors SessionAuthGuard's shape (synthesizes a Fetch Request from the X-Auth
 header, since apiAuth() expects one) but delegates to the now-fixed apiAuth()
 (app/backend.server/models/api_key.ts — this phase's other deliverable, `if
@@ -2553,7 +2555,9 @@ behave identically, unlike today where only the missing-header case worked.
 
 **Files touched:**
 
-- `app/domains/hazardous-events/presentation/guards/ApiKeyAuthGuard.server.ts` (new)
+- `app/domains/hazardous-events/presentation/rest/guards/ApiKeyAuthGuard.server.ts` (new) —
+  `presentation/rest/` is reserved for this REST adapter, split from the web adapter's
+  `presentation/web/` ahead of this phase (6c cleanup)
 - `app/backend.server/models/api_key.ts` (modified — the `apiAuth` fix itself)
 
 **Test tier:** Unit — a missing `X-Auth` header and an invalid one both reject with
@@ -2597,11 +2601,11 @@ envelope) — the legacy `{ ok, res: [...] }` shape does not carry over.
 
 **Files touched:**
 
-- `app/domains/hazardous-events/presentation/HazardousEventsController.ts` (new)
-- `app/domains/hazardous-events/presentation/dto/CreateHazardousEventRequest.ts` (new)
-- `app/domains/hazardous-events/presentation/dto/UpdateHazardousEventRequest.ts` (new)
-- `app/domains/hazardous-events/presentation/dto/RecordSpatialObservationRequest.ts` (new)
-- `app/domains/hazardous-events/presentation/dto/HazardousEventIdParam.ts` (new)
+- `app/domains/hazardous-events/presentation/rest/HazardousEventsController.ts` (new)
+- `app/domains/hazardous-events/presentation/rest/dto/CreateHazardousEventRequest.ts` (new)
+- `app/domains/hazardous-events/presentation/rest/dto/UpdateHazardousEventRequest.ts` (new)
+- `app/domains/hazardous-events/presentation/rest/dto/RecordSpatialObservationRequest.ts` (new)
+- `app/domains/hazardous-events/presentation/rest/dto/HazardousEventIdParam.ts` (new)
 - `app/domains/hazardous-events/infrastructure/HazardousEventsModule.ts` (update — add
   controller)
 - `tests/integration/domains/hazardous-events/HazardousEventsController.test.ts` (new)
