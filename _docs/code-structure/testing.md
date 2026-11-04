@@ -5,9 +5,13 @@
 ## Test commands
 
 - `yarn test:run1` — Node's built-in test runner (`node:test`) against real PostgreSQL (testdb1). Used for model/unit tests needing a real database.
-- `yarn test:run2` — Vitest with PGlite in-memory database. Used for unit + integration tests. No PostgreSQL setup required.
+- `yarn test:run2` — `vitest run` against the single `vitest.config.ts`, which runs two Vitest
+  projects: a `"node"` project (PGlite in-memory database, unit + integration tests) and a `"dom"`
+  project (jsdom, for component tests needing real keyboard/typing interaction via
+  `@testing-library/react` + `user-event`). A test opts into the `"dom"` project purely by naming
+  itself `*.dom.test.{ts,tsx}`. No PostgreSQL setup required. See `.github/copilot-instructions.md`'s
+  test infrastructure table for why the two projects can't share Vite plugins.
 - `yarn test:run3` — Vitest against real PostgreSQL (configured in `.env.test`). Used for integration tests of route loaders/actions.
-- `yarn test:dom` — Vitest + jsdom (`vitest.dom.config.ts`), for component tests needing real keyboard/typing interaction (`@testing-library/react` + `user-event`). See `.github/copilot-instructions.md`'s test infrastructure table for why this is a separate config from `test:run2`.
 - `yarn test:e2e` — Playwright end-to-end tests against a running app.
 
 ### What each command tests
