@@ -28,17 +28,20 @@ import type { IDivisionRepository } from "~/domains/hazardous-events/application
 import type { ICausalChainRepository } from "~/domains/hazardous-events/application/ports/ICausalChainRepository";
 import type { IHazardTaxonomyRepository } from "~/domains/hazardous-events/application/ports/IHazardTaxonomyRepository";
 import type { ISpecificHazardTaxonomyRepository } from "~/domains/hazardous-events/application/ports/ISpecificHazardTaxonomyRepository";
+import type { IHipCrosswalkPort } from "~/domains/hazardous-events/application/ports/IHipCrosswalkPort";
 
 import { DrizzleHazardousEventRepository } from "./DrizzleHazardousEventRepository.server";
 import { DrizzleCausalChainRepository } from "./DrizzleCausalChainRepository.server";
 import { DrizzleHazardTaxonomyRepository } from "./DrizzleHazardTaxonomyRepository.server";
 import { DrizzleSpecificHazardTaxonomyRepository } from "./DrizzleSpecificHazardTaxonomyRepository.server";
 import { DrizzleDivisionRepository } from "./DrizzleDivisionRepository.server";
+import { DrizzleHipCrosswalkAdapter } from "./DrizzleHipCrosswalkAdapter.server";
 import { HAZARDOUS_EVENT_REPOSITORY } from "./HazardousEventRepositoryToken";
 import { CAUSAL_CHAIN_REPOSITORY } from "./CausalChainRepositoryToken";
 import { HAZARD_TAXONOMY_REPOSITORY } from "./HazardTaxonomyRepositoryToken";
 import { SPECIFIC_HAZARD_TAXONOMY_REPOSITORY } from "./SpecificHazardTaxonomyRepositoryToken";
 import { DIVISION_REPOSITORY } from "./DivisionRepositoryToken";
+import { HIP_CROSSWALK_PORT } from "./HipCrosswalkPortToken";
 
 @Module({
 	imports: [
@@ -71,6 +74,12 @@ import { DIVISION_REPOSITORY } from "./DivisionRepositoryToken";
 			provide: DIVISION_REPOSITORY,
 			useClass: DrizzleDivisionRepository,
 		},
+		// TEMPORARY (DEF-055, design.md Decision 17) -- deleted once every dependent domain
+		// stops reading hip_hazard_id/hip_cluster_id/hip_type_id off hazardous_event.
+		{
+			provide: HIP_CROSSWALK_PORT,
+			useClass: DrizzleHipCrosswalkAdapter,
+		},
 		// First real consumer of TRANSACTION_RUNNER in this codebase — design.md Decision 2.
 		{
 			provide: TRANSACTION_RUNNER,
@@ -85,17 +94,20 @@ import { DIVISION_REPOSITORY } from "./DivisionRepositoryToken";
 					"execute"
 				>,
 				specificHazardTaxonomyRepository: ISpecificHazardTaxonomyRepository,
+				causalChainRepository: ICausalChainRepository,
 			) =>
 				new GetHazardousEventByIdUseCase(
 					getPinoLogger(),
 					hazardousEventRepository,
 					getWorkflowInstanceByEntityUseCase,
 					specificHazardTaxonomyRepository,
+					causalChainRepository,
 				),
 			inject: [
 				HAZARDOUS_EVENT_REPOSITORY,
 				GetWorkflowInstanceByEntityUseCase,
 				SPECIFIC_HAZARD_TAXONOMY_REPOSITORY,
+				CAUSAL_CHAIN_REPOSITORY,
 			],
 		},
 		{
@@ -142,8 +154,10 @@ import { DIVISION_REPOSITORY } from "./DivisionRepositoryToken";
 		},
 		{
 			provide: CreateHazardousEventUseCase,
-			// Inject order mirrors the constructor's own declared order exactly (design.md's
-			// constructor table) — positional and untyped at this call site (design.md Risks).
+			// Inject order mirrors the constructor's own declared order exactly — positional and
+			// untyped at this call site (standard NestJS useFactory wiring; no design.md decision
+			// covers this).
+			// recordSpatialObservationUseCase: own provider token (above), not a repository token.
 			useFactory: (
 				taxonomyRepository: IHazardTaxonomyRepository,
 				hazardousEventRepository: IHazardousEventRepository,
@@ -152,7 +166,12 @@ import { DIVISION_REPOSITORY } from "./DivisionRepositoryToken";
 					"execute"
 				>,
 				causalChainRepository: ICausalChainRepository,
+				recordSpatialObservationUseCase: Pick<
+					RecordSpatialObservationUseCase,
+					"execute"
+				>,
 				transactionRunner: ITransactionRunner,
+				hipCrosswalkPort: IHipCrosswalkPort,
 			) =>
 				new CreateHazardousEventUseCase(
 					getPinoLogger(),
@@ -160,14 +179,18 @@ import { DIVISION_REPOSITORY } from "./DivisionRepositoryToken";
 					hazardousEventRepository,
 					initializeWorkflowInstanceUseCase,
 					causalChainRepository,
+					recordSpatialObservationUseCase,
 					transactionRunner,
+					hipCrosswalkPort,
 				),
 			inject: [
 				HAZARD_TAXONOMY_REPOSITORY,
 				HAZARDOUS_EVENT_REPOSITORY,
 				InitializeWorkflowInstanceUseCase,
 				CAUSAL_CHAIN_REPOSITORY,
+				RecordSpatialObservationUseCase,
 				TRANSACTION_RUNNER,
+				HIP_CROSSWALK_PORT,
 			],
 		},
 		{
@@ -215,6 +238,7 @@ import { DIVISION_REPOSITORY } from "./DivisionRepositoryToken";
 					"execute"
 				>,
 				transactionRunner: ITransactionRunner,
+				hipCrosswalkPort: IHipCrosswalkPort,
 			) =>
 				new UpdateHazardousEventUseCase(
 					getPinoLogger(),
@@ -224,6 +248,7 @@ import { DIVISION_REPOSITORY } from "./DivisionRepositoryToken";
 					causalChainRepository,
 					recordSpatialObservationUseCase,
 					transactionRunner,
+					hipCrosswalkPort,
 				),
 			inject: [
 				HAZARD_TAXONOMY_REPOSITORY,
@@ -232,11 +257,12 @@ import { DIVISION_REPOSITORY } from "./DivisionRepositoryToken";
 				CAUSAL_CHAIN_REPOSITORY,
 				RecordSpatialObservationUseCase,
 				TRANSACTION_RUNNER,
+				HIP_CROSSWALK_PORT,
 			],
 		},
 	],
-	// RecordSpatialObservationUseCase is exported despite being same-module-only today —
-	// design.md Risks/Trade-offs.
+	// RecordSpatialObservationUseCase is exported despite being same-module-only today;
+	// no design.md decision covers this export-scope choice.
 	exports: [
 		GetHazardousEventByIdUseCase,
 		ListHazardousEventsUseCase,
