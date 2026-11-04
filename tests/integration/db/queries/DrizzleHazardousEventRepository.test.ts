@@ -27,6 +27,7 @@ import { GetWorkflowInstanceByEntityUseCase } from "~/domains/validation-workflo
 import { WorkflowInstance } from "~/domains/validation-workflow/domain/WorkflowInstance";
 import { DrizzleHazardTaxonomyRepository } from "~/domains/hazardous-events/infrastructure/DrizzleHazardTaxonomyRepository.server";
 import { DrizzleCausalChainRepository } from "~/domains/hazardous-events/infrastructure/DrizzleCausalChainRepository.server";
+import { DrizzleHipCrosswalkAdapter } from "~/domains/hazardous-events/infrastructure/DrizzleHipCrosswalkAdapter.server";
 import { DrizzleTransactionRunner } from "~/infrastructure/DrizzleTransactionRunner.server";
 import { workflowInstanceTable } from "~/domains/validation-workflow/infrastructure/workflowInstanceTable";
 import { hipsVersionTable } from "~/domains/hazardous-events/infrastructure/hipsVersionTable";
@@ -2965,6 +2966,7 @@ describe("UpdateHazardousEventUseCase against the real adapter", () => {
 			causalChainRepository,
 			recordSpatialObservationUseCase,
 			new DrizzleTransactionRunner(dr),
+			new DrizzleHipCrosswalkAdapter(dr),
 		);
 
 		const outcomes = await Promise.allSettled([
