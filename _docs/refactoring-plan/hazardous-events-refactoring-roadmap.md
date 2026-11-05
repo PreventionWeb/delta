@@ -2719,6 +2719,91 @@ primitives, matching `6a`'s own precedent.
 
 ---
 
+### 🔷 6i — Attachments: Clean Architecture Rebuild (`DEF-054`)
+
+**Branch:** `feature/ca-shared-attachments-module`
+
+**Surfaced during `6c`'s own Gate 10 follow-up investigation, 2026-10-30; scoped with the human
+2026-11-05.** Confirmed by reading source directly, not assumed: `6c`'s `hazardousEventAttachmentTable`
+(a normalized child table, columns `id`/`title`/`fileKey`/`fileName`/`fileType`(`NOT NULL`)/
+`fileSize`(`NOT NULL`)) cannot represent what the reused legacy widget
+(`app/frontend/attachmentsFormView.tsx`/`ContentRepeater`) actually submits:
+`{title, tag, file_option: "File"|"Link", file: {name, tenantPath, content_type}, url}`. Every real
+attachment is silently filtered out by `parseHazardousEventFormData.server.ts`'s `isAttachmentProps()`
+before reaching the use case — total, silent data loss on every save, not a missing-feature gap.
+Separately (not previously flagged): `hazardousEventAttachmentTable` is never populated from or
+read against legacy's own `hazardousEventTable.attachments` JSONB column either, so a legacy-created
+event's real attachments are invisible through the CA read path too.
+
+**Decisions resolved with the human, 2026-11-05 (do not re-litigate in this intent's own design —
+build to these):**
+- **No anti-corruption-layer bridge needed.** Investigated directly: HE's attachments are not read
+  anywhere outside HE's own detail/edit pages — not CSV export (explicitly excluded,
+  `csv_export.ts:36`), not the REST API, not analytics, not content-picker configs, not Disaster
+  Events' own linker. Unlike `DEF-055`'s HIP crosswalk (seven real external consumers), this gap has
+  none — confirmed, not assumed.
+- **Legacy-data backfill is explicitly out of scope** — a separate team's Phase M deliverable, not
+  this intent's.
+- **Schema**: reshape `hazardousEventAttachmentTable` to mirror legacy's real capability — add `url`,
+  add `tag`, make the file-specific columns nullable, and add an explicit `type` discriminator
+  (`pgEnum`, values `"File"`/`"Link"`, matching legacy's own `file_option` exactly) enforced by a
+  `check()` constraint mirroring the existing precedent at
+  `app/drizzle/schema/eventCausalityTable.ts`'s `event_causality_triggering_entity_fk_check` (a
+  discriminator-paired mutual-exclusivity check already proven in this codebase, not a new pattern).
+- **Keep the table domain-specific, not one shared physical table.** Legacy itself already splits
+  this exactly the right way: `ContentRepeaterUploadFile`/`PreUploadFile`/`FileViewer` are already
+  domain-agnostic shared infrastructure, while the attachment *data* lives in each domain's own
+  column. Carry that split forward — one shared module owns the port + file-storage mechanics
+  (local disk, confirmed via `BASE_UPLOAD_PATH` in `app/utils/paths.ts` — no S3/cloud client
+  anywhere), each domain keeps its own metadata table with its own real foreign key (no polymorphic
+  owner column — preserves Postgres FK integrity, consistent with this codebase's own conventions).
+- **Flagged for Disaster Events' own future migration, not this intent's problem**: DE's existing
+  attachments system (`DisasterEventAttachmentRepository`-backed, a separate table from the
+  JSONB-column pattern) is narrower than what's being built here — no Link-type, no tags, its own
+  10MB total-size cap. Folded into `DEF-013`'s existing entry (not a new deferred item) rather than
+  tracked here.
+
+**Intent for `/opsx:propose`:**
+
+```
+Build a new, dedicated shared module (app/domains/shared/attachments/ or similar —
+this intent's own design decides the exact path) owning the attachment file-storage
+port and its local-disk adapter, reusing the same physical storage mechanics legacy's
+own ContentRepeaterUploadFile/PreUploadFile/FileViewer already implement (domain-
+agnostic already; do not reinvent file I/O that already works and is already shared).
+Reshape hazardousEventAttachmentTable to add url/tag columns, an explicit
+type ("File"/"Link") discriminator enum, nullable file-specific columns, and a
+check() constraint enforcing type-correct field population (same pattern as
+eventCausalityTable's existing discriminator-paired check). Fix
+parseHazardousEventFormData.server.ts's attachment parsing to accept the widget's
+real output shape instead of silently dropping it. Wire CreateHazardousEventUseCase/
+UpdateHazardousEventUseCase to the new shape. Legacy's own UI widget, upload routes,
+and on-disk storage layout do not change at all — this is a faithful Clean
+Architecture rebuild of the write path CA's own schema currently can't represent,
+not a redesign of user-visible behavior.
+```
+
+**Files touched:** not yet determined for the shared module's own exact path/file
+breakdown — this intent's own design decides it. At minimum: a new shared
+`app/domains/shared/attachments/` (or equivalent) module (port + local-disk adapter),
+`app/domains/hazardous-events/infrastructure/hazardousEventAttachmentTable.ts`
+(reshaped, migration), `app/domains/hazardous-events/domain/HazardousEvent.ts`'s
+`HazardousEventAttachmentProps` type, `parseHazardousEventFormData.server.ts`,
+`CreateHazardousEvent.ts`/`UpdateHazardousEvent.ts`'s attachment composition,
+`DrizzleHazardousEventRepository.server.ts`.
+
+**Test tier:** PGlite integration — a real `ContentRepeater`-shaped payload (File-type
+and Link-type, with and without a tag) persists correctly and round-trips on read,
+matching the pre-existing integration test's gap (DEF-054's own text: today's test
+hand-constructs an already-correctly-shaped fixture, never exercising the real
+widget's actual output — this intent's own tests must not repeat that mistake).
+Unit tests for the new shared module's port/adapter. E2E Playwright exercising the
+real `AttachmentsFormView` widget end-to-end (upload a file, add a link, save, reload,
+confirm both are still present) — the UI-level proof this bug is actually fixed, not
+just the parsing layer.
+
+---
+
 ### 🏁 Phase 6 Gate
 
 `yarn test:run2` fully green. `yarn tsc` clean. E2E Playwright passes for the full
