@@ -170,9 +170,9 @@ export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 	if (!item) {
 		throw new Response("Not Found", { status: 404 });
 	}
-	
-	const userRole = await getUserRoleFromSession(request) as string;
-	
+
+	const userRole = (await getUserRoleFromSession(request)) as string;
+
 	if (canEditDataCollectionRecord(userRole, item.approvalStatus) === false) {
 		throw new Response("Access forbidden", { status: 403 });
 	}
@@ -382,7 +382,12 @@ export default function Screen() {
 											to={`/disaster-record/edit-sub/${ld.item.id}/human-effects`}
 											className="text-blue-600 hover:text-blue-800 text-sm"
 										>
-											[ {ctx.t({ code: "common.add_new_record", msg: "Add new record" })} ]
+											[{" "}
+											{ctx.t({
+												code: "common.add_new_record",
+												msg: "Add new record",
+											})}{" "}
+											]
 										</LangLink>
 									</div>
 
@@ -393,7 +398,10 @@ export default function Screen() {
 													<th className="border border-gray-300 px-3 py-2"></th>
 													<th className="border border-gray-300 px-3 py-2"></th>
 													<th className="border border-gray-300 px-3 py-2"></th>
-													<th className="border border-gray-300 px-3 py-2 text-center" colSpan={2}>
+													<th
+														className="border border-gray-300 px-3 py-2 text-center"
+														colSpan={2}
+													>
 														{ctx.t({
 															code: "human_effects.affected_old_desinventar",
 															desc: "Human effects Affected (DesInventar is an older system used for tracking disaster data)",
@@ -408,12 +416,24 @@ export default function Screen() {
 														{ code: "human_effects.deaths", msg: "Deaths" },
 														{ code: "human_effects.injured", msg: "Injured" },
 														{ code: "human_effects.missing", msg: "Missing" },
-														{ code: "human_effects.directly_affected", msg: "Directly" },
-														{ code: "human_effects.indirectly_affected", msg: "Indirectly" },
-														{ code: "human_effects.displaced", msg: "Displaced" },
+														{
+															code: "human_effects.directly_affected",
+															msg: "Directly",
+														},
+														{
+															code: "human_effects.indirectly_affected",
+															msg: "Indirectly",
+														},
+														{
+															code: "human_effects.displaced",
+															msg: "Displaced",
+														},
 														{ code: "common.actions", msg: "Actions" },
 													].map(({ code, msg }) => (
-														<th key={code} className="border border-gray-300 px-3 py-2 font-medium text-left">
+														<th
+															key={code}
+															className="border border-gray-300 px-3 py-2 font-medium text-left"
+														>
 															{ctx.t({ code, msg })}
 														</th>
 													))}
@@ -431,16 +451,28 @@ export default function Screen() {
 															{ key: "displaced", tbl: "Displaced" },
 														] as const
 													).map(({ key, tbl }) => {
-														const value = ld.dbDisRecHumanEffectsSummaryTable[key];
+														const value =
+															ld.dbDisRecHumanEffectsSummaryTable[key];
 														const href = `/disaster-record/edit-sub/${ld.item.id}/human-effects?tbl=${tbl}`;
 														return (
-															<td key={key} className="border border-gray-300 px-3 py-2">
+															<td
+																key={key}
+																className="border border-gray-300 px-3 py-2"
+															>
 																{typeof value === "number" ? (
-																	<LangLink lang={ctx.lang} to={href} className="text-blue-600 hover:underline">
+																	<LangLink
+																		lang={ctx.lang}
+																		to={href}
+																		className="text-blue-600 hover:underline"
+																	>
 																		{value}
 																	</LangLink>
 																) : value === true ? (
-																	<LangLink lang={ctx.lang} to={href} className="text-blue-600 hover:underline">
+																	<LangLink
+																		lang={ctx.lang}
+																		to={href}
+																		className="text-blue-600 hover:underline"
+																	>
 																		{ctx.t({ code: "common.yes", msg: "Yes" })}
 																	</LangLink>
 																) : (
@@ -452,8 +484,13 @@ export default function Screen() {
 													<td className="border border-gray-300 px-3 py-2">
 														<DeleteButton
 															ctx={ctx}
-															action={ctx.url(`/disaster-record/edit-sub/${ld.item.id}/human-effects/delete-all-data`)}
-															label={ctx.t({ code: "common.delete", msg: "Delete" })}
+															action={ctx.url(
+																`/disaster-record/edit-sub/${ld.item.id}/human-effects/delete-all-data`,
+															)}
+															label={ctx.t({
+																code: "common.delete",
+																msg: "Delete",
+															})}
 														/>
 													</td>
 												</tr>
@@ -480,7 +517,12 @@ export default function Screen() {
 											to={`/disaster-record/edit-sec/${ld.item.id}`}
 											className="text-blue-600 hover:text-blue-800 text-sm"
 										>
-											[ {ctx.t({ code: "common.add_new_record", msg: "Add new record" })} ]
+											[{" "}
+											{ctx.t({
+												code: "common.add_new_record",
+												msg: "Add new record",
+											})}{" "}
+											]
 										</LangLink>
 									</div>
 
@@ -488,28 +530,55 @@ export default function Screen() {
 										<table className="w-full border border-gray-300 text-sm">
 											<thead className="bg-gray-50 text-gray-700">
 												<tr>
-													<th className="border border-gray-300 px-3 py-2" colSpan={2} />
-													<th className="border border-gray-300 px-3 py-2 text-center" colSpan={3}>
-														{ctx.t({ code: "sector_effects.damage", msg: "Damage" })}
+													<th
+														className="border border-gray-300 px-3 py-2"
+														colSpan={2}
+													/>
+													<th
+														className="border border-gray-300 px-3 py-2 text-center"
+														colSpan={3}
+													>
+														{ctx.t({
+															code: "sector_effects.damage",
+															msg: "Damage",
+														})}
 													</th>
-													<th className="border border-gray-300 px-3 py-2 text-center" colSpan={2}>
-														{ctx.t({ code: "sector_effects.losses", msg: "Losses" })}
+													<th
+														className="border border-gray-300 px-3 py-2 text-center"
+														colSpan={2}
+													>
+														{ctx.t({
+															code: "sector_effects.losses",
+															msg: "Losses",
+														})}
 													</th>
-													<th className="border border-gray-300 px-3 py-2" colSpan={2} />
+													<th
+														className="border border-gray-300 px-3 py-2"
+														colSpan={2}
+													/>
 												</tr>
 												<tr>
 													{[
 														{ code: "common.id", msg: "ID" },
 														{ code: "sector_effects.sector", msg: "Sector" },
 														{ code: "sector_effects.damage", msg: "Damage" },
-														{ code: "sector_effects.recovery_cost", msg: "Recovery cost" },
+														{
+															code: "sector_effects.recovery_cost",
+															msg: "Recovery cost",
+														},
 														{ code: "sector_effects.cost", msg: "Cost" },
 														{ code: "sector_effects.losses", msg: "Losses" },
 														{ code: "sector_effects.cost", msg: "Cost" },
-														{ code: "sector_effects.disruption", msg: "Disruption" },
+														{
+															code: "sector_effects.disruption",
+															msg: "Disruption",
+														},
 														{ code: "common.actions", msg: "Actions" },
 													].map(({ code, msg }, i) => (
-														<th key={`${code}-${i}`} className="border border-gray-300 px-3 py-2 font-medium text-left">
+														<th
+															key={`${code}-${i}`}
+															className="border border-gray-300 px-3 py-2 font-medium text-left"
+														>
 															{ctx.t({ code, msg })}
 														</th>
 													))}
@@ -545,14 +614,22 @@ export default function Screen() {
 															{/* Recovery cost */}
 															<td className="border border-gray-300 px-3 py-2">
 																{item.disRecSectorsDamageRecoveryCost && (
-																	<span>{item.disRecSectorsDamageRecoveryCost} {item.disRecSectorsDamageRecoveryCostCurrency}</span>
+																	<span>
+																		{item.disRecSectorsDamageRecoveryCost}{" "}
+																		{
+																			item.disRecSectorsDamageRecoveryCostCurrency
+																		}
+																	</span>
 																)}
 															</td>
 
 															{/* Damage cost */}
 															<td className="border border-gray-300 px-3 py-2">
 																{item.disRecSectorsDamageCost && (
-																	<span>{item.disRecSectorsDamageCost} {item.disRecSectorsDamageCostCurrency}</span>
+																	<span>
+																		{item.disRecSectorsDamageCost}{" "}
+																		{item.disRecSectorsDamageCostCurrency}
+																	</span>
 																)}
 															</td>
 
@@ -572,7 +649,10 @@ export default function Screen() {
 															{/* Losses cost */}
 															<td className="border border-gray-300 px-3 py-2">
 																{item.disRecSectorsLossesCost && (
-																	<span>{item.disRecSectorsLossesCost} {item.disRecSectorsLossesCostCurrency}</span>
+																	<span>
+																		{item.disRecSectorsLossesCost}{" "}
+																		{item.disRecSectorsLossesCostCurrency}
+																	</span>
 																)}
 															</td>
 
@@ -598,7 +678,10 @@ export default function Screen() {
 																			to={`/disaster-record/edit-sec/${ld.item.id}/delete/?id=${item.disRecSectorsId}`}
 																			className="text-red-600 hover:underline"
 																		>
-																			{ctx.t({ code: "common.delete", msg: "Delete" })}
+																			{ctx.t({
+																				code: "common.delete",
+																				msg: "Delete",
+																			})}
 																		</LangLink>
 																		<span className="text-gray-300">|</span>
 																		<LangLink
@@ -606,7 +689,10 @@ export default function Screen() {
 																			to={`/disaster-record/edit-sec/${ld.item.id}/?id=${item.disRecSectorsId}`}
 																			className="text-blue-600 hover:underline"
 																		>
-																			{ctx.t({ code: "common.edit", msg: "Edit" })}
+																			{ctx.t({
+																				code: "common.edit",
+																				msg: "Edit",
+																			})}
 																		</LangLink>
 																	</div>
 																)}
@@ -625,7 +711,10 @@ export default function Screen() {
 							<fieldset className="mb-6">
 								<div className="mb-4">
 									<legend className="text-xl font-semibold text-gray-800">
-										{ctx.t({ code: "non_economic_losses", msg: "Non-economic losses" })}
+										{ctx.t({
+											code: "non_economic_losses",
+											msg: "Non-economic losses",
+										})}
 									</legend>
 								</div>
 
@@ -636,7 +725,12 @@ export default function Screen() {
 											to={`${route}/non-economic-losses/${ld.item.id}`}
 											className="text-blue-600 hover:text-blue-800 text-sm"
 										>
-											[ {ctx.t({ code: "common.add_new_record", msg: "Add new record" })} ]
+											[{" "}
+											{ctx.t({
+												code: "common.add_new_record",
+												msg: "Add new record",
+											})}{" "}
+											]
 										</LangLink>
 									</div>
 
@@ -650,7 +744,10 @@ export default function Screen() {
 														{ code: "common.description", msg: "Description" },
 														{ code: "common.actions", msg: "Actions" },
 													].map(({ code, msg }) => (
-														<th key={code} className="border border-gray-300 px-3 py-2 font-medium text-left">
+														<th
+															key={code}
+															className="border border-gray-300 px-3 py-2 font-medium text-left"
+														>
 															{ctx.t({ code, msg })}
 														</th>
 													))}
@@ -677,7 +774,10 @@ export default function Screen() {
 																			to={`${route}/non-economic-losses/${ld.item.id}/delete/?id=${item.noneccoId}`}
 																			className="text-red-600 hover:underline"
 																		>
-																			{ctx.t({ code: "common.delete", msg: "Delete" })}
+																			{ctx.t({
+																				code: "common.delete",
+																				msg: "Delete",
+																			})}
 																		</LangLink>
 																		<span className="text-gray-300">|</span>
 																		<LangLink
@@ -685,7 +785,10 @@ export default function Screen() {
 																			to={`${route}/non-economic-losses/${ld.item.id}/?id=${item.noneccoId}`}
 																			className="text-blue-600 hover:underline"
 																		>
-																			{ctx.t({ code: "common.edit", msg: "Edit" })}
+																			{ctx.t({
+																				code: "common.edit",
+																				msg: "Edit",
+																			})}
 																		</LangLink>
 																	</div>
 																)}
@@ -699,9 +802,8 @@ export default function Screen() {
 							</fieldset>
 						</div>
 					</section>
-				</div >
-			)
-			}
+				</div>
+			)}
 		</>
 	);
 }

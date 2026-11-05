@@ -3,12 +3,9 @@ import {
 	DisasterRecordsViewModel,
 } from "~/backend.server/models/disaster_record";
 
-import { formatDate } from "~/utils/date";
-
 import {
 	UserFormProps,
 	FormInputDef,
-	FieldsView,
 	FormView,
 	FieldErrors,
 	Field,
@@ -23,9 +20,7 @@ import { contentPickerConfig } from "~/routes/$lang+/disaster-record+/content-pi
 import { HazardPicker, Hip } from "~/frontend/hip/hazardpicker";
 
 import { SpatialFootprintFormView } from "~/frontend/spatialFootprintFormView";
-import { SpatialFootprintView } from "~/frontend/spatialFootprintView";
 import { AttachmentsFormView } from "~/frontend/attachmentsFormView";
-import { AttachmentsView } from "~/frontend/attachmentsView";
 
 import { TEMP_UPLOAD_PATH } from "~/utils/paths";
 import { ViewContext } from "../context";
@@ -42,7 +37,7 @@ import {
 	UserValidator,
 } from "~/frontend/components/approval-workflow/SaveSubmitDialog";
 import { ViewComponentMainDataCollection } from "../components/data-collection/View";
-import { HipHazardInfo } from "../hip/hip";
+import DisasterRecordReviewStep from "~/frontend/disaster-record/DisasterRecordReviewStep";
 
 export const route = "/disaster-record";
 
@@ -699,10 +694,12 @@ interface DisasterRecordsViewProps {
 	ctx: ViewContext;
 	item: DisasterRecordsViewItem;
 	isPublic: boolean;
+	auditLogs?: any[];
 }
 
 export function DisasterRecordsView(props: DisasterRecordsViewProps) {
-	const { ctx, item } = props;
+	const { ctx, item, auditLogs } = props;
+	const itemAny = item as any;
 
 	return (
 		<ViewComponentMainDataCollection
@@ -712,87 +709,39 @@ export function DisasterRecordsView(props: DisasterRecordsViewProps) {
 			path={route}
 			id={item?.id || ""}
 			returnAssigneeOptions={(item as any).returnAssignees}
+			hideTopSummary={true}
+			hideEditButton={true}
+			extraInfo={
+				<div className="mb-4">
+					<Button
+						type="button"
+						outlined
+						icon="pi pi-arrow-left"
+						iconPos="left"
+						label={ctx.t({
+							code: "disaster_records.back_to_list",
+							msg: "Back to Disaster records",
+						})}
+						className="p-button-sm"
+						onClick={() => {
+							document.location.href = ctx.url(route);
+						}}
+					/>
+				</div>
+			}
 			title={ctx.t({
 				code: "disaster_records",
 				msg: "Disaster records",
 			})}
 		>
-			<FieldsView
-				def={fieldsDefView(ctx)}
-				fields={item}
-				user={ctx.user || undefined}
-				override={{
-					hipHazard: item ? (
-						<HipHazardInfo
-							ctx={ctx}
-							key="hazard"
-							model={{
-								hipType: item.hipType,
-								hipCluster: item.hipCluster,
-								hipHazard: item.hipHazard,
-							}}
-						/>
-					) : null,
-					spatialFootprint: (
-						<SpatialFootprintView
-							ctx={ctx}
-							initialData={((item as any)?.spatialFootprint as any[]) || []}
-							mapViewerOption={0}
-							mapViewerDataSources={[]}
-						/>
-					),
-					createdAt: (
-						<p key="createdAt"><strong>
-							{ctx.t({
-								code: "common.created_at",
-								desc: "Created date",
-								msg: "Created at",
-							})}
-							:</strong>{" "}
-							{item?.createdAt
-								? formatDate(item.createdAt)
-								: ctx.t({
-										code: "common.not_available",
-										desc: "Not available",
-										msg: "N/A",
-									})}
-						</p>
-					),
-					updatedAt: (
-						<p key="updatedAt"><strong>
-							{ctx.t({
-								code: "common.updated_at",
-								desc: "Last updated date",
-								msg: "Updated at",
-							})}
-							:</strong>{" "}
-							{item?.updatedAt
-								? formatDate(item.updatedAt)
-								: ctx.t({
-										code: "common.not_available",
-										desc: "Not available",
-										msg: "N/A",
-									})}
-						</p>
-					),
-					disasterEventId: (
-						<p key="disasterEventId"><strong>
-							{ctx.t({
-								code: "disaster_event",
-								msg: "Disaster event",
-							})}
-							:</strong> {(item as any).cpDisplayName || ""}
-						</p>
-					),
-					attachments: (
-						<AttachmentsView
-							ctx={ctx}
-							id={item?.id || ""}
-							initialData={(item?.attachments as any[]) || []}
-							file_viewer_url="/disaster-record/file-viewer?loc=record"
-						/>
-					),
-				}}
+			<DisasterRecordReviewStep
+				ctx={ctx}
+				item={item as any}
+				humanEffectsTotals={itemAny.humanEffectsTotals}
+				humanEffectsDisaggregation={itemAny.humanEffectsDisaggregation}
+				recordsDisRecSectors={itemAny.recordsDisRecSectors}
+				recordsNonecoLosses={itemAny.recordsNonecoLosses}
+				auditLogs={auditLogs}
 			/>
 		</ViewComponentMainDataCollection>
 	);
