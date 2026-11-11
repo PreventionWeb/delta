@@ -145,6 +145,13 @@
 			"observation_time": "Observation time",
 			"note": "Note"
 		},
+		"attachments_table": {
+			"columns": {
+				"title": "Title",
+				"tags": "Tags",
+				"file_url": "File/URL"
+			}
+		},
 		"attachments_none": "No attachments",
 		"hazardous_event_status_values": {
 			"forecasted": "Forecasted",
