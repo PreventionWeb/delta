@@ -66,6 +66,13 @@ const hazardousEvents = {
 			observation_time: "Observation time",
 			note: "Note",
 		},
+		attachments_table: {
+			columns: {
+				title: "Title",
+				tags: "Tags",
+				file_url: "File/URL",
+			},
+		},
 		attachments_none: "No attachments",
 		hazardous_event_status_values: {
 			forecasted: "Forecasted",
@@ -457,6 +464,9 @@ describe("HazardousEventDetailPage", () => {
 						{
 							id: "attachment-1",
 							title: "Site survey photo",
+							type: "File",
+							url: null,
+							tag: null,
 							fileKey: "key-1",
 							fileName: "survey.jpg",
 							fileType: "image/jpeg",
@@ -471,12 +481,192 @@ describe("HazardousEventDetailPage", () => {
 		expect(html).toContain("Site survey photo");
 	});
 
+	// Gate 10 finding: title is a domain-legal "" (no NOT NULL/length check), and the title
+	// cell is the row's own isRowHeader -- an unguarded blank would announce as nothing to
+	// assistive tech. Uses this page's own orDash() (not Tags' "—") since title is string,
+	// not string | null.
+	it("renders '-' for an attachment with an empty-string title", () => {
+		const html = renderWithI18n(
+			<HazardousEventDetailPage
+				data={makeDetail({
+					attachments: [
+						{
+							id: "attachment-1",
+							title: "",
+							type: "Link",
+							url: "https://example.com/report",
+							tag: null,
+							fileKey: null,
+							fileName: null,
+							fileType: null,
+							fileSize: null,
+						},
+					],
+				})}
+			/>,
+		);
+
+		expect(html).toMatch(/role="rowheader"[^>]*>-<\/td>/);
+	});
+
+	// spec hazardous-event-route-adapter, "renders as a table, not a list": column headers
+	// present, no bare <ul>/<li> markup carried over from the old rendering.
+	it("renders the attachments section as a table with Title/Tags/File-URL column headers, not a bare list", () => {
+		const html = renderWithI18n(
+			<HazardousEventDetailPage
+				data={makeDetail({
+					attachments: [
+						{
+							id: "attachment-1",
+							title: "Site survey photo",
+							type: "File",
+							url: null,
+							tag: null,
+							fileKey: "key-1",
+							fileName: "survey.jpg",
+							fileType: "image/jpeg",
+							fileSize: 100,
+						},
+					],
+				})}
+			/>,
+		);
+
+		expect(html).toContain(
+			hazardousEvents.detail.attachments_table.columns.title,
+		);
+		expect(html).toContain(
+			hazardousEvents.detail.attachments_table.columns.tags,
+		);
+		expect(html).toContain(
+			hazardousEvents.detail.attachments_table.columns.file_url,
+		);
+		expect(html).not.toMatch(/<ul>/);
+	});
+
 	it("renders the attachments section's empty state when there are none", () => {
 		const html = renderWithI18n(
 			<HazardousEventDetailPage data={makeDetail({ attachments: [] })} />,
 		);
 
 		expect(html).toContain("No attachments");
+	});
+
+	// design.md Decision 9: tags are {id, name}-shaped objects, joined by .name with ", ".
+	it("renders an attachment's tags joined by a comma, using each tag's name", () => {
+		const html = renderWithI18n(
+			<HazardousEventDetailPage
+				data={makeDetail({
+					id: "event-A",
+					attachments: [
+						{
+							id: "attachment-1",
+							title: "Site survey photo",
+							type: "Link",
+							url: "https://example.com/report",
+							tag: [
+								{ id: "tag-1", name: "Flood" },
+								{ id: "tag-2", name: "Survey" },
+							],
+							fileKey: null,
+							fileName: null,
+							fileType: null,
+							fileSize: null,
+						},
+					],
+				})}
+			/>,
+		);
+
+		expect(html).toMatch(/role="gridcell"[^>]*>Flood, Survey<\/td>/);
+	});
+
+	// Deliberate deviation from legacy's "N/A" (Decision 9) -- matches this page's own "—"
+	// convention for nullable fields. Scoped to the tags gridcell, not a bare toContain("—")
+	// (which would pass vacuously -- several other fields on this page already default to "—").
+	it.each([null, []])(
+		"renders '—' for an attachment's tag when it is %p, never legacy's 'N/A'",
+		(tag) => {
+			const html = renderWithI18n(
+				<HazardousEventDetailPage
+					data={makeDetail({
+						id: "event-A",
+						attachments: [
+							{
+								id: "attachment-1",
+								title: "Site survey photo",
+								type: "Link",
+								url: "https://example.com/report",
+								tag,
+								fileKey: null,
+								fileName: null,
+								fileType: null,
+								fileSize: null,
+							},
+						],
+					})}
+				/>,
+			);
+
+			expect(html).toMatch(/role="gridcell"[^>]*>—<\/td>/);
+			expect(html).not.toContain("N/A");
+		},
+	);
+
+	// Decision 9: href is built from fileKey (on-disk basename), display text from fileName
+	// (human-readable) -- the two are not interchangeable; swapping them 404s the download.
+	it("renders a File-type attachment as a link built from fileKey with fileName as its visible text", () => {
+		const html = renderWithI18n(
+			<HazardousEventDetailPage
+				data={makeDetail({
+					id: "event-A",
+					attachments: [
+						{
+							id: "attachment-1",
+							title: "Site survey photo",
+							type: "File",
+							url: null,
+							tag: null,
+							fileKey: "uuid-123__survey.jpg",
+							fileName: "survey.jpg",
+							fileType: "image/jpeg",
+							fileSize: 100,
+						},
+					],
+				})}
+			/>,
+		);
+
+		expect(html).toMatch(
+			/<a[^>]*href="[^"]*name=event-A\/uuid-123__survey\.jpg[^"]*"[^>]*target="_blank"[^>]*rel="noopener noreferrer"[^>]*>survey\.jpg<\/a>/,
+		);
+	});
+
+	it("renders a Link-type attachment as a link to attachment.url, opening in a new tab safely", () => {
+		const html = renderWithI18n(
+			<HazardousEventDetailPage
+				data={makeDetail({
+					id: "event-A",
+					attachments: [
+						{
+							id: "attachment-1",
+							title: "Site survey photo",
+							type: "Link",
+							url: "https://example.com/report",
+							tag: null,
+							fileKey: null,
+							fileName: null,
+							fileType: null,
+							fileSize: null,
+						},
+					],
+				})}
+			/>,
+		);
+
+		expect(html).toMatch(
+			/<a[^>]*href="https:\/\/example\.com\/report"[^>]*target="_blank"[^>]*rel="noopener noreferrer"[^>]*>/,
+		);
 	});
 
 	it("renders the spatial observation section's empty state when none is recorded", () => {

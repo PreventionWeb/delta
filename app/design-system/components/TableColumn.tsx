@@ -10,6 +10,8 @@ export interface TableColumnProps {
 	/** Announced by assistive technology during row navigation (one column per table, typically
 	 * the first/identifying one). */
 	isRowHeader?: boolean;
+	/** Opts out of the fixed row height below, sizing to content instead. */
+	compact?: boolean;
 }
 
 // Matches the legacy .dts-table th rule exactly, via the @theme tokens rather than literal
@@ -21,18 +23,21 @@ const headerCellStyle = {
 	height: "var(--spacing-dts-row-height)",
 };
 
+const compactHeaderCellStyle = { ...headerCellStyle, height: "auto" };
+
 // Thin wrapper over React Aria's unstyled `Column`, styled to match the legacy table's `<th>`.
 export function TableColumn({
 	id,
 	children,
 	centered,
 	isRowHeader,
+	compact,
 }: TableColumnProps) {
 	return (
 		<Column
 			id={id}
 			isRowHeader={isRowHeader}
-			style={headerCellStyle}
+			style={compact ? compactHeaderCellStyle : headerCellStyle}
 			className={centered ? "dts-table__cell-centered" : undefined}
 		>
 			{children}
