@@ -879,13 +879,14 @@ describe("Hazardous event create route", () => {
 				testingModule.get(CreateHazardousEventUseCase),
 				"execute",
 			);
-			const attachment = {
-				id: crypto.randomUUID(),
+			// Real ContentRepeater-shaped item, not a hand-constructed already-correct fixture
+			// (DEF-054's own finding about the previous version of this test's blind spot).
+			const widgetItem = {
+				id: crypto.randomUUID().replace(/-/g, "").slice(0, 13),
 				title: "Photo",
-				fileKey: "key-1",
-				fileName: "photo.png",
-				fileType: "image/png",
-				fileSize: 1024,
+				tag: null,
+				file_option: "Link",
+				url: "https://example.com/photo.png",
 			};
 
 			await action(
@@ -894,13 +895,53 @@ describe("Hazardous event create route", () => {
 					tenantId,
 					"data-collector",
 					makeCreateBody(
-						{ attachments: JSON.stringify([attachment]) },
+						{ attachments: JSON.stringify([widgetItem]) },
 						specificHazardId,
 					),
 				),
 			);
 
-			expect(createSpy.mock.calls[0][0].attachments).toEqual([attachment]);
+			expect(createSpy.mock.calls[0][0].attachments).toEqual([
+				{
+					kind: "link",
+					id: widgetItem.id,
+					title: "Photo",
+					tag: null,
+					url: "https://example.com/photo.png",
+				},
+			]);
+			createSpy.mockRestore();
+		});
+
+		// Gate 10 finding: a malformed attachments payload now throws ValidationError from the
+		// parser (a dropped item would otherwise read as "removed," deleting a real file) -- must
+		// surface as a structured 422, not escape uncaught to the generic error boundary.
+		it("rejects a malformed attachments payload with a 422 before CreateHazardousEventUseCase.execute ever runs", async () => {
+			const { CreateHazardousEventUseCase } =
+				await import("~/domains/hazardous-events/application/use-cases/CreateHazardousEvent");
+			const createSpy = vi.spyOn(
+				testingModule.get(CreateHazardousEventUseCase),
+				"execute",
+			);
+
+			let thrown: unknown;
+			try {
+				await action(
+					await makeArgs(
+						"http://localhost/en/he-preview/new",
+						tenantId,
+						"data-collector",
+						makeCreateBody({ attachments: "not valid json" }, specificHazardId),
+					),
+				);
+			} catch (err) {
+				thrown = err;
+			}
+
+			expect(thrown).toBeInstanceOf(Response);
+			expect((thrown as Response).status).toBe(422);
+			expect(createSpy).not.toHaveBeenCalled();
+
 			createSpy.mockRestore();
 		});
 	});
