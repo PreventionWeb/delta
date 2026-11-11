@@ -48,14 +48,19 @@ export interface HazardousEventProps {
 	readonly customFieldValues: readonly HazardousEventCustomFieldValueProps[];
 }
 
-/** One `hazardous_event_attachment` row. `id` is typed but not validated (design.md Decision 2 — matches `HazardousEvent.id`'s own existing treatment). */
+/** One `hazardous_event_attachment` row, always fully resolved (a pending File item is the
+ * separate `HazardousEventAttachmentInput` type). `id` is typed but not validated (design.md
+ * Decision 2). */
 export interface HazardousEventAttachmentProps {
 	readonly id: string;
 	readonly title: string;
-	readonly fileKey: string;
-	readonly fileName: string;
-	readonly fileType: string;
-	readonly fileSize: number;
+	readonly type: "File" | "Link";
+	readonly url: string | null;
+	readonly tag: ReadonlyArray<{ id: string; name: string }> | null;
+	readonly fileKey: string | null;
+	readonly fileName: string | null;
+	readonly fileType: string | null;
+	readonly fileSize: number | null;
 }
 
 /** One `hazardous_event_field_value` row. No `id` — `hazardTypeFieldDefinitionId` is the natural, validated discriminator within the collection (design.md Decision 2). */
@@ -163,24 +168,56 @@ function validateHazardDriverIds(
 	);
 }
 
-/** No duplicate-value check: `hazardous_event_attachment` has no uniqueness constraint beyond its PK (design.md Decision 3). */
+/** Mirrors the table's own type-matching check constraint (ca-shared-attachments-module spec
+ * "Attachment field population matches its type") so a bad row fails closed here, not as a raw
+ * Postgres 500. title may be "" (spec); no duplicate-value check (design.md Decision 3). */
 function validateAttachments(
 	attachments: readonly HazardousEventAttachmentProps[],
 ): void {
 	assertIsArray(attachments, "attachments");
 	for (const attachment of attachments) {
 		assertIsObject(attachment, "attachments");
-		for (const field of ["title", "fileKey", "fileName", "fileType"] as const) {
-			assertNonEmptyString(attachment[field], field);
+		if (typeof attachment.title !== "string") {
+			throw new ValidationError("title must be a string");
 		}
-		// bigint("file_size", { mode: "number" }).notNull() -> finite integer; no positivity check, no CHECK constraint to mirror (design.md Decision 5).
-		const { fileSize } = attachment;
-		if (
-			typeof fileSize !== "number" ||
-			!Number.isFinite(fileSize) ||
-			!Number.isInteger(fileSize)
-		) {
-			throw new ValidationError("fileSize must be a finite integer number");
+		if (attachment.tag !== null && !Array.isArray(attachment.tag)) {
+			throw new ValidationError("tag must be null or an array");
+		}
+		if (attachment.type === "File") {
+			for (const field of ["fileKey", "fileName", "fileType"] as const) {
+				assertNonEmptyString(attachment[field], field);
+			}
+			const { fileSize } = attachment;
+			if (
+				typeof fileSize !== "number" ||
+				!Number.isFinite(fileSize) ||
+				!Number.isInteger(fileSize)
+			) {
+				throw new ValidationError("fileSize must be a finite integer number");
+			}
+			if (attachment.url !== null) {
+				throw new ValidationError(
+					"url must be null for a File-type attachment",
+				);
+			}
+		} else if (attachment.type === "Link") {
+			if (typeof attachment.url !== "string") {
+				throw new ValidationError("url is required for a Link-type attachment");
+			}
+			for (const field of [
+				"fileKey",
+				"fileName",
+				"fileType",
+				"fileSize",
+			] as const) {
+				if (attachment[field] !== null) {
+					throw new ValidationError(
+						`${field} must be null for a Link-type attachment`,
+					);
+				}
+			}
+		} else {
+			throw new ValidationError('type must be "File" or "Link"');
 		}
 	}
 }

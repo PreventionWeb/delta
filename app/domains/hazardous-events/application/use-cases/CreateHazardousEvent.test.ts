@@ -23,6 +23,10 @@ import type {
 	RecordSpatialObservationUseCase,
 } from "./RecordSpatialObservation";
 import type { SpatialObservationDto } from "../dto/SpatialObservationDto";
+import type {
+	IAttachmentStoragePort,
+	StagedFileReference,
+} from "~/domains/shared/attachments/application/ports/IAttachmentStoragePort";
 import {
 	CreateHazardousEventUseCase,
 	type CreateHazardousEventCommand,
@@ -398,6 +402,33 @@ class FakeHipCrosswalkPort implements IHipCrosswalkPort {
 	}
 }
 
+/** Not exercised by this file's own scenarios (none submit a File-type attachment) -- attachment
+ * promote/delete coverage lives in the PGlite integration tests (tasks.md 4.1). */
+class FakeAttachmentStoragePort implements IAttachmentStoragePort {
+	constructor(private readonly callLog: string[] = []) {}
+
+	async stage(): Promise<StagedFileReference> {
+		throw new Error("not used by this test file");
+	}
+
+	async promote(): Promise<{
+		fileKey: string;
+		fileSize: number;
+		fileName: string;
+	}> {
+		this.callLog.push("attachmentStoragePort.promote");
+		return { fileKey: "fake-key", fileSize: 1, fileName: "fake-name" };
+	}
+
+	async delete(): Promise<void> {
+		this.callLog.push("attachmentStoragePort.delete");
+	}
+
+	async retrieve(): Promise<Buffer> {
+		throw new Error("not used by this test file");
+	}
+}
+
 const baseCommand: CreateHazardousEventCommand = {
 	tenantId: "tenant-1",
 	specificHazardId: "hazard-1",
@@ -487,6 +518,7 @@ function createHarness(options: HarnessOptions = {}) {
 		new FakeRecordSpatialObservationUseCase(callLog);
 	const transactionRunner = new FakeTransactionRunner(callLog);
 	const hipCrosswalkPort = new FakeHipCrosswalkPort(callLog);
+	const attachmentStoragePort = new FakeAttachmentStoragePort(callLog);
 	const useCase = new CreateHazardousEventUseCase(
 		logger,
 		taxonomyRepository,
@@ -496,6 +528,7 @@ function createHarness(options: HarnessOptions = {}) {
 		recordSpatialObservationUseCase,
 		transactionRunner,
 		hipCrosswalkPort,
+		attachmentStoragePort,
 	);
 	return {
 		callLog,
@@ -507,6 +540,7 @@ function createHarness(options: HarnessOptions = {}) {
 		recordSpatialObservationUseCase,
 		transactionRunner,
 		hipCrosswalkPort,
+		attachmentStoragePort,
 		useCase,
 	};
 }

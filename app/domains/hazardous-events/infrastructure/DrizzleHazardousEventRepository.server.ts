@@ -181,9 +181,15 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 		if (entity.attachments.length > 0) {
 			await tx.insert(hazardousEventAttachmentTable).values(
 				entity.attachments.map((attachment) => ({
-					id: attachment.id,
+					// Never attachment.id -- the widget's client-minted id isn't a UUID and this
+					// table's full delete-and-reinsert-every-time semantics mean there is no
+					// cross-save identity to preserve anyway (design.md Decision 6).
+					id: crypto.randomUUID(),
 					hazardousEventId,
 					title: attachment.title,
+					type: attachment.type,
+					url: attachment.url,
+					tag: attachment.tag ? [...attachment.tag] : null,
 					fileKey: attachment.fileKey,
 					fileName: attachment.fileName,
 					fileType: attachment.fileType,
@@ -289,6 +295,9 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 			(entry.attachments as HazardousEventAttachmentProps[]).push({
 				id: row.id,
 				title: row.title,
+				type: row.type,
+				url: row.url,
+				tag: row.tag,
 				fileKey: row.fileKey,
 				fileName: row.fileName,
 				fileType: row.fileType,
@@ -691,13 +700,6 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 			if (constraint === "hazardous_event_api_import_id_tenant_unique") {
 				throw new ConflictError(
 					"HazardousEvent apiImportId already exists for this tenant",
-					context,
-				);
-			}
-			// Attachments have no domain-level dedupe (HazardousEvent.ts validateAttachments), so a duplicate attachment id reaches this PK unmapped otherwise.
-			if (constraint === "hazardous_event_attachment_pkey") {
-				throw new ConflictError(
-					"HazardousEvent has a duplicate attachment id",
 					context,
 				);
 			}
