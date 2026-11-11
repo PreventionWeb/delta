@@ -1,10 +1,12 @@
 import {
 	HazardousEvent,
-	type HazardousEventAttachmentProps,
 	type HazardousEventCustomFieldValueProps,
 	type HazardousEventFieldValueProps,
 	type HazardousEventStatus,
 } from "../../domain/HazardousEvent";
+import type { HazardousEventAttachmentInput } from "../dto/HazardousEventAttachmentInput";
+import { resolveAttachmentsForWrite } from "./resolveAttachmentsForWrite";
+import type { IAttachmentStoragePort } from "~/domains/shared/attachments/application/ports/IAttachmentStoragePort";
 import {
 	assertCausalLinkDoesNotCreateCycle,
 	assertCauseStartsNoLaterThanEffect,
@@ -44,7 +46,7 @@ export interface CreateHazardousEventCommand {
 	apiImportId: string | null;
 	actingUserId: string;
 	hazardDriverIds: readonly string[];
-	attachments: readonly HazardousEventAttachmentProps[];
+	attachments: readonly HazardousEventAttachmentInput[];
 	fieldValues: readonly HazardousEventFieldValueProps[];
 	customFieldValues: readonly HazardousEventCustomFieldValueProps[];
 	/** If a non-empty string, the new event is persisted as the *effect* of this existing, already-persisted HazardousEvent; `""` also counts as absent. */
@@ -116,6 +118,11 @@ export class CreateHazardousEventUseCase {
 		// TEMPORARY (DEF-055, design.md Decision 17) -- deleted once every dependent domain stops
 		// reading hip_hazard_id/hip_cluster_id/hip_type_id off hazardous_event.
 		private readonly hipCrosswalkPort: IHipCrosswalkPort,
+		// Narrowed to the one method actually used (Gate 5/SOLID ISP finding).
+		private readonly attachmentStoragePort: Pick<
+			IAttachmentStoragePort,
+			"promote"
+		>,
 	) {}
 
 	async execute(
@@ -144,39 +151,6 @@ export class CreateHazardousEventUseCase {
 				command.tenantId,
 			);
 
-		// updatedAt is null, not `now` — a freshly-created event hasn't been updated yet (Decision 4).
-		const newEvent = HazardousEvent.create(
-			{
-				id,
-				tenantId: command.tenantId,
-				specificHazardId: command.specificHazardId,
-				startDate: command.startDate,
-				endDate: command.endDate,
-				nationalSpecification: command.nationalSpecification,
-				description: command.description,
-				chainsExplanation: command.chainsExplanation,
-				magnitude: command.magnitude,
-				recordOriginator: command.recordOriginator,
-				dataSource: command.dataSource,
-				hazardousEventStatus: command.hazardousEventStatus,
-				specificHazardLocalName: command.specificHazardLocalName,
-				specificHazardNationalName: command.specificHazardNationalName,
-				apiImportId: command.apiImportId,
-				createdByUserId: command.actingUserId,
-				updatedByUserId: null,
-				submittedByUserId: null,
-				submittedAt: null,
-				createdAt: now,
-				updatedAt: null,
-				hazardDriverIds: command.hazardDriverIds,
-				attachments: command.attachments,
-				fieldValues: command.fieldValues,
-				customFieldValues: command.customFieldValues,
-			},
-			validHazardDriverIds,
-			validCustomFieldDefinitionIds,
-		);
-
 		// Captures the fetched entity's own id, so a cause whose canonical stored form differs cosmetically from the caller's input still links correctly.
 		let cause: HazardousEvent | undefined;
 		if (causeId !== undefined) {
@@ -187,16 +161,13 @@ export class CreateHazardousEventUseCase {
 			);
 
 			// Can never fire against a correct adapter (a fresh id has no edges) -- kept as defense-in-depth so a future update use case reuses the same convention (Decision 1).
-			const edges = await this.causalChainRepository.findReachableEdgesFrom(
-				newEvent.id,
-			);
-			assertCausalLinkDoesNotCreateCycle(edges, cause.id, newEvent.id);
+			// Uses the raw id/startDate -- the entity itself isn't constructed until inside the transaction below (Decision 7).
+			const edges = await this.causalChainRepository.findReachableEdgesFrom(id);
+			assertCausalLinkDoesNotCreateCycle(edges, cause.id, id);
 			// Mirrors UpdateHazardousEvent.ts:331 -- malformed startDate skips rather than fails closed.
-			assertCauseStartsNoLaterThanEffect(cause.startDate, newEvent.startDate);
+			assertCauseStartsNoLaterThanEffect(cause.startDate, command.startDate);
 		}
 
-		// After HazardousEvent.create() so a malformed specificHazardId surfaces as
-		// ValidationError, not a raw Postgres error (Decision 17 only requires "before the transaction").
 		const hipCrosswalkIds = await this.hipCrosswalkPort.resolve(
 			command.specificHazardId,
 		);
@@ -205,6 +176,48 @@ export class CreateHazardousEventUseCase {
 		// every earlier write in this call, including the HazardousEvent insert.
 		const { saved, savedWorkflow, savedSpatialObservation } =
 			await this.transactionRunner.run(async (tx) => {
+				// promote() must run inside the transaction (Decision 7) -- a File-type attachment's
+				// fileKey/fileSize don't exist until this resolves, which is why create() below moved in too.
+				const { attachments } = await resolveAttachmentsForWrite(
+					command.attachments,
+					[],
+					this.attachmentStoragePort,
+					{ tenantId: command.tenantId, ownerId: id },
+				);
+
+				// updatedAt is null, not `now` — a freshly-created event hasn't been updated yet (Decision 4).
+				const newEvent = HazardousEvent.create(
+					{
+						id,
+						tenantId: command.tenantId,
+						specificHazardId: command.specificHazardId,
+						startDate: command.startDate,
+						endDate: command.endDate,
+						nationalSpecification: command.nationalSpecification,
+						description: command.description,
+						chainsExplanation: command.chainsExplanation,
+						magnitude: command.magnitude,
+						recordOriginator: command.recordOriginator,
+						dataSource: command.dataSource,
+						hazardousEventStatus: command.hazardousEventStatus,
+						specificHazardLocalName: command.specificHazardLocalName,
+						specificHazardNationalName: command.specificHazardNationalName,
+						apiImportId: command.apiImportId,
+						createdByUserId: command.actingUserId,
+						updatedByUserId: null,
+						submittedByUserId: null,
+						submittedAt: null,
+						createdAt: now,
+						updatedAt: null,
+						hazardDriverIds: command.hazardDriverIds,
+						attachments,
+						fieldValues: command.fieldValues,
+						customFieldValues: command.customFieldValues,
+					},
+					validHazardDriverIds,
+					validCustomFieldDefinitionIds,
+				);
+
 				const saved = await this.hazardousEventRepository.insert(newEvent, tx);
 
 				// Immediately after the event insert, same tx -- a stamp() failure rolls back the
