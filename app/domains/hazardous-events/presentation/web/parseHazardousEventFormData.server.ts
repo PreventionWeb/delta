@@ -1,7 +1,7 @@
-import type {
-	HazardousEventAttachmentProps,
-	HazardousEventStatus,
-} from "../../domain/HazardousEvent";
+import type { HazardousEventStatus } from "../../domain/HazardousEvent";
+import type { HazardousEventAttachmentInput } from "../../application/dto/HazardousEventAttachmentInput";
+import { sanitizeBasename } from "~/domains/shared/attachments/application/sanitizeBasename";
+import { ValidationError } from "~/shared/errors";
 
 export interface ParsedHazardousEventFormData {
 	specificHazardId: string;
@@ -30,8 +30,9 @@ export interface ParsedHazardousEventFormData {
 	spatialObservationChanged: boolean;
 	/** The form's full, current attachment-metadata list (JSON-encoded, ContentRepeater's own
 	 * state) -- always complete, same "resend everything" convention as legacy, so no
-	 * changed-flag is needed (unlike causeId/spatialObservation). */
-	attachments: readonly HazardousEventAttachmentProps[];
+	 * changed-flag is needed (unlike causeId/spatialObservation). Raw, pre-resolution shape --
+	 * see HazardousEventAttachmentInput. */
+	attachments: readonly HazardousEventAttachmentInput[];
 	/** Raw legacy ApprovalAction string ("submit-draft"/"submit-validate"/"submit-publish"/"submit-validation"/"submit-return"), or null when absent. */
 	tempAction: string | null;
 	/** Parsed per legacy's own parseValidatorIds (approvalWorkflowService.ts:389-394). */
@@ -48,35 +49,86 @@ function strOrNull(formData: FormData, key: string): string | null {
 	return value === "" ? null : value;
 }
 
-function isAttachmentProps(
+/** `tag` is opaque JSON (design.md Decision 4) -- normalized to null rather than rejected, since
+ * a malformed tag has no destructive consequence (unlike a malformed file_option/file/title,
+ * which now drives a real promote/delete decision). */
+function normalizeTag(
 	value: unknown,
-): value is HazardousEventAttachmentProps {
+): ReadonlyArray<{ id: string; name: string }> | null {
+	return Array.isArray(value) ? value : null;
+}
+
+/** A staged (just-uploaded-this-session) file's `file.name` lives under its tenant's `temp/`
+ * directory (PreUploadFile.tsx's own response shape); an already-promoted one doesn't -- this
+ * is the only signal available to tell them apart (ca-shared-attachments-module). */
+function isStagedFileName(name: string): boolean {
+	return name.split("/").includes("temp");
+}
+
+/** Converts one raw widget item into its resolved kind, or throws ValidationError for a
+ * structurally malformed item -- a dropped item here now reads as "removed" on Update, which
+ * deletes that attachment's real on-disk file, so malformed input must fail loudly instead of
+ * being silently filtered out (ca-shared-attachments-module). */
+function toAttachmentInput(value: unknown): HazardousEventAttachmentInput {
 	if (typeof value !== "object" || value === null) {
-		return false;
+		throw new ValidationError("Attachment item must be an object");
 	}
 	const v = value as Record<string, unknown>;
-	return (
-		typeof v.id === "string" &&
-		typeof v.title === "string" &&
-		typeof v.fileKey === "string" &&
-		typeof v.fileName === "string" &&
-		typeof v.fileType === "string" &&
-		typeof v.fileSize === "number"
-	);
+	if (typeof v.title !== "string") {
+		throw new ValidationError("Attachment title must be a string");
+	}
+	const id = typeof v.id === "string" ? v.id : "";
+	const title = v.title;
+	const tag = normalizeTag(v.tag);
+
+	if (v.file_option === "Link") {
+		return {
+			kind: "link",
+			id,
+			title,
+			tag,
+			url: typeof v.url === "string" ? v.url : "",
+		};
+	}
+
+	if (v.file_option === "File") {
+		const file = v.file as Record<string, unknown> | undefined;
+		if (
+			typeof file !== "object" ||
+			file === null ||
+			typeof file.name !== "string"
+		) {
+			throw new ValidationError(
+				"File-type attachment item must have a file object",
+			);
+		}
+		const name = sanitizeBasename(file.name);
+		const contentType =
+			typeof file.content_type === "string" ? file.content_type : "";
+		return isStagedFileName(file.name)
+			? { kind: "newFile", id, title, tag, stagedFileName: name, contentType }
+			: { kind: "existingFile", id, title, tag, fileKey: name };
+	}
+
+	throw new ValidationError('Attachment file_option must be "File" or "Link"');
 }
 
 function parseAttachments(
 	raw: string,
-): readonly HazardousEventAttachmentProps[] {
+): readonly HazardousEventAttachmentInput[] {
 	if (raw === "") {
 		return [];
 	}
+	let parsed: unknown;
 	try {
-		const parsed = JSON.parse(raw) as unknown;
-		return Array.isArray(parsed) ? parsed.filter(isAttachmentProps) : [];
+		parsed = JSON.parse(raw);
 	} catch {
-		return [];
+		throw new ValidationError("attachments must be valid JSON");
 	}
+	if (!Array.isArray(parsed)) {
+		throw new ValidationError("attachments must be an array");
+	}
+	return parsed.map(toAttachmentInput);
 }
 
 function parseSpatialObservation(
