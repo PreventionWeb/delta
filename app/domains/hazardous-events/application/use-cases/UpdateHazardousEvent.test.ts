@@ -28,6 +28,12 @@ import type {
 	RecordSpatialObservationUseCase,
 } from "./RecordSpatialObservation";
 import type { SpatialObservationDto } from "../dto/SpatialObservationDto";
+import type {
+	AttachmentDescriptor,
+	IAttachmentStoragePort,
+	StagedFileReference,
+} from "~/domains/shared/attachments/application/ports/IAttachmentStoragePort";
+import type { HazardousEventAttachmentInput } from "../dto/HazardousEventAttachmentInput";
 import {
 	UpdateHazardousEventUseCase,
 	type UpdateHazardousEventCommand,
@@ -422,6 +428,56 @@ class FakeHipCrosswalkPort implements IHipCrosswalkPort {
 	}
 }
 
+class FakeAttachmentStoragePort implements IAttachmentStoragePort {
+	readonly promoteCalls: {
+		descriptor: AttachmentDescriptor;
+		staged: StagedFileReference;
+	}[] = [];
+	readonly deleteCalls: {
+		descriptor: AttachmentDescriptor;
+		fileKey: string;
+	}[] = [];
+	/** fileKey -> Error, for the partial-delete-failure test (Gate 8 finding). */
+	deleteFailuresByFileKey = new Map<string, Error>();
+
+	constructor(private readonly callLog: string[] = []) {}
+
+	async stage(): Promise<StagedFileReference> {
+		throw new Error("not used by this test file");
+	}
+
+	async promote(
+		descriptor: AttachmentDescriptor,
+		staged: StagedFileReference,
+	): Promise<{ fileKey: string; fileSize: number; fileName: string }> {
+		this.promoteCalls.push({ descriptor, staged });
+		this.callLog.push("attachmentStoragePort.promote");
+		// Deterministic, derived from the input -- lets a test assert the persisted fileKey
+		// without depending on real filesystem behavior.
+		return {
+			fileKey: `promoted-${staged.name}`,
+			fileSize: 1,
+			fileName: staged.name,
+		};
+	}
+
+	async delete(
+		descriptor: AttachmentDescriptor,
+		fileKey: string,
+	): Promise<void> {
+		this.deleteCalls.push({ descriptor, fileKey });
+		this.callLog.push("attachmentStoragePort.delete");
+		const failure = this.deleteFailuresByFileKey.get(fileKey);
+		if (failure !== undefined) {
+			throw failure;
+		}
+	}
+
+	async retrieve(): Promise<Buffer> {
+		throw new Error("not used by this test file");
+	}
+}
+
 const baseEventProps: HazardousEventProps = {
 	id: "event-A",
 	tenantId: "tenant-1",
@@ -509,6 +565,7 @@ function createHarness(options: HarnessOptions = {}) {
 		new FakeRecordSpatialObservationUseCase(callLog);
 	const transactionRunner = new FakeTransactionRunner(callLog);
 	const hipCrosswalkPort = new FakeHipCrosswalkPort(callLog);
+	const attachmentStoragePort = new FakeAttachmentStoragePort(callLog);
 	const useCase = new UpdateHazardousEventUseCase(
 		logger,
 		taxonomyRepository,
@@ -518,10 +575,12 @@ function createHarness(options: HarnessOptions = {}) {
 		recordSpatialObservationUseCase,
 		transactionRunner,
 		hipCrosswalkPort,
+		attachmentStoragePort,
 	);
 	return {
 		callLog,
 		hipCrosswalkPort,
+		attachmentStoragePort,
 		logger,
 		taxonomyRepository,
 		hazardousEventRepository,
@@ -609,6 +668,9 @@ describe("UpdateHazardousEventUseCase", () => {
 			const existingAttachment = {
 				id: "attachment-1",
 				title: "Original",
+				type: "File" as const,
+				url: null,
+				tag: null,
 				fileKey: "key-1",
 				fileName: "file-1.pdf",
 				fileType: "application/pdf",
@@ -636,14 +698,16 @@ describe("UpdateHazardousEventUseCase", () => {
 			);
 			expect(unchangedDto.attachments).toEqual([existingAttachment]);
 			expect(unchangedDto.fieldValues).toEqual([existingFieldValue]);
+			// Attachments field absent -- no promote/delete call at all (design.md spec:
+			// "An absent attachments field leaves existing files untouched").
+			expect(harness.attachmentStoragePort.deleteCalls).toEqual([]);
 
-			const newAttachment = {
+			const newAttachment: HazardousEventAttachmentInput = {
+				kind: "link",
 				id: "attachment-2",
 				title: "New",
-				fileKey: "key-2",
-				fileName: "file-2.pdf",
-				fileType: "application/pdf",
-				fileSize: 200,
+				tag: null,
+				url: "https://example.com/new",
 			};
 			const newFieldValue = {
 				hazardTypeFieldDefinitionId: "field-2",
@@ -657,8 +721,89 @@ describe("UpdateHazardousEventUseCase", () => {
 					fieldValues: [newFieldValue],
 				}),
 			);
-			expect(replacedDto.attachments).toEqual([newAttachment]);
+			expect(replacedDto.attachments).toEqual([
+				{
+					id: "attachment-2",
+					title: "New",
+					type: "Link",
+					url: "https://example.com/new",
+					tag: null,
+					fileKey: null,
+					fileName: null,
+					fileType: null,
+					fileSize: null,
+				},
+			]);
 			expect(replacedDto.fieldValues).toEqual([newFieldValue]);
+			// The old File-type attachment is gone from the new collection -- its on-disk file must
+			// be deleted (spec: "Removing a File-type attachment deletes its on-disk file").
+			expect(harness.attachmentStoragePort.deleteCalls).toEqual([
+				{
+					descriptor: {
+						tenantId: "tenant-1",
+						ownerType: "hazardous-event",
+						ownerId: "event-A",
+					},
+					fileKey: "key-1",
+				},
+			]);
+		});
+
+		// Gate 8 finding / Decision 7 addendum: a delete() failure on one removed attachment must
+		// not roll back the row write that already committed the other removals -- it's logged, not thrown, and every other fileKey is still attempted.
+		it("still commits the row write when one of several removed File-type attachments fails to delete, logging the failure instead of propagating it", async () => {
+			const harness = createHarness({
+				seedEvents: [
+					makeEvent({
+						attachments: [
+							{
+								id: "attachment-1",
+								title: "First",
+								type: "File",
+								url: null,
+								tag: null,
+								fileKey: "key-1",
+								fileName: "file-1.pdf",
+								fileType: "application/pdf",
+								fileSize: 100,
+							},
+							{
+								id: "attachment-2",
+								title: "Second",
+								type: "File",
+								url: null,
+								tag: null,
+								fileKey: "key-2",
+								fileName: "file-2.pdf",
+								fileType: "application/pdf",
+								fileSize: 200,
+							},
+						],
+					}),
+				],
+			});
+			harness.attachmentStoragePort.deleteFailuresByFileKey.set(
+				"key-1",
+				Object.assign(new Error("EPERM: locked"), { code: "EPERM" }),
+			);
+
+			const result = await harness.useCase.execute(
+				makeCommand({ id: "event-A", tenantId: "tenant-1", attachments: [] }),
+			);
+
+			// Row write committed despite the mid-loop failure.
+			expect(result.attachments).toEqual([]);
+			// Both removed attachments' deletes were attempted, not just the one before the failure.
+			expect(
+				harness.attachmentStoragePort.deleteCalls.map((c) => c.fileKey).sort(),
+			).toEqual(["key-1", "key-2"]);
+			// The failure was logged, not thrown back out of execute().
+			expect(harness.logger.error).toHaveBeenCalledWith(
+				expect.objectContaining({
+					msg: "hazardous_event_attachment.delete_failed",
+					fileKey: "key-1",
+				}),
+			);
 		});
 
 		it("re-validates a carried-over collection id and throws if it is no longer valid", async () => {
