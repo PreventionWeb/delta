@@ -4,9 +4,9 @@ import { useTranslation } from "react-i18next";
 import { useViewContext } from "~/frontend/context";
 import {
 	HAZARDOUS_EVENT_STATUS_VALUES,
-	type HazardousEventAttachmentProps,
 	type HazardousEventStatus,
 } from "~/domains/hazardous-events/domain/HazardousEvent";
+import type { AttachmentWidgetItem } from "./mapAttachmentsToWidgetShape";
 import type { HazardTaxonomyOptions } from "~/domains/hazardous-events/application/use-cases/GetHazardTaxonomyOptionsUseCase";
 import type { ValidatorCandidate } from "~/domains/validation-workflow/application/ports/IValidatorCandidateRepository";
 import { HazardousEventFormField } from "./HazardousEventFormField";
@@ -35,7 +35,9 @@ export interface HazardousEventFormInitialValues {
 	recordOriginator: string;
 	dataSource: string;
 	hazardousEventStatus: HazardousEventStatus | null;
-	attachments: readonly HazardousEventAttachmentProps[];
+	/** Widget's own native shape (`mapAttachmentsToWidgetShape.ts`), not the domain/persisted
+	 * shape -- the route loader maps before passing this down. */
+	attachments: readonly AttachmentWidgetItem[];
 }
 
 export interface HazardousEventFormPageProps {
@@ -232,8 +234,8 @@ export function HazardousEventFormPage({
 					htmlFor="attachments"
 					errors={fieldErrors?.attachments}
 				>
-					{/* Reuses legacy's AttachmentsFormView as-is -- no CA-native upload path exists yet,
-					 * attachments are silently dropped on save (DEF-054). Manages its own hidden field. */}
+					{/* Reuses legacy's AttachmentsFormView as-is -- no CA-native upload path exists yet
+					 * (DEF-054). Manages its own hidden field. */}
 					<AttachmentsFormView
 						ctx={ctx}
 						initialData={initialValues.attachments}
