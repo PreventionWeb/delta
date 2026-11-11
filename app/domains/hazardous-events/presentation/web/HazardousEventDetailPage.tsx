@@ -5,6 +5,11 @@ import { useViewContext } from "~/frontend/context";
 // formatDate, not formatDateDisplay -- legacy's detail view uses raw ISO dates (Gate 9 finding).
 import { formatDate } from "~/utils/date";
 import { Link } from "~/design-system/components/Link";
+import { Table } from "~/design-system/components/Table";
+import { TableColumn } from "~/design-system/components/TableColumn";
+import { TableRow } from "~/design-system/components/TableRow";
+import { TableCell } from "~/design-system/components/TableCell";
+import { attachmentLink } from "./attachmentLink";
 import { roleHasPermission } from "~/frontend/user/roles";
 import { workflowStatusDisplay } from "./workflowStatusDisplay";
 import { hazardLabel } from "./hazardLabel";
@@ -142,11 +147,42 @@ export function HazardousEventDetailPage({
 			{data.attachments.length === 0 ? (
 				<p>{t("detail.attachments_none")}</p>
 			) : (
-				<ul>
-					{data.attachments.map((attachment) => (
-						<li key={attachment.id}>{attachment.title}</li>
-					))}
-				</ul>
+				<Table
+					aria-label={t("detail.fields.attachments")}
+					header={
+						<>
+							<TableColumn id="title" isRowHeader compact>
+								{t("detail.attachments_table.columns.title")}
+							</TableColumn>
+							<TableColumn id="tags" compact>
+								{t("detail.attachments_table.columns.tags")}
+							</TableColumn>
+							<TableColumn id="file-url" compact>
+								{t("detail.attachments_table.columns.file_url")}
+							</TableColumn>
+						</>
+					}
+				>
+					{data.attachments.map((attachment) => {
+						const link = attachmentLink(data.id, attachment, ctx.url);
+						return (
+							<TableRow id={attachment.id} key={attachment.id}>
+								<TableCell compact>{orDash(attachment.title)}</TableCell>
+								<TableCell compact>
+									{attachment.tag && attachment.tag.length > 0
+										? attachment.tag.map((tag) => tag.name).join(", ")
+										: "—"}
+								</TableCell>
+								{/* focusChild: last interactive cell in the row, same as the list page's Actions column. */}
+								<TableCell focusChild compact>
+									<a href={link.href} target="_blank" rel="noopener noreferrer">
+										{link.label}
+									</a>
+								</TableCell>
+							</TableRow>
+						);
+					})}
+				</Table>
 			)}
 			<p>
 				<strong>{t("detail.fields.record_originator")}:</strong>{" "}
