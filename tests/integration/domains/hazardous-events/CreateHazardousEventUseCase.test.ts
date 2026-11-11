@@ -1,9 +1,14 @@
 import "../../db/setup";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 import { randomUUID } from "crypto";
 import { eq } from "drizzle-orm";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { dr } from "~/db.server";
+import { ValidationError } from "~/shared/errors";
 import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
+import { hazardousEventAttachmentTable } from "~/domains/hazardous-events/infrastructure/hazardousEventAttachmentTable";
 import { DrizzleTransactionRunner } from "~/infrastructure/DrizzleTransactionRunner.server";
 import { DrizzleHazardousEventRepository } from "~/domains/hazardous-events/infrastructure/DrizzleHazardousEventRepository.server";
 import { DrizzleCausalChainRepository } from "~/domains/hazardous-events/infrastructure/DrizzleCausalChainRepository.server";
@@ -18,11 +23,25 @@ import {
 	HazardousEvent,
 	type HazardousEventProps,
 } from "~/domains/hazardous-events/domain/HazardousEvent";
+import { LocalDiskAttachmentStorageAdapter } from "~/domains/shared/attachments/infrastructure/LocalDiskAttachmentStorageAdapter.server";
 import type { ILogger } from "~/shared/logging/ILogger";
 import {
 	seedCountryAccount,
 	seedSpecificHazard,
 } from "../../db/models/hazardousEventTestHelpers";
+
+// Per-test temp upload root for the real adapter (9th ctor arg) -- isolated from uploads/.
+let uploadRoot: string;
+let attachmentStoragePort: LocalDiskAttachmentStorageAdapter;
+
+beforeEach(() => {
+	uploadRoot = fs.mkdtempSync(path.join(os.tmpdir(), "delta-create-he-test-"));
+	attachmentStoragePort = new LocalDiskAttachmentStorageAdapter(uploadRoot);
+});
+
+afterEach(() => {
+	fs.rmSync(uploadRoot, { recursive: true, force: true });
+});
 
 function baseEventProps(
 	id: string,
@@ -65,6 +84,51 @@ class NoOpLogger implements ILogger {
 	debug(): void {}
 }
 
+/** Shared scaffolding for the attachment-promotion scenarios below (ca-shared-attachments-module). */
+function baseAttachmentTestCommand(tenantId: string, specificHazardId: string) {
+	return {
+		tenantId,
+		specificHazardId,
+		startDate: "2026-01-01",
+		endDate: "",
+		nationalSpecification: "",
+		description: "",
+		chainsExplanation: "",
+		magnitude: "",
+		recordOriginator: "",
+		dataSource: "",
+		hazardousEventStatus: null,
+		specificHazardLocalName: null,
+		specificHazardNationalName: null,
+		apiImportId: null,
+		actingUserId: randomUUID(),
+		hazardDriverIds: [],
+		fieldValues: [],
+		customFieldValues: [],
+	} as const;
+}
+
+function makeAttachmentTestUseCase(
+	hazardousEventRepository: DrizzleHazardousEventRepository,
+	workflowRepository: DrizzleWorkflowRepository,
+	causalChainRepository: DrizzleCausalChainRepository,
+	taxonomyRepository: DrizzleHazardTaxonomyRepository,
+	transactionRunner: DrizzleTransactionRunner,
+	hipCrosswalkPort: IHipCrosswalkPort,
+): CreateHazardousEventUseCase {
+	return new CreateHazardousEventUseCase(
+		new NoOpLogger(),
+		taxonomyRepository,
+		hazardousEventRepository,
+		new InitializeWorkflowInstanceUseCase(workflowRepository),
+		causalChainRepository,
+		{ execute: vi.fn() },
+		transactionRunner,
+		hipCrosswalkPort,
+		attachmentStoragePort,
+	);
+}
+
 describe("CreateHazardousEventUseCase against real adapters (DEF-026 rollback proof)", () => {
 	it("a stubbed rejection on the workflow insert leaves zero rows persisted — the earlier HazardousEvent insert rolls back too", async () => {
 		const tenantId = (await seedCountryAccount()) as string;
@@ -85,6 +149,7 @@ describe("CreateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			recordSpatialObservationUseCase,
 			transactionRunner,
 			hipCrosswalkPort,
+			attachmentStoragePort,
 		);
 
 		vi.spyOn(workflowRepository, "insert").mockRejectedValueOnce(
@@ -156,6 +221,7 @@ describe("CreateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			recordSpatialObservationUseCase,
 			transactionRunner,
 			hipCrosswalkPort,
+			attachmentStoragePort,
 		);
 		vi.spyOn(causalChainRepository, "saveEdge").mockRejectedValueOnce(
 			new Error("boom-save-edge"),
@@ -226,6 +292,7 @@ describe("CreateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			recordSpatialObservationUseCase,
 			transactionRunner,
 			hipCrosswalkPort,
+			attachmentStoragePort,
 		);
 
 		await expect(
@@ -285,6 +352,7 @@ describe("CreateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			recordSpatialObservationUseCase,
 			transactionRunner,
 			hipCrosswalkPort,
+			attachmentStoragePort,
 		);
 		vi.spyOn(hipCrosswalkPort, "stamp").mockRejectedValueOnce(
 			new Error("boom-stamp"),
@@ -320,5 +388,162 @@ describe("CreateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			.where(eq(hazardousEventTable.countryAccountsId, tenantId));
 		expect(rows).toHaveLength(0);
 		expect(await dr.select().from(workflowInstanceTable)).toHaveLength(0);
+	});
+});
+
+// ca-shared-attachments-module, specs/create-hazardous-event/spec.md -- real PGlite + real
+// LocalDiskAttachmentStorageAdapter, no mocks, proving promote-wiring end to end.
+describe("CreateHazardousEventUseCase attachment promotion (ca-shared-attachments-module)", () => {
+	it("promotes a File-type attachment from temp to permanent storage on create", async () => {
+		const tenantId = (await seedCountryAccount()) as string;
+		const specificHazardId = await seedSpecificHazard();
+		const hazardousEventRepository = new DrizzleHazardousEventRepository(dr);
+		const useCase = makeAttachmentTestUseCase(
+			hazardousEventRepository,
+			new DrizzleWorkflowRepository(dr),
+			new DrizzleCausalChainRepository(dr),
+			new DrizzleHazardTaxonomyRepository(dr),
+			new DrizzleTransactionRunner(dr),
+			new DrizzleHipCrosswalkAdapter(dr),
+		);
+
+		const staged = await attachmentStoragePort.stage(tenantId, {
+			name: "report.pdf",
+			content: Buffer.from("hello"),
+		});
+		const tempPath = path.join(
+			uploadRoot,
+			`tenant-${tenantId}`,
+			"temp",
+			staged.name,
+		);
+		expect(fs.existsSync(tempPath)).toBe(true);
+
+		const dto = await useCase.execute({
+			...baseAttachmentTestCommand(tenantId, specificHazardId),
+			attachments: [
+				{
+					kind: "newFile",
+					id: "1",
+					title: "Report",
+					tag: null,
+					stagedFileName: staged.name,
+					contentType: "application/pdf",
+				},
+			],
+		});
+
+		expect(dto.attachments).toHaveLength(1);
+		const [attachment] = dto.attachments;
+		expect(attachment.type).toBe("File");
+		expect(attachment.fileKey).toBe(staged.name);
+
+		// Proof is on disk, not just the DTO -- confirms the file actually moved.
+		expect(fs.existsSync(tempPath)).toBe(false);
+		const permanentPath = path.join(
+			uploadRoot,
+			`tenant-${tenantId}`,
+			"hazardous-event",
+			dto.id,
+			attachment.fileKey as string,
+		);
+		expect(fs.existsSync(permanentPath)).toBe(true);
+
+		const persisted = await hazardousEventRepository.findById(dto.id, tenantId);
+		expect(persisted.attachments[0].fileKey).toBe(staged.name);
+	});
+
+	it("persists a Link-type attachment as submitted, with no promote() call", async () => {
+		const tenantId = (await seedCountryAccount()) as string;
+		const specificHazardId = await seedSpecificHazard();
+		const hazardousEventRepository = new DrizzleHazardousEventRepository(dr);
+		const useCase = makeAttachmentTestUseCase(
+			hazardousEventRepository,
+			new DrizzleWorkflowRepository(dr),
+			new DrizzleCausalChainRepository(dr),
+			new DrizzleHazardTaxonomyRepository(dr),
+			new DrizzleTransactionRunner(dr),
+			new DrizzleHipCrosswalkAdapter(dr),
+		);
+		const promoteSpy = vi.spyOn(attachmentStoragePort, "promote");
+
+		const dto = await useCase.execute({
+			...baseAttachmentTestCommand(tenantId, specificHazardId),
+			attachments: [
+				{
+					kind: "link",
+					id: "1",
+					title: "Ref",
+					tag: null,
+					url: "https://example.com",
+				},
+			],
+		});
+
+		expect(promoteSpy).not.toHaveBeenCalled();
+		expect(dto.attachments).toHaveLength(1);
+		const [attachment] = dto.attachments;
+		expect(attachment.type).toBe("Link");
+		expect(attachment.url).toBe("https://example.com");
+		expect(attachment.fileKey).toBeNull();
+		expect(attachment.fileName).toBeNull();
+		expect(attachment.fileType).toBeNull();
+		expect(attachment.fileSize).toBeNull();
+	});
+
+	it("rolls back the whole transaction when promoting a File-type attachment fails", async () => {
+		const tenantId = (await seedCountryAccount()) as string;
+		const specificHazardId = await seedSpecificHazard();
+		const hazardousEventRepository = new DrizzleHazardousEventRepository(dr);
+		const useCase = makeAttachmentTestUseCase(
+			hazardousEventRepository,
+			new DrizzleWorkflowRepository(dr),
+			new DrizzleCausalChainRepository(dr),
+			new DrizzleHazardTaxonomyRepository(dr),
+			new DrizzleTransactionRunner(dr),
+			new DrizzleHipCrosswalkAdapter(dr),
+		);
+
+		// Diffs, not whole-table-zero -- earlier tests in this describe already committed rows.
+		const workflowCountBefore = (await dr.select().from(workflowInstanceTable))
+			.length;
+		const attachmentCountBefore = (
+			await dr.select().from(hazardousEventAttachmentTable)
+		).length;
+
+		// Must fail for the right reason: the adapter's own ValidationError wrapping the real
+		// fs.rename() ENOENT (Gate 10 finding -- a raw ENOENT would otherwise surface as a
+		// generic 500 instead of a catchable, user-facing error), since the file was never staged.
+		let caught: unknown;
+		try {
+			await useCase.execute({
+				...baseAttachmentTestCommand(tenantId, specificHazardId),
+				attachments: [
+					{
+						kind: "newFile",
+						id: "1",
+						title: "Missing",
+						tag: null,
+						stagedFileName: "never-staged-file.pdf",
+						contentType: "application/pdf",
+					},
+				],
+			});
+		} catch (err) {
+			caught = err;
+		}
+		expect(caught).toBeInstanceOf(ValidationError);
+
+		const rows = await dr
+			.select()
+			.from(hazardousEventTable)
+			.where(eq(hazardousEventTable.countryAccountsId, tenantId));
+		expect(rows).toHaveLength(0);
+		expect(await dr.select().from(workflowInstanceTable)).toHaveLength(
+			workflowCountBefore,
+		);
+		expect(await dr.select().from(hazardousEventAttachmentTable)).toHaveLength(
+			attachmentCountBefore,
+		);
 	});
 });
