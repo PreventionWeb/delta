@@ -87,7 +87,19 @@ export async function action({ request, params }: ActionFunctionArgs) {
 	const role = await requireEditDataPermission({ request });
 
 	const formData = await request.formData();
-	const parsed = parseHazardousEventFormData(formData);
+	// A malformed attachments payload now throws (Gate 10 finding: a dropped item used to mean
+	// "lost on save," now it means "removed," which deletes a real file) -- routed through the
+	// same structured-error helper every other pre-write guard in this action already uses,
+	// instead of escaping to the generic error boundary.
+	let parsed: ReturnType<typeof parseHazardousEventFormData>;
+	try {
+		parsed = parseHazardousEventFormData(formData);
+	} catch (err) {
+		throwHazardousEventLoaderError(err, {
+			logMsg: "Unhandled error parsing hazardous-event create form data",
+			url: request.url,
+		});
+	}
 
 	// Must run before CreateHazardousEventUseCase, not after -- a rejected request must not create
 	// a row a retry would duplicate (design.md Decision 25). mappedAction is threaded into

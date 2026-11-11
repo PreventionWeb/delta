@@ -27,6 +27,7 @@ import {
 	extractCauseConflictError,
 } from "~/domains/hazardous-events/presentation/web/extractFormFieldErrors";
 import { HazardousEventFormPage } from "~/domains/hazardous-events/presentation/web/HazardousEventFormPage";
+import { mapAttachmentsToWidgetShape } from "~/domains/hazardous-events/presentation/web/mapAttachmentsToWidgetShape";
 import { ConflictError, ValidationError } from "~/shared/errors";
 import { getInstance } from "~/middleware/i18next.server";
 import { MainContainer } from "~/frontend/container";
@@ -105,7 +106,19 @@ export async function action({ request, params }: ActionFunctionArgs) {
 	});
 
 	const formData = await request.formData();
-	const parsed = parseHazardousEventFormData(formData);
+	// A malformed attachments payload now throws (Gate 10 finding: a dropped item used to mean
+	// "lost on save," now it means "removed," which deletes a real file) -- routed through the
+	// same structured-error helper every other pre-write guard in this action already uses,
+	// instead of escaping to the generic error boundary.
+	let parsed: ReturnType<typeof parseHazardousEventFormData>;
+	try {
+		parsed = parseHazardousEventFormData(formData);
+	} catch (err) {
+		throwHazardousEventLoaderError(err, {
+			logMsg: "Unhandled error parsing hazardous-event edit form data",
+			url: request.url,
+		});
+	}
 
 	// Must run before UpdateHazardousEventUseCase, not after -- a rejected request must not silently
 	// apply its content edit anyway (design.md Decision 25). mappedAction is threaded into
@@ -255,7 +268,10 @@ export default function HazardousEventEditRoute() {
 					recordOriginator: event.recordOriginator,
 					dataSource: event.dataSource,
 					hazardousEventStatus: event.hazardousEventStatus,
-					attachments: event.attachments,
+					attachments: mapAttachmentsToWidgetShape(event.attachments, {
+						tenantId: event.tenantId,
+						hazardousEventId: event.id,
+					}),
 				}}
 			/>
 		</MainContainer>
