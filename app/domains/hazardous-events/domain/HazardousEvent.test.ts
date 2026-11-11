@@ -3,6 +3,7 @@ import { ValidationError } from "~/shared/errors";
 import {
 	HazardousEvent,
 	HAZARDOUS_EVENT_STATUS_VALUES,
+	type HazardousEventAttachmentProps,
 	type HazardousEventProps,
 } from "./HazardousEvent";
 
@@ -441,6 +442,9 @@ describe("HazardousEvent.create()", () => {
 					{
 						id: "att-1",
 						title: "Photo",
+						type: "File",
+						url: null,
+						tag: null,
 						fileKey: "k1",
 						fileName: "photo.jpg",
 						fileType: "image/jpeg",
@@ -888,14 +892,29 @@ describe("HazardousEvent.create()", () => {
 		});
 	});
 
-	describe("HazardousEvent validates the attachment collection (spec: hazardous-event-entity)", () => {
-		const validAttachment = {
+	describe("HazardousEvent validates the attachment collection (spec: hazardous-event-attachment-schema)", () => {
+		const validFileAttachment = {
 			id: "att-1",
 			title: "Photo",
+			type: "File" as const,
+			url: null,
+			tag: null,
 			fileKey: "k1",
 			fileName: "photo.jpg",
 			fileType: "image/jpeg",
 			fileSize: 204800,
+		};
+
+		const validLinkAttachment = {
+			id: "att-2",
+			title: "Reference",
+			type: "Link" as const,
+			url: "https://example.com",
+			tag: null,
+			fileKey: null,
+			fileName: null,
+			fileType: null,
+			fileSize: null,
 		};
 
 		it("does not throw for an empty attachments array", () => {
@@ -904,15 +923,37 @@ describe("HazardousEvent.create()", () => {
 			expect(() => createHazardousEvent(props)).not.toThrow();
 		});
 
-		it("accepts a well-formed attachment and returns it unchanged", () => {
+		it("accepts a well-formed File-type attachment and returns it unchanged", () => {
 			const props: HazardousEventProps = {
 				...baseProps,
-				attachments: [validAttachment],
+				attachments: [validFileAttachment],
 			};
 
 			const instance = createHazardousEvent(props);
 
-			expect(instance.attachments[0]).toEqual(validAttachment);
+			expect(instance.attachments[0]).toEqual(validFileAttachment);
+		});
+
+		it("accepts a well-formed Link-type attachment and returns it unchanged", () => {
+			const props: HazardousEventProps = {
+				...baseProps,
+				attachments: [validLinkAttachment],
+			};
+
+			const instance = createHazardousEvent(props);
+
+			expect(instance.attachments[0]).toEqual(validLinkAttachment);
+		});
+
+		// Spec: "title MUST be not-null (an empty string is a valid value)" -- the widget has no
+		// required dialog fields.
+		it("does not throw when title is an empty string", () => {
+			const props: HazardousEventProps = {
+				...baseProps,
+				attachments: [{ ...validFileAttachment, title: "" }],
+			};
+
+			expect(() => createHazardousEvent(props)).not.toThrow();
 		});
 
 		it("throws ValidationError referencing attachments when it is not an array", () => {
@@ -939,12 +980,12 @@ describe("HazardousEvent.create()", () => {
 		);
 
 		// Each field must name itself in the error -- a mutant that always reports "title" would survive otherwise.
-		it.each(["title", "fileKey", "fileName", "fileType"] as const)(
-			"throws ValidationError referencing %s when it is empty",
+		it.each(["fileKey", "fileName", "fileType"] as const)(
+			"throws ValidationError referencing %s when a File-type attachment has it empty",
 			(field) => {
 				const props: HazardousEventProps = {
 					...baseProps,
-					attachments: [{ ...validAttachment, [field]: "" }],
+					attachments: [{ ...validFileAttachment, [field]: "" }],
 				};
 
 				expect(() => createHazardousEvent(props)).toThrow(ValidationError);
@@ -952,21 +993,48 @@ describe("HazardousEvent.create()", () => {
 			},
 		);
 
-		it("throws ValidationError when a required text field is whitespace-only", () => {
+		it("throws ValidationError when a File-type attachment also has a non-null url", () => {
 			const props: HazardousEventProps = {
 				...baseProps,
-				attachments: [{ ...validAttachment, title: "   " }],
+				attachments: [{ ...validFileAttachment, url: "https://example.com" }],
 			};
 
 			expect(() => createHazardousEvent(props)).toThrow(ValidationError);
 		});
 
+		it("throws ValidationError when a Link-type attachment's url is not a string", () => {
+			const props: HazardousEventProps = {
+				...baseProps,
+				attachments: [{ ...validLinkAttachment, url: null }],
+			};
+
+			expect(() => createHazardousEvent(props)).toThrow(ValidationError);
+			expect(() => createHazardousEvent(props)).toThrow(/url/);
+		});
+
+		it.each(["fileKey", "fileName", "fileType", "fileSize"] as const)(
+			"throws ValidationError when a Link-type attachment also has a non-null %s",
+			(field) => {
+				const props: HazardousEventProps = {
+					...baseProps,
+					attachments: [
+						{
+							...validLinkAttachment,
+							[field]: field === "fileSize" ? 1 : "stale",
+						},
+					],
+				};
+
+				expect(() => createHazardousEvent(props)).toThrow(ValidationError);
+			},
+		);
+
 		it("throws ValidationError referencing fileSize when it is not a finite integer", () => {
 			const cases = [
-				{ ...validAttachment, fileSize: "204800" },
-				{ ...validAttachment, fileSize: NaN },
-				{ ...validAttachment, fileSize: Infinity },
-				{ ...validAttachment, fileSize: 1.5 },
+				{ ...validFileAttachment, fileSize: "204800" },
+				{ ...validFileAttachment, fileSize: NaN },
+				{ ...validFileAttachment, fileSize: Infinity },
+				{ ...validFileAttachment, fileSize: 1.5 },
 			];
 
 			for (const attachment of cases) {
@@ -983,7 +1051,7 @@ describe("HazardousEvent.create()", () => {
 		it("does not throw solely because fileSize is 0 (shape only, no positivity rule)", () => {
 			const props: HazardousEventProps = {
 				...baseProps,
-				attachments: [{ ...validAttachment, fileSize: 0 }],
+				attachments: [{ ...validFileAttachment, fileSize: 0 }],
 			};
 
 			expect(() => createHazardousEvent(props)).not.toThrow();
@@ -993,10 +1061,36 @@ describe("HazardousEvent.create()", () => {
 		it("does not throw when an attachment's id is an empty string", () => {
 			const props: HazardousEventProps = {
 				...baseProps,
-				attachments: [{ ...validAttachment, id: "" }],
+				attachments: [{ ...validFileAttachment, id: "" }],
 			};
 
 			expect(() => createHazardousEvent(props)).not.toThrow();
+		});
+
+		it("does not throw when tag is a populated array of {id, name} objects", () => {
+			const props: HazardousEventProps = {
+				...baseProps,
+				attachments: [
+					{
+						...validFileAttachment,
+						tag: [{ id: "t1", name: "Flood" }],
+					},
+				],
+			};
+
+			expect(() => createHazardousEvent(props)).not.toThrow();
+		});
+
+		it("throws ValidationError when tag is neither null nor an array", () => {
+			const props: HazardousEventProps = {
+				...baseProps,
+				attachments: [
+					{ ...validFileAttachment, tag: "not-an-array" },
+				] as unknown as HazardousEventAttachmentProps[],
+			};
+
+			expect(() => createHazardousEvent(props)).toThrow(ValidationError);
+			expect(() => createHazardousEvent(props)).toThrow(/tag/);
 		});
 	});
 
@@ -1305,6 +1399,9 @@ describe("HazardousEvent.create()", () => {
 			const attachment = {
 				id: "att-1",
 				title: "Photo",
+				type: "File" as const,
+				url: null,
+				tag: null,
 				fileKey: "k1",
 				fileName: "photo.jpg",
 				fileType: "image/jpeg",
@@ -1325,6 +1422,9 @@ describe("HazardousEvent.create()", () => {
 			const attachment = {
 				id: "att-1",
 				title: "Photo",
+				type: "File" as const,
+				url: null,
+				tag: null,
 				fileKey: "k1",
 				fileName: "photo.jpg",
 				fileType: "image/jpeg",
@@ -1345,6 +1445,9 @@ describe("HazardousEvent.create()", () => {
 			const attachment = {
 				id: "att-1",
 				title: "Photo",
+				type: "File" as const,
+				url: null,
+				tag: null,
 				fileKey: "k1",
 				fileName: "photo.jpg",
 				fileType: "image/jpeg",

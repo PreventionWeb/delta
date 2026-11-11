@@ -6,6 +6,10 @@ import {
 	type HazardousEventProps,
 	type HazardousEventStatus,
 } from "../../domain/HazardousEvent";
+import type { HazardousEventAttachmentInput } from "../dto/HazardousEventAttachmentInput";
+import { resolveAttachmentsForWrite } from "./resolveAttachmentsForWrite";
+import { deleteAttachmentFiles } from "./deleteAttachmentFiles";
+import type { IAttachmentStoragePort } from "~/domains/shared/attachments/application/ports/IAttachmentStoragePort";
 import {
 	assertCausalLinkDoesNotCreateCycle,
 	assertCauseStartsNoLaterThanEffect,
@@ -56,7 +60,7 @@ export interface UpdateHazardousEventCommand {
 	specificHazardLocalName?: string | null;
 	specificHazardNationalName?: string | null;
 	hazardDriverIds?: readonly string[];
-	attachments?: readonly HazardousEventAttachmentProps[];
+	attachments?: readonly HazardousEventAttachmentInput[];
 	fieldValues?: readonly HazardousEventFieldValueProps[];
 	customFieldValues?: readonly HazardousEventCustomFieldValueProps[];
 	/** undefined leaves the causal link unchanged; null or "" clears it; a string sets it. */
@@ -117,6 +121,9 @@ function buildUpdatedEventProps(
 	mergedHazardDriverIds: readonly string[],
 	mergedCustomFieldValues: readonly HazardousEventCustomFieldValueProps[],
 	now: Date,
+	// Already resolved (promote() called for new File items) -- never command.attachments
+	// directly; see resolveAttachmentsForWrite.ts / design.md Decision 7.
+	resolvedAttachments: readonly HazardousEventAttachmentProps[],
 ): HazardousEventProps {
 	return {
 		id: existingEvent.id,
@@ -159,10 +166,7 @@ function buildUpdatedEventProps(
 		createdAt: existingEvent.createdAt,
 		updatedAt: now,
 		hazardDriverIds: mergedHazardDriverIds,
-		attachments:
-			command.attachments !== undefined
-				? command.attachments
-				: existingEvent.attachments,
+		attachments: resolvedAttachments,
 		fieldValues:
 			command.fieldValues !== undefined
 				? command.fieldValues
@@ -189,6 +193,11 @@ export class UpdateHazardousEventUseCase {
 		// TEMPORARY (DEF-055, design.md Decision 17) -- deleted once every dependent domain stops
 		// reading hip_hazard_id/hip_cluster_id/hip_type_id off hazardous_event.
 		private readonly hipCrosswalkPort: IHipCrosswalkPort,
+		// Narrowed to the two methods actually used (Gate 5/SOLID ISP finding).
+		private readonly attachmentStoragePort: Pick<
+			IAttachmentStoragePort,
+			"promote" | "delete"
+		>,
 	) {}
 
 	async execute(
@@ -237,29 +246,28 @@ export class UpdateHazardousEventUseCase {
 				command.tenantId,
 			);
 
-		const updatedEvent = HazardousEvent.create(
-			buildUpdatedEventProps(
-				existingEvent,
-				command,
-				mergedHazardDriverIds,
-				mergedCustomFieldValues,
-				new Date(),
-			),
-			validHazardDriverIds,
-			validCustomFieldDefinitionIds,
-		);
+		// Entity construction itself now happens inside the transaction, after promote()
+		// resolves attachments (Decision 7) -- these are the merged values it needs pre-transaction.
+		const mergedSpecificHazardId =
+			command.specificHazardId !== undefined
+				? command.specificHazardId
+				: existingEvent.specificHazardId;
+		const mergedStartDate =
+			command.startDate !== undefined
+				? command.startDate
+				: existingEvent.startDate;
 
 		// Re-resolved from the merged, final specificHazardId on every update, unconditionally --
 		// not only when the command changes it (design.md Decision 17: resting correctness on an
 		// unverified assumption about Phase M's own backfill is exactly the kind of guess this
 		// project's standing rule against assuming is written to prevent).
 		const hipCrosswalkIds = await this.hipCrosswalkPort.resolve(
-			updatedEvent.specificHazardId,
+			mergedSpecificHazardId,
 		);
 
 		const cause = await this.validateCauseIfSet(
 			causeAction,
-			updatedEvent,
+			{ id: existingEvent.id, startDate: mergedStartDate },
 			command.tenantId,
 		);
 
@@ -267,6 +275,32 @@ export class UpdateHazardousEventUseCase {
 		// earlier write in this same call, including the delegated spatial-observation attempt.
 		const { saved, savedSpatialObservation } = await this.transactionRunner.run(
 			async (tx) => {
+				// promote()/delete() run inside the transaction (Decision 7); delete() happens
+				// after the row write below, not here -- so a losing concurrent caller (rejected
+				// by update()'s optimistic lock) can't delete a file the winner's row still points at.
+				const { attachments: resolvedAttachments, fileKeysToDelete } =
+					command.attachments !== undefined
+						? await resolveAttachmentsForWrite(
+								command.attachments,
+								existingEvent.attachments,
+								this.attachmentStoragePort,
+								{ tenantId: command.tenantId, ownerId: existingEvent.id },
+							)
+						: { attachments: existingEvent.attachments, fileKeysToDelete: [] };
+
+				const updatedEvent = HazardousEvent.create(
+					buildUpdatedEventProps(
+						existingEvent,
+						command,
+						mergedHazardDriverIds,
+						mergedCustomFieldValues,
+						new Date(),
+						resolvedAttachments,
+					),
+					validHazardDriverIds,
+					validCustomFieldDefinitionIds,
+				);
+
 				const saved = await this.hazardousEventRepository.update(
 					updatedEvent,
 					existingEvent.updatedAt,
@@ -303,6 +337,19 @@ export class UpdateHazardousEventUseCase {
 						});
 				}
 
+				// Last in the transaction, after every step that can still throw (Gate 5 finding) --
+				// a failure in applyCausalEdgeChange/recordSpatialObservation after an earlier delete()
+				// would roll the row back to its old fileKey while the already-deleted file stays gone
+				// (Decision 7's dangling-reference case). deleteAttachmentFiles also swallows per-file
+				// failures rather than throwing (Decision 7 addendum), so nothing here can trigger that rollback.
+				await deleteAttachmentFiles(
+					this.attachmentStoragePort,
+					this.logger,
+					command.tenantId,
+					existingEvent.id,
+					fileKeysToDelete,
+				);
+
 				return { saved, savedSpatialObservation };
 			},
 		);
@@ -335,7 +382,8 @@ export class UpdateHazardousEventUseCase {
 
 	private async validateCauseIfSet(
 		causeAction: CauseAction,
-		updatedEvent: HazardousEvent,
+		// Raw id/startDate, not a constructed entity's -- same reason as above (Decision 7).
+		updatedEvent: { id: string; startDate: string },
 		tenantId: string,
 	): Promise<HazardousEvent | undefined> {
 		if (causeAction.kind !== "set") {

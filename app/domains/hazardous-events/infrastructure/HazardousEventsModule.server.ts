@@ -16,6 +16,10 @@ import { EventCausalityModule } from "~/domains/event-causality/infrastructure/E
 import { EVENT_CAUSALITY_REPOSITORY } from "~/domains/event-causality/infrastructure/EventCausalityRepositoryToken";
 import type { IEventCausalityRepository } from "~/domains/event-causality/application/ports/IEventCausalityRepository";
 
+import { SharedAttachmentStorageModule } from "~/domains/shared/attachments/infrastructure/SharedAttachmentStorageModule.server";
+import { ATTACHMENT_STORAGE_PORT } from "~/domains/shared/attachments/infrastructure/AttachmentStoragePortToken";
+import type { IAttachmentStoragePort } from "~/domains/shared/attachments/application/ports/IAttachmentStoragePort";
+
 import { GetHazardousEventByIdUseCase } from "~/domains/hazardous-events/application/use-cases/GetHazardousEventById";
 import { ListHazardousEventsUseCase } from "~/domains/hazardous-events/application/use-cases/ListHazardousEvents";
 import { GetHazardTaxonomyOptionsUseCase } from "~/domains/hazardous-events/application/use-cases/GetHazardTaxonomyOptionsUseCase";
@@ -50,6 +54,8 @@ import { HIP_CROSSWALK_PORT } from "./HipCrosswalkPortToken";
 		ValidationWorkflowModule,
 		// For IEventCausalityRepository — DeleteHazardousEventUseCase's own dependency.
 		EventCausalityModule,
+		// For ATTACHMENT_STORAGE_PORT — Create/Update/DeleteHazardousEventUseCase's own dependency.
+		SharedAttachmentStorageModule,
 	],
 	providers: [
 		// Returns the same global dr singleton — no new DB connection.
@@ -172,6 +178,7 @@ import { HIP_CROSSWALK_PORT } from "./HipCrosswalkPortToken";
 				>,
 				transactionRunner: ITransactionRunner,
 				hipCrosswalkPort: IHipCrosswalkPort,
+				attachmentStoragePort: IAttachmentStoragePort,
 			) =>
 				new CreateHazardousEventUseCase(
 					getPinoLogger(),
@@ -182,6 +189,7 @@ import { HIP_CROSSWALK_PORT } from "./HipCrosswalkPortToken";
 					recordSpatialObservationUseCase,
 					transactionRunner,
 					hipCrosswalkPort,
+					attachmentStoragePort,
 				),
 			inject: [
 				HAZARD_TAXONOMY_REPOSITORY,
@@ -191,6 +199,7 @@ import { HIP_CROSSWALK_PORT } from "./HipCrosswalkPortToken";
 				RecordSpatialObservationUseCase,
 				TRANSACTION_RUNNER,
 				HIP_CROSSWALK_PORT,
+				ATTACHMENT_STORAGE_PORT,
 			],
 		},
 		{
@@ -204,6 +213,7 @@ import { HIP_CROSSWALK_PORT } from "./HipCrosswalkPortToken";
 					"execute"
 				>,
 				transactionRunner: ITransactionRunner,
+				attachmentStoragePort: IAttachmentStoragePort,
 			) =>
 				new DeleteHazardousEventUseCase(
 					getPinoLogger(),
@@ -212,6 +222,7 @@ import { HIP_CROSSWALK_PORT } from "./HipCrosswalkPortToken";
 					causalChainRepository,
 					deleteWorkflowInstanceUseCase,
 					transactionRunner,
+					attachmentStoragePort,
 				),
 			inject: [
 				HAZARDOUS_EVENT_REPOSITORY,
@@ -219,6 +230,7 @@ import { HIP_CROSSWALK_PORT } from "./HipCrosswalkPortToken";
 				CAUSAL_CHAIN_REPOSITORY,
 				DeleteWorkflowInstanceUseCase,
 				TRANSACTION_RUNNER,
+				ATTACHMENT_STORAGE_PORT,
 			],
 		},
 		{
@@ -239,6 +251,7 @@ import { HIP_CROSSWALK_PORT } from "./HipCrosswalkPortToken";
 				>,
 				transactionRunner: ITransactionRunner,
 				hipCrosswalkPort: IHipCrosswalkPort,
+				attachmentStoragePort: IAttachmentStoragePort,
 			) =>
 				new UpdateHazardousEventUseCase(
 					getPinoLogger(),
@@ -249,6 +262,7 @@ import { HIP_CROSSWALK_PORT } from "./HipCrosswalkPortToken";
 					recordSpatialObservationUseCase,
 					transactionRunner,
 					hipCrosswalkPort,
+					attachmentStoragePort,
 				),
 			inject: [
 				HAZARD_TAXONOMY_REPOSITORY,
@@ -258,6 +272,7 @@ import { HIP_CROSSWALK_PORT } from "./HipCrosswalkPortToken";
 				RecordSpatialObservationUseCase,
 				TRANSACTION_RUNNER,
 				HIP_CROSSWALK_PORT,
+				ATTACHMENT_STORAGE_PORT,
 			],
 		},
 	],
