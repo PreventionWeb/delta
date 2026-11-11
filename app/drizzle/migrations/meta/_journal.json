@@ -470,6 +470,13 @@
       "when": 1793020858486,
       "tag": "20261026185058_revert_workflow_instance_validated_rename",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1793888677705,
+      "tag": "20261105142400_reshape_hazardous_event_attachment_for_widget_shape",
+      "breakpoints": true
     }
   ]
 }
