@@ -15,8 +15,13 @@ import type { IHazardousEventRepository } from "../ports/IHazardousEventReposito
 import type { ICausalChainRepository } from "../ports/ICausalChainRepository";
 import type { IHazardTaxonomyRepository } from "../ports/IHazardTaxonomyRepository";
 import type { IHipCrosswalkPort } from "../ports/IHipCrosswalkPort";
+import type { IAuditLogPort } from "~/domains/shared/audit-log/application/ports/IAuditLogPort";
 import type { HazardousEventDto } from "../dto/HazardousEventDto";
-import { toHazardousEventDto } from "../dto/HazardousEventDto";
+import {
+	HAZARDOUS_EVENT_AUDIT_TABLE_NAME,
+	mapHazardousEventFields,
+	toHazardousEventDto,
+} from "../dto/HazardousEventDto";
 import type {
 	RecordSpatialObservationCommand,
 	RecordSpatialObservationUseCase,
@@ -123,6 +128,7 @@ export class CreateHazardousEventUseCase {
 			IAttachmentStoragePort,
 			"promote"
 		>,
+		private readonly auditLogPort: Pick<IAuditLogPort, "record">,
 	) {}
 
 	async execute(
@@ -219,6 +225,20 @@ export class CreateHazardousEventUseCase {
 				);
 
 				const saved = await this.hazardousEventRepository.insert(newEvent, tx);
+
+				// Same tx as the insert (Decision 6); newValues kept raw, not JSON.stringify()'d (Decision 4).
+				await this.auditLogPort.record(
+					{
+						tableName: HAZARDOUS_EVENT_AUDIT_TABLE_NAME,
+						recordId: saved.id,
+						userId: command.actingUserId,
+						action: "Create hazardous event",
+						oldValues: null,
+						newValues: mapHazardousEventFields(saved),
+						countryAccountsId: command.tenantId,
+					},
+					tx,
+				);
 
 				// Immediately after the event insert, same tx -- a stamp() failure rolls back the
 				// insert too (design.md Decision 17).

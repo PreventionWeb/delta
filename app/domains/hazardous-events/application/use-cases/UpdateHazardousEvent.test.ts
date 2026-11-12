@@ -34,6 +34,10 @@ import type {
 	StagedFileReference,
 } from "~/domains/shared/attachments/application/ports/IAttachmentStoragePort";
 import type { HazardousEventAttachmentInput } from "../dto/HazardousEventAttachmentInput";
+import type {
+	AuditLogEntry,
+	IAuditLogPort,
+} from "~/domains/shared/audit-log/application/ports/IAuditLogPort";
 import {
 	UpdateHazardousEventUseCase,
 	type UpdateHazardousEventCommand,
@@ -478,6 +482,21 @@ class FakeAttachmentStoragePort implements IAttachmentStoragePort {
 	}
 }
 
+class FakeAuditLogPort implements Pick<IAuditLogPort, "record"> {
+	readonly recordCalls: { entry: AuditLogEntry; tx: Tx | undefined }[] = [];
+	recordBehavior: "succeed" | Error = "succeed";
+
+	constructor(private readonly callLog: string[] = []) {}
+
+	async record(entry: AuditLogEntry, tx?: Tx): Promise<void> {
+		this.recordCalls.push({ entry, tx });
+		this.callLog.push("auditLogPort.record");
+		if (this.recordBehavior instanceof Error) {
+			throw this.recordBehavior;
+		}
+	}
+}
+
 const baseEventProps: HazardousEventProps = {
 	id: "event-A",
 	tenantId: "tenant-1",
@@ -566,6 +585,7 @@ function createHarness(options: HarnessOptions = {}) {
 	const transactionRunner = new FakeTransactionRunner(callLog);
 	const hipCrosswalkPort = new FakeHipCrosswalkPort(callLog);
 	const attachmentStoragePort = new FakeAttachmentStoragePort(callLog);
+	const auditLogPort = new FakeAuditLogPort(callLog);
 	const useCase = new UpdateHazardousEventUseCase(
 		logger,
 		taxonomyRepository,
@@ -576,11 +596,13 @@ function createHarness(options: HarnessOptions = {}) {
 		transactionRunner,
 		hipCrosswalkPort,
 		attachmentStoragePort,
+		auditLogPort,
 	);
 	return {
 		callLog,
 		hipCrosswalkPort,
 		attachmentStoragePort,
+		auditLogPort,
 		logger,
 		taxonomyRepository,
 		hazardousEventRepository,
@@ -1677,6 +1699,7 @@ describe("UpdateHazardousEventUseCase", () => {
 			expect(harness.callLog).toEqual([
 				"hipCrosswalkPort.resolve",
 				"hazardousEvent.update",
+				"auditLogPort.record",
 				"hipCrosswalkPort.stamp",
 				"transactionRunner.run.resolving",
 				"logger.info",
@@ -1776,6 +1799,7 @@ describe("UpdateHazardousEventUseCase", () => {
 			expect(harness.callLog).toEqual([
 				"hipCrosswalkPort.resolve",
 				"hazardousEvent.update",
+				"auditLogPort.record",
 				"hipCrosswalkPort.stamp",
 				"spatialObservation.execute",
 			]);
@@ -2239,6 +2263,53 @@ describe("UpdateHazardousEventUseCase", () => {
 				ConcurrentModificationError,
 			);
 			expect(harness.hipCrosswalkPort.stampCalls).toHaveLength(1);
+		});
+	});
+
+	// design.md Decision 6: record() runs inside the transaction, immediately after update() succeeds.
+	describe("IAuditLogPort composition (design.md Decision 6)", () => {
+		it("calls record() with the pre-update and post-update rows, the command's own actingUserId/tenantId, and the same tx", async () => {
+			const harness = createHarness();
+
+			await harness.useCase.execute(
+				makeCommand({
+					id: "event-A",
+					tenantId: "tenant-1",
+					actingUserId: "user-9",
+					description: "Updated description",
+				}),
+			);
+
+			expect(harness.auditLogPort.recordCalls).toHaveLength(1);
+			const [{ entry, tx }] = harness.auditLogPort.recordCalls;
+			expect(entry).toMatchObject({
+				tableName: "hazardous_event",
+				recordId: "event-A",
+				userId: "user-9",
+				action: "Update hazardous event",
+				countryAccountsId: "tenant-1",
+			});
+			expect((entry.oldValues as { description: string }).description).toBe(
+				"Original",
+			);
+			expect((entry.newValues as { description: string }).description).toBe(
+				"Updated description",
+			);
+			expect(tx).toBeDefined();
+		});
+
+		it("propagates a rejection from record(), logging nothing", async () => {
+			const harness = createHarness();
+			const thrown = new Error("boom-audit-record");
+			harness.auditLogPort.recordBehavior = thrown;
+
+			await expect(
+				harness.useCase.execute(
+					makeCommand({ id: "event-A", tenantId: "tenant-1" }),
+				),
+			).rejects.toBe(thrown);
+
+			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 	});
 });

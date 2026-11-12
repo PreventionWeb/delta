@@ -8,6 +8,11 @@ import type { DeleteWorkflowInstanceUseCase } from "~/domains/validation-workflo
 import type { ILogger } from "~/shared/logging/ILogger";
 import type { ITransactionRunner } from "~/shared/persistence/ITransactionRunner";
 import type { IAttachmentStoragePort } from "~/domains/shared/attachments/application/ports/IAttachmentStoragePort";
+import type { IAuditLogPort } from "~/domains/shared/audit-log/application/ports/IAuditLogPort";
+import {
+	HAZARDOUS_EVENT_AUDIT_TABLE_NAME,
+	mapHazardousEventFields,
+} from "../dto/HazardousEventDto";
 import { deleteAttachmentFiles } from "./deleteAttachmentFiles";
 import { ConflictError, NotFoundError } from "~/shared/errors";
 import { assertNonEmptyString } from "../assertNonEmptyString";
@@ -69,6 +74,7 @@ export class DeleteHazardousEventUseCase {
 			IAttachmentStoragePort,
 			"delete"
 		>,
+		private readonly auditLogPort: Pick<IAuditLogPort, "record">,
 	) {}
 
 	async execute(command: DeleteHazardousEventCommand): Promise<void> {
@@ -136,6 +142,20 @@ export class DeleteHazardousEventUseCase {
 			await this.hazardousEventRepository.delete(
 				command.id,
 				command.tenantId,
+				tx,
+			);
+
+			// Same tx as the delete (Decision 6); lowercase "delete" reproduces legacy's quirk (Decision 3).
+			await this.auditLogPort.record(
+				{
+					tableName: HAZARDOUS_EVENT_AUDIT_TABLE_NAME,
+					recordId: command.id,
+					userId: command.actingUserId,
+					action: "delete",
+					oldValues: mapHazardousEventFields(locked),
+					newValues: null,
+					countryAccountsId: command.tenantId,
+				},
 				tx,
 			);
 
