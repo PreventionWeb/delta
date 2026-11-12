@@ -9,13 +9,14 @@ import { createRequestHandler } from "@react-router/express";
 import { NestFactory } from "@nestjs/core";
 import { ExpressAdapter } from "@nestjs/platform-express";
 
-import { mountOpenApiDocs } from "./app/init.server";
+import { initServer, mountOpenApiDocs } from "./app/init.server";
 import { CoreModule } from "./app/infrastructure/CoreModule.server";
 import { API_GLOBAL_PREFIX } from "./app/shared/openApiDocsPath";
 import { pathToFileURL } from "node:url";
 
 export async function createUnifiedServer() {
 	process.env.API_HTTP_SERVER_ENABLED = "false";
+	await initServer();
 	const isProduction = process.env.NODE_ENV === "production";
 	const app = express();
 	app.disable("x-powered-by");

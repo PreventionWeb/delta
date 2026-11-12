@@ -7,7 +7,7 @@
  */
 import { type FactoryProvider, type InjectionToken } from "@nestjs/common";
 
-import { type Dr, dr } from "~/db.server";
+import { type Dr, dr, initDB } from "~/db.server";
 
 /**
  * Typed injection token for the Drizzle client singleton.
@@ -26,5 +26,10 @@ export const DRIZZLE_CLIENT: InjectionToken<Dr> = Symbol("DRIZZLE_CLIENT");
  */
 export const DrizzleProvider: FactoryProvider<Dr> = {
 	provide: DRIZZLE_CLIENT,
-	useFactory: (): Dr => dr,
+	useFactory: (): Dr => {
+		if (!dr) {
+			initDB();
+		}
+		return dr;
+	},
 };

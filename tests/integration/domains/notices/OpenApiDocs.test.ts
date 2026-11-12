@@ -38,6 +38,14 @@ describe("OpenAPI docs bootstrap", () => {
 		expect(res.headers["content-type"]).toMatch(/text\/html/);
 	});
 
+	it("GET /api/v2/docs injects security script and styles to mask X-Auth credentials", async () => {
+		const res = await request.get("/api/v2/docs");
+
+		expect(res.status).toBe(200);
+		expect(res.text).toContain("[DELTA API KEY]");
+		expect(res.text).toContain("-webkit-text-security: disc");
+	});
+
 	it("GET /api/v2/docs-json returns a well-formed OpenAPI document", async () => {
 		const res = await request.get("/api/v2/docs-json");
 
@@ -105,7 +113,24 @@ describe("OpenAPI docs bootstrap", () => {
 		expect(Object.keys(schema).length).toBeGreaterThan(0);
 	});
 
-	it("every Notices operation lists a security requirement", async () => {
+	it("the OpenAPI document defines x-auth and omits cookie security scheme", async () => {
+		const res = await request.get("/api/v2/docs-json");
+
+		const schemes = res.body.components?.securitySchemes;
+		expect(schemes).toBeDefined();
+		expect(schemes["x-auth"]).toEqual(
+			expect.objectContaining({
+				type: "apiKey",
+				in: "header",
+				name: "X-Auth",
+			}),
+		);
+		// Cookie input is omitted from OpenAPI components to avoid exposing a misleading
+		// session cookie paste input in the Authorize modal.
+		expect(schemes["cookie"]).toBeUndefined();
+	});
+
+	it("every Notices operation lists x-auth in security requirements", async () => {
 		const res = await request.get("/api/v2/docs-json");
 
 		const allOps = [
@@ -117,7 +142,12 @@ describe("OpenAPI docs bootstrap", () => {
 		];
 		for (const op of allOps) {
 			expect(op.security).toBeDefined();
-			expect(op.security.length).toBeGreaterThan(0);
+			expect(op.security.length).toBeGreaterThanOrEqual(1);
+			const securityNames = op.security.flatMap(
+				(s: Record<string, unknown[]>) => Object.keys(s),
+			);
+			expect(securityNames).toContain("x-auth");
+			expect(securityNames).not.toContain("cookie");
 		}
 	});
 

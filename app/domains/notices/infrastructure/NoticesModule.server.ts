@@ -25,7 +25,11 @@ import { GetNoticeByIdUseCase } from "~/domains/notices/application/use-cases/Ge
 import { UpdateNoticeUseCase } from "~/domains/notices/application/use-cases/UpdateNotice";
 import { DeleteNoticeUseCase } from "~/domains/notices/application/use-cases/DeleteNotice";
 import { NoticesController } from "~/domains/notices/presentation/NoticesController.server";
-import { SessionAuthGuard } from "~/domains/notices/presentation/guards/SessionAuthGuard.server";
+import {
+	ApiKeyAuthGuard,
+	SessionAuthGuard,
+	ApiKeyOrSessionAuthGuard,
+} from "~/infrastructure/guards";
 import { DrizzleNoticeRepository } from "./DrizzleNoticeRepository.server";
 import { NOTICE_REPOSITORY } from "./NoticeRepositoryToken";
 import type { INoticeRepository } from "~/domains/notices/application/ports/INoticeRepository";
@@ -74,7 +78,9 @@ import type { INoticeRepository } from "~/domains/notices/application/ports/INot
 				new DeleteNoticeUseCase(getPinoLogger(), repo),
 			inject: [NOTICE_REPOSITORY],
 		},
+		ApiKeyAuthGuard,
 		SessionAuthGuard,
+		ApiKeyOrSessionAuthGuard,
 		RequestContextMiddleware,
 	],
 	// Export the use cases so they are resolvable from consuming modules (e.g. CoreModule).
