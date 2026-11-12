@@ -12,6 +12,7 @@ import { ValidationWorkflowModule } from "~/domains/validation-workflow/infrastr
 import { WORKFLOW_REPOSITORY } from "~/domains/validation-workflow/infrastructure/WorkflowRepositoryToken";
 import { NOTIFICATION_PORT } from "~/domains/validation-workflow/infrastructure/NotificationPortToken";
 import { VALIDATOR_CANDIDATE_REPOSITORY } from "~/domains/validation-workflow/infrastructure/ValidatorCandidateRepositoryToken";
+import { AUDIT_LOG_PORT } from "~/domains/shared/audit-log/infrastructure/AuditLogPortToken";
 import { DrizzleWorkflowRepository } from "~/domains/validation-workflow/infrastructure/DrizzleWorkflowRepository.server";
 import { EmailNotificationAdapter } from "~/domains/validation-workflow/infrastructure/EmailNotificationAdapter.server";
 import { DrizzleValidatorCandidateRepository } from "~/domains/validation-workflow/infrastructure/DrizzleValidatorCandidateRepository.server";
@@ -134,9 +135,11 @@ describe("ValidationWorkflowModule", () => {
 		const useCase = module.get(ProcessWorkflowActionUseCase) as unknown as {
 			workflowRepository: unknown;
 			notificationPort: unknown;
+			auditLogPort: unknown;
 		};
 		expect(useCase.workflowRepository).toBe(module.get(WORKFLOW_REPOSITORY));
 		expect(useCase.notificationPort).toBe(module.get(NOTIFICATION_PORT));
+		expect(useCase.auditLogPort).toBe(module.get(AUDIT_LOG_PORT));
 	});
 
 	it("InitializeWorkflowInstanceUseCase resolves to a defined instance with its dependency correctly positioned", () => {
