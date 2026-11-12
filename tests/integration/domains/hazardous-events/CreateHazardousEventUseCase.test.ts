@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { dr } from "~/db.server";
 import { ValidationError } from "~/shared/errors";
 import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
+import { auditLogsTable } from "~/drizzle/schema/auditLogsTable";
 import { hazardousEventAttachmentTable } from "~/domains/hazardous-events/infrastructure/hazardousEventAttachmentTable";
 import { DrizzleTransactionRunner } from "~/infrastructure/DrizzleTransactionRunner.server";
 import { DrizzleHazardousEventRepository } from "~/domains/hazardous-events/infrastructure/DrizzleHazardousEventRepository.server";
@@ -24,10 +25,12 @@ import {
 	type HazardousEventProps,
 } from "~/domains/hazardous-events/domain/HazardousEvent";
 import { LocalDiskAttachmentStorageAdapter } from "~/domains/shared/attachments/infrastructure/LocalDiskAttachmentStorageAdapter.server";
+import { DrizzleAuditLogAdapter } from "~/domains/shared/audit-log/infrastructure/DrizzleAuditLogAdapter.server";
 import type { ILogger } from "~/shared/logging/ILogger";
 import {
 	seedCountryAccount,
 	seedSpecificHazard,
+	seedUser,
 } from "../../db/models/hazardousEventTestHelpers";
 
 // Per-test temp upload root for the real adapter (9th ctor arg) -- isolated from uploads/.
@@ -42,6 +45,16 @@ beforeEach(() => {
 afterEach(() => {
 	fs.rmSync(uploadRoot, { recursive: true, force: true });
 });
+
+/** Code-review (Gate 8) finding -- the rollback tests below assert on hazardousEventTable but
+ * not on audit_logs, leaving design.md Decision 6's "succeed or fail together" guarantee
+ * unproven against the real adapter. */
+async function auditRowsForTenant(tenantId: string) {
+	return dr
+		.select()
+		.from(auditLogsTable)
+		.where(eq(auditLogsTable.countryAccountsId, tenantId));
+}
 
 function baseEventProps(
 	id: string,
@@ -85,7 +98,10 @@ class NoOpLogger implements ILogger {
 }
 
 /** Shared scaffolding for the attachment-promotion scenarios below (ca-shared-attachments-module). */
-function baseAttachmentTestCommand(tenantId: string, specificHazardId: string) {
+async function baseAttachmentTestCommand(
+	tenantId: string,
+	specificHazardId: string,
+) {
 	return {
 		tenantId,
 		specificHazardId,
@@ -101,7 +117,7 @@ function baseAttachmentTestCommand(tenantId: string, specificHazardId: string) {
 		specificHazardLocalName: null,
 		specificHazardNationalName: null,
 		apiImportId: null,
-		actingUserId: randomUUID(),
+		actingUserId: await seedUser(),
 		hazardDriverIds: [],
 		fieldValues: [],
 		customFieldValues: [],
@@ -126,6 +142,7 @@ function makeAttachmentTestUseCase(
 		transactionRunner,
 		hipCrosswalkPort,
 		attachmentStoragePort,
+		new DrizzleAuditLogAdapter(dr),
 	);
 }
 
@@ -150,6 +167,7 @@ describe("CreateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			transactionRunner,
 			hipCrosswalkPort,
 			attachmentStoragePort,
+			new DrizzleAuditLogAdapter(dr),
 		);
 
 		vi.spyOn(workflowRepository, "insert").mockRejectedValueOnce(
@@ -172,7 +190,7 @@ describe("CreateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 				specificHazardLocalName: null,
 				specificHazardNationalName: null,
 				apiImportId: null,
-				actingUserId: randomUUID(),
+				actingUserId: await seedUser(),
 				hazardDriverIds: [],
 				attachments: [],
 				fieldValues: [],
@@ -186,6 +204,9 @@ describe("CreateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			.from(hazardousEventTable)
 			.where(eq(hazardousEventTable.countryAccountsId, tenantId));
 		expect(rows).toHaveLength(0);
+		// record() already ran (immediately after the event insert, before workflow.insert) --
+		// the same rollback must remove its row too (design.md Decision 6).
+		expect(await auditRowsForTenant(tenantId)).toHaveLength(0);
 	});
 
 	// Spec's own "A rolled-back transaction leaves zero rows persisted, regardless of which
@@ -222,6 +243,7 @@ describe("CreateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			transactionRunner,
 			hipCrosswalkPort,
 			attachmentStoragePort,
+			new DrizzleAuditLogAdapter(dr),
 		);
 		vi.spyOn(causalChainRepository, "saveEdge").mockRejectedValueOnce(
 			new Error("boom-save-edge"),
@@ -243,7 +265,7 @@ describe("CreateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 				specificHazardLocalName: null,
 				specificHazardNationalName: null,
 				apiImportId: null,
-				actingUserId: randomUUID(),
+				actingUserId: await seedUser(),
 				hazardDriverIds: [],
 				attachments: [],
 				fieldValues: [],
@@ -267,6 +289,7 @@ describe("CreateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 		// mocked out before it ever reaches the DB), this one's InitializeWorkflowInstanceUseCase
 		// call runs for real — a forgotten tx would let this row survive the rollback.
 		expect(await dr.select().from(workflowInstanceTable)).toHaveLength(0);
+		expect(await auditRowsForTenant(tenantId)).toHaveLength(0);
 	});
 
 	// Decision 3's own rollback requirement -- the fakes-based unit test cannot prove a real
@@ -293,6 +316,7 @@ describe("CreateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			transactionRunner,
 			hipCrosswalkPort,
 			attachmentStoragePort,
+			new DrizzleAuditLogAdapter(dr),
 		);
 
 		await expect(
@@ -311,7 +335,7 @@ describe("CreateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 				specificHazardLocalName: null,
 				specificHazardNationalName: null,
 				apiImportId: null,
-				actingUserId: randomUUID(),
+				actingUserId: await seedUser(),
 				hazardDriverIds: [],
 				attachments: [],
 				fieldValues: [],
@@ -326,6 +350,7 @@ describe("CreateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			.where(eq(hazardousEventTable.countryAccountsId, tenantId));
 		expect(rows).toHaveLength(0);
 		expect(await dr.select().from(workflowInstanceTable)).toHaveLength(0);
+		expect(await auditRowsForTenant(tenantId)).toHaveLength(0);
 	});
 
 	// design.md Decision 17 (task 9d.7's real-rollback proof) -- stamp() runs inside the same tx
@@ -353,6 +378,7 @@ describe("CreateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			transactionRunner,
 			hipCrosswalkPort,
 			attachmentStoragePort,
+			new DrizzleAuditLogAdapter(dr),
 		);
 		vi.spyOn(hipCrosswalkPort, "stamp").mockRejectedValueOnce(
 			new Error("boom-stamp"),
@@ -374,7 +400,7 @@ describe("CreateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 				specificHazardLocalName: null,
 				specificHazardNationalName: null,
 				apiImportId: null,
-				actingUserId: randomUUID(),
+				actingUserId: await seedUser(),
 				hazardDriverIds: [],
 				attachments: [],
 				fieldValues: [],
@@ -388,6 +414,72 @@ describe("CreateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			.where(eq(hazardousEventTable.countryAccountsId, tenantId));
 		expect(rows).toHaveLength(0);
 		expect(await dr.select().from(workflowInstanceTable)).toHaveLength(0);
+		expect(await auditRowsForTenant(tenantId)).toHaveLength(0);
+	});
+});
+
+// specs/shared-audit-log-port, specs/create-hazardous-event -- a successful create writes
+// exactly one correctly-shaped audit_logs row (ca-shared-audit-log).
+describe("CreateHazardousEventUseCase audit log write (ca-shared-audit-log)", () => {
+	it("writes exactly one audit_logs row with the inserted event as newValues, single-encoded", async () => {
+		const tenantId = (await seedCountryAccount()) as string;
+		const specificHazardId = await seedSpecificHazard();
+		const actingUserId = await seedUser();
+		const hazardousEventRepository = new DrizzleHazardousEventRepository(dr);
+		const workflowRepository = new DrizzleWorkflowRepository(dr);
+		const causalChainRepository = new DrizzleCausalChainRepository(dr);
+		const taxonomyRepository = new DrizzleHazardTaxonomyRepository(dr);
+		const useCase = new CreateHazardousEventUseCase(
+			new NoOpLogger(),
+			taxonomyRepository,
+			hazardousEventRepository,
+			new InitializeWorkflowInstanceUseCase(workflowRepository),
+			causalChainRepository,
+			{ execute: vi.fn() },
+			new DrizzleTransactionRunner(dr),
+			new DrizzleHipCrosswalkAdapter(dr),
+			attachmentStoragePort,
+			new DrizzleAuditLogAdapter(dr),
+		);
+
+		const dto = await useCase.execute({
+			tenantId,
+			specificHazardId,
+			startDate: "2026-01-01",
+			endDate: "",
+			nationalSpecification: "",
+			description: "",
+			chainsExplanation: "",
+			magnitude: "",
+			recordOriginator: "",
+			dataSource: "",
+			hazardousEventStatus: null,
+			specificHazardLocalName: null,
+			specificHazardNationalName: null,
+			apiImportId: null,
+			actingUserId,
+			hazardDriverIds: [],
+			attachments: [],
+			fieldValues: [],
+			customFieldValues: [],
+		});
+
+		const rows = await dr
+			.select()
+			.from(auditLogsTable)
+			.where(eq(auditLogsTable.recordId, dto.id));
+		expect(rows).toHaveLength(1);
+		const [row] = rows;
+		expect(row.tableName).toBe("hazardous_event");
+		expect(row.userId).toBe(actingUserId);
+		expect(row.action).toBe("Create hazardous event");
+		expect(row.oldValues).toBeNull();
+		expect(row.countryAccountsId).toBe(tenantId);
+		// Single-encoded, not double-JSON.stringify()'d (design.md Decision 4) -- parsing once
+		// yields the plain field object, not a further-nested JSON string.
+		const newValues = row.newValues as Record<string, unknown>;
+		expect(newValues.id).toBe(dto.id);
+		expect(typeof newValues.description).toBe("string");
 	});
 });
 
@@ -420,7 +512,7 @@ describe("CreateHazardousEventUseCase attachment promotion (ca-shared-attachment
 		expect(fs.existsSync(tempPath)).toBe(true);
 
 		const dto = await useCase.execute({
-			...baseAttachmentTestCommand(tenantId, specificHazardId),
+			...(await baseAttachmentTestCommand(tenantId, specificHazardId)),
 			attachments: [
 				{
 					kind: "newFile",
@@ -468,7 +560,7 @@ describe("CreateHazardousEventUseCase attachment promotion (ca-shared-attachment
 		const promoteSpy = vi.spyOn(attachmentStoragePort, "promote");
 
 		const dto = await useCase.execute({
-			...baseAttachmentTestCommand(tenantId, specificHazardId),
+			...(await baseAttachmentTestCommand(tenantId, specificHazardId)),
 			attachments: [
 				{
 					kind: "link",
@@ -517,7 +609,7 @@ describe("CreateHazardousEventUseCase attachment promotion (ca-shared-attachment
 		let caught: unknown;
 		try {
 			await useCase.execute({
-				...baseAttachmentTestCommand(tenantId, specificHazardId),
+				...(await baseAttachmentTestCommand(tenantId, specificHazardId)),
 				attachments: [
 					{
 						kind: "newFile",

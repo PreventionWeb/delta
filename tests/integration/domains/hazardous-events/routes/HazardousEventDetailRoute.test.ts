@@ -14,6 +14,7 @@ import { CreateHazardousEventUseCase } from "~/domains/hazardous-events/applicat
 import {
 	seedCountryAccount,
 	seedSpecificHazard,
+	seedUser,
 } from "../../../db/models/hazardousEventTestHelpers";
 import type { ErrorResponse } from "~/shared/errors/ErrorResponse";
 import {
@@ -129,7 +130,7 @@ async function seedEventWithWorkflow(
 		specificHazardLocalName: null,
 		specificHazardNationalName: null,
 		apiImportId: null,
-		actingUserId: randomUUID(),
+		actingUserId: await seedUser(),
 		hazardDriverIds: [],
 		attachments: [],
 		fieldValues: [],
