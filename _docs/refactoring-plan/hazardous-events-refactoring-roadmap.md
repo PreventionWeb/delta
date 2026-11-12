@@ -2921,6 +2921,54 @@ test precedent).
 
 ---
 
+### 🔷 6k — Detail Page Rebuild: Audit Log + Legacy Layout Parity (`DEF-058`, `DEF-059`)
+
+**Branch:** `feature/ca-shared-audit-log` (continues on `6j`'s branch, not a new one — user
+direction, 2026-11-12: raise the phase6 PR only once the audit log is fully visible on CA's page).
+
+**`DEF-058`**: legacy's detail page renders an "Audit log history" section from `audit_logs`; CA's
+`HazardousEventDetailPage.tsx` has none. **`DEF-059`**: legacy's `HazardousEventView` now delegates
+to a new `HazardousEventReviewStep.tsx` (dev commit `3688c596`) — `Card`-sectioned, with a live
+Leaflet spatial-footprint map and a shared `AuditLogHistory` component — superseding the flat
+layout `ca-he-route-adapter-read`'s Decision 9 captured. CA's page still mirrors that stale
+snapshot.
+
+**Combined deliberately** (user direction): legacy's new layout already has the audit-log section
+built in as one of its cards, so fixing `DEF-058` against the current flat layout first would mean
+rebuilding that section again the moment `DEF-059`'s rebuild replaces the whole page. One pass
+builds every section, audit log included, directly into its final shape.
+
+**Not pre-resolved**: this intent's own first step is a live, section-by-section ground-truth
+capture of `HazardousEventReviewStep.tsx` against CA's current page, same rigor as the original
+Decision 9 — not assumed from a partial read.
+
+**Intent for `/opsx:propose`:**
+
+```
+Rebuild HazardousEventDetailPage.tsx to match legacy's current HazardousEventReviewStep.tsx
+layout, not the stale flat-list layout ca-he-route-adapter-read originally captured. First
+step: a live ground-truth capture of the real legacy page (Card sections and their order, the
+Leaflet spatial-footprint map, the shared AuditLogHistory component, the shared
+parseAttachments usage) -- read the component and compare against the live rendered page, not
+assumed. Add the audit log history section as part of this same rebuild (a new read-only
+query against audit_logs by table_name/record_id -- 6j already wrote the table, no new write
+path needed). Keep using the design-system Table/TableColumn/TableCell components (Decision 7a)
+wherever they fit the new Card structure, rather than copying legacy's PrimeReact Card markup
+verbatim. DEF-057's spatial-footprint picker gap is separate and already tracked -- a live map
+view for an existing observation is in scope here; a new picker/editor widget is not.
+```
+
+**Files touched:** not yet fully determined — the ground-truth capture decides the exact
+breakdown. At minimum: `HazardousEventDetailPage.tsx` (rebuilt), `HazardousEventDetailDto.ts`/
+`GetHazardousEventById.ts` (new audit-log read), a new read-only query against `6j`'s
+`auditLogsTable` (no migration), `locales/en/hazardous-events.json`.
+
+**Test tier:** PGlite integration for the new audit-log query. Presentation tests for the rebuilt
+page. Visual/UX parity (Gate 9) is mandatory — live side-by-side against legacy's actual rendered
+page, given this is purely a presentation rebuild.
+
+---
+
 ### 🏁 Phase 6 Gate
 
 `yarn test:run2` fully green. `yarn tsc` clean. E2E Playwright passes for the full
