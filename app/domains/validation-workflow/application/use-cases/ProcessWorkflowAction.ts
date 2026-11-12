@@ -14,13 +14,22 @@ import { toWorkflowInstanceDto } from "../dto/WorkflowInstanceDto";
 import { WorkflowInstanceNotFoundError } from "../errors/WorkflowInstanceErrors";
 import { isWorkflowActionAuthorized } from "../isWorkflowActionAuthorized";
 import type { ILogger } from "~/shared/logging/ILogger";
+import type { IAuditLogPort } from "~/domains/shared/audit-log/application/ports/IAuditLogPort";
 import { AuthorizationError, ValidationError } from "~/shared/errors";
 
 interface ProcessWorkflowActionCommandBase {
 	entityId: string;
 	entityType: EntityType;
+	/** Added for the audit-write hook's own countryAccountsId (design.md Decision 8) -- not read anywhere else in execute(). */
+	tenantId: string;
 	actingUserId: string;
 }
+
+/** Local, domain-agnostic lookup (design.md Decision 7) -- an unmapped entityType skips the
+ * audit write (WARN-logged) instead of throwing. */
+const ENTITY_TYPE_TABLE_NAME: Partial<Record<EntityType, string>> = {
+	HE: "hazardous_event",
+};
 
 export type ProcessWorkflowActionCommand =
 	| (ProcessWorkflowActionCommandBase & {
@@ -86,11 +95,21 @@ export class ProcessWorkflowActionUseCase {
 		private readonly logger: ILogger,
 		private readonly workflowRepository: IWorkflowRepository,
 		private readonly notificationPort: INotificationPort,
+		private readonly auditLogPort: Pick<IAuditLogPort, "record">,
 	) {}
 
 	async execute(
 		command: ProcessWorkflowActionCommand,
 	): Promise<WorkflowInstanceDto> {
+		// Fail fast, not swallowed later as a silent WARN by Decision 6's own tolerated-failure
+		// catch; inlined to avoid importing HE's assertNonEmptyString (Decision 3).
+		if (
+			typeof command.tenantId !== "string" ||
+			command.tenantId.trim().length === 0
+		) {
+			throw new ValidationError("tenantId must not be empty");
+		}
+
 		// Authoritative here, not just at the route layer (SOLID review, DIP finding) -- every
 		// caller gets the invariant; composeWorkflowAction.server.ts's own check just skips a lookup.
 		if (
@@ -171,27 +190,16 @@ export class ProcessWorkflowActionUseCase {
 			try {
 				await this.notificationPort.notify(notification);
 			} catch (err) {
-				// WARN, not ERROR: a handled, tolerated degradation (ADR-004) — the transition
-				// already succeeded, notify() failing doesn't break anything. Guarded so execute()
-				// still resolves after a successful update() (Decision 8) even if the injected
-				// ILogger itself throws; console.error is the deliberate last resort, reachable
-				// only when ILogger has also failed (DEF-023).
-				try {
-					this.logger.warn({
-						msg: "workflow_action.notify_failed",
-						err,
-						...notification,
-					});
-				} catch {
-					// eslint-disable-next-line no-console -- last resort once ILogger itself has failed
-					console.error(
-						"workflow_action.notify_failed (logger also failed)",
-						err,
-						notification,
-					);
-				}
+				this.logToleratedFailure(
+					"workflow_action.notify_failed",
+					err,
+					notification,
+				);
 			}
 		}
+
+		// Independent of the notify() block above (Decision 6) -- one failing must not suppress or skip the other.
+		await this.recordAuditEntry(command, fromStatus, saved);
 
 		this.logger.info({
 			msg: "workflow_action.processed",
@@ -205,6 +213,57 @@ export class ProcessWorkflowActionUseCase {
 		});
 
 		return toWorkflowInstanceDto(saved);
+	}
+
+	/** Unmapped entityType skips (Decision 7); record() failures are tolerated like notify()'s (Decision 6). */
+	private async recordAuditEntry(
+		command: ProcessWorkflowActionCommand,
+		fromStatus: Status,
+		saved: WorkflowInstance,
+	): Promise<void> {
+		const tableName = ENTITY_TYPE_TABLE_NAME[command.entityType];
+		if (tableName === undefined) {
+			this.logger.warn({
+				msg: "workflow_action.audit_write_skipped_unmapped_entity_type",
+				entityType: command.entityType,
+				entityId: command.entityId,
+				action: command.action,
+			});
+			return;
+		}
+		const auditEntry = {
+			tableName,
+			recordId: command.entityId,
+			userId: command.actingUserId,
+			action: command.action,
+			oldValues: { status: fromStatus },
+			newValues: { status: saved.status },
+			countryAccountsId: command.tenantId,
+		};
+		try {
+			await this.auditLogPort.record(auditEntry);
+		} catch (err) {
+			this.logToleratedFailure(
+				"workflow_action.audit_write_failed",
+				err,
+				auditEntry,
+			);
+		}
+	}
+
+	/** Shared by the notify()/audit-write tolerated-degradation blocks (ADR-004/DEF-023):
+	 * WARN-log, falling back to console.error only if the injected ILogger itself throws. */
+	private logToleratedFailure(
+		msg: string,
+		err: unknown,
+		context: object,
+	): void {
+		try {
+			this.logger.warn({ msg, err, ...context });
+		} catch {
+			// eslint-disable-next-line no-console -- last resort once ILogger itself has failed
+			console.error(`${msg} (logger also failed)`, err, context);
+		}
 	}
 
 	/** design.md Decision 1's action → entity-method mapping table. */
