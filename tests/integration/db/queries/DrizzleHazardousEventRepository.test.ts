@@ -39,6 +39,7 @@ import { specificHazardTable } from "~/domains/hazardous-events/infrastructure/s
 import { seedTextContent } from "../models/textContentTestHelpers";
 import { UpdateHazardousEventUseCase } from "~/domains/hazardous-events/application/use-cases/UpdateHazardousEvent";
 import { LocalDiskAttachmentStorageAdapter } from "~/domains/shared/attachments/infrastructure/LocalDiskAttachmentStorageAdapter.server";
+import { DrizzleAuditLogAdapter } from "~/domains/shared/audit-log/infrastructure/DrizzleAuditLogAdapter.server";
 import type { ILogger } from "~/shared/logging/ILogger";
 import { HazardousEvent } from "~/domains/hazardous-events/domain/HazardousEvent";
 import type { HazardousEventProps } from "~/domains/hazardous-events/domain/HazardousEvent";
@@ -2930,7 +2931,7 @@ describe("UpdateHazardousEventUseCase against the real adapter", () => {
 	it("lets exactly one of two concurrent execute() calls for the same event win, racing against the real DrizzleHazardousEventRepository", async () => {
 		const tenantId = (await seedCountryAccount()) as string;
 		const specificHazardId = await seedSpecificHazard();
-		const actingUserId = randomUUID();
+		const actingUserId = await seedUser();
 		const id = randomUUID();
 		const setupRepo = new DrizzleHazardousEventRepository(dr);
 		const workflowRepository = new DrizzleWorkflowRepository(dr);
@@ -2982,6 +2983,7 @@ describe("UpdateHazardousEventUseCase against the real adapter", () => {
 			new DrizzleTransactionRunner(dr),
 			new DrizzleHipCrosswalkAdapter(dr),
 			attachmentStoragePort,
+			new DrizzleAuditLogAdapter(dr),
 		);
 
 		const outcomes = await Promise.allSettled([

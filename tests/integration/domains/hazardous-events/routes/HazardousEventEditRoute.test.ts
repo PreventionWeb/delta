@@ -2,7 +2,15 @@ import "../../../db/setup";
 import "reflect-metadata";
 
 import { randomUUID } from "crypto";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+	describe,
+	it,
+	expect,
+	vi,
+	beforeAll,
+	beforeEach,
+	afterEach,
+} from "vitest";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { RouterContextProvider } from "react-router";
 
@@ -86,6 +94,13 @@ const mockRequireUser = vi.mocked(requireUser);
 
 const TEST_USER_ID = randomUUID();
 
+// ca-shared-audit-log: audit_logs.user_id is now an enforced FK to userTable, so the mocked session's actingUserId must be a real row (harmless before, since nothing wrote to audit_logs).
+beforeAll(async () => {
+	await dr
+		.insert(userTable)
+		.values({ id: TEST_USER_ID, email: `test-user-${TEST_USER_ID}@test.com` });
+});
+
 function baseEventProps(
 	id: string,
 	tenantId: string,
@@ -160,7 +175,7 @@ async function seedEventAtStatus(
 		specificHazardLocalName: null,
 		specificHazardNationalName: null,
 		apiImportId: null,
-		actingUserId: randomUUID(),
+		actingUserId: await seedUser(),
 		hazardDriverIds: [],
 		attachments: [],
 		fieldValues: [],
@@ -178,6 +193,7 @@ async function seedEventAtStatus(
 			action: "submit-validation",
 			entityId: dto.id,
 			entityType: "HE",
+			tenantId,
 			actingUserId,
 			validatorUserIds: [await seedUser()],
 			recordDisplayName: "Flood",
@@ -190,6 +206,7 @@ async function seedEventAtStatus(
 			action: "submit-validation",
 			entityId: dto.id,
 			entityType: "HE",
+			tenantId,
 			actingUserId,
 			validatorUserIds: [await seedUser()],
 			recordDisplayName: "Flood",
@@ -199,6 +216,7 @@ async function seedEventAtStatus(
 			action: "return",
 			entityId: dto.id,
 			entityType: "HE",
+			tenantId,
 			actingUserId,
 			rejectionComments: "Please revise",
 		});
@@ -209,6 +227,7 @@ async function seedEventAtStatus(
 			action: "direct-validate",
 			entityId: dto.id,
 			entityType: "HE",
+			tenantId,
 			actingUserId,
 			actingUserRole: "admin",
 		});
@@ -219,6 +238,7 @@ async function seedEventAtStatus(
 			action: "direct-publish",
 			entityId: dto.id,
 			entityType: "HE",
+			tenantId,
 			actingUserId,
 			actingUserRole: "admin",
 		});
@@ -864,7 +884,7 @@ describe("Hazardous event edit route", () => {
 				specificHazardLocalName: null,
 				specificHazardNationalName: null,
 				apiImportId: null,
-				actingUserId: randomUUID(),
+				actingUserId: await seedUser(),
 				hazardDriverIds: [],
 				attachments: [],
 				fieldValues: [],
@@ -1038,7 +1058,7 @@ describe("Hazardous event edit route", () => {
 				specificHazardLocalName: "Local name kept from legacy import",
 				specificHazardNationalName: null,
 				apiImportId: null,
-				actingUserId: randomUUID(),
+				actingUserId: await seedUser(),
 				hazardDriverIds: [],
 				attachments: [],
 				fieldValues: [],

@@ -3,8 +3,10 @@ import { randomUUID } from "crypto";
 import * as fs from "fs/promises";
 import * as os from "os";
 import * as path from "path";
+import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { dr } from "~/db.server";
+import { auditLogsTable } from "~/drizzle/schema/auditLogsTable";
 import { DrizzleTransactionRunner } from "~/infrastructure/DrizzleTransactionRunner.server";
 import { DrizzleHazardousEventRepository } from "~/domains/hazardous-events/infrastructure/DrizzleHazardousEventRepository.server";
 import { DrizzleCausalChainRepository } from "~/domains/hazardous-events/infrastructure/DrizzleCausalChainRepository.server";
@@ -20,11 +22,13 @@ import {
 } from "~/domains/hazardous-events/domain/HazardousEvent";
 import { UpdateHazardousEventUseCase } from "~/domains/hazardous-events/application/use-cases/UpdateHazardousEvent";
 import { LocalDiskAttachmentStorageAdapter } from "~/domains/shared/attachments/infrastructure/LocalDiskAttachmentStorageAdapter.server";
+import { DrizzleAuditLogAdapter } from "~/domains/shared/audit-log/infrastructure/DrizzleAuditLogAdapter.server";
 import { ConflictError } from "~/shared/errors";
 import type { ILogger } from "~/shared/logging/ILogger";
 import {
 	seedCountryAccount,
 	seedSpecificHazard,
+	seedUser,
 } from "../../db/models/hazardousEventTestHelpers";
 
 class NoOpLogger implements ILogger {
@@ -80,6 +84,16 @@ function baseEventProps(
 	};
 }
 
+/** Code-review (Gate 8) finding -- the rollback tests below assert on the event's own row but
+ * not on audit_logs, leaving design.md Decision 6's "succeed or fail together" guarantee
+ * unproven against the real adapter. */
+async function auditRowsFor(recordId: string) {
+	return dr
+		.select()
+		.from(auditLogsTable)
+		.where(eq(auditLogsTable.recordId, recordId));
+}
+
 /** Builds every collaborator a fresh test needs, wired exactly like the real DI module
  * (HazardousEventsModule.server.ts) -- real Drizzle adapters + a real LocalDiskAttachmentStorageAdapter
  * pointed at this test's own per-test temp directory, no mocks. */
@@ -104,6 +118,7 @@ function createHarness(uploadRoot: string, logger: ILogger = new NoOpLogger()) {
 		transactionRunner,
 		hipCrosswalkPort,
 		attachmentStoragePort,
+		new DrizzleAuditLogAdapter(dr),
 	);
 	return {
 		hazardousEventRepository,
@@ -201,7 +216,7 @@ describe("UpdateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			harness.useCase.execute({
 				id,
 				tenantId,
-				actingUserId: randomUUID(),
+				actingUserId: await seedUser(),
 				description: "attempted new description",
 				spatialObservation: { geometries: [], divisionIds: [] },
 			}),
@@ -209,6 +224,9 @@ describe("UpdateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 
 		const found = await harness.hazardousEventRepository.findById(id, tenantId);
 		expect(found.description).toBe("original description");
+		// record() already ran (immediately after update(), before the spatial-observation
+		// delegation) -- the same rollback must remove its row too (design.md Decision 6).
+		expect(await auditRowsFor(id)).toHaveLength(0);
 
 		await fs.rm(uploadRoot, { recursive: true, force: true });
 	});
@@ -279,7 +297,7 @@ describe("UpdateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			harness.useCase.execute({
 				id: effectId,
 				tenantId,
-				actingUserId: randomUUID(),
+				actingUserId: await seedUser(),
 				description: "attempted new description",
 				causeId: newCauseId,
 			}),
@@ -299,6 +317,7 @@ describe("UpdateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 		const edgesFromNewCause =
 			await harness.causalChainRepository.findReachableEdgesFrom(newCauseId);
 		expect(edgesFromNewCause).toEqual([]);
+		expect(await auditRowsFor(effectId)).toHaveLength(0);
 
 		await fs.rm(uploadRoot, { recursive: true, force: true });
 	});
@@ -348,7 +367,7 @@ describe("UpdateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 		await harness.useCase.execute({
 			id,
 			tenantId,
-			actingUserId: randomUUID(),
+			actingUserId: await seedUser(),
 			description: "updated description",
 			spatialObservation: { observationTime, geometries: [], divisionIds: [] },
 		});
@@ -405,13 +424,68 @@ describe("UpdateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 			harness.useCase.execute({
 				id,
 				tenantId,
-				actingUserId: randomUUID(),
+				actingUserId: await seedUser(),
 				description: "attempted new description",
 			}),
 		).rejects.toThrow("boom-stamp");
 
 		const found = await harness.hazardousEventRepository.findById(id, tenantId);
 		expect(found.description).toBe("original description");
+		expect(await auditRowsFor(id)).toHaveLength(0);
+
+		await fs.rm(uploadRoot, { recursive: true, force: true });
+	});
+});
+
+// specs/shared-audit-log-port, specs/update-hazardous-event -- a successful update writes
+// exactly one correctly-shaped audit_logs row (ca-shared-audit-log).
+describe("UpdateHazardousEventUseCase audit log write (ca-shared-audit-log)", () => {
+	it("writes exactly one audit_logs row with the pre-update row as oldValues and the post-update row as newValues", async () => {
+		const tenantId = (await seedCountryAccount()) as string;
+		const specificHazardId = await seedSpecificHazard();
+		const id = randomUUID();
+		const actingUserId = await seedUser();
+		const uploadRoot = await fs.mkdtemp(
+			path.join(os.tmpdir(), "delta-update-he-test-"),
+		);
+		const harness = createHarness(uploadRoot);
+
+		await harness.hazardousEventRepository.insert(
+			HazardousEvent.create(
+				baseEventProps(id, tenantId, specificHazardId),
+				new Set(),
+				new Set(),
+			),
+		);
+		await harness.workflowRepository.insert(
+			WorkflowInstance.createDraft({
+				id: randomUUID(),
+				entityId: id,
+				entityType: "HE",
+				now: new Date("2026-01-01T00:00:00Z"),
+			}),
+		);
+
+		await harness.useCase.execute({
+			id,
+			tenantId,
+			actingUserId,
+			description: "updated description",
+		});
+
+		const rows = await auditRowsFor(id);
+		expect(rows).toHaveLength(1);
+		const [row] = rows;
+		expect(row.tableName).toBe("hazardous_event");
+		expect(row.userId).toBe(actingUserId);
+		expect(row.action).toBe("Update hazardous event");
+		expect(row.countryAccountsId).toBe(tenantId);
+		expect((row.oldValues as { description: string }).description).toBe(
+			"original description",
+		);
+		expect((row.newValues as { description: string }).description).toBe(
+			"updated description",
+		);
 
 		await fs.rm(uploadRoot, { recursive: true, force: true });
 	});
@@ -467,7 +541,7 @@ describe("UpdateHazardousEventUseCase attachment promote/delete wiring (design.m
 		await harness.useCase.execute({
 			id,
 			tenantId,
-			actingUserId: randomUUID(),
+			actingUserId: await seedUser(),
 			attachments: [
 				{
 					kind: "newFile",
@@ -542,7 +616,7 @@ describe("UpdateHazardousEventUseCase attachment promote/delete wiring (design.m
 		await harness.useCase.execute({
 			id,
 			tenantId,
-			actingUserId: randomUUID(),
+			actingUserId: await seedUser(),
 			attachments: [],
 		});
 
@@ -577,7 +651,7 @@ describe("UpdateHazardousEventUseCase attachment promote/delete wiring (design.m
 		await harness.useCase.execute({
 			id,
 			tenantId,
-			actingUserId: randomUUID(),
+			actingUserId: await seedUser(),
 			attachments: [],
 		});
 
@@ -631,7 +705,7 @@ describe("UpdateHazardousEventUseCase attachment promote/delete wiring (design.m
 		await harness.useCase.execute({
 			id,
 			tenantId,
-			actingUserId: randomUUID(),
+			actingUserId: await seedUser(),
 			description: "a real field change, so the update genuinely writes a row",
 		});
 

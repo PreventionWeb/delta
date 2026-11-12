@@ -2,7 +2,15 @@ import "../../../db/setup";
 import "reflect-metadata";
 
 import { randomUUID } from "crypto";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+	describe,
+	it,
+	expect,
+	vi,
+	beforeAll,
+	beforeEach,
+	afterEach,
+} from "vitest";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { RouterContextProvider } from "react-router";
 
@@ -79,6 +87,13 @@ const mockGetUserRoleFromSession = vi.mocked(getUserRoleFromSession);
 const mockRequireUser = vi.mocked(requireUser);
 
 const TEST_USER_ID = randomUUID();
+
+// ca-shared-audit-log: audit_logs.user_id is now an enforced FK to userTable, so the mocked session's actingUserId must be a real row (harmless before, since nothing wrote to audit_logs).
+beforeAll(async () => {
+	await dr
+		.insert(userTable)
+		.values({ id: TEST_USER_ID, email: `test-user-${TEST_USER_ID}@test.com` });
+});
 
 async function makeI18nContext(url: string): Promise<RouterContextProvider> {
 	const context = new RouterContextProvider();
@@ -245,7 +260,7 @@ describe("Hazardous event create route", () => {
 						specificHazardLocalName: null,
 						specificHazardNationalName: null,
 						apiImportId: null,
-						actingUserId: randomUUID(),
+						actingUserId: await seedUser(),
 						hazardDriverIds: [],
 						attachments: [],
 						fieldValues: [],
@@ -287,7 +302,7 @@ describe("Hazardous event create route", () => {
 						specificHazardLocalName: null,
 						specificHazardNationalName: null,
 						apiImportId: null,
-						actingUserId: randomUUID(),
+						actingUserId: await seedUser(),
 						hazardDriverIds: [],
 						attachments: [],
 						fieldValues: [],
@@ -752,7 +767,7 @@ describe("Hazardous event create route", () => {
 					specificHazardLocalName: null,
 					specificHazardNationalName: null,
 					apiImportId: null,
-					actingUserId: randomUUID(),
+					actingUserId: await seedUser(),
 					hazardDriverIds: [],
 					attachments: [],
 					fieldValues: [],
