@@ -59,9 +59,9 @@ export function initCookieStorage() {
 
 export function sessionCookie(): SessionStorage<SessionData, SessionData> {
 	if (!_sessionCookie) {
-		throw "initCookieStorage was not called";
+		initCookieStorage();
 	}
-	return _sessionCookie;
+	return _sessionCookie!;
 }
 
 export function superAdminSessionCookie(): SessionStorage<
@@ -69,9 +69,9 @@ export function superAdminSessionCookie(): SessionStorage<
 	SessionData
 > {
 	if (!_superAdminSessionCookie) {
-		throw "initCookieStorage was not called";
+		initCookieStorage();
 	}
-	return _superAdminSessionCookie;
+	return _superAdminSessionCookie!;
 }
 
 export async function createSuperAdminSession(superAdminId: string) {

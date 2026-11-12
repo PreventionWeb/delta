@@ -26,6 +26,63 @@ import {
 	OPENAPI_DOCS_SUBPATH,
 } from "~/shared/openApiDocsPath";
 
+// Injected CSS to mask sensitive credential fields in Swagger UI interface
+const SWAGGER_SECURITY_CUSTOM_CSS = `
+  /* Mask sensitive API key input in Swagger UI Authorize modal */
+  .swagger-ui .modal-ux .auth-container input[type="text"],
+  .swagger-ui .modal-ux .auth-container input[type="password"] {
+    -webkit-text-security: disc;
+  }
+`;
+
+// Injected client script to sanitize credential display:
+// Registers a Swagger UI plugin wrapping the `curl` component to display
+// `X-Auth: [DELTA API KEY]` in the cURL snippet and copy buffer while the real
+// HTTP network request is dispatched with the authentic secret key.
+const SWAGGER_SECURITY_CUSTOM_JS = `
+  (function() {
+    var origSwaggerUI = window.SwaggerUIBundle;
+    if (!origSwaggerUI) return;
+
+    window.SwaggerUIBundle = function(options) {
+      options = options || {};
+      options.plugins = options.plugins || [];
+
+      var maskApiKeyPlugin = function(system) {
+        return {
+          wrapComponents: {
+            curl: function(Original, system) {
+              return function(props) {
+                var req = props.request;
+                if (req && typeof req.get === 'function' && req.get('headers')) {
+                  var headers = req.get('headers');
+                  var hasLower = typeof headers.has === 'function' && headers.has('x-auth');
+                  var hasUpper = typeof headers.has === 'function' && headers.has('X-Auth');
+                  if (hasLower || hasUpper) {
+                    var k = hasLower ? 'x-auth' : 'X-Auth';
+                    req = req.setIn(['headers', k], '[DELTA API KEY]');
+                  }
+                } else if (req && req.headers && (req.headers['x-auth'] || req.headers['X-Auth'])) {
+                  var k = req.headers['x-auth'] ? 'x-auth' : 'X-Auth';
+                  var newHeaders = Object.assign({}, req.headers);
+                  newHeaders[k] = '[DELTA API KEY]';
+                  req = Object.assign({}, req, { headers: newHeaders });
+                }
+                return system.React.createElement(Original, Object.assign({}, props, { request: req }));
+              };
+            }
+          }
+        };
+      };
+
+      options.plugins.push(maskApiKeyPlugin);
+      return origSwaggerUI(options);
+    };
+
+    Object.assign(window.SwaggerUIBundle, origSwaggerUI);
+  })();
+`;
+
 // Interactive Swagger UI at /api/v2/docs, raw document at the default /api/v2/docs-json
 // sibling path — useGlobalPrefix must be passed explicitly (SwaggerModule doesn't apply it
 // by default).
@@ -35,24 +92,31 @@ export function mountOpenApiDocs(app: INestApplication): void {
 		new DocumentBuilder()
 			.setTitle("DELTA Notices API")
 			.setVersion("2.0")
-			// Pairs with @ApiCookieAuth() on NoticesController (design.md Decision 14).
-			.addCookieAuth("__session", {
-				type: "apiKey",
-				in: "cookie",
-				name: "__session",
-			})
+			.addApiKey(
+				{
+					type: "apiKey",
+					in: "header",
+					name: "X-Auth",
+					description: "DELTA API Key (`X-Auth` header)",
+				},
+				"x-auth",
+			)
 			.build(),
 	);
 	SwaggerModule.setup(OPENAPI_DOCS_SUBPATH, app, cleanupOpenApiDoc(document), {
 		useGlobalPrefix: true,
+		customCss: SWAGGER_SECURITY_CUSTOM_CSS,
+		customJsStr: SWAGGER_SECURITY_CUSTOM_JS,
 	});
-	const httpAdapter = app.getHttpAdapter();
-	httpAdapter.get(OPENAPI_DOCS_LEGACY_PATH, (_req, res) => {
-		httpAdapter.redirect(res, 308, OPENAPI_DOCS_PATH);
-	});
-	httpAdapter.get(OPENAPI_DOCS_LEGACY_JSON_PATH, (_req, res) => {
-		httpAdapter.redirect(res, 308, OPENAPI_DOCS_JSON_PATH);
-	});
+	const httpAdapter = app.getHttpAdapter?.();
+	if (httpAdapter) {
+		httpAdapter.get(OPENAPI_DOCS_LEGACY_PATH, (_req, res) => {
+			httpAdapter.redirect(res, 308, OPENAPI_DOCS_PATH);
+		});
+		httpAdapter.get(OPENAPI_DOCS_LEGACY_JSON_PATH, (_req, res) => {
+			httpAdapter.redirect(res, 308, OPENAPI_DOCS_JSON_PATH);
+		});
+	}
 }
 
 // The NestJS application context created by bootstrapAppContext().
@@ -110,11 +174,16 @@ async function bootstrapHttpServer(): Promise<void> {
 			// Guard against NaN (invalid env string) and out-of-range values so that
 			// app.listen() never receives an invalid port number.
 			const apiPort =
-				Number.isFinite(parsed) && parsed > 0 && parsed <= 65535 ? parsed : 3001;
+				Number.isFinite(parsed) && parsed > 0 && parsed <= 65535
+					? parsed
+					: 3001;
 			httpBootstrapPromise = (async () => {
 				if (globalForHttpApp.__deltaHttpApp) {
 					await globalForHttpApp.__deltaHttpApp.close().catch((err) => {
-						console.error({ msg: "Failed to close orphaned HTTP listener", err });
+						console.error({
+							msg: "Failed to close orphaned HTTP listener",
+							err,
+						});
 					});
 				}
 				const app = await NestFactory.create(CoreModule, { logger: false });

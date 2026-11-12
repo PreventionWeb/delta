@@ -17,11 +17,11 @@ import type { z } from "zod";
 import {
 	ApiBadRequestResponse,
 	ApiBody,
-	ApiCookieAuth,
 	ApiCreatedResponse,
 	ApiNotFoundResponse,
 	ApiOkResponse,
 	ApiQuery,
+	ApiSecurity,
 	ApiUnauthorizedResponse,
 	ApiUnprocessableEntityResponse,
 } from "@nestjs/swagger";
@@ -32,9 +32,9 @@ import { GetNoticeByIdUseCase } from "~/domains/notices/application/use-cases/Ge
 import { UpdateNoticeUseCase } from "~/domains/notices/application/use-cases/UpdateNotice";
 import { DeleteNoticeUseCase } from "~/domains/notices/application/use-cases/DeleteNotice";
 import {
-	SessionAuthGuard,
+	ApiKeyOrSessionAuthGuard,
 	type AuthenticatedRequest,
-} from "~/domains/notices/presentation/guards/SessionAuthGuard.server";
+} from "~/infrastructure/guards";
 import {
 	NoticeIdParam,
 	ApiNoticeIdParam,
@@ -55,8 +55,8 @@ const ZodBodyValidationPipe = createZodValidationPipe({
 });
 
 @Controller("notices")
-@UseGuards(SessionAuthGuard)
-@ApiCookieAuth()
+@UseGuards(ApiKeyOrSessionAuthGuard)
+@ApiSecurity("x-auth")
 @ApiUnauthorizedResponse({ description: "Authentication required." })
 export class NoticesController {
 	constructor(

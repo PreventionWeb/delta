@@ -8,7 +8,7 @@ TBD - created by archiving change notices-rest-controller. Update Purpose after 
 
 ### Requirement: SessionAuthGuard resolves tenantId and userId from the existing session cookie
 
-`SessionAuthGuard` (`app/domains/notices/presentation/guards/SessionAuthGuard.server.ts`)
+`SessionAuthGuard` (`app/infrastructure/guards/SessionAuthGuard.server.ts`)
 SHALL implement NestJS `CanActivate`. On a request carrying a valid `__session` cookie
 resolving to an active, non-expired session with an associated `countryAccountsId`, the guard
 SHALL set `request.tenantId` and `request.userId` and allow the request to proceed.

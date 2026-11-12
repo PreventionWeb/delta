@@ -29,7 +29,7 @@ import { GetNoticeByIdUseCase } from "~/domains/notices/application/use-cases/Ge
 import { UpdateNoticeUseCase } from "~/domains/notices/application/use-cases/UpdateNotice";
 import { DeleteNoticeUseCase } from "~/domains/notices/application/use-cases/DeleteNotice";
 import { NoticesController } from "~/domains/notices/presentation/NoticesController.server";
-import { SessionAuthGuard } from "~/domains/notices/presentation/guards/SessionAuthGuard.server";
+import { ApiKeyOrSessionAuthGuard } from "~/infrastructure/guards";
 import { CoreModule } from "~/infrastructure/CoreModule.server";
 import { getPinoLogger } from "~/infrastructure/logging/PinoLogger.server";
 import { initCookieStorage } from "~/utils/session";
@@ -231,13 +231,13 @@ describe("NoticesModule — CoreModule resolution", () => {
 	});
 });
 
-describe("NoticesModule — SessionAuthGuard applies to NoticesController", () => {
-	it("SessionAuthGuard is registered at the class level, covering all five routes", () => {
+describe("NoticesModule — ApiKeyOrSessionAuthGuard applies to NoticesController", () => {
+	it("ApiKeyOrSessionAuthGuard is registered at the class level, covering all five routes", () => {
 		const guards = Reflect.getMetadata(
 			GUARDS_METADATA,
 			NoticesController,
 		) as unknown[];
-		expect(guards).toContain(SessionAuthGuard);
+		expect(guards).toContain(ApiKeyOrSessionAuthGuard);
 
 		const prototype = NoticesController.prototype as unknown as Record<
 			string,
