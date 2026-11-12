@@ -19,6 +19,10 @@ import type {
 	INotificationPort,
 	WorkflowActionNotification,
 } from "../ports/INotificationPort";
+import type {
+	AuditLogEntry,
+	IAuditLogPort,
+} from "~/domains/shared/audit-log/application/ports/IAuditLogPort";
 import { WorkflowInstanceNotFoundError } from "../errors/WorkflowInstanceErrors";
 
 import { ProcessWorkflowActionUseCase } from "./ProcessWorkflowAction";
@@ -56,6 +60,17 @@ function makeNotificationPort(
 	return {
 		notify: notifyImpl
 			? vi.fn().mockImplementation(notifyImpl)
+			: vi.fn().mockResolvedValue(undefined),
+	};
+}
+
+/** Recording IAuditLogPort double (ca-shared-audit-log). Defaults to a resolved no-op. */
+function makeAuditLogPort(
+	recordImpl?: (entry: AuditLogEntry) => Promise<void>,
+): Pick<IAuditLogPort, "record"> {
+	return {
+		record: recordImpl
+			? vi.fn().mockImplementation(recordImpl)
 			: vi.fn().mockResolvedValue(undefined),
 	};
 }
@@ -259,9 +274,11 @@ describe("ProcessWorkflowActionUseCase — action to entity-method mapping", () 
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "submit-validation",
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-1",
@@ -300,9 +317,11 @@ describe("ProcessWorkflowActionUseCase — action to entity-method mapping", () 
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "submit-validation",
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-1",
@@ -326,10 +345,12 @@ describe("ProcessWorkflowActionUseCase — action to entity-method mapping", () 
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "validate",
 			alsoApprove: false,
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-2",
@@ -353,10 +374,12 @@ describe("ProcessWorkflowActionUseCase — action to entity-method mapping", () 
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "validate",
 			alsoApprove: true,
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-3",
@@ -406,9 +429,11 @@ describe("ProcessWorkflowActionUseCase — action to entity-method mapping", () 
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "publish",
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-4",
@@ -437,9 +462,11 @@ describe("ProcessWorkflowActionUseCase — action to entity-method mapping", () 
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "return",
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-5",
@@ -468,9 +495,11 @@ describe("ProcessWorkflowActionUseCase — action to entity-method mapping", () 
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "return",
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-5",
@@ -493,9 +522,11 @@ describe("ProcessWorkflowActionUseCase — submit-validation requires a validato
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "submit-validation",
+			tenantId: "tenant-1",
 			entityId: "entity-1",
 			entityType: "HE",
 			actingUserId: "user-1",
@@ -518,6 +549,41 @@ describe("ProcessWorkflowActionUseCase — submit-validation requires a validato
 	});
 });
 
+describe("ProcessWorkflowActionUseCase — tenantId must not be empty (code review finding)", () => {
+	it.each([
+		"",
+		"   ",
+		12345 as unknown as string,
+		undefined as unknown as string,
+	])(
+		"rejects with ValidationError for tenantId = %j, without reading the repository",
+		async (tenantId) => {
+			const repo = makeRepository(buildInstance({ status: "DRAFT" }));
+			const notificationPort = makeNotificationPort();
+			const useCase = new ProcessWorkflowActionUseCase(
+				new NoOpLogger(),
+				repo,
+				notificationPort,
+				makeAuditLogPort(),
+			);
+			const command: ProcessWorkflowActionCommand = {
+				action: "publish",
+				tenantId,
+				entityId: "entity-1",
+				entityType: "HE",
+				actingUserId: "user-1",
+			};
+
+			await expect(useCase.execute(command)).rejects.toThrow(
+				new ValidationError("tenantId must not be empty"),
+			);
+			expect(repo.findByEntity).not.toHaveBeenCalled();
+			expect(repo.update).not.toHaveBeenCalled();
+			expect(notificationPort.notify).not.toHaveBeenCalled();
+		},
+	);
+});
+
 describe("ProcessWorkflowActionUseCase — direct-validate/direct-publish require the admin role (code review finding, researched -- authorization is a business rule, not a presentation concern)", () => {
 	it.each(["direct-validate", "direct-publish"] as const)(
 		"rejects %s with AuthorizationError when actingUserRole is not admin, without reading the repository",
@@ -528,9 +594,11 @@ describe("ProcessWorkflowActionUseCase — direct-validate/direct-publish requir
 				new NoOpLogger(),
 				repo,
 				notificationPort,
+				makeAuditLogPort(),
 			);
 			const command: ProcessWorkflowActionCommand = {
 				action,
+				tenantId: "tenant-1",
 				entityId: "entity-1",
 				entityType: "HE",
 				actingUserId: "user-1",
@@ -559,9 +627,11 @@ describe("ProcessWorkflowActionUseCase — direct-validate/direct-publish requir
 				new NoOpLogger(),
 				repo,
 				notificationPort,
+				makeAuditLogPort(),
 			);
 			const command: ProcessWorkflowActionCommand = {
 				action,
+				tenantId: "tenant-1",
 				entityId: "entity-1",
 				entityType: "HE",
 				actingUserId: "user-1",
@@ -585,9 +655,11 @@ describe("ProcessWorkflowActionUseCase — submit-draft requires an edit-capable
 				new NoOpLogger(),
 				repo,
 				notificationPort,
+				makeAuditLogPort(),
 			);
 			const command: ProcessWorkflowActionCommand = {
 				action: "submit-draft",
+				tenantId: "tenant-1",
 				entityId: "entity-1",
 				entityType: "HE",
 				actingUserId: "user-1",
@@ -617,9 +689,11 @@ describe("ProcessWorkflowActionUseCase — ConflictError propagation", () => {
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "publish",
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-6",
@@ -663,10 +737,12 @@ describe("ProcessWorkflowActionUseCase — ConflictError propagation", () => {
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "validate",
 			alsoApprove: true,
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-7",
@@ -694,9 +770,11 @@ describe("ProcessWorkflowActionUseCase — not-found and update-error propagatio
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "submit-validation",
+			tenantId: "tenant-1",
 			entityId: "missing-entity",
 			entityType: "HE",
 			actingUserId: "user-8",
@@ -721,9 +799,11 @@ describe("ProcessWorkflowActionUseCase — not-found and update-error propagatio
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "submit-validation",
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-9",
@@ -750,10 +830,12 @@ describe("ProcessWorkflowActionUseCase — notification", () => {
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "validate",
 			alsoApprove: false,
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-10",
@@ -783,10 +865,12 @@ describe("ProcessWorkflowActionUseCase — notification", () => {
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "validate",
 			alsoApprove: true,
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-11",
@@ -822,10 +906,12 @@ describe("ProcessWorkflowActionUseCase — notification", () => {
 			logger,
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "validate",
 			alsoApprove: false,
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-12",
@@ -865,9 +951,11 @@ describe("ProcessWorkflowActionUseCase — notification", () => {
 			logger,
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "publish",
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-15",
@@ -907,10 +995,12 @@ describe("ProcessWorkflowActionUseCase — notification", () => {
 			logger,
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "validate",
 			alsoApprove: false,
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-14",
@@ -953,9 +1043,11 @@ describe("ProcessWorkflowActionUseCase — DTO and notify() reflect update()'s r
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "submit-validation",
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-13",
@@ -1003,6 +1095,7 @@ describe("ProcessWorkflowActionUseCase — concurrent callers race at the reposi
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 
 		// (a) Arm the gate, then start A's stale 'return' call. Its update() call will block on
@@ -1010,6 +1103,7 @@ describe("ProcessWorkflowActionUseCase — concurrent callers race at the reposi
 		const aEntered = gateNextUpdate();
 		const aCommand: ProcessWorkflowActionCommand = {
 			action: "return",
+			tenantId: "tenant-1",
 			entityId: "entity-concurrent",
 			entityType: "HE",
 			actingUserId: "user-a",
@@ -1025,6 +1119,7 @@ describe("ProcessWorkflowActionUseCase — concurrent callers race at the reposi
 		const bCommand: ProcessWorkflowActionCommand = {
 			action: "validate",
 			alsoApprove: true,
+			tenantId: "tenant-1",
 			entityId: "entity-concurrent",
 			entityType: "HE",
 			actingUserId: "user-b",
@@ -1071,11 +1166,13 @@ describe("ProcessWorkflowActionUseCase — concurrent callers race at the reposi
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 
 		const aEntered = gateNextUpdate();
 		const aCommand: ProcessWorkflowActionCommand = {
 			action: "direct-publish",
+			tenantId: "tenant-1",
 			entityId: "entity-concurrent-publish",
 			entityType: "HE",
 			actingUserId: "admin-a",
@@ -1086,6 +1183,7 @@ describe("ProcessWorkflowActionUseCase — concurrent callers race at the reposi
 
 		const bCommand: ProcessWorkflowActionCommand = {
 			action: "direct-publish",
+			tenantId: "tenant-1",
 			entityId: "entity-concurrent-publish",
 			entityType: "HE",
 			actingUserId: "admin-b",
@@ -1122,9 +1220,11 @@ describe("ProcessWorkflowActionUseCase — notification payload action-specific 
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "submit-validation",
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-1",
@@ -1155,9 +1255,11 @@ describe("ProcessWorkflowActionUseCase — notification payload action-specific 
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "return",
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-5",
@@ -1187,9 +1289,11 @@ describe("ProcessWorkflowActionUseCase — notification payload action-specific 
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "return",
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-5",
@@ -1221,9 +1325,11 @@ describe("ProcessWorkflowActionUseCase — notification payload action-specific 
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "publish",
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-4",
@@ -1256,9 +1362,11 @@ describe("ProcessWorkflowActionUseCase — submit-draft/direct-validate/direct-p
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "submit-draft",
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-1",
@@ -1284,9 +1392,11 @@ describe("ProcessWorkflowActionUseCase — submit-draft/direct-validate/direct-p
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "direct-validate",
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "admin-1",
@@ -1309,9 +1419,11 @@ describe("ProcessWorkflowActionUseCase — submit-draft/direct-validate/direct-p
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "direct-publish",
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "admin-1",
@@ -1335,9 +1447,11 @@ describe("ProcessWorkflowActionUseCase — submit-draft/direct-validate/direct-p
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "direct-validate",
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "admin-1",
@@ -1358,9 +1472,11 @@ describe("ProcessWorkflowActionUseCase — submit-draft/direct-validate/direct-p
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "submit-draft",
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "user-1",
@@ -1380,9 +1496,11 @@ describe("ProcessWorkflowActionUseCase — submit-draft/direct-validate/direct-p
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "direct-validate",
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "admin-1",
@@ -1402,9 +1520,11 @@ describe("ProcessWorkflowActionUseCase — submit-draft/direct-validate/direct-p
 			new NoOpLogger(),
 			repo,
 			notificationPort,
+			makeAuditLogPort(),
 		);
 		const command: ProcessWorkflowActionCommand = {
 			action: "direct-publish",
+			tenantId: "tenant-1",
 			entityId: instance.entityId,
 			entityType: instance.entityType,
 			actingUserId: "admin-1",
@@ -1429,9 +1549,11 @@ describe("ProcessWorkflowActionUseCase — submit-draft/direct-validate/direct-p
 				logger,
 				repo,
 				notificationPort,
+				makeAuditLogPort(),
 			);
 			const command = {
 				action,
+				tenantId: "tenant-1",
 				entityId: instance.entityId,
 				entityType: instance.entityType,
 				actingUserId: "user-1",
@@ -1447,6 +1569,262 @@ describe("ProcessWorkflowActionUseCase — submit-draft/direct-validate/direct-p
 					msg: "workflow_action.processed",
 					action,
 					fromStatus,
+				}),
+			);
+		},
+	);
+});
+
+// ca-shared-audit-log — audit-log write hook
+
+describe("ProcessWorkflowActionUseCase — audit log write (ca-shared-audit-log)", () => {
+	const casesByAction: Record<
+		ProcessWorkflowActionCommand["action"],
+		{ fromStatus: Status; command: ProcessWorkflowActionCommand }
+	> = {
+		"submit-validation": {
+			fromStatus: "DRAFT",
+			command: {
+				action: "submit-validation",
+				entityId: "entity-1",
+				entityType: "HE",
+				tenantId: "tenant-1",
+				actingUserId: "user-1",
+				validatorUserIds: ["validator-1"],
+				recordDisplayName: "Flood",
+				recordDate: "2026-10-01",
+			},
+		},
+		validate: {
+			fromStatus: "SUBMITTED",
+			command: {
+				action: "validate",
+				alsoApprove: false,
+				entityId: "entity-1",
+				entityType: "HE",
+				tenantId: "tenant-1",
+				actingUserId: "user-1",
+			},
+		},
+		publish: {
+			fromStatus: "APPROVED",
+			command: {
+				action: "publish",
+				entityId: "entity-1",
+				entityType: "HE",
+				tenantId: "tenant-1",
+				actingUserId: "user-1",
+			},
+		},
+		return: {
+			fromStatus: "SUBMITTED",
+			command: {
+				action: "return",
+				entityId: "entity-1",
+				entityType: "HE",
+				tenantId: "tenant-1",
+				actingUserId: "user-1",
+				rejectionComments: "Please revise",
+			},
+		},
+		"submit-draft": {
+			fromStatus: "PUBLISHED",
+			command: {
+				action: "submit-draft",
+				entityId: "entity-1",
+				entityType: "HE",
+				tenantId: "tenant-1",
+				actingUserId: "user-1",
+				actingUserRole: "data-collector",
+			},
+		},
+		"direct-validate": {
+			fromStatus: "DRAFT",
+			command: {
+				action: "direct-validate",
+				entityId: "entity-1",
+				entityType: "HE",
+				tenantId: "tenant-1",
+				actingUserId: "user-1",
+				actingUserRole: "admin",
+			},
+		},
+		"direct-publish": {
+			fromStatus: "REVISION_REQUESTED",
+			command: {
+				action: "direct-publish",
+				entityId: "entity-1",
+				entityType: "HE",
+				tenantId: "tenant-1",
+				actingUserId: "user-1",
+				actingUserRole: "admin",
+			},
+		},
+	};
+
+	it.each(Object.keys(casesByAction) as (keyof typeof casesByAction)[])(
+		"%s writes one audit_logs-shaped record() call with the right tableName/recordId/action/oldValues.status/newValues.status/countryAccountsId",
+		async (action) => {
+			const { fromStatus, command } = casesByAction[action];
+			const instance = buildInstance({
+				status: fromStatus,
+				entityId: "entity-1",
+				entityType: "HE",
+			});
+			const repo = makeRepository(instance);
+			const notificationPort = makeNotificationPort();
+			const auditLogPort = makeAuditLogPort();
+			const useCase = new ProcessWorkflowActionUseCase(
+				new NoOpLogger(),
+				repo,
+				notificationPort,
+				auditLogPort,
+			);
+
+			const dto = await useCase.execute(command);
+
+			expect(auditLogPort.record).toHaveBeenCalledTimes(1);
+			expect(auditLogPort.record).toHaveBeenCalledWith({
+				tableName: "hazardous_event",
+				recordId: "entity-1",
+				userId: "user-1",
+				action,
+				oldValues: { status: fromStatus },
+				newValues: { status: dto.status },
+				countryAccountsId: "tenant-1",
+			});
+		},
+	);
+
+	it("validate with alsoApprove: true writes one row reflecting the final APPROVED status, not two", async () => {
+		const instance = buildInstance({ status: "SUBMITTED" });
+		const repo = makeRepository(instance);
+		const notificationPort = makeNotificationPort();
+		const auditLogPort = makeAuditLogPort();
+		const useCase = new ProcessWorkflowActionUseCase(
+			new NoOpLogger(),
+			repo,
+			notificationPort,
+			auditLogPort,
+		);
+		const command: ProcessWorkflowActionCommand = {
+			action: "validate",
+			alsoApprove: true,
+			entityId: instance.entityId,
+			entityType: instance.entityType,
+			tenantId: "tenant-1",
+			actingUserId: "user-1",
+		};
+
+		await useCase.execute(command);
+
+		expect(auditLogPort.record).toHaveBeenCalledTimes(1);
+		expect(auditLogPort.record).toHaveBeenCalledWith(
+			expect.objectContaining({ newValues: { status: "APPROVED" } }),
+		);
+	});
+
+	it("a failed workflowRepository.update() call results in no audit-port call", async () => {
+		const instance = buildInstance({ status: "DRAFT" });
+		const dbError = new Error("boom-update");
+		const repo = makeRepository(instance, () => Promise.reject(dbError));
+		const notificationPort = makeNotificationPort();
+		const auditLogPort = makeAuditLogPort();
+		const useCase = new ProcessWorkflowActionUseCase(
+			new NoOpLogger(),
+			repo,
+			notificationPort,
+			auditLogPort,
+		);
+		const command: ProcessWorkflowActionCommand = {
+			action: "submit-validation",
+			entityId: instance.entityId,
+			entityType: instance.entityType,
+			tenantId: "tenant-1",
+			actingUserId: "user-1",
+			validatorUserIds: ["validator-1"],
+			recordDisplayName: "Flood",
+			recordDate: "2026-10-01",
+		};
+
+		await expect(useCase.execute(command)).rejects.toBe(dbError);
+
+		expect(auditLogPort.record).not.toHaveBeenCalled();
+	});
+
+	it("a successful update followed by the audit port's record() rejecting still lets execute() resolve with the saved DTO, logging WARN independent of notify()'s own handling", async () => {
+		const instance = buildInstance({ status: "DRAFT" });
+		const repo = makeRepository(instance);
+		const notificationPort = makeNotificationPort();
+		const auditError = new Error("audit-write-unavailable");
+		const auditLogPort = makeAuditLogPort(() => Promise.reject(auditError));
+		const logger = new NoOpLogger();
+		const warnSpy = vi.spyOn(logger, "warn");
+		const useCase = new ProcessWorkflowActionUseCase(
+			logger,
+			repo,
+			notificationPort,
+			auditLogPort,
+		);
+		const command: ProcessWorkflowActionCommand = {
+			action: "submit-validation",
+			entityId: instance.entityId,
+			entityType: instance.entityType,
+			tenantId: "tenant-1",
+			actingUserId: "user-1",
+			validatorUserIds: ["validator-1"],
+			recordDisplayName: "Flood",
+			recordDate: "2026-10-01",
+		};
+
+		const dto = await useCase.execute(command);
+
+		expect(dto.status).toBe("SUBMITTED");
+		expect(notificationPort.notify).toHaveBeenCalledOnce();
+		expect(warnSpy).toHaveBeenCalledWith(
+			expect.objectContaining({
+				msg: "workflow_action.audit_write_failed",
+				err: auditError,
+			}),
+		);
+	});
+
+	it.each(["DE", "DR"] as const)(
+		"a %s transition succeeds with no audit-port call, logging the skip at WARN",
+		async (entityType) => {
+			const instance = buildInstance({
+				status: "DRAFT",
+				entityId: "entity-1",
+				entityType,
+			});
+			const repo = makeRepository(instance);
+			const notificationPort = makeNotificationPort();
+			const auditLogPort = makeAuditLogPort();
+			const logger = new NoOpLogger();
+			const warnSpy = vi.spyOn(logger, "warn");
+			const useCase = new ProcessWorkflowActionUseCase(
+				logger,
+				repo,
+				notificationPort,
+				auditLogPort,
+			);
+			const command: ProcessWorkflowActionCommand = {
+				action: "direct-validate",
+				entityId: instance.entityId,
+				entityType,
+				tenantId: "tenant-1",
+				actingUserId: "user-1",
+				actingUserRole: "admin",
+			};
+
+			const dto = await useCase.execute(command);
+
+			expect(dto).toBeDefined();
+			expect(auditLogPort.record).not.toHaveBeenCalled();
+			expect(warnSpy).toHaveBeenCalledWith(
+				expect.objectContaining({
+					msg: "workflow_action.audit_write_skipped_unmapped_entity_type",
+					entityType,
 				}),
 			);
 		},

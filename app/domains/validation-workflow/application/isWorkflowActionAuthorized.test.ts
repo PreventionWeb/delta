@@ -6,6 +6,7 @@ import { AuthorizationError } from "~/shared/errors";
 import { WorkflowInstance } from "../domain/WorkflowInstance";
 import type { IWorkflowRepository } from "./ports/IWorkflowRepository";
 import type { INotificationPort } from "./ports/INotificationPort";
+import type { IAuditLogPort } from "~/domains/shared/audit-log/application/ports/IAuditLogPort";
 import {
 	ProcessWorkflowActionUseCase,
 	type ProcessWorkflowActionCommand,
@@ -144,6 +145,10 @@ function makeNotificationPort(): INotificationPort {
 	return { notify: vi.fn().mockResolvedValue(undefined) };
 }
 
+function makeAuditLogPort(): Pick<IAuditLogPort, "record"> {
+	return { record: vi.fn().mockResolvedValue(undefined) };
+}
+
 const request = new Request("http://localhost/en/he-preview/edit/entity-1");
 
 describe("isWorkflowActionAuthorized agreement with its two call sites", () => {
@@ -171,11 +176,13 @@ describe("isWorkflowActionAuthorized agreement with its two call sites", () => {
 					new NoOpLogger(),
 					makeRepository(),
 					makeNotificationPort(),
+					makeAuditLogPort(),
 				);
 				const command: ProcessWorkflowActionCommand = {
 					action,
 					entityId: "entity-1",
 					entityType: "HE",
+					tenantId: "tenant-1",
 					actingUserId: "user-1",
 					actingUserRole: role,
 				};

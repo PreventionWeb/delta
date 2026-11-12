@@ -217,6 +217,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 		mappedAction,
 		parsed,
 		entityId: event.id,
+		tenantId,
 		actingUserId: session.user.id,
 		actingUserRole: role,
 		getRecordDisplayName: () => getRecordDisplayName(event.id),
