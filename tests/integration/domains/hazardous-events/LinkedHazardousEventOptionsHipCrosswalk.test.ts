@@ -1,6 +1,5 @@
 import "../../db/setup";
 import "reflect-metadata";
-import { randomUUID } from "crypto";
 import { describe, expect, it } from "vitest";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { HazardousEventsModule } from "~/domains/hazardous-events/infrastructure/HazardousEventsModule.server";
@@ -9,6 +8,7 @@ import { queryLinkedHazardousEventOptions } from "~/backend.server/services/disa
 import {
 	seedCountryAccount,
 	seedSpecificHazardWithHipCrosswalk,
+	seedUser,
 } from "../../db/models/hazardousEventTestHelpers";
 
 // design.md Decision 17's own "Verification requirement" -- an end-to-end scenario against the
@@ -45,7 +45,7 @@ describe("queryLinkedHazardousEventOptions against a CA-created event (design.md
 			specificHazardLocalName: null,
 			specificHazardNationalName: null,
 			apiImportId: null,
-			actingUserId: randomUUID(),
+			actingUserId: await seedUser(),
 			hazardDriverIds: [],
 			attachments: [],
 			fieldValues: [],

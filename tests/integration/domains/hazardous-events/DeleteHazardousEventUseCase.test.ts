@@ -21,13 +21,16 @@ import {
 	type HazardousEventProps,
 } from "~/domains/hazardous-events/domain/HazardousEvent";
 import { hazardousEventAttachmentTable } from "~/domains/hazardous-events/infrastructure/hazardousEventAttachmentTable";
+import { auditLogsTable } from "~/drizzle/schema/auditLogsTable";
 import { DeleteHazardousEventUseCase } from "~/domains/hazardous-events/application/use-cases/DeleteHazardousEvent";
 import { LocalDiskAttachmentStorageAdapter } from "~/domains/shared/attachments/infrastructure/LocalDiskAttachmentStorageAdapter.server";
+import { DrizzleAuditLogAdapter } from "~/domains/shared/audit-log/infrastructure/DrizzleAuditLogAdapter.server";
 import { ConflictError, NotFoundError } from "~/shared/errors";
 import type { ILogger } from "~/shared/logging/ILogger";
 import {
 	seedCountryAccount,
 	seedSpecificHazard,
+	seedUser,
 } from "../../db/models/hazardousEventTestHelpers";
 
 class RecordingLogger implements ILogger {
@@ -184,6 +187,7 @@ async function seedEventWithWorkflow(
 		new DeleteWorkflowInstanceUseCase(workflowRepository),
 		transactionRunner,
 		attachmentStoragePort,
+		new DrizzleAuditLogAdapter(dr),
 	);
 
 	return {
@@ -198,8 +202,8 @@ describe("DeleteHazardousEventUseCase against real adapters (DEF-033 lock proof)
 		const { id, tenantId, harness } = await seedEventWithWorkflow();
 
 		const outcomes = await Promise.allSettled([
-			harness.useCase.execute({ id, tenantId, actingUserId: "user-1" }),
-			harness.useCase.execute({ id, tenantId, actingUserId: "user-2" }),
+			harness.useCase.execute({ id, tenantId, actingUserId: await seedUser() }),
+			harness.useCase.execute({ id, tenantId, actingUserId: await seedUser() }),
 		]);
 
 		expect(outcomes[0].status).toBe("fulfilled");
@@ -223,7 +227,7 @@ describe("DeleteHazardousEventUseCase against real adapters (DEF-033 lock proof)
 		});
 
 		await expect(
-			harness.useCase.execute({ id, tenantId, actingUserId: "user-1" }),
+			harness.useCase.execute({ id, tenantId, actingUserId: await seedUser() }),
 		).rejects.toThrow(ConflictError);
 	});
 
@@ -235,10 +239,14 @@ describe("DeleteHazardousEventUseCase against real adapters (DEF-033 lock proof)
 	it("a sequential second execute(), made only after the first call's transaction has already fully committed, still throws NotFoundError from findById", async () => {
 		const { id, tenantId, harness } = await seedEventWithWorkflow();
 
-		await harness.useCase.execute({ id, tenantId, actingUserId: "user-1" });
+		await harness.useCase.execute({
+			id,
+			tenantId,
+			actingUserId: await seedUser(),
+		});
 
 		await expect(
-			harness.useCase.execute({ id, tenantId, actingUserId: "user-2" }),
+			harness.useCase.execute({ id, tenantId, actingUserId: await seedUser() }),
 		).rejects.toThrow(NotFoundError);
 	});
 
@@ -251,7 +259,7 @@ describe("DeleteHazardousEventUseCase against real adapters (DEF-033 lock proof)
 		).mockRejectedValueOnce(new Error("boom-delete-by-entity"));
 
 		await expect(
-			harness.useCase.execute({ id, tenantId, actingUserId: "user-1" }),
+			harness.useCase.execute({ id, tenantId, actingUserId: await seedUser() }),
 		).rejects.toThrow("boom-delete-by-entity");
 
 		await expect(
@@ -272,7 +280,7 @@ describe("DeleteHazardousEventUseCase against real adapters (DEF-033 lock proof)
 		);
 
 		await expect(
-			harness.useCase.execute({ id, tenantId, actingUserId: "user-1" }),
+			harness.useCase.execute({ id, tenantId, actingUserId: await seedUser() }),
 		).rejects.toThrow("boom-hazardous-event-delete");
 
 		await expect(
@@ -281,6 +289,32 @@ describe("DeleteHazardousEventUseCase against real adapters (DEF-033 lock proof)
 		await expect(
 			harness.hazardousEventRepository.findById(id, tenantId),
 		).resolves.toBeDefined();
+	});
+});
+
+// ca-shared-audit-log: a successful delete writes one correctly-shaped audit_logs row. No
+// rollback case here -- deleteAttachmentFiles (the only step after record()) swallows its own
+// failures by design; the generic tx-join/rollback mechanic is proven elsewhere
+// (DrizzleAuditLogAdapter.test.ts, Create/UpdateHazardousEventUseCase's own proofs above).
+describe("DeleteHazardousEventUseCase audit log write (ca-shared-audit-log)", () => {
+	it('writes exactly one audit_logs row with the pre-delete row as oldValues, null newValues, and the lowercase "delete" action', async () => {
+		const { id, tenantId, harness } = await seedEventWithWorkflow();
+		const actingUserId = await seedUser();
+
+		await harness.useCase.execute({ id, tenantId, actingUserId });
+
+		const rows = await dr
+			.select()
+			.from(auditLogsTable)
+			.where(eq(auditLogsTable.recordId, id));
+		expect(rows).toHaveLength(1);
+		const [row] = rows;
+		expect(row.tableName).toBe("hazardous_event");
+		expect(row.userId).toBe(actingUserId);
+		expect(row.action).toBe("delete");
+		expect(row.newValues).toBeNull();
+		expect(row.countryAccountsId).toBe(tenantId);
+		expect((row.oldValues as { id: string }).id).toBe(id);
 	});
 });
 
@@ -303,7 +337,11 @@ describe("DeleteHazardousEventUseCase attachment file cleanup (ca-shared-attachm
 			attachments: [attachment],
 		});
 
-		await harness.useCase.execute({ id, tenantId, actingUserId: "user-1" });
+		await harness.useCase.execute({
+			id,
+			tenantId,
+			actingUserId: await seedUser(),
+		});
 
 		await expect(
 			harness.hazardousEventRepository.findById(id, tenantId),
@@ -334,7 +372,11 @@ describe("DeleteHazardousEventUseCase attachment file cleanup (ca-shared-attachm
 			],
 		});
 
-		await harness.useCase.execute({ id, tenantId, actingUserId: "user-1" });
+		await harness.useCase.execute({
+			id,
+			tenantId,
+			actingUserId: await seedUser(),
+		});
 
 		await expect(
 			harness.hazardousEventRepository.findById(id, tenantId),
@@ -368,7 +410,7 @@ describe("DeleteHazardousEventUseCase attachment file cleanup (ca-shared-attachm
 		});
 
 		await expect(
-			harness.useCase.execute({ id, tenantId, actingUserId: "user-1" }),
+			harness.useCase.execute({ id, tenantId, actingUserId: await seedUser() }),
 		).rejects.toThrow(ConflictError);
 
 		const attachmentRows = await dr
