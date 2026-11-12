@@ -24,6 +24,7 @@ export async function composeWorkflowAction(args: {
 	mappedAction: MappedWorkflowAction | null;
 	parsed: ParsedHazardousEventFormData;
 	entityId: string;
+	tenantId: string;
 	actingUserId: string;
 	actingUserRole: string | undefined;
 	/** Only called when the mapped action is submit-validation -- avoids an unneeded lookup for every other save. */
@@ -50,6 +51,7 @@ export async function composeWorkflowAction(args: {
 				action: "submit-validation",
 				entityId: args.entityId,
 				entityType: "HE",
+				tenantId: args.tenantId,
 				actingUserId: args.actingUserId,
 				validatorUserIds: args.validatorUserIds,
 				recordDisplayName,
@@ -63,6 +65,7 @@ export async function composeWorkflowAction(args: {
 				action: mappedAction,
 				entityId: args.entityId,
 				entityType: "HE",
+				tenantId: args.tenantId,
 				actingUserId: args.actingUserId,
 				actingUserRole: args.actingUserRole,
 			});
@@ -71,6 +74,7 @@ export async function composeWorkflowAction(args: {
 				action: mappedAction,
 				entityId: args.entityId,
 				entityType: "HE",
+				tenantId: args.tenantId,
 				actingUserId: args.actingUserId,
 				actingUserRole: args.actingUserRole,
 			});
