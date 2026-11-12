@@ -2737,6 +2737,7 @@ event's real attachments are invisible through the CA read path too.
 
 **Decisions resolved with the human, 2026-11-05 (do not re-litigate in this intent's own design —
 build to these):**
+
 - **No anti-corruption-layer bridge needed.** Investigated directly: HE's attachments are not read
   anywhere outside HE's own detail/edit pages — not CSV export (explicitly excluded,
   `csv_export.ts:36`), not the REST API, not analytics, not content-picker configs, not Disaster
@@ -2752,7 +2753,7 @@ build to these):**
   discriminator-paired mutual-exclusivity check already proven in this codebase, not a new pattern).
 - **Keep the table domain-specific, not one shared physical table.** Legacy itself already splits
   this exactly the right way: `ContentRepeaterUploadFile`/`PreUploadFile`/`FileViewer` are already
-  domain-agnostic shared infrastructure, while the attachment *data* lives in each domain's own
+  domain-agnostic shared infrastructure, while the attachment _data_ lives in each domain's own
   column. Carry that split forward — one shared module owns the port + file-storage mechanics
   (local disk, confirmed via `BASE_UPLOAD_PATH` in `app/utils/paths.ts` — no S3/cloud client
   anywhere), each domain keeps its own metadata table with its own real foreign key (no polymorphic
@@ -2801,6 +2802,122 @@ Unit tests for the new shared module's port/adapter. E2E Playwright exercising t
 real `AttachmentsFormView` widget end-to-end (upload a file, add a link, save, reload,
 confirm both are still present) — the UI-level proof this bug is actually fixed, not
 just the parsing layer.
+
+---
+
+### 🔷 6j — Audit Log Write-Replication (Shared)
+
+**Branch:** `feature/ca-shared-audit-log`
+
+**Surfaced by explicit user direction, 2026-11-07**, while comparing the CA detail page against
+legacy's — the detail page's missing "Audit log history" section (`DEF-058`) led to tracing when
+and what legacy actually writes to its `audit_logs` table, so CA code can keep recording into
+that same existing schema rather than building a new one.
+
+**Confirmed by reading the real (non-dead-code) legacy write path directly** —
+`app/backend.server/models/event.ts` (not the orphaned `app/backend.server/models/event/`
+directory, `DEF-001`) and the shared `app/backend.server/handlers/form/form.ts`:
+
+- **Create** (`hazardousEventCreate`): only if `fields.createdByUserId` is set —
+  `action: "Create hazardous event"`, `oldValues: null`, `newValues` the inserted row. Not
+  awaited, not part of the insert's own transaction.
+- **Update** (`hazardousEventUpdate`): only if `fields.updatedByUserId` is set —
+  `action: "Update hazardous event"`, `oldValues` the full pre-update row (fetched via `SELECT`
+  before the update), `newValues` the updated row. Same not-awaited, outside-the-transaction
+  pattern.
+- **Delete** (`formDeleteWithCountryAccounts`, generic across every domain's delete route, not
+  HE-specific code): `action: "delete"` (lowercase, inconsistent with Create/Update's
+  human-readable phrasing — legacy's own quirk, not something to silently "fix" without a
+  decision), `oldValues` the pre-delete row, no `newValues`. Awaited, but still after the
+  delete's own transaction commits, not inside it.
+- **Workflow status transitions** (submit/validate/publish/return —
+  `hazardousEventUpdateApprovalStatus*` in `event.ts`, called from
+  `approvalStatusWorkflowService.ts`): **zero audit logging today** — confirmed via a full grep
+  of `app/services/`. Legacy has no audit trail at all for status changes.
+- Every legacy call site also leaves `audit_logs.country_accounts_id` null — the column exists
+  but nothing populates it, today, anywhere.
+
+**Decisions resolved with the human, 2026-11-07/11 (do not re-litigate in this intent's own
+design — build to these):**
+
+- **Create's audit row double-JSON-encodes `newValues`** (`JSON.stringify(insertedHazardousEvent)`
+  passed into `logAudit()`, which itself also `JSON.stringify()`s it) — confirmed as an
+  unintentional legacy quirk, not a deliberate shape (Update's own call passes the raw object,
+  single-encoded). **CA writes it correctly, single-encoded** — a deliberate, confirmed deviation
+  from legacy's literal byte shape on this one field, not a parity requirement.
+- **CA's audit write happens inside the same transaction as the record change it documents** —
+  deliberate improvement over legacy's weaker not-awaited/outside-transaction pattern: the audit
+  row and the record change succeed or fail together, no risk of an orphaned audit row or a
+  committed change with no log.
+- **Workflow transitions (submit/validate/publish/return) get audit-logged too** — a deliberate
+  improvement over legacy's own gap, not scoped out to match it.
+- **The new write hook for transitions goes directly into the shared
+  `ProcessWorkflowActionUseCase`** (`app/domains/validation-workflow/application/use-cases/
+  ProcessWorkflowAction.ts`), not an HE-specific layer — it already has everything a hook needs
+  (`command.entityId`/`command.entityType`/`command.actingUserId`, `existing`/`saved` instances,
+  `fromStatus`/`toStatus`), the exact same shape `notificationPort.notify()` already consumes.
+  Benefits DE/disaster_records for free once they migrate, avoiding the same promote-later debt
+  `DEF-052` already flags for this use case's lack of an extension point. Key by `command.entityType`→
+  the legacy table name / `command.entityId` (NOT the `workflow_instance` row's own id) — matching
+  Create/Update/Delete's own convention of keying by the underlying record, so querying
+  `audit_logs` by one HE record's id returns its _entire_ history (create, update, delete, submit,
+  validate, publish, return) in one place. A `notify()`-style failure (logged, not propagated,
+  Decision 8 precedent already established there) is the right default here too — do not let an
+  audit-write failure block a transition that already succeeded.
+- **`country_accounts_id` is populated going forward** — pure additive correctness; CA's own use
+  cases already have `tenantId` in scope everywhere this write happens, and nothing today queries
+  or filters on this column, so populating it changes no existing behavior.
+- **The write port is a new shared module**, `app/domains/shared/audit-log/` (exact path/file
+  breakdown is this intent's own design decision) — not embedded in HE first. `audit_logs` is
+  already a domain-agnostic, cross-cutting mechanism in legacy (used for `hazardous_event`,
+  `disaster_event`, `user`, etc. today) — a textbook generic subdomain, same reasoning already
+  applied to `6i`'s attachments module, not the embed-then-promote-later pattern used for
+  `INotificationPort`/`IValidatorCandidateRepository`.
+- **No new table, no migration.** `app/drizzle/schema/auditLogsTable.ts` already exists exactly as
+  needed (`table_name`/`record_id`/`user_id`/`action`/`old_values`/`new_values`/`timestamp`/
+  `country_accounts_id`) — this intent only adds a CA-side port + adapter writing into it.
+
+**Intent for `/opsx:propose`:**
+
+```
+Build a new shared app/domains/shared/audit-log/ module (exact path/file
+breakdown this intent's own design decides) owning an IAuditLogPort (e.g.
+record(tableName, recordId, userId, action, oldValues, newValues,
+countryAccountsId)) and a Drizzle-backed adapter writing into the existing,
+unchanged app/drizzle/schema/auditLogsTable.ts -- no new table, no migration.
+Wire CreateHazardousEvent/UpdateHazardousEvent/DeleteHazardousEvent to call it
+inside the same transaction as their own write, matching legacy's action
+strings ("Create hazardous event"/"Update hazardous event"/"delete") except
+writing newValues correctly single-encoded (legacy's Create-path double-encode
+is a confirmed bug, not reproduced). Add a new audit-write hook directly inside
+the shared ProcessWorkflowActionUseCase.execute(), firing for every transition
+(submit-validation/validate/publish/return/submit-draft/direct-validate/
+direct-publish), keyed by command.entityType/command.entityId (not the
+workflow_instance row's own id), with action strings this intent's own design
+chooses (no legacy precedent exists for these -- legacy logs none of them
+today). A write failure must not block the transition it documents (same
+tolerated-degradation precedent as notify()'s own DEF-023/Decision 8). Populate
+country_accounts_id on every write going forward (currently always null in
+legacy). No UI work in this intent -- DEF-058 (the detail page's own missing
+"Audit log history" section) is a separate, larger read-side gap, tracked on
+its own, not solved here.
+```
+
+**Files touched:** not yet determined for the shared module's own exact path/file breakdown —
+this intent's own design decides it. At minimum: a new shared `app/domains/shared/audit-log/`
+module (port + adapter), `app/domains/hazardous-events/application/use-cases/
+{Create,Update,Delete}HazardousEvent.ts` (new audit-write call inside each's existing
+transaction), `app/domains/hazardous-events/infrastructure/HazardousEventsModule.server.ts`
+(DI wiring), `app/domains/validation-workflow/application/use-cases/ProcessWorkflowAction.ts`
+(new audit-write hook alongside the existing `notify()` call).
+
+**Test tier:** PGlite integration — each of Create/Update/Delete writes exactly one correctly-shaped
+`audit_logs` row inside the same transaction as its own record change (including a rollback
+scenario: a failing record write leaves no audit row either). Unit tests for the new shared
+module's port/adapter. A `ProcessWorkflowActionUseCase` test per transition action confirming an
+audit row is written with the right `table_name`/`record_id`/`action`, and that an audit-write
+failure doesn't block the transition's own success (mirroring the existing `notify()`-failure
+test precedent).
 
 ---
 
