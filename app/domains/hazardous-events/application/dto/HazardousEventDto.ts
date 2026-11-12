@@ -10,6 +10,9 @@ import type {
 	WorkflowInstance,
 } from "~/domains/validation-workflow/domain/WorkflowInstance";
 
+/** Legacy audit table name for hazardous_event rows -- single source for the three use cases. */
+export const HAZARDOUS_EVENT_AUDIT_TABLE_NAME = "hazardous_event";
+
 /**
  * Serialisable representation of a HazardousEvent crossing the
  * application-to-presentation boundary; dates as ISO 8601 strings.

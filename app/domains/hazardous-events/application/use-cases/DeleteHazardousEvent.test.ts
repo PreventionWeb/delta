@@ -22,6 +22,10 @@ import type {
 	IAttachmentStoragePort,
 	StagedFileReference,
 } from "~/domains/shared/attachments/application/ports/IAttachmentStoragePort";
+import type {
+	AuditLogEntry,
+	IAuditLogPort,
+} from "~/domains/shared/audit-log/application/ports/IAuditLogPort";
 import {
 	DeleteHazardousEventUseCase,
 	type DeleteHazardousEventCommand,
@@ -335,6 +339,21 @@ class FakeAttachmentStoragePort implements IAttachmentStoragePort {
 	}
 }
 
+class FakeAuditLogPort implements Pick<IAuditLogPort, "record"> {
+	readonly recordCalls: { entry: AuditLogEntry; tx: Tx | undefined }[] = [];
+	recordBehavior: "succeed" | Error = "succeed";
+
+	constructor(private readonly callLog: string[] = []) {}
+
+	async record(entry: AuditLogEntry, tx?: Tx): Promise<void> {
+		this.recordCalls.push({ entry, tx });
+		this.callLog.push("auditLogPort.record");
+		if (this.recordBehavior instanceof Error) {
+			throw this.recordBehavior;
+		}
+	}
+}
+
 const baseEventProps: HazardousEventProps = {
 	id: "event-A",
 	tenantId: "tenant-1",
@@ -394,6 +413,7 @@ function createHarness() {
 	const workflowRepository = new FakeWorkflowRepository(callLog);
 	const transactionRunner = new FakeTransactionRunner();
 	const attachmentStoragePort = new FakeAttachmentStoragePort(callLog);
+	const auditLogPort = new FakeAuditLogPort(callLog);
 	const useCase = new DeleteHazardousEventUseCase(
 		logger,
 		hazardousEventRepository,
@@ -402,9 +422,11 @@ function createHarness() {
 		new DeleteWorkflowInstanceUseCase(workflowRepository),
 		transactionRunner,
 		attachmentStoragePort,
+		auditLogPort,
 	);
 	return {
 		attachmentStoragePort,
+		auditLogPort,
 		callLog,
 		logger,
 		hazardousEventRepository,
@@ -819,6 +841,7 @@ describe("DeleteHazardousEventUseCase", () => {
 		expect(harness.callLog).toEqual([
 			"workflow.deleteByEntity",
 			"hazardousEvent.delete",
+			"auditLogPort.record",
 		]);
 	});
 
@@ -921,6 +944,7 @@ describe("DeleteHazardousEventUseCase", () => {
 			);
 			expect(harness.workflowRepository.deleteByEntityCalls[0].tx).toBe(fakeTx);
 			expect(harness.hazardousEventRepository.deleteCalls[0].tx).toBe(fakeTx);
+			expect(harness.auditLogPort.recordCalls[0].tx).toBe(fakeTx);
 		});
 
 		it("a deleteByEntity rejection propagates unmodified, with no log event", async () => {
@@ -936,6 +960,69 @@ describe("DeleteHazardousEventUseCase", () => {
 			).rejects.toThrow("boom-delete-by-entity");
 			expect(harness.hazardousEventRepository.deleteCalls).toHaveLength(0);
 			expect(harness.logger.info).not.toHaveBeenCalled();
+		});
+	});
+
+	// design.md Decision 6: record() runs inside the transaction, immediately after the row delete, with the pre-delete row as oldValues.
+	describe("IAuditLogPort composition (design.md Decision 6)", () => {
+		it('calls record() with the pre-delete row as oldValues, null newValues, and the lowercase "delete" action', async () => {
+			const harness = createHarness();
+
+			await harness.useCase.execute(
+				makeCommand({
+					id: "event-A",
+					tenantId: "tenant-1",
+					actingUserId: "user-9",
+				}),
+			);
+
+			expect(harness.auditLogPort.recordCalls).toHaveLength(1);
+			const [{ entry }] = harness.auditLogPort.recordCalls;
+			expect(entry).toMatchObject({
+				tableName: "hazardous_event",
+				recordId: "event-A",
+				userId: "user-9",
+				action: "delete",
+				newValues: null,
+				countryAccountsId: "tenant-1",
+			});
+			expect((entry.oldValues as { id: string }).id).toBe("event-A");
+		});
+
+		it("propagates a rejection from record(), with no log event", async () => {
+			const harness = createHarness();
+			harness.auditLogPort.recordBehavior = new Error("boom-audit-record");
+
+			await expect(
+				harness.useCase.execute(
+					makeCommand({ id: "event-A", tenantId: "tenant-1" }),
+				),
+			).rejects.toThrow("boom-audit-record");
+			expect(harness.logger.info).not.toHaveBeenCalled();
+		});
+
+		it("writes no audit row when the delete is blocked by a dependent", async () => {
+			const harness = createHarness();
+			harness.causalChainRepository.setCount("event-A", 1);
+
+			await expect(
+				harness.useCase.execute(
+					makeCommand({ id: "event-A", tenantId: "tenant-1" }),
+				),
+			).rejects.toThrow(ConflictError);
+			expect(harness.auditLogPort.recordCalls).toHaveLength(0);
+		});
+
+		it("writes no audit row for the no-op (already-deleted) path", async () => {
+			const harness = createHarness();
+			harness.hazardousEventRepository.findByIdForUpdateBehavior =
+				new NotFoundError("HazardousEvent", "event-A");
+
+			await harness.useCase.execute(
+				makeCommand({ id: "event-A", tenantId: "tenant-1" }),
+			);
+
+			expect(harness.auditLogPort.recordCalls).toHaveLength(0);
 		});
 	});
 
@@ -985,6 +1072,7 @@ describe("DeleteHazardousEventUseCase", () => {
 				new DeleteWorkflowInstanceUseCase(workflowRepository),
 				new FakeTransactionRunner(),
 				attachmentStoragePort,
+				new FakeAuditLogPort(callLog),
 			);
 
 			await useCase.execute(
@@ -1038,6 +1126,7 @@ describe("DeleteHazardousEventUseCase", () => {
 				new DeleteWorkflowInstanceUseCase(workflowRepository),
 				new FakeTransactionRunner(),
 				attachmentStoragePort,
+				new FakeAuditLogPort(callLog),
 			);
 
 			await expect(
@@ -1097,6 +1186,7 @@ describe("DeleteHazardousEventUseCase", () => {
 				new DeleteWorkflowInstanceUseCase(workflowRepository),
 				new FakeTransactionRunner(),
 				attachmentStoragePort,
+				new FakeAuditLogPort(callLog),
 			);
 
 			await expect(
@@ -1183,6 +1273,7 @@ describe("DeleteHazardousEventUseCase", () => {
 				new DeleteWorkflowInstanceUseCase(workflowRepository),
 				new FakeTransactionRunner(),
 				new FakeAttachmentStoragePort(callLog),
+				new FakeAuditLogPort(callLog),
 			);
 
 			const results = await Promise.allSettled([

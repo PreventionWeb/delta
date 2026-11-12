@@ -27,6 +27,10 @@ import type {
 	IAttachmentStoragePort,
 	StagedFileReference,
 } from "~/domains/shared/attachments/application/ports/IAttachmentStoragePort";
+import type {
+	AuditLogEntry,
+	IAuditLogPort,
+} from "~/domains/shared/audit-log/application/ports/IAuditLogPort";
 import {
 	CreateHazardousEventUseCase,
 	type CreateHazardousEventCommand,
@@ -429,6 +433,21 @@ class FakeAttachmentStoragePort implements IAttachmentStoragePort {
 	}
 }
 
+class FakeAuditLogPort implements Pick<IAuditLogPort, "record"> {
+	readonly recordCalls: { entry: AuditLogEntry; tx: Tx | undefined }[] = [];
+	recordBehavior: "succeed" | Error = "succeed";
+
+	constructor(private readonly callLog: string[] = []) {}
+
+	async record(entry: AuditLogEntry, tx?: Tx): Promise<void> {
+		this.recordCalls.push({ entry, tx });
+		this.callLog.push("auditLogPort.record");
+		if (this.recordBehavior instanceof Error) {
+			throw this.recordBehavior;
+		}
+	}
+}
+
 const baseCommand: CreateHazardousEventCommand = {
 	tenantId: "tenant-1",
 	specificHazardId: "hazard-1",
@@ -519,6 +538,7 @@ function createHarness(options: HarnessOptions = {}) {
 	const transactionRunner = new FakeTransactionRunner(callLog);
 	const hipCrosswalkPort = new FakeHipCrosswalkPort(callLog);
 	const attachmentStoragePort = new FakeAttachmentStoragePort(callLog);
+	const auditLogPort = new FakeAuditLogPort(callLog);
 	const useCase = new CreateHazardousEventUseCase(
 		logger,
 		taxonomyRepository,
@@ -529,6 +549,7 @@ function createHarness(options: HarnessOptions = {}) {
 		transactionRunner,
 		hipCrosswalkPort,
 		attachmentStoragePort,
+		auditLogPort,
 	);
 	return {
 		callLog,
@@ -541,6 +562,7 @@ function createHarness(options: HarnessOptions = {}) {
 		transactionRunner,
 		hipCrosswalkPort,
 		attachmentStoragePort,
+		auditLogPort,
 		useCase,
 	};
 }
@@ -808,6 +830,7 @@ describe("CreateHazardousEventUseCase", () => {
 			expect(harness.callLog).toEqual([
 				"hipCrosswalkPort.resolve",
 				"hazardousEvent.insert",
+				"auditLogPort.record",
 				"hipCrosswalkPort.stamp",
 				"workflow.insert",
 				"transactionRunner.run.resolving",
@@ -875,6 +898,7 @@ describe("CreateHazardousEventUseCase", () => {
 			expect(harness.callLog).toEqual([
 				"hipCrosswalkPort.resolve",
 				"hazardousEvent.insert",
+				"auditLogPort.record",
 				"hipCrosswalkPort.stamp",
 				"workflow.insert",
 				"causalChain.saveEdge",
@@ -1156,6 +1180,7 @@ describe("CreateHazardousEventUseCase", () => {
 			expect(harness.callLog).toEqual([
 				"hipCrosswalkPort.resolve",
 				"hazardousEvent.insert",
+				"auditLogPort.record",
 				"hipCrosswalkPort.stamp",
 				"workflow.insert",
 				"spatialObservation.execute",
@@ -1231,6 +1256,7 @@ describe("CreateHazardousEventUseCase", () => {
 			expect(harness.callLog).toEqual([
 				"hipCrosswalkPort.resolve",
 				"hazardousEvent.insert",
+				"auditLogPort.record",
 				"hipCrosswalkPort.stamp",
 				"workflow.insert",
 				"spatialObservation.execute",
@@ -1326,6 +1352,45 @@ describe("CreateHazardousEventUseCase", () => {
 			const harness = createHarness();
 			const thrown = new Error("boom-stamp");
 			harness.hipCrosswalkPort.stampBehavior = thrown;
+			const command = makeCommand();
+
+			await expect(harness.useCase.execute(command)).rejects.toBe(thrown);
+
+			expect(harness.hazardousEventRepository.insertCalls).toHaveLength(1);
+			expect(harness.workflowRepository.insertCalls).toHaveLength(0);
+			expect(harness.logger.info).not.toHaveBeenCalled();
+		});
+	});
+
+	// design.md Decision 6: record() runs inside the transaction, immediately after the event insert.
+	describe("IAuditLogPort composition (design.md Decision 6)", () => {
+		it("calls record() with the saved event's id, the command's own actingUserId/tenantId, and the same tx", async () => {
+			const harness = createHarness();
+			const command = makeCommand();
+
+			await harness.useCase.execute(command);
+
+			const savedEntity = harness.hazardousEventRepository.insertCalls[0];
+			expect(harness.auditLogPort.recordCalls).toEqual([
+				{
+					entry: {
+						tableName: "hazardous_event",
+						recordId: savedEntity.id,
+						userId: command.actingUserId,
+						action: "Create hazardous event",
+						oldValues: null,
+						newValues: expect.objectContaining({ id: savedEntity.id }),
+						countryAccountsId: command.tenantId,
+					},
+					tx: fakeTx,
+				},
+			]);
+		});
+
+		it("propagates a rejection from record(), logging nothing (rollback proof needs the real adapter, not this fake)", async () => {
+			const harness = createHarness();
+			const thrown = new Error("boom-audit-record");
+			harness.auditLogPort.recordBehavior = thrown;
 			const command = makeCommand();
 
 			await expect(harness.useCase.execute(command)).rejects.toBe(thrown);

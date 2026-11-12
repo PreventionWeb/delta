@@ -18,8 +18,12 @@ import type { IHazardousEventRepository } from "../ports/IHazardousEventReposito
 import type { ICausalChainRepository } from "../ports/ICausalChainRepository";
 import type { IHazardTaxonomyRepository } from "../ports/IHazardTaxonomyRepository";
 import type { IHipCrosswalkPort } from "../ports/IHipCrosswalkPort";
+import type { IAuditLogPort } from "~/domains/shared/audit-log/application/ports/IAuditLogPort";
 import type { HazardousEventDto } from "../dto/HazardousEventDto";
-import { mapHazardousEventFields } from "../dto/HazardousEventDto";
+import {
+	HAZARDOUS_EVENT_AUDIT_TABLE_NAME,
+	mapHazardousEventFields,
+} from "../dto/HazardousEventDto";
 import type {
 	RecordSpatialObservationCommand,
 	RecordSpatialObservationUseCase,
@@ -198,6 +202,7 @@ export class UpdateHazardousEventUseCase {
 			IAttachmentStoragePort,
 			"promote" | "delete"
 		>,
+		private readonly auditLogPort: Pick<IAuditLogPort, "record">,
 	) {}
 
 	async execute(
@@ -304,6 +309,20 @@ export class UpdateHazardousEventUseCase {
 				const saved = await this.hazardousEventRepository.update(
 					updatedEvent,
 					existingEvent.updatedAt,
+					tx,
+				);
+
+				// Same tx as the update (Decision 6); oldValues is the pre-update row.
+				await this.auditLogPort.record(
+					{
+						tableName: HAZARDOUS_EVENT_AUDIT_TABLE_NAME,
+						recordId: saved.id,
+						userId: command.actingUserId,
+						action: "Update hazardous event",
+						oldValues: mapHazardousEventFields(existingEvent),
+						newValues: mapHazardousEventFields(saved),
+						countryAccountsId: command.tenantId,
+					},
 					tx,
 				);
 
