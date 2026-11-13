@@ -33,3 +33,11 @@ Provides machine-to-machine and programmatic authentication for REST endpoints v
 #### Scenario: Request context attribution
 - **WHEN** an HTTP request is successfully authenticated via `ApiKeyAuthGuard` within an active request context
 - **THEN** the request context store holds `tenantId` and `userId` matching the API key record
+
+### Requirement: ApiKeyAuthGuard populates request.role from userCountryAccountsTable
+`ApiKeyAuthGuard` SHALL query `userCountryAccountsTable` by `userId` and `countryAccountsId` to look up the caller's role. If a role is found, it SHALL populate `request.role`.
+
+#### Scenario: User with assigned tenant role
+- **WHEN** an HTTP request is authenticated with an API key whose user has a role assigned in `userCountryAccountsTable` for that tenant
+- **THEN** `request.role` is populated with the matching `RoleId`
+

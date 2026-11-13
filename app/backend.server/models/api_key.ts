@@ -22,7 +22,7 @@ export async function apiAuth(request: Request): Promise<SelectApiKey> {
 	}
 	const key = await ApiKeyRepository.getBySecret(authToken);
 
-	if (!key) {
+	if (!key || key.length === 0) {
 		throw new Response("Unauthorized", { status: 401 });
 	}
 

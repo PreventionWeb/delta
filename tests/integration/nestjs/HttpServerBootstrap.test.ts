@@ -102,6 +102,7 @@ async function getFreshInitServerAndContext() {
 describe("HttpServerBootstrap", { timeout: 15000 }, () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		delete process.env.API_HTTP_SERVER_ENABLED;
 		// Restore mock implementations after clearAllMocks resets them.
 		mockCreateContext.mockResolvedValue({ close: vi.fn(), get: vi.fn() });
 		mockCreateApp.mockResolvedValue(mockApp);

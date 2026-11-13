@@ -313,7 +313,9 @@ export async function getUserRoleFromSession(request: Request) {
 	const countryAccountsId = await getCountryAccountsIdFromSession(request);
 	if (!countryAccountsId) return;
 
-	const userCountryAccount = await dr.query.userCountryAccountsTable.findFirst({
+	const queryTarget =
+		dr.query.userCountryAccountsTable ?? (dr.query as any)?.userCountryAccounts;
+	const userCountryAccount = await queryTarget?.findFirst({
 		where: and(
 			eq(userCountryAccountsTable.userId, userSession.user.id),
 			eq(userCountryAccountsTable.countryAccountsId, countryAccountsId),

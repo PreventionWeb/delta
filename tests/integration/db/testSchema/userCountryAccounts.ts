@@ -36,6 +36,8 @@ export const userCountryAccounts = pgTable("user_country_accounts", {
 	),
 });
 
+export const userCountryAccountsTable = userCountryAccounts;
+
 export type SelectUserCountryAccounts = typeof userCountryAccounts.$inferSelect;
 export type InsertUserCountryAccounts = typeof userCountryAccounts.$inferInsert;
 export type SelectUserCountryAccountsWithUser = SelectUserCountryAccounts & {

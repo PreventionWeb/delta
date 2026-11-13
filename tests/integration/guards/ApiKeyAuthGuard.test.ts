@@ -19,6 +19,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 
 import { dr } from "~/db.server";
 import { apiKeyTable } from "~/drizzle/schema/apiKeyTable";
+import { userCountryAccountsTable } from "~/drizzle/schema/userCountryAccountsTable";
 import { getRequestContext } from "~/utils/requestContext.server";
 import { RequestContextMiddleware } from "~/infrastructure/RequestContextMiddleware.server";
 import { DrizzleProvider } from "~/infrastructure/DrizzleProvider.server";
@@ -53,6 +54,7 @@ class StubController {
 		return {
 			tenantId: authedReq.tenantId,
 			userId: authedReq.userId,
+			role: authedReq.role ?? null,
 			contextTenantId: ctx?.tenantId ?? null,
 			contextUserId: ctx?.userId ?? null,
 		};
@@ -97,6 +99,23 @@ describe("ApiKeyAuthGuard", () => {
 		expect(res.status).toBe(200);
 		expect(res.body.tenantId).toBe(tenantId);
 		expect(res.body.userId).toBe(userId);
+	});
+
+	it("populates request.role when user has an assigned role in userCountryAccountsTable", async () => {
+		const tenantId = await insertTenant();
+		const userId = await insertUser();
+		const secret = await insertApiKey({ userId, tenantId });
+
+		await dr.insert(userCountryAccountsTable).values({
+			userId,
+			countryAccountsId: tenantId,
+			role: "data-collector",
+		});
+
+		const res = await request.get("/api-key-guard-test/").set("X-Auth", secret);
+
+		expect(res.status).toBe(200);
+		expect(res.body.role).toBe("data-collector");
 	});
 
 	it("populates the request-context store's tenantId/userId after a successful canActivate()", async () => {

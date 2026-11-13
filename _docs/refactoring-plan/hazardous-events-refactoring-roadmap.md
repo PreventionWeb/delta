@@ -2534,31 +2534,41 @@ ignored, not honored.
 
 ---
 
-### 🔷 6e — ApiKeyAuthGuard
+### 🔷 6e — ApiKeyAuthGuard ✅ (Complete)
 
 **Branch:** `feature/ca-he-api-key-auth-guard`
 
 **Intent for `/opsx:propose`:**
 
 ```
-Add ApiKeyAuthGuard implementing NestJS CanActivate in
-app/domains/hazardous-events/presentation/guards/ApiKeyAuthGuard.server.ts —
-mirrors SessionAuthGuard's shape (synthesizes a Fetch Request from the X-Auth
-header, since apiAuth() expects one) but delegates to the now-fixed apiAuth()
-(app/backend.server/models/api_key.ts — this phase's other deliverable, `if
-(!key)` corrected to `if (key.length === 0)`) rather than session cookies. Throws
-UnauthorizedException for a missing or invalid X-Auth header — both cases now
-behave identically, unlike today where only the missing-header case worked.
+Add ApiKeyAuthGuard implementing NestJS CanActivate alongside modular guard architecture
+in app/infrastructure/guards/ (authn/, authz/, types/) with facade re-export in
+app/domains/hazardous-events/presentation/guards/index.ts. Implements composite
+ApiKeyOrSessionAuthGuard and PermissionsGuard (RBAC @RequirePermission), hydrates
+req.role, and resolves legacy DEF-002 in app/backend.server/models/api_key.ts
+(`if (!key || key.length === 0)`). Throws UnauthorizedException (401) for missing or
+invalid X-Auth header and ForbiddenException (403) for insufficient role permissions.
 ```
 
 **Files touched:**
 
-- `app/domains/hazardous-events/presentation/guards/ApiKeyAuthGuard.server.ts` (new)
-- `app/backend.server/models/api_key.ts` (modified — the `apiAuth` fix itself)
+- `app/infrastructure/guards/authn/ApiKeyAuthGuard.server.ts` (modular authn guard)
+- `app/infrastructure/guards/authn/SessionAuthGuard.server.ts` (modular authn guard)
+- `app/infrastructure/guards/authn/ApiKeyOrSessionAuthGuard.server.ts` (composite authn guard)
+- `app/infrastructure/guards/authn/index.ts` (authn barrel export)
+- `app/infrastructure/guards/authz/RequirePermission.ts` (@RequirePermission decorator)
+- `app/infrastructure/guards/authz/PermissionsGuard.server.ts` (RBAC authorization guard)
+- `app/infrastructure/guards/authz/index.ts` (authz barrel export)
+- `app/infrastructure/guards/types/AuthenticatedRequest.ts` (request contract with role)
+- `app/infrastructure/guards/types/index.ts` (types barrel export)
+- `app/infrastructure/guards/index.ts` (root guard facade)
+- `app/domains/hazardous-events/presentation/guards/index.ts` (domain presentation re-export)
+- `app/backend.server/models/api_key.ts` (fixed DEF-002: return 401 on empty array lookup)
 
-**Test tier:** Unit — a missing `X-Auth` header and an invalid one both reject with
-`UnauthorizedException`; a valid one resolves the API key and populates
-`countryAccountsId` on the request.
+**Test tier:** Unit & PGlite integration — `tests/unit/backend.server/models/apiKeyAuth.test.ts`
+(DEF-002 fix), `tests/integration/guards/ApiKeyAuthGuard.test.ts`,
+`tests/integration/guards/ApiKeyOrSessionAuthGuard.test.ts`, and
+`tests/integration/guards/PermissionsGuard.test.ts` (all 21 tests green).
 
 ---
 
