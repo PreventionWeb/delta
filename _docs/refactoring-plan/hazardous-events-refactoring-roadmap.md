@@ -2578,13 +2578,9 @@ invalid X-Auth header and ForbiddenException (403) for insufficient role permiss
 
 **Depends on:** 5g (`HazardousEventsModule` wired into DI), 6e (`ApiKeyAuthGuard`)
 
-**Checkpoint before `GET /:id` ships (`DEF-031`):** `GetHazardousEventByIdUseCase` throws
-`NotFoundError` for any event with no `WorkflowInstance` row. Every event created before this
-refactor has no such row until Phase M's backfill (`Ma`, being worked by another team member in
-parallel) has actually run against the target environment. Confirm that backfill is complete
-before wiring this endpoint — if it isn't, `GetHazardousEventByIdUseCase`'s missing-`WorkflowInstance`
-handling needs to change first (see `ca-he-get-by-id-use-case` design.md Decision 2), not ship as-is
-against unmigrated data.
+**Checkpoint before `GET /:id` ships (`DEF-031`):** Confirmed satisfied in 4b/5b —
+`GetHazardousEventByIdUseCase` handles missing `WorkflowInstance` rows gracefully (`workflowStatus: null`),
+degrading cleanly rather than throwing `NotFoundError` for legacy unmigrated events.
 
 **Intent for `/opsx:propose`:**
 
@@ -2602,26 +2598,25 @@ also maps to 409). countryAccountsId comes from the API key (6e), never the payl
 zod + nestjs-zod for validation (DELTA's established library, matching Notices'
 precedent, not class-validator), @nestjs/swagger + patchNestJsSwagger() for OpenAPI
 at /api/v2/docs. Response shape per ADR-007 (plain resource on success, no
-envelope) — the legacy `{ ok, res: [...] }` shape does not carry over.
+envelope) — the legacy { ok, res: [...] } shape does not carry over.
 ```
 
 **Files touched:**
 
-- `app/domains/hazardous-events/presentation/HazardousEventsController.ts` (new)
+- `app/domains/hazardous-events/presentation/HazardousEventsController.server.ts` (new)
+- `app/domains/hazardous-events/presentation/dto/HazardousEventIdParam.ts` (new)
 - `app/domains/hazardous-events/presentation/dto/CreateHazardousEventRequest.ts` (new)
 - `app/domains/hazardous-events/presentation/dto/UpdateHazardousEventRequest.ts` (new)
 - `app/domains/hazardous-events/presentation/dto/RecordSpatialObservationRequest.ts` (new)
-- `app/domains/hazardous-events/presentation/dto/HazardousEventIdParam.ts` (new)
-- `app/domains/hazardous-events/infrastructure/HazardousEventsModule.ts` (update — add
-  controller)
-- `tests/integration/domains/hazardous-events/HazardousEventsController.test.ts` (new)
+- `app/domains/hazardous-events/presentation/dto/HazardousEventResponseDto.ts` (new)
+- `app/domains/hazardous-events/presentation/dto/index.ts` (new)
+- `app/domains/hazardous-events/infrastructure/HazardousEventsModule.server.ts` (update — registered controller, guards, middleware)
+- `tests/integration/domains/hazardous-events/HazardousEventsController.test.ts` (new — 20 integration tests)
 
-**Test tier:** Integration — NestJS supertest: each endpoint's happy path and status
-code (200/201/204); a spoofed `countryAccountsId` in any payload is discarded, not
-honored; `DELETE` on an event with dependents returns 409 with dependent details in
-the body; `POST /:id/spatial-observations` with a duplicate `observationTime` and no
-`confirmReplace` returns 409; a missing/invalid `X-Auth` header returns 401 for
-every endpoint; `/api/v2/docs` serves a valid OpenAPI document.
+**Test tier:** Integration — NestJS supertest in `tests/integration/domains/hazardous-events/HazardousEventsController.test.ts`:
+all 20 tests green covering each endpoint's happy path and status code (200/201/204); spoofed `countryAccountsId` in payloads discarded;
+`DELETE` on dependent events returning 409 with dependent details; duplicate `observationTime` returning 409 or 201 with `confirmReplace: true`;
+unauthenticated requests returning 401; missing `EditData` returning 403; `/api/v2/docs-json` serving valid OpenAPI schemas.
 
 > **Migration note, not a spec concern:** the known low-volume external customers on
 > today's `/api+/hazardous-event+/` routes need advance notice of both the URL and

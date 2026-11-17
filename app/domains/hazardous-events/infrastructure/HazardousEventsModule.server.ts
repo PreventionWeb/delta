@@ -1,10 +1,15 @@
-import { Module } from "@nestjs/common";
+import {
+	Module,
+	type MiddlewareConsumer,
+	type NestModule,
+} from "@nestjs/common";
 
 import { DrizzleProvider } from "~/infrastructure/DrizzleProvider.server";
 import { TRANSACTION_RUNNER } from "~/infrastructure/TransactionRunnerToken";
 import { DrizzleTransactionRunner } from "~/infrastructure/DrizzleTransactionRunner.server";
 import { getPinoLogger } from "~/infrastructure/logging/PinoLogger.server";
 import type { ITransactionRunner } from "~/shared/persistence/ITransactionRunner";
+import { RequestContextMiddleware } from "~/infrastructure/RequestContextMiddleware.server";
 
 import { ValidationWorkflowModule } from "~/domains/validation-workflow/infrastructure/ValidationWorkflowModule.server";
 import { InitializeWorkflowInstanceUseCase } from "~/domains/validation-workflow/application/use-cases/InitializeWorkflowInstance";
@@ -29,6 +34,14 @@ import type { ICausalChainRepository } from "~/domains/hazardous-events/applicat
 import type { IHazardTaxonomyRepository } from "~/domains/hazardous-events/application/ports/IHazardTaxonomyRepository";
 import type { ISpecificHazardTaxonomyRepository } from "~/domains/hazardous-events/application/ports/ISpecificHazardTaxonomyRepository";
 
+import { HazardousEventsController } from "~/domains/hazardous-events/presentation/HazardousEventsController.server";
+import {
+	ApiKeyAuthGuard,
+	SessionAuthGuard,
+	ApiKeyOrSessionAuthGuard,
+	PermissionsGuard,
+} from "~/domains/hazardous-events/presentation/guards";
+
 import { DrizzleHazardousEventRepository } from "./DrizzleHazardousEventRepository.server";
 import { DrizzleCausalChainRepository } from "./DrizzleCausalChainRepository.server";
 import { DrizzleHazardTaxonomyRepository } from "./DrizzleHazardTaxonomyRepository.server";
@@ -41,6 +54,7 @@ import { SPECIFIC_HAZARD_TAXONOMY_REPOSITORY } from "./SpecificHazardTaxonomyRep
 import { DIVISION_REPOSITORY } from "./DivisionRepositoryToken";
 
 @Module({
+	controllers: [HazardousEventsController],
 	imports: [
 		// For the four validation-workflow use cases this module's own use cases depend on —
 		// never WORKFLOW_REPOSITORY directly (design.md Decision 4, ca-hazardous-events-module).
@@ -234,6 +248,11 @@ import { DIVISION_REPOSITORY } from "./DivisionRepositoryToken";
 				TRANSACTION_RUNNER,
 			],
 		},
+		ApiKeyAuthGuard,
+		SessionAuthGuard,
+		ApiKeyOrSessionAuthGuard,
+		PermissionsGuard,
+		RequestContextMiddleware,
 	],
 	// RecordSpatialObservationUseCase is exported despite being same-module-only today —
 	// design.md Risks/Trade-offs.
@@ -247,4 +266,10 @@ import { DIVISION_REPOSITORY } from "./DivisionRepositoryToken";
 		UpdateHazardousEventUseCase,
 	],
 })
-export class HazardousEventsModule {}
+export class HazardousEventsModule implements NestModule {
+	configure(consumer: MiddlewareConsumer) {
+		consumer
+			.apply(RequestContextMiddleware)
+			.forRoutes(HazardousEventsController);
+	}
+}
