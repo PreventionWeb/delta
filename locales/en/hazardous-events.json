@@ -119,13 +119,19 @@
 	},
 	"detail": {
 		"id_label": "ID",
+		"sections": {
+			"basic_information": "Basic information",
+			"hazard_details": "Hazard details",
+			"location": "Location",
+			"attachments": "Attachments",
+			"linked_events": "Linked events",
+			"audit_log_history": "Audit log history"
+		},
 		"classification": {
-			"heading": "Hazard classification",
-			"type": "Type",
-			"cluster": "Cluster",
-			"hazard": "Hazard"
+			"heading": "Hazard classification"
 		},
 		"fields": {
+			"uuid": "UUID",
 			"national_specification": "National specification",
 			"start_date": "Start date",
 			"end_date": "End date",
@@ -138,12 +144,41 @@
 			"hazardous_event_status": "Hazardous event Status",
 			"data_source": "Data source",
 			"created_at": "Created at",
-			"updated_at": "Updated at"
+			"updated_at": "Updated at",
+			"hazard_type": "Hazard type",
+			"hazard_cluster": "Hazard cluster",
+			"specific_hazard": "Specific hazard"
 		},
 		"spatial_observation": {
 			"none": "No spatial observation recorded",
 			"observation_time": "Observation time",
-			"note": "Note"
+			"note": "Note",
+			"map_label": "Spatial footprint map"
+		},
+		"linked_events": {
+			"caused_by": "Caused by",
+			"causing": "Causing",
+			"no_cause": "No cause recorded",
+			"no_effects": "No effects recorded",
+			"hip_label": "HIP",
+			"uuid_label": "UUID",
+			"unresolved_event": "Hazardous event"
+		},
+		"audit_log": {
+			"empty": "No audit log history recorded",
+			"columns": {
+				"action_taken": "Action taken",
+				"by": "By",
+				"organisation": "Organisation",
+				"date": "Date",
+				"time": "Time"
+			},
+			"actions": {
+				"create": "Create {{obj}}",
+				"update": "Update {{obj}}",
+				"delete": "Delete {{obj}}"
+			},
+			"object_hazardous_event": "hazardous event"
 		},
 		"attachments_table": {
 			"columns": {
@@ -159,6 +194,6 @@
 			"passed": "Passed"
 		},
 		"edit": "Edit",
-		"add_cause": "Add hazardous event caused by this event"
+		"back_to_list": "Back to Hazardous events"
 	}
 }
