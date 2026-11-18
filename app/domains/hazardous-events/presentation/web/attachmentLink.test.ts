@@ -70,8 +70,7 @@ describe("attachmentLink", () => {
 		expect(link.label).toBe("https://example.com/report");
 	});
 
-	// Theoretically impossible per the DB check() constraint -- these cover the defensive `?? ""`
-	// fallback so a data-integrity gap degrades to an empty link, not a thrown error.
+	// Theoretically impossible per the DB check() constraint -- covers the defensive `?? ""` fallback so a data-integrity gap degrades gracefully, not a thrown error.
 	it("falls back to an empty href/label for a File-type attachment with a null fileKey/fileName", () => {
 		const link = attachmentLink(
 			"event-A",
@@ -83,7 +82,8 @@ describe("attachmentLink", () => {
 		expect(link.label).toBe("");
 	});
 
-	it("falls back to an empty href/label for a Link-type attachment with a null url", () => {
+	// `new URL("")` throws like any unparseable string -- href withholds, label still shows the raw value (design.md Decision 15, Fix 6).
+	it("withholds href but still renders an empty label for a Link-type attachment with a null url", () => {
 		const link = attachmentLink(
 			"event-A",
 			makeAttachment({
@@ -95,7 +95,53 @@ describe("attachmentLink", () => {
 			urlFn,
 		);
 
-		expect(link.href).toBe("");
+		expect(link.href).toBeUndefined();
 		expect(link.label).toBe("");
+	});
+
+	// design.md Decision 15, Fix 6: defense in depth against an unsafe user-entered URL scheme.
+	it.each(["https://example.com/x", "http://example.com/x"])(
+		"keeps href unchanged for a safely-schemed Link-type url: %s",
+		(url) => {
+			const link = attachmentLink(
+				"event-A",
+				makeAttachment({ type: "Link", url, fileKey: null, fileName: null }),
+				urlFn,
+			);
+
+			expect(link.href).toBe(url);
+		},
+	);
+
+	it.each([
+		"javascript:alert(1)",
+		"JAVASCRIPT:alert(1)",
+		"data:text/html,<script>alert(1)</script>",
+		"/relative/path",
+		"not a url",
+	])("withholds href for an unsafe or malformed Link-type url: %s", (url) => {
+		const link = attachmentLink(
+			"event-A",
+			makeAttachment({ type: "Link", url, fileKey: null, fileName: null }),
+			urlFn,
+		);
+
+		expect(link.href).toBeUndefined();
+	});
+
+	it("leaves the File-type branch's href unaffected by the scheme allowlist", () => {
+		const link = attachmentLink(
+			"event-A",
+			makeAttachment({
+				type: "File",
+				fileKey: "uuid-123__survey.jpg",
+				fileName: "survey.jpg",
+			}),
+			urlFn,
+		);
+
+		expect(link.href).toBe(
+			"/en/hazardous-event/file-viewer?name=event-A/uuid-123__survey.jpg",
+		);
 	});
 });
