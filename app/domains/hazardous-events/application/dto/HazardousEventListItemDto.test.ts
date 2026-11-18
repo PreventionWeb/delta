@@ -143,6 +143,7 @@ describe("toHazardousEventListItemDto", () => {
 			specificHazardName: "Drought",
 			hazardClusterName: "Climatological",
 			hazardTypeName: "Natural",
+			specificHazardCode: "code-1",
 		});
 
 		expect(dto.specificHazardName).toBe("Drought");

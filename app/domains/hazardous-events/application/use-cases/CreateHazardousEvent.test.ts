@@ -36,8 +36,7 @@ import {
 	type CreateHazardousEventCommand,
 } from "./CreateHazardousEvent";
 
-/** No real transaction semantics — just invokes fn with a placeholder tx, matching this
- * codebase's own inline-fake convention for every other port these use cases fake. */
+/** No real transaction semantics -- placeholder tx, matching this codebase's own inline-fake convention. */
 const fakeTx = {} as Tx;
 
 class FakeTransactionRunner implements ITransactionRunner {
@@ -120,6 +119,10 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 	}
 
 	async findCauseEdge(): Promise<never> {
+		throw new Error("not used by CreateHazardousEventUseCase's own tests");
+	}
+
+	async findEffectEdges(): Promise<never> {
 		throw new Error("not used by CreateHazardousEventUseCase's own tests");
 	}
 }
@@ -406,8 +409,7 @@ class FakeHipCrosswalkPort implements IHipCrosswalkPort {
 	}
 }
 
-/** Not exercised by this file's own scenarios (none submit a File-type attachment) -- attachment
- * promote/delete coverage lives in the PGlite integration tests (tasks.md 4.1). */
+/** Not exercised here (no File-type attachment submitted) -- promote/delete coverage lives in the PGlite integration tests (tasks.md 4.1). */
 class FakeAttachmentStoragePort implements IAttachmentStoragePort {
 	constructor(private readonly callLog: string[] = []) {}
 
@@ -1021,9 +1023,8 @@ describe("CreateHazardousEventUseCase", () => {
 			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 
-		// The real adapter now rolls the HazardousEvent insert back too (DEF-026, Task 7.4's
-		// PGlite test proves it) — a fake transactionRunner has no rollback semantics to assert
-		// against, so this only checks the error propagates and the edge save never runs.
+		// The real adapter rolls the HazardousEvent insert back too (DEF-026, Task 7.4's PGlite
+		// test); the fake has no rollback semantics, so this only checks propagation.
 		it("propagates a generic Error from the workflow insert, blocking the edge save", async () => {
 			const harness = harnessWithCause();
 			harness.workflowRepository.insertBehavior = new Error(
@@ -1342,12 +1343,8 @@ describe("CreateHazardousEventUseCase", () => {
 			]);
 		});
 
-		// FakeTransactionRunner has no rollback semantics (see the comment on the "blocking the
-		// edge save" tests above) -- this proves the error propagates and nothing is logged as a
-		// success, mirroring every other "a write inside the transaction rejects" test in this
-		// file. The real rollback guarantee (no HazardousEvent/WorkflowInstance row survives) is
-		// proven against the real adapter by DrizzleHipCrosswalkAdapter/CreateHazardousEventUseCase
-		// integration coverage (task 9d.13 and the DEF-026 rollback-proof suite).
+		// Same no-rollback-semantics caveat as the "blocking the edge save" tests above; the real
+		// rollback guarantee is proven against the real adapter (task 9d.13, DEF-026 rollback-proof suite).
 		it("propagates a rejection from stamp(), logging nothing (rollback proof needs the real adapter, not this fake)", async () => {
 			const harness = createHarness();
 			const thrown = new Error("boom-stamp");

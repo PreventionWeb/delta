@@ -54,8 +54,7 @@ class FakeLogger implements ILogger {
 	constructor(private readonly callLog?: string[]) {}
 }
 
-/** No real transaction semantics — just invokes fn with a placeholder tx, matching this
- * codebase's own inline-fake convention for every other port these use cases fake. */
+/** No real transaction semantics — just invokes fn with a placeholder tx (same inline-fake convention used for every other port here). */
 const fakeTx = {} as Tx;
 
 class FakeTransactionRunner implements ITransactionRunner {
@@ -357,6 +356,10 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 		throw new Error("not used by UpdateHazardousEventUseCase's own tests");
 	}
 
+	async findEffectEdges(): Promise<never> {
+		throw new Error("not used by UpdateHazardousEventUseCase's own tests");
+	}
+
 	all(): readonly CausalEdge[] {
 		return [...this.edges];
 	}
@@ -456,8 +459,7 @@ class FakeAttachmentStoragePort implements IAttachmentStoragePort {
 	): Promise<{ fileKey: string; fileSize: number; fileName: string }> {
 		this.promoteCalls.push({ descriptor, staged });
 		this.callLog.push("attachmentStoragePort.promote");
-		// Deterministic, derived from the input -- lets a test assert the persisted fileKey
-		// without depending on real filesystem behavior.
+		// Deterministic, derived from input -- lets a test assert fileKey without real filesystem behavior.
 		return {
 			fileKey: `promoted-${staged.name}`,
 			fileSize: 1,
@@ -1158,9 +1160,8 @@ describe("UpdateHazardousEventUseCase", () => {
 		);
 	});
 
-	// Folded into one parameterized test per field (matching DeleteHazardousEvent.test.ts's own
-	// it.each pattern) -- each pins the exact assertNonEmptyString message, not just the class,
-	// so a mutant swapping the field-name argument (e.g. "tenantId" for "id") still fails.
+	// Parameterized per field (matches DeleteHazardousEvent.test.ts); pins the exact message,
+	// not just the class, so a mutant swapping the field-name argument still fails.
 	it.each([
 		["id", { id: 12345, tenantId: "tenant-1" }],
 		["tenantId", { id: "event-A", tenantId: 12345 }],
@@ -1765,9 +1766,8 @@ describe("UpdateHazardousEventUseCase", () => {
 			);
 		});
 
-		// The real adapter now rolls back the field/causal-link changes too (DEF-026) --
-		// the fake has no rollback semantics, so this only checks call counts/order, not
-		// persisted state (Task 7.7's PGlite test proves the real rollback).
+		// The real adapter rolls back the field/causal-link changes too (DEF-026); the fake has
+		// no rollback semantics, so this only checks call counts/order (Task 7.7's PGlite test proves the real rollback).
 		it("propagates a ConflictError from the delegated call, after the HazardousEvent update and causal-link calls were made", async () => {
 			const harness = createHarness({
 				seedEvents: [
@@ -1872,8 +1872,7 @@ describe("UpdateHazardousEventUseCase", () => {
 					}),
 				),
 			).rejects.toThrow(ConflictError);
-			// Exactly once, not zero -- the first call above succeeded and logged; only the
-			// second (rejected) call must not add a second log event.
+			// Exactly once: the first call succeeded and logged; the rejected second call must not add a log.
 			expect(harness.logger.info).toHaveBeenCalledTimes(1);
 		});
 
@@ -2011,9 +2010,8 @@ describe("UpdateHazardousEventUseCase", () => {
 		);
 	});
 
-	// Migrated from RecordSpatialObservation.test.ts (design.md Decision 6 addendum) --
-	// RecordSpatialObservationUseCase no longer logs its own success; this use case, its only
-	// current caller, does so itself, after its own outer transaction resolves.
+	// Migrated from RecordSpatialObservation.test.ts: that use case no longer logs its own success;
+	// this use case, its only caller, does so itself after its own outer transaction resolves.
 	describe("spatial_observation.recorded logging", () => {
 		it("logs spatial_observation.recorded, after the transaction resolves, when a spatial observation is bundled", async () => {
 			const harness = createHarness();
@@ -2037,8 +2035,7 @@ describe("UpdateHazardousEventUseCase", () => {
 				tenantId: "tenant-1",
 				observationTime: observationTime.toISOString(),
 			});
-			// Both log calls (hazardous_event.updated and spatial_observation.recorded) fire
-			// strictly after the transaction-resolving marker, never mid-transaction.
+			// Both log calls must fire strictly after the transaction-resolving marker, never mid-transaction.
 			const resolvingIndex = harness.callLog.indexOf(
 				"transactionRunner.run.resolving",
 			);
@@ -2216,9 +2213,8 @@ describe("UpdateHazardousEventUseCase", () => {
 			]);
 		});
 
-		// Same fake-level limitation noted on CreateHazardousEvent.test.ts's own equivalent test
-		// (FakeTransactionRunner has no rollback semantics) -- the real rollback guarantee is
-		// proven against the real adapter (DEF-026 rollback-proof integration suite).
+		// Same fake-level limitation as CreateHazardousEvent.test.ts's equivalent test (no rollback
+		// semantics) -- the real rollback guarantee is proven against the real adapter (DEF-026 suite).
 		it("propagates a rejection from stamp(), logging nothing", async () => {
 			const harness = createHarness();
 			const thrown = new Error("boom-stamp");
