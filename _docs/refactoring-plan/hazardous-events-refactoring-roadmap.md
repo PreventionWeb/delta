@@ -2417,7 +2417,7 @@ PrimeReact until its own domain's cutover retires it — same Strangler Fig patt
 this refactor, not an urgent rip-out. See `design-system-unification-roadmap.md` — its "Pass 1"
 PrimeReact-token-extraction plan is superseded for any module moving to React Aria.
 
-### 🔷 6a — Web Route Adapters: List + Detail
+### 🔷 6a — Web Route Adapters: List + Detail ✅ (Complete)
 
 **Branch:** `feature/ca-he-route-adapter-read`
 
@@ -2479,7 +2479,7 @@ with a visible, copyable trace reference.
 
 ---
 
-### 🔷 6c — Web Route Adapters: Create + Edit
+### 🔷 6c — Web Route Adapters: Create + Edit ⏳ (Routes done; `DEF-057` spatial-footprint picker still open)
 
 **Branch:** `feature/ca-he-route-adapter-write`
 
@@ -2670,7 +2670,7 @@ characterization scenarios (not copied from the Phase 0 audit's own assumption, 
 
 ---
 
-### 🔷 6h — List Page Filters
+### 🔷 6h — List Page Filters ✅ (Complete)
 
 **Scheduled immediately after `6a`, 2026-10-26** — run before `6b`/`6c`/etc. despite the letter.
 **Narrowed 2026-10-27**: total-count and the record-status legend, originally scoped here, moved
@@ -2727,7 +2727,7 @@ primitives, matching `6a`'s own precedent.
 
 ---
 
-### 🔷 6i — Attachments: Clean Architecture Rebuild (`DEF-054`)
+### 🔷 6i — Attachments: Clean Architecture Rebuild (`DEF-054`) ✅ (Complete)
 
 **Branch:** `feature/ca-shared-attachments-module`
 
@@ -2813,7 +2813,7 @@ just the parsing layer.
 
 ---
 
-### 🔷 6j — Audit Log Write-Replication (Shared)
+### 🔷 6j — Audit Log Write-Replication (Shared) ✅ (Complete)
 
 **Branch:** `feature/ca-shared-audit-log`
 
@@ -2929,7 +2929,7 @@ test precedent).
 
 ---
 
-### 🔷 6k — Detail Page Rebuild: Audit Log + Legacy Layout Parity (`DEF-058`, `DEF-059`)
+### 🔷 6k — Detail Page Rebuild: Audit Log + Legacy Layout Parity (`DEF-058`, `DEF-059`) ✅ (Complete)
 
 **Branch:** `feature/ca-shared-audit-log` (continues on `6j`'s branch, not a new one — user
 direction, 2026-11-12: raise the phase6 PR only once the audit log is fully visible on CA's page).
@@ -2974,6 +2974,52 @@ breakdown. At minimum: `HazardousEventDetailPage.tsx` (rebuilt), `HazardousEvent
 **Test tier:** PGlite integration for the new audit-log query. Presentation tests for the rebuilt
 page. Visual/UX parity (Gate 9) is mandatory — live side-by-side against legacy's actual rendered
 page, given this is purely a presentation rebuild.
+
+---
+
+### 🔷 6l — List Page: Delete Event Row Action
+
+**Branch:** `feature/ca-he-delete-action` (proposed; not yet created)
+
+**Confirmed gap, not scoped by any prior Phase 6 intent (2026-11-18).** Legacy's row-level
+delete, confirmed via `app/frontend/components/data-collection/ActionLinks.tsx:41-87`: a
+`canDeleteDataCollectionRecord(userRole, approvalStatus)`-gated `HazardousEventDeleteButton`
+(`app/frontend/components/delete-dialog.tsx`, a PrimeReact `ConfirmDialog` Yes/No confirmation)
+posting to `${route}/delete/${id}`, handled by
+`app/routes/$lang+/hazardous-event+/delete.$id.tsx` via the shared
+`createDeleteActionWithCountryAccounts` handler, which also cleans up attachment files on
+delete. CA's `HazardousEventListPage.tsx`/`HazardousEventListActions.tsx` have no delete
+action at all (confirmed via grep — zero matches for "delete" in either file). This is not a
+documentation gap: no sub-item from `6a` through `6k` ever scoped wiring a delete action into
+the CA list page's UI. The backend itself is NOT a gap — `DeleteHazardousEventUseCase`
+(Phase `4f`) already exists and is complete: dependent-checks (Disaster Event references,
+Event Causality, Causal Chain), attachment-file cleanup, and audit logging are all already
+implemented and tested. This intent is presentation-layer only.
+
+**Intent for `/opsx:propose`:**
+
+```
+Add a Delete row action to HazardousEventListActions.tsx, gated the same way as the
+existing Edit action, with a confirmation step before submitting (matching legacy's
+own Yes/No ConfirmDialog UX, built with this page's own design-system components,
+not a PrimeReact import). Wire a new route action (or extend an existing one) that
+resolves DeleteHazardousEventUseCase from the NestJS application context via
+getAppContext().get(...), following the same action pattern as he-preview's other
+mutating routes. No new backend logic — DeleteHazardousEventUseCase already handles
+dependent-checks, attachment cleanup, and audit logging.
+```
+
+**Files touched (expected, confirm at propose time):**
+
+- `app/domains/hazardous-events/presentation/web/HazardousEventListActions.tsx` (modified)
+- A new or extended route action under `app/routes/$lang+/_authenticated+/he-preview+/`
+- Tests for the new action and the confirmation UX
+
+**Test tier:** PGlite integration for the route action (including a dependent-blocked delete
+attempt, matching `DeleteHazardousEventUseCase`'s own existing `ConflictError` cases).
+Presentation test for the confirmation step. Visual/UX parity (Gate 9) required — this is the
+same class of presentation gap that `6k` needed several correction rounds to close; use the
+visual-parity-reviewer tooling once built, not just computed-style inspection.
 
 ---
 
