@@ -161,9 +161,8 @@ Proceed only when all artifacts required for apply (`applyRequires`) show `statu
      report, not just each round's delta
   7. Project conventions review — check `.github/copilot-instructions.md`
   8. Code review — run `.github/skills/code-review/SKILL.md` in full, via a fresh subagent
-  9. Visual/UX parity review — compare the rendered page against the reference-source ground
-     truth named in `design.md`, checking off its content-level checklist item by item, not
-     just layout wrapper and navigation affordance; required for any presentation-layer change
+  9. Visual/UX parity review — invoke `visual-parity-reviewer` agent against the reference-source
+     ground truth named in `design.md`; required for any presentation-layer change
   10. Independent second-opinion review, Claude Code only — invoke its built-in `code-review`
       at `high` effort via a second, separate fresh subagent; resolve findings before archiving.
       Other tools: use an equivalent platform feature if one exists, otherwise skip this task.
