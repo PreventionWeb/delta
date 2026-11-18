@@ -109,7 +109,7 @@ The `sdd-implementer` agent runs the full TDD loop:
    | 3    | `yarn format:check` — Prettier clean                                                                                                                                                              |
    | 4    | Anti-pattern review — `.github/skills/anti-pattern-check/SKILL.md`                                                                                                                                |
    | 5    | SOLID review — `solid-reviewer` agent (SRP and DIP focus)                                                                                                                                         |
-   | 6    | Documentation review — comments explain WHY, not WHAT, and stay as compact as the code's actual complexity allows                                                                                 |
+   | 6    | Documentation review — comments explain WHY, not WHAT, under 30 words 99% of the time (100 max for a rare genuine exception)                                                                      |
    | 7    | Project conventions — `.github/copilot-instructions.md`                                                                                                                                           |
    | 8    | Code review — repo's `code-review` skill, via a fresh subagent (DELTA/DDD/ADR-specific)                                                                                                           |
    | 9    | Visual/UX parity — required only for presentation-layer changes — `visual-parity-reviewer` agent, following `.github/skills/visual-parity-check/SKILL.md`                                         |
@@ -124,20 +124,15 @@ The `sdd-implementer` agent runs the full TDD loop:
    mutants at little cost, which is cheaper than the alternative of skipping a file that looked
    simple but wasn't. See `.claude/agents/test-quality-auditor.agent.md`.
 
-   **Gate 6 also requires one full pass over every comment in the change's entire diff** —
-   not just the current round's delta — immediately before the final report. A comment can
-   accrete length gradually across several refactor rounds without any single round's check
-   ever seeing the whole picture; only a full-diff sweep at the end catches that. Compact any
-   comment that says in several lines what fits in one, without losing real information. A
-   multi-line comment is not itself a defect — keep it when the code it documents is genuinely
-   non-trivial (a subtle invariant, an ordering dependency, a workaround whose reasoning
-   doesn't fit on one line). There is no fixed line-count limit; the bar is "no shorter without
-   losing meaning," not "no longer than N lines."
-
-   **This sweep must be done by a fresh subagent, not by `sdd-implementer` re-reading its own
-   comments.** Self-review has already missed real bloat twice — an author reliably finds their
-   own explanation reasonable, the same reason Gate 8/10 use a fresh reviewer instead of
-   self-critique. `sdd-implementer` applies the fresh subagent's suggested compactions itself.
+   **Gate 6 is a quantified word limit, enforced at write time, not a post-hoc sweep:** every
+   comment stays under 30 words 99% of the time, up to 100 words only for a genuinely
+   non-trivial case (a subtle invariant, an ordering dependency, a workaround whose reasoning
+   doesn't fit in one line). Never cite a Decision number, a change-history narrative, or
+   alternatives considered — that belongs in `design.md`. `sdd-implementer` and `tdd-test-writer`
+   write to this limit directly; Gate 6 itself is now a quick self-check (re-read comments
+   added/touched this round, cut anything over the limit) rather than a fresh-subagent full-diff
+   sweep — the limit is meant to make that heavier step unnecessary. Revisit this if bloat
+   recurs even with the limit stated upfront.
 
 4. **Keep all artifacts in sync** — `proposal.md` and `specs/` are living documents. When a
    design decision changes the scope, files, approach, or scenarios stated in either (different
