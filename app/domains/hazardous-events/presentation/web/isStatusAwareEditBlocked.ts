@@ -7,9 +7,8 @@ const BLOCKED_STATUSES: ReadonlySet<Status> = new Set([
 ]);
 
 /** Pure predicate translating canEditDataCollectionRecord (roles.ts:487-520) into CA's Status
- * vocabulary. Shared by requireStatusAwareEditPermission (in requestAuthorizationGuards.server.ts)
- * and HazardousEventDetailPage's Edit-link gate -- not `.server.ts`-suffixed so the latter can call
- * it isomorphically. */
+ * vocabulary. Shared by requireStatusAwareEditPermission and HazardousEventListPage's row-level
+ * Edit-link gate -- not `.server.ts`-suffixed so the latter can call it isomorphically. */
 export function isStatusAwareEditBlocked(
 	role: string | undefined | null,
 	workflowStatus: Status | null,
