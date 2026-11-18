@@ -50,8 +50,7 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		> = new Map(),
 		/** Resolves a lookup whose raw id cosmetically differs from the matched event's own id. */
 		private readonly findByIdOverride?: HazardousEvent,
-		/** Makes findById(id, ...) reject with this error instead of a normal lookup -- used to
-		 * simulate a non-NotFoundError failure on the cause lookup specifically. */
+		/** Makes findById(id, ...) reject with this error, to simulate a non-NotFoundError failure on the cause lookup. */
 		private readonly findByIdErrorForId?: { id: string; error: Error },
 	) {
 		for (const entity of seed) {
@@ -185,17 +184,55 @@ class FakeSpecificHazardTaxonomyRepository implements ISpecificHazardTaxonomyRep
 
 class FakeCausalChainRepository {
 	readonly findCauseEdgeCalls: string[] = [];
+	readonly findEffectEdgesCalls: string[] = [];
 
 	constructor(
 		private readonly result: {
 			causeId: string;
 			causalityExplanation: string | null;
 		} | null = null,
+		private readonly effectEdges: readonly {
+			effectId: string;
+			causalityExplanation: string | null;
+		}[] = [],
 	) {}
 
 	async findCauseEdge(effectId: string) {
 		this.findCauseEdgeCalls.push(effectId);
 		return this.result;
+	}
+
+	async findEffectEdges(causeId: string) {
+		this.findEffectEdgesCalls.push(causeId);
+		return this.effectEdges;
+	}
+}
+
+class FakeAuditLogPort {
+	readonly findByRecordCalls: {
+		tableName: string;
+		recordId: string;
+		countryAccountsId: string;
+	}[] = [];
+
+	constructor(
+		private readonly rows: readonly {
+			id: string;
+			action: string;
+			actorName: string;
+			timestamp: Date;
+		}[] = [],
+	) {}
+
+	async findByRecord(
+		tableName: string,
+		recordId: string,
+		countryAccountsId: string,
+	): Promise<
+		{ id: string; action: string; actorName: string; timestamp: Date }[]
+	> {
+		this.findByRecordCalls.push({ tableName, recordId, countryAccountsId });
+		return [...this.rows];
 	}
 }
 
@@ -310,6 +347,7 @@ describe("GetHazardousEventByIdUseCase", () => {
 							specificHazardName: "Cholera",
 							hazardClusterName: "Infectious disease",
 							hazardTypeName: "Biological",
+							specificHazardCode: "code-1",
 						},
 					],
 				]),
@@ -326,6 +364,37 @@ describe("GetHazardousEventByIdUseCase", () => {
 		expect(result.specificHazardName).toBe("Cholera");
 		expect(result.hazardClusterName).toBe("Infectious disease");
 		expect(result.hazardTypeName).toBe("Biological");
+	});
+
+	it("resolves specificHazardCode from the taxonomy repository, keyed by the event's own specificHazardId (design.md Decision 10, Fix 1)", async () => {
+		const event = makeEvent({ specificHazardId: "hazard-X" });
+		const workflow = makeWorkflow(event.id);
+		const hazardousEventRepository = new FakeHazardousEventRepository([event]);
+		const workflowRepository = new FakeWorkflowRepository([workflow]);
+		const taxonomyRepository = new FakeSpecificHazardTaxonomyRepository(
+			() =>
+				new Map([
+					[
+						"hazard-X",
+						{
+							specificHazardName: "Cholera",
+							hazardClusterName: "Infectious disease",
+							hazardTypeName: "Biological",
+							specificHazardCode: "MH0103",
+						},
+					],
+				]),
+		);
+		const useCase = new GetHazardousEventByIdUseCase(
+			new FakeLogger(),
+			hazardousEventRepository,
+			new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+			taxonomyRepository,
+		);
+
+		const result = await useCase.execute(makeQuery());
+
+		expect(result.specificHazardCode).toBe("MH0103");
 	});
 
 	it("resolves currentSpatialObservation as null and does not throw when no observation has been recorded", async () => {
@@ -668,6 +737,7 @@ describe("GetHazardousEventByIdUseCase", () => {
 								specificHazardName: "Flood",
 								hazardClusterName: "",
 								hazardTypeName: "",
+								specificHazardCode: "code-1",
 							},
 						],
 					]),
@@ -689,6 +759,8 @@ describe("GetHazardousEventByIdUseCase", () => {
 				id: "cause-1",
 				displayName: "Flood",
 				causalityExplanation: "upstream flooding",
+				specificHazardCode: "code-1",
+				description: "Original",
 			});
 		});
 
@@ -720,6 +792,8 @@ describe("GetHazardousEventByIdUseCase", () => {
 				id: "cause-1",
 				displayName: "",
 				causalityExplanation: null,
+				specificHazardCode: null,
+				description: "Original",
 			});
 		});
 
@@ -785,6 +859,415 @@ describe("GetHazardousEventByIdUseCase", () => {
 				"hazard-A",
 				"hazard-cause",
 			]);
+		});
+
+		it("resolves cause's specificHazardCode and description from the already-resolved taxonomy lookup and causeEvent (design.md Decision 14, Finding 6)", async () => {
+			const event = makeEvent({ id: "event-A", specificHazardId: "hazard-A" });
+			const causeEvent = makeEvent({
+				id: "cause-1",
+				specificHazardId: "hazard-cause",
+				description: "Flood description",
+			});
+			const hazardousEventRepository = new FakeHazardousEventRepository([
+				event,
+				causeEvent,
+			]);
+			const workflowRepository = new FakeWorkflowRepository([]);
+			const taxonomyRepository = new FakeSpecificHazardTaxonomyRepository(
+				() =>
+					new Map([
+						[
+							"hazard-cause",
+							{
+								specificHazardName: "Flood",
+								hazardClusterName: "",
+								hazardTypeName: "",
+								specificHazardCode: "MH0103",
+							},
+						],
+					]),
+			);
+			const useCase = new GetHazardousEventByIdUseCase(
+				new FakeLogger(),
+				hazardousEventRepository,
+				new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+				taxonomyRepository,
+				new FakeCausalChainRepository({
+					causeId: "cause-1",
+					causalityExplanation: null,
+				}),
+			);
+
+			const result = await useCase.execute(makeQuery({ id: "event-A" }));
+
+			expect(result.cause?.specificHazardCode).toBe("MH0103");
+			expect(result.cause?.description).toBe("Flood description");
+		});
+
+		it("resolves cause's specificHazardCode to null when no taxonomy match exists", async () => {
+			const event = makeEvent({ id: "event-A" });
+			const causeEvent = makeEvent({
+				id: "cause-1",
+				specificHazardId: "hazard-cause",
+			});
+			const hazardousEventRepository = new FakeHazardousEventRepository([
+				event,
+				causeEvent,
+			]);
+			const workflowRepository = new FakeWorkflowRepository([]);
+			const useCase = new GetHazardousEventByIdUseCase(
+				new FakeLogger(),
+				hazardousEventRepository,
+				new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+				new FakeSpecificHazardTaxonomyRepository(),
+				new FakeCausalChainRepository({
+					causeId: "cause-1",
+					causalityExplanation: null,
+				}),
+			);
+
+			const result = await useCase.execute(makeQuery({ id: "event-A" }));
+
+			expect(result.cause?.specificHazardCode).toBeNull();
+		});
+	});
+
+	describe("effects (design.md Decision 8)", () => {
+		it("resolves effects to an empty array when the event has no outgoing effect edges", async () => {
+			const event = makeEvent();
+			const hazardousEventRepository = new FakeHazardousEventRepository([
+				event,
+			]);
+			const workflowRepository = new FakeWorkflowRepository([]);
+			const useCase = new GetHazardousEventByIdUseCase(
+				new FakeLogger(),
+				hazardousEventRepository,
+				new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+				new FakeSpecificHazardTaxonomyRepository(),
+				new FakeCausalChainRepository(null, []),
+			);
+
+			const result = await useCase.execute(makeQuery());
+
+			expect(result.effects).toEqual([]);
+		});
+
+		it("resolves each effect's id/displayName/causalityExplanation for a single outgoing edge", async () => {
+			const event = makeEvent({ id: "event-A", specificHazardId: "hazard-A" });
+			const effectEvent = makeEvent({
+				id: "effect-1",
+				specificHazardId: "hazard-effect",
+			});
+			const hazardousEventRepository = new FakeHazardousEventRepository([
+				event,
+				effectEvent,
+			]);
+			const workflowRepository = new FakeWorkflowRepository([]);
+			const taxonomyRepository = new FakeSpecificHazardTaxonomyRepository(
+				() =>
+					new Map([
+						[
+							"hazard-effect",
+							{
+								specificHazardName: "Landslide",
+								hazardClusterName: "",
+								hazardTypeName: "",
+								specificHazardCode: "code-1",
+							},
+						],
+					]),
+			);
+			const useCase = new GetHazardousEventByIdUseCase(
+				new FakeLogger(),
+				hazardousEventRepository,
+				new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+				taxonomyRepository,
+				new FakeCausalChainRepository(null, [
+					{ effectId: "effect-1", causalityExplanation: "downstream slope" },
+				]),
+			);
+
+			const result = await useCase.execute(makeQuery({ id: "event-A" }));
+
+			expect(result.effects).toEqual([
+				{
+					id: "effect-1",
+					displayName: "Landslide",
+					causalityExplanation: "downstream slope",
+					specificHazardCode: "code-1",
+					description: "Original",
+				},
+			]);
+		});
+
+		it("resolves every effect for multiple outgoing edges, in a single batched taxonomy lookup", async () => {
+			const event = makeEvent({ id: "event-A", specificHazardId: "hazard-A" });
+			const effect1 = makeEvent({
+				id: "effect-1",
+				specificHazardId: "hazard-effect-1",
+			});
+			const effect2 = makeEvent({
+				id: "effect-2",
+				specificHazardId: "hazard-effect-2",
+			});
+			const hazardousEventRepository = new FakeHazardousEventRepository([
+				event,
+				effect1,
+				effect2,
+			]);
+			const workflowRepository = new FakeWorkflowRepository([]);
+			const findNamesByIdsSpy = vi.fn(
+				async () => new Map<string, SpecificHazardTaxonomyNames>(),
+			);
+			const taxonomyRepository: ISpecificHazardTaxonomyRepository = {
+				findNamesByIds: findNamesByIdsSpy,
+				listAll: async () => {
+					throw new Error("not used by this test");
+				},
+			};
+			const useCase = new GetHazardousEventByIdUseCase(
+				new FakeLogger(),
+				hazardousEventRepository,
+				new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+				taxonomyRepository,
+				new FakeCausalChainRepository(null, [
+					{ effectId: "effect-1", causalityExplanation: null },
+					{ effectId: "effect-2", causalityExplanation: null },
+				]),
+			);
+
+			const result = await useCase.execute(makeQuery({ id: "event-A" }));
+
+			expect(result.effects).toHaveLength(2);
+			expect(findNamesByIdsSpy).toHaveBeenCalledTimes(1);
+			expect(findNamesByIdsSpy).toHaveBeenCalledWith([
+				"hazard-A",
+				"hazard-effect-1",
+				"hazard-effect-2",
+			]);
+		});
+
+		it("resolves each effect's specificHazardCode and description from the already-resolved taxonomy lookup and effectEvent (design.md Decision 14, Finding 6)", async () => {
+			const event = makeEvent({ id: "event-A", specificHazardId: "hazard-A" });
+			const effectEvent = makeEvent({
+				id: "effect-1",
+				specificHazardId: "hazard-effect",
+				description: "Landslide description",
+			});
+			const hazardousEventRepository = new FakeHazardousEventRepository([
+				event,
+				effectEvent,
+			]);
+			const workflowRepository = new FakeWorkflowRepository([]);
+			const taxonomyRepository = new FakeSpecificHazardTaxonomyRepository(
+				() =>
+					new Map([
+						[
+							"hazard-effect",
+							{
+								specificHazardName: "Landslide",
+								hazardClusterName: "",
+								hazardTypeName: "",
+								specificHazardCode: "MH0104",
+							},
+						],
+					]),
+			);
+			const useCase = new GetHazardousEventByIdUseCase(
+				new FakeLogger(),
+				hazardousEventRepository,
+				new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+				taxonomyRepository,
+				new FakeCausalChainRepository(null, [
+					{ effectId: "effect-1", causalityExplanation: null },
+				]),
+			);
+
+			const result = await useCase.execute(makeQuery({ id: "event-A" }));
+
+			expect(result.effects[0].specificHazardCode).toBe("MH0104");
+			expect(result.effects[0].description).toBe("Landslide description");
+		});
+
+		it("omits one unresolvable effect (dangling edge) without failing the rest of the page", async () => {
+			const event = makeEvent({ id: "event-A" });
+			const effect1 = makeEvent({ id: "effect-1" });
+			const hazardousEventRepository = new FakeHazardousEventRepository([
+				event,
+				effect1,
+				// effect-2 intentionally not seeded -- findById rejects NotFoundError for it.
+			]);
+			const workflowRepository = new FakeWorkflowRepository([]);
+			const useCase = new GetHazardousEventByIdUseCase(
+				new FakeLogger(),
+				hazardousEventRepository,
+				new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+				new FakeSpecificHazardTaxonomyRepository(),
+				new FakeCausalChainRepository(null, [
+					{ effectId: "effect-1", causalityExplanation: null },
+					{ effectId: "effect-2", causalityExplanation: null },
+				]),
+			);
+
+			const result = await useCase.execute(makeQuery({ id: "event-A" }));
+
+			expect(result.effects).toEqual([
+				{
+					id: "effect-1",
+					displayName: "",
+					causalityExplanation: null,
+					specificHazardCode: null,
+					description: "Original",
+				},
+			]);
+		});
+
+		it("propagates a non-NotFoundError from an effect lookup, instead of degrading to omitted", async () => {
+			const event = makeEvent({ id: "event-A" });
+			const hazardousEventRepository = new FakeHazardousEventRepository(
+				[event],
+				new Map(),
+				undefined,
+				{ id: "effect-1", error: new Error("transient DB error") },
+			);
+			const workflowRepository = new FakeWorkflowRepository([]);
+			const useCase = new GetHazardousEventByIdUseCase(
+				new FakeLogger(),
+				hazardousEventRepository,
+				new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+				new FakeSpecificHazardTaxonomyRepository(),
+				new FakeCausalChainRepository(null, [
+					{ effectId: "effect-1", causalityExplanation: null },
+				]),
+			);
+
+			await expect(
+				useCase.execute(makeQuery({ id: "event-A" })),
+			).rejects.toThrow("transient DB error");
+		});
+	});
+
+	describe("auditLog", () => {
+		it("resolves auditLog to an empty array when the port resolves no rows", async () => {
+			const event = makeEvent();
+			const hazardousEventRepository = new FakeHazardousEventRepository([
+				event,
+			]);
+			const workflowRepository = new FakeWorkflowRepository([]);
+			const useCase = new GetHazardousEventByIdUseCase(
+				new FakeLogger(),
+				hazardousEventRepository,
+				new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+				new FakeSpecificHazardTaxonomyRepository(),
+				new FakeCausalChainRepository(),
+				new FakeAuditLogPort([]),
+			);
+
+			const result = await useCase.execute(makeQuery());
+
+			expect(result.auditLog).toEqual([]);
+		});
+
+		it("calls findByRecord with the hazardous_event table name, the event's own id, and tenantId", async () => {
+			const event = makeEvent({ id: "event-A" });
+			const hazardousEventRepository = new FakeHazardousEventRepository([
+				event,
+			]);
+			const workflowRepository = new FakeWorkflowRepository([]);
+			const auditLogPort = new FakeAuditLogPort([]);
+			const useCase = new GetHazardousEventByIdUseCase(
+				new FakeLogger(),
+				hazardousEventRepository,
+				new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+				new FakeSpecificHazardTaxonomyRepository(),
+				new FakeCausalChainRepository(),
+				auditLogPort,
+			);
+
+			await useCase.execute(makeQuery({ id: "event-A", tenantId: "tenant-1" }));
+
+			expect(auditLogPort.findByRecordCalls).toEqual([
+				{
+					tableName: "hazardous_event",
+					recordId: "event-A",
+					countryAccountsId: "tenant-1",
+				},
+			]);
+		});
+
+		it("maps each row's id/action/actorName/timestamp onto the DTO, newest-first order unchanged", async () => {
+			const event = makeEvent();
+			const hazardousEventRepository = new FakeHazardousEventRepository([
+				event,
+			]);
+			const workflowRepository = new FakeWorkflowRepository([]);
+			const rows = [
+				{
+					id: "audit-2",
+					action: "Update hazardous event",
+					actorName: "Test",
+					timestamp: new Date("2026-02-01T00:00:00.000Z"),
+				},
+				{
+					id: "audit-1",
+					action: "Create hazardous event",
+					actorName: "Test",
+					timestamp: new Date("2026-01-01T00:00:00.000Z"),
+				},
+			];
+			const useCase = new GetHazardousEventByIdUseCase(
+				new FakeLogger(),
+				hazardousEventRepository,
+				new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+				new FakeSpecificHazardTaxonomyRepository(),
+				new FakeCausalChainRepository(),
+				new FakeAuditLogPort(rows),
+			);
+
+			const result = await useCase.execute(makeQuery());
+
+			expect(result.auditLog).toEqual([
+				{
+					id: "audit-2",
+					action: "Update hazardous event",
+					actorName: "Test",
+					timestamp: "2026-02-01T00:00:00.000Z",
+				},
+				{
+					id: "audit-1",
+					action: "Create hazardous event",
+					actorName: "Test",
+					timestamp: "2026-01-01T00:00:00.000Z",
+				},
+			]);
+		});
+
+		it("humanizes an action string translateAuditLogAction doesn't already translate", async () => {
+			const event = makeEvent();
+			const hazardousEventRepository = new FakeHazardousEventRepository([
+				event,
+			]);
+			const workflowRepository = new FakeWorkflowRepository([]);
+			const rows = [
+				{
+					id: "audit-1",
+					action: "submit-draft",
+					actorName: "Test",
+					timestamp: new Date("2026-01-01T00:00:00.000Z"),
+				},
+			];
+			const useCase = new GetHazardousEventByIdUseCase(
+				new FakeLogger(),
+				hazardousEventRepository,
+				new GetWorkflowInstanceByEntityUseCase(workflowRepository),
+				new FakeSpecificHazardTaxonomyRepository(),
+				new FakeCausalChainRepository(),
+				new FakeAuditLogPort(rows),
+			);
+
+			const result = await useCase.execute(makeQuery());
+
+			expect(result.auditLog[0].action).toBe("Submit draft");
 		});
 	});
 });

@@ -86,8 +86,7 @@ import { HIP_CROSSWALK_PORT } from "./HipCrosswalkPortToken";
 			provide: DIVISION_REPOSITORY,
 			useClass: DrizzleDivisionRepository,
 		},
-		// TEMPORARY (DEF-055, design.md Decision 17) -- deleted once every dependent domain
-		// stops reading hip_hazard_id/hip_cluster_id/hip_type_id off hazardous_event.
+		// TEMPORARY (DEF-055, design.md Decision 17) -- delete once no dependent domain reads hip_hazard_id/hip_cluster_id/hip_type_id off hazardous_event.
 		{
 			provide: HIP_CROSSWALK_PORT,
 			useClass: DrizzleHipCrosswalkAdapter,
@@ -107,6 +106,7 @@ import { HIP_CROSSWALK_PORT } from "./HipCrosswalkPortToken";
 				>,
 				specificHazardTaxonomyRepository: ISpecificHazardTaxonomyRepository,
 				causalChainRepository: ICausalChainRepository,
+				auditLogPort: IAuditLogPort,
 			) =>
 				new GetHazardousEventByIdUseCase(
 					getPinoLogger(),
@@ -114,12 +114,14 @@ import { HIP_CROSSWALK_PORT } from "./HipCrosswalkPortToken";
 					getWorkflowInstanceByEntityUseCase,
 					specificHazardTaxonomyRepository,
 					causalChainRepository,
+					auditLogPort,
 				),
 			inject: [
 				HAZARDOUS_EVENT_REPOSITORY,
 				GetWorkflowInstanceByEntityUseCase,
 				SPECIFIC_HAZARD_TAXONOMY_REPOSITORY,
 				CAUSAL_CHAIN_REPOSITORY,
+				AUDIT_LOG_PORT,
 			],
 		},
 		{
@@ -166,9 +168,7 @@ import { HIP_CROSSWALK_PORT } from "./HipCrosswalkPortToken";
 		},
 		{
 			provide: CreateHazardousEventUseCase,
-			// Inject order mirrors the constructor's own declared order exactly — positional and
-			// untyped at this call site (standard NestJS useFactory wiring; no design.md decision
-			// covers this).
+			// Inject order mirrors the constructor's own declared order exactly (standard NestJS useFactory wiring).
 			// recordSpatialObservationUseCase: own provider token (above), not a repository token.
 			useFactory: (
 				taxonomyRepository: IHazardTaxonomyRepository,
@@ -247,8 +247,7 @@ import { HIP_CROSSWALK_PORT } from "./HipCrosswalkPortToken";
 		},
 		{
 			provide: UpdateHazardousEventUseCase,
-			// recordSpatialObservationUseCase is injected via its own provider token (above), not a
-			// repository token — it's a same-module use-case dependency.
+			// recordSpatialObservationUseCase is injected via its own provider token (above), not a repository token.
 			useFactory: (
 				taxonomyRepository: IHazardTaxonomyRepository,
 				hazardousEventRepository: IHazardousEventRepository,
@@ -291,8 +290,7 @@ import { HIP_CROSSWALK_PORT } from "./HipCrosswalkPortToken";
 			],
 		},
 	],
-	// RecordSpatialObservationUseCase is exported despite being same-module-only today;
-	// no design.md decision covers this export-scope choice.
+	// RecordSpatialObservationUseCase is exported despite being same-module-only today.
 	exports: [
 		GetHazardousEventByIdUseCase,
 		ListHazardousEventsUseCase,

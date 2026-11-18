@@ -17,17 +17,36 @@ export interface HazardousEventDetailDto extends Omit<
 > {
 	workflowStatus: Status | null;
 	currentSpatialObservation: SpatialObservationDto | null;
-	/** Resolved taxonomy names; null when the join found no match (design.md's reversed hazard-name decision). */
+	/** Resolved taxonomy name; null when the join finds no match. */
 	specificHazardName: string | null;
 	hazardClusterName: string | null;
 	hazardTypeName: string | null;
-	/** Null when this event has no causal-chain parent; resolved via
-	 * ICausalChainRepository.findCauseEdge(), not carried on HazardousEvent itself. */
+	/** Null when the join finds no match, same as the three name fields above. */
+	specificHazardCode: string | null;
+	/** Null when this event has no causal-chain parent; resolved via findCauseEdge() (design.md Decision 8). */
 	cause: {
 		id: string;
 		displayName: string;
 		causalityExplanation: string | null;
+		/** Resolved taxonomy code for the subtitle; null when no match exists (Decision 14). */
+		specificHazardCode: string | null;
+		description: string;
 	} | null;
+	/** Direct children only (findEffectEdges()); a dangling, unresolvable edge is omitted, not represented as a gap. */
+	effects: {
+		id: string;
+		displayName: string;
+		causalityExplanation: string | null;
+		specificHazardCode: string | null;
+		description: string;
+	}[];
+	/** Tenant-scoped audit_logs rows, newest first (findByRecord()); timestamp is an ISO string. */
+	auditLog: {
+		id: string;
+		action: string;
+		actorName: string;
+		timestamp: string;
+	}[];
 }
 
 export function toHazardousEventDetailDto(
@@ -36,6 +55,8 @@ export function toHazardousEventDetailDto(
 	currentObservation: SpatialObservationRecord | null,
 	taxonomyNames: SpecificHazardTaxonomyNames | null,
 	cause: HazardousEventDetailDto["cause"] = null,
+	effects: HazardousEventDetailDto["effects"] = [],
+	auditLog: HazardousEventDetailDto["auditLog"] = [],
 ): HazardousEventDetailDto {
 	return {
 		...mapHazardousEventFields(event),
@@ -47,6 +68,9 @@ export function toHazardousEventDetailDto(
 		specificHazardName: taxonomyNames?.specificHazardName ?? null,
 		hazardClusterName: taxonomyNames?.hazardClusterName ?? null,
 		hazardTypeName: taxonomyNames?.hazardTypeName ?? null,
+		specificHazardCode: taxonomyNames?.specificHazardCode ?? null,
 		cause,
+		effects,
+		auditLog,
 	};
 }

@@ -131,11 +131,33 @@ describe("toHazardousEventDetailDto", () => {
 			specificHazardName: "Cholera",
 			hazardClusterName: "Infectious disease",
 			hazardTypeName: "Biological",
+			specificHazardCode: "code-1",
 		});
 
 		expect(result.specificHazardName).toBe("Cholera");
 		expect(result.hazardClusterName).toBe("Infectious disease");
 		expect(result.hazardTypeName).toBe("Biological");
+	});
+
+	it("resolves specificHazardCode when given a match (design.md Decision 10, Fix 1)", () => {
+		const event = makeEvent();
+
+		const result = toHazardousEventDetailDto(event, null, null, {
+			specificHazardName: "Cholera",
+			hazardClusterName: "Infectious disease",
+			hazardTypeName: "Biological",
+			specificHazardCode: "MH0103",
+		});
+
+		expect(result.specificHazardCode).toBe("MH0103");
+	});
+
+	it("resolves specificHazardCode to null when no taxonomy match exists", () => {
+		const event = makeEvent();
+
+		const result = toHazardousEventDetailDto(event, null, null, null);
+
+		expect(result.specificHazardCode).toBeNull();
 	});
 
 	it("resolves all three taxonomy name fields to null when no match is given", () => {
@@ -163,11 +185,122 @@ describe("toHazardousEventDetailDto", () => {
 				id: "cause-1",
 				displayName: "Flood",
 				causalityExplanation: "upstream flooding",
+				specificHazardCode: "MH0103",
+				description: "Flood description",
 			};
 
 			const result = toHazardousEventDetailDto(event, null, null, null, cause);
 
 			expect(result.cause).toEqual(cause);
+		});
+
+		it("passes specificHazardCode and description through unchanged, including when null/empty (design.md Decision 14, Finding 6)", () => {
+			const event = makeEvent();
+			const cause = {
+				id: "cause-1",
+				displayName: "Flood",
+				causalityExplanation: null,
+				specificHazardCode: null,
+				description: "",
+			};
+
+			const result = toHazardousEventDetailDto(event, null, null, null, cause);
+
+			expect(result.cause?.specificHazardCode).toBeNull();
+			expect(result.cause?.description).toBe("");
+		});
+	});
+
+	describe("effects", () => {
+		it("defaults to an empty array when omitted", () => {
+			const event = makeEvent();
+
+			const result = toHazardousEventDetailDto(event, null, null, null);
+
+			expect(result.effects).toEqual([]);
+		});
+
+		it("resolves to the given effects array unchanged when provided", () => {
+			const event = makeEvent();
+			const effects = [
+				{
+					id: "effect-1",
+					displayName: "Landslide",
+					causalityExplanation: null,
+					specificHazardCode: "MH0103",
+					description: "Landslide description",
+				},
+			];
+
+			const result = toHazardousEventDetailDto(
+				event,
+				null,
+				null,
+				null,
+				null,
+				effects,
+			);
+
+			expect(result.effects).toEqual(effects);
+		});
+
+		it("passes each effect's specificHazardCode and description through unchanged, including when null/empty (design.md Decision 14, Finding 6)", () => {
+			const event = makeEvent();
+			const effects = [
+				{
+					id: "effect-1",
+					displayName: "Landslide",
+					causalityExplanation: null,
+					specificHazardCode: null,
+					description: "",
+				},
+			];
+
+			const result = toHazardousEventDetailDto(
+				event,
+				null,
+				null,
+				null,
+				null,
+				effects,
+			);
+
+			expect(result.effects[0].specificHazardCode).toBeNull();
+			expect(result.effects[0].description).toBe("");
+		});
+	});
+
+	describe("auditLog", () => {
+		it("defaults to an empty array when omitted", () => {
+			const event = makeEvent();
+
+			const result = toHazardousEventDetailDto(event, null, null, null);
+
+			expect(result.auditLog).toEqual([]);
+		});
+
+		it("resolves to the given auditLog array unchanged when provided", () => {
+			const event = makeEvent();
+			const auditLog = [
+				{
+					id: "audit-1",
+					action: "Create hazardous event",
+					actorName: "Test",
+					timestamp: "2026-01-01T00:00:00.000Z",
+				},
+			];
+
+			const result = toHazardousEventDetailDto(
+				event,
+				null,
+				null,
+				null,
+				null,
+				[],
+				auditLog,
+			);
+
+			expect(result.auditLog).toEqual(auditLog);
 		});
 	});
 });

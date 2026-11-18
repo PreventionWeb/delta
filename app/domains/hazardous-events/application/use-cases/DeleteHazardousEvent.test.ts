@@ -31,8 +31,7 @@ import {
 	type DeleteHazardousEventCommand,
 } from "./DeleteHazardousEvent";
 
-/** No real transaction semantics — just invokes fn with a placeholder tx, matching this
- * codebase's own inline-fake convention for every other port these use cases fake. */
+/** No real transaction semantics -- placeholder tx, matching this codebase's own inline-fake convention. */
 const fakeTx = {} as Tx;
 
 class FakeTransactionRunner implements ITransactionRunner {
@@ -233,6 +232,10 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 	}
 
 	async findCauseEdge(): Promise<never> {
+		throw new Error("not used by DeleteHazardousEventUseCase's own tests");
+	}
+
+	async findEffectEdges(): Promise<never> {
 		throw new Error("not used by DeleteHazardousEventUseCase's own tests");
 	}
 
@@ -1245,9 +1248,8 @@ describe("DeleteHazardousEventUseCase", () => {
 	});
 
 	describe("concurrent callers", () => {
-		// This test moved: the no-op-catch path is unit-tested directly below ("treats a
-		// post-findById NotFoundError ... as a successful no-op"); the real lock guarantee
-		// (design.md Decision 8) needs a real lock, proven in Task 8.4's PGlite test, not a fake.
+		// The no-op-catch path is unit-tested below; the real lock guarantee (design.md Decision 8)
+		// needs a real lock, proven in Task 8.4's PGlite test, not a fake.
 
 		it("concurrent callers for different tenants resolve independently, with no cross-contamination", async () => {
 			const callLog: string[] = [];
