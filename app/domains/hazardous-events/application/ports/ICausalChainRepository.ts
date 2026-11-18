@@ -35,4 +35,13 @@ export interface ICausalChainRepository {
 		effectId: string,
 		tx?: Tx,
 	): Promise<{ causeId: string; causalityExplanation: string | null } | null>;
+
+	/** Direct (single-hop) children of causeId -- the structural inverse of findCauseEdge. Unlike
+	 * findCauseEdge, an array: nothing enforces at most one effect per cause. */
+	findEffectEdges(
+		causeId: string,
+		tx?: Tx,
+	): Promise<
+		readonly { effectId: string; causalityExplanation: string | null }[]
+	>;
 }

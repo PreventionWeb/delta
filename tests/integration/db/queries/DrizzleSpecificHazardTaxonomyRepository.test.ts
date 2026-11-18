@@ -57,6 +57,10 @@ describe("DrizzleSpecificHazardTaxonomyRepository", () => {
 				cluster: "Infectious disease",
 				specificHazard: "Cholera",
 			});
+			const [seededRow] = await dr
+				.select({ code: specificHazardTable.code })
+				.from(specificHazardTable)
+				.where(eq(specificHazardTable.id, id));
 			const repo = new DrizzleSpecificHazardTaxonomyRepository(dr);
 
 			const result = await repo.findNamesByIds([id]);
@@ -65,7 +69,25 @@ describe("DrizzleSpecificHazardTaxonomyRepository", () => {
 				specificHazardName: "Cholera",
 				hazardClusterName: "Infectious disease",
 				hazardTypeName: "Biological",
+				specificHazardCode: seededRow.code,
 			});
+		});
+
+		it("includes specificHazardCode equal to the seeded specific_hazard.code value", async () => {
+			const id = await seedTaxonomyChain({
+				type: "Biological",
+				cluster: "Infectious disease",
+				specificHazard: "Cholera",
+			});
+			const [seededRow] = await dr
+				.select({ code: specificHazardTable.code })
+				.from(specificHazardTable)
+				.where(eq(specificHazardTable.id, id));
+			const repo = new DrizzleSpecificHazardTaxonomyRepository(dr);
+
+			const result = await repo.findNamesByIds([id]);
+
+			expect(result.get(id)?.specificHazardCode).toBe(seededRow.code);
 		});
 
 		it("omits a non-existent id from the result, without throwing", async () => {
