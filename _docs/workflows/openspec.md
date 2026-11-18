@@ -112,7 +112,7 @@ The `sdd-implementer` agent runs the full TDD loop:
    | 6    | Documentation review — comments explain WHY, not WHAT, and stay as compact as the code's actual complexity allows                                                                                 |
    | 7    | Project conventions — `.github/copilot-instructions.md`                                                                                                                                           |
    | 8    | Code review — repo's `code-review` skill, via a fresh subagent (DELTA/DDD/ADR-specific)                                                                                                           |
-   | 9    | Visual/UX parity — required only for presentation-layer changes                                                                                                                                   |
+   | 9    | Visual/UX parity — required only for presentation-layer changes — `visual-parity-reviewer` agent, following `.github/skills/visual-parity-check/SKILL.md`                                         |
    | 10   | Independent second-opinion review, **Claude Code only** — its built-in `code-review high`, via a second fresh subagent. Other tools: use an equivalent platform feature if one exists, else skip. |
 
    Additionally, any change to a file under `app/domains/**` with real implementation logic
@@ -169,17 +169,19 @@ After archiving, raise the PR targeting `dev` as normal.
 
 ## Agents and skills reference
 
-| File                                           | Role                                                                               |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `.github/agents/spec-writer.agent.md`          | Phase 0 intent validation + OpenSpec proposal generation                           |
-| `.github/agents/tdd-test-writer.agent.md`      | Writes failing tests (Red phase) — invoked by sdd-implementer                      |
-| `.github/agents/sdd-implementer.agent.md`      | Orchestrates Red → Green → Refactor, stops before archive                          |
-| `.github/agents/test-writer.agent.md`          | Comprehensive test suites (all tiers, independent of TDD cycle)                    |
-| `.github/agents/solid-reviewer.agent.md`       | SOLID design review — invoked by sdd-implementer at gate 5                         |
-| `.github/agents/test-quality-auditor.agent.md` | Mutation testing (Stryker) on changed files — is a test meaningful, not just green |
-| `.github/skills/tdd-cycle/SKILL.md`            | TDD Red→Green→Refactor methodology and DELTA tooling                               |
-| `.github/skills/anti-pattern-check/SKILL.md`   | Quality gate checklist — run before every PR                                       |
-| `.github/skills/code-review/SKILL.md`          | Gate 8 — DELTA/DDD/ADR-specific review, run via a fresh subagent                   |
+| File                                             | Role                                                                                           |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| `.github/agents/spec-writer.agent.md`            | Phase 0 intent validation + OpenSpec proposal generation                                       |
+| `.github/agents/tdd-test-writer.agent.md`        | Writes failing tests (Red phase) — invoked by sdd-implementer                                  |
+| `.github/agents/sdd-implementer.agent.md`        | Orchestrates Red → Green → Refactor, stops before archive                                      |
+| `.github/agents/test-writer.agent.md`            | Comprehensive test suites (all tiers, independent of TDD cycle)                                |
+| `.github/agents/solid-reviewer.agent.md`         | SOLID design review — invoked by sdd-implementer at gate 5                                     |
+| `.github/agents/test-quality-auditor.agent.md`   | Mutation testing (Stryker) on changed files — is a test meaningful, not just green             |
+| `.github/agents/visual-parity-reviewer.agent.md` | Gate 9 — visual/UX parity vs. a reference page/mock/spec, structured report only               |
+| `.github/skills/tdd-cycle/SKILL.md`              | TDD Red→Green→Refactor methodology and DELTA tooling                                           |
+| `.github/skills/anti-pattern-check/SKILL.md`     | Quality gate checklist — run before every PR                                                   |
+| `.github/skills/code-review/SKILL.md`            | Gate 8 — DELTA/DDD/ADR-specific review, run via a fresh subagent                               |
+| `.github/skills/visual-parity-check/SKILL.md`    | Gate 9 methodology — trace every value to source, full-page pass, not computed-style guesswork |
 
 ## Useful commands
 
