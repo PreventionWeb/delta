@@ -216,4 +216,24 @@ export class DrizzleCausalChainRepository implements ICausalChainRepository {
 				}
 			: null;
 	}
+
+	async findEffectEdges(
+		causeId: string,
+		tx?: Tx,
+	): Promise<
+		readonly { effectId: string; causalityExplanation: string | null }[]
+	> {
+		const rows = await (tx ?? this.db)
+			.select({
+				effectHazardousEventId:
+					hazardousEventCausalityTable.effectHazardousEventId,
+				causalityExplanation: hazardousEventCausalityTable.causalityExplanation,
+			})
+			.from(hazardousEventCausalityTable)
+			.where(eq(hazardousEventCausalityTable.causeHazardousEventId, causeId));
+		return rows.map((row) => ({
+			effectId: row.effectHazardousEventId,
+			causalityExplanation: row.causalityExplanation,
+		}));
+	}
 }
