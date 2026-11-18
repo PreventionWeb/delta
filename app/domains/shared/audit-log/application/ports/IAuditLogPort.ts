@@ -15,4 +15,14 @@ export interface IAuditLogPort {
 	/** With `tx`, joins the caller's transaction; without it, writes immediately via the
 	 * adapter's own client (Decision 2). */
 	record(entry: AuditLogEntry, tx?: Tx): Promise<void>;
+
+	/** Tenant-scoped read, newest first. `countryAccountsId` required, unlike `record()` —
+	 * never cross-tenant even by accident. */
+	findByRecord(
+		tableName: string,
+		recordId: string,
+		countryAccountsId: string,
+	): Promise<
+		{ id: string; action: string; actorName: string; timestamp: Date }[]
+	>;
 }
