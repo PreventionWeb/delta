@@ -30,7 +30,7 @@ export async function requireEditDataPermission(args: {
 }
 
 /** Call after the flat EditData gate. Predicate lives in isStatusAwareEditBlocked.ts (shared with
- * HazardousEventDetailPage's Edit-link gate); this just adds the loader-specific throw. */
+ * HazardousEventListPage's row-level Edit-link gate); this just adds the loader-specific throw. */
 export function requireStatusAwareEditPermission(args: {
 	role: string | undefined;
 	workflowStatus: Status | null;
@@ -82,9 +82,8 @@ export function requireWorkflowActionAuthorized(args: {
 		);
 	}
 
-	// Decision 26: dead code through HE's own routes today (EditData already excludes every role
-	// this rejects) -- kept for this file's own fail-fast consistency, in case a future caller
-	// lacks an equivalent gate.
+	// Decision 26: dead code via HE's own routes today (EditData already excludes these roles) --
+	// kept for fail-fast consistency in case a future caller lacks an equivalent gate.
 	if (
 		mappedAction === "submit-draft" &&
 		!isWorkflowActionAuthorized("submit-draft", actingUserRole)

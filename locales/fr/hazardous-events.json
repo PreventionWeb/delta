@@ -119,13 +119,19 @@
 	},
 	"detail": {
 		"id_label": "ID",
+		"sections": {
+			"basic_information": "Informations de base",
+			"hazard_details": "Détails de l'aléa",
+			"location": "Localisation",
+			"attachments": "Pièces jointes",
+			"linked_events": "Événements liés",
+			"audit_log_history": "Historique du journal d'audit"
+		},
 		"classification": {
-			"heading": "Classification de l'aléa",
-			"type": "Type",
-			"cluster": "Groupe",
-			"hazard": "Aléa"
+			"heading": "Classification de l'aléa"
 		},
 		"fields": {
+			"uuid": "UUID",
 			"national_specification": "Spécification nationale",
 			"start_date": "Date de début",
 			"end_date": "Date de fin",
@@ -138,12 +144,48 @@
 			"hazardous_event_status": "Statut de l'événement dangereux",
 			"data_source": "Source des données",
 			"created_at": "Créé le",
-			"updated_at": "Mis à jour le"
+			"updated_at": "Mis à jour le",
+			"hazard_type": "Type de danger",
+			"hazard_cluster": "Groupe de risques",
+			"specific_hazard": "Risque spécifique"
 		},
 		"spatial_observation": {
 			"none": "Aucune observation spatiale enregistrée",
 			"observation_time": "Heure d'observation",
-			"note": "Note"
+			"note": "Note",
+			"map_label": "Carte de l'empreinte spatiale"
+		},
+		"linked_events": {
+			"caused_by": "Causé par",
+			"causing": "Causant",
+			"no_cause": "Aucune cause enregistrée",
+			"no_effects": "Aucun effet enregistré",
+			"hip_label": "HIP",
+			"uuid_label": "UUID",
+			"unresolved_event": "Événement dangereux"
+		},
+		"audit_log": {
+			"empty": "Aucun historique de journal d'audit enregistré",
+			"columns": {
+				"action_taken": "Mesures prises",
+				"by": "Par",
+				"organisation": "Organisation",
+				"date": "Date",
+				"time": "L'heure"
+			},
+			"actions": {
+				"create": "Créer {{obj}}",
+				"update": "Mise à jour {{obj}}",
+				"delete": "Supprimer {{obj}}"
+			},
+			"object_hazardous_event": "événement dangereux"
+		},
+		"attachments_table": {
+			"columns": {
+				"title": "Titre",
+				"tags": "Tags",
+				"file_url": "Fichier/URL"
+			}
 		},
 		"attachments_none": "Aucune pièce jointe",
 		"hazardous_event_status_values": {
@@ -152,6 +194,6 @@
 			"passed": "Terminé"
 		},
 		"edit": "Modifier",
-		"add_cause": "Ajouter un événement dangereux causé par cet événement"
+		"back_to_list": "Retour aux événements dangereux"
 	}
 }
