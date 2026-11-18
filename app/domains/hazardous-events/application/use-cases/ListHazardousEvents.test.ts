@@ -277,6 +277,7 @@ describe("ListHazardousEventsUseCase", () => {
 							specificHazardName: "Drought",
 							hazardClusterName: "Climatological",
 							hazardTypeName: "Natural",
+							specificHazardCode: "code-1",
 						},
 					],
 				]),
