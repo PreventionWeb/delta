@@ -38,10 +38,8 @@ describe("Table", () => {
 		expect(html).toMatch(/<table[^>]*class="[^"]*\bdts-table\b/);
 	});
 
-	// Pinned, not asserted-away: React Aria's accessible-table implementation always applies the
-	// ARIA grid pattern (role="grid"), which this wrapper cannot override — a known, reported
-	// divergence from the legacy plain <table>'s implicit role="table" (see Table.tsx's own
-	// comment; design.md Risks).
+	// Pinned: React Aria's accessible-table always sets role="grid", which this wrapper can't
+	// override -- a known divergence from legacy's implicit role="table" (see Table.tsx's comment).
 	it("renders role=grid (React Aria's own accessible-table pattern, not role=table)", () => {
 		const html = renderSampleTable();
 
@@ -78,6 +76,27 @@ describe("TableColumn", () => {
 		expect(html).toContain("var(--color-dts-table-border)");
 		expect(html).not.toMatch(/#f2f2f2/);
 	});
+
+	// design.md Decision 15, Fix 7: same mechanism, same values, as TableCell's own cozy padding.
+	it("renders cozy padding via inline style when padding='cozy'", () => {
+		const html = renderToString(
+			<Table
+				aria-label="Sample"
+				header={
+					<TableColumn id="a" padding="cozy">
+						A
+					</TableColumn>
+				}
+			>
+				<TableRow id="row-1">
+					<TableCell>content</TableCell>
+				</TableRow>
+			</Table>,
+		);
+
+		expect(html).toMatch(/<th[^>]*style="[^"]*padding:0\.5rem 0\.75rem/);
+		expect(html).toMatch(/<th[^>]*style="[^"]*height:auto/);
+	});
 });
 
 describe("TableCell", () => {
@@ -92,5 +111,20 @@ describe("TableCell", () => {
 
 		expect(html).toContain("var(--color-dts-table-border)");
 		expect(html).toContain("var(--spacing-dts-cell-padding)");
+	});
+
+	// design.md Decision 15, Fix 7: inline style, since a className can't beat this app's own
+	// unlayered .dts-table td rule.
+	it("renders cozy padding via inline style when padding='cozy'", () => {
+		const html = renderToString(
+			<Table aria-label="Sample" header={<TableColumn id="a">A</TableColumn>}>
+				<TableRow id="row-1">
+					<TableCell padding="cozy">content</TableCell>
+				</TableRow>
+			</Table>,
+		);
+
+		expect(html).toMatch(/<td[^>]*style="[^"]*padding:0\.5rem 0\.75rem/);
+		expect(html).toMatch(/<td[^>]*style="[^"]*height:auto/);
 	});
 });
