@@ -34,6 +34,8 @@
 		"i18n:extractor": "tsx ./scripts/extractor-i18n.ts",
 		"i18n:extract:new": "i18next-cli extract",
 		"i18n:check-missing-keys": "tsx scripts/check-i18n-missing-keys.ts",
+		"test:design": "vitest run tests/unit/design-system/ && yarn test:dom",
+		"design:check": "tsx scripts/check-design-a11y.ts",
 		"build:css": "sass source/scss:public/assets/css"
 	},
 	"keywords": [],
@@ -108,6 +110,7 @@
 		"zod": "^3.24.1"
 	},
 	"devDependencies": {
+		"@axe-core/playwright": "^4.14.0",
 		"@electric-sql/pglite": "^0.5.8",
 		"@electric-sql/pglite-postgis": "^0.2.8",
 		"@nestjs/testing": "^11.1.27",

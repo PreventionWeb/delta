@@ -9,6 +9,8 @@ context: |
 
   Architecture layers:
   - app/routes/$lang+/        — React Router route modules (file-based, language-prefixed URLs)
+  - app/design-system/        — Reusable React Aria UI primitives (no PrimeReact, no app/domains/* imports)
+  - _docs/design/             — Read-only DELTA Design System spec (DESIGN.md, tokens.css, tokens.json from unisdr/delta-design)
   - app/backend.server/       — Server-only code (never bundled to client)
     - models/                 — DB access layer; one file per table
     - handlers/               — Shared request handlers (form, CSV, API)
@@ -22,19 +24,25 @@ context: |
   - Auth: wrap every loader with authLoaderWithPerm, every action with authActionWithPerm.
     Never use authLoaderApiDocs — it skips tenant checks (known bug P1-22).
   - Form-CSV-API pattern: fieldsDef drives forms, CSV import/export, and REST API simultaneously.
-    Never remove fieldsDef from a model even when replacing formScreen() with PrimeReact JSX.
+    Never remove fieldsDef from a model even when replacing formScreen() with new JSX.
+  - UI design system: follow _docs/design/DESIGN.md and _docs/design/tokens.css for all new/migrated UI
+    (React Aria Components + Tailwind CSS v4 + lucide-react icons + semantic tokens only + WCAG 2.2 AA).
+    Legacy style-dts.css and PrimeReact coexist intentionally on untouched pages. Never invent missing tokens/patterns.
   - DB migrations: yarn dbsync ONLY (drizzle-kit migrate). NEVER drizzle-kit push.
     When adding a column, also update tests/integration/db/testSchema/ until P1-42 is resolved.
   - Server-only files: use .server.ts(x) suffix. Path alias ~/* maps to app/*.
   - Translation: ctx.t({ code: "key", msg: "Fallback" }). Run yarn i18n:extractor after adding strings.
   - New env vars: add to example.env with a comment.
   - Branches from dev, PRs target dev. Commit prefixes: Bug:, Feature:, Refactor:, Docs:.
-  - Style: Prettier (tabs, 80-char width, trailing commas). Run yarn format before committing.
+  - Style: Prettier (tabs, 80-char width, trailing commas). Scope checks with npx prettier --check <files>.
 
   Testing infrastructure:
-  - yarn test:run2  — Vitest + PGlite integration tests (no external DB needed). PRIMARY test suite.
-  - yarn test:run3  — Vitest integration tests against real PostgreSQL (needs .env.test).
-  - yarn test:e2e   — Playwright end-to-end tests (expects PORT=4000).
+  - yarn test:run2   — Vitest + PGlite integration tests (no external DB needed). PRIMARY test suite.
+  - yarn test:run3   — Vitest integration tests against real PostgreSQL (needs .env.test).
+  - yarn test:dom    — Vitest jsdom component tests (vitest.dom.config.ts).
+  - yarn test:design — Fast static & unit design-system guards (tests/unit/design-system/ + yarn test:dom).
+  - yarn design:check --url <url> — Playwright WCAG 2.2 AA (axe-core, scoped to <main> by default), overflow, target-size & focus CLI audit.
+  - yarn test:e2e    — Playwright end-to-end tests (expects PORT=4000).
   - yarn vitest run path/to/test.ts  — Run a single test file.
   - DO NOT use node:test. app/backend.server/models/*_test.ts files are orphaned — do not extend them.
   - New tests go under tests/ using Vitest. PGlite setup: tests/integration/db/setup.ts.
@@ -52,33 +60,36 @@ rules:
     - State explicitly whether a DB migration is required.
     - "State the test approach: PGlite (test:run2) or real DB (test:run3) or E2E."
     - If the change affects auth or multi-tenancy, call it out as a security-sensitive change.
+    - If the change touches rendered UI, state whether it targets _docs/design/DESIGN.md or legacy parity, and flag any missing design-system token or pattern.
 
   specs:
     - Use Given/When/Then format with RFC 2119 keywords (MUST, SHALL, SHOULD, MAY).
     - Reference the exact model function or route handler being specified.
     - Include both the happy path and the failure/error path as separate scenarios.
     - Do not specify implementation details — specify observable behaviour only.
+    - For UI changes, include keyboard/accessibility, empty/loading/error state, and form-validation lifecycle scenarios where applicable.
 
   design:
     - Name every TypeScript type or interface that will be added or changed.
     - If Drizzle schema changes are needed, describe the column additions explicitly.
     - Identify whether tests use PGlite or require a real DB, and why.
     - Note any impact on the Form-CSV-API fieldsDef pipeline.
+    - For UI changes, name the _docs/design/DESIGN.md components and semantic tokens used, expected behaviour across 375px/768px/1280px breakpoints, and any missing-token gap documented for unisdr/delta-design.
 
   tasks:
     - "TDD order is mandatory: write the failing Vitest test first, then implement, then refactor."
     - Each task must be independently runnable (yarn vitest run path/to/test.ts).
     - Test files use *.test.ts naming — never *_test.ts.
     - If a DB migration is involved, yarn dbsync is a task — never drizzle-kit push.
-    - "Quality gate 1 of 10: yarn vitest run <test-file> — tests still green after refactor"
+    - "Quality gate 1 of 10: yarn vitest run <test-file> (plus yarn test:design for UI changes) — tests still green after refactor"
     - "Quality gate 2 of 10: yarn tsc — zero TypeScript errors"
-    - "Quality gate 3 of 10: yarn format:check — Prettier clean (run yarn format to fix)"
+    - "Quality gate 3 of 10: npx prettier --check <changed-files> — Prettier clean"
     - "Quality gate 4 of 10: Anti-pattern review — check .github/skills/anti-pattern-check/SKILL.md"
     - "Quality gate 5 of 10: SOLID review — invoke solid-reviewer agent"
     - "Quality gate 6 of 10: Documentation review — comments explain WHY not WHAT, compacted where possible without losing meaning (no fixed line-count limit); one full-diff sweep before the final report, not just each round's delta, done by a fresh subagent (not self-review)"
     - "Quality gate 7 of 10: Project conventions review — check .github/copilot-instructions.md"
     - "Quality gate 8 of 10: Code review — run .github/skills/code-review/SKILL.md in full, via a fresh subagent"
-    - "Quality gate 9 of 10: Visual/UX parity review — required only if this change touches app/domains/*/presentation/ or app/routes/, else skip and say so explicitly"
+    - "Quality gate 9 of 10: Design System, Accessibility (WCAG 2.2 AA) & Visual/UX parity review — required if this change touches app/design-system/, app/domains/*/presentation/, app/routes/, or app/styles/ (run .github/skills/design-system-check/SKILL.md, yarn test:design, and yarn design:check), else skip and say so explicitly"
     - "Quality gate 10 of 10: Independent second-opinion review, Claude Code only — its built-in code-review at high effort via a second fresh subagent; other tools use an equivalent platform feature or skip"
     - "If this change adds or modifies any file under app/domains/** that contains real implementation logic (not a type-only interface/port declaration, not a trivial re-export): add a test quality task — invoke test-quality-auditor scoped to the changed files, resolve any real gap found"
     - "After all applicable gates: add a mandatory regression task — yarn test:run2 (full PGlite suite) must pass with no new failures before archiving; pre-existing failures must be confirmed as pre-existing, not assumed"

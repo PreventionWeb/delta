@@ -97,11 +97,13 @@ in addition to Vitest tests. Use this decision table:
 | Database queries, model or handler functions                    | No                   |
 | Route loaders / actions tested in isolation                     | No                   |
 | Routing, auth, session, middleware, or multi-loader interaction | **Yes**              |
+| New or migrated interactive UI flows (dialogs, filters, tables) | **Yes**              |
 | Any behaviour only verifiable via a real HTTP request/response  | **Yes**              |
 
 If Playwright is required: invoke the `test-writer` agent to write E2E specs under
-`tests/e2e/` before entering the Refactor loop. Vitest + vi.mock tests cannot detect
-parallel loader execution issues, injected-args patterns, redirect chain behaviour, or
+`tests/e2e/` before entering the Refactor loop (using `tests/e2e/helpers/designSystemChecks.ts`
+for WCAG 2.2 AA, overflow, and interactive checks on UI flows). Vitest + vi.mock tests cannot
+detect parallel loader execution issues, injected-args patterns, redirect chain behaviour, or
 any failure that only manifests when the full server handles a real request.
 
 ## Refactor loop
@@ -110,16 +112,17 @@ After reaching Green, run the following quality gates in order. If any gate fail
 and re-run from that gate. Loop until all pass:
 
 ```
-1. yarn vitest run tests/path/to/file.test.ts   — tests still green
+1. yarn vitest run tests/path/to/file.test.ts    — tests still green (+ yarn test:design for UI)
 2. yarn tsc                                      — no TypeScript errors
-3. yarn format:check                             — Prettier formatting clean
+3. npx prettier --check <changed-files>          — Prettier formatting clean
 4. anti-pattern review                           — run .github/skills/anti-pattern-check/SKILL.md
 5. SOLID review                                  — invoke solid-reviewer agent
-6. documentation review (see below)             — comments balanced and purposeful
-7. project conventions review (see below)       — DELTA-specific rules followed
+6. documentation review (see below)              — comments balanced and purposeful
+7. project conventions review (see below)        — DELTA-specific rules followed
 8. code review                                   — invoke code-review skill at high effort
-9. visual/UX parity review (see below)          — REQUIRED if this change touches
-                                                    app/domains/*/presentation/ or app/routes/
+9. design system, WCAG 2.2 AA & UX parity review — REQUIRED if this change touches
+                                                   app/design-system/, app/domains/*/presentation/,
+                                                   or app/routes/ (.github/skills/design-system-check/SKILL.md)
 10. independent second-opinion review (see below) — Claude Code only; other tools skip this gate
 ```
 
@@ -156,46 +159,44 @@ summary here — the skill is the authoritative source.
 **Project conventions:** See `.github/copilot-instructions.md`. Critical: `countryAccountsId`
 on every tenant query, `authLoaderWithPerm` on every loader, `yarn dbsync` for migrations,
 new tests under `tests/` — Vitest for unit/integration, Playwright for routing/auth/
-request-lifecycle changes (see test tier check above).
+request-lifecycle and interactive UI changes (see test tier check above).
 
-**Visual/UX parity review (Gate 9):** Passing tests and `tsc` prove code correctness, not
-feature correctness — they do not catch a missing page-header wrapper, an unstyled heading, a
-list with no way to reach its own detail page, or a field set/order/pagination default that
-silently diverges from the ground truth. Presentation-layer styling and layout must be in-line
-with other pages in the app — use the same shared layout components, heading classes, and
-navigation patterns as existing pages, not a page-specific invention. Do this for real, don't
-just assert you did:
+**Design System, Accessibility (WCAG 2.2 AA) & Visual/UX Parity Review (Gate 9):**
+Run `.github/skills/design-system-check/SKILL.md` in full. Passing unit tests and `tsc` prove
+code correctness, not accessibility or visual correctness — they do not catch WCAG 2.2 AA
+violations, mobile horizontal overflow, undersized click targets, missing page-header wrappers,
+or a field set/order/pagination default that silently diverges from ground truth. Do this for
+real, don't just assert you did:
 
-1. Read `design.md`'s reference-source identification and content-level ground-truth checklist
-   (spec-writer is required to have written these for any presentation-layer change). If either
-   is missing for a change that clearly touches rendered output, stop and get it added before
-   proceeding — don't reconstruct it yourself from the source as a substitute.
-2. Render the new page: start `yarn dev`, seed minimal real data if the page needs it to render
-   meaningfully, and capture it via a real browser screenshot (Playwright: `chromium.launch()` +
-   `page.screenshot()`), not a mental simulation. If you don't have a login session handy,
-   create one: insert a temporary user row (bcrypt password hash) tied to an existing tenant
-   directly via SQL/the DB client, log in through the real `/en/user/login` form with
-   Playwright, take your screenshots, then delete the temporary user afterward. Do not skip this
-   step because "the tests already cover the behavior" — tests assert on text content, not
-   layout.
-3. Get the comparison target based on `design.md`'s stated reference-source type:
-   - **Code-readable reference page in this app:** render and screenshot it the same way as
-     step 2.
-   - **Design artifact, written spec/playbook, or screenshots-only:** use that artifact
-     directly as the comparison target — there is no second page to render.
-   - **No reference exists (new design):** compare against the content-level checklist alone;
-     there is no second artifact to render or view.
-4. Read the screenshot(s)/artifact yourself (the `Read` tool renders images) and compare against
-   both: (a) the content-level checklist item by item — field/column set and order, labels/copy,
-   sort/pagination defaults, emphasis pattern, grouping/spacing, interaction behavior, state
-   variants; and (b) the structural conventions — page-header/layout wrapper present, headings
-   using the app's real typography classes (not bare `<h1>`), and any navigation affordance a
-   user would expect (e.g. a list page needs a way to reach its detail view).
-5. Fix anything that doesn't match, citing the real checklist item or precedent you compared
-   against (not an invented pattern) — same rigor as any other design decision: verify against
-   the ground truth, don't guess. If the checklist itself turns out to be wrong or incomplete
-   (the source had more detail than `design.md` captured), fix `design.md` too, not just the
-   code — per the artifact-drift rule above.
+1. **Static design-system guard**: run `yarn test:design` and confirm all static token, icon,
+   hex-color, em-dash, and component tests pass.
+2. **Ground-truth checklist**: read `design.md`'s reference-source identification and
+   content-level ground-truth checklist (spec-writer is required to have written these for any
+   UI change). If either is missing for a change that clearly touches rendered output, stop and
+   get it added before proceeding — don't reconstruct it yourself from the source as a substitute.
+3. **Automated browser audit + screenshots**: start `yarn dev`, seed minimal real data if the
+   page needs it to render meaningfully, and run:
+   ```bash
+   yarn design:check --url http://localhost:3000/en/<route> --screenshots /tmp/gate9-<change>
+   ```
+   (Pass `--login-email` / `--login-password` for authenticated routes — create a temporary
+   user tied to an existing tenant if needed and delete it afterward. Pass `--full-page` for
+   standalone pages without main navigation.) Confirm the CLI exits `0` across `375px`, `768px`,
+   and `1280px` with zero WCAG 2.2 AA (`axe-core`) violations, zero horizontal overflow, valid
+   target sizes (`>= 24px`) & button labels, non-obscured focus, and zero console/page errors.
+4. **Interactive states & keyboard walk-through**: for forms, dialogs, filters, or tables,
+   verify open dialogs/popovers pass `assertWcag22AA`, form validation follows the error
+   lifecycle (no error before submit, clears on edit, toast on save), non-clickable table rows
+   have no `cursor: pointer`, and the full screen is operable via keyboard alone.
+5. **Visual parity comparison**: get the comparison target based on `design.md`'s stated
+   reference-source type (`_docs/design/DESIGN.md` + Figma, a code-readable reference page in
+   this app rendered the same way, or the content-level checklist alone). Inspect the captured
+   `/tmp/gate9-<change>/{mobile,tablet,desktop}.png` screenshots yourself and compare against
+   both (a) the content-level checklist item by item and (b) structural conventions (page-header
+   wrapper, `.t-*` typography roles, heading hierarchy `h1`–`h3`, navigation affordances).
+6. Fix anything that doesn't match, citing the real checklist item or `_docs/design/DESIGN.md`
+   rule — never invent a missing token or pattern silently. If `design.md`'s checklist was
+   incomplete, update `design.md` too per the artifact-drift rule above.
 
 **Code review:** Invoke the `code-review` skill at `high` effort via a fresh subagent (`Agent`
 tool, not `fork`) with no prior context — same-context self-review is not a substitute.

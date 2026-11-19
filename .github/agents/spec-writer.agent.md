@@ -116,32 +116,40 @@ Proceed only when all artifacts required for apply (`applyRequires`) show `statu
 - Justifies technical decisions with project conventions as the reference
 - Identifies test infrastructure needed (PGlite setup, real DB, mocks)
 - Notes any fieldsDef / Form-CSV-API pipeline impact
-- **If this change adds or modifies anything under `app/domains/*/presentation/` or a route's
-  rendered output:**
-  1. Identify the reference-source type explicitly — one of: (a) a real, existing page of the
-     same page-type (list, detail, form) already in this codebase and readable as code; (b) a
-     design artifact (Figma or similar mockup); (c) a written spec or playbook describing the
-     UI; (d) static screenshots/images only, with no page you can render and compare live;
-     (e) no reference exists — this is new design, and the proposal is making that decision,
-     not inheriting it.
+- **If this change adds or modifies anything under `app/design-system/`, `app/domains/*/presentation/`,
+  or a route's rendered output:**
+  1. Identify the reference-source type explicitly — one of: (a) `_docs/design/DESIGN.md` +
+     `_docs/design/tokens.json` (and Figma, for new/migrated DELTA Design System screens);
+     (b) a real, existing page of the same page-type (list, detail, form) already in this codebase
+     and readable as code (for legacy-parity changes); (c) another design artifact or written spec /
+     playbook describing the UI; (d) static screenshots/images only, with no page you can render
+     and compare live; (e) no reference exists — this is new design, and the proposal is making that
+     decision, not inheriting it.
   2. Regardless of type, extract a concrete, content-level ground-truth checklist into
      `design.md` — not just the layout wrapper and navigation affordance below, but the actual
-     content facts: field/column set and its order, labels/copy, sort order and pagination
-     defaults, which fields carry emphasis (e.g. bold) vs. plain, grouping/spacing between
-     sections, interaction behavior (e.g. a cascading select, live search), and state variants
-     (empty, error, loading) where the source shows them. This checklist is what the
-     implementer's later visual/UX parity gate checks against item-by-item — it must not be
-     left for the implementer to reconstruct from the source themselves.
-  3. State explicitly whether the new page matches the reference's (a) page-header/layout
+     content facts: field/column set and its order, labels/copy (UK English with "organization",
+     sentence case, no em-dashes), sort order and pagination defaults (`25` default, `25/50/100`),
+     which fields carry emphasis vs. plain, grouping/spacing between sections (4px scale, `gap`
+     not sibling margins), interaction behavior (e.g. cascading select, live search, form
+     validation lifecycle, clickable vs. non-clickable table rows), and state variants (`default`,
+     `empty`, `loading`, `error`, `disabled`) where the source shows them. This checklist is what
+     the implementer's later Gate 9 checks against item-by-item — it must not be left for the
+     implementer to reconstruct from the source themselves.
+  3. Name the `_docs/design/DESIGN.md` components and semantic tokens (`var(--bg)`, `var(--surface)`,
+     `var(--fg)`, `var(--accent)`, etc.) used, expected responsive behaviour at `375px`, `768px`,
+     and `1280px`, and keyboard navigation expectations (`Tab`, `Arrow*`, `Enter`, `Escape`). If a
+     needed token or pattern is missing from `_docs/design/DESIGN.md`, never invent one silently —
+     document the gap and temporary workaround in `design.md` so an issue can be raised in
+     `unisdr/delta-design`.
+  4. State explicitly whether the new page matches the reference's (a) page-header/layout
      wrapper (e.g. `MainContainer`) and (b) navigation affordances a user would expect (e.g. a
      list page needs a way to reach its own detail page — cite how the reference solves this).
-     Component-library choice (e.g. "uses DataTable") is not sufficient on its own — layout
+     Component-library choice (e.g. "uses Table") is not sufficient on its own — layout
      wrapper and interaction affordances are separate decisions that must each be named.
-  4. When the reference source is not code (b–d above), state in `design.md` exactly how the
-     ground truth was obtained (e.g. "read Figma frame X," "read playbook section Y," "read
-     screenshot Z") and flag anything the source leaves ambiguous (e.g. a screenshot with no
-     visible interaction or error state) as an open question for the human rather than silently
-     assuming an implementation detail.
+  5. When the reference source is not code (a, c, d above), state in `design.md` exactly how the
+     ground truth was obtained (e.g. "read `_docs/design/DESIGN.md` section X," "read Figma frame
+     Y," "read screenshot Z") and flag anything the source leaves ambiguous as an open question
+     for the human rather than silently assuming an implementation detail.
 
 **tasks.md**
 
@@ -151,9 +159,9 @@ Proceed only when all artifacts required for apply (`applyRequires`) show `statu
 - Setup import: `import "./setup"` for files in `tests/integration/db/`;
   `import "../setup"` for files in subdirectories (e.g. `tests/integration/db/queries/`)
 - The verification section MUST include all quality gates in this order:
-  1. `yarn vitest run <test-file>` — tests still green
+  1. `yarn vitest run <test-file>` (plus `yarn test:design` for UI changes) — tests still green
   2. `yarn tsc` — zero TypeScript errors
-  3. `yarn format:check` — Prettier clean
+  3. `npx prettier --check <changed-files>` — Prettier clean
   4. Anti-pattern review — check `.github/skills/anti-pattern-check/SKILL.md`
   5. SOLID review — invoke `solid-reviewer` agent
   6. Documentation review — comments explain WHY not WHAT, compacted where possible without
@@ -161,9 +169,11 @@ Proceed only when all artifacts required for apply (`applyRequires`) show `statu
      report, not just each round's delta
   7. Project conventions review — check `.github/copilot-instructions.md`
   8. Code review — run `.github/skills/code-review/SKILL.md` in full, via a fresh subagent
-  9. Visual/UX parity review — compare the rendered page against the reference-source ground
-     truth named in `design.md`, checking off its content-level checklist item by item, not
-     just layout wrapper and navigation affordance; required for any presentation-layer change
+  9. Design System, Accessibility (WCAG 2.2 AA) & Visual/UX parity review — run
+     `.github/skills/design-system-check/SKILL.md` (`yarn test:design`, `yarn design:check`,
+     interactive state checks, keyboard walk-through, and screenshot comparison against
+     `design.md`'s content-level checklist); required for any change touching `app/design-system/`,
+     `app/domains/*/presentation/`, or `app/routes/`
   10. Independent second-opinion review, Claude Code only — invoke its built-in `code-review`
       at `high` effort via a second, separate fresh subagent; resolve findings before archiving.
       Other tools: use an equivalent platform feature if one exists, otherwise skip this task.

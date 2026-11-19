@@ -138,6 +138,16 @@ fallback that violates the API contract.
       rows, so those belong at the use-case/repository layer instead; flag them as deferred
       there, don't treat the DB constraint as already having satisfied them.
 
+## Design System & Accessibility (UI changes only)
+
+Apply whenever a change touches `app/design-system/`, `app/domains/*/presentation/`, `app/routes/`, or `app/styles/`. Cross-reference `_docs/design/DESIGN.md` and `.github/skills/design-system-check/SKILL.md`.
+
+- [ ] Semantic tokens used throughout — no hardcoded hex colours or raw `tokens.css` palette primitives (`--color-*`); `yarn test:design` passes
+- [ ] Icons come from `lucide-react` only; `app/design-system/` has no `primereact` or `app/domains/*` imports
+- [ ] Automated WCAG 2.2 AA audit (`yarn design:check --url <url>` or E2E `assertWcag22AA`) run across initial and interactive states (validation errors, dialogs, filter bars) with zero violations and zero console/page errors
+- [ ] Responsive layout checked at `375x812`, `768x1024`, and `1280x900` with zero horizontal overflow, visible keyboard focus not obscured by sticky headers, and `>= 24x24px` interactive targets
+- [ ] Copy follows UK English with `"organization"`, sentence case, no em-dashes in UI copy, and user-facing strings wrapped in `ctx.t({ code, msg })`
+
 ## Cross-Tool Compatibility (`.github/`-mirrored agent/skill files only)
 
 - [ ] No instruction names a specific AI tool's built-in feature (e.g. a Claude Code slash

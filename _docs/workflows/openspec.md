@@ -112,7 +112,7 @@ The `sdd-implementer` agent runs the full TDD loop:
    | 6    | Documentation review — comments explain WHY, not WHAT, and stay as compact as the code's actual complexity allows                                                                                 |
    | 7    | Project conventions — `.github/copilot-instructions.md`                                                                                                                                           |
    | 8    | Code review — repo's `code-review` skill, via a fresh subagent (DELTA/DDD/ADR-specific)                                                                                                           |
-   | 9    | Visual/UX parity — required only for presentation-layer changes                                                                                                                                   |
+   | 9    | Design System, Accessibility (WCAG 2.2 AA) & Visual/UX parity — `.github/skills/design-system-check/SKILL.md` (required for UI/presentation changes)                                              |
    | 10   | Independent second-opinion review, **Claude Code only** — its built-in `code-review high`, via a second fresh subagent. Other tools: use an equivalent platform feature if one exists, else skip. |
 
    Additionally, any change to a file under `app/domains/**` with real implementation logic
@@ -180,6 +180,7 @@ After archiving, raise the PR targeting `dev` as normal.
 | `.github/skills/tdd-cycle/SKILL.md`            | TDD Red→Green→Refactor methodology and DELTA tooling                               |
 | `.github/skills/anti-pattern-check/SKILL.md`   | Quality gate checklist — run before every PR                                       |
 | `.github/skills/code-review/SKILL.md`          | Gate 8 — DELTA/DDD/ADR-specific review, run via a fresh subagent                   |
+| `.github/skills/design-system-check/SKILL.md`  | Gate 9 — Design system tokens, WCAG 2.2 AA (`axe-core`), responsive & UX checks    |
 
 ## Useful commands
 
@@ -195,6 +196,12 @@ openspec instructions apply --change "<name>"
 
 # Run a single test file
 yarn vitest run tests/path/to/file.test.ts
+
+# Design-system unit, DOM, token-sync, and static guard tests
+yarn test:design
+
+# Multi-viewport Playwright WCAG 2.2 AA & layout audit (defaults to <main>; add --full-page for full document)
+yarn design:check --url http://localhost:3000/en/hazardous-event
 
 # Full PGlite suite (primary gate)
 yarn test:run2

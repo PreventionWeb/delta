@@ -66,6 +66,14 @@ Unit tests validate the input/output contract of a function across all meaningfu
 - Test full user journeys, not individual components
 - Use page object models for reusable page interactions
 - Cover the golden path and one meaningful error path per flow
+- For new or migrated UI screens, import reusable helpers from
+  `tests/e2e/helpers/designSystemChecks.ts`:
+  - `attachErrorCollector(page)` — assert zero `pageerror` / `console.error`
+  - `assertWcag22AA(page)` — WCAG 2.2 AA `axe-core` audit (defaults to `<main>`; pass `{ scope: '[role="dialog"]' }` inside open dialogs or `{ fullPage: true }` on standalone screens)
+  - `assertNoHorizontalOverflow(page)` — verify zero horizontal scroll at mobile (`375px`) and desktop (`1280px`)
+  - `assertTargetSizesAndLabels(page)` — verify `>= 24x24px` interactive targets and icon-button labels
+  - `assertFocusNotObscured(page)` — verify focused controls are not hidden behind fixed/sticky bars
+  - `assertRowCursorSemantics(row, { clickable })` — verify clickable vs. non-clickable table row cursor
 
 ## Async error assertions
 
@@ -73,11 +81,12 @@ Use `expect(fn()).rejects.toThrow(ErrorClass)` — not try/catch in tests.
 
 ## Presentation-layer components
 
-When retrofitting tests onto a file under `app/domains/*/presentation/`, check whether a
-content-level ground-truth checklist exists for it (`design.md` of the change that introduced
-it, if any). Where it states concrete, mechanically-checkable facts — exact header/label text,
-a specific class name, a fixed field order — encode those as literal assertions rather than
-leaving them to be caught only by a later manual visual review.
+When retrofitting tests onto a file under `app/design-system/` or `app/domains/*/presentation/`,
+check whether a content-level ground-truth checklist exists for it (`design.md` of the change that
+introduced it, if any). Where it states concrete, mechanically-checkable facts — exact
+header/label text, accessible roles/labels, semantic token usage, a specific class name, or a
+fixed field order — encode those as literal assertions rather than leaving them to be caught only
+by a later manual visual review.
 
 ## Project context (always apply)
 
