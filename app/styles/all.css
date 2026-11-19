@@ -1,8 +1,72 @@
+@import "./fonts.css";
+@import "../../_docs/design/tokens.css";
 @import "~/frontend/dtsmap/styles.css";
 @import "~/frontend/editabletable/styles.css";
 @import "~/frontend/human_effects/styles.css";
 @import "react-json-view-lite/dist/index.css";
 @import "tailwindcss";
+
+/* Additive Tailwind v4 theme tokens from _docs/design/tokens.css.
+   Existing Tailwind defaults remain enabled during the UI migration. */
+@theme {
+	--color-bg: var(--bg);
+	--color-surface: var(--surface);
+	--color-inset: var(--inset);
+	--color-overlay: var(--overlay);
+	--color-border: var(--border);
+	--color-border-subtle: var(--border-subtle);
+	--color-border-strong: var(--border-strong);
+	--color-control: var(--control-border);
+	--color-fg: var(--fg);
+	--color-fg-2: var(--fg-2);
+	--color-fg-3: var(--fg-3);
+	--color-fg-inverse: var(--fg-inverse);
+	--color-accent: var(--accent);
+	--color-accent-hover: var(--accent-hover);
+	--color-accent-active: var(--accent-active);
+	--color-accent-disabled: var(--accent-disabled);
+	--color-accent-100: var(--accent-100);
+	--color-good: var(--good);
+	--color-good-bg: var(--good-bg);
+	--color-good-border: var(--good-border);
+	--color-warn: var(--warn);
+	--color-warn-bg: var(--warn-bg);
+	--color-warn-border: var(--warn-border);
+	--color-crit: var(--crit);
+	--color-crit-hover: var(--crit-hover);
+	--color-crit-bg: var(--crit-bg);
+	--color-crit-border: var(--crit-border);
+	--color-info: var(--info);
+	--color-info-bg: var(--info-bg);
+	--color-info-border: var(--info-border);
+	--color-toast: var(--toast-bg);
+
+	--radius-sm: 4px;
+	--radius-md: 6px;
+	--radius-lg: 8px;
+	--radius-xl: 12px;
+
+	--shadow-sm: 0 1px 2px rgba(17, 24, 41, 0.06);
+	--shadow-md: 0 4px 12px rgba(17, 24, 41, 0.1);
+	--shadow-lg: 0 8px 24px rgba(17, 24, 41, 0.14);
+
+	--text-caption: 11px;
+	--text-label: 12px;
+	--text-body: 14px;
+	--text-section: 16px;
+	--text-page: 20px;
+	--text-data-large: 24px;
+
+	--font-sans: var(--font);
+	--font-mono: var(--mono);
+}
+
+@layer base {
+	*:focus-visible {
+		outline: 2px solid var(--focus-ring);
+		outline-offset: 2px;
+	}
+}
 
 /*
  * Minimal, 6a-scoped design-system tokens (ca-he-route-adapter-read design.md Decision 8).
