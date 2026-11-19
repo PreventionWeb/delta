@@ -1,0 +1,141 @@
+/* DELTA design tokens - generated from tokens.json v0.7.2. Do not edit by hand: change tokens.json, then regenerate.
+   Components use the semantic tokens only. Primitives are listed for reference.
+   Light theme only: no dark tokens have been agreed. */
+:root {
+  /* Semantic: surfaces */
+  --bg: #FAF9F5;  /* page */
+  --surface: #FFFFFF;  /* cards, panels */
+  --inset: #F0EEE6;  /* row hover, current nav item */
+  --overlay: rgba(17,24,41,0.48);  /* modal scrim */
+  /* Semantic: borders */
+  --border: #E0DDD2;
+  --border-subtle: #ECEAE2;
+  --border-strong: #CFCBBE;
+  --control-border: #8F8C82;  /* inputs, selects, secondary buttons (WCAG 1.4.11) */
+  /* Semantic: text */
+  --fg: #141413;
+  --fg-2: #5E5D59;
+  --fg-3: #9BA3B8;  /* decorative / disabled ONLY, fails AA for text */
+  --fg-inverse: #FFFFFF;
+  /* Semantic: action */
+  --accent: #2D6FA3;
+  --accent-hover: #245A85;
+  --accent-active: #1A4464;
+  --accent-disabled: #C4CAD9;
+  --accent-100: #E8F1F9;  /* accent tint */
+  /* Semantic: status */
+  --good: #146B40;
+  --good-bg: #E6F4EC;
+  --good-border: #C0E4CE;
+  --warn: #A85C00;
+  --warn-bg: #FEF3E2;
+  --warn-border: #FDDBA6;
+  --crit: #C8352A;
+  --crit-hover: #9C2820;
+  --crit-bg: #FDECEA;
+  --crit-border: #F9C5C1;
+  --info: #2D6FA3;
+  --info-bg: #E8F1F9;
+  --info-border: #C8DCF0;
+  --focus-ring: #2D6FA3;  /* 2px solid, 2px offset */
+  --toast-bg: #1E273B;  /* neutral-900 */
+  /* Spacing (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+  /* Accessibility (WCAG 2.2 AA) */
+  --target-min: 24px;  /* smallest clickable area, width and height */
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(17,24,41,0.06);
+  --shadow-md: 0 4px 12px rgba(17,24,41,0.10);
+  --shadow-lg: 0 8px 24px rgba(17,24,41,0.14);
+  /* Motion (pre-wired in components, not for feature code) */
+  --dur-fast: 100ms;
+  --dur-normal: 200ms;
+  --dur-slow: 300ms;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  /* Typography */
+  --font: Inter, system-ui, -apple-system, sans-serif;
+  --mono: 'IBM Plex Mono', 'Fira Code', monospace;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --lh-tight: 1.25;
+  --lh-normal: 1.5;
+  /* Primitives (reference only, do not use in components) */
+  --color-neutral-100: #F7F8FA;
+  --color-neutral-200: #EEF0F5;
+  --color-neutral-300: #DDE1EC;
+  --color-neutral-400: #C4CAD9;
+  --color-neutral-500: #9BA3B8;
+  --color-neutral-600: #6B7490;
+  --color-neutral-700: #485270;
+  --color-neutral-800: #303A54;
+  --color-neutral-900: #1E273B;
+  --color-neutral-1000: #111829;
+  --color-neutral-1100: #080C17;
+  --color-warm-50: #FAF9F5;
+  --color-warm-100: #F0EEE6;
+  --color-warm-200: #ECEAE2;
+  --color-warm-300: #E0DDD2;
+  --color-warm-400: #CFCBBE;
+  --color-warm-700: #5E5D59;
+  --color-warm-1000: #141413;
+  --color-accent-100: #E8F1F9;
+  --color-accent-200: #C8DCF0;
+  --color-accent-300: #9DC0E3;
+  --color-accent-400: #6AA0D1;
+  --color-accent-500: #4283BC;
+  --color-accent-600: #2D6FA3;
+  --color-accent-700: #245A85;
+  --color-accent-800: #1A4464;
+  --color-accent-900: #113048;
+  --color-accent-1000: #0A1E2E;
+  --color-accent-1100: #040F18;
+  --color-green-100: #E6F4EC;
+  --color-green-200: #C0E4CE;
+  --color-green-500: #1D8F56;
+  --color-green-600: #146B40;
+  --color-green-700: #0E4F2F;
+  --color-amber-100: #FEF3E2;
+  --color-amber-200: #FDDBA6;
+  --color-amber-500: #D07800;
+  --color-amber-600: #A85C00;
+  --color-amber-700: #7A4300;
+  --color-red-100: #FDECEA;
+  --color-red-200: #F9C5C1;
+  --color-red-500: #E04840;
+  --color-red-600: #C8352A;
+  --color-red-700: #9C2820;
+  color-scheme: light;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 1ms; --dur-normal: 1ms; --dur-slow: 1ms; }
+}
+
+/* Type roles */
+.t-page-title { font-family: var(--font); font-size: 20px; font-weight: 500; line-height: var(--lh-tight); }
+.t-section-title { font-family: var(--font); font-size: 16px; font-weight: 500; line-height: var(--lh-tight); }
+.t-body { font-family: var(--font); font-size: 14px; font-weight: 400; line-height: var(--lh-normal); }
+.t-body-strong { font-family: var(--font); font-size: 14px; font-weight: 500; line-height: var(--lh-normal); }
+.t-label { font-family: var(--font); font-size: 12px; font-weight: 400; line-height: var(--lh-tight); }
+.t-column-header { font-family: var(--font); font-size: 12px; font-weight: 500; line-height: var(--lh-tight); }
+.t-caption { font-family: var(--font); font-size: 11px; font-weight: 400; line-height: var(--lh-normal); }
+.t-overline { font-family: var(--font); font-size: 11px; font-weight: 500; line-height: var(--lh-tight); letter-spacing: 0.06em; text-transform: uppercase; }
+.t-data { font-family: var(--mono); font-size: 14px; font-weight: 400; line-height: var(--lh-tight); }
+.t-data-large { font-family: var(--font); font-size: 24px; font-weight: 500; line-height: var(--lh-tight); font-variant-numeric: tabular-nums; }
+.tnum { font-variant-numeric: tabular-nums; }
