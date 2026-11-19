@@ -17,6 +17,7 @@ DELTA Resilience (**D**isaster & Hazardous **E**vents, **L**osses and Damages **
   - [Frontend](code-structure/frontend.md)
   - [Testing](code-structure/testing.md)
   - [Form CSV API](code-structure/form-csv-api.md)
+- [Design system](design/DESIGN.md) — UI rules, [tokens.css](design/tokens.css), and [tokens.json](design/tokens.json) (synced from `unisdr/delta-design`)
 - [Creating a new type linked to a form](creating-a-new-type-linked-to-a-form.md) - step-by-step guide for adding a new entity type
 
 - [Dependencies](dependencies.md)
@@ -55,13 +56,13 @@ DELTA Resilience (**D**isaster & Hazardous **E**vents, **L**osses and Damages **
 
 - [API key – user relationship guide](security/api-key-user-relationship-guide.md)
 - [API key – user assignment developer guide](security/api-key-user-assignment-developer-guide.md)
-- [Tenant isolation file storage testing guide](tenant-isolation-file-storage-testing-guide.md) *(file is at `_docs/` root, not under `_docs/security/`)*
+- [Tenant isolation file storage testing guide](tenant-isolation-file-storage-testing-guide.md) _(file is at `_docs/` root, not under `_docs/security/`)_
 
 ## Maps & dashboards
 
 - [Custom map integration guide](custom-map/custom-map-integration-guide.md)
 - [Color scheme strategies](custom-map/color-scheme-strategies.md)
-- [Sectors dashboard user guide](dashboards/sectors/user-guide.md) *(draft)*
+- [Sectors dashboard user guide](dashboards/sectors/user-guide.md) _(draft)_
 - [Sectors dashboard developer guide](dashboards/sectors/developer-guide.md)
 
 ## High availability

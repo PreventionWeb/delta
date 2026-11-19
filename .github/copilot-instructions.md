@@ -139,13 +139,13 @@ even commented out.
 
 ### UI design system — mid-migration
 
-The frontend is mid-migration between two design systems. **Both coexist intentionally** — do not assume one is wrong.
+The frontend is migrating toward the DELTA Design System defined in [`_docs/design/DESIGN.md`](../_docs/design/DESIGN.md), [`_docs/design/tokens.css`](../_docs/design/tokens.css), and [`_docs/design/tokens.json`](../_docs/design/tokens.json) (synced read-only from `unisdr/delta-design`). Legacy systems **coexist intentionally** during migration — do not assume older patterns are wrong on untouched pages.
 
-**Old system** (being phased out): custom CSS classes (`dts-form`, `dts-form-component`, `mg-button`, `mg-button-primary`), forms rendered via `formScreen()` from `app/frontend/form.tsx`. Still used by most create/edit routes.
+- **Target design system (for all new UI and migrated screens)**: React Aria Components (`react-aria-components`) + Tailwind CSS v4 + Lucide icons (`lucide-react`) using semantic tokens from `_docs/design/tokens.css` (registered additively in `app/styles/all.css`). Follow WCAG 2.2 AA, use semantic tokens only (no hardcoded hex values or `--color-*` primitives), and use `Inter` / `IBM Plex Mono` fonts.
+- **Coexisting PrimeReact layer**: PrimeReact components (`Card`, `DataTable`, `Button`, `Dialog`) + Tailwind utility classes are used on existing list pages, modals, settings, user/auth, and admin pages.
+- **Old system** (being phased out): custom CSS classes (`dts-form`, `dts-form-component`, `mg-button`, `mg-button-primary`), forms rendered via `formScreen()` from `app/frontend/form.tsx`.
 
-**New system** (target state): PrimeReact components (`Card`, `DataTable`, `Button`, `Dialog`) + Tailwind utility classes, hand-crafted JSX per page. Already adopted by list pages, modals, settings, user/auth pages, and admin pages.
-
-**Critical constraint when migrating a form:** `fieldsDef` must be preserved on the model even after replacing `formScreen()` with PrimeReact JSX — it still drives CSV import/export and the REST API.
+**Critical constraint when migrating a form:** `fieldsDef` must be preserved on the model even after replacing `formScreen()` with new JSX — it still drives CSV import/export and the REST API.
 
 ### Known bugs — do not reproduce or extend
 
