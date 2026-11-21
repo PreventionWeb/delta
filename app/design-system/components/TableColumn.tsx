@@ -13,6 +13,8 @@ export interface TableColumnProps {
 	compact?: boolean;
 	/** Style object, not a className -- same mechanism as TableCell's own `padding` (design.md Decision 15, Fix 7). */
 	padding?: "token" | "cozy";
+	/** Caller's own width/alignment utilities (e.g. legacy ContentRepeater's right-aligned Action column). */
+	className?: string;
 }
 
 // Matches the legacy .dts-table th rule exactly, via @theme tokens, not literal values (design.md Decision 8).
@@ -39,6 +41,7 @@ export function TableColumn({
 	isRowHeader,
 	compact,
 	padding = "token",
+	className,
 }: TableColumnProps) {
 	const style =
 		padding === "cozy"
@@ -51,7 +54,11 @@ export function TableColumn({
 			id={id}
 			isRowHeader={isRowHeader}
 			style={style}
-			className={centered ? "dts-table__cell-centered" : undefined}
+			className={
+				[centered ? "dts-table__cell-centered" : undefined, className]
+					.filter(Boolean)
+					.join(" ") || undefined
+			}
 		>
 			{children}
 		</Column>

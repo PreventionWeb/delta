@@ -11,7 +11,7 @@ export interface TableProps {
 	header: ReactNode;
 	/** The `TableRow` elements that make up the body. */
 	children: ReactNode;
-	/** Rendered when `children` is empty. */
+	/** Rendered when `children` is empty; omit for legacy's bare header-only table. */
 	emptyState?: ReactNode;
 	className?: string;
 }
@@ -34,7 +34,10 @@ export function Table({
 			className={["dts-table", className].filter(Boolean).join(" ")}
 		>
 			<AriaTableHeader>{header}</AriaTableHeader>
-			<AriaTableBody renderEmptyState={() => emptyState}>
+			{/* Omitted when absent -- RAC renders an empty row otherwise (legacy has none). */}
+			<AriaTableBody
+				renderEmptyState={emptyState ? () => emptyState : undefined}
+			>
 				{children}
 			</AriaTableBody>
 		</AriaTable>
