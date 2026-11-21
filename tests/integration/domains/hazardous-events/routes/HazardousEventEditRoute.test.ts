@@ -396,6 +396,50 @@ describe("Hazardous event edit route", () => {
 			expect(result?.role).toBe("admin");
 		});
 
+		// Characterization: guards this existing field against being silently dropped before
+		// mapEventToEditFormInitialValues reads it.
+		it("returns a null currentSpatialObservation (not omitted) when the event has no observation", async () => {
+			const id = await seedEventAtStatus(tenantId, specificHazardId, "DRAFT");
+
+			const result = await loader(
+				await makeArgs(id, tenantId, "data-collector"),
+			);
+
+			expect(result?.event.currentSpatialObservation).toBeNull();
+		});
+
+		it("returns the persisted currentSpatialObservation's geometries/divisionIds after the action saved one", async () => {
+			const id = await seedEventAtStatus(tenantId, specificHazardId, "DRAFT");
+			const geometry = { type: "Point", coordinates: [0, 0] };
+
+			await action(
+				await makeArgs(
+					id,
+					tenantId,
+					"data-collector",
+					makeEditBody(
+						{
+							spatialObservationChanged: "1",
+							spatialObservation: JSON.stringify({
+								geometries: [geometry],
+								divisionIds: [],
+							}),
+						},
+						specificHazardId,
+					),
+				),
+			);
+
+			const result = await loader(
+				await makeArgs(id, tenantId, "data-collector"),
+			);
+
+			expect(result?.event.currentSpatialObservation).toMatchObject({
+				geometries: [geometry],
+				divisionIds: [],
+			});
+		});
+
 		it("sets partial: false when ?partial= is absent", async () => {
 			const id = await seedEventAtStatus(tenantId, specificHazardId, "DRAFT");
 
@@ -1258,6 +1302,87 @@ describe("Hazardous event edit route", () => {
 				recordDisplayName: expectedName,
 			});
 			processSpy.mockRestore();
+		});
+	});
+
+	// design.md Decision 6 / hazardous-event-write-route-adapter spec: both realistic
+	// SpatialObservation ValidationErrors surface as a divisionIds field error, not a 500.
+	describe("divisionIds field-error mapping (design.md Decision 6)", () => {
+		it("maps a duplicate-divisionIds ValidationError to fieldErrors.divisionIds, not a thrown error", async () => {
+			const id = await seedEventAtStatus(tenantId, specificHazardId, "DRAFT");
+			const { divisionTable } =
+				await import("../../../db/testSchema/divisionTable");
+			const [division] = await dr
+				.insert(divisionTable)
+				.values({ countryAccountsId: tenantId, name: { en: "Division A" } })
+				.returning();
+
+			const result = await action(
+				await makeArgs(
+					id,
+					tenantId,
+					"data-collector",
+					makeEditBody(
+						{
+							spatialObservationChanged: "1",
+							spatialObservation: JSON.stringify({
+								geometries: [],
+								divisionIds: [division.id, division.id],
+							}),
+						},
+						specificHazardId,
+					),
+				),
+			);
+
+			expect(result).toMatchObject({
+				success: false,
+				fieldErrors: {
+					divisionIds: [
+						expect.stringContaining(
+							"divisionIds must not contain duplicate values",
+						),
+					],
+				},
+			});
+		});
+
+		it("maps a foreign-tenant divisionId's singular ValidationError to fieldErrors.divisionIds", async () => {
+			const id = await seedEventAtStatus(tenantId, specificHazardId, "DRAFT");
+			const { divisionTable } =
+				await import("../../../db/testSchema/divisionTable");
+			const otherTenantId = await seedCountryAccount();
+			const [foreignDivision] = await dr
+				.insert(divisionTable)
+				.values({ countryAccountsId: otherTenantId, name: { en: "Foreign" } })
+				.returning();
+
+			const result = await action(
+				await makeArgs(
+					id,
+					tenantId,
+					"data-collector",
+					makeEditBody(
+						{
+							spatialObservationChanged: "1",
+							spatialObservation: JSON.stringify({
+								geometries: [],
+								divisionIds: [foreignDivision.id],
+							}),
+						},
+						specificHazardId,
+					),
+				),
+			);
+
+			expect(result).toMatchObject({
+				success: false,
+				fieldErrors: {
+					divisionIds: [
+						expect.stringContaining("is not present in validDivisionIds"),
+					],
+				},
+			});
 		});
 	});
 });

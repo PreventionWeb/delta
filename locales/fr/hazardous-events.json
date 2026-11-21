@@ -62,12 +62,85 @@
 		"create_title": "Ajouter un événement dangereux",
 		"edit_title": "Modifier l'événement dangereux",
 		"partial_transition_failed": "Événement enregistré ; la soumission demandée n'a pas pu être effectuée. Veuillez réessayer.",
+		"close": "Fermer",
+		"spatial_footprint": {
+			"add_action": "Ajouter",
+			"preview_action": "Aperçu de la carte",
+			"preview_dialog_title": "Aperçu de la carte",
+			"row_edit_action": "Modifier",
+			"row_delete_action": "Supprimer",
+			"row_edit": "Modifier {{label}}",
+			"row_delete": "Supprimer {{label}}",
+			"table": {
+				"columns": {
+					"value": "Valeur",
+					"option": "Option",
+					"actions": "Action"
+				}
+			},
+			"entry_dialog": {
+				"title": "Ajouter un nouvel élément",
+				"edit_title": "Modifier l’élément",
+				"item_type": "Type d’élément",
+				"map_option": "Coordonnées de la carte",
+				"division_option": "Niveau géographique",
+				"open_map_action": "Ouvrir la carte",
+				"select_action": "Sélectionner",
+				"division_placeholder": "Sélectionner le niveau géographique",
+				"apply": "Appliquer",
+				"cancel": "Annuler"
+			},
+			"map_dialog": {
+				"title": "Carte"
+			},
+			"division_dialog": {
+				"title": "Sélectionner un niveau géographique",
+				"loading": "Chargement des divisions…",
+				"error": "Impossible de charger les divisions.",
+				"empty": "Aucune division disponible.",
+				"unknown_division": "Division inconnue ({{id}})",
+				"remove": "Supprimer {{name}}",
+				"expand_all": "Tout développer",
+				"collapse_all": "Tout réduire",
+				"search_placeholder": "Rechercher...",
+				"root_caption": "Niveaux géographiques",
+				"no_results": "Aucun résultat trouvé",
+				"selected_caption": "Sélection",
+				"apply": "Appliquer",
+				"discard": "Ignorer"
+			}
+		},
 		"fields": {
 			"parent": "Parent",
 			"select_type": "Sélectionner le type",
 			"select_cluster": "Sélectionner le groupe",
 			"select_specific_hazard": "Sélectionner l'aléa spécifique",
-			"spatial_footprint_placeholder": "La saisie de l'empreinte spatiale n'est pas encore disponible sur ce formulaire.",
+			"spatial_footprint_map": {
+				"unavailable": "Carte indisponible. Veuillez réessayer plus tard.",
+				"degenerate_shape": "Forme non ajoutée : il faut davantage de points pour former une forme valide.",
+				"search_label": "Rechercher un lieu",
+				"search_empty_prompt": "Saisissez un lieu à rechercher.",
+				"search_not_found": "Aucun lieu trouvé pour cette recherche.",
+				"outside_division_title": "Forme hors de la division sélectionnée",
+				"outside_division_confirm": "Ajouter quand même",
+				"outside_division_cancel": "Supprimer la forme",
+				"search_placeholder": "Saisissez un lieu et appuyez sur Entrée pour rechercher",
+				"mode_label": "Mode de dessin",
+				"mode_move": "Déplacer la carte",
+				"mode_polygon": "Polygone",
+				"mode_polyline": "Ligne",
+				"mode_rectangle": "Rectangle",
+				"mode_circle": "Cercle",
+				"mode_marker": "Marqueur",
+				"mode_edit": "Modifier la forme",
+				"clear": "Effacer",
+				"undo": "Défaire",
+				"save": "Enregistrer les coordonnées",
+				"replace_title": "Remplacer la forme actuelle ?",
+				"replace_text": "Dessiner une nouvelle forme effacera la forme actuelle. Voulez-vous continuer ?",
+				"replace_confirm": "Continuer",
+				"replace_cancel": "Garder la forme actuelle"
+			},
 			"date_format_label": "Format",
 			"date_format_options": {
 				"full_date": "Date complète",
@@ -93,6 +166,7 @@
 			"title": "Enregistrer ou soumettre",
 			"decide_action": "Décidez de ce que vous souhaitez faire de ces données que vous avez ajoutées ou mises à jour.",
 			"select_validators": "Sélectionner le(s) validateur(s)",
+			"remove_validator": "Supprimer {{name}}",
 			"publish_to_undrr": "Publier sur l'instance UNDRR",
 			"publish_to_undrr_description": "Les données de cet événement seront rendues publiques.",
 			"actions": {
@@ -153,7 +227,8 @@
 			"none": "Aucune observation spatiale enregistrée",
 			"observation_time": "Heure d'observation",
 			"note": "Note",
-			"map_label": "Carte de l'empreinte spatiale"
+			"map_label": "Carte de l'empreinte spatiale",
+			"division_ids": "Divisions"
 		},
 		"linked_events": {
 			"caused_by": "Causé par",
