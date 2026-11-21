@@ -101,6 +101,19 @@
 	/* ca-he-route-adapter-write (6c) -- legacy's own FieldErrors2 uses an inline style for this;
 	   extracted here so the new create/edit form can reuse a shared class instead (no inline styles). */
 	--color-dts-error: red;
+
+	/* ca-he-spatial-footprint-picker (6c) -- Button/Dialog primitives, design.md Decision 12's
+	   token table. Values sourced from style-dts.css's real .mg-button-primary/.mg-button-outline
+	   rules and Card.tsx's own elevation shadow -- none invented. */
+	--color-dts-button-primary-bg: #004f91;
+	--color-dts-button-disabled-bg: #808080;
+	--shadow-dts-button-primary-focus: 0 0 0 2px #106cb8;
+	--shadow-dts-button-outline-hover: 0 0 0 2px rgba(145, 202, 255, 0.4);
+	--spacing-dts-button-padding: 0.86rem 1.14rem;
+	--color-dts-overlay: rgba(0, 0, 0, 0.5);
+	--shadow-dts-dialog:
+		0 2px 1px -1px rgba(0, 0, 0, 0.2), 0 1px 1px 0 rgba(0, 0, 0, 0.14),
+		0 1px 3px 0 rgba(0, 0, 0, 0.12);
 }
 
 /* ca-he-route-adapter-write (6c) -- generic per-field server-error list, shared across every
@@ -112,6 +125,17 @@
 }
 .dts-field-error-list li {
 	color: var(--color-dts-error);
+}
+
+/* ca-he-spatial-footprint-picker -- a single inline rejection message, not a field-error list. */
+.dts-inline-error {
+	color: var(--color-dts-error);
+}
+
+/* Indents react-aria-components' Tree rows by RAC's own --tree-item-level inline property --
+   3em per level, legacy TreeView's own ul.tree li indent; logical side so RTL flips. */
+.dts-division-tree-item {
+	padding-inline-start: calc((var(--tree-item-level, 1) - 1) * 3em);
 }
 
 /* ca-he-list-filters (6h) -- pseudo-class states aren't expressible via inline style/@theme alone. */
@@ -225,4 +249,117 @@
 .dts-text-input:focus-visible {
 	border-color: var(--color-dts-input-border-hover);
 	outline: none;
+}
+
+/* Button primitive (design.md Decision 12). RAC's Button exposes [data-hovered]/
+   [data-focus-visible]/[data-disabled], not native pseudo-classes -- matches
+   .dts-select-popover's own [data-hovered]/[data-focused] precedent. */
+.dts-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.57rem;
+	border-radius: var(--radius-dts-button);
+	padding: var(--spacing-dts-button-padding);
+	font-weight: 600;
+	line-height: 1.5;
+	cursor: pointer;
+}
+
+.dts-button--primary {
+	background-color: var(--color-dts-button-primary-bg);
+	color: #fff;
+	border: 1px solid transparent;
+}
+.dts-button--primary[data-hovered] {
+	background-color: var(--color-dts-action);
+}
+.dts-button--primary[data-focus-visible] {
+	box-shadow: var(--shadow-dts-button-primary-focus);
+	outline: none;
+}
+.dts-button--primary[data-disabled] {
+	background-color: var(--color-dts-button-disabled-bg);
+	color: var(--color-dts-input-border);
+	cursor: not-allowed;
+}
+
+.dts-button--outline {
+	background-color: transparent;
+	color: var(--color-dts-button-primary-bg);
+	border: 1px solid var(--color-dts-button-primary-bg);
+}
+.dts-button--outline[data-hovered],
+.dts-button--outline[data-focus-visible] {
+	border-color: var(--color-dts-action);
+	color: var(--color-dts-action);
+	box-shadow: var(--shadow-dts-button-outline-hover);
+	outline: none;
+}
+.dts-button--outline[data-disabled] {
+	color: var(--color-dts-input-border);
+	border-color: var(--color-dts-input-border);
+	cursor: not-allowed;
+}
+
+/* ca-he-spatial-footprint-picker (6c) -- Dialog primitive (design.md Decision 12). Panel border/
+   radius reuse .dts-select-popover's own bordered-panel tokens; shadow copied from Card.tsx's
+   elevation (no legacy PrimeReact-dialog-equivalent rule exists to match instead). */
+.dts-dialog-overlay {
+	position: fixed;
+	inset: 0;
+	background: var(--color-dts-overlay);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1000;
+}
+
+.dts-dialog-panel {
+	background: #fff;
+	border: 1px solid var(--color-dts-input-border);
+	border-radius: var(--radius-dts-input);
+	box-shadow: var(--shadow-dts-dialog);
+	max-height: 90vh;
+	overflow-y: auto;
+	padding: 1.5rem;
+}
+
+.dts-dialog-title {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	font-weight: 600;
+	margin-bottom: 1rem;
+}
+
+.dts-dialog-body {
+	margin-bottom: 1.5rem;
+}
+
+.dts-dialog-footer {
+	display: flex;
+	justify-content: flex-end;
+	gap: 0.75rem;
+}
+
+/* ca-he-spatial-footprint-picker (6c) -- MultiSelectCombobox chip row (design.md Decision 12).
+   No legacy color exists for this (style-dts.css's own multiselect rules style only layout);
+   reuses this app's existing neutral bordered-surface tokens instead of inventing one. */
+.dts-multiselect-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	margin-top: 0.5rem;
+}
+
+.dts-multiselect-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	background: var(--color-dts-option-hover);
+	border: 1px solid var(--color-dts-input-border);
+	border-radius: var(--radius-dts-input);
+	padding: 0.2rem 0.6rem;
 }
