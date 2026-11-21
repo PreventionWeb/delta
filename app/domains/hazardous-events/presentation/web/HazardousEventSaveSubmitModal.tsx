@@ -1,13 +1,10 @@
 import { useEffect, useState } from "react";
-import { Dialog } from "primereact/dialog";
-import { Button } from "primereact/button";
-import { Checkbox } from "primereact/checkbox";
-import {
-	MultiSelect,
-	type MultiSelectChangeEvent,
-} from "primereact/multiselect";
 import { useTranslation } from "react-i18next";
 import type { ValidatorCandidate } from "~/domains/validation-workflow/application/ports/IValidatorCandidateRepository";
+import { Dialog } from "~/design-system/components/Dialog";
+import { Button } from "~/design-system/components/Button";
+import { Checkbox } from "~/design-system/components/Checkbox";
+import { MultiSelectCombobox } from "~/design-system/components/MultiSelectCombobox";
 
 /** Legacy's own ApprovalAction names (SaveSubmitDialog.tsx) -- submit-return excluded (design.md
  * Decision 7, DEF-053). */
@@ -17,10 +14,6 @@ export type SaveAction =
 	| "submit-publish"
 	| "submit-validation";
 
-/** MultiSelect's optionLabel only accepts a field name, not a formatter -- this adds the
- * computed full-name field it displays. */
-type ValidatorOption = ValidatorCandidate & { displayName: string };
-
 export interface HazardousEventSaveSubmitModalProps {
 	visible: boolean;
 	onHide: () => void;
@@ -29,8 +22,9 @@ export interface HazardousEventSaveSubmitModalProps {
 	role: string | null;
 }
 
-/** Role-gated option cards, ported from legacy's SaveSubmitDialog.tsx (same content/behavior)
- * -- restyled with Tailwind utilities instead of inline `style` objects (no-inline-styles rule). */
+/** Role-gated option cards, ported from legacy's SaveSubmitDialog.tsx (same content/behavior).
+ * Migrated off PrimeReact onto the new design-system Dialog/Button/Checkbox/MultiSelectCombobox
+ * (design.md Decision 12) -- same behavior, new chrome. */
 export function HazardousEventSaveSubmitModal({
 	visible,
 	onHide,
@@ -41,27 +35,27 @@ export function HazardousEventSaveSubmitModal({
 	const { t } = useTranslation("hazardous-events");
 	const [selectedAction, setSelectedAction] =
 		useState<SaveAction>("submit-draft");
-	const [selectedValidators, setSelectedValidators] = useState<
-		ValidatorOption[]
+	const [selectedValidatorIds, setSelectedValidatorIds] = useState<
+		readonly string[]
 	>([]);
 	const [publishChecked, setPublishChecked] = useState(false);
 	// firstName alone is ambiguous between two candidates sharing one (code review finding) --
-	// legacy shows the full name.
-	const validatorOptions: ValidatorOption[] = validatorCandidates.map((c) => ({
-		...c,
-		displayName: `${c.firstName} ${c.lastName}`.trim(),
+	// legacy shows the full name. MultiSelectCombobox's fixed {id, name} shape (Decision 12).
+	const validatorOptions = validatorCandidates.map((c) => ({
+		id: c.id,
+		name: `${c.firstName} ${c.lastName}`.trim(),
 	}));
 
 	useEffect(() => {
 		if (!visible) {
 			setSelectedAction("submit-draft");
-			setSelectedValidators([]);
+			setSelectedValidatorIds([]);
 			setPublishChecked(false);
 		}
 	}, [visible]);
 
 	const isSubmitDisabled =
-		selectedAction === "submit-validation" && selectedValidators.length === 0;
+		selectedAction === "submit-validation" && selectedValidatorIds.length === 0;
 
 	// Two string sets, matching legacy's SaveSubmitDialog.tsx: each card's title is short
 	// ("Validate"); the footer button's label is the longer form ("Validate record") once selected.
@@ -83,9 +77,7 @@ export function HazardousEventSaveSubmitModal({
 	function handleSubmit() {
 		onSubmit(
 			selectedAction,
-			selectedAction === "submit-validation"
-				? selectedValidators.map((v) => v.id)
-				: [],
+			selectedAction === "submit-validation" ? selectedValidatorIds : [],
 		);
 	}
 
@@ -114,21 +106,23 @@ export function HazardousEventSaveSubmitModal({
 
 	return (
 		<Dialog
-			visible={visible}
-			modal
-			header={t("form.save_submit.title")}
+			isOpen={visible}
+			onOpenChange={(open) => {
+				if (!open) onHide();
+			}}
+			title={t("form.save_submit.title")}
+			closeLabel={t("form.close")}
 			footer={
 				<Button
 					type="button"
+					variant="primary"
 					disabled={isSubmitDisabled}
-					className="mg-button mg-button-primary w-full"
-					label={footerLabels[selectedAction]}
-					onClick={handleSubmit}
 					autoFocus
-				/>
+					onPress={handleSubmit}
+				>
+					{footerLabels[selectedAction]}
+				</Button>
 			}
-			className="w-full max-w-2xl"
-			onHide={onHide}
 		>
 			<p>{t("form.save_submit.decide_action")}</p>
 			<div
@@ -190,12 +184,12 @@ export function HazardousEventSaveSubmitModal({
 							</span>
 							<div className="flex items-start gap-3">
 								<Checkbox
-									id="publish-checkbox"
-									onChange={(e) => {
-										if (e.checked === undefined) return;
-										setPublishChecked(e.checked);
+									name="publish-checkbox"
+									label=""
+									onChange={(checked) => {
+										setPublishChecked(checked);
 										setSelectedAction(
-											e.checked ? "submit-publish" : "submit-validate",
+											checked ? "submit-publish" : "submit-validate",
 										);
 									}}
 									checked={publishChecked}
@@ -238,19 +232,16 @@ export function HazardousEventSaveSubmitModal({
 							<span className="text-gray-500">
 								{t("form.save_submit.descriptions.submit_for_validation")}
 							</span>
-							<div>* {t("form.save_submit.select_validators")}</div>
-							<MultiSelect
-								filter
-								value={selectedValidators}
-								disabled={selectedAction !== "submit-validation"}
-								onChange={(e: MultiSelectChangeEvent) =>
-									setSelectedValidators(e.value)
-								}
+							<MultiSelectCombobox
+								name="validatorUserIds"
+								label={`* ${t("form.save_submit.select_validators")}`}
 								options={validatorOptions}
-								optionLabel="displayName"
-								placeholder={t("form.save_submit.select_validators")}
-								className="w-full"
-								display="chip"
+								selectedIds={selectedValidatorIds}
+								disabled={selectedAction !== "submit-validation"}
+								onSelectionChange={setSelectedValidatorIds}
+								removeLabel={(name) =>
+									t("form.save_submit.remove_validator", { name })
+								}
 							/>
 						</div>
 					</div>
