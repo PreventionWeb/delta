@@ -10,6 +10,7 @@ import { BackLink } from "./BackLink";
 import { workflowStatusDisplay } from "./workflowStatusDisplay";
 import { hazardLabel } from "./hazardLabel";
 import { HazardousEventLocationMap } from "./HazardousEventLocationMap";
+import { HazardousEventDivisionNames } from "./HazardousEventDivisionNames";
 import { HazardousEventAttachmentsCard } from "./HazardousEventAttachmentsCard";
 import { HazardousEventLinkedEventsCard } from "./HazardousEventLinkedEventsCard";
 import { HazardousEventAuditLogCard } from "./HazardousEventAuditLogCard";
@@ -191,6 +192,11 @@ export function HazardousEventDetailPage({
 								geometries={data.currentSpatialObservation.geometries}
 								aria-label={t("detail.spatial_observation.map_label")}
 							/>
+							{data.currentSpatialObservation.divisionIds.length > 0 && (
+								<HazardousEventDivisionNames
+									divisionIds={data.currentSpatialObservation.divisionIds}
+								/>
+							)}
 						</div>
 					)}
 				</Card>

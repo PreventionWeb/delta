@@ -28,6 +28,11 @@ import { HazardousEventDetailPage } from "~/domains/hazardous-events/presentatio
 
 // Inline mirror of locales/en/hazardous-events.json (Notices precedent — no file import).
 const hazardousEvents = {
+	form: {
+		spatial_footprint: {
+			division_dialog: { loading: "Loading divisions…" },
+		},
+	},
 	title: "Hazardous events",
 	list: { columns: { record_status: "Record status" } },
 	status: {
@@ -77,6 +82,7 @@ const hazardousEvents = {
 			observation_time: "Observation time",
 			note: "Note",
 			map_label: "Spatial footprint map",
+			division_ids: "Divisions",
 		},
 		linked_events: {
 			caused_by: "Caused by",
@@ -855,6 +861,93 @@ describe("HazardousEventDetailPage", () => {
 			expect(html).toMatch(
 				/<i class="pi pi-map-marker text-blue-600"[^>]*><\/i><h2[^>]*>Location<\/h2>/,
 			);
+		});
+
+		// ca-he-spatial-footprint-picker: a division-only observation (no hand-drawn shape) must
+		// still surface as a recorded observation, not fall through to the "none" empty state.
+		it("renders the division list (never raw ids) and skips the empty state when only divisions are recorded (no geometries)", () => {
+			const html = cardHtml(
+				renderWithI18n(
+					<HazardousEventDetailPage
+						data={makeDetail({
+							currentSpatialObservation: {
+								id: "obs-1",
+								hazardousEventId: "event-A",
+								observationTime: "2026-02-01T00:00:00.000Z",
+								note: null,
+								geometries: [],
+								divisionIds: ["div-1", "div-2"],
+								createdAt: "2026-02-01T00:00:00.000Z",
+								updatedAt: "2026-02-01T00:00:00.000Z",
+							},
+						})}
+					/>,
+				),
+				hazardousEvents.detail.sections.location,
+				hazardousEvents.detail.sections.attachments,
+			);
+
+			// Names resolve client-side (HazardousEventDivisionNames) -- the server render shows the
+			// labelled list loading, never the raw ids.
+			expect(html).toContain("Divisions:");
+			expect(html).toContain("Loading divisions…");
+			expect(html).not.toContain("div-1");
+			expect(html).not.toContain(
+				hazardousEvents.detail.spatial_observation.none,
+			);
+		});
+
+		it("renders both the map and the division list when an observation has geometries and divisions", () => {
+			const html = cardHtml(
+				renderWithI18n(
+					<HazardousEventDetailPage
+						data={makeDetail({
+							currentSpatialObservation: {
+								id: "obs-1",
+								hazardousEventId: "event-A",
+								observationTime: "2026-02-01T00:00:00.000Z",
+								note: "Flooded road",
+								geometries: [{ type: "Point", coordinates: [0, 0] }],
+								divisionIds: ["div-1", "div-2"],
+								createdAt: "2026-02-01T00:00:00.000Z",
+								updatedAt: "2026-02-01T00:00:00.000Z",
+							},
+						})}
+					/>,
+				),
+				hazardousEvents.detail.sections.location,
+				hazardousEvents.detail.sections.attachments,
+			);
+
+			expect(html).toMatch(/aria-label="Spatial footprint map"/);
+			expect(html).toContain("Divisions:");
+			expect(html).not.toContain("div-1");
+		});
+
+		it("renders no division list when divisionIds is empty, leaving the map rendering unaffected", () => {
+			const html = cardHtml(
+				renderWithI18n(
+					<HazardousEventDetailPage
+						data={makeDetail({
+							currentSpatialObservation: {
+								id: "obs-1",
+								hazardousEventId: "event-A",
+								observationTime: "2026-02-01T00:00:00.000Z",
+								note: "Flooded road",
+								geometries: [{ type: "Point", coordinates: [0, 0] }],
+								divisionIds: [],
+								createdAt: "2026-02-01T00:00:00.000Z",
+								updatedAt: "2026-02-01T00:00:00.000Z",
+							},
+						})}
+					/>,
+				),
+				hazardousEvents.detail.sections.location,
+				hazardousEvents.detail.sections.attachments,
+			);
+
+			expect(html).not.toContain("Divisions:");
+			expect(html).toMatch(/aria-label="Spatial footprint map"/);
 		});
 	});
 
