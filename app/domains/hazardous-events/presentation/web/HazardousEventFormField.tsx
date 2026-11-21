@@ -8,15 +8,20 @@ export function HazardousEventFormField({
 	htmlFor,
 	errors,
 	children,
+	className,
 }: {
 	label: string;
 	required?: boolean;
 	htmlFor: string;
 	errors?: readonly string[];
 	children: React.ReactNode;
+	/** Caller's own spacing utilities, e.g. a card field that carries its own margins. */
+	className?: string;
 }) {
 	return (
-		<div className="dts-form-component">
+		<div
+			className={["dts-form-component", className].filter(Boolean).join(" ")}
+		>
 			{/* Empty label renders nothing -- same as legacy (attachments/spatialFootprint pass
 			 * label="" too), since those widgets render their own heading. */}
 			{label !== "" && (

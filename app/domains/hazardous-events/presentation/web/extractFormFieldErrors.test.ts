@@ -56,6 +56,30 @@ describe("extractFieldError", () => {
 
 		expect(extractFieldError(err)).toBeNull();
 	});
+
+	it("maps a divisionIds duplicate-value ValidationError to the divisionIds field", () => {
+		const err = new ValidationError(
+			"divisionIds must not contain duplicate values",
+		);
+
+		expect(extractFieldError(err)).toEqual({
+			field: "divisionIds",
+			message: "divisionIds must not contain duplicate values",
+		});
+	});
+
+	// SpatialObservation.create() reports an unknown id with the singular "divisionId" word;
+	// it must alias to the plural divisionIds field key, but keep the original message text.
+	it("aliases the singular divisionId leading word to the divisionIds field, keeping the original message", () => {
+		const err = new ValidationError(
+			"divisionId xyz is not present in validDivisionIds",
+		);
+
+		expect(extractFieldError(err)).toEqual({
+			field: "divisionIds",
+			message: "divisionId xyz is not present in validDivisionIds",
+		});
+	});
 });
 
 describe("extractCauseConflictError", () => {

@@ -27,7 +27,7 @@ import {
 	extractCauseConflictError,
 } from "~/domains/hazardous-events/presentation/web/extractFormFieldErrors";
 import { HazardousEventFormPage } from "~/domains/hazardous-events/presentation/web/HazardousEventFormPage";
-import { mapAttachmentsToWidgetShape } from "~/domains/hazardous-events/presentation/web/mapAttachmentsToWidgetShape";
+import { mapEventToEditFormInitialValues } from "~/domains/hazardous-events/presentation/web/mapEventToEditFormInitialValues";
 import { ConflictError, ValidationError } from "~/shared/errors";
 import { getInstance } from "~/middleware/i18next.server";
 import { MainContainer } from "~/frontend/container";
@@ -258,22 +258,7 @@ export default function HazardousEventEditRoute() {
 						? actionData.fieldErrors
 						: undefined
 				}
-				initialValues={{
-					specificHazardId: event.specificHazardId,
-					startDate: event.startDate,
-					endDate: event.endDate,
-					nationalSpecification: event.nationalSpecification,
-					description: event.description,
-					chainsExplanation: event.chainsExplanation,
-					magnitude: event.magnitude,
-					recordOriginator: event.recordOriginator,
-					dataSource: event.dataSource,
-					hazardousEventStatus: event.hazardousEventStatus,
-					attachments: mapAttachmentsToWidgetShape(event.attachments, {
-						tenantId: event.tenantId,
-						hazardousEventId: event.id,
-					}),
-				}}
+				initialValues={mapEventToEditFormInitialValues(event)}
 			/>
 		</MainContainer>
 	);

@@ -18,6 +18,7 @@ import {
 	type SaveAction,
 } from "./HazardousEventSaveSubmitModal";
 import { HazardousEventDiscardModal } from "./HazardousEventDiscardModal";
+import { HazardousEventSpatialFootprintPicker } from "./HazardousEventSpatialFootprintPicker";
 import { useLiveFormValidity } from "./useLiveFormValidity";
 import { AttachmentsFormView } from "~/frontend/attachmentsFormView";
 import { workflowStatusDisplay } from "./workflowStatusDisplay";
@@ -38,6 +39,11 @@ export interface HazardousEventFormInitialValues {
 	/** Widget's own native shape (`mapAttachmentsToWidgetShape.ts`), not the domain/persisted
 	 * shape -- the route loader maps before passing this down. */
 	attachments: readonly AttachmentWidgetItem[];
+	/** Null on create, or edit of an event with no recorded observation (design.md Decision 8). */
+	currentSpatialObservation?: {
+		geometries: readonly unknown[];
+		divisionIds: readonly string[];
+	} | null;
 }
 
 export interface HazardousEventFormPageProps {
@@ -216,23 +222,23 @@ export function HazardousEventFormPage({
 					/>
 				</HazardousEventFormField>
 
+				{/* !mb-0 on both cards: their own .content-repeater margins already space them, as in legacy. */}
 				<HazardousEventFormField
-					label={t("detail.fields.spatial_footprint")}
+					label=""
 					htmlFor="spatialObservation"
-					errors={fieldErrors?.spatialObservation}
+					className="!mb-0"
 				>
-					{/* Placeholder -- no CA map/division-tree picker exists yet (found at implementation
-					 * time); a real GIS widget is separate follow-up work, tracked as DEF-057. */}
-					<p>{t("form.fields.spatial_footprint_placeholder")}</p>
-					<input type="hidden" name="spatialObservation" value="" />
-					{/* No interactive widget yet to ever flip this to "1" -- see the comment above. */}
-					<input type="hidden" name="spatialObservationChanged" value="0" />
+					<HazardousEventSpatialFootprintPicker
+						currentSpatialObservation={initialValues.currentSpatialObservation}
+						errors={fieldErrors?.divisionIds}
+					/>
 				</HazardousEventFormField>
 
 				<HazardousEventFormField
 					label=""
 					htmlFor="attachments"
 					errors={fieldErrors?.attachments}
+					className="!mb-0"
 				>
 					{/* Reuses legacy's AttachmentsFormView as-is -- no CA-native upload path exists yet
 					 * (DEF-054). Manages its own hidden field. */}

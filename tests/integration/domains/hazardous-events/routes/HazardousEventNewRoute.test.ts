@@ -960,4 +960,81 @@ describe("Hazardous event create route", () => {
 			createSpy.mockRestore();
 		});
 	});
+
+	// design.md Decision 6 / hazardous-event-write-route-adapter spec: both realistic
+	// SpatialObservation ValidationErrors surface as a divisionIds field error, not a 500.
+	describe("divisionIds field-error mapping (design.md Decision 6)", () => {
+		it("maps a duplicate-divisionIds ValidationError to fieldErrors.divisionIds, not a thrown error", async () => {
+			const { divisionTable } =
+				await import("../../../db/testSchema/divisionTable");
+			const [division] = await dr
+				.insert(divisionTable)
+				.values({ countryAccountsId: tenantId, name: { en: "Division A" } })
+				.returning();
+
+			const result = await action(
+				await makeArgs(
+					"http://localhost/en/he-preview/new",
+					tenantId,
+					"data-collector",
+					makeCreateBody(
+						{
+							spatialObservation: JSON.stringify({
+								geometries: [],
+								divisionIds: [division.id, division.id],
+							}),
+						},
+						specificHazardId,
+					),
+				),
+			);
+
+			expect(result).toMatchObject({
+				success: false,
+				fieldErrors: {
+					divisionIds: [
+						expect.stringContaining(
+							"divisionIds must not contain duplicate values",
+						),
+					],
+				},
+			});
+		});
+
+		it("maps a foreign-tenant divisionId's singular ValidationError to fieldErrors.divisionIds", async () => {
+			const { divisionTable } =
+				await import("../../../db/testSchema/divisionTable");
+			const otherTenantId = await seedCountryAccount();
+			const [foreignDivision] = await dr
+				.insert(divisionTable)
+				.values({ countryAccountsId: otherTenantId, name: { en: "Foreign" } })
+				.returning();
+
+			const result = await action(
+				await makeArgs(
+					"http://localhost/en/he-preview/new",
+					tenantId,
+					"data-collector",
+					makeCreateBody(
+						{
+							spatialObservation: JSON.stringify({
+								geometries: [],
+								divisionIds: [foreignDivision.id],
+							}),
+						},
+						specificHazardId,
+					),
+				),
+			);
+
+			expect(result).toMatchObject({
+				success: false,
+				fieldErrors: {
+					divisionIds: [
+						expect.stringContaining("is not present in validDivisionIds"),
+					],
+				},
+			});
+		});
+	});
 });

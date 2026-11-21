@@ -5,12 +5,15 @@ export interface HazardousEventLocationMapProps {
 	/** Raw GeoJSON Geometry objects (ST_AsGeoJSON), not Features -- Leaflet auto-wraps bare Geometries, so no pre-wrapping is needed here. */
 	geometries: readonly unknown[];
 	"aria-label": string;
+	/** Fills a flex-column parent (e.g. the full-screen Map preview) instead of the detail card's fixed height. */
+	fill?: boolean;
 }
 
 // Single-layer render of currentSpatialObservation.geometries (Decision 5); renders null when empty, caller owns empty-state text.
 export function HazardousEventLocationMap({
 	geometries,
 	"aria-label": ariaLabel,
+	fill = false,
 }: HazardousEventLocationMapProps) {
 	const containerRef = useRef<HTMLDivElement | null>(null);
 	const mapRef = useRef<LeafletMap | null>(null);
@@ -78,7 +81,11 @@ export function HazardousEventLocationMap({
 			// region, not img: Leaflet injects focusable zoom controls here; img's "presentational children" rule would hide them from a11y tools.
 			role="region"
 			aria-label={ariaLabel}
-			className="h-80 w-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100"
+			className={
+				fill
+					? "min-h-64 w-full flex-1 bg-gray-100"
+					: "h-80 w-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100"
+			}
 		/>
 	);
 }
