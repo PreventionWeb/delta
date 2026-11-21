@@ -26,6 +26,10 @@ export default mergeConfig(
 							// Pure unit tests co-located with domain entities and shared utilities (no DB dependency)
 							"app/domains/**/*.test.{ts,tsx}",
 							"app/shared/**/*.test.{ts,tsx}",
+							// ca-he-spatial-footprint-picker (6c): this family's first tests -- the glob
+							// above never covered app/design-system/**, so node-tier component tests here
+							// were silently never run.
+							"app/design-system/**/*.test.{ts,tsx}",
 						],
 						exclude: [
 							"tests/e2e/**",
