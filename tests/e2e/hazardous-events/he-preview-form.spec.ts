@@ -245,15 +245,10 @@ test.describe("Hazardous event create/edit form (6c)", () => {
 		const modal = page.getByRole("radiogroup", { name: "Save or submit" });
 		await page.getByRole("button", { name: "Save or submit" }).click();
 		await modal.getByRole("radio", { name: "Submit for validation" }).click();
-		// PrimeReact's MultiSelect renders a visible label div over its own hidden combobox input
-		// -- click the visible label instead of the input it occludes.
-		await modal.locator(".p-multiselect-label").click();
-		await page.getByText("E2E Validator", { exact: false }).first().click();
-		// Multi-select panel stays open after picking and covers the footer button -- click
-		// inert dialog text outside the panel instead (Escape would dismiss the whole dialog).
-		await page
-			.getByText("Decide what you'd like to do", { exact: false })
-			.click();
+		// MultiSelectCombobox (design.md Decision 12) is a real labeled filter input, not
+		// PrimeReact's own trigger-label-over-hidden-input markup -- type to filter, then pick.
+		await modal.getByLabel("Select validator(s)").fill("E2E Validator");
+		await page.getByRole("option", { name: "E2E Validator" }).click();
 
 		await Promise.all([
 			page.waitForURL(/\/en\/he-preview\/[0-9a-f-]+$/),
@@ -277,9 +272,9 @@ test.describe("Hazardous event create/edit form (6c)", () => {
 		const modal = page.getByRole("radiogroup", { name: "Save or submit" });
 		await page.getByRole("button", { name: "Save or submit" }).click();
 		await modal.getByRole("radio", { name: "Validate" }).click();
-		// PrimeReact's Checkbox doesn't expose an accessible name for its own label text -- its id
-		// (set in the component) is the reliable handle.
-		await page.locator("#publish-checkbox").click();
+		// The design-system Checkbox (design.md Decision 12) is a plain native input with no id --
+		// its name attribute is the reliable handle, same role PrimeReact's id used to play.
+		await page.locator('input[name="publish-checkbox"]').click();
 
 		await Promise.all([
 			page.waitForURL(/\/en\/he-preview\/[0-9a-f-]+$/),
@@ -291,12 +286,12 @@ test.describe("Hazardous event create/edit form (6c)", () => {
 		page,
 		context,
 	}) => {
-		// Flaky as the last of 5 sequential tests in one worker (popup window.open() timing
-		// degrades under cumulative load) though reliable in isolation -- tripled timeout, not a
-		// logic fix.
 		test.slow();
 		await login(page, dataCollectorEmail);
 		await page.goto("/en/he-preview/new");
+		// Same hydration race as notices.spec.ts's Link click (playwright#27759) -- wait for the
+		// bundle to settle before clicking, or the handler may not be attached yet.
+		await page.waitForLoadState("networkidle");
 
 		const [popup] = await Promise.all([
 			context.waitForEvent("page"),
