@@ -2479,7 +2479,7 @@ with a visible, copyable trace reference.
 
 ---
 
-### 🔷 6c — Web Route Adapters: Create + Edit ⏳ (Routes done; `DEF-057` spatial-footprint picker still open)
+### 🔷 6c — Web Route Adapters: Create + Edit ✅ (Complete)
 
 **Branch:** `feature/ca-he-route-adapter-write`
 
