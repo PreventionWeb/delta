@@ -15,7 +15,13 @@ const KNOWN_FIELDS = new Set([
 	"specificHazardLocalName",
 	"specificHazardNationalName",
 	"causeId",
+	"divisionIds",
 ]);
+
+/** SpatialObservation.create() names a bad id with the singular word; the form field is plural. */
+const FIELD_ALIASES: Record<string, string> = {
+	divisionId: "divisionIds",
+};
 
 /** Infers a field key from each message's "<fieldName> must ..." convention (no domain
  * ValidationError carries a structured field key, design.md, under Decision 17). Null -> caller
@@ -24,8 +30,12 @@ export function extractFieldError(
 	err: ValidationError,
 ): { field: string; message: string } | null {
 	const match = /^(\w+)\s/.exec(err.message);
-	const field = match?.[1];
-	if (field === undefined || !KNOWN_FIELDS.has(field)) {
+	const captured = match?.[1];
+	if (captured === undefined) {
+		return null;
+	}
+	const field = FIELD_ALIASES[captured] ?? captured;
+	if (!KNOWN_FIELDS.has(field)) {
 		return null;
 	}
 	return { field, message: err.message };

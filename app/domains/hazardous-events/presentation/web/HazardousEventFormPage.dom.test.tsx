@@ -63,11 +63,33 @@ const hazardousEvents = {
 	form: {
 		create_title: "Add hazardous event",
 		edit_title: "Edit hazardous event",
+		close: "Close",
+		spatial_footprint: {
+			add_action: "Add",
+			edit_action: "Edit",
+			summary: {
+				shapes: "{{count}} shape(s)",
+				divisions: "{{count}} division(s) selected",
+			},
+			entry_dialog: {
+				title: "Spatial footprint",
+				map_option: "Map coordinates",
+				division_option: "Geographic level",
+				continue: "Continue",
+			},
+			division_dialog: {
+				title: "Select geographic level",
+				loading: "Loading divisions…",
+				error: "Unable to load divisions.",
+				empty: "No divisions available.",
+				unknown_division: "Unknown division ({{id}})",
+				remove: "Remove {{name}}",
+			},
+		},
 		fields: {
 			select_type: "Select type",
 			select_cluster: "Select cluster",
 			select_specific_hazard: "Select specific hazard",
-			spatial_footprint_placeholder: "placeholder",
 			date_format_label: "Format",
 			date_format_options: {
 				full_date: "Full date",
@@ -140,6 +162,9 @@ const hazardousEvents = {
 			ongoing: "Ongoing",
 			passed: "Passed",
 		},
+		spatial_observation: {
+			map_label: "Spatial footprint map",
+		},
 	},
 	list: { columns: { record_status: "Record status" } },
 };
@@ -197,6 +222,39 @@ function renderPage(element: React.ReactElement) {
 		</I18nextProvider>,
 	);
 }
+
+describe("HazardousEventFormPage spatial-footprint picker integration (task 6.2)", () => {
+	it("renders the real spatial-footprint picker, not the old static placeholder, with its own empty hidden fields", async () => {
+		await setupI18n();
+		const { container } = renderPage(
+			<HazardousEventFormPage
+				mode="create"
+				taxonomyOptions={EMPTY_TAXONOMY}
+				validatorCandidates={[]}
+				parent={null}
+			/>,
+		);
+
+		// The old placeholder's own literal text no longer renders anywhere on the page.
+		expect(container.textContent).not.toContain(
+			"Spatial footprint entry is not yet available",
+		);
+		// The picker's own collapsed section replaces it; the map only mounts once opened.
+		expect(screen.getByRole("button", { name: "Add" })).toBeTruthy();
+		expect(
+			screen.queryByRole("region", { name: "Spatial footprint map" }),
+		).toBeNull();
+
+		const spatialObservation = container.querySelector(
+			'input[name="spatialObservation"]',
+		) as HTMLInputElement;
+		const spatialObservationChanged = container.querySelector(
+			'input[name="spatialObservationChanged"]',
+		) as HTMLInputElement;
+		expect(spatialObservation.value).toBe("");
+		expect(spatialObservationChanged.value).toBe("0");
+	});
+});
 
 describe("HazardousEventFormPage visual-parity fixes (design.md Decision 9 Addendum 2)", () => {
 	it("renders the <form> with the dts-form class (Gap 1 - padding parity)", async () => {
