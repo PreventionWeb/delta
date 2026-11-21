@@ -6,6 +6,7 @@ import { HazardousEventDiscardModal } from "./HazardousEventDiscardModal";
 
 const hazardousEvents = {
 	form: {
+		close: "Close",
 		discard: {
 			title: "Discard changes",
 			confirm_message:
@@ -69,8 +70,8 @@ describe("HazardousEventDiscardModal footer (task 9c)", () => {
 		renderModal();
 
 		const saveButton = screen.getByRole("button", { name: "Save as draft" });
-		expect(saveButton.className).toContain("mg-button-primary");
-		expect(saveButton.className).not.toContain("mg-button-outline");
+		expect(saveButton.className).toContain("dts-button--primary");
+		expect(saveButton.className).not.toContain("dts-button--outline");
 	});
 
 	it("renders Discard work and exit as the outline (secondary) action", () => {
@@ -79,7 +80,7 @@ describe("HazardousEventDiscardModal footer (task 9c)", () => {
 		const discardButton = screen.getByRole("button", {
 			name: "Discard work and exit",
 		});
-		expect(discardButton.className).toContain("mg-button-outline");
-		expect(discardButton.className).not.toContain("mg-button-primary");
+		expect(discardButton.className).toContain("dts-button--outline");
+		expect(discardButton.className).not.toContain("dts-button--primary");
 	});
 });
