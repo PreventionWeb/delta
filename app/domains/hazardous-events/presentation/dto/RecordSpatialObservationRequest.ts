@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createZodDto } from "nestjs-zod";
 
 export const recordSpatialObservationRequestSchema = z.object({
-	observationTime: z.string().optional(),
+	observationTime: z.string().datetime().optional(),
 	geometries: z.array(z.unknown()).default([]),
 	divisionIds: z.array(z.string().uuid()).default([]),
 	note: z.string().nullable().optional().default(null),

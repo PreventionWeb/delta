@@ -12,8 +12,8 @@ Exposes public REST endpoints for managing Hazardous Events at `/api/v2/hazardou
 
 `HazardousEventsController` (`app/domains/hazardous-events/presentation/HazardousEventsController.server.ts`) SHALL be guarded by `@UseGuards(ApiKeyOrSessionAuthGuard, PermissionsGuard)` and `@ApiSecurity("x-auth")`. Endpoints SHALL enforce RBAC permissions via `@RequirePermission`:
 
-- `GET /` and `GET /:id` SHALL require `ViewData` permission.
-- `POST /`, `PUT /:id`, `DELETE /:id`, and `POST /:id/spatial-observations` SHALL require `EditData` permission.
+- `GET /`, `GET /:id`, `GET /specific-hazards`, `GET /taxonomy`, `GET /:id/attachments`, and `GET /:id/attachments/:attachmentId/download` SHALL require `ViewData` permission.
+- `POST /`, `PUT /:id`, `DELETE /:id`, `POST /:id/spatial-observations`, `POST /:id/attachments`, and `DELETE /:id/attachments/:attachmentId` SHALL require `EditData` permission.
 
 #### Scenario: Request without valid authentication is rejected
 
@@ -22,8 +22,8 @@ Exposes public REST endpoints for managing Hazardous Events at `/api/v2/hazardou
 
 #### Scenario: Caller with valid authentication but missing permission is rejected
 
-- **WHEN** an authenticated caller lacking `ViewData` hits `GET /hazardous-events` or `GET /hazardous-events/:id`
-- **OR** an authenticated caller lacking `EditData` hits a mutating endpoint (`POST`, `PUT`, `DELETE`, `POST .../spatial-observations`)
+- **WHEN** an authenticated caller lacking `ViewData` hits `GET /hazardous-events`, `GET /hazardous-events/:id`, `GET /hazardous-events/specific-hazards`, `GET /hazardous-events/taxonomy`, `GET /hazardous-events/:id/attachments`, or `GET /hazardous-events/:id/attachments/:attachmentId/download`
+- **OR** an authenticated caller lacking `EditData` hits a mutating endpoint (`POST`, `PUT`, `DELETE`, `POST .../spatial-observations`, `POST .../attachments`, `DELETE .../attachments/:attachmentId`)
 - **THEN** the response status is `403 Forbidden`
 
 ---
@@ -59,6 +59,40 @@ Exposes public REST endpoints for managing Hazardous Events at `/api/v2/hazardou
 
 - **WHEN** an authenticated user whose role is data viewer queries `GET /hazardous-events`
 - **THEN** only events in `APPROVED` or `PUBLISHED` status are returned in `items`
+
+---
+
+### Requirement: GET /hazardous-events/specific-hazards Lists Specific Hazards
+
+`HazardousEventsController` SHALL expose `GET /hazardous-events/specific-hazards`, delegating to `GetHazardTaxonomyOptionsUseCase.execute()` to retrieve all specific hazards. It SHALL return `200 OK` with an array of `SpecificHazardOption` objects (`[{ id, clusterId, name, code }]`) per ADR-007.
+
+#### Scenario: Listing specific hazards returns 200 with specific hazard options
+
+- **WHEN** an authorized caller requests `GET /hazardous-events/specific-hazards`
+- **THEN** the response status is `200 OK`
+- **AND** the response body contains an array of specific hazard options with `id`, `clusterId`, `name`, and `code`
+
+#### Scenario: Unauthenticated request to specific hazards is rejected
+
+- **WHEN** an unauthenticated request hits `GET /hazardous-events/specific-hazards`
+- **THEN** the response status is `401 Unauthorized`
+
+---
+
+### Requirement: GET /hazardous-events/taxonomy Retrieves Complete Hazard Taxonomy
+
+`HazardousEventsController` SHALL expose `GET /hazardous-events/taxonomy`, delegating to `GetHazardTaxonomyOptionsUseCase.execute()`. It SHALL return `200 OK` with the complete `HazardTaxonomyOptions` (`{ types, clusters, specificHazards }`) per ADR-007.
+
+#### Scenario: Retrieving taxonomy returns 200 with complete hierarchy
+
+- **WHEN** an authorized caller requests `GET /hazardous-events/taxonomy`
+- **THEN** the response status is `200 OK`
+- **AND** the response body contains `types`, `clusters`, and `specificHazards`
+
+#### Scenario: Unauthenticated request to taxonomy is rejected
+
+- **WHEN** an unauthenticated request hits `GET /hazardous-events/taxonomy`
+- **THEN** the response status is `401 Unauthorized`
 
 ---
 
@@ -175,12 +209,110 @@ Exposes public REST endpoints for managing Hazardous Events at `/api/v2/hazardou
 
 ---
 
+### Requirement: POST /hazardous-events/:id/attachments Saves an Attachment
+
+`HazardousEventsController` SHALL expose `POST /hazardous-events/:id/attachments`, validating `:id` via `HazardousEventIdParam` and supporting both `multipart/form-data` (physical binary file upload) and `application/json` (pre-uploaded file metadata), delegating to `AddHazardousEventAttachmentUseCase`. It SHALL verify that the parent hazardous event belongs to the caller's tenant (returning `404 Not Found` if nonexistent or in a foreign tenant). For `multipart/form-data`, it SHALL validate the file extension and maximum file size (10MB), store the file on disk under `uploads/tenant-{tenantId}/hazardous-event/{id}/`, and record the attachment in `hazardous_event_attachment`. It SHALL persist the attachment in `hazardous_event_attachment` and return `201 Created` with `HazardousEventAttachmentResponseSchema` per ADR-007.
+
+#### Scenario: Valid attachment creation via JSON returns 201 Created
+
+- **WHEN** an authorized caller posts a valid attachment JSON payload to `POST /hazardous-events/:id/attachments`
+- **THEN** the response status is `201 Created`
+- **AND** the attachment is persisted in `hazardous_event_attachment` with `hazardous_event_id = :id`
+- **AND** the response body contains `id`, `hazardousEventId`, `title`, `fileKey`, `fileName`, `fileType`, `fileSize`, `createdAt`, and `updatedAt`
+
+#### Scenario: Valid physical file upload via multipart/form-data returns 201 Created
+
+- **WHEN** an authorized caller posts a physical binary file using `multipart/form-data` with form field `file` (and optional `title`)
+- **THEN** the response status is `201 Created`
+- **AND** the file is stored on disk under `uploads/tenant-{tenantId}/hazardous-event/{id}/`
+- **AND** the attachment record is created in `hazardous_event_attachment` with computed `fileName`, `fileType`, `fileSize`, and `fileKey`
+- **AND** `title` defaults to the original filename if not explicitly provided
+
+#### Scenario: Multipart upload with invalid file extension returns 422 Unprocessable Entity
+
+- **WHEN** an authorized caller uploads a file with an unsupported extension (e.g. `.exe`)
+- **THEN** the response status is `422 Unprocessable Entity`
+
+#### Scenario: Multipart request missing file field returns 422 Unprocessable Entity
+
+- **WHEN** an authorized caller sends a `multipart/form-data` request without a `file` field
+- **THEN** the response status is `422 Unprocessable Entity`
+
+#### Scenario: Missing fields in JSON payload return 422 Unprocessable Entity
+
+- **WHEN** an authorized caller posts an attachment JSON body missing required fields
+- **THEN** the response status is `422 Unprocessable Entity`
+
+#### Scenario: Attachment on nonexistent or cross-tenant event returns 404
+
+- **WHEN** an authorized caller posts an attachment to an event that does not exist or belongs to another tenant
+- **THEN** the response status is `404 Not Found`
+
+---
+
+### Requirement: GET /hazardous-events/:id/attachments Lists Event Attachments
+
+`HazardousEventsController` SHALL expose `GET /hazardous-events/:id/attachments`, validating `:id` via `HazardousEventIdParam` and delegating to `ListHazardousEventAttachmentsUseCase`. It SHALL verify that the parent hazardous event belongs to the caller's tenant. It SHALL return `200 OK` with an array of attachment objects from `hazardous_event_attachment` per ADR-007.
+
+#### Scenario: Listing attachments returns 200 with attachment array
+
+- **WHEN** an authorized caller requests `GET /hazardous-events/:id/attachments`
+- **THEN** the response status is `200 OK`
+- **AND** the response body contains the array of attachments for that event
+
+#### Scenario: Listing attachments on nonexistent or cross-tenant event returns 404
+
+- **WHEN** an authorized caller requests attachments for an event that does not exist or belongs to another tenant
+- **THEN** the response status is `404 Not Found`
+
+---
+
+### Requirement: DELETE /hazardous-events/:id/attachments/:attachmentId Deletes an Attachment
+
+`HazardousEventsController` SHALL expose `DELETE /hazardous-events/:id/attachments/:attachmentId`, validating `:id` and `:attachmentId` via `HazardousEventAttachmentIdParam` and delegating to `DeleteHazardousEventAttachmentUseCase`. It SHALL verify that the parent hazardous event belongs to the caller's tenant. It SHALL delete the attachment from `hazardous_event_attachment` and return `204 No Content` on success. If the event does not exist, belongs to another tenant, or the attachment is not found on that event, it SHALL return `404 Not Found`.
+
+#### Scenario: Deleting attachment returns 204 No Content
+
+- **WHEN** an authorized caller deletes an attachment via `DELETE /hazardous-events/:id/attachments/:attachmentId`
+- **THEN** the response status is `204 No Content`
+- **AND** the attachment is removed from `hazardous_event_attachment`
+
+#### Scenario: Deleting nonexistent attachment returns 404
+
+- **WHEN** an authorized caller attempts to delete an attachment ID that does not exist on the event
+- **THEN** the response status is `404 Not Found`
+
+#### Scenario: Deleting attachment on foreign tenant event returns 404
+
+- **WHEN** an authorized caller attempts to delete an attachment on an event owned by another tenant
+- **THEN** the response status is `404 Not Found`
+
+---
+
+### Requirement: GET /hazardous-events/:id/attachments/:attachmentId/download Streams an Attachment File
+
+`HazardousEventsController` SHALL expose `GET /hazardous-events/:id/attachments/:attachmentId/download`, validating `:id` and `:attachmentId` via `HazardousEventAttachmentIdParam` and delegating to `DownloadHazardousEventAttachmentUseCase`. It SHALL verify that the parent hazardous event belongs to the caller's tenant. It SHALL retrieve the attachment record from `hazardous_event_attachment` and stream the physical binary file from storage with HTTP 200, setting `Content-Type` to the attachment's `fileType` and `Content-Disposition` to `attachment; filename="<fileName>"`. If the event does not exist, belongs to another tenant, the attachment does not exist, or the file is missing from storage, it SHALL return `404 Not Found`.
+
+#### Scenario: Downloading attachment returns 200 with binary stream
+
+- **WHEN** an authorized caller requests `GET /hazardous-events/:id/attachments/:attachmentId/download`
+- **THEN** the response status is `200 OK`
+- **AND** the response body contains the physical file binary stream
+- **AND** the headers include matching `Content-Type` and `Content-Disposition`
+
+#### Scenario: Downloading nonexistent or cross-tenant attachment returns 404
+
+- **WHEN** an authorized caller requests download of an attachment that does not exist or belongs to another tenant
+- **THEN** the response status is `404 Not Found`
+
+---
+
 ### Requirement: OpenAPI Documentation Registration
 
-`HazardousEventsController` SHALL be decorated with `@ApiSecurity("x-auth")` and standard `@nestjs/swagger` annotations. All six endpoints and their DTO models SHALL appear in the OpenAPI document served at `/api/v2/docs-json`.
+`HazardousEventsController` SHALL be decorated with `@ApiSecurity("x-auth")` and standard `@nestjs/swagger` annotations. All twelve endpoints and their DTO models SHALL appear in the OpenAPI document served at `/api/v2/docs-json`.
 
 #### Scenario: OpenAPI document contains Hazardous Events routes
 
 - **WHEN** `GET /api/v2/docs-json` is requested
-- **THEN** the OpenAPI paths include `/api/v2/hazardous-events`, `/api/v2/hazardous-events/{id}`, and `/api/v2/hazardous-events/{id}/spatial-observations`
+- **THEN** the OpenAPI paths include `/api/v2/hazardous-events`, `/api/v2/hazardous-events/specific-hazards`, `/api/v2/hazardous-events/taxonomy`, `/api/v2/hazardous-events/{id}`, `/api/v2/hazardous-events/{id}/spatial-observations`, `/api/v2/hazardous-events/{id}/attachments`, `/api/v2/hazardous-events/{id}/attachments/{attachmentId}`, and `/api/v2/hazardous-events/{id}/attachments/{attachmentId}/download`
 - **AND** the operations require `x-auth` security

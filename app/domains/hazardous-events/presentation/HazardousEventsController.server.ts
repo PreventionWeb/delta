@@ -9,19 +9,26 @@ import {
 	Post,
 	Put,
 	Req,
+	StreamableFile,
 	UnprocessableEntityException,
+	UploadedFile,
 	UseGuards,
+	UseInterceptors,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { ZodValidationPipe, createZodValidationPipe } from "nestjs-zod";
-import type { z } from "zod";
+import { z } from "zod";
 import {
 	ApiBadRequestResponse,
 	ApiBody,
 	ApiConflictResponse,
+	ApiConsumes,
 	ApiCreatedResponse,
 	ApiForbiddenResponse,
 	ApiNotFoundResponse,
 	ApiOkResponse,
+	ApiNoContentResponse,
+	ApiPayloadTooLargeResponse,
 	ApiQuery,
 	ApiSecurity,
 	ApiUnauthorizedResponse,
@@ -38,14 +45,23 @@ import {
 	HazardousEventIdParam,
 	ApiHazardousEventIdParam,
 } from "./dto/HazardousEventIdParam";
+import {
+	HazardousEventAttachmentIdParam,
+	ApiHazardousEventAttachmentIdParam,
+} from "./dto/HazardousEventAttachmentIdParam";
 import { CreateHazardousEventRequest } from "./dto/CreateHazardousEventRequest";
 import { UpdateHazardousEventRequest } from "./dto/UpdateHazardousEventRequest";
 import { RecordSpatialObservationRequest } from "./dto/RecordSpatialObservationRequest";
+import { createHazardousEventAttachmentRequestSchema } from "./dto/CreateHazardousEventAttachmentRequest";
+import { ValidationError } from "~/shared/errors";
 import {
 	HazardousEventResponseSchema,
 	HazardousEventDetailResponseSchema,
 	HazardousEventListResponseSchema,
 	SpatialObservationResponseSchema,
+	SpecificHazardOptionResponseSchema,
+	HazardTaxonomyResponseSchema,
+	HazardousEventAttachmentResponseSchema,
 } from "./dto/HazardousEventResponseDto";
 
 import { ListHazardousEventsUseCase } from "~/domains/hazardous-events/application/use-cases/ListHazardousEvents";
@@ -54,9 +70,15 @@ import { CreateHazardousEventUseCase } from "~/domains/hazardous-events/applicat
 import { UpdateHazardousEventUseCase } from "~/domains/hazardous-events/application/use-cases/UpdateHazardousEvent";
 import { DeleteHazardousEventUseCase } from "~/domains/hazardous-events/application/use-cases/DeleteHazardousEvent";
 import { RecordSpatialObservationUseCase } from "~/domains/hazardous-events/application/use-cases/RecordSpatialObservation";
+import { GetHazardTaxonomyOptionsUseCase } from "~/domains/hazardous-events/application/use-cases/GetHazardTaxonomyOptionsUseCase";
+import { AddHazardousEventAttachmentUseCase } from "~/domains/hazardous-events/application/use-cases/AddHazardousEventAttachment";
+import { ListHazardousEventAttachmentsUseCase } from "~/domains/hazardous-events/application/use-cases/ListHazardousEventAttachments";
+import { DeleteHazardousEventAttachmentUseCase } from "~/domains/hazardous-events/application/use-cases/DeleteHazardousEventAttachment";
+import { DownloadHazardousEventAttachmentUseCase } from "~/domains/hazardous-events/application/use-cases/DownloadHazardousEventAttachment";
 
 import { parsePagination } from "./parsePagination";
 import { parseHazardousEventListFilters } from "./parseHazardousEventListFilters";
+import ContentRepeaterFileValidator from "~/components/ContentRepeater/FileValidator";
 
 // 422 for bodies vs. ZodValidationPipe's 400 default for :id (design.md Decision 4).
 // DTO passed explicitly per instance — inferred param metatype isn't reliable under this project's build.
@@ -87,6 +109,16 @@ export class HazardousEventsController {
 		private readonly deleteHazardousEventUseCase: DeleteHazardousEventUseCase,
 		@Inject(RecordSpatialObservationUseCase)
 		private readonly recordSpatialObservationUseCase: RecordSpatialObservationUseCase,
+		@Inject(GetHazardTaxonomyOptionsUseCase)
+		private readonly getHazardTaxonomyOptionsUseCase: GetHazardTaxonomyOptionsUseCase,
+		@Inject(AddHazardousEventAttachmentUseCase)
+		private readonly addHazardousEventAttachmentUseCase: AddHazardousEventAttachmentUseCase,
+		@Inject(ListHazardousEventAttachmentsUseCase)
+		private readonly listHazardousEventAttachmentsUseCase: ListHazardousEventAttachmentsUseCase,
+		@Inject(DeleteHazardousEventAttachmentUseCase)
+		private readonly deleteHazardousEventAttachmentUseCase: DeleteHazardousEventAttachmentUseCase,
+		@Inject(DownloadHazardousEventAttachmentUseCase)
+		private readonly downloadHazardousEventAttachmentUseCase: DownloadHazardousEventAttachmentUseCase,
 	) {}
 
 	@Get()
@@ -107,6 +139,28 @@ export class HazardousEventsController {
 			pageSize,
 			filters,
 		});
+	}
+
+	@Get("specific-hazards")
+	@RequirePermission("ViewData")
+	@ApiOkResponse({
+		type: [SpecificHazardOptionResponseSchema],
+		description: "List of all specific hazards available for selection.",
+	})
+	async listSpecificHazards() {
+		const options = await this.getHazardTaxonomyOptionsUseCase.execute();
+		return options.specificHazards;
+	}
+
+	@Get("taxonomy")
+	@RequirePermission("ViewData")
+	@ApiOkResponse({
+		type: HazardTaxonomyResponseSchema,
+		description:
+			"Complete hazard taxonomy hierarchy (types, clusters, specific hazards).",
+	})
+	async getTaxonomy() {
+		return this.getHazardTaxonomyOptionsUseCase.execute();
 	}
 
 	@Get(":id")
@@ -278,6 +332,223 @@ export class HazardousEventsController {
 			divisionIds: body.divisionIds,
 			note: body.note,
 			confirmReplace: body.confirmReplace,
+		});
+	}
+
+	@Get(":id/attachments")
+	@RequirePermission("ViewData")
+	@ApiHazardousEventIdParam()
+	@ApiOkResponse({
+		type: [HazardousEventAttachmentResponseSchema],
+		description: "List all attachments for the specified hazardous event.",
+	})
+	@ApiBadRequestResponse({ description: "`id` is not a UUID." })
+	@ApiNotFoundResponse({
+		description: "No hazardous event with this id in caller's tenant.",
+	})
+	async listAttachments(
+		@Req() req: AuthenticatedRequest,
+		@Param(new ZodValidationPipe(HazardousEventIdParam))
+		params: HazardousEventIdParam,
+	) {
+		return this.listHazardousEventAttachmentsUseCase.execute({
+			tenantId: req.tenantId,
+			hazardousEventId: params.id,
+		});
+	}
+
+	@Post(":id/attachments")
+	@RequirePermission("EditData")
+	@UseInterceptors(
+		FileInterceptor("file", {
+			limits: { fileSize: ContentRepeaterFileValidator.maxFileSize },
+		}),
+	)
+	@ApiConsumes("multipart/form-data", "application/json")
+	@ApiHazardousEventIdParam()
+	@ApiBody({
+		schema: {
+			type: "object",
+			properties: {
+				file: {
+					type: "string",
+					format: "binary",
+					description: "Physical file to upload (multipart/form-data)",
+				},
+				title: {
+					type: "string",
+					description:
+						"Attachment title (defaults to file name if omitted in multipart upload)",
+				},
+				fileKey: {
+					type: "string",
+					description:
+						"Storage key/path of pre-uploaded file (required for application/json)",
+				},
+				fileName: {
+					type: "string",
+					description: "Original file name (required for application/json)",
+				},
+				fileType: {
+					type: "string",
+					description: "MIME type (required for application/json)",
+				},
+				fileSize: {
+					type: "integer",
+					minimum: 0,
+					description: "File size in bytes (required for application/json)",
+				},
+			},
+		},
+	})
+	@ApiCreatedResponse({
+		type: HazardousEventAttachmentResponseSchema,
+		description: "Attachment successfully saved to hazardous event.",
+	})
+	@ApiBadRequestResponse({
+		description: "`id` is not a UUID.",
+	})
+	@ApiNotFoundResponse({
+		description: "No hazardous event with this id in caller's tenant.",
+	})
+	@ApiConflictResponse({
+		description: "An attachment with the specified `id` already exists.",
+	})
+	@ApiPayloadTooLargeResponse({
+		description: "Uploaded file exceeds the 10MB maximum size.",
+	})
+	@ApiUnprocessableEntityResponse({
+		description:
+			"Request body failed validation, missing file field, or invalid file type.",
+	})
+	async addAttachment(
+		@Req() req: AuthenticatedRequest,
+		@Param(new ZodValidationPipe(HazardousEventIdParam))
+		params: HazardousEventIdParam,
+		@UploadedFile()
+		file?: {
+			fieldname: string;
+			originalname: string;
+			mimetype: string;
+			size: number;
+			buffer: Buffer;
+		},
+		@Body()
+		body?: Record<string, unknown>,
+	) {
+		const isMultipart = (req.headers["content-type"] || "")
+			.toLowerCase()
+			.includes("multipart/form-data");
+
+		if (isMultipart && !file) {
+			throw new ValidationError("file is required");
+		}
+
+		if (file) {
+			const title =
+				typeof body?.title === "string" && body.title.trim().length > 0
+					? body.title.trim()
+					: file.originalname;
+
+			let id: string | undefined = undefined;
+			if (typeof body?.id === "string" && body.id.trim().length > 0) {
+				const uuidResult = z.string().uuid().safeParse(body.id.trim());
+				if (!uuidResult.success) {
+					throw new ValidationError("id must be a valid UUID");
+				}
+				id = uuidResult.data;
+			}
+
+			return this.addHazardousEventAttachmentUseCase.execute({
+				tenantId: req.tenantId,
+				hazardousEventId: params.id,
+				title,
+				id,
+				file: {
+					originalName: file.originalname,
+					mimeType: file.mimetype || "application/octet-stream",
+					buffer: file.buffer,
+				},
+			});
+		}
+
+		const parsed = createHazardousEventAttachmentRequestSchema.safeParse(body);
+		if (!parsed.success) {
+			throw new UnprocessableEntityException({
+				message: "Validation failed",
+				details: parsed.error.issues,
+			});
+		}
+
+		return this.addHazardousEventAttachmentUseCase.execute({
+			tenantId: req.tenantId,
+			hazardousEventId: params.id,
+			id: parsed.data.id,
+			title: parsed.data.title,
+			fileKey: parsed.data.fileKey,
+			fileName: parsed.data.fileName,
+			fileType: parsed.data.fileType,
+			fileSize: parsed.data.fileSize,
+		});
+	}
+
+	@Get(":id/attachments/:attachmentId/download")
+	@RequirePermission("ViewData")
+	@ApiHazardousEventAttachmentIdParam()
+	@ApiOkResponse({
+		description: "Binary stream of the attachment file.",
+	})
+	@ApiBadRequestResponse({
+		description: "`id` or `attachmentId` is not a UUID.",
+	})
+	@ApiNotFoundResponse({
+		description:
+			"No hazardous event with this id in caller's tenant, attachment not found on this event, or file missing from storage.",
+	})
+	async downloadAttachment(
+		@Req() req: AuthenticatedRequest,
+		@Param(new ZodValidationPipe(HazardousEventAttachmentIdParam))
+		params: HazardousEventAttachmentIdParam,
+	): Promise<StreamableFile> {
+		const result = await this.downloadHazardousEventAttachmentUseCase.execute({
+			tenantId: req.tenantId,
+			hazardousEventId: params.id,
+			attachmentId: params.attachmentId,
+		});
+
+		const asciiFallback = result.fileName.replace(/[^\x20-\x7E]|["\\]/g, "_");
+		const encodedFileName = encodeURIComponent(result.fileName);
+
+		return new StreamableFile(result.stream, {
+			type: result.fileType,
+			disposition: `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodedFileName}`,
+			length: result.fileSize,
+		});
+	}
+
+	@Delete(":id/attachments/:attachmentId")
+	@HttpCode(204)
+	@RequirePermission("EditData")
+	@ApiHazardousEventAttachmentIdParam()
+	@ApiNoContentResponse({
+		description: "Attachment successfully deleted from hazardous event.",
+	})
+	@ApiBadRequestResponse({
+		description: "`id` or `attachmentId` is not a UUID.",
+	})
+	@ApiNotFoundResponse({
+		description:
+			"No hazardous event with this id in caller's tenant, or attachment not found on this event.",
+	})
+	async deleteAttachment(
+		@Req() req: AuthenticatedRequest,
+		@Param(new ZodValidationPipe(HazardousEventAttachmentIdParam))
+		params: HazardousEventAttachmentIdParam,
+	): Promise<void> {
+		await this.deleteHazardousEventAttachmentUseCase.execute({
+			tenantId: req.tenantId,
+			hazardousEventId: params.id,
+			attachmentId: params.attachmentId,
 		});
 	}
 }

@@ -23,13 +23,19 @@ This design establishes `HazardousEventsController` in `app/domains/hazardous-ev
 
 **Goals:**
 
-- Implement `HazardousEventsController.server.ts` with six REST endpoints:
+- Implement `HazardousEventsController.server.ts` with twelve REST endpoints:
   - `GET /` — List events with pagination and filters
+  - `GET /specific-hazards` — List all specific hazards available for selection
+  - `GET /taxonomy` — Retrieve complete hazard taxonomy hierarchy (types, clusters, specific hazards)
   - `GET /:id` — Get single event details
   - `POST /` — Create an event
   - `PUT /:id` — Update an event
   - `DELETE /:id` — Delete an event (409 Conflict if dependents exist)
   - `POST /:id/spatial-observations` — Record spatial observation (409 Conflict if duplicate timestamp without replace)
+  - `GET /:id/attachments` — List all attachments for a hazardous event
+  - `POST /:id/attachments` — Save an attachment to a hazardous event in `hazardous_event_attachment` (supports `multipart/form-data` and `application/json`)
+  - `DELETE /:id/attachments/:attachmentId` — Delete an attachment record and clean up its physical file
+  - `GET /:id/attachments/:attachmentId/download` — Stream an attachment's physical binary file
 - Protect all endpoints with `@UseGuards(ApiKeyOrSessionAuthGuard, PermissionsGuard)` and `@RequirePermission`.
 - Strictly enforce multi-tenancy (`req.tenantId`) and user attribution (`req.userId`), discarding any client-supplied tenant IDs.
 - Validate request parameters and bodies using `nestjs-zod` and return standard HTTP error codes: 400 Bad Request for invalid `:id` UUID, 422 Unprocessable Entity for invalid body payloads.
@@ -68,11 +74,17 @@ export class HazardousEventsController { ... }
 Every endpoint is guarded with class-level `@UseGuards(ApiKeyOrSessionAuthGuard, PermissionsGuard)` and annotated with endpoint-specific `@RequirePermission`:
 
 - `GET /` -> `@RequirePermission("ViewData")`
+- `GET /specific-hazards` -> `@RequirePermission("ViewData")`
+- `GET /taxonomy` -> `@RequirePermission("ViewData")`
 - `GET /:id` -> `@RequirePermission("ViewData")`
+- `GET /:id/attachments` -> `@RequirePermission("ViewData")`
+- `GET /:id/attachments/:attachmentId/download` -> `@RequirePermission("ViewData")`
 - `POST /` -> `@RequirePermission("EditData")`
 - `PUT /:id` -> `@RequirePermission("EditData")`
 - `DELETE /:id` -> `@RequirePermission("EditData")`
 - `POST /:id/spatial-observations` -> `@RequirePermission("EditData")`
+- `POST /:id/attachments` -> `@RequirePermission("EditData")`
+- `DELETE /:id/attachments/:attachmentId` -> `@RequirePermission("EditData")`
 
 - **Role Hydration**: `ApiKeyOrSessionAuthGuard` (from 6e) populates `req.tenantId`, `req.userId`, and `req.role`.
 - **Role Forwarding to Use Case**: `req.role` is also forwarded to `ListHazardousEventsUseCase` (`role: req.role ?? null`) to enforce the `DATA_VIEWER_ALLOWED_STATUSES` restriction when a viewer queries the list.
@@ -110,7 +122,7 @@ Following the precedent established in `NoticesController`:
 - `ConflictError` -> HTTP 409:
   - `DELETE /:id`: When `DeleteHazardousEventUseCase` detects referencing disaster events, event causality links, or causal chain edges, it throws `ConflictError` containing `dependents`. `DomainErrorFilter` maps this to HTTP 409 with `details.dependents`.
   - `POST /:id/spatial-observations`: When `RecordSpatialObservationUseCase` detects an existing observation at the same `observationTime` and `confirmReplace` is not true, it throws `ConflictError`. `DomainErrorFilter` maps this to HTTP 409.
-- `ValidationError` -> HTTP 400 (thrown if domain entities reject internal invalid parameters).
+- `ValidationError` -> HTTP 422 (thrown if domain entities or use cases reject invalid parameters).
 
 ### Decision 6 — ADR-007 Plain Resource Response Contract
 
@@ -160,8 +172,8 @@ Roadmap Section 6f specifies a checkpoint before shipping `GET /:id` (`DEF-031`)
 2. **`CreateHazardousEventRequest.ts`**:
    - `createHazardousEventRequestSchema`:
      - `specificHazardId`: `z.string().uuid()`
-     - `startDate`: `z.string().min(1)`
-     - `endDate`: `z.string().min(1)`
+     - `startDate`: `flexibleDateSchema` (validated with `isValidFlexibleDateFormat`: YYYY, YYYY-MM, or YYYY-MM-DD)
+     - `endDate`: `flexibleDateSchema` (validated with `isValidFlexibleDateFormat` and ordered `>= startDate`)
      - `nationalSpecification`: `z.string().default("")`
      - `description`: `z.string().default("")`
      - `chainsExplanation`: `z.string().default("")`
@@ -183,6 +195,8 @@ Roadmap Section 6f specifies a checkpoint before shipping `GET /:id` (`DEF-031`)
 3. **`UpdateHazardousEventRequest.ts`**:
    - `updateHazardousEventRequestSchema`:
      - Partial fields corresponding to `CreateHazardousEventRequest`, with optional updates.
+     - `startDate`: `flexibleDateSchema.optional()`
+     - `endDate`: `flexibleDateSchema.optional()` (ordered `>= startDate` when both present)
      - `causeId`: `z.string().uuid().nullable().optional()`
      - `causalityExplanation`: `z.string().nullable().optional()`
      - `spatialObservation`: optional observation payload.
@@ -190,18 +204,36 @@ Roadmap Section 6f specifies a checkpoint before shipping `GET /:id` (`DEF-031`)
 
 4. **`RecordSpatialObservationRequest.ts`**:
    - `recordSpatialObservationRequestSchema`:
-     - `observationTime`: `z.string().datetime().optional()` (or ISO string parsed to Date)
-     - `geometries`: `z.array(z.unknown()).min(1)`
-     - `divisionIds`: `z.array(z.string().uuid()).min(1)`
-     - `note`: `z.string().nullable().optional()`
-     - `confirmReplace`: `z.boolean().optional()`
+     - `observationTime`: `z.string().datetime().optional()` (ISO string parsed to Date)
+     - `geometries`: `z.array(z.unknown()).default([])`
+     - `divisionIds`: `z.array(z.string().uuid()).default([])`
+     - `note`: `z.string().nullable().optional().default(null)`
+     - `confirmReplace`: `z.boolean().optional().default(false)`
    - `RecordSpatialObservationRequest`: `createZodDto(recordSpatialObservationRequestSchema)`
 
-5. **`HazardousEventResponseDto.ts`**:
+5. **`HazardousEventAttachmentIdParam.ts`**:
+   - `hazardousEventAttachmentIdParamSchema`: `z.object({ id: z.string().uuid(), attachmentId: z.string().uuid() })`
+   - `HazardousEventAttachmentIdParam`: `createZodDto(hazardousEventAttachmentIdParamSchema)`
+   - `ApiHazardousEventAttachmentIdParam`: Swagger decorator helper for `:id` and `:attachmentId`.
+
+6. **`CreateHazardousEventAttachmentRequest.ts`**:
+   - `createHazardousEventAttachmentRequestSchema`:
+     - `id`: `z.string().uuid().optional()`
+     - `title`: `z.string().min(1)`
+     - `fileKey`: `z.string().min(1)`
+     - `fileName`: `z.string().min(1)`
+     - `fileType`: `z.string().min(1)`
+     - `fileSize`: `z.number().int().nonnegative()`
+   - `CreateHazardousEventAttachmentRequest`: `createZodDto(createHazardousEventAttachmentRequestSchema)`
+
+7. **`HazardousEventResponseDto.ts`**:
    - `HazardousEventResponseSchema`: OpenAPI schema for `HazardousEventDto`.
    - `HazardousEventDetailResponseSchema`: OpenAPI schema for `HazardousEventDetailDto`.
    - `HazardousEventListResponseSchema`: OpenAPI schema for `ListHazardousEventsResult`.
    - `SpatialObservationResponseSchema`: OpenAPI schema for `SpatialObservationDto`.
+   - `SpecificHazardOptionResponseSchema`: OpenAPI schema for `SpecificHazardOption`.
+   - `HazardTaxonomyResponseSchema`: OpenAPI schema for `HazardTaxonomyOptions` (`types`, `clusters`, `specificHazards`).
+   - `HazardousEventAttachmentResponseSchema`: OpenAPI schema for `HazardousEventAttachmentDto`.
 
 ---
 

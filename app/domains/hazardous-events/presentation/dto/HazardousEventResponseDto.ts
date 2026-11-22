@@ -96,3 +96,59 @@ export const hazardousEventListResponseSchema = z.object({
 export class HazardousEventListResponseSchema extends createZodDto(
 	hazardousEventListResponseSchema,
 ) {}
+
+export const specificHazardOptionResponseSchema = z.object({
+	id: z.string().uuid(),
+	clusterId: z.string().uuid(),
+	name: z.string(),
+	code: z.string(),
+});
+
+export class SpecificHazardOptionResponseSchema extends createZodDto(
+	specificHazardOptionResponseSchema,
+) {}
+
+export const hazardClusterOptionResponseSchema = z.object({
+	id: z.string().uuid(),
+	typeId: z.string().uuid(),
+	name: z.string(),
+});
+
+export class HazardClusterOptionResponseSchema extends createZodDto(
+	hazardClusterOptionResponseSchema,
+) {}
+
+export const hazardTypeOptionResponseSchema = z.object({
+	id: z.string().uuid(),
+	name: z.string(),
+});
+
+export class HazardTypeOptionResponseSchema extends createZodDto(
+	hazardTypeOptionResponseSchema,
+) {}
+
+export const hazardTaxonomyResponseSchema = z.object({
+	types: z.array(hazardTypeOptionResponseSchema),
+	clusters: z.array(hazardClusterOptionResponseSchema),
+	specificHazards: z.array(specificHazardOptionResponseSchema),
+});
+
+export class HazardTaxonomyResponseSchema extends createZodDto(
+	hazardTaxonomyResponseSchema,
+) {}
+
+export const hazardousEventAttachmentResponseSchema = z.object({
+	id: z.string().uuid(),
+	hazardousEventId: z.string().uuid(),
+	title: z.string(),
+	fileKey: z.string(),
+	fileName: z.string(),
+	fileType: z.string(),
+	fileSize: z.number(),
+	createdAt: z.string(),
+	updatedAt: z.string(),
+});
+
+export class HazardousEventAttachmentResponseSchema extends createZodDto(
+	hazardousEventAttachmentResponseSchema,
+) {}

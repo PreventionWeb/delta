@@ -90,7 +90,7 @@ export function mountOpenApiDocs(app: INestApplication): void {
 	const document = SwaggerModule.createDocument(
 		app,
 		new DocumentBuilder()
-			.setTitle("DELTA Notices API")
+			.setTitle("DELTA REST API")
 			.setVersion("2.0")
 			.addApiKey(
 				{

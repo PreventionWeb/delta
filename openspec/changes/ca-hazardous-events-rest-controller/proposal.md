@@ -15,13 +15,19 @@ With the completion of **5g** (`HazardousEventsModule` wired with all applicatio
 - **NestJS Controller (`HazardousEventsController.server.ts`)**:
   - Mounted at `@Controller("hazardous-events")` (routable at `/api/v2/hazardous-events` under the global prefix).
   - Guarded at class level with `@UseGuards(ApiKeyOrSessionAuthGuard, PermissionsGuard)` and `@ApiSecurity("x-auth")`.
-  - Exposes six REST endpoints:
+  - Exposes twelve REST endpoints:
     1. `GET /` — Lists events via `ListHazardousEventsUseCase` with pagination (`parsePagination`) and query filters (`parseHazardousEventListFilters`), guarded by `@RequirePermission("ViewData")`. Returns HTTP 200 with `ListHazardousEventsResult` (`{ items, totalCount, unfilteredTotalCount }`).
-    2. `GET /:id` — Retrieves a single event detail via `GetHazardousEventByIdUseCase`, guarded by `@RequirePermission("ViewData")`. Returns HTTP 200 with `HazardousEventDetailDto`.
-    3. `POST /` — Creates an event via `CreateHazardousEventUseCase`, guarded by `@RequirePermission("EditData")`. Returns HTTP 201 with `HazardousEventDto`.
-    4. `PUT /:id` — Updates an existing event via `UpdateHazardousEventUseCase`, guarded by `@RequirePermission("EditData")`. Returns HTTP 200 with `UpdateHazardousEventResult`.
-    5. `DELETE /:id` — Deletes an event via `DeleteHazardousEventUseCase`, guarded by `@RequirePermission("EditData")`. Returns HTTP 204 No Content. Returns HTTP 409 Conflict with dependent counts if dependent records exist.
-    6. `POST /:id/spatial-observations` — Records a spatial observation via `RecordSpatialObservationUseCase`, guarded by `@RequirePermission("EditData")`. Supports optional `observationTime` for historical/backfill writes. Returns HTTP 201 with `SpatialObservationDto`. Returns HTTP 409 Conflict if an observation already exists at `observationTime` and `confirmReplace` is not true.
+    2. `GET /specific-hazards` — Lists all specific hazards available for selection via `GetHazardTaxonomyOptionsUseCase`, guarded by `@RequirePermission("ViewData")`. Returns HTTP 200 with `SpecificHazardOption[]`.
+    3. `GET /taxonomy` — Retrieves complete hazard taxonomy hierarchy (`types`, `clusters`, `specificHazards`) via `GetHazardTaxonomyOptionsUseCase`, guarded by `@RequirePermission("ViewData")`. Returns HTTP 200 with `HazardTaxonomyOptions`.
+    4. `GET /:id` — Retrieves a single event detail via `GetHazardousEventByIdUseCase`, guarded by `@RequirePermission("ViewData")`. Returns HTTP 200 with `HazardousEventDetailDto`.
+    5. `POST /` — Creates an event via `CreateHazardousEventUseCase`, guarded by `@RequirePermission("EditData")`. Returns HTTP 201 with `HazardousEventDto`.
+    6. `PUT /:id` — Updates an existing event via `UpdateHazardousEventUseCase`, guarded by `@RequirePermission("EditData")`. Returns HTTP 200 with `UpdateHazardousEventResult`.
+    7. `DELETE /:id` — Deletes an event via `DeleteHazardousEventUseCase`, guarded by `@RequirePermission("EditData")`. Returns HTTP 204 No Content. Returns HTTP 409 Conflict with dependent counts if dependent records exist.
+    8. `POST /:id/spatial-observations` — Records a spatial observation via `RecordSpatialObservationUseCase`, guarded by `@RequirePermission("EditData")`. Supports optional `observationTime` for historical/backfill writes. Returns HTTP 201 with `SpatialObservationDto`. Returns HTTP 409 Conflict if an observation already exists at `observationTime` and `confirmReplace` is not true.
+    9. `GET /:id/attachments` — Lists all attachments for a hazardous event via `ListHazardousEventAttachmentsUseCase`, guarded by `@RequirePermission("ViewData")`. Returns HTTP 200 with `HazardousEventAttachmentDto[]`.
+    10. `POST /:id/attachments` — Saves an attachment to a hazardous event in `hazardous_event_attachment` via `AddHazardousEventAttachmentUseCase`, guarded by `@RequirePermission("EditData")`. Supports `multipart/form-data` and `application/json`. Returns HTTP 201 with `HazardousEventAttachmentDto`.
+    11. `DELETE /:id/attachments/:attachmentId` — Deletes an attachment from `hazardous_event_attachment` and removes the physical file from disk via `DeleteHazardousEventAttachmentUseCase`, guarded by `@RequirePermission("EditData")`. Returns HTTP 204 No Content.
+    12. `GET /:id/attachments/:attachmentId/download` — Streams the physical file binary content via `DownloadHazardousEventAttachmentUseCase`, guarded by `@RequirePermission("ViewData")`. Returns HTTP 200 with file stream.
 - **Strict Multi-Tenancy & Attribution Enforcement**:
   - `tenantId` is strictly derived from the authenticated request (`req.tenantId`). Any `tenantId` or `countryAccountsId` in client request bodies is discarded, preventing cross-tenant spoofing.
   - `actingUserId` is strictly derived from `req.userId`.
@@ -41,13 +47,18 @@ With the completion of **5g** (`HazardousEventsModule` wired with all applicatio
 
 ## Files Expected to Change
 
-- `app/domains/hazardous-events/presentation/HazardousEventsController.server.ts`: New NestJS REST controller exposing the six endpoints.
+- `app/domains/hazardous-events/presentation/HazardousEventsController.server.ts`: New NestJS REST controller exposing the twelve endpoints.
 - `app/domains/hazardous-events/presentation/dto/HazardousEventIdParam.ts`: New DTO for UUID validation on `:id` path parameters and Swagger decorator.
+- `app/domains/hazardous-events/presentation/dto/HazardousEventAttachmentIdParam.ts`: New DTO for UUID validation on `:id` and `:attachmentId` path parameters and Swagger decorator.
 - `app/domains/hazardous-events/presentation/dto/CreateHazardousEventRequest.ts`: New DTO validating request payload for creating an event.
 - `app/domains/hazardous-events/presentation/dto/UpdateHazardousEventRequest.ts`: New DTO validating partial update payload for an event.
 - `app/domains/hazardous-events/presentation/dto/RecordSpatialObservationRequest.ts`: New DTO validating payload for recording spatial observations.
+- `app/domains/hazardous-events/presentation/dto/CreateHazardousEventAttachmentRequest.ts`: New DTO validating JSON attachment creation payloads.
 - `app/domains/hazardous-events/presentation/dto/HazardousEventResponseDto.ts`: New DTO schemas providing typed Swagger response documentation.
-- `app/domains/hazardous-events/infrastructure/HazardousEventsModule.server.ts`: Update module definition to declare `HazardousEventsController` in `controllers`.
+- `app/domains/hazardous-events/application/ports/IHazardousEventAttachmentRepository.ts` & `IHazardousEventAttachmentStorageService.ts`: Attachment persistence and file storage ports.
+- `app/domains/hazardous-events/application/use-cases/{Add,List,Delete,Download}HazardousEventAttachment.ts`: Attachment application use cases.
+- `app/domains/hazardous-events/infrastructure/DrizzleHazardousEventAttachmentRepository.server.ts` & `DiskHazardousEventAttachmentStorageService.server.ts`: Drizzle attachment repository and disk storage service.
+- `app/domains/hazardous-events/infrastructure/HazardousEventsModule.server.ts`: Update module definition to register `HazardousEventsController` and attachment providers/use cases.
 - `tests/integration/domains/hazardous-events/HazardousEventsController.test.ts`: New comprehensive integration tests covering all happy paths, security, validation, multi-tenancy spoofing rejection, conflict status codes, and OpenAPI schema generation.
 - `_docs/refactoring-plan/hazardous-events-refactoring-roadmap.md`: Update intent 6f status.
 

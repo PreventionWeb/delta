@@ -29,6 +29,13 @@
 - [x] 3.1 Implement `HazardousEventsController.server.ts` in `app/domains/hazardous-events/presentation/` with `@Controller("hazardous-events")`, `@UseGuards(ApiKeyOrSessionAuthGuard, PermissionsGuard)`, `@ApiSecurity("x-auth")`, and all six endpoints
 - [x] 3.2 Register `HazardousEventsController` in `app/domains/hazardous-events/infrastructure/HazardousEventsModule.server.ts` under `controllers`
 - [x] 3.3 Verify all tests in `tests/integration/domains/hazardous-events/HazardousEventsController.test.ts` pass via `yarn vitest run tests/integration/domains/hazardous-events/HazardousEventsController.test.ts`
+- [x] 3.4 Implement `GET /specific-hazards` and `GET /taxonomy` on `HazardousEventsController.server.ts` delegating to `GetHazardTaxonomyOptionsUseCase`
+- [x] 3.5 Add integration tests in `HazardousEventsController.test.ts` for `GET /specific-hazards` and `GET /taxonomy` (auth, ViewData RBAC, output structure) and OpenAPI coverage
+- [x] 3.6 Implement `GET /:id/attachments` and `POST /:id/attachments` on `HazardousEventsController.server.ts` with `AddHazardousEventAttachmentUseCase` and `ListHazardousEventAttachmentsUseCase` backed by `DrizzleHazardousEventAttachmentRepository`
+- [x] 3.7 Add integration tests in `HazardousEventsController.test.ts` for attachments (creation, listing, multi-tenancy isolation, auth, EditData/ViewData RBAC, 422 validation, OpenAPI coverage)
+- [x] 3.8 Implement `DELETE /:id/attachments/:attachmentId` on `HazardousEventsController.server.ts` with `DeleteHazardousEventAttachmentUseCase`, `IHazardousEventAttachmentRepository.delete`, and integration tests (204, 404, 400, 403, 401)
+- [x] 3.9 Implement `multipart/form-data` physical file upload on `POST /:id/attachments` via `FileInterceptor`, `IHazardousEventAttachmentStorageService`, and `DiskHazardousEventAttachmentStorageService`, with integration tests for file storage, extension/size validation, and physical cleanup on delete
+- [x] 3.10 Implement `GET /:id/attachments/:attachmentId/download` on `HazardousEventsController.server.ts` with `DownloadHazardousEventAttachmentUseCase`, streaming binary file from storage with `ViewData` RBAC, and integration tests (200, 404, 400, 403, 401, OpenAPI coverage)
 
 ## 4. Documentation & Roadmap
 

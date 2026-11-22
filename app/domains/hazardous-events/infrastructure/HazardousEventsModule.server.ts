@@ -28,11 +28,17 @@ import { RecordSpatialObservationUseCase } from "~/domains/hazardous-events/appl
 import { CreateHazardousEventUseCase } from "~/domains/hazardous-events/application/use-cases/CreateHazardousEvent";
 import { DeleteHazardousEventUseCase } from "~/domains/hazardous-events/application/use-cases/DeleteHazardousEvent";
 import { UpdateHazardousEventUseCase } from "~/domains/hazardous-events/application/use-cases/UpdateHazardousEvent";
+import { AddHazardousEventAttachmentUseCase } from "~/domains/hazardous-events/application/use-cases/AddHazardousEventAttachment";
+import { ListHazardousEventAttachmentsUseCase } from "~/domains/hazardous-events/application/use-cases/ListHazardousEventAttachments";
+import { DeleteHazardousEventAttachmentUseCase } from "~/domains/hazardous-events/application/use-cases/DeleteHazardousEventAttachment";
+import { DownloadHazardousEventAttachmentUseCase } from "~/domains/hazardous-events/application/use-cases/DownloadHazardousEventAttachment";
 import type { IHazardousEventRepository } from "~/domains/hazardous-events/application/ports/IHazardousEventRepository";
 import type { IDivisionRepository } from "~/domains/hazardous-events/application/ports/IDivisionRepository";
 import type { ICausalChainRepository } from "~/domains/hazardous-events/application/ports/ICausalChainRepository";
 import type { IHazardTaxonomyRepository } from "~/domains/hazardous-events/application/ports/IHazardTaxonomyRepository";
 import type { ISpecificHazardTaxonomyRepository } from "~/domains/hazardous-events/application/ports/ISpecificHazardTaxonomyRepository";
+import type { IHazardousEventAttachmentRepository } from "~/domains/hazardous-events/application/ports/IHazardousEventAttachmentRepository";
+import type { IHazardousEventAttachmentStorageService } from "~/domains/hazardous-events/application/ports/IHazardousEventAttachmentStorageService";
 
 import { HazardousEventsController } from "~/domains/hazardous-events/presentation/HazardousEventsController.server";
 import {
@@ -47,11 +53,15 @@ import { DrizzleCausalChainRepository } from "./DrizzleCausalChainRepository.ser
 import { DrizzleHazardTaxonomyRepository } from "./DrizzleHazardTaxonomyRepository.server";
 import { DrizzleSpecificHazardTaxonomyRepository } from "./DrizzleSpecificHazardTaxonomyRepository.server";
 import { DrizzleDivisionRepository } from "./DrizzleDivisionRepository.server";
+import { DrizzleHazardousEventAttachmentRepository } from "./DrizzleHazardousEventAttachmentRepository.server";
+import { DiskHazardousEventAttachmentStorageService } from "./DiskHazardousEventAttachmentStorageService.server";
 import { HAZARDOUS_EVENT_REPOSITORY } from "./HazardousEventRepositoryToken";
 import { CAUSAL_CHAIN_REPOSITORY } from "./CausalChainRepositoryToken";
 import { HAZARD_TAXONOMY_REPOSITORY } from "./HazardTaxonomyRepositoryToken";
 import { SPECIFIC_HAZARD_TAXONOMY_REPOSITORY } from "./SpecificHazardTaxonomyRepositoryToken";
 import { DIVISION_REPOSITORY } from "./DivisionRepositoryToken";
+import { HAZARDOUS_EVENT_ATTACHMENT_REPOSITORY } from "./HazardousEventAttachmentRepositoryToken";
+import { HAZARDOUS_EVENT_ATTACHMENT_STORAGE_SERVICE } from "./HazardousEventAttachmentStorageServiceToken";
 
 @Module({
 	controllers: [HazardousEventsController],
@@ -84,6 +94,14 @@ import { DIVISION_REPOSITORY } from "./DivisionRepositoryToken";
 		{
 			provide: DIVISION_REPOSITORY,
 			useClass: DrizzleDivisionRepository,
+		},
+		{
+			provide: HAZARDOUS_EVENT_ATTACHMENT_REPOSITORY,
+			useClass: DrizzleHazardousEventAttachmentRepository,
+		},
+		{
+			provide: HAZARDOUS_EVENT_ATTACHMENT_STORAGE_SERVICE,
+			useClass: DiskHazardousEventAttachmentStorageService,
 		},
 		// First real consumer of TRANSACTION_RUNNER in this codebase — design.md Decision 2.
 		{
@@ -248,6 +266,75 @@ import { DIVISION_REPOSITORY } from "./DivisionRepositoryToken";
 				TRANSACTION_RUNNER,
 			],
 		},
+		{
+			provide: AddHazardousEventAttachmentUseCase,
+			useFactory: (
+				hazardousEventRepository: IHazardousEventRepository,
+				attachmentRepository: IHazardousEventAttachmentRepository,
+				storageService: IHazardousEventAttachmentStorageService,
+			) =>
+				new AddHazardousEventAttachmentUseCase(
+					hazardousEventRepository,
+					attachmentRepository,
+					storageService,
+				),
+			inject: [
+				HAZARDOUS_EVENT_REPOSITORY,
+				HAZARDOUS_EVENT_ATTACHMENT_REPOSITORY,
+				HAZARDOUS_EVENT_ATTACHMENT_STORAGE_SERVICE,
+			],
+		},
+		{
+			provide: ListHazardousEventAttachmentsUseCase,
+			useFactory: (
+				hazardousEventRepository: IHazardousEventRepository,
+				attachmentRepository: IHazardousEventAttachmentRepository,
+			) =>
+				new ListHazardousEventAttachmentsUseCase(
+					hazardousEventRepository,
+					attachmentRepository,
+				),
+			inject: [
+				HAZARDOUS_EVENT_REPOSITORY,
+				HAZARDOUS_EVENT_ATTACHMENT_REPOSITORY,
+			],
+		},
+		{
+			provide: DeleteHazardousEventAttachmentUseCase,
+			useFactory: (
+				hazardousEventRepository: IHazardousEventRepository,
+				attachmentRepository: IHazardousEventAttachmentRepository,
+				storageService: IHazardousEventAttachmentStorageService,
+			) =>
+				new DeleteHazardousEventAttachmentUseCase(
+					hazardousEventRepository,
+					attachmentRepository,
+					storageService,
+				),
+			inject: [
+				HAZARDOUS_EVENT_REPOSITORY,
+				HAZARDOUS_EVENT_ATTACHMENT_REPOSITORY,
+				HAZARDOUS_EVENT_ATTACHMENT_STORAGE_SERVICE,
+			],
+		},
+		{
+			provide: DownloadHazardousEventAttachmentUseCase,
+			useFactory: (
+				hazardousEventRepository: IHazardousEventRepository,
+				attachmentRepository: IHazardousEventAttachmentRepository,
+				storageService: IHazardousEventAttachmentStorageService,
+			) =>
+				new DownloadHazardousEventAttachmentUseCase(
+					hazardousEventRepository,
+					attachmentRepository,
+					storageService,
+				),
+			inject: [
+				HAZARDOUS_EVENT_REPOSITORY,
+				HAZARDOUS_EVENT_ATTACHMENT_REPOSITORY,
+				HAZARDOUS_EVENT_ATTACHMENT_STORAGE_SERVICE,
+			],
+		},
 		ApiKeyAuthGuard,
 		SessionAuthGuard,
 		ApiKeyOrSessionAuthGuard,
@@ -264,6 +351,10 @@ import { DIVISION_REPOSITORY } from "./DivisionRepositoryToken";
 		CreateHazardousEventUseCase,
 		DeleteHazardousEventUseCase,
 		UpdateHazardousEventUseCase,
+		AddHazardousEventAttachmentUseCase,
+		ListHazardousEventAttachmentsUseCase,
+		DeleteHazardousEventAttachmentUseCase,
+		DownloadHazardousEventAttachmentUseCase,
 	],
 })
 export class HazardousEventsModule implements NestModule {
