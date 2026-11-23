@@ -1,10 +1,5 @@
 [
   {
-    "id": "access_management.all_roles",
-    "translation": "All Roles",
-    "description": "File: app/pages/AccessManagementPage.tsx:281"
-  },
-  {
     "id": "admin.add_country_account",
     "translation": "Add country account",
     "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:269"
@@ -187,7 +182,7 @@
   {
     "id": "admin.resend_email",
     "translation": "Resend invitation email",
-    "description": "File: app/pages/AccessManagementPage.tsx:183"
+    "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:201"
   },
   {
     "id": "admin.resend_invitation_confirm_message",
@@ -1542,12 +1537,7 @@
   {
     "id": "audit_log.history",
     "translation": "Audit log history",
-    "description": "File: app/routes/$lang+/disaster-record+/$id.tsx:551"
-  },
-  {
-    "id": "audit_log.history_title",
-    "translation": "Audit log history",
-    "description": "Title for the audit log history section File: app/frontend/events/hazardeventform.tsx:859"
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:1159"
   },
   {
     "id": "audit_log.organisation",
@@ -1602,12 +1592,7 @@
   {
     "id": "common.actions",
     "translation": "Actions",
-    "description": "File: app/pages/AccessManagementPage.tsx:379"
-  },
-  {
-    "id": "common.activated",
-    "translation": "Activated",
-    "description": "File: app/pages/AccessManagementPage.tsx:112"
+    "description": "File: app/pages/AccessManagementPage.tsx:462"
   },
   {
     "id": "common.active",
@@ -1627,12 +1612,7 @@
   {
     "id": "common.add_new_record",
     "translation": "Add new record",
-    "description": "File: app/routes/$lang+/disaster-record+/edit.$id.tsx:385"
-  },
-  {
-    "id": "common.addedAt",
-    "translation": "Added At",
-    "description": "File: app/pages/AccessManagementPage.tsx:375"
+    "description": "File: app/routes/$lang+/disaster-record+/edit.$id.tsx:386"
   },
   {
     "id": "common.all",
@@ -1677,7 +1657,7 @@
   {
     "id": "common.cancel",
     "translation": "Cancel",
-    "description": "File: app/components/ContentRepeater/index.tsx:2895"
+    "description": "File: app/pages/AccessManagementPage.tsx:806"
   },
   {
     "id": "common.cannot_save_record",
@@ -1727,7 +1707,7 @@
   {
     "id": "common.close",
     "translation": "Close",
-    "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3687"
+    "description": "File: app/pages/AccessManagementPage.tsx:796"
   },
   {
     "id": "common.collapse_all",
@@ -1767,12 +1747,12 @@
   {
     "id": "common.country",
     "translation": "Country",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:251"
+    "description": "File: app/routes/$lang+/settings+/system.tsx:255"
   },
   {
     "id": "common.country_instance",
     "translation": "Country instance",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:245"
+    "description": "File: app/routes/$lang+/settings+/system.tsx:249"
   },
   {
     "id": "common.country_type",
@@ -1807,7 +1787,7 @@
   {
     "id": "common.currency",
     "translation": "Currency",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:273"
+    "description": "File: app/routes/$lang+/settings+/system.tsx:277"
   },
   {
     "id": "common.damages",
@@ -1885,6 +1865,11 @@
     "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:3543"
   },
   {
+    "id": "common.dismiss_notification",
+    "translation": "Dismiss notification",
+    "description": "File: app/pages/AccessManagementPage.tsx:1016"
+  },
+  {
     "id": "common.do_you_want_to_continue",
     "translation": "Do you want to continue?",
     "description": "File: app/components/ContentRepeater/controls/mapper/index.tsx:577"
@@ -1892,7 +1877,7 @@
   {
     "id": "common.edit",
     "translation": "Edit",
-    "description": "File: app/pages/AccessManagementPage.tsx:150"
+    "description": "File: app/pages/OrganizationManagementPage.tsx:131"
   },
   {
     "id": "common.edit_item",
@@ -1902,7 +1887,7 @@
   {
     "id": "common.email",
     "translation": "Email",
-    "description": "File: app/pages/AccessManagementPage.tsx:360"
+    "description": "File: app/pages/AccessManagementPage.tsx:439"
   },
   {
     "id": "common.enabled",
@@ -1913,11 +1898,6 @@
     "id": "common.end_date",
     "translation": "End date",
     "description": "File: app/frontend/disaster-event/DisasterEventForm.tsx:4130"
-  },
-  {
-    "id": "common.enter_email",
-    "translation": "Enter Email",
-    "description": "File: app/routes/$lang+/settings+/access-mgmnt+/edit.$id.tsx:233"
   },
   {
     "id": "common.error",
@@ -2065,14 +2045,9 @@
     "description": "File: app/frontend/form/input.tsx:373"
   },
   {
-    "id": "common.inviteUser",
-    "translation": "Invite user",
-    "description": "File: app/routes/$lang+/settings+/access-mgmnt+/new.tsx:238"
-  },
-  {
     "id": "common.language",
     "translation": "Language",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:269"
+    "description": "File: app/routes/$lang+/settings+/system.tsx:273"
   },
   {
     "id": "common.last_name",
@@ -2082,7 +2057,7 @@
   {
     "id": "common.legacy_data",
     "translation": "Legacy data",
-    "description": "File: app/frontend/disaster-record/form.tsx:162"
+    "description": "File: app/frontend/disaster-record/form.tsx:157"
   },
   {
     "id": "common.link",
@@ -2092,7 +2067,7 @@
   {
     "id": "common.linking_parameter",
     "translation": "Linking parameter",
-    "description": "File: app/frontend/disaster-record/form.tsx:579"
+    "description": "File: app/frontend/disaster-record/form.tsx:574"
   },
   {
     "id": "common.loading",
@@ -2240,6 +2215,11 @@
     "description": "File: app/components/ContentPicker/index.tsx:776"
   },
   {
+    "id": "common.next_page",
+    "translation": "Next page",
+    "description": "File: app/pages/AccessManagementPage.tsx:767"
+  },
+  {
     "id": "common.no",
     "translation": "No",
     "description": "File: app/frontend/components/delete-dialog.tsx:63"
@@ -2267,7 +2247,7 @@
   {
     "id": "common.no_link",
     "translation": "No link",
-    "description": "File: app/frontend/disaster-record/form.tsx:591"
+    "description": "File: app/frontend/disaster-record/form.tsx:586"
   },
   {
     "id": "common.no_match_found",
@@ -2292,7 +2272,7 @@
   {
     "id": "common.none",
     "translation": "None",
-    "description": "File: app/frontend/editabletable/view/table_content.tsx:248"
+    "description": "File: app/frontend/events/HazardousEventReviewStep.tsx:849"
   },
   {
     "id": "common.not_available",
@@ -2337,7 +2317,7 @@
   {
     "id": "common.organization",
     "translation": "Organization",
-    "description": "File: app/pages/AccessManagementPage.tsx:249"
+    "description": "File: app/pages/AccessManagementPage.tsx:444"
   },
   {
     "id": "common.override",
@@ -2358,6 +2338,11 @@
     "id": "common.page_of_total_pages",
     "translation": "Page {page} of {totalPages}",
     "description": "Pagination indicator showing current page and total pages. {page} is the current page number, {totalPages} is the total number of pages. File: app/frontend/analytics/sectors/sections/MostDamagingEvents.tsx:364"
+  },
+  {
+    "id": "common.page_x_of_y",
+    "translation": "Page {page} of {totalPages}",
+    "description": "File: app/pages/AccessManagementPage.tsx:752"
   },
   {
     "id": "common.pagination",
@@ -2400,14 +2385,14 @@
     "description": "File: app/routes/$lang+/disaster-record+/content-picker-config.tsx:387"
   },
   {
-    "id": "common.pending",
-    "translation": "Pending",
-    "description": "File: app/pages/AccessManagementPage.tsx:116"
-  },
-  {
     "id": "common.previous",
     "translation": "Previous",
     "description": "File: app/components/ContentPicker/index.tsx:767"
+  },
+  {
+    "id": "common.previous_page",
+    "translation": "Previous page",
+    "description": "File: app/pages/AccessManagementPage.tsx:763"
   },
   {
     "id": "common.provide_comments",
@@ -2477,7 +2462,12 @@
   {
     "id": "common.required_information",
     "translation": "Required information",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:413"
+    "description": "File: app/routes/$lang+/settings+/system.tsx:417"
+  },
+  {
+    "id": "common.required_parens",
+    "translation": "(required)",
+    "description": "File: app/pages/AccessManagementPage.tsx:900"
   },
   {
     "id": "common.return",
@@ -2522,7 +2512,12 @@
   {
     "id": "common.role",
     "translation": "Role",
-    "description": "File: app/pages/AccessManagementPage.tsx:271"
+    "description": "File: app/pages/AccessManagementPage.tsx:449"
+  },
+  {
+    "id": "common.rows_per_page",
+    "translation": "Rows per page",
+    "description": "File: app/pages/AccessManagementPage.tsx:759"
   },
   {
     "id": "common.save",
@@ -2532,7 +2527,7 @@
   {
     "id": "common.save_changes",
     "translation": "Save changes",
-    "description": "File: app/routes/$lang+/disaster-record+/edit-sec.$disRecId+/_index.tsx:574"
+    "description": "File: app/pages/AccessManagementPage.tsx:815"
   },
   {
     "id": "common.save_draft",
@@ -2547,17 +2542,12 @@
   {
     "id": "common.savesubmit",
     "translation": "Save or submit",
-    "description": "Label for save submit action File: app/frontend/disaster-record/form.tsx:375"
+    "description": "Label for save submit action File: app/frontend/disaster-record/form.tsx:370"
   },
   {
     "id": "common.search",
     "translation": "Search",
     "description": "File: app/pages/OrganizationManagementPage.tsx:167"
-  },
-  {
-    "id": "common.search_organization",
-    "translation": "Type organization name",
-    "description": "File: app/pages/AccessManagementPage.tsx:258"
   },
   {
     "id": "common.search_placeholder_dotdotdot",
@@ -2652,12 +2642,12 @@
   {
     "id": "common.status",
     "translation": "Status",
-    "description": "File: app/pages/AccessManagementPage.tsx:352"
+    "description": "File: app/pages/AccessManagementPage.tsx:434"
   },
   {
     "id": "common.status_legend",
     "translation": "Status legend",
-    "description": "File: app/pages/AccessManagementPage.tsx:310"
+    "description": "File: app/frontend/disaster-event/DisasterEventsPage.tsx:814"
   },
   {
     "id": "common.store_for_future_editing",
@@ -2672,7 +2662,7 @@
   {
     "id": "common.success",
     "translation": "Success",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:194"
+    "description": "File: app/routes/$lang+/settings+/system.tsx:198"
   },
   {
     "id": "common.successfully_saved",
@@ -2751,8 +2741,8 @@
   },
   {
     "id": "common.unexpected_error",
-    "translation": "An unexpected error occurred",
-    "description": "File: app/routes/$lang+/admin+/country-accounts+/clone.$id.tsx:64"
+    "translation": "Unexpected error",
+    "description": "File: app/pages/AccessManagementPage.tsx:200"
   },
   {
     "id": "common.unknown_server_error",
@@ -2767,7 +2757,7 @@
   {
     "id": "common.unset",
     "translation": "Unset",
-    "description": "Label for unset or clear value action File: app/frontend/events/hazardeventform.tsx:614"
+    "description": "Label for unset or clear value action File: app/frontend/events/hazardeventform.tsx:607"
   },
   {
     "id": "common.unverified",
@@ -2782,7 +2772,7 @@
   {
     "id": "common.updated_at",
     "translation": "Updated at",
-    "description": "File: app/frontend/disaster-record/form-non-economic-losses.tsx:155"
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:727"
   },
   {
     "id": "common.upload_and_import",
@@ -2807,7 +2797,7 @@
   {
     "id": "common.user_deleted_successfully",
     "translation": "User deleted successfully.",
-    "description": "File: app/routes/$lang+/settings+/access-mgmnt+/delete.$id.tsx:101"
+    "description": "File: app/routes/$lang+/settings+/access-mgmnt+/delete.$id.tsx:70"
   },
   {
     "id": "common.user_no_country_accounts",
@@ -2818,6 +2808,11 @@
     "id": "common.user_no_instance_assigned",
     "translation": "User has no instance assigned to.",
     "description": "File: app/backend.server/models/event.ts:1938"
+  },
+  {
+    "id": "common.users",
+    "translation": "Users",
+    "description": "File: app/pages/AccessManagementPage.tsx:549"
   },
   {
     "id": "common.uuid",
@@ -4127,7 +4122,7 @@
   {
     "id": "disaster_record.assessment_modes",
     "translation": "Assessments methodologies",
-    "description": "File: app/frontend/disaster-record/form.tsx:118"
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:738"
   },
   {
     "id": "disaster_record.asset",
@@ -4142,7 +4137,7 @@
   {
     "id": "disaster_record.checked_by",
     "translation": "Checked by",
-    "description": "File: app/frontend/disaster-record/form.tsx:145"
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:684"
   },
   {
     "id": "disaster_record.count_header",
@@ -4297,7 +4292,7 @@
   {
     "id": "disaster_record.data_collector",
     "translation": "Data collector",
-    "description": "File: app/frontend/disaster-record/form.tsx:154"
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:677"
   },
   {
     "id": "disaster_record.disaster_records_non_economic_losses",
@@ -4342,7 +4337,7 @@
   {
     "id": "disaster_record.field_assessment_date",
     "translation": "Field assessment conducted",
-    "description": "Label for field assessment conducted date File: app/frontend/disaster-record/form.tsx:108"
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:712"
   },
   {
     "id": "disaster_record.has_damage",
@@ -4362,12 +4357,12 @@
   {
     "id": "disaster_record.local_warning_instructions",
     "translation": "Local warning and local instructions (recommended actions)",
-    "description": "File: app/frontend/disaster-record/form.tsx:81"
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:751"
   },
   {
     "id": "disaster_record.location_description",
     "translation": "Location description",
-    "description": "File: app/frontend/disaster-record/form.tsx:56"
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:796"
   },
   {
     "id": "disaster_record.losses_cost",
@@ -4385,6 +4380,16 @@
     "description": "File: app/frontend/disaster-record/SectorEffectsTable.tsx:364"
   },
   {
+    "id": "disaster_record.no_noneco_losses",
+    "translation": "No non-economic losses recorded yet",
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:1012"
+  },
+  {
+    "id": "disaster_record.no_sector_effects",
+    "translation": "No sector effects recorded yet",
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:986"
+  },
+  {
     "id": "disaster_record.non_economic_losses.describe_effect_criteria",
     "translation": "Describe the effect of the non-economic losses to the selected criteria.",
     "description": "File: app/routes/$lang+/disaster-record+/non-economic-losses.$id+/_index.tsx:263"
@@ -4397,17 +4402,17 @@
   {
     "id": "disaster_record.other_data_source",
     "translation": "Other data sources",
-    "description": "File: app/frontend/disaster-record/form.tsx:100"
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:705"
   },
   {
     "id": "disaster_record.primary_data_source",
     "translation": "Primary data source",
-    "description": "File: app/frontend/disaster-record/form.tsx:90"
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:698"
   },
   {
     "id": "disaster_record.recording_institution",
     "translation": "Recording institution",
-    "description": "File: app/frontend/disaster-record/form.tsx:126"
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:670"
   },
   {
     "id": "disaster_record.recovery_cost",
@@ -4417,7 +4422,7 @@
   {
     "id": "disaster_record.validated_by",
     "translation": "Validated by",
-    "description": "File: app/frontend/disaster-record/form.tsx:136"
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:691"
   },
   {
     "id": "disaster_records",
@@ -4433,6 +4438,11 @@
     "id": "disaster_records.back_to_disaster_record",
     "translation": "Back to disaster record",
     "description": "File: app/routes/$lang+/disaster-record+/edit-sub.$disRecId+/damages+/_index.tsx:126"
+  },
+  {
+    "id": "disaster_records.back_to_list",
+    "translation": "Back to Disaster records",
+    "description": "File: app/frontend/disaster-record/form.tsx:721"
   },
   {
     "id": "disaster_records.damages",
@@ -4927,7 +4937,7 @@
   {
     "id": "event.parent",
     "translation": "Parent",
-    "description": "Label for parent event field File: app/frontend/events/hazardeventform.tsx:589"
+    "description": "Label for parent event field File: app/frontend/events/hazardeventform.tsx:582"
   },
   {
     "id": "events.cannot_reference_other_country",
@@ -5200,11 +5210,6 @@
     "description": "File: app/components/AuditLogHistory.tsx:30"
   },
   {
-    "id": "hazardous_event.add_cause",
-    "translation": "Add hazardous event caused by this event",
-    "description": "Label for adding a hazardous event caused by another event File: app/frontend/events/hazardeventform.tsx:738"
-  },
-  {
     "id": "hazardous_event.add_new_event",
     "translation": "Add new event",
     "description": "File: app/routes/$lang+/_public+/hazardous-event+/_index.tsx:78"
@@ -5227,22 +5232,22 @@
   {
     "id": "hazardous_event.caused_by",
     "translation": "Caused by",
-    "description": "Label for the 'Caused by' relationship File: app/frontend/events/hazardeventform.tsx:751"
+    "description": "File: app/frontend/events/HazardousEventReviewStep.tsx:840"
   },
   {
     "id": "hazardous_event.causing",
     "translation": "Causing",
-    "description": "Label for the list of events caused by this event File: app/frontend/events/hazardeventform.tsx:775"
+    "description": "File: app/frontend/events/HazardousEventReviewStep.tsx:860"
   },
   {
     "id": "hazardous_event.chains_explanation",
     "translation": "Composite event - chains explanation",
-    "description": "Label for chains explanation field File: app/frontend/events/hazardeventform.tsx:91"
+    "description": "Label for chains explanation field File: app/frontend/events/hazardeventform.tsx:84"
   },
   {
     "id": "hazardous_event.data_source",
     "translation": "Data source",
-    "description": "File: app/frontend/events/hazardeventform.tsx:174"
+    "description": "File: app/frontend/events/hazardeventform.tsx:167"
   },
   {
     "id": "hazardous_event.delete_cause_events_first",
@@ -5262,12 +5267,12 @@
   {
     "id": "hazardous_event.magnitude",
     "translation": "Magnitude",
-    "description": "Label for magnitude field File: app/frontend/events/hazardeventform.tsx:100"
+    "description": "Label for magnitude field File: app/frontend/events/hazardeventform.tsx:93"
   },
   {
     "id": "hazardous_event.national_specification",
     "translation": "National specification",
-    "description": "File: app/frontend/events/hazardeventform.tsx:55"
+    "description": "File: app/frontend/events/hazardeventform.tsx:48"
   },
   {
     "id": "hazardous_event.not_found",
@@ -5282,7 +5287,7 @@
   {
     "id": "hazardous_event.record_originator",
     "translation": "Record originator",
-    "description": "File: app/frontend/events/hazardeventform.tsx:129"
+    "description": "File: app/frontend/events/hazardeventform.tsx:122"
   },
   {
     "id": "hazardous_event.record_status",
@@ -5332,7 +5337,7 @@
   {
     "id": "hazardous_event.status",
     "translation": "Hazardous event Status",
-    "description": "File: app/frontend/events/hazardeventform.tsx:139"
+    "description": "File: app/frontend/events/hazardeventform.tsx:132"
   },
   {
     "id": "hazardous_event.status.forecasted",
@@ -5357,7 +5362,7 @@
   {
     "id": "hazardous_events",
     "translation": "Hazardous events",
-    "description": "File: app/frontend/events/hazardeventform.tsx:571"
+    "description": "File: app/frontend/events/hazardeventform.tsx:564"
   },
   {
     "id": "hazardous_events_count_in_instance",
@@ -5367,12 +5372,17 @@
   {
     "id": "hazardous_events.add",
     "translation": "Add hazardous event",
-    "description": "File: app/frontend/events/hazardeventform.tsx:576"
+    "description": "File: app/frontend/events/hazardeventform.tsx:569"
+  },
+  {
+    "id": "hazardous_events.back_to_list",
+    "translation": "Back to Hazardous events",
+    "description": "File: app/frontend/events/hazardeventform.tsx:701"
   },
   {
     "id": "hazardous_events.edit",
     "translation": "Edit hazardous event",
-    "description": "File: app/frontend/events/hazardeventform.tsx:572"
+    "description": "File: app/frontend/events/hazardeventform.tsx:565"
   },
   {
     "id": "hazardous_events.list",
@@ -5457,12 +5467,12 @@
   {
     "id": "hip.hazard",
     "translation": "Hazard",
-    "description": "File: app/frontend/disaster-record/form.tsx:205"
+    "description": "File: app/frontend/disaster-record/form.tsx:200"
   },
   {
     "id": "hip.hazard_classification",
     "translation": "Hazard classification",
-    "description": "File: app/frontend/disaster-record/form.tsx:634"
+    "description": "File: app/frontend/disaster-record/form.tsx:629"
   },
   {
     "id": "hip.hazard_cluster",
@@ -5542,7 +5552,7 @@
   {
     "id": "human_effects",
     "translation": "Human effects",
-    "description": "File: app/routes/$lang+/disaster-record+/$id.tsx:310"
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:889"
   },
   {
     "id": "human_effects.above",
@@ -5567,7 +5577,7 @@
   {
     "id": "human_effects.affected_old_desinventar",
     "translation": "Affected (Old DesInventar)",
-    "description": "Human effects Affected (DesInventar is an older system used for tracking disaster data) File: app/routes/$lang+/disaster-record+/$id.tsx:326"
+    "description": "Human effects Affected (DesInventar is an older system used for tracking disaster data) File: app/routes/$lang+/disaster-record+/edit.$id.tsx:405"
   },
   {
     "id": "human_effects.age",
@@ -5662,7 +5672,12 @@
   {
     "id": "human_effects.deaths",
     "translation": "Deaths",
-    "description": "File: app/frontend/human_effects/defs.ts:40"
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:583"
+  },
+  {
+    "id": "human_effects.directly_affected",
+    "translation": "Directly",
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:598"
   },
   {
     "id": "human_effects.directly_affected_old_desinventar",
@@ -5767,7 +5782,7 @@
   {
     "id": "human_effects.disaggregation_details",
     "translation": "Disaggregation details",
-    "description": "File: app/routes/$lang+/disaster-record+/$id.tsx:400"
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:914"
   },
   {
     "id": "human_effects.disaggregations",
@@ -5777,7 +5792,7 @@
   {
     "id": "human_effects.displaced",
     "translation": "Displaced",
-    "description": "File: app/frontend/human_effects/defs.ts:56"
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:614"
   },
   {
     "id": "human_effects.error.disaggregation_min_options",
@@ -5875,6 +5890,11 @@
     "description": "File: app/routes/$lang+/settings+/human-effects-dsg+/custom.tsx:202"
   },
   {
+    "id": "human_effects.indirectly_affected",
+    "translation": "Indirectly",
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:606"
+  },
+  {
     "id": "human_effects.indirectly_affected_old_desinventar",
     "translation": "Indirectly affected (Old DesInventar)",
     "description": "File: app/backend.server/models/human_effects/defs.ts:461"
@@ -5882,7 +5902,7 @@
   {
     "id": "human_effects.injured",
     "translation": "Injured",
-    "description": "File: app/frontend/human_effects/defs.ts:44"
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:588"
   },
   {
     "id": "human_effects.long_term",
@@ -5912,7 +5932,7 @@
   {
     "id": "human_effects.missing",
     "translation": "Missing",
-    "description": "File: app/frontend/human_effects/defs.ts:48"
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:593"
   },
   {
     "id": "human_effects.missing_group_total",
@@ -6081,13 +6101,8 @@
   },
   {
     "id": "meta.access_management",
-    "translation": "Access Management",
-    "description": "File: app/routes/$lang+/settings+/access-mgmnt+/_layout.tsx:21"
-  },
-  {
-    "id": "meta.adding_new_user",
-    "translation": "Adding New User",
-    "description": "File: app/routes/$lang+/settings+/access-mgmnt+/new.tsx:28"
+    "translation": "Access management",
+    "description": "File: app/routes/$lang+/settings+/access-mgmnt+/_layout.tsx:68"
   },
   {
     "id": "meta.change_password",
@@ -6120,11 +6135,6 @@
     "description": "File: app/routes/$lang+/analytics+/disaster-events.tsx:408"
   },
   {
-    "id": "meta.edit_user",
-    "translation": "Edit User",
-    "description": "File: app/routes/$lang+/settings+/access-mgmnt+/edit.$id.tsx:34"
-  },
-  {
     "id": "meta.forgot_password",
     "translation": "Forgot Password",
     "description": "File: app/routes/$lang+/user+/forgot-password.tsx:158"
@@ -6133,11 +6143,6 @@
     "id": "meta.hazards_analysis",
     "translation": "Hazards analysis",
     "description": "File: app/routes/$lang+/analytics+/hazards.tsx:550"
-  },
-  {
-    "id": "meta.invite_user",
-    "translation": "Invite User",
-    "description": "File: app/routes/$lang+/settings+/access-mgmnt+/new.tsx:36"
   },
   {
     "id": "meta.login",
@@ -6192,7 +6197,7 @@
   {
     "id": "meta.system_settings",
     "translation": "System Settings",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:125"
+    "description": "File: app/routes/$lang+/settings+/system.tsx:129"
   },
   {
     "id": "meta.technical_specifications",
@@ -6437,7 +6442,7 @@
   {
     "id": "non_economic_losses",
     "translation": "Non-economic losses",
-    "description": "File: app/routes/$lang+/disaster-record+/$id.tsx:495"
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:1007"
   },
   {
     "id": "of",
@@ -6503,11 +6508,6 @@
     "id": "record.created",
     "translation": "Created",
     "description": "Label for the creation date of a record File: app/frontend/events/hazardeventlist.tsx:179"
-  },
-  {
-    "id": "record.created_at",
-    "translation": "Created at",
-    "description": "Label for creation timestamp File: app/frontend/events/hazardeventform.tsx:813"
   },
   {
     "id": "record.data_source",
@@ -6605,11 +6605,6 @@
     "description": "Label for the last updated date of a record File: app/frontend/events/hazardeventlist.tsx:186"
   },
   {
-    "id": "record.updated_at",
-    "translation": "Updated at",
-    "description": "Label for last updated timestamp File: app/frontend/events/hazardeventform.tsx:823"
-  },
-  {
     "id": "record.uuid",
     "translation": "Record UUID",
     "description": "Record UUID (UUID is specific type of ID) File: app/routes/$lang+/disaster-record+/_index.tsx:80"
@@ -6637,7 +6632,7 @@
   {
     "id": "sector_effects",
     "translation": "Sector effects",
-    "description": "File: app/routes/$lang+/disaster-record+/$id.tsx:471"
+    "description": "File: app/frontend/disaster-record/DisasterRecordReviewStep.tsx:984"
   },
   {
     "id": "sector_effects.cost",
@@ -6765,62 +6760,202 @@
   {
     "id": "settings.access_mgmnt.account_activated",
     "translation": "Account activated",
-    "description": "File: app/pages/AccessManagementPage.tsx:319"
-  },
-  {
-    "id": "settings.access_mgmnt.account_activation_pending",
-    "translation": "Account activation pending",
-    "description": "File: app/pages/AccessManagementPage.tsx:330"
-  },
-  {
-    "id": "settings.access_mgmnt.add_user",
-    "translation": "Add user",
-    "description": "File: app/pages/AccessManagementPage.tsx:217"
+    "description": "File: app/services/accessManagementService.ts:364"
   },
   {
     "id": "settings.access_mgmnt.added_by",
     "translation": "Added by",
-    "description": "File: app/routes/$lang+/settings+/access-mgmnt+/edit.$id.tsx:203"
+    "description": "File: app/pages/AccessManagementPage.tsx:872"
   },
   {
-    "id": "settings.access_mgmnt.current_user_count",
-    "translation": "Currently there are [{totalUsers}] users in the system.",
-    "description": "File: app/pages/AccessManagementPage.tsx:231"
+    "id": "settings.access_mgmnt.all_roles",
+    "translation": "All roles",
+    "description": "File: app/pages/AccessManagementPage.tsx:517"
+  },
+  {
+    "id": "settings.access_mgmnt.clear_filters",
+    "translation": "Clear filters",
+    "description": "File: app/pages/AccessManagementPage.tsx:531"
   },
   {
     "id": "settings.access_mgmnt.date_added",
     "translation": "Date added",
-    "description": "File: app/routes/$lang+/settings+/access-mgmnt+/edit.$id.tsx:191"
+    "description": "File: app/pages/AccessManagementPage.tsx:454"
+  },
+  {
+    "id": "settings.access_mgmnt.delete_failed",
+    "translation": "Failed to delete user. Please try again.",
+    "description": "File: app/routes/$lang+/settings+/access-mgmnt+/delete.$id.tsx:89"
   },
   {
     "id": "settings.access_mgmnt.delete_user",
-    "translation": "Delete User",
-    "description": "File: app/pages/AccessManagementPage.tsx:166"
+    "translation": "Delete user",
+    "description": "File: app/pages/AccessManagementPage.tsx:698"
   },
   {
-    "id": "settings.access_mgmnt.delete_user_confirmation",
-    "translation": "This data cannot be recovered after being deleted.",
-    "description": "File: app/routes/$lang+/settings+/access-mgmnt+/delete.$id.tsx:142"
+    "id": "settings.access_mgmnt.delete_user_name",
+    "translation": "Delete {name}",
+    "description": "File: app/pages/AccessManagementPage.tsx:705"
   },
   {
-    "id": "settings.access_mgmnt.delete_user_title",
-    "translation": "Delete User",
+    "id": "settings.access_mgmnt.delete_warning",
+    "translation": "will lose access to DELTA. This cannot be undone.",
+    "description": "File: app/pages/AccessManagementPage.tsx:1006"
+  },
+  {
+    "id": "settings.access_mgmnt.edit_user",
+    "translation": "Edit user",
+    "description": "File: app/pages/AccessManagementPage.tsx:671"
+  },
+  {
+    "id": "settings.access_mgmnt.edit_user_name",
+    "translation": "Edit {name}",
+    "description": "File: app/pages/AccessManagementPage.tsx:678"
+  },
+  {
+    "id": "settings.access_mgmnt.error_email_invalid",
+    "translation": "Enter an email address, for example name@organization.org.",
+    "description": "File: app/pages/AccessManagementPage.tsx:317"
+  },
+  {
+    "id": "settings.access_mgmnt.error_email_required",
+    "translation": "Enter an email address.",
+    "description": "File: app/pages/AccessManagementPage.tsx:312"
+  },
+  {
+    "id": "settings.access_mgmnt.error_role_required",
+    "translation": "Select a role.",
+    "description": "File: app/pages/AccessManagementPage.tsx:325"
+  },
+  {
+    "id": "settings.access_mgmnt.invite_user",
+    "translation": "Invite user",
+    "description": "File: app/pages/AccessManagementPage.tsx:489"
+  },
+  {
+    "id": "settings.access_mgmnt.missing_user_id",
+    "translation": "Missing user ID",
     "description": "File: app/routes/$lang+/settings+/access-mgmnt+/delete.$id.tsx:30"
   },
   {
-    "id": "settings.access_mgmnt.selected_role",
-    "translation": "You have selected [{role}]",
-    "description": "File: app/routes/$lang+/settings+/access-mgmnt+/new.tsx:200"
+    "id": "settings.access_mgmnt.no_matching_users",
+    "translation": "No users match these filters.",
+    "description": "File: app/pages/AccessManagementPage.tsx:567"
+  },
+  {
+    "id": "settings.access_mgmnt.no_organization",
+    "translation": "No organization",
+    "description": "File: app/pages/AccessManagementPage.tsx:921"
+  },
+  {
+    "id": "settings.access_mgmnt.no_users",
+    "translation": "No users found.",
+    "description": "File: app/pages/AccessManagementPage.tsx:571"
+  },
+  {
+    "id": "settings.access_mgmnt.primary_admin_badge",
+    "translation": "(Primary Admin)",
+    "description": "File: app/pages/AccessManagementPage.tsx:626"
+  },
+  {
+    "id": "settings.access_mgmnt.primary_admin_protected",
+    "translation": "Primary admin cannot be modified or deleted",
+    "description": "File: app/pages/AccessManagementPage.tsx:396"
+  },
+  {
+    "id": "settings.access_mgmnt.resend_invitation",
+    "translation": "Resend invitation",
+    "description": "File: app/pages/AccessManagementPage.tsx:642"
+  },
+  {
+    "id": "settings.access_mgmnt.resend_invitation_to",
+    "translation": "Resend invitation to {name}",
+    "description": "File: app/pages/AccessManagementPage.tsx:649"
+  },
+  {
+    "id": "settings.access_mgmnt.search_placeholder",
+    "translation": "Search by name, email or organization",
+    "description": "File: app/pages/AccessManagementPage.tsx:500"
+  },
+  {
+    "id": "settings.access_mgmnt.select_organization",
+    "translation": "Select an organization",
+    "description": "File: app/pages/AccessManagementPage.tsx:917"
+  },
+  {
+    "id": "settings.access_mgmnt.select_role",
+    "translation": "Select a role",
+    "description": "File: app/pages/AccessManagementPage.tsx:938"
+  },
+  {
+    "id": "settings.access_mgmnt.send_invitation",
+    "translation": "Send invitation",
+    "description": "File: app/pages/AccessManagementPage.tsx:819"
+  },
+  {
+    "id": "settings.access_mgmnt.showing_users_range",
+    "translation": "Showing {from}-{to} of {total} users",
+    "description": "File: app/pages/AccessManagementPage.tsx:740"
+  },
+  {
+    "id": "settings.access_mgmnt.showing_zero_users",
+    "translation": "Showing 0 of 0 users",
+    "description": "File: app/pages/AccessManagementPage.tsx:736"
+  },
+  {
+    "id": "settings.access_mgmnt.status_active",
+    "translation": "Active",
+    "description": "File: app/pages/AccessManagementPage.tsx:601"
+  },
+  {
+    "id": "settings.access_mgmnt.status_pending",
+    "translation": "Invitation pending",
+    "description": "File: app/pages/AccessManagementPage.tsx:597"
+  },
+  {
+    "id": "settings.access_mgmnt.subtitle",
+    "translation": "Invite people and set what they can do on this site.",
+    "description": "File: app/pages/AccessManagementPage.tsx:481"
   },
   {
     "id": "settings.access_mgmnt.system_admin",
     "translation": "System Admin",
-    "description": "File: app/routes/$lang+/settings+/access-mgmnt+/edit.$id.tsx:209"
+    "description": "File: app/pages/AccessManagementPage.tsx:878"
+  },
+  {
+    "id": "settings.access_mgmnt.toast_deleted",
+    "translation": "{name} was deleted.",
+    "description": "File: app/pages/AccessManagementPage.tsx:169"
+  },
+  {
+    "id": "settings.access_mgmnt.toast_invited",
+    "translation": "Invitation sent to {email}.",
+    "description": "File: app/pages/AccessManagementPage.tsx:145"
+  },
+  {
+    "id": "settings.access_mgmnt.toast_resent",
+    "translation": "Invitation sent again to {email}.",
+    "description": "File: app/pages/AccessManagementPage.tsx:180"
+  },
+  {
+    "id": "settings.access_mgmnt.toast_saved",
+    "translation": "Changes saved for {name}.",
+    "description": "File: app/pages/AccessManagementPage.tsx:157"
+  },
+  {
+    "id": "settings.access_mgmnt.unauthorized_no_tenant",
+    "translation": "Unauthorized - no tenant context",
+    "description": "File: app/routes/$lang+/settings+/access-mgmnt+/delete.$id.tsx:45"
   },
   {
     "id": "settings.access_mgmnt.user_added_successfully",
     "translation": "User has been successfully added!",
-    "description": "File: app/routes/$lang+/settings+/access-mgmnt+/new.tsx:90"
+    "description": "File: app/routes/$lang+/settings+/access-mgmnt+/new.tsx:71"
+  },
+  {
+    "id": "settings.access_mgmnt.users_noun",
+    "translation": "users",
+    "description": "File: app/pages/AccessManagementPage.tsx:730"
   },
   {
     "id": "settings.sectors.table_view",
@@ -6835,67 +6970,67 @@
   {
     "id": "settings.system.2fa_totp_issuer_name",
     "translation": "2FA/TOTP Issuer Name",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:308"
+    "description": "File: app/routes/$lang+/settings+/system.tsx:312"
   },
   {
     "id": "settings.system.application_url",
     "translation": "Application URL",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:300"
+    "description": "File: app/routes/$lang+/settings+/system.tsx:304"
   },
   {
     "id": "settings.system.delta_resilience_software_application_version",
     "translation": "DELTA Resilience version",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:341"
+    "description": "File: app/routes/$lang+/settings+/system.tsx:345"
   },
   {
     "id": "settings.system.edit_settings",
     "translation": "Edit Settings",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:229"
+    "description": "File: app/routes/$lang+/settings+/system.tsx:233"
   },
   {
     "id": "settings.system.host",
     "translation": "Host",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:365"
+    "description": "File: app/routes/$lang+/settings+/system.tsx:369"
   },
   {
     "id": "settings.system.instance_configuration",
     "translation": "Instance configuration",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:290"
+    "description": "File: app/routes/$lang+/settings+/system.tsx:294"
   },
   {
     "id": "settings.system.instance_name",
     "translation": "Instance Name",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:296"
+    "description": "File: app/routes/$lang+/settings+/system.tsx:300"
   },
   {
     "id": "settings.system.port",
     "translation": "Port",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:369"
+    "description": "File: app/routes/$lang+/settings+/system.tsx:373"
   },
   {
     "id": "settings.system.secure",
     "translation": "Secure",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:373"
+    "description": "File: app/routes/$lang+/settings+/system.tsx:377"
   },
   {
     "id": "settings.system.software",
     "translation": "Software",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:336"
+    "description": "File: app/routes/$lang+/settings+/system.tsx:340"
   },
   {
     "id": "settings.system.system_email_routing_configuration",
     "translation": "Email routing",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:354"
+    "description": "File: app/routes/$lang+/settings+/system.tsx:358"
   },
   {
     "id": "settings.system.transport",
     "translation": "Transport",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:360"
+    "description": "File: app/routes/$lang+/settings+/system.tsx:364"
   },
   {
     "id": "settings.system.updated_successfully",
     "translation": "System settings updated successfully. Changes will take effect after you login again.",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:195"
+    "description": "File: app/routes/$lang+/settings+/system.tsx:199"
   },
   {
     "id": "sign_in",
@@ -7250,7 +7385,7 @@
   {
     "id": "user_login.email_address",
     "translation": "Email address",
-    "description": "File: app/routes/$lang+/admin+/login.tsx:486"
+    "description": "File: app/pages/AccessManagementPage.tsx:887"
   },
   {
     "id": "user_login.email_or_password_do_not_match",
@@ -7418,11 +7553,6 @@
     "description": "File: app/routes/$lang+/user+/change-password.tsx:142"
   },
   {
-    "id": "user.delete_user",
-    "translation": "Delete user",
-    "description": "File: app/routes/$lang+/settings+/access-mgmnt+/delete.$id.tsx:162"
-  },
-  {
     "id": "user.disable_totp",
     "translation": "Disable TOTP",
     "description": "File: app/routes/$lang+/user+/totp-disable.tsx:77"
@@ -7436,11 +7566,6 @@
     "id": "user.disable_totp_description",
     "translation": "Enter your TOTP code to confirm disabling two-factor authentication",
     "description": "File: app/routes/$lang+/user+/totp-disable.tsx:108"
-  },
-  {
-    "id": "user.edit_user",
-    "translation": "Edit User",
-    "description": "File: app/routes/$lang+/settings+/access-mgmnt+/edit.$id.tsx:152"
   },
   {
     "id": "user.email_status",
@@ -7661,11 +7786,6 @@
     "id": "user.role.admin.label",
     "translation": "Admin",
     "description": "File: app/frontend/user/roles.ts:54"
-  },
-  {
-    "id": "user.role.can_do",
-    "translation": "A {label} is able to:",
-    "description": "File: app/routes/$lang+/settings+/access-mgmnt+/new.tsx:214"
   },
   {
     "id": "user.role.data_collector.desc",
