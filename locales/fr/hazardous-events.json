@@ -270,5 +270,28 @@
 		},
 		"edit": "Modifier",
 		"back_to_list": "Retour aux événements dangereux"
+	},
+	"delete": {
+		"label": "Supprimer",
+		"dialog": {
+			"title": "Êtes-vous sûr de vouloir supprimer cet enregistrement ?",
+			"message": "Ces données ne peuvent pas être récupérées après avoir été supprimées.",
+			"cancel": "Ne pas supprimer",
+			"confirm": "Supprimer définitivement",
+			"close": "Fermer"
+		},
+		"toast": {
+			"close": "Fermer"
+		},
+		"success": "Enregistrement supprimé",
+		"not_found": "Enregistrement introuvable ou accès refusé",
+		"forbidden": "Vous n'avez pas l'autorisation de supprimer cet enregistrement.",
+		"blocked": {
+			"disaster_event": "Impossible de supprimer l'événement dangereux car il est lié à un ou plusieurs événements catastrophiques. Veuillez d'abord supprimer les événements de catastrophe associés.",
+			"caused_by": "Supprimer d'abord les événements causés par cet événement",
+			"event_causality": "Impossible de supprimer l'événement dangereux car il est lié à un ou plusieurs événements catastrophiques en tant que cause ou effet. Supprimez d'abord ces liens.",
+			"causal_chain": "Impossible de supprimer l'événement dangereux car il est lié à un autre événement dangereux en tant que cause ou effet. Supprimez d'abord ce lien.",
+			"generic": "Cet enregistrement ne peut pas être supprimé."
+		}
 	}
 }

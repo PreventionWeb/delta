@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import { renderToString } from "react-dom/server";
-import { MemoryRouter } from "react-router";
+import { createMemoryRouter, RouterProvider } from "react-router";
 import i18n, { type i18n as I18n } from "i18next";
 import { initReactI18next, I18nextProvider } from "react-i18next";
 import { TranslationGetter } from "~/utils/translator";
 import type { HazardousEventListItemDto } from "~/domains/hazardous-events/application/dto/HazardousEventListItemDto";
 import type { HazardousEventListPageData } from "~/domains/hazardous-events/presentation/web/HazardousEventListPage";
+import enHazardousEvents from "../../../../../locales/en/hazardous-events.json";
 
 // Satisfies useViewContext()'s unconditional .t build (kept only for .lang/.url here).
 const stubTranslationGetter: TranslationGetter = (params) => ({
@@ -72,16 +73,31 @@ beforeAll(async () => {
 		fallbackLng: "en",
 		ns: ["hazardous-events", "common"],
 		defaultNS: "hazardous-events",
-		resources: { en: { "hazardous-events": hazardousEvents, common } },
+		resources: {
+			en: {
+				// The delete keys come from the real locale file (ca-he-delete-action task 6.1).
+				"hazardous-events": {
+					...hazardousEvents,
+					delete: enHazardousEvents.delete,
+				},
+				common,
+			},
+		},
 	});
 });
 
+// A data router, not MemoryRouter: the row's Delete button uses useFetcher.
 function renderAt(url: string, ui: React.ReactElement): string {
-	return renderToString(
-		<MemoryRouter initialEntries={[url]}>
-			<I18nextProvider i18n={testI18n}>{ui}</I18nextProvider>
-		</MemoryRouter>,
+	const router = createMemoryRouter(
+		[
+			{
+				path: "*",
+				element: <I18nextProvider i18n={testI18n}>{ui}</I18nextProvider>,
+			},
+		],
+		{ initialEntries: [url] },
 	);
+	return renderToString(<RouterProvider router={router} />);
 }
 
 function makeItem(
@@ -396,6 +412,116 @@ describe("HazardousEventListPage", () => {
 				),
 			);
 			expect(html).not.toContain(`href="/en/he-preview/edit/${submittedId}"`);
+		});
+	});
+
+	describe("row-level Delete action (ca-he-delete-action)", () => {
+		const EDIT_ICON = '<use href="/assets/icons/edit.svg#edit">';
+		const VIEW_ICON =
+			'<use href="/assets/icons/eye-show-password.svg#eye-show">';
+		const DELETE_ICON = '<use href="/assets/icons/trash-alt.svg#delete">';
+		const PLACEHOLDER =
+			'<span class="mg-button mg-button-table invisible" aria-hidden="true">';
+
+		/** The View link's closing tag is followed directly by the inert third-slot placeholder. */
+		function expectPlaceholderRightAfterView(html: string): void {
+			const afterView = html.slice(html.indexOf(VIEW_ICON));
+			const viewClose = afterView.indexOf("</a>") + "</a>".length;
+			expect(
+				afterView.slice(viewClose).trimStart().startsWith(PLACEHOLDER),
+			).toBe(true);
+		}
+
+		function renderRow(
+			role: string | null,
+			workflowStatus: HazardousEventListItemDto["workflowStatus"],
+		): string {
+			const data = makeResult([makeItem({ id: "abc", workflowStatus })]);
+			return renderAt(
+				"/en/he-preview",
+				<HazardousEventListPage data={{ ...data, role }} />,
+			);
+		}
+
+		it("renders Edit, View, then Delete for an admin row", () => {
+			const html = renderRow("admin", "DRAFT");
+
+			const editAt = html.indexOf(EDIT_ICON);
+			const viewAt = html.indexOf(VIEW_ICON);
+			const deleteAt = html.indexOf(DELETE_ICON);
+			expect(editAt).toBeGreaterThan(-1);
+			expect(viewAt).toBeGreaterThan(editAt);
+			expect(deleteAt).toBeGreaterThan(viewAt);
+			expect(html).toMatch(
+				/<button[^>]*class="[^"]*mg-button mg-button-table[^"]*"[^>]*aria-label="Delete"|<button[^>]*aria-label="Delete"[^>]*class="[^"]*mg-button mg-button-table/,
+			);
+		});
+
+		it.each([null, "PUBLISHED", "SUBMITTED"] as const)(
+			"shows Delete to an admin at status %s",
+			(workflowStatus) => {
+				expect(renderRow("admin", workflowStatus)).toContain(DELETE_ICON);
+			},
+		);
+
+		it.each(["SUBMITTED", "PUBLISHED", null] as const)(
+			"shows Delete to a data-validator at %s",
+			(workflowStatus) => {
+				expect(renderRow("data-validator", workflowStatus)).toContain(
+					DELETE_ICON,
+				);
+			},
+		);
+
+		it("lays the actions out on legacy ActionLinks' grid: 3 × 2.25rem tracks, 0.25rem gap, centred", () => {
+			const html = renderRow("admin", "DRAFT");
+
+			expect(html).toMatch(
+				/<span class="grid grid-cols-\[repeat\(3,--spacing\(9\)\)\] items-center justify-items-center gap-x-1">/,
+			);
+		});
+
+		it("gives a data-viewer an invisible same-size placeholder in the third slot, right after View", () => {
+			const html = renderRow("data-viewer", "DRAFT");
+
+			expect(html).not.toContain(DELETE_ICON);
+			expectPlaceholderRightAfterView(html);
+		});
+
+		it.each(["DRAFT", "REVISION_REQUESTED", "REJECTED"] as const)(
+			"shows Delete to a data-collector at %s",
+			(workflowStatus) => {
+				expect(renderRow("data-collector", workflowStatus)).toContain(
+					DELETE_ICON,
+				);
+			},
+		);
+
+		it.each(["PUBLISHED", "SUBMITTED", "APPROVED", null] as const)(
+			"hides Delete from a data-collector at %s, keeping the placeholder",
+			(workflowStatus) => {
+				const html = renderRow("data-collector", workflowStatus);
+
+				expect(html).not.toContain(DELETE_ICON);
+				expectPlaceholderRightAfterView(html);
+			},
+		);
+
+		it("renders no Delete control when the caller supplies renderActionsCell", () => {
+			const data = makeResult([
+				makeItem({ id: "abc", workflowStatus: "DRAFT" }),
+			]);
+
+			const html = renderAt(
+				"/en/he-preview/picker",
+				<HazardousEventListPage
+					data={{ ...data, role: "admin" }}
+					renderActionsCell={() => <button type="button">Select</button>}
+				/>,
+			);
+
+			expect(html).not.toContain(DELETE_ICON);
+			expect(html).not.toContain('aria-label="Delete"');
 		});
 	});
 

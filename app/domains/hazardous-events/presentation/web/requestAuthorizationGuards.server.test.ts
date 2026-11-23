@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ErrorResponse } from "~/shared/errors/ErrorResponse";
+import { AuthorizationError } from "~/shared/errors";
 
 vi.mock("~/utils/session", () => ({ getUserRoleFromSession: vi.fn() }));
 
@@ -7,6 +8,8 @@ import { getUserRoleFromSession } from "~/utils/session";
 import {
 	requireEditDataPermission,
 	requireStatusAwareEditPermission,
+	requireStatusAwareDeletePermission,
+	requireDeleteRole,
 	requireWorkflowActionAuthorized,
 	requireValidValidatorIds,
 } from "./requestAuthorizationGuards.server";
@@ -157,6 +160,67 @@ describe("requireStatusAwareEditPermission", () => {
 			"Record cannot be edited in its current workflow status",
 		);
 	});
+});
+
+// ---------------------------------------------------------------------------
+// requireStatusAwareDeletePermission
+// ---------------------------------------------------------------------------
+
+describe("requireStatusAwareDeletePermission", () => {
+	it.each([
+		["admin", null],
+		["data-validator", "PUBLISHED"],
+		["data-collector", "DRAFT"],
+		["data-collector", "REJECTED"],
+	] as const)("does not throw for %s at %s", (role, workflowStatus) => {
+		expect(() =>
+			requireStatusAwareDeletePermission({ role, workflowStatus }),
+		).not.toThrow();
+	});
+
+	// An AuthorizationError, not a Response: the fetcher action returns it as a toast (design.md D1).
+	it.each([
+		["data-collector", "PUBLISHED"],
+		["data-collector", null],
+		["data-viewer", "DRAFT"],
+		[undefined, "DRAFT"],
+	] as const)(
+		"throws an AuthorizationError with the exact message for %s at %s",
+		(role, workflowStatus) => {
+			expect(() =>
+				requireStatusAwareDeletePermission({ role, workflowStatus }),
+			).toThrow(
+				new AuthorizationError(
+					"Record cannot be deleted in its current workflow status",
+				),
+			);
+		},
+	);
+});
+
+describe("requireDeleteRole", () => {
+	it.each(["admin", "data-validator", "data-collector"])(
+		"does not throw for %s (has EditData)",
+		(role) => {
+			expect(() => requireDeleteRole(role)).not.toThrow();
+		},
+	);
+
+	it.each(["data-viewer", undefined])(
+		"throws an AuthorizationError for %s (no EditData)",
+		(role) => {
+			let thrown: unknown;
+			try {
+				requireDeleteRole(role);
+			} catch (err) {
+				thrown = err;
+			}
+			expect(thrown).toBeInstanceOf(AuthorizationError);
+			expect((thrown as AuthorizationError).message).toBe(
+				"EditData permission required",
+			);
+		},
+	);
 });
 
 // ---------------------------------------------------------------------------

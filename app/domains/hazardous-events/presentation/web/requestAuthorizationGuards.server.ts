@@ -5,6 +5,7 @@ import type { Status } from "~/domains/validation-workflow/domain/WorkflowInstan
 import { isWorkflowActionAuthorized } from "~/domains/validation-workflow/application/isWorkflowActionAuthorized";
 import { throwHazardousEventLoaderError } from "./throwHazardousEventLoaderError.server";
 import { isStatusAwareEditBlocked } from "./isStatusAwareEditBlocked";
+import { isStatusAwareDeleteBlocked } from "./isStatusAwareDeleteBlocked";
 import {
 	mapTempActionToWorkflowAction,
 	type MappedWorkflowAction,
@@ -45,6 +46,26 @@ export function requireStatusAwareEditPermission(args: {
 				logMsg: "Status-aware edit permission denied in hazardous-event loader",
 				url: args.request.url,
 			},
+		);
+	}
+}
+
+/** Delete route's EditData gate, run before the event lookup. Throws an AuthorizationError, not a
+ * Response, so the fetcher action can return it as a toast (design.md D1). */
+export function requireDeleteRole(role: string | undefined): void {
+	if (!roleHasPermission(role, "EditData")) {
+		throw new AuthorizationError("EditData permission required");
+	}
+}
+
+/** Server-side twin of the list row's Delete gate (design.md OD-1); same AuthorizationError contract. */
+export function requireStatusAwareDeletePermission(args: {
+	role: string | undefined;
+	workflowStatus: Status | null;
+}): void {
+	if (isStatusAwareDeleteBlocked(args.role, args.workflowStatus)) {
+		throw new AuthorizationError(
+			"Record cannot be deleted in its current workflow status",
 		);
 	}
 }
