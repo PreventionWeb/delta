@@ -1,401 +1,1023 @@
-import { format } from "date-fns";
-import { useEffect, useState } from "react";
-import { MainContainer } from "~/frontend/container";
-import { NavSettings } from "~/frontend/components/NavSettings";
+import { Mail, Pencil, Trash2, UserPlus } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+	useFetcher,
+	useLoaderData,
+	useLocation,
+	useNavigate,
+	useNavigation,
+} from "react-router";
+import type {
+	AccessManagementSortColumn,
+	AccessManagementUserRow,
+} from "~/db/queries/userCountryAccountsRepository";
+import {
+	Button,
+	FilterSelect,
+	FormSelect,
+	ModalDialog,
+	Pagination,
+	SortableTable,
+	type SortDescriptor,
+	StatusIndicator,
+	TextField,
+	type ToastItem,
+	ToastRegion,
+	Tooltip,
+} from "~/design-system/ui";
 import { ViewContext } from "~/frontend/context";
+import type { AccessManagementActionResult } from "~/frontend/user/accessManagementAction";
 import { getCountryRole, getCountryRoles } from "~/frontend/user/roles";
-import { Form, useLoaderData, useLocation, useNavigate } from "react-router";
-import type { loader } from "../routes/$lang+/settings+/access-mgmnt+/_layout";
-import { Button } from "primereact/button";
-import { DataTable } from "primereact/datatable";
-import { Column } from "primereact/column";
-import { Paginator } from "primereact/paginator";
-import { Dropdown, DropdownChangeEvent } from "primereact/dropdown";
-import { InputText } from "primereact/inputtext";
+import type { loader } from "~/routes/$lang+/settings+/access-mgmnt+/_layout";
+
+type PendingAction =
+	| { type: "invite"; email: string }
+	| { type: "edit"; displayName: string }
+	| { type: "delete"; displayName: string }
+	| { type: "resend"; email: string; userId: string };
+
+function getDisplayName(row: AccessManagementUserRow): string {
+	const full = `${row.user.firstName ?? ""} ${row.user.lastName ?? ""}`.trim();
+	return full || row.user.email;
+}
+
+const UTC_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+	day: "2-digit",
+	month: "short",
+	year: "numeric",
+	timeZone: "UTC",
+});
+
+function formatDateAdded(dateValue: Date | string | null | undefined): string {
+	if (!dateValue) return "-";
+	const d = typeof dateValue === "string" ? new Date(dateValue) : dateValue;
+	if (Number.isNaN(d.getTime())) return "-";
+	return UTC_DATE_FORMATTER.format(d);
+}
+
+function isValidEmailFormat(value: string): boolean {
+	return /^\S+@\S+\.\S+$/.test(value.trim());
+}
 
 export default function AccessManagementPage() {
 	const ld = useLoaderData<typeof loader>();
 	const ctx = new ViewContext();
 	const navigate = useNavigate();
+	const navigation = useNavigation();
 	const location = useLocation();
-	const { items, pagination } = ld;
+	const fetcher = useFetcher<AccessManagementActionResult>();
 
-	const [isClient, setIsClient] = useState(false);
+	const { items, pagination, organizations } = ld;
+	const roles = useMemo(() => getCountryRoles(ctx), [ctx.lang]);
 
-	const [organizationFilter, setOrganizationFilter] = useState(
-		() => new URLSearchParams(location.search).get("organization") || "",
+	const [searchValue, setSearchValue] = useState(ld.search || "");
+	const [inviteOpen, setInviteOpen] = useState(false);
+	const [editingUser, setEditingUser] =
+		useState<AccessManagementUserRow | null>(null);
+	const [deletingUser, setDeletingUser] =
+		useState<AccessManagementUserRow | null>(null);
+
+	// Form state shared by Invite and Edit modals
+	const [formEmail, setFormEmail] = useState("");
+	const [formOrg, setFormOrg] = useState<string | null>(null);
+	const [formRole, setFormRole] = useState<string | null>(null);
+	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+	const [serverError, setServerError] = useState<string | null>(null);
+
+	const [toasts, setToasts] = useState<ToastItem[]>([]);
+	const pendingActionRef = useRef<PendingAction | null>(null);
+	const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const toastTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+		new Map(),
 	);
-	const [roleFilter, setRoleFilter] = useState(
-		() => new URLSearchParams(location.search).get("role") || "all",
-	);
 
-	const pageSizeOptions = [10, 20, 30, 40, 50];
+	useEffect(() => {
+		setSearchValue(ld.search || "");
+	}, [ld.search]);
 
-	const updatePaginationParams = (nextPage: number, nextPageSize: number) => {
-		const params = new URLSearchParams(location.search);
-		params.set("page", String(nextPage));
-		params.set("pageSize", String(nextPageSize));
-		navigate(`${location.pathname}?${params.toString()}`);
+	useEffect(() => {
+		return () => {
+			if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+			for (const timer of toastTimersRef.current.values()) {
+				clearTimeout(timer);
+			}
+			toastTimersRef.current.clear();
+		};
+	}, []);
+
+	const addToast = (message: string, tone: "success" | "error") => {
+		const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+		setToasts((prev) => [...prev.slice(-2), { id, message, tone }]);
+		if (tone === "success") {
+			const timer = setTimeout(() => {
+				toastTimersRef.current.delete(id);
+				setToasts((prev) => prev.filter((t) => t.id !== id));
+			}, 4000);
+			toastTimersRef.current.set(id, timer);
+		}
 	};
 
-	const updateFilterParams = (
-		nextOrganizationFilter: string,
-		nextRoleFilter: string,
+	const dismissToast = (id: string) => {
+		const timer = toastTimersRef.current.get(id);
+		if (timer) {
+			clearTimeout(timer);
+			toastTimersRef.current.delete(id);
+		}
+		setToasts((prev) => prev.filter((t) => t.id !== id));
+	};
+
+	useEffect(() => {
+		if (
+			fetcher.state !== "idle" ||
+			!fetcher.data ||
+			!pendingActionRef.current
+		) {
+			return;
+		}
+
+		const action = pendingActionRef.current;
+		pendingActionRef.current = null;
+
+		if (fetcher.data.ok) {
+			if (action.type === "invite") {
+				setInviteOpen(false);
+				addToast(
+					ctx.t(
+						{
+							code: "settings.access_mgmnt.toast_invited",
+							msg: "Invitation sent to {email}.",
+						},
+						{ email: action.email },
+					),
+					"success",
+				);
+			} else if (action.type === "edit") {
+				setEditingUser(null);
+				addToast(
+					ctx.t(
+						{
+							code: "settings.access_mgmnt.toast_saved",
+							msg: "Changes saved for {name}.",
+						},
+						{ name: action.displayName },
+					),
+					"success",
+				);
+			} else if (action.type === "delete") {
+				setDeletingUser(null);
+				addToast(
+					ctx.t(
+						{
+							code: "settings.access_mgmnt.toast_deleted",
+							msg: "{name} was deleted.",
+						},
+						{ name: action.displayName },
+					),
+					"success",
+				);
+			} else if (action.type === "resend") {
+				addToast(
+					ctx.t(
+						{
+							code: "settings.access_mgmnt.toast_resent",
+							msg: "Invitation sent again to {email}.",
+						},
+						{ email: action.email },
+					),
+					"success",
+				);
+			}
+			return;
+		}
+
+		if (fetcher.data.fieldErrors) {
+			setFieldErrors(fetcher.data.fieldErrors);
+			return;
+		}
+
+		const errorMsg =
+			fetcher.data.error ||
+			ctx.t({
+				code: "common.unexpected_error",
+				msg: "Unexpected error",
+			});
+
+		if (action.type === "resend") {
+			addToast(errorMsg, "error");
+		} else {
+			setServerError(errorMsg);
+		}
+	}, [fetcher.state, fetcher.data]);
+
+	const updateQueryParams = (
+		updates: Record<string, string | null>,
+		options?: { replace?: boolean },
 	) => {
 		const params = new URLSearchParams(location.search);
-
-		if (nextOrganizationFilter.trim()) {
-			params.set("organization", nextOrganizationFilter);
-		} else {
-			params.delete("organization");
-		}
-
-		if (nextRoleFilter !== "all") {
-			params.set("role", nextRoleFilter);
-		} else {
-			params.delete("role");
-		}
-
-		params.set("page", "1");
-		navigate(`${location.pathname}?${params.toString()}`);
-	};
-
-	// Ensure client-specific rendering only occurs after the component mounts
-	useEffect(() => {
-		setIsClient(true);
-		const params = new URLSearchParams(location.search);
-		const nextOrganizationFilter = params.get("organization") || "";
-		const nextRoleFilter = params.get("role") || "all";
-
-		setOrganizationFilter(nextOrganizationFilter);
-		setRoleFilter(nextRoleFilter);
-	}, [location.search]);
-
-	const handleOrganizationFilter = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const value = e.target.value;
-		setOrganizationFilter(value);
-		updateFilterParams(value, roleFilter);
-	};
-
-	const handleRoleFilter = (e: DropdownChangeEvent) => {
-		const selectedRole = (e.value as string | null) ?? "all";
-		setRoleFilter(selectedRole);
-		updateFilterParams(organizationFilter, selectedRole);
-	};
-
-	// Calculate user stats
-	const totalUsers = pagination.total;
-
-	// Handle different formats for `emailVerified`
-	const activatedUsers = items.filter((item) => {
-		return item.user.emailVerified === true;
-	}).length;
-
-	const pendingUsers = items.filter((item) => !item.user.emailVerified).length;
-
-	const navSettings = <NavSettings ctx={ctx} userRole={ld.userRole} />;
-
-	const statusBodyTemplate = (item: (typeof items)[number]) => (
-		<span
-			className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
-				item.user.emailVerified
-					? "bg-emerald-100 text-emerald-700"
-					: "bg-amber-100 text-amber-700"
-			}`}
-		>
-			<span
-				className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${
-					item.user.emailVerified ? "bg-emerald-600" : "bg-amber-600"
-				}`}
-			/>
-			{item.user.emailVerified
-				? ctx.t({
-						code: "common.activated",
-						msg: "Activated",
-					})
-				: ctx.t({ code: "common.pending", msg: "Pending" })}
-		</span>
-	);
-
-	const nameBodyTemplate = (item: (typeof items)[number]) => (
-		<Button
-			type="button"
-			link
-			label={`${item.user.firstName} ${item.user.lastName}`}
-			onClick={() =>
-				navigate(ctx.url(`/settings/access-mgmnt/edit/${item.user.id}`))
+		for (const [key, val] of Object.entries(updates)) {
+			if (val === null || val === "") {
+				params.delete(key);
+			} else {
+				params.set(key, val);
 			}
-		/>
-	);
-
-	const roleBodyTemplate = (item: (typeof items)[number]) => {
-		const roleObj = getCountryRole(ctx, item.role);
-		return (
-			<span>
-				{roleObj ? roleObj.label : item.role}{" "}
-				{item.isPrimaryAdmin ? "(Primary Admin)" : ""}
-			</span>
-		);
+		}
+		const qs = params.toString();
+		navigate(qs ? `${location.pathname}?${qs}` : location.pathname, options);
 	};
 
-	const addedAtBodyTemplate = (item: (typeof items)[number]) =>
-		item.addedAt ? format(item.addedAt, "dd-MM-yyyy") : "";
+	const handleSearchChange = (value: string) => {
+		setSearchValue(value);
+		if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+		searchTimerRef.current = setTimeout(() => {
+			updateQueryParams(
+				{ search: value.trim() ? value : null, page: "1" },
+				{ replace: true },
+			);
+		}, 250);
+	};
 
-	const actionsBodyTemplate = (item: (typeof items)[number]) => (
-		<div className="grid grid-cols-3 items-center justify-items-center gap-1">
-			<span className="inline-flex h-9 w-9 items-center justify-center">
-				<Button
-					type="button"
-					text
-					aria-label={ctx.t({
-						code: "common.edit",
-						msg: "Edit",
-					})}
-					onClick={() =>
-						navigate(ctx.url(`/settings/access-mgmnt/edit/${item.user.id}`))
-					}
-				>
-					<i className="pi pi-pencil" aria-hidden="true" />
-				</Button>
-			</span>
-			<span className="inline-flex h-9 w-9 items-center justify-center">
-				<Button
-					type="button"
-					text
-					severity="danger"
-					aria-label={ctx.t({
-						code: "settings.access_mgmnt.delete_user",
-						msg: "Delete User",
-					})}
-					onClick={() =>
-						navigate(ctx.url(`/settings/access-mgmnt/delete/${item.user.id}`))
-					}
-				>
-					<i className="pi pi-trash" aria-hidden="true" />
-				</Button>
-			</span>
-			<span className="inline-flex h-9 w-9 items-center justify-center">
-				{!item.user.emailVerified ? (
-					<Button
-						type="button"
-						text
-						severity="help"
-						aria-label={ctx.t({
-							code: "admin.resend_email",
-							msg: "Resend invitation email",
-						})}
-						title={ctx.t({
-							code: "admin.resend_email",
-							msg: "Resend invitation email",
-						})}
-						onClick={() =>
-							navigate(
-								ctx.url(
-									`/settings/access-mgmnt/resend-invitation/${item.user.id}`,
-								),
-							)
-						}
-					>
-						<i className="pi pi-envelope" aria-hidden="true" />
-					</Button>
-				) : (
-					<span aria-hidden="true" className="inline-flex h-9 w-9" />
-				)}
-			</span>
-		</div>
+	const handleRoleFilterChange = (role: string) => {
+		updateQueryParams({ role: role === "all" ? null : role, page: "1" });
+	};
+
+	const handleClearFilters = () => {
+		if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+		setSearchValue("");
+		updateQueryParams({ search: null, role: null, page: "1" });
+	};
+
+	const handleSortChange = (descriptor: SortDescriptor) => {
+		const nextDir = descriptor.direction === "ascending" ? "asc" : "desc";
+		updateQueryParams({
+			sort: descriptor.column as AccessManagementSortColumn,
+			dir: nextDir,
+			page: "1",
+		});
+	};
+
+	const handlePageChange = (nextPage: number) => {
+		updateQueryParams({ page: String(nextPage) });
+	};
+
+	const handlePageSizeChange = (nextSize: number) => {
+		updateQueryParams({ pageSize: String(nextSize), page: "1" });
+	};
+
+	const openInviteModal = () => {
+		setFormEmail("");
+		setFormOrg(null);
+		setFormRole(null);
+		setFieldErrors({});
+		setServerError(null);
+		setInviteOpen(true);
+	};
+
+	const openEditModal = (row: AccessManagementUserRow) => {
+		setFormEmail(row.user.email);
+		setFormOrg(row.organizationId ?? null);
+		setFormRole(row.role);
+		setFieldErrors({});
+		setServerError(null);
+		setEditingUser(row);
+	};
+
+	const openDeleteModal = (row: AccessManagementUserRow) => {
+		setServerError(null);
+		setDeletingUser(row);
+	};
+
+	const handleResend = (row: AccessManagementUserRow) => {
+		const fd = new FormData();
+		fd.set("_fetcher", "1");
+		pendingActionRef.current = {
+			type: "resend",
+			email: row.user.email,
+			userId: row.user.id,
+		};
+		fetcher.submit(fd, {
+			method: "post",
+			action: ctx.url(
+				`/settings/access-mgmnt/resend-invitation/${row.user.id}`,
+			),
+		});
+	};
+
+	const handleInviteOrEditSubmit = (e: React.FormEvent) => {
+		e.preventDefault();
+		const isEdit = Boolean(editingUser);
+		const nextErrors: Record<string, string> = {};
+
+		if (!isEdit) {
+			if (!formEmail.trim()) {
+				nextErrors.email = ctx.t({
+					code: "settings.access_mgmnt.error_email_required",
+					msg: "Enter an email address.",
+				});
+			} else if (!isValidEmailFormat(formEmail)) {
+				nextErrors.email = ctx.t({
+					code: "settings.access_mgmnt.error_email_invalid",
+					msg: "Enter an email address, for example name@organization.org.",
+				});
+			}
+		}
+
+		if (!formRole) {
+			nextErrors.role = ctx.t({
+				code: "settings.access_mgmnt.error_role_required",
+				msg: "Select a role.",
+			});
+		}
+
+		if (Object.keys(nextErrors).length > 0) {
+			setFieldErrors(nextErrors);
+			return;
+		}
+
+		setFieldErrors({});
+		setServerError(null);
+
+		const fd = new FormData();
+		fd.set("_fetcher", "1");
+		if (!isEdit) {
+			fd.set("email", formEmail.trim());
+		}
+		fd.set("organization", formOrg ?? "");
+		fd.set("role", formRole ?? "");
+
+		if (isEdit && editingUser) {
+			pendingActionRef.current = {
+				type: "edit",
+				displayName: getDisplayName(editingUser),
+			};
+			fetcher.submit(fd, {
+				method: "post",
+				action: ctx.url(`/settings/access-mgmnt/edit/${editingUser.user.id}`),
+			});
+		} else {
+			pendingActionRef.current = {
+				type: "invite",
+				email: formEmail.trim(),
+			};
+			fetcher.submit(fd, {
+				method: "post",
+				action: ctx.url("/settings/access-mgmnt/new"),
+			});
+		}
+	};
+
+	const handleConfirmDelete = () => {
+		if (!deletingUser) return;
+		setServerError(null);
+		const fd = new FormData();
+		fd.set("_fetcher", "1");
+		pendingActionRef.current = {
+			type: "delete",
+			displayName: getDisplayName(deletingUser),
+		};
+		fetcher.submit(fd, {
+			method: "post",
+			action: ctx.url(`/settings/access-mgmnt/delete/${deletingUser.user.id}`),
+		});
+	};
+
+	const isSubmitting = fetcher.state !== "idle";
+	const isNavigating = navigation.state === "loading";
+	const isFormOpen = inviteOpen || Boolean(editingUser);
+	const isEditMode = Boolean(editingUser);
+
+	const totalPages = Math.max(
+		1,
+		Math.ceil(pagination.total / pagination.pageSize),
 	);
+	const safePage = Math.min(Math.max(1, pagination.pageNumber), totalPages);
+	const rangeFrom =
+		pagination.total === 0 ? 0 : (safePage - 1) * pagination.pageSize + 1;
+	const rangeTo = Math.min(safePage * pagination.pageSize, pagination.total);
+	const primaryAdminDisabledReason = ctx.t({
+		code: "settings.access_mgmnt.primary_admin_protected",
+		msg: "Primary admin cannot be modified or deleted",
+	});
+
+	const selectedFilterRoleObj =
+		ld.roleFilter && ld.roleFilter !== "all"
+			? getCountryRole(ctx, ld.roleFilter)
+			: null;
+	const selectedFormRoleObj = formRole ? getCountryRole(ctx, formRole) : null;
+
+	const sortDescriptor: SortDescriptor = {
+		column: ld.sort || "added",
+		direction: ld.dir === "asc" ? "ascending" : "descending",
+	};
+
+	const hasActiveFilters =
+		Boolean(searchValue.trim()) || (ld.roleFilter && ld.roleFilter !== "all");
+
+	const orgOptions = useMemo(
+		() => organizations.map((o) => ({ id: o.id, label: o.name })),
+		[organizations],
+	);
+
+	const roleOptions = useMemo(
+		() => roles.map((r) => ({ id: r.id, label: r.label })),
+		[roles],
+	);
+
+	const columns = [
+		{
+			id: "name",
+			label: ctx.t({ code: "common.name", msg: "Name" }),
+			sortable: true,
+			isRowHeader: true,
+		},
+		{
+			id: "status",
+			label: ctx.t({ code: "common.status", msg: "Status" }),
+			sortable: true,
+		},
+		{
+			id: "email",
+			label: ctx.t({ code: "common.email", msg: "Email" }),
+			sortable: false,
+		},
+		{
+			id: "org",
+			label: ctx.t({ code: "common.organization", msg: "Organization" }),
+			sortable: true,
+		},
+		{
+			id: "role",
+			label: ctx.t({ code: "common.role", msg: "Role" }),
+			sortable: true,
+		},
+		{
+			id: "added",
+			label: ctx.t({
+				code: "settings.access_mgmnt.date_added",
+				msg: "Date added",
+			}),
+			sortable: true,
+		},
+		{
+			id: "actions",
+			label: ctx.t({ code: "common.actions", msg: "Actions" }),
+			sortable: false,
+			srOnly: true,
+			align: "right" as const,
+		},
+	];
 
 	return (
-		<MainContainer
-			title={ctx.t({ code: "nav.access_management", msg: "Access management" })}
-			headerExtra={navSettings}
-		>
-			<div className="dts-page-intro">
-				<div className="flex justify-end">
-					<Button
-						type="button"
-						label={ctx.t({
-							code: "settings.access_mgmnt.add_user",
-							msg: "Add user",
+		<main className="mx-auto flex w-full max-w-[1280px] flex-col px-4 pb-16 md:px-6 xl:px-8">
+			{/* Page header */}
+			<div className="flex flex-wrap items-start justify-between gap-4 pt-8 pb-6">
+				<div className="flex flex-col gap-1">
+					<h1 className="text-page font-medium leading-[var(--lh-tight)] text-fg">
+						{ctx.t({
+							code: "nav.access_management",
+							msg: "Access management",
 						})}
-						icon="pi pi-plus"
-						onClick={() => navigate(ctx.url("/settings/access-mgmnt/new"))}
-					/>
+					</h1>
+					<p className="text-body text-fg-2">
+						{ctx.t({
+							code: "settings.access_mgmnt.subtitle",
+							msg: "Invite people and set what they can do on this site.",
+						})}
+					</p>
 				</div>
+				<Button variant="primary" onPress={openInviteModal}>
+					<UserPlus className="h-4 w-4" aria-hidden="true" />
+					{ctx.t({
+						code: "settings.access_mgmnt.invite_user",
+						msg: "Invite user",
+					})}
+				</Button>
 			</div>
 
-			<section className="dts-page-section">
-				<div className="dts-element-summary">
-					<h2 className="dts-element-summary__title">
-						<span>
-							{ctx.t(
-								{
-									code: "settings.access_mgmnt.current_user_count",
-									msg: "Currently there are [{totalUsers}] users in the system.",
-								},
-								{ totalUsers: totalUsers },
-							)}
-						</span>
-					</h2>
-				</div>
+			{/* Filter bar */}
+			<div role="search" className="flex flex-wrap items-center gap-2 pb-4">
+				<TextField
+					type="search"
+					aria-label={ctx.t({
+						code: "settings.access_mgmnt.search_placeholder",
+						msg: "Search by name, email or organization",
+					})}
+					placeholder={ctx.t({
+						code: "settings.access_mgmnt.search_placeholder",
+						msg: "Search by name, email or organization",
+					})}
+					value={searchValue}
+					onChange={handleSearchChange}
+					className="w-full sm:w-[340px]"
+				/>
+				<FilterSelect
+					label={ctx.t({ code: "common.role", msg: "Role" })}
+					options={[
+						{
+							id: "all",
+							label: ctx.t({
+								code: "settings.access_mgmnt.all_roles",
+								msg: "All roles",
+							}),
+						},
+						...roleOptions,
+					]}
+					value={ld.roleFilter || "all"}
+					defaultValue="all"
+					onChange={handleRoleFilterChange}
+					optionClassName="inline-block lowercase first-letter:uppercase"
+				/>
+				<span className="hidden flex-1 sm:inline-block" />
+				<Button variant="ghost" onPress={handleClearFilters}>
+					{ctx.t({
+						code: "settings.access_mgmnt.clear_filters",
+						msg: "Clear filters",
+					})}
+				</Button>
+			</div>
 
-				<Form method="get" className="mb-6">
-					<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:max-w-3xl">
-						<div className="flex flex-col gap-2">
-							<label
-								htmlFor="organization-filter"
-								className="text-sm font-semibold text-gray-800"
-							>
-								{ctx.t({ code: "common.organization", msg: "Organization" })}
-							</label>
-							<InputText
-								id="organization-filter"
-								name="organization"
-								type="search"
-								value={organizationFilter}
-								onChange={handleOrganizationFilter}
-								autoComplete="organization"
-								placeholder={ctx.t({
-									code: "common.search_organization",
-									msg: "Type organization name",
-								})}
-								className="w-full p-inputtext-sm"
-							/>
-						</div>
-
-						<div className="flex flex-col gap-2">
-							<label
-								htmlFor="role-filter"
-								className="text-sm font-semibold text-gray-800"
-							>
-								{ctx.t({ code: "common.role", msg: "Role" })}
-							</label>
-							<Dropdown
-								inputId="role-filter"
-								name="role"
-								value={roleFilter}
-								onChange={handleRoleFilter}
-								options={[
-									{
-										id: "all",
-										label: ctx.t({
-											code: "access_management.all_roles",
-											msg: "All Roles",
-										}),
-									},
-									...getCountryRoles(ctx).map((role) => ({
-										id: role.id,
-										label: role.label,
-									})),
-								]}
-								optionLabel="label"
-								optionValue="id"
-								className="w-full p-inputtext-sm"
-							/>
-						</div>
-					</div>
-				</Form>
-			</section>
-
-			<section className="dts-page-section">
-				<div>
-					<strong className="dts-body-label">
-						{items.length} of {totalUsers} Users
-					</strong>
-				</div>
-
-				{/* Status Legend */}
-				<div className="dts-legend">
-					<span className="dts-body-label">
-						{ctx.t({ code: "common.status_legend", msg: "Status legend" })}
+			{selectedFilterRoleObj ? (
+				<p className="pb-4 text-body text-fg-2">
+					<span className="inline-block lowercase first-letter:uppercase">
+						{selectedFilterRoleObj.label}
 					</span>
+					: {selectedFilterRoleObj.desc}
+				</p>
+			) : null}
 
-					<div className="dts-legend__item">
-						<span
-							className="dts-status dts-status--activated"
-							aria-labelledby="legend7"
-						></span>
-						<span id="legend7">
-							{ctx.t({
-								code: "settings.access_mgmnt.account_activated",
-								msg: "Account activated",
-							})}
-							: {activatedUsers}
-						</span>
-					</div>
+			{/* Users table card */}
+			<section
+				aria-label={ctx.t({ code: "common.users", msg: "Users" })}
+				aria-busy={isNavigating}
+				className={[
+					"overflow-hidden rounded-lg border border-border-subtle bg-surface transition-opacity",
+					isNavigating ? "opacity-60" : "",
+				]
+					.filter(Boolean)
+					.join(" ")}
+			>
+				<SortableTable
+					aria-label={ctx.t({ code: "common.users", msg: "Users" })}
+					columns={columns}
+					items={items}
+					sortDescriptor={sortDescriptor}
+					onSortChange={handleSortChange}
+					renderEmptyState={() => (
+						<div className="p-6 text-body text-fg-2">
+							{hasActiveFilters
+								? ctx.t({
+										code: "settings.access_mgmnt.no_matching_users",
+										msg: "No users match these filters.",
+									})
+								: ctx.t({
+										code: "settings.access_mgmnt.no_users",
+										msg: "No users found.",
+									})}
+						</div>
+					)}
+					renderRow={(row) => {
+						const displayName = getDisplayName(row);
+						const roleObj = getCountryRole(ctx, row.role);
+						const roleLabel = roleObj ? roleObj.label : row.role;
+						const orgName = row.organization?.name || "";
+						const isPending = !row.user.emailVerified;
 
-					<div className="dts-legend__item">
-						<span aria-labelledby="legend8"></span>
-						<span id="legend8">
-							{ctx.t({
-								code: "settings.access_mgmnt.account_activation_pending",
-								msg: "Account activation pending",
-							})}
-							: {pendingUsers}
-						</span>
-					</div>
-				</div>
+						return [
+							<span
+								key="name"
+								className="block max-w-[200px] truncate"
+								title={displayName}
+							>
+								{displayName}
+							</span>,
+							<StatusIndicator
+								key="status"
+								tone={isPending ? "warning" : "positive"}
+							>
+								{isPending
+									? ctx.t({
+											code: "settings.access_mgmnt.status_pending",
+											msg: "Invitation pending",
+										})
+									: ctx.t({
+											code: "settings.access_mgmnt.status_active",
+											msg: "Active",
+										})}
+							</StatusIndicator>,
+							<span
+								key="email"
+								className="block max-w-[260px] truncate"
+								title={row.user.email}
+							>
+								{row.user.email}
+							</span>,
+							<span
+								key="org"
+								className="block max-w-[180px] truncate"
+								title={orgName || undefined}
+							>
+								{orgName || "-"}
+							</span>,
+							<span key="role" className="inline-flex items-center gap-1">
+								<span className="inline-block lowercase first-letter:uppercase">
+									{roleLabel}
+								</span>
+								{row.isPrimaryAdmin ? (
+									<span>
+										{ctx.t({
+											code: "settings.access_mgmnt.primary_admin_badge",
+											msg: "(Primary Admin)",
+										})}
+									</span>
+								) : null}
+							</span>,
+							<span key="added" className="tabular-nums whitespace-nowrap">
+								{formatDateAdded(row.addedAt)}
+							</span>,
+							<span
+								key="actions"
+								className="inline-flex items-center justify-end gap-1"
+							>
+								{isPending ? (
+									<Tooltip
+										text={ctx.t({
+											code: "settings.access_mgmnt.resend_invitation",
+											msg: "Resend invitation",
+										})}
+									>
+										<Button
+											variant="icon"
+											aria-label={ctx.t(
+												{
+													code: "settings.access_mgmnt.resend_invitation_to",
+													msg: "Resend invitation to {name}",
+												},
+												{ name: displayName },
+											)}
+											isDisabled={isSubmitting}
+											onPress={() => handleResend(row)}
+										>
+											<Mail className="h-4 w-4" aria-hidden="true" />
+										</Button>
+									</Tooltip>
+								) : (
+									<span className="inline-block h-8 w-8" aria-hidden="true" />
+								)}
+								<span
+									title={
+										row.isPrimaryAdmin ? primaryAdminDisabledReason : undefined
+									}
+								>
+									<Tooltip
+										text={ctx.t({
+											code: "settings.access_mgmnt.edit_user",
+											msg: "Edit user",
+										})}
+									>
+										<Button
+											variant="icon"
+											aria-label={ctx.t(
+												{
+													code: "settings.access_mgmnt.edit_user_name",
+													msg: "Edit {name}",
+												},
+												{ name: displayName },
+											)}
+											isDisabled={row.isPrimaryAdmin}
+											onPress={() => openEditModal(row)}
+										>
+											<Pencil className="h-4 w-4" aria-hidden="true" />
+										</Button>
+									</Tooltip>
+								</span>
+								<span
+									title={
+										row.isPrimaryAdmin ? primaryAdminDisabledReason : undefined
+									}
+								>
+									<Tooltip
+										text={ctx.t({
+											code: "settings.access_mgmnt.delete_user",
+											msg: "Delete user",
+										})}
+									>
+										<Button
+											variant="icon"
+											aria-label={ctx.t(
+												{
+													code: "settings.access_mgmnt.delete_user_name",
+													msg: "Delete {name}",
+												},
+												{ name: displayName },
+											)}
+											isDisabled={row.isPrimaryAdmin}
+											onPress={() => openDeleteModal(row)}
+										>
+											<Trash2 className="h-4 w-4" aria-hidden="true" />
+										</Button>
+									</Tooltip>
+								</span>
+							</span>,
+						];
+					}}
+				/>
+				<Pagination
+					total={pagination.total}
+					page={pagination.pageNumber}
+					pageSize={pagination.pageSize}
+					pageSizeOptions={[25, 50, 100]}
+					onPageChange={handlePageChange}
+					onPageSizeChange={handlePageSizeChange}
+					noun={ctx.t({
+						code: "settings.access_mgmnt.users_noun",
+						msg: "users",
+					})}
+					showingText={
+						pagination.total === 0
+							? ctx.t({
+									code: "settings.access_mgmnt.showing_zero_users",
+									msg: "Showing 0 of 0 users",
+								})
+							: ctx.t(
+									{
+										code: "settings.access_mgmnt.showing_users_range",
+										msg: "Showing {from}-{to} of {total} users",
+									},
+									{
+										from: rangeFrom,
+										to: rangeTo,
+										total: pagination.total,
+									},
+								)
+					}
+					pageText={ctx.t(
+						{
+							code: "common.page_x_of_y",
+							msg: "Page {page} of {totalPages}",
+						},
+						{ page: safePage, totalPages },
+					)}
+					rowsPerPageLabel={ctx.t({
+						code: "common.rows_per_page",
+						msg: "Rows per page",
+					})}
+					previousLabel={ctx.t({
+						code: "common.previous_page",
+						msg: "Previous page",
+					})}
+					nextLabel={ctx.t({
+						code: "common.next_page",
+						msg: "Next page",
+					})}
+				/>
 			</section>
 
-			{/* Users Table */}
-			{isClient && (
-				<section className="dts-page-section">
-					<DataTable
-						value={items}
-						dataKey="id"
-						emptyMessage={ctx.t({
-							code: "common.no_data_found",
-							msg: "No data found",
+			{/* Invite / Edit User Modal */}
+			<ModalDialog
+				isOpen={isFormOpen}
+				onOpenChange={(open) => {
+					if (!open) {
+						setInviteOpen(false);
+						setEditingUser(null);
+						setFieldErrors({});
+						setServerError(null);
+					}
+				}}
+				title={
+					isEditMode
+						? ctx.t({
+								code: "settings.access_mgmnt.edit_user",
+								msg: "Edit user",
+							})
+						: ctx.t({
+								code: "settings.access_mgmnt.invite_user",
+								msg: "Invite user",
+							})
+				}
+				closeLabel={ctx.t({ code: "common.close", msg: "Close" })}
+				footer={
+					<>
+						<Button
+							variant="secondary"
+							onPress={() => {
+								setInviteOpen(false);
+								setEditingUser(null);
+							}}
+						>
+							{ctx.t({ code: "common.cancel", msg: "Cancel" })}
+						</Button>
+						<Button
+							variant="primary"
+							type="submit"
+							form="access-management-user-form"
+							isLoading={isSubmitting}
+						>
+							{isEditMode
+								? ctx.t({
+										code: "common.save_changes",
+										msg: "Save changes",
+									})
+								: ctx.t({
+										code: "settings.access_mgmnt.send_invitation",
+										msg: "Send invitation",
+									})}
+						</Button>
+					</>
+				}
+			>
+				<form
+					id="access-management-user-form"
+					onSubmit={handleInviteOrEditSubmit}
+					noValidate
+					className="flex flex-col gap-6"
+				>
+					{serverError ? (
+						<div
+							role="alert"
+							className="rounded-lg border border-crit-border bg-crit-bg px-4 py-3 text-body text-crit"
+						>
+							{serverError}
+						</div>
+					) : null}
+
+					{isEditMode && editingUser ? (
+						<dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-body">
+							<dt className="text-fg-2">
+								{ctx.t({ code: "common.status", msg: "Status" })}
+							</dt>
+							<dd>
+								<StatusIndicator
+									tone={editingUser.user.emailVerified ? "positive" : "warning"}
+								>
+									{editingUser.user.emailVerified
+										? ctx.t({
+												code: "settings.access_mgmnt.status_active",
+												msg: "Active",
+											})
+										: ctx.t({
+												code: "settings.access_mgmnt.status_pending",
+												msg: "Invitation pending",
+											})}
+								</StatusIndicator>
+							</dd>
+							<dt className="text-fg-2">
+								{ctx.t({
+									code: "settings.access_mgmnt.date_added",
+									msg: "Date added",
+								})}
+							</dt>
+							<dd className="tabular-nums">
+								{formatDateAdded(editingUser.addedAt)}
+							</dd>
+							<dt className="text-fg-2">
+								{ctx.t({
+									code: "settings.access_mgmnt.added_by",
+									msg: "Added by",
+								})}
+							</dt>
+							<dd>
+								{ctx.t({
+									code: "settings.access_mgmnt.system_admin",
+									msg: "System Admin",
+								})}
+							</dd>
+						</dl>
+					) : null}
+
+					<TextField
+						label={ctx.t({
+							code: "user_login.email_address",
+							msg: "Email address",
 						})}
-					>
-						<Column
-							header={ctx.t({ code: "common.status", msg: "Status" })}
-							body={statusBodyTemplate}
-						/>
-						<Column
-							header={ctx.t({ code: "common.name", msg: "Name" })}
-							body={nameBodyTemplate}
-						/>
-						<Column
-							header={ctx.t({ code: "common.email", msg: "Email" })}
-							body={(item) => item.user.email}
-						/>
-						<Column
-							header={ctx.t({
-								code: "common.organization",
-								msg: "Organization",
-							})}
-							body={(item) => item.organization?.name || ""}
-						/>
-						<Column
-							header={ctx.t({ code: "common.role", msg: "Role" })}
-							body={roleBodyTemplate}
-						/>
-						<Column
-							header={ctx.t({ code: "common.addedAt", msg: "Added At" })}
-							body={addedAtBodyTemplate}
-						/>
-						<Column
-							header={ctx.t({ code: "common.actions", msg: "Actions" })}
-							body={actionsBodyTemplate}
-						/>
-					</DataTable>
-				</section>
-			)}
-			{pagination.total > 0 && (
-				<section className="dts-page-section">
-					<Paginator
-						first={(pagination.pageNumber - 1) * pagination.pageSize}
-						rows={pagination.pageSize}
-						totalRecords={pagination.total}
-						rowsPerPageOptions={pageSizeOptions}
-						onPageChange={(event) => {
-							updatePaginationParams(event.page + 1, event.rows);
+						name="email"
+						type="email"
+						value={formEmail}
+						onChange={(val) => {
+							setFormEmail(val);
+							setFieldErrors((prev) => ({ ...prev, email: "" }));
 						}}
-						className="mt-4 !justify-end"
+						placeholder="name@organization.org"
+						isRequired
+						requiredLabel={ctx.t({
+							code: "common.required_parens",
+							msg: "(required)",
+						})}
+						isDisabled={isEditMode}
+						errorMessage={fieldErrors.email || undefined}
 					/>
-				</section>
-			)}
-		</MainContainer>
+
+					<FormSelect
+						label={ctx.t({ code: "common.organization", msg: "Organization" })}
+						name="organization"
+						items={orgOptions}
+						value={formOrg}
+						onChange={(val) => {
+							setFormOrg(val);
+							setFieldErrors((prev) => ({ ...prev, organization: "" }));
+						}}
+						placeholder={ctx.t({
+							code: "settings.access_mgmnt.select_organization",
+							msg: "Select an organization",
+						})}
+						noneLabel={ctx.t({
+							code: "settings.access_mgmnt.no_organization",
+							msg: "No organization",
+						})}
+						isRequired={false}
+					/>
+
+					<div className="flex flex-col gap-2">
+						<FormSelect
+							label={ctx.t({ code: "common.role", msg: "Role" })}
+							name="role"
+							items={roleOptions}
+							value={formRole}
+							onChange={(val) => {
+								setFormRole(val);
+								setFieldErrors((prev) => ({ ...prev, role: "" }));
+							}}
+							placeholder={ctx.t({
+								code: "settings.access_mgmnt.select_role",
+								msg: "Select a role",
+							})}
+							isRequired
+							requiredLabel={ctx.t({
+								code: "common.required_parens",
+								msg: "(required)",
+							})}
+							errorMessage={fieldErrors.role || undefined}
+							valueClassName="inline-block lowercase first-letter:uppercase"
+							optionClassName="inline-block lowercase first-letter:uppercase"
+						/>
+						{selectedFormRoleObj ? (
+							<p aria-live="polite" className="text-label text-fg-2">
+								<span className="inline-block lowercase first-letter:uppercase">
+									{selectedFormRoleObj.label}
+								</span>
+								: {selectedFormRoleObj.desc}
+							</p>
+						) : null}
+					</div>
+				</form>
+			</ModalDialog>
+
+			{/* Delete User Confirmation Modal */}
+			<ModalDialog
+				isOpen={Boolean(deletingUser)}
+				onOpenChange={(open) => {
+					if (!open) {
+						setDeletingUser(null);
+						setServerError(null);
+					}
+				}}
+				role="alertdialog"
+				title={ctx.t({
+					code: "settings.access_mgmnt.delete_user",
+					msg: "Delete user",
+				})}
+				closeLabel={ctx.t({ code: "common.close", msg: "Close" })}
+				footer={
+					<>
+						<Button variant="secondary" onPress={() => setDeletingUser(null)}>
+							{ctx.t({ code: "common.cancel", msg: "Cancel" })}
+						</Button>
+						<Button
+							variant="destructive"
+							isLoading={isSubmitting}
+							onPress={handleConfirmDelete}
+						>
+							{ctx.t({
+								code: "settings.access_mgmnt.delete_user",
+								msg: "Delete user",
+							})}
+						</Button>
+					</>
+				}
+			>
+				{serverError ? (
+					<div
+						role="alert"
+						className="rounded-lg border border-crit-border bg-crit-bg px-4 py-3 text-body text-crit"
+					>
+						{serverError}
+					</div>
+				) : null}
+				<p className="text-body text-fg">
+					<strong>{deletingUser ? getDisplayName(deletingUser) : ""}</strong>{" "}
+					{ctx.t({
+						code: "settings.access_mgmnt.delete_warning",
+						msg: "will lose access to DELTA. This cannot be undone.",
+					})}
+				</p>
+			</ModalDialog>
+
+			<ToastRegion
+				toasts={toasts}
+				onDismiss={dismissToast}
+				dismissLabel={ctx.t({
+					code: "common.dismiss_notification",
+					msg: "Dismiss notification",
+				})}
+			/>
+		</main>
 	);
 }
