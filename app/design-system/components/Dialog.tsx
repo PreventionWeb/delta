@@ -5,6 +5,7 @@ import {
 	Modal,
 	ModalOverlay,
 } from "react-aria-components";
+import { X } from "lucide-react";
 import { LegacyButton as Button } from "./LegacyButton";
 
 export interface DialogProps {
@@ -19,14 +20,18 @@ export interface DialogProps {
 	/** `variant="item"` only: "medium" is legacy's narrower 64rem tree dialog. */
 	size?: "default" | "medium";
 	/** "item" reproduces legacy ContentRepeater's fixed-width "Add new item" dialog in Tailwind
-	 * classes; "fullscreen" is legacy's whole-viewport Mapper; "default" keeps the existing chrome. */
-	variant?: "default" | "item" | "fullscreen";
+	 * classes; "confirm" is legacy's 32rem PrimeReact ConfirmDialog; "fullscreen" is legacy's
+	 * whole-viewport Mapper; "default" keeps the existing chrome. */
+	variant?: "default" | "item" | "confirm" | "fullscreen";
 	/** Disables Escape-to-close only, keeping outside-click dismissal -- for a caller that owns
 	 * a competing Escape handler of its own (e.g. a draw tool mid-draw). */
 	dismissDisabled?: boolean;
+	/** Disables outside-click dismissal only, keeping Escape -- legacy's confirm dialogs ignore
+	 * overlay clicks. */
+	outsideClickDismissDisabled?: boolean;
 }
 
-// Wraps RAC's ModalOverlay/Modal/Dialog. isDismissable gives Escape and outside-click dismissal natively.
+// Wraps RAC's ModalOverlay/Modal/Dialog. Escape and outside-click dismissal are native; each has its own opt-out prop.
 export function Dialog({
 	isOpen,
 	onOpenChange,
@@ -37,12 +42,13 @@ export function Dialog({
 	size = "default",
 	variant = "default",
 	dismissDisabled = false,
+	outsideClickDismissDisabled = false,
 }: DialogProps) {
 	return (
 		<ModalOverlay
 			isOpen={isOpen}
 			onOpenChange={onOpenChange}
-			isDismissable
+			isDismissable={!outsideClickDismissDisabled}
 			isKeyboardDismissDisabled={dismissDisabled}
 			className="dts-dialog-overlay"
 		>
@@ -55,6 +61,15 @@ export function Dialog({
 				>
 					{children}
 				</FullscreenPanel>
+			) : variant === "confirm" ? (
+				<ConfirmPanel
+					title={title}
+					closeLabel={closeLabel}
+					footer={footer}
+					onClose={() => onOpenChange(false)}
+				>
+					{children}
+				</ConfirmPanel>
 			) : variant === "item" ? (
 				<ItemPanel
 					maxWidthClass={size === "medium" ? "max-w-5xl" : "max-w-6xl"}
@@ -131,6 +146,50 @@ function ItemPanel({
 				</div>
 				{footer && (
 					<div className="mx-6 mt-5 mb-8 flex shrink-0 flex-wrap justify-end gap-2 border-t border-slate-200 pt-4">
+						{footer}
+					</div>
+				)}
+			</AriaDialog>
+		</Modal>
+	);
+}
+
+// Legacy lara .p-dialog/.p-confirm-dialog chrome (theme.css:4890-4966): 32rem wide, 1.5rem
+// padding, bold 1.25rem gray-700 title, round gray close, message indented 1rem.
+function ConfirmPanel({
+	title,
+	closeLabel,
+	footer,
+	onClose,
+	children,
+}: {
+	title: string;
+	closeLabel: string;
+	footer?: ReactNode;
+	onClose: () => void;
+	children: ReactNode;
+}) {
+	return (
+		<Modal className="max-h-9/10 w-lg max-w-full overflow-y-auto rounded-md bg-white shadow-sm">
+			<AriaDialog className="outline-none">
+				<div className="flex items-center justify-between p-6">
+					<Heading slot="title" className="m-0 text-xl font-bold text-gray-700">
+						{title}
+					</Heading>
+					<Button
+						variant="icon"
+						aria-label={closeLabel}
+						onPress={onClose}
+						className="size-8 shrink-0 items-center justify-center self-start rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+					>
+						{/* size-6: lucide's cross spans half its box, so this matches PrimeReact's ~11px TimesIcon. */}
+						<X aria-hidden="true" className="size-6" />
+					</Button>
+				</div>
+				<div className="pr-6 pb-8 pl-10 text-gray-600">{children}</div>
+				{/* gap-4/pr-8: legacy's gap-2 plus lara's 0.5rem right margin on each footer button. */}
+				{footer && (
+					<div className="flex flex-wrap items-center justify-end gap-4 pr-8 pb-6 pl-6">
 						{footer}
 					</div>
 				)}

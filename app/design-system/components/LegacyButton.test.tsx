@@ -52,12 +52,45 @@ describe("Button", () => {
 		},
 	);
 
+	it('variant="danger-outline" renders a native <button> with red-outline Tailwind palette classes and its icon child', () => {
+		const html = renderToString(
+			<Button variant="danger-outline">
+				<svg aria-hidden="true" focusable="false">
+					<use href="/assets/icons/trash-alt.svg#delete" />
+				</svg>
+				Delete permanently
+			</Button>,
+		);
+
+		expect(html).toMatch(/<button/);
+		expect(html).toMatch(/<button[^>]*class="[^"]*border-red-500/);
+		expect(html).toMatch(/<button[^>]*class="[^"]*text-red-500/);
+		expect(html).toMatch(/<button[^>]*class="[^"]*bg-transparent/);
+		expect(html).toMatch(/<button[^>]*class="[^"]*rounded-md/);
+		expect(html).toMatch(
+			/<button[^>][^>]*>\s*<svg[^>]*>\s*<use href="\/assets\/icons\/trash-alt.svg#delete"/,
+		);
+		expect(html).not.toMatch(/dts-button|mg-button|p-button|\[\d+px\]/);
+	});
+
 	it('variant="system-primary" reuses the legacy mg-button-primary classes', () => {
 		const html = renderToString(
 			<Button variant="system-primary">Save Coordinates</Button>,
 		);
 
 		expect(html).toMatch(/<button[^>]*class="mg-button mg-button-primary"/);
+	});
+
+	it("pending keeps a focusable native <button> (no disabled attribute) marked aria-disabled and data-pending", () => {
+		const html = renderToString(
+			<Button variant="icon" pending aria-label="Delete">
+				<span />
+			</Button>,
+		);
+
+		expect(html).toMatch(/<button[^>]*aria-disabled="true"/);
+		expect(html).toMatch(/<button[^>]*data-pending="true"/);
+		expect(html).not.toMatch(/<button[^>]*\sdisabled[\s=>]/);
 	});
 
 	it("disabled renders a real <button disabled> element", () => {
