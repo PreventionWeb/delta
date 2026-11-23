@@ -112,6 +112,40 @@ fallback that violates the API contract.
 
 ---
 
+## Design System, Prototype, and Accessibility Alignment (Presentation Diffs)
+
+For any change touching `app/domains/*/presentation/`, `app/routes/`, `app/components/`,
+`app/design-system/`, or CSS/styles, confirm:
+
+- [ ] **Immutable references are present and valid**: `design.md` records `ui-classification` and
+      pins immutable commit SHAs (and release tag where applicable) for `unisdr/delta-design` and
+      `unisdr/delta-feature-prototypes` (never solely a moving branch like `main`)
+- [ ] **Approved prototype or valid exception is recorded**: `feature-prototype.status` is
+      `approved` (with `path` + `commit`) or `not-required` (with a permitted `exception-reason`)
+- [ ] **Production code follows the design system rather than copying prototype shortcuts**: uses
+      DELTA domain/application DTOs, `ctx.t` translations, auth/tenant scoping, and React Aria
+      Components rather than prototype mock data or inline CSS hacks
+- [ ] **Design-system components and semantic tokens are used correctly**: no raw hex/RGB/HSL
+      colours, no primitive `--color-*` variables in feature code, no new PrimeReact imports in
+      `react-aria` changes, parent `gap` used instead of sibling margins, and no em dashes in UI
+      copy
+- [ ] **All defined states and responsive behaviours are implemented**: empty, loading, error,
+      success, and destructive-action confirmation states match `design.md` across principal
+      viewports
+- [ ] **Keyboard and WCAG 2.2 AA criteria are satisfied**: `>= 24x24` CSS px target sizes (`32x32`
+      preferred for icon-only controls), accessible names on icon-only controls, visible and
+      unobscured focus, `role="alert"` error announcements, and chart text summaries + table
+      alternatives
+- [ ] **Deviations are explicit and approved**: any material divergence from the prototype or
+      design system (for React Aria semantics, WCAG 2.2 AA, responsiveness, localisation, or
+      production data) is documented and approved in `design.md` and `gate-9-report.md`
+- [ ] **Gate 9 evidence corresponds to the changed routes and states**:
+      `openspec/changes/<name>/evidence/gate-9-report.md` exists and records passing Gate 9a
+      (`yarn check:design-system`), Gate 9b (Playwright `axe-core` + keyboard checks), and Gate 9c
+      (screenshots in `test-results/gate-9/<name>/` + itemised parity checklist)
+
+---
+
 ## Documentation Accuracy
 
 - [ ] No "TBD" or placeholder text remains in any artifact (specs, design, proposal)

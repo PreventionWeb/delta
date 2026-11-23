@@ -3,9 +3,29 @@
 ## Purpose
 
 Reusable, cross-cutting React Aria presentation primitives — not owned by any single domain —
-that custom-style React Aria's unstyled components to be visually and behaviorally identical to
-DELTA's existing legacy UI, serving as the forward-path replacement for PrimeReact across every
-future Clean Architecture presentation-layer intent.
+serving as the forward-path replacement for PrimeReact across every Clean Architecture
+presentation-layer intent.
+
+### Governance & Migration Framing
+
+- **Design-system authority**: [`unisdr/delta-design`](https://github.com/unisdr/delta-design) is
+  the authoritative source for design tokens, reusable component rules, accessibility requirements
+  (WCAG 2.2 Level AA), interaction conventions, and visual standards. Local copies of
+  `DESIGN.md`, `tokens.json`, and `tokens.css` are manually synced from a pinned tag/commit of
+  `unisdr/delta-design`.
+- **Feature hand-off authority**: [`unisdr/delta-feature-prototypes`](https://github.com/unisdr/delta-feature-prototypes)
+  is the authoritative design-to-development hand-off layer for feature-specific presentation and
+  interaction changes.
+- **Transitional legacy-parity baseline (Phase 6a/6h)**: The `dts-table`, `dts-form-component`,
+  and `dts-*` class requirements below reflect the initial Phase 6a/6h transitional baseline
+  implemented in `app/design-system/components/` so early Hazardous Events preview screens match
+  surrounding unmigrated pages prior to token re-skinning.
+- **Forward rule**: Legacy parity is permitted ONLY for explicitly classified `legacy-exempt`
+  changes or these transitional Phase 6a/6h baseline primitives until re-skinned. Every new or
+  re-skinned component or screen (`ui-classification: react-aria`) MUST follow the pinned
+  `unisdr/delta-design` reference (semantic CSS variables, approved spacing scale, WCAG 2.2 AA
+  target sizes and keyboard/focus semantics) and identify its approved prototype in
+  `unisdr/delta-feature-prototypes` (or record a valid `not-required` exception in `design.md`).
 
 ## Requirements
 

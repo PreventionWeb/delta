@@ -36,6 +36,7 @@
 		"i18n:check-missing-keys": "tsx scripts/check-i18n-missing-keys.ts",
 		"test:design": "vitest run tests/unit/design-system/ && yarn test:dom",
 		"design:check": "tsx scripts/check-design-a11y.ts",
+		"check:design-system": "tsx scripts/check-design-system.ts",
 		"build:css": "sass source/scss:public/assets/css"
 	},
 	"keywords": [],

@@ -1,112 +1,167 @@
 ---
 name: design-system-check
 description:
-  "Quality Gate 9 checklist for DELTA Design System and WCAG 2.2 AA compliance.
-  Covers static token/icon/copy guards (yarn test:design), automated Playwright
-  WCAG 2.2 AA & layout audits (yarn design:check), interactive state checks, and
-  manual keyboard/visual verification against _docs/design/DESIGN.md."
+  "Gate 9 verification checklist and audit guide for DELTA UI changes. Covers DELTA Design System
+  (unisdr/delta-design) token compliance, React Aria Components, WCAG 2.2 Level AA accessibility
+  and keyboard behaviour, Recharts accessibility, content/copy rules, and feature-prototype parity
+  (unisdr/delta-feature-prototypes)."
 ---
 
-# Design System & Accessibility Check (Gate 9) — DELTA Resilience
+# Design System, Accessibility & Feature Hand-Off Check — DELTA Resilience
 
-Run this checklist as **Gate 9** for any change that touches `app/design-system/**`,
-`app/domains/*/presentation/**`, `app/routes/**`, or `app/styles/**` (any rendered UI). Skip only
-for pure backend/API changes with no rendered output, and state the skip explicitly.
+Run this skill during **Gate 9 (`9a`, `9b`, `9c`)** for any change that touches
+`app/domains/*/presentation/`, `app/routes/`, `app/components/`, `app/design-system/`, or related
+CSS/styles.
 
-Authoritative specification: `_docs/design/DESIGN.md`, `_docs/design/tokens.css`, and
-`_docs/design/tokens.json` (synced read-only from `unisdr/delta-design`).
-
----
-
-## 1. Automated Static Checks (Mandatory, Fast)
-
-Run the fast static + component test gate:
-
-```bash
-yarn test:design
-```
-
-Verify across all **new or modified UI files** in your diff:
-
-- [ ] **Semantic tokens only** — use `var(--bg)`, `var(--surface)`, `var(--fg)`, `var(--accent)`,
-      or Tailwind `@theme` utilities. No hardcoded hex colours (`#...`), no `tokens.css` primitive
-      variables (`--color-neutral-*`, `--color-warm-*`, `--color-accent-*`, `--color-green-*`,
-      `--color-amber-*`, `--color-red-*`).
-- [ ] **Lucide icons only** — import icons from `lucide-react` (`16px` inline, `20px` standalone).
-      Never introduce `react-icons`, `primeicons`, or other icon libraries in new UI.
-- [ ] **No PrimeReact or domain leakage in `app/design-system/`** — enforced automatically by
-      `tests/unit/design-system/components/imports.test.ts`.
-- [ ] **Spacing discipline** — values from the 4px scale (`4, 8, 12, 16, 24, 32, 48, 64px`).
-      Use `gap` on flex/grid containers; never combine margin between siblings with parent `gap`.
-- [ ] **No feature-level motion** — motion durations and easings live inside design-system
-      components only; do not add custom animations or transition timings in feature code.
-- [ ] **Copy & typography rules** — UK English with `"organization"` (with `z`), sentence case for
-      headings and labels, no em-dashes (`—`) in UI copy, no lorem ipsum, `--fg-3` never used for
-      readable text (decorative/disabled only).
+A finding means: stop, fix (or document and obtain human approval for a justified deviation),
+re-run tests and static checks, and re-verify before exiting the Refactor loop.
 
 ---
 
-## 2. Automated Browser Audit — WCAG 2.2 AA & Breakpoints (Mandatory for Routes)
+## Authorities & Traceability Pre-Check
 
-Start the app (`yarn dev`) and run the Gate 9 Playwright audit across `mobile` (`375x812`),
-`tablet` (`768x1024`), and `desktop` (`1280x900`):
+Before reviewing code or screenshots, verify `openspec/changes/<name>/design.md`:
 
-```bash
-yarn design:check \
-  --url http://localhost:3000/en/<route> \
-  --screenshots /tmp/gate9-<feature>
-```
-
-- By default, `yarn design:check` scopes `axe-core` and target-size/label checks to `<main>` so
-  new screens are not blocked by legacy header/footer chrome in `app/root.tsx`.
-- Pass `--full-page` for standalone pages without main navigation (e.g. login, reset password) or
-  when auditing header/footer chrome itself.
-- Pass `--login-email <email> --login-password <pass>` for authenticated routes.
-- Pass `--executable-path <path>` (or set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`) when running with a preinstalled Chromium binary instead of Playwright's bundled browser.
-
-Confirm the CLI exits `0` with:
-
-- [ ] **Zero `axe-core` WCAG 2.2 AA violations** (`wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa`)
-- [ ] **Zero horizontal page overflow** (`scrollWidth <= innerWidth`) at `375px`, `768px`, and `1280px`
-- [ ] **WCAG 2.2 target size (`>= 24x24px`)** on all visible interactive controls and non-empty
-      accessible names on all icon-only buttons
-- [ ] **Zero uncaught `pageerror` or `console.error` events**
-- [ ] **Focused element never obscured** by fixed/sticky bars or overlays
+- [ ] `ui-classification` is explicitly set to `react-aria`, `legacy-exempt`, or `non-visual`.
+- [ ] `design-system` records `https://github.com/unisdr/delta-design`, an immutable
+      `version-or-tag`, and an immutable `commit` SHA (never solely a moving branch such as `main`).
+- [ ] `feature-prototype` records `https://github.com/unisdr/delta-feature-prototypes`:
+  - either `status: approved` with a concrete repository `path` and immutable `commit` SHA;
+  - or `status: not-required` with an explicit, permitted `exception-reason` (backend-only,
+    non-visual, trivial copy correction, approved `legacy-exempt` bug fix, or explicitly approved
+    human review exception).
+- [ ] `yarn check:design-system --verify-spec --change "<name>"` passes with zero errors.
 
 ---
 
-## 3. Interactive State Checks (Playwright E2E / Live Verification)
+## Gate 9a: Design-System and Token Compliance (`unisdr/delta-design`)
 
-When the change includes forms, dialogs, filters, or tables, verify interactive states (using
-`tests/e2e/helpers/designSystemChecks.ts` in Playwright E2E tests):
+Run `yarn check:design-system --change "<name>"` first, then verify every item below on the diff:
 
-- [ ] **Dialogs & popovers**: open each dialog/popover/menu and run `assertWcag22AA(page, { scope: '[role="dialog"]' })`.
-- [ ] **Form validation lifecycle**:
-  - No validation errors shown before the user submits.
-  - Invalid submit shows plain-language errors directly under the offending field(s).
-  - Editing a field clears its error.
-  - Successful save closes the dialog and shows a confirmation toast.
-- [ ] **Tables**:
-  - Non-clickable rows (where only row action buttons act) do NOT show `cursor: pointer` or hover
-    fill (`assertRowCursorSemantics(row, { clickable: false })`).
-  - Sortable columns toggle `aria-sort` via click AND keyboard `Enter`.
-  - Long unbroken text truncates cleanly with ellipsis without causing horizontal page overflow.
-  - Pagination defaults to 25 rows (`25`, `50`, `100`) where applicable.
+### 1. Tokens and CSS
+
+- [ ] **Semantic CSS variables only**: Feature and component styles consume semantic tokens
+      (e.g. `var(--fg)`, `var(--accent)`, `var(--border-subtle)`, `var(--surface)`) rather than raw
+      colour values.
+- [ ] **No prohibited `--color-*` primitives in feature code**: Primitive palette variables are
+      mapped exclusively in the token definition layer (`tokens.css`), never referenced directly in
+      feature components or route styles.
+- [ ] **No unapproved hardcoded colours**: Zero raw hexadecimal (`#fff`, `#004f91`), `rgb()`,
+      `rgba()`, `hsl()`, `hsla()`, or named CSS colours in `react-aria` classified files (unless
+      narrowly suppressed via an approved inline `delta-design-ignore-next-line` comment with a
+      documented rationale).
+- [ ] **Approved spacing scale**: Layout and component spacing strictly follows the pinned design
+      system spacing scale (e.g. `4, 8, 12, 16, 24, 32, 48, 64` px / corresponding semantic
+      spacing tokens).
+- [ ] **Parent `gap` over sibling margins**: Flex and Grid containers use parent `gap` for layout
+      spacing between items rather than sibling `margin-top` / `margin-bottom` / `margin-left` /
+      `margin-right`.
+- [ ] **Approved radii, borders, shadows, typography, and breakpoints**: Uses the design system's
+      semantic border radii, border widths/tokens, elevation shadows, typography roles (`.t-*`),
+      and responsive breakpoints.
+
+### 2. Components and Interaction
+
+- [ ] **React Aria Components foundation**: New or migrated interactive widgets (`Button`, `Table`,
+      `Select`, `ComboBox`, `Checkbox`, `Dialog`, `Modal`, `Tabs`, `DatePicker`, `Menu`, etc.) are
+      built on `react-aria-components`.
+- [ ] **No new PrimeReact dependency**: Zero imports from `primereact` or `primeicons` in any
+      `react-aria` classified change.
+- [ ] **Lucide React iconography**: Icons use `lucide-react` at the approved sizes and stroke
+      weights.
+- [ ] **Accessible names on icon-only controls**: Every icon-only button or link has an explicit,
+      translated accessible name (`aria-label` or `aria-labelledby`), and decorative icons inside
+      labelled controls carry `aria-hidden="true"`.
+- [ ] **No inappropriate `radius-full` on standard buttons**: Standard action buttons use the
+      approved button border-radius token; full pill radius (`rounded-full` / `radius-full`) is
+      restricted to badges, tags, or avatars where specified by the design system.
+- [ ] **Complete interactive state semantics**: Hover, focus-visible (`[data-focus-visible]`),
+      pressed (`[data-pressed]`), selected (`[data-selected]`), expanded (`[data-expanded]`),
+      disabled (`[data-disabled]`), and invalid (`[data-invalid]`) states are styled and
+      semantically exposed.
+
+### 3. Charts (Recharts)
+
+- [ ] **Approved Recharts styling and palettes**: Uses the approved categorical or sequential
+      design-system tokens/palettes, stroke widths, and subtle horizontal gridlines.
+- [ ] **Accessible chart name and text summary**: Every chart container exposes an accessible name
+      and a concise text summary of the insight or range shown.
+- [ ] **`role="img"` where appropriate**: Chart SVG/container carries `role="img"` and
+      `aria-label` / `aria-labelledby`.
+- [ ] **Tabular data alternative**: Includes a keyboard-accessible "Show as table" toggle or
+      equivalent accessible data table representation.
+- [ ] **No meaning conveyed by colour alone**: Series, thresholds, and statuses use labels,
+      patterns, shapes, or direct values in addition to colour.
+
+### 4. Content and Copy
+
+- [ ] **Sentence case**: Headings, form labels, buttons, and table column headers use sentence case
+      (capitalising only the first word and proper nouns/acronyms).
+- [ ] **DELTA terminology and spelling**: Follows DELTA content guidance and localisation (`ctx.t`
+      used for all user-facing strings; `yarn i18n:extractor` run if new keys were added).
+- [ ] **No em dashes in UI copy**: Zero `—` (`\u2014`) characters in rendered UI strings.
+- [ ] **No prototype placeholder copy**: No lorem ipsum, prototype-only mock labels, or fabricated
+      production data left in application code.
 
 ---
 
-## 4. Manual Keyboard, Accessibility & Visual Parity Walk-Through
+## Gate 9b: Accessibility and Keyboard Compliance (WCAG 2.2 Level AA)
 
-Automated `axe-core` catches only part of WCAG 2.2 AA. Always perform:
+Authority: WCAG 2.2 Level AA + pinned `unisdr/delta-design` accessibility requirements.
 
-- [ ] **Keyboard-only walk-through**: navigate the full screen using `Tab`, `Shift+Tab`,
-      `Arrow*`, `Enter`, `Space`, and `Escape`. Confirm visible `2px` `--focus-ring` (`2px` offset),
-      no keyboard traps, and focus returns to the trigger when closing dialogs/menus.
-- [ ] **Heading hierarchy**: `h1` → `h2` → `h3` matches document structure without skipped levels,
-      using `.t-page-title` / `.t-section-title` / `.t-body-strong`.
-- [ ] **Colour never sole signal**: status indicators always pair an 8px dot with sentence-case text.
-- [ ] **Visual parity**: inspect the screenshots captured in `/tmp/gate9-<feature>/{mobile,tablet,desktop}.png`
-      item-by-item against `design.md`'s content-level ground-truth checklist and `_docs/design/DESIGN.md`.
-- [ ] **Missing tokens or patterns**: never silently invent a token, colour, spacing step, or pattern.
-      If something is missing from `_docs/design/DESIGN.md`, document the gap in the PR/spec and
-      raise an issue in `unisdr/delta-design`.
+- [ ] **Automated Playwright + axe-core checks pass**: `runA11yCheck()` from
+      `tests/e2e/helpers/a11y.ts` passes for all affected routes and material states with tags
+      `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, and `wcag22aa`.
+- [ ] **Minimum target sizes (WCAG 2.5.8)**: Every interactive target is at least `24 x 24` CSS
+      pixels (`32 x 32` CSS pixels preferred for icon-only controls).
+- [ ] **Focus visibility and non-obscuration (WCAG 2.4.7, 2.4.11)**: Every interactive element
+      shows a high-contrast visible focus indicator when reached via keyboard, and focused elements
+      are never obscured by sticky headers, footers, dialogs, toasts, or popovers.
+- [ ] **Keyboard navigation and focus order (WCAG 2.1.1, 2.4.3)**:
+  - `Tab` and `Shift+Tab` traverse interactive controls in a logical reading order;
+  - `Enter` and `Space` activate buttons, links, and checkboxes appropriately;
+  - `Escape` closes open popovers, menus, comboboxes, and modal dialogs and returns focus to the
+    trigger;
+  - Arrow keys navigate within composite widgets (`Table`, `Select`, `ComboBox`, `Tabs`, `Menu`,
+    `RadioGroup`).
+- [ ] **Label in name (WCAG 2.5.3)**: For every control with a visible text label, the accessible
+      name contains the visible label text consecutively.
+- [ ] **Dragging movements (WCAG 2.5.7)**: Any drag interaction (e.g. map drawing, reordering,
+      sliders) provides a single-pointer click/tap or keyboard input alternative.
+- [ ] **Accessible authentication (WCAG 3.3.8)**: Authentication and credential inputs allow
+      pasting and set appropriate `autocomplete` attributes.
+- [ ] **Error announcement and sensory characteristics (WCAG 1.3.3, 3.3.1, 4.1.3)**: Validation and
+      submission errors use `role="alert"` or an assertive/polite live region as appropriate, link
+      field errors via `aria-describedby` / React Aria `FieldError`, and never rely solely on
+      colour, shape, position, or iconography to identify an error.
+- [ ] **Exception governance**: Any approved accessibility exception records a tracked issue ID,
+      technical rationale, owner, and target remediation date.
+
+---
+
+## Gate 9c: Feature Hand-Off Parity (`unisdr/delta-feature-prototypes`)
+
+Authority: Approved, pinned prototype in `unisdr/delta-feature-prototypes` and the content/interaction
+ground-truth checklist in `openspec/changes/<name>/design.md`.
+
+**Conformance Standard**: Evaluate **functional, structural, state, interaction, accessibility, and
+visual-intent parity** — NOT literal pixel-perfect equality.
+
+- [ ] **Information hierarchy and layout intent**: Page header, landmark regions, section grouping,
+      and visual hierarchy match the approved prototype's design intent.
+- [ ] **Fields, columns, actions, and defaults**: Field and column set, ordering, labels, primary vs
+      secondary action placement, sort order, filter defaults, and pagination defaults match
+      `design.md`.
+- [ ] **Material state coverage**: Empty, loading, error, success, and destructive-action
+      confirmation states defined in `design.md` and the prototype are all implemented and tested.
+- [ ] **Responsive and keyboard behaviour**: Layout adapts cleanly across principal viewports
+      (desktop, tablet, mobile) and follows documented keyboard flows.
+- [ ] **Production quality over prototype shortcuts**: Production code uses DELTA domain/application
+      DTOs, `ctx.t` i18n, proper auth/tenant scoping, and semantic tokens — never copying prototype
+      mock state or inline style hacks.
+- [ ] **Evidence completeness**:
+  - Screenshots captured via `tests/e2e/helpers/prototype-evidence.ts` under
+    `test-results/gate-9/<name>/` for affected routes, viewports, and states;
+  - Committed evidence report written to `openspec/changes/<name>/evidence/gate-9-report.md` with
+    pinned SHAs, commands run, itemised parity checklist results, and any justified/approved
+    deviations.

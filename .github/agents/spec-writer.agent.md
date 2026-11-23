@@ -37,7 +37,7 @@ here and proceed from Phase 0.
 
 ## Phase 0 — Validate the intent (mandatory, always run first)
 
-Before running any OpenSpec command, read the actual code and answer these four questions
+Before running any OpenSpec command, read the actual code and answer these five questions
 out loud:
 
 1. **What does this area of the codebase currently do?** Read the files most likely affected.
@@ -47,12 +47,18 @@ out loud:
    guards, recent commits, dead or removed code, or a prior implementation under a different name.
 4. **What are the risks and side effects?** Consider auth wrappers, multi-tenancy scoping,
    DB migrations, and any downstream consumers of affected functions or types.
+5. **What is the UI classification (`react-aria`, `legacy-exempt`, or `non-visual`)?**
+   Determine whether the change affects UI presentation or interaction, identify the applicable
+   immutable reference in [`unisdr/delta-design`](https://github.com/unisdr/delta-design) (and
+   synced local `_docs/design/DESIGN.md`, `_docs/design/tokens.json`, `tokens.css`), and locate or
+   require the applicable feature prototype in
+   [`unisdr/delta-feature-prototypes`](https://github.com/unisdr/delta-feature-prototypes).
 
 **If Q3 reveals the change is already done or unnecessary:** stop. Report your findings clearly
 and do not proceed to artifact generation. The cost of a false-positive is wasted spec work;
 the cost of a false-negative is shipping redundant or conflicting code.
 
-Only move to Phase 1 once all four questions are answered and Q3 confirms the change is
+Only move to Phase 1 once all questions are answered and Q3 confirms the change is
 genuinely needed.
 
 ---
@@ -93,8 +99,10 @@ Proceed only when all artifacts required for apply (`applyRequires`) show `statu
 - One clear problem statement
 - Explicit list of files to be changed with a one-line reason each
 - States whether a DB migration is required
-- States the test approach (PGlite / real DB / E2E)
+- States the test approach (PGlite / real DB / DOM / E2E)
 - Flags any security or multi-tenancy implications
+- States the `ui-classification` (`react-aria`, `legacy-exempt`, or `non-visual`) and whether a
+  feature prototype approval gate applies before `/opsx:apply`
 
 **specs/**
 
@@ -102,6 +110,9 @@ Proceed only when all artifacts required for apply (`applyRequires`) show `statu
 - Covers both happy path and all meaningful failure paths
 - References the exact function or route being specified by name
 - Describes observable behaviour only — no implementation details
+- For UI changes (`react-aria` or `legacy-exempt`), includes scenarios for material UI states
+  (empty, loading, error, success, destructive-action confirmation), responsive layout behaviour,
+  and accessibility/keyboard acceptance criteria
 - **Concurrent access rule:** For any requirement involving shared mutable state accessed
   by async operations (caches, counters, stores, queues), always include a "concurrent
   callers" scenario: what happens when two callers invoke the operation simultaneously
@@ -114,42 +125,89 @@ Proceed only when all artifacts required for apply (`applyRequires`) show `statu
 
 - Names every TypeScript type, interface, or Drizzle schema change
 - Justifies technical decisions with project conventions as the reference
-- Identifies test infrastructure needed (PGlite setup, real DB, mocks)
+- Identifies test infrastructure needed (PGlite setup, real DB, jsdom, Playwright E2E, mocks)
 - Notes any fieldsDef / Form-CSV-API pipeline impact
-- **If this change adds or modifies anything under `app/design-system/`, `app/domains/*/presentation/`,
-  or a route's rendered output:**
-  1. Identify the reference-source type explicitly — one of: (a) `_docs/design/DESIGN.md` +
-     `_docs/design/tokens.json` (and Figma, for new/migrated DELTA Design System screens);
-     (b) a real, existing page of the same page-type (list, detail, form) already in this codebase
-     and readable as code (for legacy-parity changes); (c) another design artifact or written spec /
-     playbook describing the UI; (d) static screenshots/images only, with no page you can render
-     and compare live; (e) no reference exists — this is new design, and the proposal is making that
-     decision, not inheriting it.
-  2. Regardless of type, extract a concrete, content-level ground-truth checklist into
-     `design.md` — not just the layout wrapper and navigation affordance below, but the actual
-     content facts: field/column set and its order, labels/copy (UK English with "organization",
-     sentence case, no em-dashes), sort order and pagination defaults (`25` default, `25/50/100`),
-     which fields carry emphasis vs. plain, grouping/spacing between sections (4px scale, `gap`
-     not sibling margins), interaction behavior (e.g. cascading select, live search, form
-     validation lifecycle, clickable vs. non-clickable table rows), and state variants (`default`,
-     `empty`, `loading`, `error`, `disabled`) where the source shows them. This checklist is what
-     the implementer's later Gate 9 checks against item-by-item — it must not be left for the
-     implementer to reconstruct from the source themselves.
-  3. Name the `_docs/design/DESIGN.md` components and semantic tokens (`var(--bg)`, `var(--surface)`,
-     `var(--fg)`, `var(--accent)`, etc.) used, expected responsive behaviour at `375px`, `768px`,
-     and `1280px`, and keyboard navigation expectations (`Tab`, `Arrow*`, `Enter`, `Escape`). If a
-     needed token or pattern is missing from `_docs/design/DESIGN.md`, never invent one silently —
-     document the gap and temporary workaround in `design.md` so an issue can be raised in
-     `unisdr/delta-design`.
-  4. State explicitly whether the new page matches the reference's (a) page-header/layout
-     wrapper (e.g. `MainContainer`) and (b) navigation affordances a user would expect (e.g. a
-     list page needs a way to reach its own detail page — cite how the reference solves this).
-     Component-library choice (e.g. "uses Table") is not sufficient on its own — layout
-     wrapper and interaction affordances are separate decisions that must each be named.
-  5. When the reference source is not code (a, c, d above), state in `design.md` exactly how the
-     ground truth was obtained (e.g. "read `_docs/design/DESIGN.md` section X," "read Figma frame
-     Y," "read screenshot Z") and flag anything the source leaves ambiguous as an open question
-     for the human rather than silently assuming an implementation detail.
+- **Mandatory UI Governance & Traceability Metadata Block:**
+  Every `design.md` MUST declare `ui-classification`. For any change affecting UI presentation or
+  interaction (or declaring an exception), include this exact YAML block in `design.md`:
+
+  ```yaml
+  design-system:
+    repository: https://github.com/unisdr/delta-design
+    version-or-tag: <release-tag>
+    commit: <commit-sha>
+
+  feature-prototype:
+    repository: https://github.com/unisdr/delta-feature-prototypes
+    path: <feature-path>
+    commit: <commit-sha>
+    status: required | approved | not-required
+    exception-reason: <required when not-required>
+
+  ui-classification: react-aria | legacy-exempt | non-visual
+  ```
+
+- **Rules for UI classification, design-system pinning, and prototype applicability:**
+  1. **Immutable design-system reference**: Resolve and record a release tag and full/abbreviated
+     immutable commit SHA from `https://github.com/unisdr/delta-design`. A moving branch such as
+     `main` may be included as a convenience link in prose, but MUST NOT be the sole compliance
+     reference.
+  2. **Feature-prototype hand-off (`unisdr/delta-feature-prototypes`)**:
+     - A feature prototype is required for new or materially changed presentation or interaction
+       behaviour. Reference it by repository `path` and immutable `commit` SHA (or release tag).
+     - Treat the feature prototype as **approved design intent** (layout, information hierarchy,
+       states, component application, and interaction flow) — NOT as generated production code to
+       copy verbatim.
+     - **Prevent premature implementation-ready status**: When generating `design.md` for a change
+       that requires a prototype, always set `feature-prototype.status: required` initially.
+       Implementation (`/opsx:apply`) is blocked until human review confirms the prototype and
+       specification and flips `status` to `approved`.
+     - `feature-prototype.status: not-required` is permitted ONLY when the change is:
+       - backend-only;
+       - non-visual and does not change user interaction;
+       - a trivial copy correction;
+       - an approved legacy-only bug fix on an unmigrated screen (`legacy-exempt`); or
+       - another explicitly justified exception approved during human specification review.
+         The exact justification MUST be recorded in `exception-reason`.
+  3. **Required UI Design Sections (for any presentation or interaction change)**:
+     - **Affected routes and presentation components**: Exact route modules and component files.
+     - **Selected design tokens and UI components**: Semantic CSS tokens (`var(--fg)`,
+       `var(--accent)`, spacing scale, typography roles) and React Aria / Lucide / Recharts
+       components to use.
+     - **Content and interaction ground-truth checklist**:
+       - field, column, and action order;
+       - sorting, filtering, and pagination defaults;
+       - empty, loading, error, success, and destructive-action confirmation states;
+       - page-header/layout wrapper and navigation affordances.
+     - **Responsive expectations**: Behaviour across principal breakpoints/viewports.
+     - **Accessibility & keyboard expectations (WCAG 2.2 Level AA)**:
+       - keyboard navigation sequences (Tab, Shift+Tab, Enter, Space, Escape, Arrow keys) and
+         focus order/containment;
+       - focus visibility (never obscured by sticky headers, dialogs, toasts, or overlays);
+       - target sizes: minimum `24 x 24` CSS pixels (`32 x 32` CSS pixels preferred for icon-only
+         controls);
+       - accessible names, icon-only button labels, and label-in-name alignment;
+       - live-region / `role="alert"` error announcements;
+       - for charts: accessible name, text summary, `role="img"` where appropriate, and a
+         "Show as table" or equivalent data alternative.
+     - **Copy and localisation requirements**: Sentence case for headings, labels, and column
+       headers; DELTA content guidance terminology; no em dashes (`—`) in UI copy; `ctx.t`
+       translation keys; no prototype placeholder copy or fabricated production data.
+     - **Documented deviations**: Any known or unavoidable divergence from the prototype or design
+       system (e.g. for React Aria semantics, WCAG 2.2 AA compliance, localisation, or production
+       data constraints), explicitly flagged for human approval.
+     - **Expected Gate 9 verification evidence**: Define the exact commands, routes, states, and
+       evidence expected for Gate 9a, Gate 9b, and Gate 9c, plus the **Before `/opsx:apply`** human
+       review checklist:
+       - [ ] UI classification is correct.
+       - [ ] The design-system release/tag and commit SHA are recorded.
+       - [ ] The feature-prototype path and immutable reference are recorded, or a valid exception is approved.
+       - [ ] The prototype covers the required flow and material states.
+       - [ ] Accessibility and keyboard expectations are stated.
+       - [ ] Responsive expectations are stated.
+       - [ ] Acceptance criteria distinguish design-system compliance from prototype parity.
+       - [ ] Known deviations or unresolved decisions are explicit.
+       - [ ] The prototype is approved as the design hand-off (`feature-prototype.status: approved`).
 
 **tasks.md**
 
@@ -159,21 +217,33 @@ Proceed only when all artifacts required for apply (`applyRequires`) show `statu
 - Setup import: `import "./setup"` for files in `tests/integration/db/`;
   `import "../setup"` for files in subdirectories (e.g. `tests/integration/db/queries/`)
 - The verification section MUST include all quality gates in this order:
-  1. `yarn vitest run <test-file>` (plus `yarn test:design` for UI changes) — tests still green
+  1. `yarn vitest run <test-file>` — tests still green
   2. `yarn tsc` — zero TypeScript errors
-  3. `npx prettier --check <changed-files>` — Prettier clean
+  3. `yarn format:check` — Prettier clean
   4. Anti-pattern review — check `.github/skills/anti-pattern-check/SKILL.md`
   5. SOLID review — invoke `solid-reviewer` agent
   6. Documentation review — comments explain WHY not WHAT, compacted where possible without
      losing meaning (not a fixed line-count limit); one full-diff sweep before the final
-     report, not just each round's delta
+     report, not just each round's delta, via a fresh subagent
   7. Project conventions review — check `.github/copilot-instructions.md`
   8. Code review — run `.github/skills/code-review/SKILL.md` in full, via a fresh subagent
-  9. Design System, Accessibility (WCAG 2.2 AA) & Visual/UX parity review — run
-     `.github/skills/design-system-check/SKILL.md` (`yarn test:design`, `yarn design:check`,
-     interactive state checks, keyboard walk-through, and screenshot comparison against
-     `design.md`'s content-level checklist); required for any change touching `app/design-system/`,
-     `app/domains/*/presentation/`, or `app/routes/`
+  9. Design system, accessibility & feature hand-off parity review — required for any change
+     touching `app/domains/*/presentation/`, `app/routes/`, `app/components/`,
+     `app/design-system/`, or related styles (else skip and state why explicitly):
+     - **Gate 9a (Design-system and token compliance)**: Run `yarn check:design-system --change <name>`
+       and `.github/skills/design-system-check/SKILL.md` against the pinned `unisdr/delta-design`
+       reference.
+     - **Gate 9b (Accessibility and keyboard compliance)**: Run Playwright + `@axe-core/playwright`
+       WCAG 2.2 AA (`wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa`) via
+       `tests/e2e/helpers/a11y.ts` and execute the defined keyboard interaction checks across
+       affected routes and states.
+     - **Gate 9c (Feature hand-off parity)**: Capture responsive and state screenshots via
+       `tests/e2e/helpers/prototype-evidence.ts` (saved to `test-results/gate-9/<name>/`),
+       complete the itemised parity checklist and deviation log in
+       `openspec/changes/<name>/evidence/gate-9-report.md` against the pinned
+       `unisdr/delta-feature-prototypes` reference (assessing functional, structural, state,
+       interaction, accessibility, and visual-intent parity rather than literal pixel equality),
+       and audit via a fresh subagent running `.github/skills/design-system-check/SKILL.md`.
   10. Independent second-opinion review, Claude Code only — invoke its built-in `code-review`
       at `high` effort via a second, separate fresh subagent; resolve findings before archiving.
       Other tools: use an equivalent platform feature if one exists, otherwise skip this task.
@@ -189,15 +259,24 @@ Proceed only when all artifacts required for apply (`applyRequires`) show `statu
 You are done when:
 
 1. `openspec status --change "<name>"` shows all artifacts complete
-2. You have summarised what was generated and what the implementer needs to do next
-3. You have NOT touched any source file outside `openspec/changes/`
+2. You have summarised what was generated and what the human reviewer and implementer need to do next
+3. If the change requires a feature prototype (`feature-prototype.status: required`), you MUST
+   explicitly state that the change is **awaiting human specification and prototype approval**
+   (flipping `feature-prototype.status` to `approved` in `design.md`) before `/opsx:apply` can run
+4. You have NOT touched any source file outside `openspec/changes/`
 
-Hand off with: "Artifacts complete. Run `/opsx:apply` to begin implementation."
+Hand off with:
+
+- For `non-visual` or `feature-prototype.status: not-required`:
+  "Artifacts complete. Review the specification and run `/opsx:apply` to begin implementation."
+- For changes requiring a feature prototype (`feature-prototype.status: required`):
+  "Artifacts complete. Complete the Before `/opsx:apply` human review checklist and approve the prototype (`feature-prototype.status: approved` in `design.md`) before running `/opsx:apply`."
 
 ## Project context (always apply)
 
 - All queries must scope with `countryAccountsId` (multi-tenancy)
 - Auth: `authLoaderWithPerm` / `authActionWithPerm` — never `authLoaderApiDocs`
 - New tests go under `tests/` using Vitest — never node:test
+- UI Design System authority: `https://github.com/unisdr/delta-design`; Feature Prototype hand-off authority: `https://github.com/unisdr/delta-feature-prototypes`
 - Full architecture and conventions: `.github/copilot-instructions.md`
 - Known anti-patterns to avoid: `.github/skills/anti-pattern-check/SKILL.md`
