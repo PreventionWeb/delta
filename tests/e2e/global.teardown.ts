@@ -1,56 +1,53 @@
 import { test as teardown } from "@playwright/test";
 import { Client } from "pg";
-// import dotenv from "dotenv";
-// import path from "path";
-// import { fileURLToPath } from "url";
-
-// Get __dirname equivalent in ES modules
-// const __filename = fileURLToPath(import.meta.url);
-// const __dirname = path.dirname(__filename);
-
-// Load test environment variables
-// dotenv.config({ path: path.resolve(__dirname, ".env.playwright") });
+import {
+	clearDbCreatedMarker,
+	hasDbCreatedMarker,
+	resolvePlaywrightDatabaseConfig,
+} from "./helpers/e2eDbGuard";
 
 teardown("delete database", async ({}) => {
-	console.log("deleting test database...");
+	const cfg = resolvePlaywrightDatabaseConfig(process.env);
 
-	const databaseUrl = process.env.DATABASE_URL;
-	if (!databaseUrl) {
-		throw new Error("DATABASE_URL not found in .env.playwright");
+	// Never terminate sessions or drop a database that global.setup.ts did not create.
+	if (!hasDbCreatedMarker(cfg.dbName)) {
+		console.log(
+			`Skipping teardown drop for '${cfg.dbName}': no setup-created marker found.`,
+		);
+		return;
 	}
 
-	// Parse the database URL
-	const url = new URL(databaseUrl);
-	const dbName = url.pathname.slice(1); // Remove leading '/'
+	console.log("deleting test database...");
 
-	// Connect to postgres database to drop the test database
 	const client = new Client({
-		host: url.hostname,
-		port: parseInt(url.port),
-		user: url.username,
-		password: url.password,
-		database: "postgres", // Connect to default postgres database
+		host: cfg.host,
+		port: cfg.port,
+		user: cfg.user,
+		password: cfg.password,
+		database: "postgres",
 	});
 
 	try {
 		await client.connect();
 
-		// Terminate existing connections to the database
-		await client.query(`
-            SELECT pg_terminate_backend(pg_stat_activity.pid)
-            FROM pg_stat_activity
-            WHERE pg_stat_activity.datname = '${dbName}'
-            AND pid <> pg_backend_pid()
-        `);
+		await client.query(
+			`
+			SELECT pg_terminate_backend(pg_stat_activity.pid)
+			FROM pg_stat_activity
+			WHERE pg_stat_activity.datname = $1
+			AND pid <> pg_backend_pid()
+			`,
+			[cfg.dbName],
+		);
 
-		// Drop the database
-		await client.query(`DROP DATABASE IF EXISTS ${dbName}`);
+		await client.query(`DROP DATABASE IF EXISTS "${cfg.dbName}"`);
 
-		console.log(`✓ Database '${dbName}' deleted successfully`);
+		console.log(`✓ Database '${cfg.dbName}' deleted successfully`);
 	} catch (error) {
 		console.error("Error deleting database:", error);
 		throw error;
 	} finally {
+		clearDbCreatedMarker();
 		await client.end();
 	}
 });
