@@ -37,4 +37,4 @@
 - [x] 5.9 Quality gate 9 of 10: CLI smoke test (`yarn design:check --help` plus running `yarn design:check` against local compliant and non-compliant HTML fixtures; no app route UI modified, so visual parity skipped explicitly).
 - [x] 5.10 Quality gate 10 of 10: Independent second-opinion review (skipped — Claude Code only).
 - [x] 5.11 Regression check: verify `yarn test:design` and `yarn vitest run tests/unit/` pass with zero regressions.
-- [ ] 5.12 Archive: run `opsx:archive` on this branch after human diff review, before raising PR targeting `dev`.
+- [x] 5.12 Archive: run `opsx:archive` on this branch after human diff review, before raising PR targeting `dev`.
