@@ -38,6 +38,7 @@ import type {
 	IHazardousEventRepository,
 	SpatialObservationRecord,
 } from "../application/ports/IHazardousEventRepository";
+import { OUTGOING_EVENT_RELATIONSHIP_CONFLICT } from "../application/ports/IHazardousEventRepository";
 import type { Pagination } from "~/shared/types";
 import { eventTable } from "~/drizzle/schema/eventTable";
 import { eventRelationshipTable } from "~/drizzle/schema/eventRelationshipTable";
@@ -780,7 +781,7 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 			) {
 				throw new ConflictError(
 					"Delete events that are caused by this event first",
-					{ id, tenantId },
+					{ id, tenantId, reason: OUTGOING_EVENT_RELATIONSHIP_CONFLICT },
 				);
 			}
 			// Other 23503 targets are pre-checked upstream; the residual race is DEF-033, not this.

@@ -23,6 +23,7 @@ import { hazardDriverTable } from "~/domains/hazardous-events/infrastructure/haz
 import { hazardTypeFieldDefinitionTable } from "~/domains/hazardous-events/infrastructure/hazardTypeFieldDefinitionTable";
 import { hazardTypeCustomFieldDefinitionTable } from "~/domains/hazardous-events/infrastructure/hazardTypeCustomFieldDefinitionTable";
 import { DrizzleHazardousEventRepository } from "~/domains/hazardous-events/infrastructure/DrizzleHazardousEventRepository.server";
+import { OUTGOING_EVENT_RELATIONSHIP_CONFLICT } from "~/domains/hazardous-events/application/ports/IHazardousEventRepository";
 import type { SpatialObservationRecord } from "~/domains/hazardous-events/application/ports/IHazardousEventRepository";
 import { DrizzleWorkflowRepository } from "~/domains/validation-workflow/infrastructure/DrizzleWorkflowRepository.server";
 import { GetWorkflowInstanceByEntityUseCase } from "~/domains/validation-workflow/application/use-cases/GetWorkflowInstanceByEntity";
@@ -2018,7 +2019,18 @@ describe("DrizzleHazardousEventRepository", () => {
 				.values({ parentId: causeId, childId: id, type: "caused_by" });
 			const repo = new DrizzleHazardousEventRepository(dr);
 
-			await expect(repo.delete(id, tenantId)).rejects.toThrow(ConflictError);
+			const rejection = repo.delete(id, tenantId);
+			await expect(rejection).rejects.toThrow(ConflictError);
+			// Explicit marker the presentation layer keys the "caused by" message off (6l); message/status unchanged.
+			await expect(rejection).rejects.toMatchObject({
+				message: "Delete events that are caused by this event first",
+				statusHint: 409,
+				context: {
+					id,
+					tenantId,
+					reason: OUTGOING_EVENT_RELATIONSHIP_CONFLICT,
+				},
+			});
 
 			// Whole transaction rolled back -- nothing partially deleted.
 			await expect(repo.findById(id, tenantId)).resolves.toBeDefined();
