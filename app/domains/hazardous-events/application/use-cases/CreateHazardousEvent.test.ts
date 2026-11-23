@@ -14,13 +14,29 @@ import { InitializeWorkflowInstanceUseCase } from "~/domains/validation-workflow
 import type { IHazardousEventRepository } from "../ports/IHazardousEventRepository";
 import type { ICausalChainRepository } from "../ports/ICausalChainRepository";
 import type { IHazardTaxonomyRepository } from "../ports/IHazardTaxonomyRepository";
+import type {
+	HipCrosswalkIds,
+	IHipCrosswalkPort,
+} from "../ports/IHipCrosswalkPort";
+import type {
+	RecordSpatialObservationCommand,
+	RecordSpatialObservationUseCase,
+} from "./RecordSpatialObservation";
+import type { SpatialObservationDto } from "../dto/SpatialObservationDto";
+import type {
+	IAttachmentStoragePort,
+	StagedFileReference,
+} from "~/domains/shared/attachments/application/ports/IAttachmentStoragePort";
+import type {
+	AuditLogEntry,
+	IAuditLogPort,
+} from "~/domains/shared/audit-log/application/ports/IAuditLogPort";
 import {
 	CreateHazardousEventUseCase,
 	type CreateHazardousEventCommand,
 } from "./CreateHazardousEvent";
 
-/** No real transaction semantics — just invokes fn with a placeholder tx, matching this
- * codebase's own inline-fake convention for every other port these use cases fake. */
+/** No real transaction semantics -- placeholder tx, matching this codebase's own inline-fake convention. */
 const fakeTx = {} as Tx;
 
 class FakeTransactionRunner implements ITransactionRunner {
@@ -99,6 +115,14 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 	}
 
 	async countEdgesTouching(): Promise<number> {
+		throw new Error("not used by CreateHazardousEventUseCase's own tests");
+	}
+
+	async findCauseEdge(): Promise<never> {
+		throw new Error("not used by CreateHazardousEventUseCase's own tests");
+	}
+
+	async findEffectEdges(): Promise<never> {
 		throw new Error("not used by CreateHazardousEventUseCase's own tests");
 	}
 }
@@ -314,6 +338,118 @@ class FakeWorkflowRepository implements IWorkflowRepository {
 	}
 }
 
+/** Mirrors UpdateHazardousEvent.test.ts's own fake exactly (same collaborator, same shape). */
+class FakeRecordSpatialObservationUseCase implements Pick<
+	RecordSpatialObservationUseCase,
+	"execute"
+> {
+	readonly executeCalls: RecordSpatialObservationCommand[] = [];
+	executeBehavior: "succeed" | Error = "succeed";
+
+	constructor(private readonly callLog: string[] = []) {}
+
+	async execute(
+		command: RecordSpatialObservationCommand,
+	): Promise<SpatialObservationDto> {
+		this.executeCalls.push(command);
+		this.callLog.push("spatialObservation.execute");
+		if (this.executeBehavior instanceof Error) {
+			throw this.executeBehavior;
+		}
+		const now = new Date().toISOString();
+		return {
+			id: "observation-1",
+			hazardousEventId: command.hazardousEventId,
+			observationTime: (command.observationTime ?? new Date()).toISOString(),
+			note: command.note ?? null,
+			geometries: command.geometries,
+			divisionIds: command.divisionIds,
+			createdAt: now,
+			updatedAt: now,
+		};
+	}
+}
+
+const DEFAULT_HIP_IDS: HipCrosswalkIds = {
+	hipHazardId: null,
+	hipClusterId: null,
+	hipTypeId: null,
+};
+
+class FakeHipCrosswalkPort implements IHipCrosswalkPort {
+	readonly resolveCalls: string[] = [];
+	readonly stampCalls: {
+		eventId: string;
+		tenantId: string;
+		ids: HipCrosswalkIds;
+		tx: Tx;
+	}[] = [];
+	resolveResult: HipCrosswalkIds = DEFAULT_HIP_IDS;
+	stampBehavior: "succeed" | Error = "succeed";
+
+	constructor(private readonly callLog: string[] = []) {}
+
+	async resolve(specificHazardId: string): Promise<HipCrosswalkIds> {
+		this.resolveCalls.push(specificHazardId);
+		this.callLog.push("hipCrosswalkPort.resolve");
+		return this.resolveResult;
+	}
+
+	async stamp(
+		eventId: string,
+		tenantId: string,
+		ids: HipCrosswalkIds,
+		tx: Tx,
+	): Promise<void> {
+		this.stampCalls.push({ eventId, tenantId, ids, tx });
+		this.callLog.push("hipCrosswalkPort.stamp");
+		if (this.stampBehavior instanceof Error) {
+			throw this.stampBehavior;
+		}
+	}
+}
+
+/** Not exercised here (no File-type attachment submitted) -- promote/delete coverage lives in the PGlite integration tests (tasks.md 4.1). */
+class FakeAttachmentStoragePort implements IAttachmentStoragePort {
+	constructor(private readonly callLog: string[] = []) {}
+
+	async stage(): Promise<StagedFileReference> {
+		throw new Error("not used by this test file");
+	}
+
+	async promote(): Promise<{
+		fileKey: string;
+		fileSize: number;
+		fileName: string;
+	}> {
+		this.callLog.push("attachmentStoragePort.promote");
+		return { fileKey: "fake-key", fileSize: 1, fileName: "fake-name" };
+	}
+
+	async delete(): Promise<void> {
+		this.callLog.push("attachmentStoragePort.delete");
+	}
+
+	async retrieve(): Promise<Buffer> {
+		throw new Error("not used by this test file");
+	}
+}
+
+class FakeAuditLogPort implements Pick<IAuditLogPort, "record"> {
+	readonly recordCalls: { entry: AuditLogEntry; tx: Tx | undefined }[] = [];
+	recordBehavior: "succeed" | Error = "succeed";
+
+	constructor(private readonly callLog: string[] = []) {}
+
+	async record(entry: AuditLogEntry, tx?: Tx): Promise<void> {
+		this.recordCalls.push({ entry, tx });
+		this.callLog.push("auditLogPort.record");
+		if (this.recordBehavior instanceof Error) {
+			throw this.recordBehavior;
+		}
+	}
+}
+
 const baseCommand: CreateHazardousEventCommand = {
 	tenantId: "tenant-1",
 	specificHazardId: "hazard-1",
@@ -399,14 +535,23 @@ function createHarness(options: HarnessOptions = {}) {
 	);
 	const workflowRepository = new FakeWorkflowRepository(callLog);
 	const causalChainRepository = new FakeCausalChainRepository(callLog);
+	const recordSpatialObservationUseCase =
+		new FakeRecordSpatialObservationUseCase(callLog);
 	const transactionRunner = new FakeTransactionRunner(callLog);
+	const hipCrosswalkPort = new FakeHipCrosswalkPort(callLog);
+	const attachmentStoragePort = new FakeAttachmentStoragePort(callLog);
+	const auditLogPort = new FakeAuditLogPort(callLog);
 	const useCase = new CreateHazardousEventUseCase(
 		logger,
 		taxonomyRepository,
 		hazardousEventRepository,
 		new InitializeWorkflowInstanceUseCase(workflowRepository),
 		causalChainRepository,
+		recordSpatialObservationUseCase,
 		transactionRunner,
+		hipCrosswalkPort,
+		attachmentStoragePort,
+		auditLogPort,
 	);
 	return {
 		callLog,
@@ -415,7 +560,11 @@ function createHarness(options: HarnessOptions = {}) {
 		hazardousEventRepository,
 		workflowRepository,
 		causalChainRepository,
+		recordSpatialObservationUseCase,
 		transactionRunner,
+		hipCrosswalkPort,
+		attachmentStoragePort,
+		auditLogPort,
 		useCase,
 	};
 }
@@ -681,7 +830,10 @@ describe("CreateHazardousEventUseCase", () => {
 			await harness.useCase.execute(command);
 
 			expect(harness.callLog).toEqual([
+				"hipCrosswalkPort.resolve",
 				"hazardousEvent.insert",
+				"auditLogPort.record",
+				"hipCrosswalkPort.stamp",
 				"workflow.insert",
 				"transactionRunner.run.resolving",
 				"logger.info",
@@ -746,7 +898,10 @@ describe("CreateHazardousEventUseCase", () => {
 			await harness.useCase.execute(command);
 
 			expect(harness.callLog).toEqual([
+				"hipCrosswalkPort.resolve",
 				"hazardousEvent.insert",
+				"auditLogPort.record",
+				"hipCrosswalkPort.stamp",
 				"workflow.insert",
 				"causalChain.saveEdge",
 				"transactionRunner.run.resolving",
@@ -868,9 +1023,8 @@ describe("CreateHazardousEventUseCase", () => {
 			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 
-		// The real adapter now rolls the HazardousEvent insert back too (DEF-026, Task 7.4's
-		// PGlite test proves it) — a fake transactionRunner has no rollback semantics to assert
-		// against, so this only checks the error propagates and the edge save never runs.
+		// The real adapter rolls the HazardousEvent insert back too (DEF-026, Task 7.4's PGlite
+		// test); the fake has no rollback semantics, so this only checks propagation.
 		it("propagates a generic Error from the workflow insert, blocking the edge save", async () => {
 			const harness = harnessWithCause();
 			harness.workflowRepository.insertBehavior = new Error(
@@ -1002,5 +1156,245 @@ describe("CreateHazardousEventUseCase", () => {
 		expect(harness.logger.info).toHaveBeenCalledWith(
 			expect.objectContaining({ hasCause: true }),
 		);
+	});
+
+	describe("spatialObservation (design.md Decision 3)", () => {
+		it("records it inside the same transaction, with the newly-created event's id and tx, logging success only after commit", async () => {
+			const harness = createHarness();
+			const command = makeCommand({
+				spatialObservation: {
+					geometries: [{ type: "Point" }],
+					divisionIds: [],
+				},
+			});
+
+			await harness.useCase.execute(command);
+
+			const savedEntityId = harness.hazardousEventRepository.insertCalls[0].id;
+			expect(harness.recordSpatialObservationUseCase.executeCalls).toHaveLength(
+				1,
+			);
+			const [call] = harness.recordSpatialObservationUseCase.executeCalls;
+			expect(call.hazardousEventId).toBe(savedEntityId);
+			expect(call.tx).toBe(fakeTx);
+			expect(call.geometries).toEqual([{ type: "Point" }]);
+			expect(harness.callLog).toEqual([
+				"hipCrosswalkPort.resolve",
+				"hazardousEvent.insert",
+				"auditLogPort.record",
+				"hipCrosswalkPort.stamp",
+				"workflow.insert",
+				"spatialObservation.execute",
+				"transactionRunner.run.resolving",
+				"logger.info",
+				"logger.info",
+			]);
+		});
+
+		it("overrides tenantId/hazardousEventId planted on the spatialObservation payload with the command's own values", async () => {
+			const harness = createHarness();
+			const command = {
+				...makeCommand(),
+				spatialObservation: {
+					tenantId: "attacker-tenant",
+					hazardousEventId: "attacker-event",
+					geometries: [],
+					divisionIds: [],
+				},
+			} as unknown as CreateHazardousEventCommand;
+
+			await harness.useCase.execute(command);
+
+			const savedEntityId = harness.hazardousEventRepository.insertCalls[0].id;
+			const [call] = harness.recordSpatialObservationUseCase.executeCalls;
+			expect(call.tenantId).toBe("tenant-1");
+			expect(call.hazardousEventId).toBe(savedEntityId);
+		});
+
+		it("logs spatial_observation.recorded with the exact expected payload (test-quality-auditor finding)", async () => {
+			const harness = createHarness();
+			const observationTime = new Date("2026-03-01T00:00:00.000Z");
+			const command = makeCommand({
+				spatialObservation: {
+					geometries: [{ type: "Point" }],
+					divisionIds: [],
+					observationTime,
+				},
+			});
+
+			await harness.useCase.execute(command);
+
+			const savedEntityId = harness.hazardousEventRepository.insertCalls[0].id;
+			expect(harness.logger.info).toHaveBeenNthCalledWith(2, {
+				msg: "spatial_observation.recorded",
+				hazardousEventId: savedEntityId,
+				tenantId: command.tenantId,
+				observationTime: observationTime.toISOString(),
+			});
+		});
+
+		it("makes no call to the collaborator when spatialObservation is absent", async () => {
+			const harness = createHarness();
+			const command = makeCommand();
+
+			await harness.useCase.execute(command);
+
+			expect(harness.recordSpatialObservationUseCase.executeCalls).toHaveLength(
+				0,
+			);
+		});
+
+		it("propagates a rejection from the delegated spatialObservation call, after the event/workflow inserts were attempted", async () => {
+			const harness = createHarness();
+			const thrown = new Error("boom-spatial-observation");
+			harness.recordSpatialObservationUseCase.executeBehavior = thrown;
+			const command = makeCommand({
+				spatialObservation: { geometries: [], divisionIds: [] },
+			});
+
+			await expect(harness.useCase.execute(command)).rejects.toBe(thrown);
+			expect(harness.logger.info).not.toHaveBeenCalled();
+			expect(harness.callLog).toEqual([
+				"hipCrosswalkPort.resolve",
+				"hazardousEvent.insert",
+				"auditLogPort.record",
+				"hipCrosswalkPort.stamp",
+				"workflow.insert",
+				"spatialObservation.execute",
+			]);
+		});
+	});
+
+	describe("assertCauseStartsNoLaterThanEffect (design.md Decision 4)", () => {
+		it("rejects a cause whose startDate is later than the new event's startDate, before any write", async () => {
+			const harness = createHarness({
+				seedCauseEvents: [makeCauseEvent({ startDate: "2026-06-01" })],
+			});
+			const command = makeCommand({
+				startDate: "2026-01-01",
+				causeId: "cause-1",
+			});
+
+			await expect(harness.useCase.execute(command)).rejects.toThrow(
+				ConflictError,
+			);
+			expect(harness.hazardousEventRepository.insertCalls).toHaveLength(0);
+			expect(harness.workflowRepository.insertCalls).toHaveLength(0);
+			expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(0);
+			expect(harness.logger.info).not.toHaveBeenCalled();
+		});
+
+		it("passes when the cause's startDate is no later than the new event's startDate", async () => {
+			const harness = createHarness({
+				seedCauseEvents: [makeCauseEvent({ startDate: "2026-01-01" })],
+			});
+			const command = makeCommand({
+				startDate: "2026-01-01",
+				causeId: "cause-1",
+			});
+
+			await harness.useCase.execute(command);
+
+			expect(harness.hazardousEventRepository.insertCalls).toHaveLength(1);
+			expect(harness.causalChainRepository.saveEdgeCalls).toHaveLength(1);
+		});
+
+		it("skips the check (does not reject on this basis) when either startDate is a malformed flexible date", async () => {
+			const harness = createHarness({
+				seedCauseEvents: [makeCauseEvent({ startDate: "not-a-real-date" })],
+			});
+			const command = makeCommand({
+				startDate: "2026-01-01",
+				causeId: "cause-1",
+			});
+
+			await harness.useCase.execute(command);
+
+			expect(harness.hazardousEventRepository.insertCalls).toHaveLength(1);
+		});
+	});
+
+	// design.md Decision 17 (task 9d): IHipCrosswalkPort composition -- resolve() before the
+	// transaction, stamp() inside it immediately after the HazardousEvent insert.
+	describe("IHipCrosswalkPort composition (design.md Decision 17)", () => {
+		it("calls resolve() with command.specificHazardId, then stamp() inside the transaction with the saved event's id, tenantId, the resolved ids, and the same tx", async () => {
+			const harness = createHarness();
+			const resolvedIds: HipCrosswalkIds = {
+				hipHazardId: "hip-hazard-1",
+				hipClusterId: "hip-cluster-1",
+				hipTypeId: "hip-type-1",
+			};
+			harness.hipCrosswalkPort.resolveResult = resolvedIds;
+			const command = makeCommand();
+
+			await harness.useCase.execute(command);
+
+			expect(harness.hipCrosswalkPort.resolveCalls).toEqual([
+				command.specificHazardId,
+			]);
+			const savedEntity = harness.hazardousEventRepository.insertCalls[0];
+			expect(harness.hipCrosswalkPort.stampCalls).toEqual([
+				{
+					eventId: savedEntity.id,
+					tenantId: command.tenantId,
+					ids: resolvedIds,
+					tx: fakeTx,
+				},
+			]);
+		});
+
+		// Same no-rollback-semantics caveat as the "blocking the edge save" tests above; the real
+		// rollback guarantee is proven against the real adapter (task 9d.13, DEF-026 rollback-proof suite).
+		it("propagates a rejection from stamp(), logging nothing (rollback proof needs the real adapter, not this fake)", async () => {
+			const harness = createHarness();
+			const thrown = new Error("boom-stamp");
+			harness.hipCrosswalkPort.stampBehavior = thrown;
+			const command = makeCommand();
+
+			await expect(harness.useCase.execute(command)).rejects.toBe(thrown);
+
+			expect(harness.hazardousEventRepository.insertCalls).toHaveLength(1);
+			expect(harness.workflowRepository.insertCalls).toHaveLength(0);
+			expect(harness.logger.info).not.toHaveBeenCalled();
+		});
+	});
+
+	// design.md Decision 6: record() runs inside the transaction, immediately after the event insert.
+	describe("IAuditLogPort composition (design.md Decision 6)", () => {
+		it("calls record() with the saved event's id, the command's own actingUserId/tenantId, and the same tx", async () => {
+			const harness = createHarness();
+			const command = makeCommand();
+
+			await harness.useCase.execute(command);
+
+			const savedEntity = harness.hazardousEventRepository.insertCalls[0];
+			expect(harness.auditLogPort.recordCalls).toEqual([
+				{
+					entry: {
+						tableName: "hazardous_event",
+						recordId: savedEntity.id,
+						userId: command.actingUserId,
+						action: "Create hazardous event",
+						oldValues: null,
+						newValues: expect.objectContaining({ id: savedEntity.id }),
+						countryAccountsId: command.tenantId,
+					},
+					tx: fakeTx,
+				},
+			]);
+		});
+
+		it("propagates a rejection from record(), logging nothing (rollback proof needs the real adapter, not this fake)", async () => {
+			const harness = createHarness();
+			const thrown = new Error("boom-audit-record");
+			harness.auditLogPort.recordBehavior = thrown;
+			const command = makeCommand();
+
+			await expect(harness.useCase.execute(command)).rejects.toBe(thrown);
+
+			expect(harness.hazardousEventRepository.insertCalls).toHaveLength(1);
+			expect(harness.workflowRepository.insertCalls).toHaveLength(0);
+			expect(harness.logger.info).not.toHaveBeenCalled();
+		});
 	});
 });

@@ -4,14 +4,17 @@ import { useTranslation } from "react-i18next";
 
 import { getAppContext } from "~/init.server";
 import { requireUser } from "~/utils/auth";
+import { getCountrySettingsFromSession } from "~/utils/session";
 import { ListHazardousEventsUseCase } from "~/domains/hazardous-events/application/use-cases/ListHazardousEvents";
 import { GetHazardTaxonomyOptionsUseCase } from "~/domains/hazardous-events/application/use-cases/GetHazardTaxonomyOptionsUseCase";
-import { HazardousEventListPage } from "~/domains/hazardous-events/presentation/HazardousEventListPage";
-import { parsePagination } from "~/domains/hazardous-events/presentation/parsePagination";
-import { parseHazardousEventListFilters } from "~/domains/hazardous-events/presentation/parseHazardousEventListFilters";
-import { resolveTenantId } from "~/domains/hazardous-events/presentation/resolveTenantId.server";
-import { throwHazardousEventLoaderError } from "~/domains/hazardous-events/presentation/throwHazardousEventLoaderError.server";
-import { requireViewDataPermission } from "~/domains/hazardous-events/presentation/requireViewDataPermission.server";
+import { HazardousEventListPage } from "~/domains/hazardous-events/presentation/web/HazardousEventListPage";
+import { HazardousEventListActions } from "~/domains/hazardous-events/presentation/web/HazardousEventListActions";
+import { HazardousEventListHeader } from "~/domains/hazardous-events/presentation/web/HazardousEventListHeader";
+import { parsePagination } from "~/domains/hazardous-events/presentation/web/parsePagination";
+import { parseHazardousEventListFilters } from "~/domains/hazardous-events/presentation/web/parseHazardousEventListFilters";
+import { resolveTenantId } from "~/domains/hazardous-events/presentation/web/resolveTenantId.server";
+import { throwHazardousEventLoaderError } from "~/domains/hazardous-events/presentation/web/throwHazardousEventLoaderError.server";
+import { requireViewDataPermission } from "~/domains/hazardous-events/presentation/web/requireViewDataPermission.server";
 import { MainContainer } from "~/frontend/container";
 import { getInstance } from "~/middleware/i18next.server";
 
@@ -48,7 +51,18 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
 				}),
 				getHazardTaxonomyOptionsUseCase.execute(),
 			]);
-		return { items, totalCount, unfilteredTotalCount, taxonomyOptions, role };
+		// New to this loader (design.md Decision 15) -- same fallback legacy's own
+		// HazardEventHeader uses, not a domain-layer query.
+		const settings = await getCountrySettingsFromSession(request);
+		const instanceName = settings?.websiteName || "DELTA Resilience";
+		return {
+			items,
+			totalCount,
+			unfilteredTotalCount,
+			taxonomyOptions,
+			role,
+			instanceName,
+		};
 	} catch (err) {
 		throwHazardousEventLoaderError(err, {
 			logMsg: "Unhandled error in hazardous-event list loader",
@@ -62,6 +76,11 @@ export default function HazardousEventListRoute() {
 	const { t } = useTranslation("hazardous-events");
 	return (
 		<MainContainer title={t("title")}>
+			<HazardousEventListHeader
+				totalCount={data.unfilteredTotalCount}
+				instanceName={data.instanceName}
+			/>
+			<HazardousEventListActions role={data.role} />
 			<HazardousEventListPage data={data} />
 		</MainContainer>
 	);

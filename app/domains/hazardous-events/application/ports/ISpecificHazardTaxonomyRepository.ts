@@ -3,6 +3,8 @@ export interface SpecificHazardTaxonomyNames {
 	specificHazardName: string;
 	hazardClusterName: string;
 	hazardTypeName: string;
+	/** Not nullable -- mirrors the DB column's own notNull(). */
+	specificHazardCode: string;
 }
 
 export interface HazardTypeOption {
@@ -36,8 +38,7 @@ export interface ISpecificHazardTaxonomyRepository {
 		ids: readonly string[],
 	): Promise<ReadonlyMap<string, SpecificHazardTaxonomyNames>>;
 
-	/** Every type/cluster/specific-hazard row, each sorted by name -- full preload for the list
-	 * filter bar's cascading combobox, mirroring legacy's own dataForHazardPicker (design.md
-	 * Decision 1). No tenant filter -- the taxonomy is global. */
+	/** Every type/cluster/specific-hazard row, sorted by name -- full preload for the cascading
+	 * filter combobox, mirroring legacy's dataForHazardPicker. No tenant filter; taxonomy is global. */
 	listAll(): Promise<HazardTaxonomyOptions>;
 }

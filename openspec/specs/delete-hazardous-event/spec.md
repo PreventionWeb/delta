@@ -70,7 +70,7 @@ EventCausalityDependent | CausalChainDependent> }`, where:
 
 - `DisasterEventDependent` is `{ type: "DISASTER_EVENT"; count: number }`
 - `EventCausalityDependent` is `{ type: "EVENT_CAUSALITY"; count: number;
-  crossTenantReferenceExists: boolean }`, where `count` SHALL equal the same-tenant count only
+crossTenantReferenceExists: boolean }`, where `count` SHALL equal the same-tenant count only
   — it SHALL NEVER equal or be derived from the cross-tenant count
 - `CausalChainDependent` is `{ type: "CAUSAL_CHAIN"; count: number }`
 
@@ -123,7 +123,7 @@ row.
 - **WHEN** `execute(command)` is called
 - **THEN** it SHALL throw `ConflictError`
 - **AND** the error's `context.dependents` SHALL include `{ type: "EVENT_CAUSALITY", count: 1,
-  crossTenantReferenceExists: false }`
+crossTenantReferenceExists: false }`
 - **AND** neither `IWorkflowRepository.deleteByEntity` nor `IHazardousEventRepository.delete`
   SHALL be called
 
@@ -135,7 +135,7 @@ row.
 - **WHEN** `execute(command)` is called
 - **THEN** it SHALL throw `ConflictError`
 - **AND** the error's `context.dependents` SHALL include `{ type: "EVENT_CAUSALITY", count: 0,
-  crossTenantReferenceExists: true }`
+crossTenantReferenceExists: true }`
 - **AND** the error's `context` SHALL NOT contain the number `1` (the cross-tenant count)
   anywhere under the `EVENT_CAUSALITY` entry
 - **AND** neither `IWorkflowRepository.deleteByEntity` nor `IHazardousEventRepository.delete`
@@ -149,7 +149,7 @@ row.
 - **WHEN** `execute(command)` is called
 - **THEN** it SHALL throw `ConflictError`
 - **AND** the error's `context.dependents` SHALL include `{ type: "EVENT_CAUSALITY", count: 2,
-  crossTenantReferenceExists: true }`
+crossTenantReferenceExists: true }`
 - **AND** the error's `context` SHALL NOT contain the number `3` (the cross-tenant count)
   anywhere under the `EVENT_CAUSALITY` entry
 
@@ -273,7 +273,7 @@ it occurs after this same call's own earlier `findById` has already resolved suc
 "execute() treats a post-findById NotFoundError from findByIdForUpdate as a successful no-op,"
 below. Every other error `findByIdForUpdate` rejects with (e.g. `ValidationError` from a failed
 rehydration) still propagates unmodified, and `findByIdForUpdate`'s own `NotFoundError` still
-propagates unmodified in every case where it is this call's *first* existence check to reject —
+propagates unmodified in every case where it is this call's _first_ existence check to reject —
 it cannot be, since `execute()`'s own earlier `findById` call already would have rejected first
 in that case.
 
@@ -368,7 +368,7 @@ command.tenantId)` call, in the same position it runs today, before opening any 
 this is what still rejects with `NotFoundError` for a genuinely missing or foreign-tenant id,
 unconditionally, exactly as before this change (design.md Decision 8). Only once that call has
 already resolved successfully does `execute()` open a transaction and call `findByIdForUpdate`
-to acquire the lock. A `NotFoundError` from *that* specific call — which can only mean a
+to acquire the lock. A `NotFoundError` from _that_ specific call — which can only mean a
 concurrent transaction deleted and committed the row while this call waited for the lock, since
 the preceding `findById` already confirmed the row existed — SHALL be caught by `execute()`.
 When caught, `execute()` SHALL run none of the three dependent-reference counts, SHALL call
@@ -438,6 +438,37 @@ check-then-delete race.
   foreign-key violation (the referenced row no longer exists) rather than silently succeeding
   against a row that was concurrently deleted out from under it
 
+### Requirement: Deleting a HazardousEvent deletes its File-type attachments' on-disk files
+
+When `DeleteHazardousEventUseCase.execute(command)` proceeds to delete a `HazardousEvent` (i.e.
+no blocking dependent exists), every `File`-type attachment belonging to that event SHALL have
+its on-disk file deleted via the shared attachments port, in addition to the cascade
+deletion of the `hazardous_event_attachment` rows themselves. `Link`-type attachments require no
+file-storage call.
+
+#### Scenario: Deleting an event with File-type attachments deletes their files
+
+- **GIVEN** a `HazardousEvent` with one `File`-type attachment already promoted to permanent
+  storage, and no blocking dependents
+- **WHEN** `execute(command)` is called
+- **THEN** the `HazardousEvent` and its attachment row are deleted
+- **AND** the attachment's on-disk file is deleted via the shared attachments port
+
+#### Scenario: Deleting an event with only Link-type attachments requires no file-storage call
+
+- **GIVEN** a `HazardousEvent` with one `Link`-type attachment, and no blocking dependents
+- **WHEN** `execute(command)` is called
+- **THEN** the `HazardousEvent` and its attachment row are deleted
+- **AND** no file-storage delete operation is invoked
+
+#### Scenario: A blocked delete (dependents exist) does not delete any attachment file
+
+- **GIVEN** a `HazardousEvent` with one `File`-type attachment and at least one blocking
+  dependent (e.g. a referencing Disaster Event)
+- **WHEN** `execute(command)` is called
+- **THEN** the call rejects with `ConflictError`
+- **AND** the attachment row and its on-disk file both remain untouched
+
 #### Scenario: A dependent inserted and committed before the lock is acquired is counted, blocking the delete exactly as today
 
 - **GIVEN** a `disaster_event` row referencing `hazardousEventId` is inserted and committed on a
@@ -447,3 +478,32 @@ check-then-delete race.
   reflecting that already-committed row
 - **AND** `execute()` MUST throw `ConflictError`, exactly as it would without this change's own
   locking mechanism
+
+### Requirement: An audit row is written inside the same transaction as a delete
+
+`DeleteHazardousEventUseCase.execute()` SHALL write one `audit_logs` row — `tableName:
+"hazardous_event"`, `recordId` the deleted event's id, `userId: command.actingUserId`, `action:
+"delete"` (lowercase, matching legacy's own existing convention for this action), `oldValues` the
+full pre-delete row, `newValues: null`, `countryAccountsId: command.tenantId` — as part of the
+same transaction as the row delete, not after it.
+
+#### Scenario: A successful delete writes exactly one correctly-shaped audit row
+
+- **WHEN** `execute()` is called for an event with no blocking dependents and completes
+  successfully
+- **THEN** exactly one `audit_logs` row exists for the deleted event's id afterward
+- **AND** its `action` is `"delete"`, its `oldValues` matches the event's state immediately
+  before the delete, and its `newValues` is null
+- **AND** its `countryAccountsId` equals `command.tenantId`
+
+#### Scenario: A delete blocked by a dependent writes no audit row
+
+- **WHEN** `execute()` finds a blocking dependent (a referencing Disaster Event, event-causality
+  link, or causal-chain edge) and throws `ConflictError` before the row delete runs
+- **THEN** no `audit_logs` row is written for that event
+
+#### Scenario: A no-op delete (row already removed by a concurrent caller) writes no audit row
+
+- **WHEN** `execute()`'s row-lock step finds the event already deleted by a concurrent transaction
+  and resolves as a no-op, as it already does today
+- **THEN** no `audit_logs` row is written for that attempt

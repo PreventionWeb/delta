@@ -222,12 +222,12 @@ Once pre-flight passes, `sdd-implementer` runs the full TDD loop:
    | 3    | `yarn format:check` — Prettier clean                                                                                                                                                              |
    | 4    | Anti-pattern review — `.github/skills/anti-pattern-check/SKILL.md`                                                                                                                                |
    | 5    | SOLID review — `solid-reviewer` agent (SRP and DIP focus)                                                                                                                                         |
-   | 6    | Documentation review — comments explain WHY, not WHAT, and stay as compact as the code's actual complexity allows (full-diff sweep by a fresh subagent)                                           |
+   | 6    | Documentation review — comments explain WHY, not WHAT, under 30 words 99% of the time (100 max for a rare genuine exception)                                                                      |
    | 7    | Project conventions — `.github/copilot-instructions.md`                                                                                                                                           |
    | 8    | Code review — repo's `code-review` skill, via a fresh subagent (DELTA/DDD/ADR + design-system/prototype/accessibility alignment)                                                                  |
    | 9a   | Design-system and token compliance — `yarn check:design-system --change <name>` + `.github/skills/design-system-check/SKILL.md` against pinned `unisdr/delta-design`                              |
    | 9b   | Accessibility and keyboard compliance — Playwright + `@axe-core/playwright` WCAG 2.2 AA (`tests/e2e/helpers/a11y.ts`) + keyboard interaction checks across affected routes and states             |
-   | 9c   | Feature hand-off parity — responsive & state screenshots (`tests/e2e/helpers/prototype-evidence.ts`) + itemised parity report (`openspec/changes/<name>/evidence/gate-9-report.md`) + fresh audit |
+   | 9c   | Feature hand-off & visual/UX parity — responsive & state screenshots (`tests/e2e/helpers/prototype-evidence.ts`) + `evidence/gate-9-report.md` + fresh audit (`visual-parity-reviewer` if legacy) |
    | 10   | Independent second-opinion review, **Claude Code only** — its built-in `code-review high`, via a second fresh subagent. Other tools: use an equivalent platform feature if one exists, else skip. |
 
    ### Gate 9 Conformance Standard: Intent Parity vs. Pixel-Perfect Comparison
@@ -269,20 +269,15 @@ Once pre-flight passes, `sdd-implementer` runs the full TDD loop:
    mutants at little cost, which is cheaper than the alternative of skipping a file that looked
    simple but wasn't. See `.github/agents/test-quality-auditor.agent.md`.
 
-   **Gate 6 also requires one full pass over every comment in the change's entire diff** —
-   not just the current round's delta — immediately before the final report. A comment can
-   accrete length gradually across several refactor rounds without any single round's check
-   ever seeing the whole picture; only a full-diff sweep at the end catches that. Compact any
-   comment that says in several lines what fits in one, without losing real information. A
-   multi-line comment is not itself a defect — keep it when the code it documents is genuinely
-   non-trivial (a subtle invariant, an ordering dependency, a workaround whose reasoning
-   doesn't fit on one line). There is no fixed line-count limit; the bar is "no shorter without
-   losing meaning," not "no longer than N lines."
-
-   **This sweep must be done by a fresh subagent, not by `sdd-implementer` re-reading its own
-   comments.** Self-review has already missed real bloat twice — an author reliably finds their
-   own explanation reasonable, the same reason Gate 8/9/10 use a fresh reviewer instead of
-   self-critique. `sdd-implementer` applies the fresh subagent's suggested compactions itself.
+   **Gate 6 is a quantified word limit, enforced at write time, not a post-hoc sweep:** every
+   comment stays under 30 words 99% of the time, up to 100 words only for a genuinely
+   non-trivial case (a subtle invariant, an ordering dependency, a workaround whose reasoning
+   doesn't fit in one line). Never cite a Decision number, a change-history narrative, or
+   alternatives considered — that belongs in `design.md`. `sdd-implementer` and `tdd-test-writer`
+   write to this limit directly; Gate 6 itself is now a quick self-check (re-read comments
+   added/touched this round, cut anything over the limit) rather than a fresh-subagent full-diff
+   sweep — the limit is meant to make that heavier step unnecessary. Revisit this if bloat
+   recurs even with the limit stated upfront.
 
 4. **Keep all artifacts in sync** — `proposal.md` and `specs/` are living documents. When a
    design decision changes the scope, files, approach, or scenarios stated in either (different
@@ -324,18 +319,20 @@ After archiving, raise the PR targeting `dev` as normal.
 
 ## Agents and skills reference
 
-| File                                           | Role                                                                                         |
-| ---------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `.github/agents/spec-writer.agent.md`          | Phase 0 intent validation + OpenSpec proposal generation (incl. UI classification & pinning) |
-| `.github/agents/tdd-test-writer.agent.md`      | Writes failing tests (Red phase) — invoked by sdd-implementer                                |
-| `.github/agents/sdd-implementer.agent.md`      | Orchestrates Pre-Flight Gate + Red → Green → Refactor (Gates 1–10), stops before archive     |
-| `.github/agents/test-writer.agent.md`          | Comprehensive test suites (all tiers, independent of TDD cycle)                              |
-| `.github/agents/solid-reviewer.agent.md`       | SOLID design review — invoked by sdd-implementer at gate 5                                   |
-| `.github/agents/test-quality-auditor.agent.md` | Mutation testing (Stryker) on changed files — is a test meaningful, not just green           |
-| `.github/skills/tdd-cycle/SKILL.md`            | TDD Red→Green→Refactor methodology and DELTA tooling                                         |
-| `.github/skills/anti-pattern-check/SKILL.md`   | Gate 4 quality gate checklist — run before every PR                                          |
-| `.github/skills/code-review/SKILL.md`          | Gate 8 — DELTA/DDD/ADR/design-system review, run via a fresh subagent                        |
-| `.github/skills/design-system-check/SKILL.md`  | Gate 9 (`9a`, `9b`, `9c`) — DELTA Design System, WCAG 2.2 AA, and prototype parity checklist |
+| File                                             | Role                                                                                           |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| `.github/agents/spec-writer.agent.md`            | Phase 0 intent validation + OpenSpec proposal generation (incl. UI classification & pinning)   |
+| `.github/agents/tdd-test-writer.agent.md`        | Writes failing tests (Red phase) — invoked by sdd-implementer                                  |
+| `.github/agents/sdd-implementer.agent.md`        | Orchestrates Pre-Flight Gate + Red → Green → Refactor (Gates 1–10), stops before archive       |
+| `.github/agents/test-writer.agent.md`            | Comprehensive test suites (all tiers, independent of TDD cycle)                                |
+| `.github/agents/solid-reviewer.agent.md`         | SOLID design review — invoked by sdd-implementer at gate 5                                     |
+| `.github/agents/test-quality-auditor.agent.md`   | Mutation testing (Stryker) on changed files — is a test meaningful, not just green             |
+| `.github/agents/visual-parity-reviewer.agent.md` | Gate 9 — visual/UX parity vs. a reference page/mock/spec, structured report only               |
+| `.github/skills/tdd-cycle/SKILL.md`              | TDD Red→Green→Refactor methodology and DELTA tooling                                           |
+| `.github/skills/anti-pattern-check/SKILL.md`     | Gate 4 quality gate checklist — run before every PR                                            |
+| `.github/skills/code-review/SKILL.md`            | Gate 8 — DELTA/DDD/ADR/design-system review, run via a fresh subagent                          |
+| `.github/skills/design-system-check/SKILL.md`    | Gate 9 (`9a`, `9b`, `9c`) — DELTA Design System, WCAG 2.2 AA, and prototype parity checklist   |
+| `.github/skills/visual-parity-check/SKILL.md`    | Gate 9 methodology — trace every value to source, full-page pass, not computed-style guesswork |
 
 ## Useful commands
 

@@ -105,9 +105,8 @@ describe("DrizzleCausalChainRepository", () => {
 			);
 		});
 
-		// Confirms the off-by-one boundary (`LIMIT adapterRowBound + 1`, design.md Decision 2): a
-		// raw-row count exactly at the bound must resolve, not be mistaken for the truncated case
-		// above.
+		// Off-by-one boundary check (`LIMIT adapterRowBound + 1`, design.md Decision 2): exactly
+		// at the bound must resolve, not be mistaken for the truncated case above.
 		it("resolves the full result, without throwing, when raw traversal rows land exactly at the adapter's row bound", async () => {
 			const [a, b, c] = await Promise.all([seedNode(), seedNode(), seedNode()]);
 			await insertEdge(a, b);
@@ -361,6 +360,108 @@ describe("DrizzleCausalChainRepository", () => {
 			const repo = new DrizzleCausalChainRepository(dr);
 
 			await expect(repo.countEdgesTouching(a)).resolves.toBe(1);
+		});
+	});
+
+	describe("findCauseEdge", () => {
+		it("resolves null when effectId has no cause edge", async () => {
+			const node = await seedNode();
+			const repo = new DrizzleCausalChainRepository(dr);
+
+			await expect(repo.findCauseEdge(node)).resolves.toBeNull();
+		});
+
+		it("resolves the current cause edge's causeId/causalityExplanation", async () => {
+			const [a, b] = await Promise.all([seedNode(), seedNode()]);
+			await insertEdge(a, b, "upstream flooding");
+			const repo = new DrizzleCausalChainRepository(dr);
+
+			await expect(repo.findCauseEdge(b)).resolves.toEqual({
+				causeId: a,
+				causalityExplanation: "upstream flooding",
+			});
+		});
+
+		it("reflects replaceCauseEdge's latest state, not a stale row", async () => {
+			const [a, b, c] = await Promise.all([seedNode(), seedNode(), seedNode()]);
+			await insertEdge(a, b);
+			const repo = new DrizzleCausalChainRepository(dr);
+			await repo.replaceCauseEdge(b, {
+				causeId: c,
+				causalityExplanation: "revised",
+			});
+
+			await expect(repo.findCauseEdge(b)).resolves.toEqual({
+				causeId: c,
+				causalityExplanation: "revised",
+			});
+		});
+	});
+
+	describe("findEffectEdges", () => {
+		it("resolves an empty array for a node with no outgoing edges", async () => {
+			const node = await seedNode();
+			const repo = new DrizzleCausalChainRepository(dr);
+
+			await expect(repo.findEffectEdges(node)).resolves.toEqual([]);
+		});
+
+		it("resolves the one direct effect for a node with a single outgoing edge", async () => {
+			const [a, b] = await Promise.all([seedNode(), seedNode()]);
+			await insertEdge(a, b, "upstream flooding");
+			const repo = new DrizzleCausalChainRepository(dr);
+
+			await expect(repo.findEffectEdges(a)).resolves.toEqual([
+				{ effectId: b, causalityExplanation: "upstream flooding" },
+			]);
+		});
+
+		it("resolves every direct effect for a node with multiple outgoing edges", async () => {
+			const [a, b, c] = await Promise.all([seedNode(), seedNode(), seedNode()]);
+			await insertEdge(a, b, "explanation-B");
+			await insertEdge(a, c, "explanation-C");
+			const repo = new DrizzleCausalChainRepository(dr);
+
+			const result = await repo.findEffectEdges(a);
+
+			expect(result).toEqual(
+				expect.arrayContaining([
+					{ effectId: b, causalityExplanation: "explanation-B" },
+					{ effectId: c, causalityExplanation: "explanation-C" },
+				]),
+			);
+			expect(result).toHaveLength(2);
+		});
+
+		it("excludes a transitively reachable, but not direct, effect", async () => {
+			const [a, b, c] = await Promise.all([seedNode(), seedNode(), seedNode()]);
+			await insertEdge(a, b);
+			await insertEdge(b, c);
+			const repo = new DrizzleCausalChainRepository(dr);
+
+			const result = await repo.findEffectEdges(a);
+
+			expect(result).toEqual([{ effectId: b, causalityExplanation: null }]);
+		});
+
+		it("resolves an empty array for a node that is only ever an effect, never a cause", async () => {
+			const [a, b] = await Promise.all([seedNode(), seedNode()]);
+			await insertEdge(a, b);
+			const repo = new DrizzleCausalChainRepository(dr);
+
+			await expect(repo.findEffectEdges(b)).resolves.toEqual([]);
+		});
+
+		it("reflects an uncommitted edge inserted under a caller-supplied tx", async () => {
+			const [a, b] = await Promise.all([seedNode(), seedNode()]);
+			const repo = new DrizzleCausalChainRepository(dr);
+
+			await dr.transaction(async (tx) => {
+				await repo.saveEdge({ causeId: a, effectId: b }, null, tx);
+				await expect(repo.findEffectEdges(a, tx)).resolves.toEqual([
+					{ effectId: b, causalityExplanation: null },
+				]);
+			});
 		});
 	});
 });

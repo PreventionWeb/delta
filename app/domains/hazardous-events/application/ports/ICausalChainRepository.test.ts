@@ -3,11 +3,8 @@ import type { CausalEdge } from "../../domain/CausalChain";
 import type { Tx } from "~/db.server";
 import type { ICausalChainRepository } from "./ICausalChainRepository";
 
-/**
- * Fake conformance implementation (matches IHazardousEventRepository.test.ts's pattern).
- * findReachableEdgesFrom does a real forward BFS over the stored edges so the
- * reachable-vs-excluded scenarios are genuinely exercised.
- */
+/** Fake conformance implementation (matches IHazardousEventRepository.test.ts's pattern);
+ * findReachableEdgesFrom does a real BFS so reachability scenarios are genuinely exercised. */
 class FakeCausalChainRepository implements ICausalChainRepository {
 	private edges: {
 		edge: CausalEdge;
@@ -68,6 +65,33 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 		return this.edges.filter(
 			({ edge }) => edge.causeId === nodeId || edge.effectId === nodeId,
 		).length;
+	}
+
+	async findCauseEdge(
+		effectId: string,
+		_tx?: Tx,
+	): Promise<{ causeId: string; causalityExplanation: string | null } | null> {
+		const found = this.edges.find(({ edge }) => edge.effectId === effectId);
+		return found
+			? {
+					causeId: found.edge.causeId,
+					causalityExplanation: found.causalityExplanation,
+				}
+			: null;
+	}
+
+	async findEffectEdges(
+		causeId: string,
+		_tx?: Tx,
+	): Promise<
+		readonly { effectId: string; causalityExplanation: string | null }[]
+	> {
+		return this.edges
+			.filter(({ edge }) => edge.causeId === causeId)
+			.map(({ edge, causalityExplanation }) => ({
+				effectId: edge.effectId,
+				causalityExplanation,
+			}));
 	}
 
 	all(): readonly { edge: CausalEdge; causalityExplanation: string | null }[] {
@@ -263,6 +287,96 @@ describe("ICausalChainRepository conformance", () => {
 			]);
 		});
 	});
+
+	describe("findCauseEdge", () => {
+		it("resolves null when effectId has no cause edge", async () => {
+			const repo = new FakeCausalChainRepository();
+
+			await expect(repo.findCauseEdge("solo-node")).resolves.toBeNull();
+		});
+
+		it("resolves the current cause edge's causeId/causalityExplanation", async () => {
+			const repo = new FakeCausalChainRepository();
+			await repo.saveEdge({ causeId: "A", effectId: "B" }, "upstream flooding");
+
+			await expect(repo.findCauseEdge("B")).resolves.toEqual({
+				causeId: "A",
+				causalityExplanation: "upstream flooding",
+			});
+		});
+
+		it("reflects replaceCauseEdge's delete-then-insert -- resolves the latest cause, not a stale one", async () => {
+			const repo = new FakeCausalChainRepository();
+			await repo.saveEdge({ causeId: "A", effectId: "B" }, null);
+			await repo.replaceCauseEdge("B", {
+				causeId: "C",
+				causalityExplanation: "new cause",
+			});
+
+			await expect(repo.findCauseEdge("B")).resolves.toEqual({
+				causeId: "C",
+				causalityExplanation: "new cause",
+			});
+		});
+
+		it("resolves null after replaceCauseEdge clears the cause", async () => {
+			const repo = new FakeCausalChainRepository();
+			await repo.saveEdge({ causeId: "A", effectId: "B" }, null);
+			await repo.replaceCauseEdge("B", null);
+
+			await expect(repo.findCauseEdge("B")).resolves.toBeNull();
+		});
+	});
+
+	describe("findEffectEdges", () => {
+		it("resolves an empty array for a node with no outgoing edges", async () => {
+			const repo = new FakeCausalChainRepository();
+
+			await expect(repo.findEffectEdges("solo-node")).resolves.toEqual([]);
+		});
+
+		it("resolves the one direct effect for a node with a single outgoing edge", async () => {
+			const repo = new FakeCausalChainRepository();
+			await repo.saveEdge({ causeId: "A", effectId: "B" }, "upstream flooding");
+
+			await expect(repo.findEffectEdges("A")).resolves.toEqual([
+				{ effectId: "B", causalityExplanation: "upstream flooding" },
+			]);
+		});
+
+		it("resolves every direct effect for a node with multiple outgoing edges", async () => {
+			const repo = new FakeCausalChainRepository();
+			await repo.saveEdge({ causeId: "A", effectId: "B" }, "explanation-B");
+			await repo.saveEdge({ causeId: "A", effectId: "C" }, "explanation-C");
+
+			const result = await repo.findEffectEdges("A");
+
+			expect(result).toEqual(
+				expect.arrayContaining([
+					{ effectId: "B", causalityExplanation: "explanation-B" },
+					{ effectId: "C", causalityExplanation: "explanation-C" },
+				]),
+			);
+			expect(result).toHaveLength(2);
+		});
+
+		it("excludes a transitively reachable, but not direct, effect", async () => {
+			const repo = new FakeCausalChainRepository();
+			await repo.saveEdge({ causeId: "A", effectId: "B" }, null);
+			await repo.saveEdge({ causeId: "B", effectId: "C" }, null);
+
+			const result = await repo.findEffectEdges("A");
+
+			expect(result).toEqual([{ effectId: "B", causalityExplanation: null }]);
+		});
+
+		it("resolves an empty array for a node that is only ever an effect, never a cause", async () => {
+			const repo = new FakeCausalChainRepository();
+			await repo.saveEdge({ causeId: "A", effectId: "B" }, null);
+
+			await expect(repo.findEffectEdges("B")).resolves.toEqual([]);
+		});
+	});
 });
 
 // Tuple equality (not plain assignability), so a dropped/added param fails to compile (matches IHazardousEventRepository.test.ts).
@@ -284,8 +398,18 @@ const _countEdgesTouchingArity: AssertEqual<
 	Parameters<ICausalChainRepository["countEdgesTouching"]>,
 	[string, Tx?]
 > = true;
+const _findCauseEdgeArity: AssertEqual<
+	Parameters<ICausalChainRepository["findCauseEdge"]>,
+	[string, Tx?]
+> = true;
+const _findEffectEdgesArity: AssertEqual<
+	Parameters<ICausalChainRepository["findEffectEdges"]>,
+	[string, Tx?]
+> = true;
 
 void _findReachableEdgesFromArity;
 void _saveEdgeArity;
 void _replaceCauseEdgeArity;
 void _countEdgesTouchingArity;
+void _findCauseEdgeArity;
+void _findEffectEdgesArity;

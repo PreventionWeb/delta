@@ -284,25 +284,194 @@ consistent with Invariant 2 (direct-URL-only access).
 - **THEN** it MUST NOT contain any reference to the `he-preview` path segment
 
 ### Requirement: API Route Boundary
+
 The system SHALL reserve `/api/*` for NestJS handling.
 
 #### Scenario: API route request
+
 - **WHEN** request path starts with `/api/`
 - **THEN** request is handled by NestJS
 - **AND** not delegated to React Router
 
 ### Requirement: Frontend Route Delegation
+
 The system SHALL delegate non-API routes to React Router server handling.
 
 #### Scenario: Frontend route request
+
 - **WHEN** request path does not start with `/api/`
 - **THEN** request is handled by React Router
 - **AND** deep-link routes resolve successfully
 
 ### Requirement: API-First Route Precedence
+
 The server SHALL register API routes before React Router catch-all routes.
 
 #### Scenario: Route registration
+
 - **WHEN** handlers are mounted
 - **THEN** `/api` routes are mounted before catch-all handling
 - **AND** catch-all does not intercept `/api/*`
+
+### Requirement: HE detail loader resolves and returns the acting role
+
+The `loader` exported from `app/routes/$lang+/_authenticated+/he-preview+/$id.tsx` SHALL continue
+to call `requireViewDataPermission({ request })` for its authorization side-effect (a real
+`ViewData` gate, shared with the list loader), but SHALL NOT capture its return value or include a
+`role` field in the loader's return value. This reverses the "Captured (was previously discarded)"
+change made by a different, already-archived change
+(`2026-11-04-ca-he-route-adapter-write`, design.md Decision 16) to feed the Edit/add-cause links
+the two Requirements below now remove.
+
+#### Scenario: Detail loader returns the resolved role alongside the event
+
+- **GIVEN** an authenticated session with `ViewData` permission and role `"data-collector"`
+- **WHEN** the detail loader runs for an existing, tenant-scoped event
+- **THEN** `requireViewDataPermission({ request })` SHALL still have resolved and authorized that
+  role (its 403-on-missing-permission behavior is unchanged)
+- **AND** the loader's return value SHALL NOT include a `role` field alongside the event (title
+  retained from the superseded requirement for delta continuity; the behavior is now the opposite
+  of what the title describes literally — see the Requirement text above)
+
+### Requirement: HE detail page renders an "Edit" link, gated by EditData AND the same status-aware check the edit route's own loader enforces
+
+`HazardousEventDetailPage` SHALL NOT render a link to `he-preview/edit/{id}`, for any role or
+`workflowStatus`. This reverses the Requirement of the same name added by
+`2026-11-04-ca-he-route-adapter-write` (design.md Decision 16): a fresh manual review against
+legacy's real current detail page (`app/frontend/events/hazardeventform.tsx`'s
+`HazardousEventView`, `hideEditButton={true}` at line 693, honored unconditionally by
+`app/frontend/components/data-collection/View.tsx:624`) found legacy has no Edit link on this page
+at all — Edit remains reachable from the Hazardous events list page's own row actions instead.
+Every scenario below (titles retained from the superseded requirement for delta continuity) now
+asserts the link is absent in the case it used to assert the link was present.
+
+#### Scenario: A role with EditData sees the Edit link for an editable status (DRAFT)
+
+- **GIVEN** a detail page rendered for a role with `EditData` permission (e.g. `"data-collector"`)
+  and `data.workflowStatus: "DRAFT"`
+- **WHEN** the page renders
+- **THEN** no link to `he-preview/edit/{id}` SHALL be present
+
+#### Scenario: A role with EditData sees the Edit link for REVISION_REQUESTED
+
+- **GIVEN** a detail page rendered for a role with `EditData` permission (e.g. `"admin"`) and
+  `data.workflowStatus: "REVISION_REQUESTED"`
+- **WHEN** the page renders
+- **THEN** no link to `he-preview/edit/{id}` SHALL be present
+
+#### Scenario: A role with EditData never sees the Edit link for a locked status
+
+- **GIVEN** a detail page rendered with `role: "admin"` and `data.workflowStatus` one of
+  `"SUBMITTED"`, `"APPROVED"`, `"PUBLISHED"`
+- **WHEN** the page renders
+- **THEN** no link to `he-preview/edit/{id}` SHALL be present
+
+#### Scenario: data-viewer never sees the Edit link
+
+- **GIVEN** a detail page rendered with `role: "data-viewer"`
+- **WHEN** the page renders
+- **THEN** no link to `he-preview/edit/{id}` SHALL be present
+
+#### Scenario: A null/missing role never sees the Edit link
+
+- **GIVEN** a detail page rendered with `role: null`
+- **WHEN** the page renders
+- **THEN** no link to `he-preview/edit/{id}` SHALL be present
+
+### Requirement: HE detail page renders an "Add hazardous event caused by this event" link, gated the same way
+
+`HazardousEventDetailPage` SHALL NOT render a link to `he-preview/new?parent={id}`, for any role.
+This reverses the Requirement of the same name added by `2026-11-04-ca-he-route-adapter-write`
+(design.md Decision 16): a fresh manual review against legacy's real current detail page found no
+equivalent entry point for this link anywhere on the page's redesign. The route at
+`he-preview/new.tsx` and its `?parent=` query-param handling are unchanged and still function if
+reached directly by URL — only the in-app link to it from this page is removed. Both scenarios
+below (titles retained from the superseded requirement for delta continuity) now assert the link
+is absent in the case that used to assert it was present.
+
+#### Scenario: A role with EditData sees the add-cause link
+
+- **GIVEN** a detail page rendered for a role with `EditData` permission (e.g. `"admin"`) for
+  event id `"evt-1"`
+- **WHEN** the page renders
+- **THEN** no link to `he-preview/new?parent=evt-1` SHALL be present
+
+#### Scenario: data-viewer never sees the add-cause link
+
+- **GIVEN** a detail page rendered with `role: "data-viewer"`
+- **WHEN** the page renders
+- **THEN** no link to `he-preview/new?parent={id}` SHALL be present
+
+### Requirement: HE detail page renders attachments as a Title/Tags/File-URL table
+
+`HazardousEventDetailPage` SHALL render a non-empty `data.attachments` collection as a table with
+exactly three columns, in this order: Title, Tags, File/URL — built from the design-system
+`Table`/`TableColumn`/`TableRow`/`TableCell` components, matching legacy's own equivalent
+read-only view (`app/frontend/attachmentsView.tsx`) with the deviations stated below. This
+replaces the previous title-only `<ul>`/`<li>` rendering. The existing empty-state branch
+(`data.attachments.length === 0` renders `t("detail.attachments_none")`) SHALL be unchanged.
+
+#### Scenario: A non-empty attachments collection renders as a table, not a list
+
+- **GIVEN** a detail page rendered with one or more attachments
+- **WHEN** the page renders
+- **THEN** the attachments SHALL render inside a table with column headers for Title, Tags, and
+  File/URL
+- **AND** no bare `<ul>`/`<li>` attachments markup SHALL be present
+
+#### Scenario: The empty-attachments state is unchanged
+
+- **GIVEN** a detail page rendered with `data.attachments: []`
+- **WHEN** the page renders
+- **THEN** the translated string for `detail.attachments_none` SHALL be present
+- **AND** no attachments table SHALL be rendered
+
+### Requirement: An attachment's tags render joined by name, with a dash fallback
+
+Each attachment row's Tags cell SHALL render `attachment.tag`'s entries joined by their `name`
+field, comma-separated. When `attachment.tag` is `null` or an empty array, the cell SHALL render
+`"—"`, matching this same page's own existing convention for a null nullable field (not legacy's
+`"N/A"` string).
+
+#### Scenario: An attachment with tags renders them joined by name
+
+- **GIVEN** an attachment with `tag: [{id: "t1", name: "Flood"}, {id: "t2", name: "Urban"}]`
+- **WHEN** the page renders
+- **THEN** the attachment's Tags cell SHALL contain "Flood, Urban"
+
+#### Scenario: An attachment with no tags renders a dash
+
+- **GIVEN** an attachment with `tag: null`
+- **WHEN** the page renders
+- **THEN** the attachment's Tags cell SHALL contain "—"
+- **AND** the cell SHALL NOT contain "N/A"
+
+### Requirement: A File-type attachment renders a working download link using fileKey for the href and fileName for the display text
+
+A `type: "File"` attachment's File/URL cell SHALL render an `<a>` element whose `href` resolves
+to the existing `/hazardous-event/file-viewer` route with a `name` query value built from the
+event's own `id` and the attachment's `fileKey` (the on-disk basename), and whose visible text
+is `attachment.fileName` (the human-readable display name) — never the reverse. The link SHALL
+carry `target="_blank" rel="noopener noreferrer"`.
+
+#### Scenario: A File-type attachment's link targets fileKey and displays fileName
+
+- **GIVEN** a detail page rendered for event id `"evt-1"` with an attachment
+  `{type: "File", fileKey: "abc123__survey.jpg", fileName: "survey.jpg"}`
+- **WHEN** the page renders
+- **THEN** the rendered `<a>` element's `href` SHALL contain `evt-1/abc123__survey.jpg`
+- **AND** the rendered `<a>` element's visible text SHALL be "survey.jpg"
+- **AND** the `<a>` element SHALL have `target="_blank"` and `rel="noopener noreferrer"`
+
+### Requirement: A Link-type attachment renders a working hyperlink to its URL
+
+A `type: "Link"` attachment's File/URL cell SHALL render an `<a>` element whose `href` is
+`attachment.url` and whose visible text is `attachment.url`, carrying
+`target="_blank" rel="noopener noreferrer"`.
+
+#### Scenario: A Link-type attachment's link targets its own url
+
+- **GIVEN** an attachment `{type: "Link", url: "https://example.org/report"}`
+- **WHEN** the page renders
+- **THEN** the rendered `<a>` element's `href` SHALL be "https://example.org/report"
+- **AND** the `<a>` element SHALL have `target="_blank"` and `rel="noopener noreferrer"`

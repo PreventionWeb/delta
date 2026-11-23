@@ -50,6 +50,9 @@ as the tests exist and are confirmed to fail.
   `aria-sort`, heading level), semantic token usage (no hardcoded hex), a specific class name, or
   a fixed field order — encode those as literal assertions in the component test, rather than
   leaving them to be caught only by a later manual visual review.
+- **Comments, when a test genuinely needs one:** under 30 words 99% of the time, up to 100 only
+  for a real edge case worth flagging. Explain why the scenario matters, never a Decision number
+  or a narrative of what the test used to assert. Most well-named tests need none at all.
 
 ## Red phase discipline
 

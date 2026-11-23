@@ -20,10 +20,24 @@ import type { IHazardousEventRepository } from "../ports/IHazardousEventReposito
 import type { ICausalChainRepository } from "../ports/ICausalChainRepository";
 import type { IHazardTaxonomyRepository } from "../ports/IHazardTaxonomyRepository";
 import type {
+	HipCrosswalkIds,
+	IHipCrosswalkPort,
+} from "../ports/IHipCrosswalkPort";
+import type {
 	RecordSpatialObservationCommand,
 	RecordSpatialObservationUseCase,
 } from "./RecordSpatialObservation";
 import type { SpatialObservationDto } from "../dto/SpatialObservationDto";
+import type {
+	AttachmentDescriptor,
+	IAttachmentStoragePort,
+	StagedFileReference,
+} from "~/domains/shared/attachments/application/ports/IAttachmentStoragePort";
+import type { HazardousEventAttachmentInput } from "../dto/HazardousEventAttachmentInput";
+import type {
+	AuditLogEntry,
+	IAuditLogPort,
+} from "~/domains/shared/audit-log/application/ports/IAuditLogPort";
 import {
 	UpdateHazardousEventUseCase,
 	type UpdateHazardousEventCommand,
@@ -40,8 +54,7 @@ class FakeLogger implements ILogger {
 	constructor(private readonly callLog?: string[]) {}
 }
 
-/** No real transaction semantics — just invokes fn with a placeholder tx, matching this
- * codebase's own inline-fake convention for every other port these use cases fake. */
+/** No real transaction semantics — just invokes fn with a placeholder tx (same inline-fake convention used for every other port here). */
 const fakeTx = {} as Tx;
 
 class FakeTransactionRunner implements ITransactionRunner {
@@ -339,6 +352,14 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 		throw new Error("not used by UpdateHazardousEventUseCase's own tests");
 	}
 
+	async findCauseEdge(): Promise<never> {
+		throw new Error("not used by UpdateHazardousEventUseCase's own tests");
+	}
+
+	async findEffectEdges(): Promise<never> {
+		throw new Error("not used by UpdateHazardousEventUseCase's own tests");
+	}
+
 	all(): readonly CausalEdge[] {
 		return [...this.edges];
 	}
@@ -372,6 +393,109 @@ class FakeRecordSpatialObservationUseCase implements Pick<
 			createdAt: now,
 			updatedAt: now,
 		};
+	}
+}
+
+const DEFAULT_HIP_IDS: HipCrosswalkIds = {
+	hipHazardId: null,
+	hipClusterId: null,
+	hipTypeId: null,
+};
+
+class FakeHipCrosswalkPort implements IHipCrosswalkPort {
+	readonly resolveCalls: string[] = [];
+	readonly stampCalls: {
+		eventId: string;
+		tenantId: string;
+		ids: HipCrosswalkIds;
+		tx: Tx;
+	}[] = [];
+	resolveResult: HipCrosswalkIds = DEFAULT_HIP_IDS;
+	stampBehavior: "succeed" | Error = "succeed";
+
+	constructor(private readonly callLog: string[] = []) {}
+
+	async resolve(specificHazardId: string): Promise<HipCrosswalkIds> {
+		this.resolveCalls.push(specificHazardId);
+		this.callLog.push("hipCrosswalkPort.resolve");
+		return this.resolveResult;
+	}
+
+	async stamp(
+		eventId: string,
+		tenantId: string,
+		ids: HipCrosswalkIds,
+		tx: Tx,
+	): Promise<void> {
+		this.stampCalls.push({ eventId, tenantId, ids, tx });
+		this.callLog.push("hipCrosswalkPort.stamp");
+		if (this.stampBehavior instanceof Error) {
+			throw this.stampBehavior;
+		}
+	}
+}
+
+class FakeAttachmentStoragePort implements IAttachmentStoragePort {
+	readonly promoteCalls: {
+		descriptor: AttachmentDescriptor;
+		staged: StagedFileReference;
+	}[] = [];
+	readonly deleteCalls: {
+		descriptor: AttachmentDescriptor;
+		fileKey: string;
+	}[] = [];
+	/** fileKey -> Error, for the partial-delete-failure test (Gate 8 finding). */
+	deleteFailuresByFileKey = new Map<string, Error>();
+
+	constructor(private readonly callLog: string[] = []) {}
+
+	async stage(): Promise<StagedFileReference> {
+		throw new Error("not used by this test file");
+	}
+
+	async promote(
+		descriptor: AttachmentDescriptor,
+		staged: StagedFileReference,
+	): Promise<{ fileKey: string; fileSize: number; fileName: string }> {
+		this.promoteCalls.push({ descriptor, staged });
+		this.callLog.push("attachmentStoragePort.promote");
+		// Deterministic, derived from input -- lets a test assert fileKey without real filesystem behavior.
+		return {
+			fileKey: `promoted-${staged.name}`,
+			fileSize: 1,
+			fileName: staged.name,
+		};
+	}
+
+	async delete(
+		descriptor: AttachmentDescriptor,
+		fileKey: string,
+	): Promise<void> {
+		this.deleteCalls.push({ descriptor, fileKey });
+		this.callLog.push("attachmentStoragePort.delete");
+		const failure = this.deleteFailuresByFileKey.get(fileKey);
+		if (failure !== undefined) {
+			throw failure;
+		}
+	}
+
+	async retrieve(): Promise<Buffer> {
+		throw new Error("not used by this test file");
+	}
+}
+
+class FakeAuditLogPort implements Pick<IAuditLogPort, "record"> {
+	readonly recordCalls: { entry: AuditLogEntry; tx: Tx | undefined }[] = [];
+	recordBehavior: "succeed" | Error = "succeed";
+
+	constructor(private readonly callLog: string[] = []) {}
+
+	async record(entry: AuditLogEntry, tx?: Tx): Promise<void> {
+		this.recordCalls.push({ entry, tx });
+		this.callLog.push("auditLogPort.record");
+		if (this.recordBehavior instanceof Error) {
+			throw this.recordBehavior;
+		}
 	}
 }
 
@@ -461,6 +585,9 @@ function createHarness(options: HarnessOptions = {}) {
 	const recordSpatialObservationUseCase =
 		new FakeRecordSpatialObservationUseCase(callLog);
 	const transactionRunner = new FakeTransactionRunner(callLog);
+	const hipCrosswalkPort = new FakeHipCrosswalkPort(callLog);
+	const attachmentStoragePort = new FakeAttachmentStoragePort(callLog);
+	const auditLogPort = new FakeAuditLogPort(callLog);
 	const useCase = new UpdateHazardousEventUseCase(
 		logger,
 		taxonomyRepository,
@@ -469,9 +596,15 @@ function createHarness(options: HarnessOptions = {}) {
 		causalChainRepository,
 		recordSpatialObservationUseCase,
 		transactionRunner,
+		hipCrosswalkPort,
+		attachmentStoragePort,
+		auditLogPort,
 	);
 	return {
 		callLog,
+		hipCrosswalkPort,
+		attachmentStoragePort,
+		auditLogPort,
 		logger,
 		taxonomyRepository,
 		hazardousEventRepository,
@@ -559,6 +692,9 @@ describe("UpdateHazardousEventUseCase", () => {
 			const existingAttachment = {
 				id: "attachment-1",
 				title: "Original",
+				type: "File" as const,
+				url: null,
+				tag: null,
 				fileKey: "key-1",
 				fileName: "file-1.pdf",
 				fileType: "application/pdf",
@@ -586,14 +722,16 @@ describe("UpdateHazardousEventUseCase", () => {
 			);
 			expect(unchangedDto.attachments).toEqual([existingAttachment]);
 			expect(unchangedDto.fieldValues).toEqual([existingFieldValue]);
+			// Attachments field absent -- no promote/delete call at all (design.md spec:
+			// "An absent attachments field leaves existing files untouched").
+			expect(harness.attachmentStoragePort.deleteCalls).toEqual([]);
 
-			const newAttachment = {
+			const newAttachment: HazardousEventAttachmentInput = {
+				kind: "link",
 				id: "attachment-2",
 				title: "New",
-				fileKey: "key-2",
-				fileName: "file-2.pdf",
-				fileType: "application/pdf",
-				fileSize: 200,
+				tag: null,
+				url: "https://example.com/new",
 			};
 			const newFieldValue = {
 				hazardTypeFieldDefinitionId: "field-2",
@@ -607,8 +745,89 @@ describe("UpdateHazardousEventUseCase", () => {
 					fieldValues: [newFieldValue],
 				}),
 			);
-			expect(replacedDto.attachments).toEqual([newAttachment]);
+			expect(replacedDto.attachments).toEqual([
+				{
+					id: "attachment-2",
+					title: "New",
+					type: "Link",
+					url: "https://example.com/new",
+					tag: null,
+					fileKey: null,
+					fileName: null,
+					fileType: null,
+					fileSize: null,
+				},
+			]);
 			expect(replacedDto.fieldValues).toEqual([newFieldValue]);
+			// The old File-type attachment is gone from the new collection -- its on-disk file must
+			// be deleted (spec: "Removing a File-type attachment deletes its on-disk file").
+			expect(harness.attachmentStoragePort.deleteCalls).toEqual([
+				{
+					descriptor: {
+						tenantId: "tenant-1",
+						ownerType: "hazardous-event",
+						ownerId: "event-A",
+					},
+					fileKey: "key-1",
+				},
+			]);
+		});
+
+		// Gate 8 finding / Decision 7 addendum: a delete() failure on one removed attachment must
+		// not roll back the row write that already committed the other removals -- it's logged, not thrown, and every other fileKey is still attempted.
+		it("still commits the row write when one of several removed File-type attachments fails to delete, logging the failure instead of propagating it", async () => {
+			const harness = createHarness({
+				seedEvents: [
+					makeEvent({
+						attachments: [
+							{
+								id: "attachment-1",
+								title: "First",
+								type: "File",
+								url: null,
+								tag: null,
+								fileKey: "key-1",
+								fileName: "file-1.pdf",
+								fileType: "application/pdf",
+								fileSize: 100,
+							},
+							{
+								id: "attachment-2",
+								title: "Second",
+								type: "File",
+								url: null,
+								tag: null,
+								fileKey: "key-2",
+								fileName: "file-2.pdf",
+								fileType: "application/pdf",
+								fileSize: 200,
+							},
+						],
+					}),
+				],
+			});
+			harness.attachmentStoragePort.deleteFailuresByFileKey.set(
+				"key-1",
+				Object.assign(new Error("EPERM: locked"), { code: "EPERM" }),
+			);
+
+			const result = await harness.useCase.execute(
+				makeCommand({ id: "event-A", tenantId: "tenant-1", attachments: [] }),
+			);
+
+			// Row write committed despite the mid-loop failure.
+			expect(result.attachments).toEqual([]);
+			// Both removed attachments' deletes were attempted, not just the one before the failure.
+			expect(
+				harness.attachmentStoragePort.deleteCalls.map((c) => c.fileKey).sort(),
+			).toEqual(["key-1", "key-2"]);
+			// The failure was logged, not thrown back out of execute().
+			expect(harness.logger.error).toHaveBeenCalledWith(
+				expect.objectContaining({
+					msg: "hazardous_event_attachment.delete_failed",
+					fileKey: "key-1",
+				}),
+			);
 		});
 
 		it("re-validates a carried-over collection id and throws if it is no longer valid", async () => {
@@ -941,9 +1160,8 @@ describe("UpdateHazardousEventUseCase", () => {
 		);
 	});
 
-	// Folded into one parameterized test per field (matching DeleteHazardousEvent.test.ts's own
-	// it.each pattern) -- each pins the exact assertNonEmptyString message, not just the class,
-	// so a mutant swapping the field-name argument (e.g. "tenantId" for "id") still fails.
+	// Parameterized per field (matches DeleteHazardousEvent.test.ts); pins the exact message,
+	// not just the class, so a mutant swapping the field-name argument still fails.
 	it.each([
 		["id", { id: 12345, tenantId: "tenant-1" }],
 		["tenantId", { id: "event-A", tenantId: 12345 }],
@@ -1480,7 +1698,10 @@ describe("UpdateHazardousEventUseCase", () => {
 			);
 
 			expect(harness.callLog).toEqual([
+				"hipCrosswalkPort.resolve",
 				"hazardousEvent.update",
+				"auditLogPort.record",
+				"hipCrosswalkPort.stamp",
 				"transactionRunner.run.resolving",
 				"logger.info",
 			]);
@@ -1545,9 +1766,8 @@ describe("UpdateHazardousEventUseCase", () => {
 			);
 		});
 
-		// The real adapter now rolls back the field/causal-link changes too (DEF-026) --
-		// the fake has no rollback semantics, so this only checks call counts/order, not
-		// persisted state (Task 7.7's PGlite test proves the real rollback).
+		// The real adapter rolls back the field/causal-link changes too (DEF-026); the fake has
+		// no rollback semantics, so this only checks call counts/order (Task 7.7's PGlite test proves the real rollback).
 		it("propagates a ConflictError from the delegated call, after the HazardousEvent update and causal-link calls were made", async () => {
 			const harness = createHarness({
 				seedEvents: [
@@ -1577,7 +1797,10 @@ describe("UpdateHazardousEventUseCase", () => {
 				1,
 			);
 			expect(harness.callLog).toEqual([
+				"hipCrosswalkPort.resolve",
 				"hazardousEvent.update",
+				"auditLogPort.record",
+				"hipCrosswalkPort.stamp",
 				"spatialObservation.execute",
 			]);
 			expect(harness.logger.info).not.toHaveBeenCalled();
@@ -1649,8 +1872,7 @@ describe("UpdateHazardousEventUseCase", () => {
 					}),
 				),
 			).rejects.toThrow(ConflictError);
-			// Exactly once, not zero -- the first call above succeeded and logged; only the
-			// second (rejected) call must not add a second log event.
+			// Exactly once: the first call succeeded and logged; the rejected second call must not add a log.
 			expect(harness.logger.info).toHaveBeenCalledTimes(1);
 		});
 
@@ -1788,9 +2010,8 @@ describe("UpdateHazardousEventUseCase", () => {
 		);
 	});
 
-	// Migrated from RecordSpatialObservation.test.ts (design.md Decision 6 addendum) --
-	// RecordSpatialObservationUseCase no longer logs its own success; this use case, its only
-	// current caller, does so itself, after its own outer transaction resolves.
+	// Migrated from RecordSpatialObservation.test.ts: that use case no longer logs its own success;
+	// this use case, its only caller, does so itself after its own outer transaction resolves.
 	describe("spatial_observation.recorded logging", () => {
 		it("logs spatial_observation.recorded, after the transaction resolves, when a spatial observation is bundled", async () => {
 			const harness = createHarness();
@@ -1814,8 +2035,7 @@ describe("UpdateHazardousEventUseCase", () => {
 				tenantId: "tenant-1",
 				observationTime: observationTime.toISOString(),
 			});
-			// Both log calls (hazardous_event.updated and spatial_observation.recorded) fire
-			// strictly after the transaction-resolving marker, never mid-transaction.
+			// Both log calls must fire strictly after the transaction-resolving marker, never mid-transaction.
 			const resolvingIndex = harness.callLog.indexOf(
 				"transactionRunner.run.resolving",
 			);
@@ -1935,6 +2155,157 @@ describe("UpdateHazardousEventUseCase", () => {
 			).value.description;
 			expect(persisted.description).toBe(winnerDescription);
 			expect(["caller A", "caller B"]).toContain(persisted.description);
+		});
+	});
+
+	// design.md Decision 17 (task 9d): IHipCrosswalkPort composition -- resolve() with the
+	// merged, final specificHazardId (command's new value when present, else the existing
+	// event's own), before the transaction; stamp() inside it, immediately after update().
+	describe("IHipCrosswalkPort composition (design.md Decision 17)", () => {
+		it("re-stamps using the existing event's own specificHazardId when the command omits it", async () => {
+			const harness = createHarness();
+
+			await harness.useCase.execute(
+				makeCommand({ id: "event-A", tenantId: "tenant-1", description: "x" }),
+			);
+
+			expect(harness.hipCrosswalkPort.resolveCalls).toEqual(["hazard-1"]);
+		});
+
+		it("re-stamps using the command's new specificHazardId when provided", async () => {
+			const harness = createHarness();
+
+			await harness.useCase.execute(
+				makeCommand({
+					id: "event-A",
+					tenantId: "tenant-1",
+					specificHazardId: "hazard-2",
+				}),
+			);
+
+			expect(harness.hipCrosswalkPort.resolveCalls).toEqual(["hazard-2"]);
+		});
+
+		it("stamp() writes an explicit null for a level the new crosswalk resolves to null, clearing any previously-stamped value rather than leaving it stale", async () => {
+			const harness = createHarness();
+			const partiallyNullIds: HipCrosswalkIds = {
+				hipHazardId: "hip-hazard-2",
+				hipClusterId: null,
+				hipTypeId: "hip-type-2",
+			};
+			harness.hipCrosswalkPort.resolveResult = partiallyNullIds;
+
+			await harness.useCase.execute(
+				makeCommand({
+					id: "event-A",
+					tenantId: "tenant-1",
+					specificHazardId: "hazard-2",
+				}),
+			);
+
+			expect(harness.hipCrosswalkPort.stampCalls).toEqual([
+				{
+					eventId: "event-A",
+					tenantId: "tenant-1",
+					ids: partiallyNullIds,
+					tx: expect.anything(),
+				},
+			]);
+		});
+
+		// Same fake-level limitation as CreateHazardousEvent.test.ts's equivalent test (no rollback
+		// semantics) -- the real rollback guarantee is proven against the real adapter (DEF-026 suite).
+		it("propagates a rejection from stamp(), logging nothing", async () => {
+			const harness = createHarness();
+			const thrown = new Error("boom-stamp");
+			harness.hipCrosswalkPort.stampBehavior = thrown;
+
+			await expect(
+				harness.useCase.execute(
+					makeCommand({ id: "event-A", tenantId: "tenant-1" }),
+				),
+			).rejects.toBe(thrown);
+
+			expect(harness.logger.info).not.toHaveBeenCalled();
+		});
+
+		// Mandatory concurrent-callers scenario (design.md, under Decision 17's "Concurrency"
+		// passage): stamp() is strictly placed
+		// after update() succeeds, so the losing caller -- rejected by update()'s own optimistic
+		// lock -- must never reach stamp() at all.
+		it("never calls stamp() for the losing caller of two concurrent execute() calls on the same event", async () => {
+			const harness = createHarness();
+
+			const outcomes = await Promise.allSettled([
+				harness.useCase.execute(
+					makeCommand({
+						id: "event-A",
+						tenantId: "tenant-1",
+						description: "caller A",
+					}),
+				),
+				harness.useCase.execute(
+					makeCommand({
+						id: "event-A",
+						tenantId: "tenant-1",
+						description: "caller B",
+					}),
+				),
+			]);
+
+			const rejected = outcomes.filter((o) => o.status === "rejected");
+			expect(rejected).toHaveLength(1);
+			expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(
+				ConcurrentModificationError,
+			);
+			expect(harness.hipCrosswalkPort.stampCalls).toHaveLength(1);
+		});
+	});
+
+	// design.md Decision 6: record() runs inside the transaction, immediately after update() succeeds.
+	describe("IAuditLogPort composition (design.md Decision 6)", () => {
+		it("calls record() with the pre-update and post-update rows, the command's own actingUserId/tenantId, and the same tx", async () => {
+			const harness = createHarness();
+
+			await harness.useCase.execute(
+				makeCommand({
+					id: "event-A",
+					tenantId: "tenant-1",
+					actingUserId: "user-9",
+					description: "Updated description",
+				}),
+			);
+
+			expect(harness.auditLogPort.recordCalls).toHaveLength(1);
+			const [{ entry, tx }] = harness.auditLogPort.recordCalls;
+			expect(entry).toMatchObject({
+				tableName: "hazardous_event",
+				recordId: "event-A",
+				userId: "user-9",
+				action: "Update hazardous event",
+				countryAccountsId: "tenant-1",
+			});
+			expect((entry.oldValues as { description: string }).description).toBe(
+				"Original",
+			);
+			expect((entry.newValues as { description: string }).description).toBe(
+				"Updated description",
+			);
+			expect(tx).toBeDefined();
+		});
+
+		it("propagates a rejection from record(), logging nothing", async () => {
+			const harness = createHarness();
+			const thrown = new Error("boom-audit-record");
+			harness.auditLogPort.recordBehavior = thrown;
+
+			await expect(
+				harness.useCase.execute(
+					makeCommand({ id: "event-A", tenantId: "tenant-1" }),
+				),
+			).rejects.toBe(thrown);
+
+			expect(harness.logger.info).not.toHaveBeenCalled();
 		});
 	});
 });

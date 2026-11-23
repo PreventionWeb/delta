@@ -149,7 +149,7 @@ and re-run from that gate. Loop until all pass:
 3. yarn format:check                             — Prettier formatting clean
 4. anti-pattern review                           — run .github/skills/anti-pattern-check/SKILL.md
 5. SOLID review                                  — invoke solid-reviewer agent
-6. documentation review (see below)             — comments balanced and purposeful
+6. documentation review (see below)             — quick self-check, comments within the word limit
 7. project conventions review (see below)       — DELTA-specific rules followed
 8. code review                                   — invoke code-review skill at high effort
 9. Gate 9a, 9b, 9c design & accessibility review — REQUIRED if this change touches
@@ -169,24 +169,25 @@ summary here — the skill is the authoritative source.
 
 **SOLID review:** Invoke the `solid-reviewer` agent. Primary concerns: SRP and DIP.
 
-**Documentation review:** Comments explain WHY, not WHAT.
+**Documentation review:** Comments explain WHY, not WHAT — and stay short. Write every comment
+this way the first time; don't rely on a later sweep to fix it.
 
+- **Word limit, not a guideline:** under 30 words, 99% of the time. Up to 100 words only for a
+  genuinely non-trivial case (a subtle invariant, an ordering dependency, a workaround whose
+  reasoning doesn't fit in one line) — this should be rare, not your default. Never cite a
+  Decision number, a change-history narrative ("this used to do X, changed because Y"), or what
+  was considered and rejected — that belongs in `design.md`, not in the code. A future reader
+  needs to know WHY this line exists, not the backstory of how it got here.
+  - Too long: `// Per design.md Decision 14, this was originally X, changed to Y after Z — see that decision for the full reasoning and alternatives considered.`
+  - Right-sized: `// Reversed from X to Y — Z breaks under concurrent writes (design.md Decision 14).`
 - Add when: complex/non-obvious logic, subtle invariant, workaround for a known constraint,
   public cross-module function (one-line JSDoc is enough).
 - Skip when: function name and types already describe the contract, or logic is self-evident.
 - Balance rule: if comments outnumber code lines, refactor the code — don't explain harder.
-- Compact rule: before your final report, the full-diff comment sweep — every comment across
-  the change's entire diff so far, not just this round's delta — MUST be done by a fresh
-  subagent (`Agent` tool, no prior context), not by re-reading your own comments yourself.
-  Self-review has already missed real bloat twice on this exact check (an author reliably
-  finds their own explanation reasonable); a fresh reviewer doesn't share that bias. Prompt it
-  with the full list of files this change touched and this instruction: compact any comment
-  that restates content already in `design.md`/`specs/`, or says in several lines what fits in
-  one, without losing real information; leave a comment alone when the code it documents is
-  genuinely non-trivial (a subtle invariant, an ordering dependency, a workaround whose
-  reasoning doesn't fit on one line) — there is no fixed line-count limit, the bar is "no
-  shorter without losing meaning." Apply its suggested compactions yourself, then re-run gate 3
-  (Prettier) only — a comment-only edit doesn't affect gates 1/2.
+- Self-check before your final report: re-read every comment you added or touched this round
+  against the word limit above and cut anything over it. This is a quick pass, not a full
+  subagent sweep — the word limit is meant to make comments short enough from the start that a
+  heavier review step isn't needed.
 
 **Project conventions:** See `.github/copilot-instructions.md`. Critical: `countryAccountsId`
 on every tenant query, `authLoaderWithPerm` on every loader, `yarn dbsync` for migrations,
@@ -195,6 +196,11 @@ request-lifecycle/UI-accessibility changes (see test tier check above).
 
 **Code review (Gate 8):** Invoke the `code-review` skill at `high` effort via a fresh subagent
 (`Agent` tool, not `fork`) with no prior context — same-context self-review is not a substitute.
+
+**Visual/UX parity review (with Gate 9c):** For presentation changes comparing against a legacy
+reference page or visual mock, also invoke `visual-parity-reviewer`
+(`.github/agents/visual-parity-reviewer.agent.md`, following
+`.github/skills/visual-parity-check/SKILL.md`) and fix any findings alongside `design.md`.
 Treat every finding as a potential gate failure — classify each one (see Review comment
 resolution below) and act accordingly before exiting the loop.
 

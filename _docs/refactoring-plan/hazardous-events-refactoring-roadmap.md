@@ -2417,7 +2417,7 @@ PrimeReact until its own domain's cutover retires it — same Strangler Fig patt
 this refactor, not an urgent rip-out. See `design-system-unification-roadmap.md` — its "Pass 1"
 PrimeReact-token-extraction plan is superseded for any module moving to React Aria.
 
-### 🔷 6a — Web Route Adapters: List + Detail
+### 🔷 6a — Web Route Adapters: List + Detail ✅ (Complete)
 
 **Branch:** `feature/ca-he-route-adapter-read`
 
@@ -2461,7 +2461,7 @@ ErrorResponse (Response.json) for DomainError, return the use case's result dire
 
 ```
 Add HazardousEventErrorBoundary in
-app/domains/hazardous-events/presentation/HazardousEventErrorBoundary.tsx — mirrors
+app/domains/hazardous-events/presentation/web/HazardousEventErrorBoundary.tsx — mirrors
 NoticeErrorBoundary exactly: useRouteError(), narrows on isRouteErrorResponse first,
 renders the DomainError message plus a copyable traceId, falls back to a generic
 message for a non-Response error. Export as ErrorBoundary from every route in 6a/6c.
@@ -2469,7 +2469,9 @@ message for a non-Response error. Export as ErrorBoundary from every route in 6a
 
 **Files touched:**
 
-- `app/domains/hazardous-events/presentation/HazardousEventErrorBoundary.tsx` (new)
+- `app/domains/hazardous-events/presentation/web/HazardousEventErrorBoundary.tsx` (new) —
+  `presentation/` was split into `presentation/web/`/`presentation/rest/` ahead of this
+  phase (6c cleanup); this is a web-layer adapter, so it belongs under `web/`.
 - route files from 6a/6c (update — add `export { ErrorBoundary }`)
 
 **Test tier:** E2E Playwright — force a `DomainError`; verify the boundary renders
@@ -2477,7 +2479,7 @@ with a visible, copyable trace reference.
 
 ---
 
-### 🔷 6c — Web Route Adapters: Create + Edit
+### 🔷 6c — Web Route Adapters: Create + Edit ✅ (Complete)
 
 **Branch:** `feature/ca-he-route-adapter-write`
 
@@ -2607,11 +2609,11 @@ envelope) — the legacy `{ ok, res: [...] }` shape does not carry over.
 
 **Files touched:**
 
-- `app/domains/hazardous-events/presentation/HazardousEventsController.ts` (new)
-- `app/domains/hazardous-events/presentation/dto/CreateHazardousEventRequest.ts` (new)
-- `app/domains/hazardous-events/presentation/dto/UpdateHazardousEventRequest.ts` (new)
-- `app/domains/hazardous-events/presentation/dto/RecordSpatialObservationRequest.ts` (new)
-- `app/domains/hazardous-events/presentation/dto/HazardousEventIdParam.ts` (new)
+- `app/domains/hazardous-events/presentation/rest/HazardousEventsController.ts` (new)
+- `app/domains/hazardous-events/presentation/rest/dto/CreateHazardousEventRequest.ts` (new)
+- `app/domains/hazardous-events/presentation/rest/dto/UpdateHazardousEventRequest.ts` (new)
+- `app/domains/hazardous-events/presentation/rest/dto/RecordSpatialObservationRequest.ts` (new)
+- `app/domains/hazardous-events/presentation/rest/dto/HazardousEventIdParam.ts` (new)
 - `app/domains/hazardous-events/infrastructure/HazardousEventsModule.ts` (update — add
   controller)
 - `tests/integration/domains/hazardous-events/HazardousEventsController.test.ts` (new)
@@ -2668,7 +2670,7 @@ characterization scenarios (not copied from the Phase 0 audit's own assumption, 
 
 ---
 
-### 🔷 6h — List Page Filters
+### 🔷 6h — List Page Filters ✅ (Complete)
 
 **Scheduled immediately after `6a`, 2026-10-26** — run before `6b`/`6c`/etc. despite the letter.
 **Narrowed 2026-10-27**: total-count and the record-status legend, originally scoped here, moved
@@ -2722,6 +2724,302 @@ At minimum: `ListHazardousEventsUseCase`, `IHazardousEventRepository`/its Drizzl
 **Test tier:** PGlite integration — each filter dimension narrows results correctly, filters
 compose (AND, not OR), an empty result set renders cleanly; unit tests for the new design-system
 primitives, matching `6a`'s own precedent.
+
+---
+
+### 🔷 6i — Attachments: Clean Architecture Rebuild (`DEF-054`) ✅ (Complete)
+
+**Branch:** `feature/ca-shared-attachments-module`
+
+**Surfaced during `6c`'s own Gate 10 follow-up investigation, 2026-10-30; scoped with the human
+2026-11-05.** Confirmed by reading source directly, not assumed: `6c`'s `hazardousEventAttachmentTable`
+(a normalized child table, columns `id`/`title`/`fileKey`/`fileName`/`fileType`(`NOT NULL`)/
+`fileSize`(`NOT NULL`)) cannot represent what the reused legacy widget
+(`app/frontend/attachmentsFormView.tsx`/`ContentRepeater`) actually submits:
+`{title, tag, file_option: "File"|"Link", file: {name, tenantPath, content_type}, url}`. Every real
+attachment is silently filtered out by `parseHazardousEventFormData.server.ts`'s `isAttachmentProps()`
+before reaching the use case — total, silent data loss on every save, not a missing-feature gap.
+Separately (not previously flagged): `hazardousEventAttachmentTable` is never populated from or
+read against legacy's own `hazardousEventTable.attachments` JSONB column either, so a legacy-created
+event's real attachments are invisible through the CA read path too.
+
+**Decisions resolved with the human, 2026-11-05 (do not re-litigate in this intent's own design —
+build to these):**
+
+- **No anti-corruption-layer bridge needed.** Investigated directly: HE's attachments are not read
+  anywhere outside HE's own detail/edit pages — not CSV export (explicitly excluded,
+  `csv_export.ts:36`), not the REST API, not analytics, not content-picker configs, not Disaster
+  Events' own linker. Unlike `DEF-055`'s HIP crosswalk (seven real external consumers), this gap has
+  none — confirmed, not assumed.
+- **Legacy-data backfill is explicitly out of scope** — a separate team's Phase M deliverable, not
+  this intent's.
+- **Schema**: reshape `hazardousEventAttachmentTable` to mirror legacy's real capability — add `url`,
+  add `tag`, make the file-specific columns nullable, and add an explicit `type` discriminator
+  (`pgEnum`, values `"File"`/`"Link"`, matching legacy's own `file_option` exactly) enforced by a
+  `check()` constraint mirroring the existing precedent at
+  `app/drizzle/schema/eventCausalityTable.ts`'s `event_causality_triggering_entity_fk_check` (a
+  discriminator-paired mutual-exclusivity check already proven in this codebase, not a new pattern).
+- **Keep the table domain-specific, not one shared physical table.** Legacy itself already splits
+  this exactly the right way: `ContentRepeaterUploadFile`/`PreUploadFile`/`FileViewer` are already
+  domain-agnostic shared infrastructure, while the attachment _data_ lives in each domain's own
+  column. Carry that split forward — one shared module owns the port + file-storage mechanics
+  (local disk, confirmed via `BASE_UPLOAD_PATH` in `app/utils/paths.ts` — no S3/cloud client
+  anywhere), each domain keeps its own metadata table with its own real foreign key (no polymorphic
+  owner column — preserves Postgres FK integrity, consistent with this codebase's own conventions).
+- **Flagged for Disaster Events' own future migration, not this intent's problem**: DE's existing
+  attachments system (`DisasterEventAttachmentRepository`-backed, a separate table from the
+  JSONB-column pattern) is narrower than what's being built here — no Link-type, no tags, its own
+  10MB total-size cap. Folded into `DEF-013`'s existing entry (not a new deferred item) rather than
+  tracked here.
+
+**Intent for `/opsx:propose`:**
+
+```
+Build a new, dedicated shared module (app/domains/shared/attachments/ or similar —
+this intent's own design decides the exact path) owning the attachment file-storage
+port and its local-disk adapter, reusing the same physical storage mechanics legacy's
+own ContentRepeaterUploadFile/PreUploadFile/FileViewer already implement (domain-
+agnostic already; do not reinvent file I/O that already works and is already shared).
+Reshape hazardousEventAttachmentTable to add url/tag columns, an explicit
+type ("File"/"Link") discriminator enum, nullable file-specific columns, and a
+check() constraint enforcing type-correct field population (same pattern as
+eventCausalityTable's existing discriminator-paired check). Fix
+parseHazardousEventFormData.server.ts's attachment parsing to accept the widget's
+real output shape instead of silently dropping it. Wire CreateHazardousEventUseCase/
+UpdateHazardousEventUseCase to the new shape. Legacy's own UI widget, upload routes,
+and on-disk storage layout do not change at all — this is a faithful Clean
+Architecture rebuild of the write path CA's own schema currently can't represent,
+not a redesign of user-visible behavior.
+```
+
+**Files touched:** not yet determined for the shared module's own exact path/file
+breakdown — this intent's own design decides it. At minimum: a new shared
+`app/domains/shared/attachments/` (or equivalent) module (port + local-disk adapter),
+`app/domains/hazardous-events/infrastructure/hazardousEventAttachmentTable.ts`
+(reshaped, migration), `app/domains/hazardous-events/domain/HazardousEvent.ts`'s
+`HazardousEventAttachmentProps` type, `parseHazardousEventFormData.server.ts`,
+`CreateHazardousEvent.ts`/`UpdateHazardousEvent.ts`'s attachment composition,
+`DrizzleHazardousEventRepository.server.ts`.
+
+**Test tier:** PGlite integration — a real `ContentRepeater`-shaped payload (File-type
+and Link-type, with and without a tag) persists correctly and round-trips on read,
+matching the pre-existing integration test's gap (DEF-054's own text: today's test
+hand-constructs an already-correctly-shaped fixture, never exercising the real
+widget's actual output — this intent's own tests must not repeat that mistake).
+Unit tests for the new shared module's port/adapter. E2E Playwright exercising the
+real `AttachmentsFormView` widget end-to-end (upload a file, add a link, save, reload,
+confirm both are still present) — the UI-level proof this bug is actually fixed, not
+just the parsing layer.
+
+---
+
+### 🔷 6j — Audit Log Write-Replication (Shared) ✅ (Complete)
+
+**Branch:** `feature/ca-shared-audit-log`
+
+**Surfaced by explicit user direction, 2026-11-07**, while comparing the CA detail page against
+legacy's — the detail page's missing "Audit log history" section (`DEF-058`) led to tracing when
+and what legacy actually writes to its `audit_logs` table, so CA code can keep recording into
+that same existing schema rather than building a new one.
+
+**Confirmed by reading the real (non-dead-code) legacy write path directly** —
+`app/backend.server/models/event.ts` (not the orphaned `app/backend.server/models/event/`
+directory, `DEF-001`) and the shared `app/backend.server/handlers/form/form.ts`:
+
+- **Create** (`hazardousEventCreate`): only if `fields.createdByUserId` is set —
+  `action: "Create hazardous event"`, `oldValues: null`, `newValues` the inserted row. Not
+  awaited, not part of the insert's own transaction.
+- **Update** (`hazardousEventUpdate`): only if `fields.updatedByUserId` is set —
+  `action: "Update hazardous event"`, `oldValues` the full pre-update row (fetched via `SELECT`
+  before the update), `newValues` the updated row. Same not-awaited, outside-the-transaction
+  pattern.
+- **Delete** (`formDeleteWithCountryAccounts`, generic across every domain's delete route, not
+  HE-specific code): `action: "delete"` (lowercase, inconsistent with Create/Update's
+  human-readable phrasing — legacy's own quirk, not something to silently "fix" without a
+  decision), `oldValues` the pre-delete row, no `newValues`. Awaited, but still after the
+  delete's own transaction commits, not inside it.
+- **Workflow status transitions** (submit/validate/publish/return —
+  `hazardousEventUpdateApprovalStatus*` in `event.ts`, called from
+  `approvalStatusWorkflowService.ts`): **zero audit logging today** — confirmed via a full grep
+  of `app/services/`. Legacy has no audit trail at all for status changes.
+- Every legacy call site also leaves `audit_logs.country_accounts_id` null — the column exists
+  but nothing populates it, today, anywhere.
+
+**Decisions resolved with the human, 2026-11-07/11 (do not re-litigate in this intent's own
+design — build to these):**
+
+- **Create's audit row double-JSON-encodes `newValues`** (`JSON.stringify(insertedHazardousEvent)`
+  passed into `logAudit()`, which itself also `JSON.stringify()`s it) — confirmed as an
+  unintentional legacy quirk, not a deliberate shape (Update's own call passes the raw object,
+  single-encoded). **CA writes it correctly, single-encoded** — a deliberate, confirmed deviation
+  from legacy's literal byte shape on this one field, not a parity requirement.
+- **CA's audit write happens inside the same transaction as the record change it documents** —
+  deliberate improvement over legacy's weaker not-awaited/outside-transaction pattern: the audit
+  row and the record change succeed or fail together, no risk of an orphaned audit row or a
+  committed change with no log.
+- **Workflow transitions (submit/validate/publish/return) get audit-logged too** — a deliberate
+  improvement over legacy's own gap, not scoped out to match it.
+- **The new write hook for transitions goes directly into the shared
+  `ProcessWorkflowActionUseCase`** (`app/domains/validation-workflow/application/use-cases/
+  ProcessWorkflowAction.ts`), not an HE-specific layer — it already has everything a hook needs
+  (`command.entityId`/`command.entityType`/`command.actingUserId`, `existing`/`saved` instances,
+  `fromStatus`/`toStatus`), the exact same shape `notificationPort.notify()` already consumes.
+  Benefits DE/disaster_records for free once they migrate, avoiding the same promote-later debt
+  `DEF-052` already flags for this use case's lack of an extension point. Key by `command.entityType`→
+  the legacy table name / `command.entityId` (NOT the `workflow_instance` row's own id) — matching
+  Create/Update/Delete's own convention of keying by the underlying record, so querying
+  `audit_logs` by one HE record's id returns its _entire_ history (create, update, delete, submit,
+  validate, publish, return) in one place. A `notify()`-style failure (logged, not propagated,
+  Decision 8 precedent already established there) is the right default here too — do not let an
+  audit-write failure block a transition that already succeeded.
+- **`country_accounts_id` is populated going forward** — pure additive correctness; CA's own use
+  cases already have `tenantId` in scope everywhere this write happens, and nothing today queries
+  or filters on this column, so populating it changes no existing behavior.
+- **The write port is a new shared module**, `app/domains/shared/audit-log/` (exact path/file
+  breakdown is this intent's own design decision) — not embedded in HE first. `audit_logs` is
+  already a domain-agnostic, cross-cutting mechanism in legacy (used for `hazardous_event`,
+  `disaster_event`, `user`, etc. today) — a textbook generic subdomain, same reasoning already
+  applied to `6i`'s attachments module, not the embed-then-promote-later pattern used for
+  `INotificationPort`/`IValidatorCandidateRepository`.
+- **No new table, no migration.** `app/drizzle/schema/auditLogsTable.ts` already exists exactly as
+  needed (`table_name`/`record_id`/`user_id`/`action`/`old_values`/`new_values`/`timestamp`/
+  `country_accounts_id`) — this intent only adds a CA-side port + adapter writing into it.
+
+**Intent for `/opsx:propose`:**
+
+```
+Build a new shared app/domains/shared/audit-log/ module (exact path/file
+breakdown this intent's own design decides) owning an IAuditLogPort (e.g.
+record(tableName, recordId, userId, action, oldValues, newValues,
+countryAccountsId)) and a Drizzle-backed adapter writing into the existing,
+unchanged app/drizzle/schema/auditLogsTable.ts -- no new table, no migration.
+Wire CreateHazardousEvent/UpdateHazardousEvent/DeleteHazardousEvent to call it
+inside the same transaction as their own write, matching legacy's action
+strings ("Create hazardous event"/"Update hazardous event"/"delete") except
+writing newValues correctly single-encoded (legacy's Create-path double-encode
+is a confirmed bug, not reproduced). Add a new audit-write hook directly inside
+the shared ProcessWorkflowActionUseCase.execute(), firing for every transition
+(submit-validation/validate/publish/return/submit-draft/direct-validate/
+direct-publish), keyed by command.entityType/command.entityId (not the
+workflow_instance row's own id), with action strings this intent's own design
+chooses (no legacy precedent exists for these -- legacy logs none of them
+today). A write failure must not block the transition it documents (same
+tolerated-degradation precedent as notify()'s own DEF-023/Decision 8). Populate
+country_accounts_id on every write going forward (currently always null in
+legacy). No UI work in this intent -- DEF-058 (the detail page's own missing
+"Audit log history" section) is a separate, larger read-side gap, tracked on
+its own, not solved here.
+```
+
+**Files touched:** not yet determined for the shared module's own exact path/file breakdown —
+this intent's own design decides it. At minimum: a new shared `app/domains/shared/audit-log/`
+module (port + adapter), `app/domains/hazardous-events/application/use-cases/
+{Create,Update,Delete}HazardousEvent.ts` (new audit-write call inside each's existing
+transaction), `app/domains/hazardous-events/infrastructure/HazardousEventsModule.server.ts`
+(DI wiring), `app/domains/validation-workflow/application/use-cases/ProcessWorkflowAction.ts`
+(new audit-write hook alongside the existing `notify()` call).
+
+**Test tier:** PGlite integration — each of Create/Update/Delete writes exactly one correctly-shaped
+`audit_logs` row inside the same transaction as its own record change (including a rollback
+scenario: a failing record write leaves no audit row either). Unit tests for the new shared
+module's port/adapter. A `ProcessWorkflowActionUseCase` test per transition action confirming an
+audit row is written with the right `table_name`/`record_id`/`action`, and that an audit-write
+failure doesn't block the transition's own success (mirroring the existing `notify()`-failure
+test precedent).
+
+---
+
+### 🔷 6k — Detail Page Rebuild: Audit Log + Legacy Layout Parity (`DEF-058`, `DEF-059`) ✅ (Complete)
+
+**Branch:** `feature/ca-shared-audit-log` (continues on `6j`'s branch, not a new one — user
+direction, 2026-11-12: raise the phase6 PR only once the audit log is fully visible on CA's page).
+
+**`DEF-058`**: legacy's detail page renders an "Audit log history" section from `audit_logs`; CA's
+`HazardousEventDetailPage.tsx` has none. **`DEF-059`**: legacy's `HazardousEventView` now delegates
+to a new `HazardousEventReviewStep.tsx` (dev commit `3688c596`) — `Card`-sectioned, with a live
+Leaflet spatial-footprint map and a shared `AuditLogHistory` component — superseding the flat
+layout `ca-he-route-adapter-read`'s Decision 9 captured. CA's page still mirrors that stale
+snapshot.
+
+**Combined deliberately** (user direction): legacy's new layout already has the audit-log section
+built in as one of its cards, so fixing `DEF-058` against the current flat layout first would mean
+rebuilding that section again the moment `DEF-059`'s rebuild replaces the whole page. One pass
+builds every section, audit log included, directly into its final shape.
+
+**Not pre-resolved**: this intent's own first step is a live, section-by-section ground-truth
+capture of `HazardousEventReviewStep.tsx` against CA's current page, same rigor as the original
+Decision 9 — not assumed from a partial read.
+
+**Intent for `/opsx:propose`:**
+
+```
+Rebuild HazardousEventDetailPage.tsx to match legacy's current HazardousEventReviewStep.tsx
+layout, not the stale flat-list layout ca-he-route-adapter-read originally captured. First
+step: a live ground-truth capture of the real legacy page (Card sections and their order, the
+Leaflet spatial-footprint map, the shared AuditLogHistory component, the shared
+parseAttachments usage) -- read the component and compare against the live rendered page, not
+assumed. Add the audit log history section as part of this same rebuild (a new read-only
+query against audit_logs by table_name/record_id -- 6j already wrote the table, no new write
+path needed). Keep using the design-system Table/TableColumn/TableCell components (Decision 7a)
+wherever they fit the new Card structure, rather than copying legacy's PrimeReact Card markup
+verbatim. DEF-057's spatial-footprint picker gap is separate and already tracked -- a live map
+view for an existing observation is in scope here; a new picker/editor widget is not.
+```
+
+**Files touched:** not yet fully determined — the ground-truth capture decides the exact
+breakdown. At minimum: `HazardousEventDetailPage.tsx` (rebuilt), `HazardousEventDetailDto.ts`/
+`GetHazardousEventById.ts` (new audit-log read), a new read-only query against `6j`'s
+`auditLogsTable` (no migration), `locales/en/hazardous-events.json`.
+
+**Test tier:** PGlite integration for the new audit-log query. Presentation tests for the rebuilt
+page. Visual/UX parity (Gate 9) is mandatory — live side-by-side against legacy's actual rendered
+page, given this is purely a presentation rebuild.
+
+---
+
+### 🔷 6l — List Page: Delete Event Row Action
+
+**Branch:** `feature/ca-he-delete-action` (proposed; not yet created)
+
+**Confirmed gap, not scoped by any prior Phase 6 intent (2026-11-18).** Legacy's row-level
+delete, confirmed via `app/frontend/components/data-collection/ActionLinks.tsx:41-87`: a
+`canDeleteDataCollectionRecord(userRole, approvalStatus)`-gated `HazardousEventDeleteButton`
+(`app/frontend/components/delete-dialog.tsx`, a PrimeReact `ConfirmDialog` Yes/No confirmation)
+posting to `${route}/delete/${id}`, handled by
+`app/routes/$lang+/hazardous-event+/delete.$id.tsx` via the shared
+`createDeleteActionWithCountryAccounts` handler, which also cleans up attachment files on
+delete. CA's `HazardousEventListPage.tsx`/`HazardousEventListActions.tsx` have no delete
+action at all (confirmed via grep — zero matches for "delete" in either file). This is not a
+documentation gap: no sub-item from `6a` through `6k` ever scoped wiring a delete action into
+the CA list page's UI. The backend itself is NOT a gap — `DeleteHazardousEventUseCase`
+(Phase `4f`) already exists and is complete: dependent-checks (Disaster Event references,
+Event Causality, Causal Chain), attachment-file cleanup, and audit logging are all already
+implemented and tested. This intent is presentation-layer only.
+
+**Intent for `/opsx:propose`:**
+
+```
+Add a Delete row action to HazardousEventListActions.tsx, gated the same way as the
+existing Edit action, with a confirmation step before submitting (matching legacy's
+own Yes/No ConfirmDialog UX, built with this page's own design-system components,
+not a PrimeReact import). Wire a new route action (or extend an existing one) that
+resolves DeleteHazardousEventUseCase from the NestJS application context via
+getAppContext().get(...), following the same action pattern as he-preview's other
+mutating routes. No new backend logic — DeleteHazardousEventUseCase already handles
+dependent-checks, attachment cleanup, and audit logging.
+```
+
+**Files touched (expected, confirm at propose time):**
+
+- `app/domains/hazardous-events/presentation/web/HazardousEventListActions.tsx` (modified)
+- A new or extended route action under `app/routes/$lang+/_authenticated+/he-preview+/`
+- Tests for the new action and the confirmation UX
+
+**Test tier:** PGlite integration for the route action (including a dependent-blocked delete
+attempt, matching `DeleteHazardousEventUseCase`'s own existing `ConflictError` cases).
+Presentation test for the confirmation step. Visual/UX parity (Gate 9) required — this is the
+same class of presentation gap that `6k` needed several correction rounds to close; use the
+visual-parity-reviewer tooling once built, not just computed-style inspection.
 
 ---
 

@@ -237,13 +237,14 @@ Proceed only when all artifacts required for apply (`applyRequires`) show `statu
        WCAG 2.2 AA (`wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa`) via
        `tests/e2e/helpers/a11y.ts` and execute the defined keyboard interaction checks across
        affected routes and states.
-     - **Gate 9c (Feature hand-off parity)**: Capture responsive and state screenshots via
-       `tests/e2e/helpers/prototype-evidence.ts` (saved to `test-results/gate-9/<name>/`),
+     - **Gate 9c (Feature hand-off & visual/UX parity)**: Capture responsive and state screenshots
+       via `tests/e2e/helpers/prototype-evidence.ts` (saved to `test-results/gate-9/<name>/`),
        complete the itemised parity checklist and deviation log in
        `openspec/changes/<name>/evidence/gate-9-report.md` against the pinned
        `unisdr/delta-feature-prototypes` reference (assessing functional, structural, state,
        interaction, accessibility, and visual-intent parity rather than literal pixel equality),
-       and audit via a fresh subagent running `.github/skills/design-system-check/SKILL.md`.
+       and audit via a fresh subagent running `.github/skills/design-system-check/SKILL.md` (and
+       `visual-parity-reviewer` when comparing against a legacy reference page/mock).
   10. Independent second-opinion review, Claude Code only — invoke its built-in `code-review`
       at `high` effort via a second, separate fresh subagent; resolve findings before archiving.
       Other tools: use an equivalent platform feature if one exists, otherwise skip this task.
