@@ -270,5 +270,28 @@
 		},
 		"edit": "Edit",
 		"back_to_list": "Back to Hazardous events"
+	},
+	"delete": {
+		"label": "Delete",
+		"dialog": {
+			"title": "Are you sure you want to delete this record?",
+			"message": "This data cannot be recovered after being deleted.",
+			"cancel": "Do not delete",
+			"confirm": "Delete permanently",
+			"close": "Close"
+		},
+		"toast": {
+			"close": "Close"
+		},
+		"success": "Record deleted",
+		"not_found": "Record not found or access denied",
+		"forbidden": "You do not have permission to delete this record.",
+		"blocked": {
+			"disaster_event": "Cannot delete hazard event because it is linked to one or more disaster events. Please delete the associated disaster events first.",
+			"caused_by": "Delete events that are caused by this event first",
+			"event_causality": "Cannot delete hazard event because it is linked to one or more disaster events as a cause or effect. Remove those links first.",
+			"causal_chain": "Cannot delete hazard event because it is linked to another hazardous event as a cause or effect. Remove that link first.",
+			"generic": "This record cannot be deleted."
+		}
 	}
 }
