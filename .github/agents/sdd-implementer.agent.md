@@ -14,6 +14,29 @@ implement a change from its OpenSpec proposal and failing tests, then refactor t
 meets the quality bar of a principal engineer. You run the full **Green → Refactor** loop and
 do not declare done until every quality gate passes.
 
+## Pre-Flight Design & Prototype Approval Gate (Mandatory before any coding)
+
+Before writing or editing any code or test file, inspect `openspec/changes/<name>/design.md`:
+
+1. Verify `ui-classification` (`react-aria`, `legacy-exempt`, or `non-visual`) is declared and
+   run:
+   ```bash
+   yarn check:design-system --verify-spec --change "<name>"
+   ```
+2. **If the change affects UI presentation or interaction (`react-aria` or `legacy-exempt`):**
+   - Refuse to begin implementation if `design-system.version-or-tag` or `design-system.commit`
+     is missing or points only to a moving branch (`main`, `dev`, `HEAD`, `TBD`).
+   - Refuse to begin implementation if `feature-prototype.status` is `required` (not yet `approved`)
+     unless the user has explicitly provided prototype approval in their `/opsx:apply` prompt (in
+     which case, update `feature-prototype.status: approved` and check off the approval item in
+     `design.md` before writing code).
+   - Refuse to begin implementation if `feature-prototype.status` is `approved` without an
+     immutable `path` and `commit` SHA from `https://github.com/unisdr/delta-feature-prototypes`,
+     or if `status` is `not-required` without a valid, permitted `exception-reason`.
+   - Use the pinned `unisdr/delta-design` reference (and synced local `_docs/design/DESIGN.md`,
+     `_docs/design/tokens.json`, `_docs/design/tokens.css`) and pinned
+     `unisdr/delta-feature-prototypes` artifact.
+
 ## Guardrails
 
 **Additive edits — proceed freely.** `proposal.md` lists anticipated files but implementation
@@ -34,12 +57,17 @@ doing so. Create as many test files under `tests/` as the change needs.
 - Never run bulk `yarn format` — scope to `npx prettier --check <files>`; preview `--write` on
   a copy first.
 
-**Design deviations — stop and get explicit user approval every time:**
+**Design and prototype deviations — stop and get explicit user approval every time:**
 
 - Any implementation that contradicts a named decision in `design.md` (error types thrown,
   response shapes, function signatures, architectural choices, alternatives explicitly rejected)
-- Before deviating: state (1) what `design.md` specifies, (2) what you propose instead,
-  (3) why. Do not proceed until the user approves the deviation in writing.
+- Any material divergence from the pinned `unisdr/delta-design` reference or approved
+  `unisdr/delta-feature-prototypes` hand-off (including differences required by React Aria
+  semantics, WCAG 2.2 AA compliance, responsive layouts, browser rendering, production data
+  constraints, localisation, or security/performance).
+- Before deviating: state (1) what `design.md` / the prototype specifies, (2) what you propose
+  instead, (3) why. Do not treat the task as complete until the deviation is documented in
+  `design.md` and `openspec/changes/<name>/evidence/gate-9-report.md` and approved by the user.
 
 **Artifact drift — update all affected artifacts immediately when a deviation is confirmed:**
 `proposal.md` and `specs/` are living documents. When a decision in `design.md` overrides
@@ -61,10 +89,13 @@ misfire to your coordinator instead.
 ## Your responsibilities
 
 1. Read the OpenSpec artifacts from `openspec/changes/<name>/` — proposal, specs, design, tasks.
-2. Read the failing tests to understand exactly what behaviour is expected.
-3. Implement the minimum code needed to make the tests pass (Green phase).
-4. Run the quality gate loop (Refactor phase) until all checks pass.
-5. Report the final state: tests passing, all gates green, what was changed and why.
+2. Run the Pre-Flight Design & Prototype Approval Gate (`yarn check:design-system --verify-spec --change "<name>"`).
+3. Read the failing tests to understand exactly what behaviour is expected.
+4. Implement the minimum code needed to make the tests pass (Green phase) against the pinned
+   design-system and prototype references.
+5. Run the quality gate loop (Refactor phase) until all checks pass, retaining Gate 9 verification
+   evidence when applicable.
+6. Report the final state: tests passing, all gates green, evidence paths, what was changed and why.
 
 ## Implementation order (follow tasks.md)
 
@@ -84,25 +115,28 @@ confirmed to fail for the right reason.
 - Write the minimum code that makes the failing tests pass
 - Do not add behaviour not covered by the tests
 - Do not optimise prematurely — correctness first
-- After each implementation step: `yarn vitest run tests/path/to/file.test.ts`
+- Treat feature prototypes as design intent, not copy-paste production code: use DELTA's domain
+  DTOs, `ctx.t` translations, React Aria Components, and semantic design tokens
+- After each implementation step: `yarn vitest run tests/path/to/file.test.ts` (or `yarn test:dom`
+  for jsdom component interaction tests)
 
 ## Test tier check (after Green, before Refactor loop)
 
 Before entering the Refactor loop, assess whether the change requires Playwright E2E tests
 in addition to Vitest tests. Use this decision table:
 
-| The change touches…                                             | Playwright required? |
-| --------------------------------------------------------------- | -------------------- |
-| Pure functions, utilities, domain logic                         | No                   |
-| Database queries, model or handler functions                    | No                   |
-| Route loaders / actions tested in isolation                     | No                   |
-| Routing, auth, session, middleware, or multi-loader interaction | **Yes**              |
-| Any behaviour only verifiable via a real HTTP request/response  | **Yes**              |
+| The change touches…                                                     | Playwright required? |
+| ----------------------------------------------------------------------- | -------------------- |
+| Pure functions, utilities, domain logic                                 | No                   |
+| Database queries, model or handler functions                            | No                   |
+| Route loaders / actions tested in isolation                             | No                   |
+| Routing, auth, session, middleware, or multi-loader interaction         | **Yes**              |
+| Any behaviour only verifiable via a real HTTP request/response          | **Yes**              |
+| Materially changed UI routes requiring Gate 9b (axe-core/keyboard) & 9c | **Yes**              |
 
-If Playwright is required: invoke the `test-writer` agent to write E2E specs under
-`tests/e2e/` before entering the Refactor loop. Vitest + vi.mock tests cannot detect
-parallel loader execution issues, injected-args patterns, redirect chain behaviour, or
-any failure that only manifests when the full server handles a real request.
+If Playwright is required: invoke the `test-writer` agent (or write the Gate 9b/9c E2E check using
+`tests/e2e/helpers/a11y.ts` and `tests/e2e/helpers/prototype-evidence.ts`) under `tests/e2e/`
+before entering the Refactor loop.
 
 ## Refactor loop
 
@@ -118,14 +152,15 @@ and re-run from that gate. Loop until all pass:
 6. documentation review (see below)             — quick self-check, comments within the word limit
 7. project conventions review (see below)       — DELTA-specific rules followed
 8. code review                                   — invoke code-review skill at high effort
-9. visual/UX parity review (see below)          — REQUIRED if this change touches
-                                                    app/domains/*/presentation/ or app/routes/
+9. Gate 9a, 9b, 9c design & accessibility review — REQUIRED if this change touches
+                                                    app/domains/*/presentation/, app/routes/,
+                                                    app/components/, app/design-system/, or styles
 10. independent second-opinion review (see below) — Claude Code only; other tools skip this gate
 ```
 
 Only exit the loop when every applicable gate passes without changes needed. Gate 9 is not
-applicable to changes with no rendered output (pure backend/API changes) — skip it only in
-that case, and say so explicitly rather than silently omitting it.
+applicable to changes with `ui-classification: non-visual` and zero rendered output changes — skip
+it only in that case, and say so explicitly rather than silently omitting it.
 
 ## Gate details
 
@@ -156,28 +191,65 @@ this way the first time; don't rely on a later sweep to fix it.
 
 **Project conventions:** See `.github/copilot-instructions.md`. Critical: `countryAccountsId`
 on every tenant query, `authLoaderWithPerm` on every loader, `yarn dbsync` for migrations,
-new tests under `tests/` — Vitest for unit/integration, Playwright for routing/auth/
-request-lifecycle changes (see test tier check above).
+new tests under `tests/` — Vitest for unit/integration/jsdom, Playwright for routing/auth/
+request-lifecycle/UI-accessibility changes (see test tier check above).
 
-**Visual/UX parity review (Gate 9):** Passing tests and `tsc` prove code correctness, not
-feature correctness — they do not catch a missing page-header wrapper, an unstyled heading, a
-list with no way to reach its own detail page, a field set/order/pagination default that
-silently diverges from the ground truth, or a sibling-adjacency bug (a field in the wrong grid,
-a missing wrapper around multiple children) that's invisible to a check scoped to one element's
-own styling. Do this for real, don't just assert you did — invoke the `visual-parity-reviewer`
-agent (`.github/agents/visual-parity-reviewer.agent.md`, which follows
-`.github/skills/visual-parity-check/SKILL.md`), giving it the subject (the new page/component)
-and the reference per `design.md`'s stated reference-source type (a code-readable reference page
-in this app, a design artifact/mock/spec, or — for a genuinely new design — the content-level
-ground-truth checklist alone). Read its structured report yourself; fix anything it finds,
-citing the real checklist item or precedent it names (not an invented pattern). If the checklist
-itself turns out to be wrong or incomplete (the source had more detail than `design.md`
-captured), fix `design.md` too, not just the code — per the artifact-drift rule above.
+**Code review (Gate 8):** Invoke the `code-review` skill at `high` effort via a fresh subagent
+(`Agent` tool, not `fork`) with no prior context — same-context self-review is not a substitute.
 
-**Code review:** Invoke the `code-review` skill at `high` effort via a fresh subagent (`Agent`
-tool, not `fork`) with no prior context — same-context self-review is not a substitute.
+**Visual/UX parity review (with Gate 9c):** For presentation changes comparing against a legacy
+reference page or visual mock, also invoke `visual-parity-reviewer`
+(`.github/agents/visual-parity-reviewer.agent.md`, following
+`.github/skills/visual-parity-check/SKILL.md`) and fix any findings alongside `design.md`.
 Treat every finding as a potential gate failure — classify each one (see Review comment
 resolution below) and act accordingly before exiting the loop.
+
+**Design System, Accessibility & Feature Hand-Off Parity Review (Gate 9a, 9b, 9c):**
+Required whenever the change touches `app/domains/*/presentation/`, `app/routes/`,
+`app/components/`, `app/design-system/`, or CSS/styles. Execute all three sub-checks and retain
+verifiable evidence:
+
+1. **Gate 9a — Design-system and token compliance** (Authority: pinned reference in
+   `unisdr/delta-design`):
+   - Run the static checker:
+     ```bash
+     yarn check:design-system --change "<name>"
+     ```
+   - Verify every item in `.github/skills/design-system-check/SKILL.md` (semantic CSS variables,
+     no raw colour values or prohibited `--color-*` primitives, parent `gap` instead of sibling
+     margins, React Aria Components, no new PrimeReact in `react-aria` changes, Lucide React icons
+     with accessible names on icon-only controls, Recharts accessibility & table alternative,
+     sentence-case copy, DELTA terminology, and zero em dashes).
+2. **Gate 9b — Accessibility and keyboard compliance** (Authority: WCAG 2.2 Level AA + pinned
+   DELTA Design System accessibility guidance):
+   - Run Playwright + `@axe-core/playwright` checks using `tests/e2e/helpers/a11y.ts` across all
+     affected routes and material states with tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`,
+     and `wcag22aa`.
+   - Execute keyboard interaction tests (`Tab`, `Shift+Tab`, `Enter`, `Space`, `Escape`, Arrow
+     keys) verifying focus order, visible focus (never obscured by sticky headers, dialogs,
+     toasts, or overlays), target sizes (`>= 24x24` CSS px, `32x32` preferred for icon-only
+     controls), modal focus containment/return, and live-region error announcements.
+   - Any exception MUST include a tracked issue, rationale, owner, and remediation date.
+3. **Gate 9c — Feature hand-off parity** (Authority: approved, pinned artifact in
+   `unisdr/delta-feature-prototypes` and the ground-truth checklist in `design.md`):
+   - Start the app and capture real browser screenshots via `tests/e2e/helpers/prototype-evidence.ts`
+     (saved to `test-results/gate-9/<name>/`) across principal responsive viewports and applicable
+     material states (empty, loading, error, success, destructive confirmation).
+   - Assess **functional, structural, state, interaction, accessibility, and visual-intent parity**
+     — NOT literal pixel-perfect equality. Do not claim pixel-perfect parity where React Aria
+     semantics, WCAG 2.2 AA compliance, responsive layouts, browser rendering, localisation, or
+     production data requires a justified difference.
+   - Write the committed evidence report at `openspec/changes/<name>/evidence/gate-9-report.md`
+     recording:
+     - the pinned `unisdr/delta-design` and `unisdr/delta-feature-prototypes` references;
+     - the exact Gate 9a, 9b, and 9c commands executed and their pass outputs;
+     - the screenshot file paths under `test-results/gate-9/<name>/` and viewport/test-data context;
+     - the itemised parity checklist mapped 1:1 to `design.md`;
+     - all documented deviations and their human approval status.
+   - **Fresh subagent audit**: Invoke a fresh subagent (`Agent` tool, no prior context) instructed
+     to read `.github/skills/design-system-check/SKILL.md`, `design.md`,
+     `openspec/changes/<name>/evidence/gate-9-report.md`, the presentation diff, and the captured
+     screenshots in `test-results/gate-9/<name>/`. Resolve any finding before marking Gate 9 done.
 
 **Independent second-opinion review (Gate 10, Claude Code only):** After Gate 8 (repo-specific)
 and Gate 9 pass, if you are running as Claude Code, invoke its built-in `code-review` command at
@@ -202,13 +274,13 @@ as a Gate 8-style finding — write the missing test scenario, then re-run gates
 
 ## Review comment resolution
 
-When Gate 8 (or an external PR review) produces findings, classify each before acting:
+When Gate 8 or Gate 9 (or an external PR review) produces findings, classify each before acting:
 
 | Finding type                            | Examples                                                    | Action                                                                                        |
 | --------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| **Spec gap / missing scenario**         | Race condition not in spec; edge case uncovered             | Invoke `spec-writer` to update the spec, then re-implement and re-run gates 1–8               |
-| **Architectural / design flaw**         | Wrong abstraction, SRP violation, rejected alternative used | Update `design.md`, invoke `spec-writer` if behaviour changes, re-implement, re-run gates 1–8 |
-| **Documentation / artifact inaccuracy** | TBD Purpose in spec, inaccurate migration note              | Fix the artifact directly; re-run gate 1 (tests) + gate 2 (tsc) only                          |
+| **Spec gap / missing scenario**         | Race condition not in spec; missing UI state scenario       | Invoke `spec-writer` to update the spec, then re-implement and re-run gates 1–9               |
+| **Architectural / design / UI flaw**    | Wrong abstraction, token violation, unapproved UI deviation | Update `design.md`, invoke `spec-writer` if behaviour changes, re-implement, re-run gates 1–9 |
+| **Documentation / artifact inaccuracy** | TBD Purpose in spec, incomplete `gate-9-report.md` item     | Fix the artifact directly; re-run gate 1 (tests) + gate 2 (tsc) + gate 9a if UI               |
 | **Nitpick / style**                     | Missing language tag, wrong type shape in example           | Fix directly; re-run gate 1 (tests) + gate 2 (tsc) only                                       |
 
 **Loop limit:** Track a fix-attempt counter per finding. If a finding is not resolved after
@@ -217,14 +289,14 @@ why it remains unresolved. Do not loop indefinitely.
 
 ## Done criteria
 
-All applicable gates pass (1–8 always; 9, 10, and the test quality check when applicable) and
-`yarn test:run2` (full PGlite suite) shows no regressions.
+All applicable gates pass (1–8 always; 9a/9b/9c, 10, and the test quality check when applicable)
+and `yarn test:run2` (full PGlite suite) shows no regressions.
 
 **Archive and PR tasks are user-controlled — stop when you reach them.** Any task whose
 body invokes `opsx:archive` (or `openspec archive`) or asks to raise a PR is outside your
 scope, regardless of its task number. When you reach the first such task: mark the regression
-gate task `[x]`, report the final state (gates passed, files changed, regression comparison),
-and stop. Do not attempt the archive or PR.
+gate task `[x]`, report the final state (gates passed, files changed, `gate-9-report.md` summary
+if applicable, regression comparison), and stop. Do not attempt the archive or PR.
 
 **Regression rule:** Run `yarn test:run2` on the base branch (before your changes) to establish
 a baseline failure count. After implementation, run it again. Any failure present after your

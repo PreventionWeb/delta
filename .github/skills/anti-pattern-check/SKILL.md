@@ -128,3 +128,52 @@ These apply to any file that touches NestJS bootstrap, providers, modules, or te
 - [ ] New user-facing strings use `ctx.t({ code, msg })` and `yarn i18n:extractor` has been run
 - [ ] New env vars added to `example.env` with a descriptive comment
 - [ ] Branch targets `dev`, not `main`
+
+---
+
+## UI & DELTA Design System Anti-Patterns
+
+Apply these checks to any change touching `app/domains/*/presentation/`, `app/routes/`,
+`app/components/`, `app/design-system/`, or CSS/styles (see `.github/skills/design-system-check/SKILL.md`
+for the full Gate 9 verification checklist):
+
+- [ ] **No raw colours or prohibited primitive variables** — never use hardcoded hex (`#004f91`,
+      `#fff`), `rgb()`, `hsl()`, or primitive `--color-*` tokens directly in `react-aria`
+      classified feature/component code; use semantic tokens from `unisdr/delta-design` (`tokens.css`)
+- [ ] **No new PrimeReact or PrimeIcons in `react-aria` classified screens** — never import from
+      `primereact` or `primeicons` in new or migrated React Aria routes/components
+- [ ] **No sibling margins for layout spacing** — use `gap` on the flex or grid parent instead of
+      sibling `margin-top`/`margin-bottom`/`margin-left`/`margin-right`
+- [ ] **No inappropriate fully rounded standard buttons** — never apply `rounded-full` /
+      `radius-full` to standard action buttons
+- [ ] **No inaccessible icon-only controls** — every icon-only button or link MUST have an explicit
+      accessible name (`aria-label` or `aria-labelledby`), and target size MUST be at least
+      `24 x 24` CSS px (`32 x 32` CSS px preferred)
+- [ ] **No hidden or obscured keyboard focus** — never suppress `:focus-visible` /
+      `[data-focus-visible]` outlines without a high-contrast replacement, and never allow sticky
+      headers, dialogs, toasts, or overlays to obscure the focused element
+- [ ] **No silent error banners or unannounced validation errors** — error banners and immediate
+      validation summaries MUST use `role="alert"` or an appropriate live region, and never rely on
+      colour alone
+- [ ] **No charts without text summaries or tabular alternatives** — every Recharts visualization
+      MUST provide an accessible name, text summary, `role="img"` where appropriate, and a "Show as
+      table" or equivalent data alternative
+- [ ] **No em dashes or prototype placeholder copy** — never include `—` (`\u2014`) in UI copy, and
+      never ship prototype mock labels or fabricated placeholder data
+- [ ] **No undocumented divergence from pinned design-system or prototype references** — any
+      material deviation from the pinned `unisdr/delta-design` or `unisdr/delta-feature-prototypes`
+      commit SHA MUST be documented in `design.md` and `gate-9-report.md` and approved by a human
+
+---
+
+## Design System & Accessibility Checks
+
+Apply to any UI change in `app/design-system/`, `app/domains/*/presentation/`, or `app/routes/` (see `_docs/design/DESIGN.md` and `.github/skills/design-system-check/SKILL.md`).
+
+- [ ] **Semantic tokens only** — no hardcoded hex colours (`#...`) or `tokens.css` primitives (`--color-(neutral|warm|accent|green|amber|red)-\d+`) in components; use semantic tokens (`--bg`, `--surface`, `--fg`, `--accent`, `--crit`, `--warn`, `--good`, etc.)
+- [ ] **Lucide icons only** — icons come from `lucide-react`; no raw `<svg>` icons, PrimeIcons, or alternate icon libraries
+- [ ] **Design-system boundary respected** — files in `app/design-system/` do not import `primereact` or `app/domains/*`
+- [ ] **Spacing and motion rules** — stick to the 4px spacing scale and use `gap` over sibling margins; do not invent bespoke animation durations or easings in feature code
+- [ ] **Contrast and non-colour signals** — `--fg-3` is reserved for decorative/disabled text only; colour is never the sole status signal (pair with text or icon)
+- [ ] **Accessible targets and labels** — icon-only buttons carry `aria-label` or visible text; interactive targets meet WCAG 2.2 AA minimum size (`>= 24x24px` or compliant spacing)
+- [ ] **Copy conventions** — UK English with `"organization"`, sentence case for headings and buttons, and no em-dashes (`—`) in UI copy

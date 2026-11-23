@@ -37,24 +37,26 @@ Don't add agents for one-off tasks, or for things the generic assistant handles 
 
 ## Current agents
 
-| Agent | When it's invoked |
-|---|---|
-| `tech-architect-writer` | Designing project structure, establishing conventions, architectural documentation, reviewing how the codebase is organized for both humans and AI tools |
-| `spec-writer` | Translating a developer's intent into a complete OpenSpec proposal (proposal → specs → design → tasks). Used before any implementation begins. |
-| `tdd-test-writer` | Writing failing Vitest tests from an OpenSpec proposal (Red phase of TDD). Stops before any implementation. |
-| `sdd-implementer` | Implementing a change from its OpenSpec proposal and failing tests, running the Green → Refactor loop until all quality gates pass. |
-| `test-writer` | Writing comprehensive test suites across all tiers — unit, PGlite integration, real-DB integration, and Playwright E2E. Knows when to use each tier and DELTA's full test infrastructure. |
-| `solid-reviewer` | Reviewing code changes against SOLID principles, with primary focus on SRP and DIP. Reports violations with concrete refactoring steps. Invoked by sdd-implementer during the Refactor phase. |
+| Agent                   | When it's invoked                                                                                                                                                                             |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tech-architect-writer` | Designing project structure, establishing conventions, architectural documentation, reviewing how the codebase is organized for both humans and AI tools                                      |
+| `spec-writer`           | Translating a developer's intent into a complete OpenSpec proposal (proposal → specs → design → tasks). Used before any implementation begins.                                                |
+| `tdd-test-writer`       | Writing failing Vitest tests from an OpenSpec proposal (Red phase of TDD). Stops before any implementation.                                                                                   |
+| `sdd-implementer`       | Implementing a change from its OpenSpec proposal and failing tests, running the Green → Refactor loop until all quality gates pass.                                                           |
+| `test-writer`           | Writing comprehensive test suites across all tiers — unit, PGlite integration, real-DB integration, and Playwright E2E. Knows when to use each tier and DELTA's full test infrastructure.     |
+| `solid-reviewer`        | Reviewing code changes against SOLID principles, with primary focus on SRP and DIP. Reports violations with concrete refactoring steps. Invoked by sdd-implementer during the Refactor phase. |
 
 ## Skills
 
 Reusable methodology and quality gate documents referenced by agents and humans alike.
 Located in `.github/skills/`.
 
-| Skill | Purpose |
-|---|---|
-| `tdd-cycle/SKILL.md` | Red→Green→Refactor methodology with DELTA-specific tooling and conventions |
-| `anti-pattern-check/SKILL.md` | Full quality gate checklist: known anti-patterns, auth, multi-tenancy, DB, error handling, code quality |
+| Skill                          | Purpose                                                                                                                                  |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `tdd-cycle/SKILL.md`           | Red→Green→Refactor methodology with DELTA-specific tooling and conventions                                                               |
+| `anti-pattern-check/SKILL.md`  | Full quality gate checklist: known anti-patterns, auth, multi-tenancy, DB, error handling, design system, code quality                   |
+| `code-review/SKILL.md`         | Gate 8 pre-PR review checklist: correctness, concurrency, spec alignment, DDD/ADR, design system & accessibility                         |
+| `design-system-check/SKILL.md` | Gate 9 verification workflow for DELTA design system tokens, WCAG 2.2 AA (`axe-core`), responsive layout, keyboard/focus, and copy rules |
 
 ## Proposed agents
 
