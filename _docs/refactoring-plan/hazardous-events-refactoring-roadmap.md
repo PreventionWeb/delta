@@ -2979,7 +2979,7 @@ page, given this is purely a presentation rebuild.
 
 ### 🔷 6l — List Page: Delete Event Row Action
 
-**Branch:** `feature/ca-he-delete-action` (proposed; not yet created)
+**Branch:** `feature/ca-he-delete-action` (cut from `feature/he-ca-phase6`, 2026-11-23)
 
 **Confirmed gap, not scoped by any prior Phase 6 intent (2026-11-18).** Legacy's row-level
 delete, confirmed via `app/frontend/components/data-collection/ActionLinks.tsx:41-87`: a
@@ -2996,13 +2996,28 @@ the CA list page's UI. The backend itself is NOT a gap — `DeleteHazardousEvent
 Event Causality, Causal Chain), attachment-file cleanup, and audit logging are all already
 implemented and tested. This intent is presentation-layer only.
 
+**Re-validated against code, 2026-11-23 (before propose):**
+
+- Legacy exposes delete **only** as the list-row action — its detail page
+  (`ViewComponentMainDataCollection`) renders no delete control, so the list row is the whole UI
+  scope.
+- The row actions live in `HazardousEventListPage.tsx`'s actions cell (Edit/View icons), not in
+  `HazardousEventListActions.tsx`, which is only the page-level "Add new event" button.
+- Legacy gates delete with `canDeleteDataCollectionRecord`, which differs from Edit's gate
+  (`isStatusAwareEditBlocked`): admin/data-validator may delete in any status; data-collector only
+  outside published/validated/waiting-for-validation. Legacy's server action checks only `EditData`
+  — the status rule is UI-only. Decide at propose time whether CA enforces it server-side too, and
+  how it maps onto CA `Status` (and a null workflow status).
+- `DeleteHazardousEventUseCase`'s `ConflictError`s (dependents, including `DEF-044`'s outgoing
+  `event_relationship` case) need a user-visible message on the list page, not a raw error.
+
 **Intent for `/opsx:propose`:**
 
 ```
-Add a Delete row action to HazardousEventListActions.tsx, gated the same way as the
-existing Edit action, with a confirmation step before submitting (matching legacy's
-own Yes/No ConfirmDialog UX, built with this page's own design-system components,
-not a PrimeReact import). Wire a new route action (or extend an existing one) that
+Add a Delete row action to HazardousEventListPage.tsx's actions cell, gated as legacy's
+canDeleteDataCollectionRecord (not the Edit gate), with a confirmation step before
+submitting (matching legacy's own Yes/No ConfirmDialog UX, built with this page's own
+design-system components, not a PrimeReact import). Wire a new route action (or extend an existing one) that
 resolves DeleteHazardousEventUseCase from the NestJS application context via
 getAppContext().get(...), following the same action pattern as he-preview's other
 mutating routes. No new backend logic — DeleteHazardousEventUseCase already handles
@@ -3011,7 +3026,8 @@ dependent-checks, attachment cleanup, and audit logging.
 
 **Files touched (expected, confirm at propose time):**
 
-- `app/domains/hazardous-events/presentation/web/HazardousEventListActions.tsx` (modified)
+- `app/domains/hazardous-events/presentation/web/HazardousEventListPage.tsx` (modified — row
+  actions cell)
 - A new or extended route action under `app/routes/$lang+/_authenticated+/he-preview+/`
 - Tests for the new action and the confirmation UX
 
@@ -3026,8 +3042,8 @@ visual-parity-reviewer tooling once built, not just computed-style inspection.
 ### 🏁 Phase 6 Gate
 
 `yarn test:run2` fully green. `yarn tsc` clean. E2E Playwright passes for the full
-web-route lifecycle (list → detail → create → edit). REST API integration tests pass
-against PGlite. The new route is reachable only by direct URL, confirmed absent from
+web-route lifecycle (list → detail → create → edit → delete). REST API integration tests
+pass against PGlite. The new route is reachable only by direct URL, confirmed absent from
 any nav component (Invariant 2).
 
 ---
