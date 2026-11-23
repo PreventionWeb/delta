@@ -100,6 +100,113 @@ describe("Dialog dismissDisabled", () => {
 	});
 });
 
+describe("Dialog outsideClickDismissDisabled", () => {
+	function renderModal(onOpenChange: (open: boolean) => void) {
+		return render(
+			<Dialog
+				isOpen
+				title="Delete?"
+				closeLabel="Close"
+				outsideClickDismissDisabled
+				onOpenChange={onOpenChange}
+			>
+				<p>Body</p>
+			</Dialog>,
+		);
+	}
+
+	it("ignores a click on the overlay outside the panel", () => {
+		const onOpenChange = vi.fn();
+		const { baseElement } = renderModal(onOpenChange);
+
+		const overlay = baseElement.querySelector(".dts-dialog-overlay");
+		fireEvent.pointerDown(overlay as Element);
+		fireEvent.click(overlay as Element);
+
+		expect(onOpenChange).not.toHaveBeenCalled();
+		expect(screen.queryByRole("dialog")).not.toBeNull();
+	});
+
+	it("still closes on Escape", () => {
+		const onOpenChange = vi.fn();
+		renderModal(onOpenChange);
+
+		fireEvent.keyDown(screen.getByRole("dialog"), {
+			key: "Escape",
+			code: "Escape",
+		});
+
+		expect(onOpenChange).toHaveBeenCalledWith(false);
+	});
+});
+
+describe('Dialog variant="confirm"', () => {
+	function renderConfirm(onOpenChange: (open: boolean) => void) {
+		return render(
+			<Dialog
+				isOpen
+				variant="confirm"
+				title="Delete?"
+				closeLabel="Close"
+				onOpenChange={onOpenChange}
+				footer={
+					<>
+						<button type="button">No</button>
+						<button type="button">Yes</button>
+					</>
+				}
+			>
+				<p>Body</p>
+			</Dialog>,
+		);
+	}
+
+	it("renders legacy's 32rem ConfirmDialog panel, capped at the viewport, not dts-dialog-panel", () => {
+		renderConfirm(vi.fn());
+
+		const panel = screen.getByRole("dialog").parentElement;
+		expect(panel?.className).not.toContain("dts-dialog-panel");
+		expect(panel?.className).toContain("w-lg");
+		expect(panel?.className).toContain("max-w-full");
+	});
+
+	it("uses lara's bold 1.25rem gray-700 title and a round, borderless gray close icon", () => {
+		const onOpenChange = vi.fn();
+		renderConfirm(onOpenChange);
+
+		const heading = screen.getByRole("heading", { name: "Delete?" });
+		expect(heading.className).toContain("text-xl");
+		expect(heading.className).toContain("font-bold");
+		expect(heading.className).toContain("text-gray-700");
+		const close = screen.getByRole("button", { name: "Close" });
+		expect(close.className).toContain("rounded-full");
+		expect(close.className).not.toContain("dts-button");
+		expect(close.textContent).toBe("");
+
+		fireEvent.click(close);
+		expect(onOpenChange).toHaveBeenCalledWith(false);
+	});
+
+	it("indents the message and right-aligns the footer actions in order", () => {
+		renderConfirm(vi.fn());
+
+		const body = screen.getByText("Body").parentElement;
+		expect(body?.className).toContain("pl-10");
+		expect(body?.className).toContain("text-gray-600");
+		const no = screen.getByRole("button", { name: "No" });
+		const footer = no.parentElement;
+		expect(footer?.className).toContain("justify-end");
+		expect(footer?.lastElementChild?.textContent).toBe("Yes");
+	});
+
+	it("leaves the default variant's panel unchanged", () => {
+		renderDialog(vi.fn());
+
+		const panel = screen.getByRole("dialog").parentElement;
+		expect(panel?.className).toBe("dts-dialog-panel");
+	});
+});
+
 describe('Dialog variant="item"', () => {
 	it("renders a fixed-width Tailwind panel (not dts-dialog-panel) with title, footer, and a working close button", () => {
 		const onOpenChange = vi.fn();
