@@ -2477,6 +2477,9 @@ message for a non-Response error. Export as ErrorBoundary from every route in 6a
 **Test tier:** E2E Playwright — force a `DomainError`; verify the boundary renders
 with a visible, copyable trace reference.
 
+**Check at propose time:** map a malformed (non-UUID) id — Postgres `22P02` — to not-found across
+all he-preview routes; today it errors on create/edit/detail/delete (6l design.md known limitation).
+
 ---
 
 ### 🔷 6c — Web Route Adapters: Create + Edit ✅ (Complete)
@@ -2977,7 +2980,7 @@ page, given this is purely a presentation rebuild.
 
 ---
 
-### 🔷 6l — List Page: Delete Event Row Action
+### 🔷 6l — List Page: Delete Event Row Action ✅ (Complete)
 
 **Branch:** `feature/ca-he-delete-action` (cut from `feature/he-ca-phase6`, 2026-11-23)
 
@@ -3036,6 +3039,49 @@ attempt, matching `DeleteHazardousEventUseCase`'s own existing `ConflictError` c
 Presentation test for the confirmation step. Visual/UX parity (Gate 9) required — this is the
 same class of presentation gap that `6k` needed several correction rounds to close; use the
 visual-parity-reviewer tooling once built, not just computed-style inspection.
+
+---
+
+### 🔷 6m — Detail Page: Workflow Approval Actions (`DEF-053`)
+
+**Branch:** `feature/ca-he-detail-workflow-actions` (proposed; not yet created)
+
+**Added to Phase 6 by user decision, 2026-11-23** — `DEF-053`'s trigger says edit is not complete
+across every status until this exists. Legacy's detail view
+(`app/frontend/components/data-collection/View.tsx`) offers the reviewer actions
+`submit-validate` ("Validate record"), `submit-publish` ("Validate and publish record") and
+`submit-reject`/`submit-return` ("Return record", with a comment and return-assignee picker via
+`returnAssigneeOptions`), shown by `approvalStatus`. The CA detail page (`6k`) has none of these.
+`ProcessWorkflowActionUseCase` is already wired into `new.tsx`/`edit.$id.tsx` through
+`composeWorkflowAction.server.ts` (`6c`), but only for the form's own draft/submit/direct
+shortcuts — no detail-page route action calls it.
+
+**Intent for `/opsx:propose`:**
+
+```
+Add legacy's detail-page workflow actions (validate, validate-and-publish, return with
+comment and assignees) to the CA hazardous-event detail page, gated by role and current
+workflow status as legacy does, built with design-system components (no PrimeReact).
+Wire a route action on he-preview's detail route that resolves ProcessWorkflowActionUseCase
+via getAppContext().get(...), reusing 6c's composeWorkflowAction pattern. Legacy visual and
+behaviour parity (Gate 9).
+```
+
+**Check at propose time:** how "Return record" maps onto CA `Status` given `DEF-022` (no
+`reject()` transition, `REJECTED` unreachable), and how the return-assignee picker relates to
+`DEF-049` (no CA validator-assignment concept). Both may constrain or split this intent.
+Also check moving the status-aware authorization check inside the use-case transaction for
+edit and delete together; today it runs just before (6l design.md known limitation).
+
+**Files touched (expected, confirm at propose time):**
+
+- `app/domains/hazardous-events/presentation/web/HazardousEventDetailPage.tsx` (modified)
+- `app/routes/$lang+/_authenticated+/he-preview+/$id.tsx` (modified — action)
+- Tests for the route action and the action UI
+
+**Test tier:** PGlite integration for the route action (each transition, permission-denied,
+invalid-status); presentation tests for the action UI; Playwright E2E for a validate/publish
+and a return; Gate 9 visual parity against legacy's detail view.
 
 ---
 
