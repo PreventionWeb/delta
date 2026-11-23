@@ -1,7 +1,10 @@
 import { config } from "dotenv";
 import { defineConfig, devices } from "@playwright/test";
 
-config({ path: ".env.playwright" });
+// Override ensures a live shell/container DATABASE_URL never shadows .env.playwright.
+config({ path: ".env.playwright", override: true });
+
+const playwrightDbUrl = process.env.PLAYWRIGHT_DATABASE_URL ?? "";
 
 export default defineConfig({
 	testDir: "./tests/e2e",
@@ -17,6 +20,9 @@ export default defineConfig({
 	},
 	webServer: {
 		command: "yarn react-router dev --port 4000",
+		env: {
+			DATABASE_URL: playwrightDbUrl,
+		},
 	},
 	projects: [
 		{
