@@ -32,6 +32,11 @@ export interface HazardousEventRepositoryFilters {
  * type-only `Tx` import above — never a `$inferSelect`/`$inferInsert` row type (design.md
  * Decision 3).
  */
+/** `context.reason` on `delete()`'s ConflictError when another event records this one as its legacy
+ * parent (outgoing `event_relationship`, DEF-044). */
+export const OUTGOING_EVENT_RELATIONSHIP_CONFLICT =
+	"OUTGOING_EVENT_RELATIONSHIP";
+
 export interface IHazardousEventRepository {
 	/** @throws {NotFoundError} when no HazardousEvent exists for `id` within `tenantId`. `tx` lets a caller nesting this inside its own open transaction avoid mixing connections (design.md Decision 9). */
 	findById(id: string, tenantId: string, tx?: Tx): Promise<HazardousEvent>;
