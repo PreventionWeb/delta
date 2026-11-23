@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link as RouterLink, useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import type {
@@ -15,8 +16,14 @@ import { TableColumn } from "~/design-system/components/TableColumn";
 import { TableRow } from "~/design-system/components/TableRow";
 import { TableCell } from "~/design-system/components/TableCell";
 import { Link } from "~/design-system/components/Link";
+import {
+	ToastRegion,
+	createToastQueue,
+} from "~/design-system/components/Toast";
 import { workflowStatusDisplay } from "./workflowStatusDisplay";
 import { isStatusAwareEditBlocked } from "./isStatusAwareEditBlocked";
+import { isStatusAwareDeleteBlocked } from "./isStatusAwareDeleteBlocked";
+import { HazardousEventDeleteButton } from "./HazardousEventDeleteButton";
 import { hazardLabel } from "./hazardLabel";
 import { parsePagination } from "./parsePagination";
 import { parseHazardousEventListFilters } from "./parseHazardousEventListFilters";
@@ -79,6 +86,8 @@ export function HazardousEventListPage({
 	const { t: tCommon } = useTranslation("common");
 	const [searchParams] = useSearchParams();
 	const navigate = useNavigate();
+	// One queue for every row's Delete button, so a toast outlives its row (design.md D3).
+	const [deleteToastQueue] = useState(createToastQueue);
 
 	const { items, totalCount, unfilteredTotalCount, taxonomyOptions, role } =
 		data;
@@ -100,6 +109,10 @@ export function HazardousEventListPage({
 
 	return (
 		<>
+			<ToastRegion
+				queue={deleteToastQueue}
+				closeLabel={t("delete.toast.close")}
+			/>
 			<HazardousEventFilterBar
 				// Forces a remount on Clear/Apply so uncontrolled field defaults re-sync (Gate 9).
 				// page/pageSize excluded so pagination alone doesn't remount.
@@ -204,9 +217,10 @@ export function HazardousEventListPage({
 										{renderActionsCell ? (
 											renderActionsCell(item)
 										) : (
-											<span className="flex items-center gap-1">
-												{/* Decision 24: same-sized placeholder (not nothing) keeps the group's
-												width constant so the centered View icon never shifts position. */}
+											// Legacy ActionLinks' grid: 3 × 2.25rem tracks, 0.25rem gap; buttons overflow their track centred.
+											<span className="grid grid-cols-[repeat(3,--spacing(9))] items-center justify-items-center gap-x-1">
+												{/* Decision 24: same-sized placeholder (not nothing) keeps each slot
+												filled so the View icon never shifts position. */}
 												{roleHasPermission(role ?? null, "EditData") &&
 												!isStatusAwareEditBlocked(
 													role ?? null,
@@ -242,6 +256,23 @@ export function HazardousEventListPage({
 														<use href="/assets/icons/eye-show-password.svg#eye-show" />
 													</svg>
 												</Link>
+												{roleHasPermission(role ?? null, "EditData") &&
+												!isStatusAwareDeleteBlocked(
+													role ?? null,
+													item.workflowStatus,
+												) ? (
+													<HazardousEventDeleteButton
+														action={ctx.url(`/he-preview/delete/${item.id}`)}
+														toastQueue={deleteToastQueue}
+													/>
+												) : (
+													<span
+														className="mg-button mg-button-table invisible"
+														aria-hidden="true"
+													>
+														<svg aria-hidden="true" focusable="false" />
+													</span>
+												)}
 											</span>
 										)}
 									</TableCell>
