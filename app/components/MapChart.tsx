@@ -44,23 +44,39 @@ const glbMapperCSS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
 
 const loadLeaflet = (setLeafletLoaded: (loaded: boolean) => void) => {
 	if (typeof window === "undefined") return;
-	if (!(window as any).L) {
+	if ((window as any).L) {
+		setLeafletLoaded(true);
+		return;
+	}
+
+	if (!document.querySelector(`link[href="${glbMapperCSS}"]`)) {
 		const leafletCSS = document.createElement("link");
 		leafletCSS.rel = "stylesheet";
 		leafletCSS.href = glbMapperCSS;
 		document.head.appendChild(leafletCSS);
-
-		const leafletJS = document.createElement("script");
-		leafletJS.src = glbMapperJS;
-		leafletJS.async = true;
-		leafletJS.onload = () => {
-			console.log("Leaflet loaded successfully.");
-			setLeafletLoaded(true);
-		};
-		document.head.appendChild(leafletJS);
-	} else {
-		setLeafletLoaded(true);
 	}
+
+	const existingScript = document.querySelector<HTMLScriptElement>(
+		`script[src="${glbMapperJS}"]`,
+	);
+	if (existingScript) {
+		existingScript.addEventListener("load", () => setLeafletLoaded(true), {
+			once: true,
+		});
+		return;
+	}
+
+	const leafletJS = document.createElement("script");
+	leafletJS.src = glbMapperJS;
+	leafletJS.async = true;
+	leafletJS.addEventListener(
+		"load",
+		() => {
+			setLeafletLoaded(true);
+		},
+		{ once: true },
+	);
+	document.head.appendChild(leafletJS);
 };
 
 const adjustZoomBasedOnDistance = (map: any, geoJsonLayers: any[]) => {
@@ -98,7 +114,7 @@ const getTileLayer = (mapMode: string) => {
 		case "dark":
 			return "https://tiles.wmflabs.org/bw-map/{z}/{x}/{y}.png";
 		default:
-			return "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+			return "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 	}
 };
 
@@ -150,6 +166,24 @@ const MapChart = forwardRef<MapChartRef, MapChartProps>(
 		const [maxTotal, setMaxTotal] = useState(0);
 
 		const mapRef = useRef<any>(null);
+		const renderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+		const zoomTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+		const legendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+		const clearPendingTimers = useCallback(() => {
+			if (renderTimerRef.current) {
+				clearTimeout(renderTimerRef.current);
+				renderTimerRef.current = null;
+			}
+			if (zoomTimerRef.current) {
+				clearTimeout(zoomTimerRef.current);
+				zoomTimerRef.current = null;
+			}
+			if (legendTimerRef.current) {
+				clearTimeout(legendTimerRef.current);
+				legendTimerRef.current = null;
+			}
+		}, []);
 
 		const makeLegendDraggable = () => {
 			const legend = document.getElementById(`${componentId}_map-legend`);
@@ -204,6 +238,16 @@ const MapChart = forwardRef<MapChartRef, MapChartProps>(
 			loadLeaflet(setLeafletLoaded);
 		}, []);
 
+		useEffect(() => {
+			return () => {
+				clearPendingTimers();
+				if (mapRef.current) {
+					mapRef.current.remove();
+					mapRef.current = null;
+				}
+			};
+		}, [clearPendingTimers]);
+
 		const updateMapLayers = useCallback(
 			(dataSource: DataSourceType) => {
 				if (!isClient || !isLeafletLoaded || typeof window === "undefined")
@@ -229,17 +273,21 @@ const MapChart = forwardRef<MapChartRef, MapChartProps>(
 
 				setUpdatedDataSource(newData);
 
-				setTimeout(() => {
+				clearPendingTimers();
+
+				renderTimerRef.current = setTimeout(() => {
+					const container = document.getElementById(componentId);
+					if (!container) return;
+
 					if (!mapRef.current) {
-						console.log("Creating new Leaflet map...");
 						mapRef.current = L.map(componentId, { preferCanvas: true });
+						// OSM standard tiles only exist up to z19 and do not serve a "d." subdomain.
 						L.tileLayer(getTileLayer(mapMode), {
 							attribution: "",
-							subdomains: "abcd",
+							maxNativeZoom: 19,
 							maxZoom: 20,
 						}).addTo(mapRef.current);
 					} else {
-						console.log("Clearing previous layers...");
 						mapRef.current.eachLayer((layer: any) => {
 							if (layer instanceof L.GeoJSON) {
 								mapRef.current.removeLayer(layer);
@@ -290,10 +338,12 @@ const MapChart = forwardRef<MapChartRef, MapChartProps>(
 						}
 					});
 
-					setTimeout(() => {
+					zoomTimerRef.current = setTimeout(() => {
+						if (!mapRef.current) return;
+						mapRef.current.invalidateSize();
 						adjustZoomBasedOnDistance(mapRef.current, geoJsonLayers);
 						setIsMapRendered(true);
-						setTimeout(() => {
+						legendTimerRef.current = setTimeout(() => {
 							makeLegendDraggable();
 						}, 1000);
 
@@ -306,7 +356,14 @@ const MapChart = forwardRef<MapChartRef, MapChartProps>(
 					}, 500);
 				}, 500);
 			},
-			[isClient, isLeafletLoaded, currentLegendMaxColor, mapMode, componentId],
+			[
+				isClient,
+				isLeafletLoaded,
+				currentLegendMaxColor,
+				mapMode,
+				componentId,
+				clearPendingTimers,
+			],
 		);
 
 		useEffect(() => {
@@ -356,11 +413,12 @@ const MapChart = forwardRef<MapChartRef, MapChartProps>(
 						}}
 					>
 						<strong>{currentLegendTitle}</strong>
-						<ul style={{
-							listStyle: "none",
-							padding: 0,
-							margin: "5px 0 0 0",
-						}}
+						<ul
+							style={{
+								listStyle: "none",
+								padding: 0,
+								margin: "5px 0 0 0",
+							}}
 						>
 							{hasNoData && (
 								<li
