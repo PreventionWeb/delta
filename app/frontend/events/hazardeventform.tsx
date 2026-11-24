@@ -8,24 +8,17 @@ import {
 	FieldErrors,
 	UserFormProps,
 	FormInputDef,
-	FieldsView,
 	FormView,
 } from "~/frontend/form";
 import { ViewComponentMainDataCollection } from "~/frontend/components/data-collection/View";
 
-import { formatDate } from "~/utils/date";
-
 import { useEffect, useRef, useState } from "react";
 import { approvalStatusField2 } from "~/frontend/approval";
 
-import AuditLogHistory from "~/components/AuditLogHistory";
 import { HazardPicker, Hip } from "~/frontend/hip/hazardpicker";
-import { HipHazardInfo } from "~/frontend/hip/hip";
 
 import { SpatialFootprintFormView } from "~/frontend/spatialFootprintFormView";
-import { SpatialFootprintView } from "~/frontend/spatialFootprintView";
 import { AttachmentsFormView } from "~/frontend/attachmentsFormView";
-import { AttachmentsView } from "~/frontend/attachmentsView";
 import { TEMP_UPLOAD_PATH } from "~/utils/paths";
 
 import { ViewContext } from "~/frontend/context";
@@ -35,13 +28,13 @@ import { urlLang } from "~/utils/url";
 import { DContext } from "~/utils/dcontext";
 import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
-import { canAddNewRecord } from "../user/roles";
 
 import {
 	SaveSubmitDialog,
 	SaveAction,
 	UserValidator,
 } from "~/frontend/components/approval-workflow/SaveSubmitDialog";
+import HazardousEventReviewStep from "~/frontend/events/HazardousEventReviewStep";
 
 export const route = "/hazardous-event";
 
@@ -686,185 +679,43 @@ interface HazardousEventViewProps {
 export function HazardousEventView(props: HazardousEventViewProps) {
 	const ctx = props.ctx;
 	const item = props.item;
-	const parent = props.item.parent;
-	const children = props.item.children;
 	const auditLogs = props.auditLogs;
-
-	let recordTitle: string = "";
-	if (item.hipHazard) {
-		recordTitle += item.hipHazard.name;
-	} else if (item.hipCluster) {
-		recordTitle += item.hipCluster.name;
-	} else if (item.hipType) {
-		recordTitle += item.hipType.name;
-	}
-
-	let recordDate: string = item.startDate;
-	if (item.endDate && item.endDate !== item.startDate) {
-		recordDate += item.endDate ? ` to ${item.endDate}` : "";
-	}
-
-	let recordRecipient: string = "";
-	if (item.userSubmittedBy) {
-		recordRecipient += item.userSubmittedBy.firstName;
-		recordRecipient += " " + item.userSubmittedBy.lastName;
-		recordRecipient += " (" + item.userSubmittedBy.email + ")";
-	}
 
 	return (
 		<ViewComponentMainDataCollection
-			recordDate={recordDate}
-			recordTitle={recordTitle}
-			recordRecipient={recordRecipient}
 			approvalStatus={item.approvalStatus}
 			ctx={props.ctx}
 			isPublic={props.isPublic}
 			path={route}
 			id={item.id}
 			returnAssigneeOptions={(item as any).returnAssignees}
+			hideTopSummary={true}
+			hideEditButton={true}
+			extraInfo={
+				<div className="mb-4">
+					<Button
+						type="button"
+						outlined
+						icon="pi pi-arrow-left"
+						iconPos="left"
+						label={ctx.t({
+							code: "hazardous_events.back_to_list",
+							msg: "Back to Hazardous events",
+						})}
+						className="p-button-sm"
+						onClick={() => {
+							document.location.href = ctx.url(route);
+						}}
+					/>
+				</div>
+			}
 			title={ctx.t({
 				code: "hazardous_events",
 				desc: "Label used in multiple places to refer to this type of records",
 				msg: "Hazardous events",
 			})}
-			extraActions={
-				<>
-					<p>
-						<LangLink
-							visible={canAddNewRecord(ctx.user?.role ?? null)}
-							lang={ctx.lang}
-							to={`${route}/new?parent=${item.id}`}
-						>
-							{ctx.t({
-								code: "hazardous_event.add_cause",
-								desc: "Label for adding a hazardous event caused by another event",
-								msg: "Add hazardous event caused by this event",
-							})}
-						</LangLink>
-					</p>
-				</>
-			}
-			extraInfo={
-				<>
-					{parent ? (
-						<p>
-							{ctx.t({
-								code: "hazardous_event.caused_by",
-								desc: "Label for the 'Caused by' relationship",
-								msg: "Caused by",
-							})}
-							:&nbsp;
-							{hazardousEventLink(ctx, {
-								id: parent.id,
-								description: parent.description,
-								hazard: parent.hipHazard
-									? {
-										name: parent.hipHazard.name,
-										code: parent.hipHazard.code ?? undefined,
-									}
-									: undefined,
-								clusterName: parent.hipCluster?.name,
-								typeName: parent.hipType?.name,
-							})}
-						</p>
-					) : null}
-
-					{children && children.length && (
-						<>
-							<p>
-								{ctx.t({
-									code: "hazardous_event.causing",
-									desc: "Label for the list of events caused by this event",
-									msg: "Causing",
-								})}
-								:
-							</p>
-							{children.map((child) => {
-								return (
-									<p key={child.id}>
-										{hazardousEventLink(ctx, {
-											id: child.id,
-											description: child.description,
-											hazard: child.hipHazard
-												? {
-													name: child.hipHazard.name,
-													code: child.hipHazard.code ?? undefined,
-												}
-												: undefined,
-											clusterName: child.hipCluster?.name,
-											typeName: child.hipType?.name,
-										})}
-									</p>
-								);
-							})}
-						</>
-					)}
-				</>
-			}
 		>
-			<FieldsView
-				def={fieldsDefView(ctx)}
-				fields={item}
-				elementsAfter={{}}
-				override={{
-					hipHazard: <HipHazardInfo ctx={ctx} key="hazard" model={item} />,
-					createdAt: (
-						<p key="createdAt">
-							{ctx.t({
-								code: "record.created_at",
-								desc: "Label for creation timestamp",
-								msg: "Created at",
-							})}
-							: {formatDate(item.createdAt)}
-						</p>
-					),
-					updatedAt: (
-						<p key="updatedAt">
-							{ctx.t({
-								code: "record.updated_at",
-								desc: "Label for last updated timestamp",
-								msg: "Updated at",
-							})}
-							: {formatDate(item.updatedAt)}
-						</p>
-					),
-					spatialFootprint: (
-						<SpatialFootprintView
-							ctx={ctx}
-							initialData={((item as any)?.spatialFootprint as any[]) || []}
-							mapViewerOption={0}
-							mapViewerDataSources={[]}
-						/>
-					),
-					attachments: (
-						<AttachmentsView
-							ctx={ctx}
-							id={item.id}
-							initialData={(item?.attachments as any[]) || []}
-							file_viewer_url="/hazardous-event/file-viewer"
-							countryAccountsId={(() => {
-								// Use a type guard to ensure we return string or undefined
-								const id = props.countryAccountsId || item.countryAccountsId;
-								return typeof id === "string" ? id : undefined;
-							})()}
-						/>
-					),
-				}}
-			/>
-			{/* Add Audit log history at the end */}
-			<br />
-			{auditLogs && auditLogs.length > 0 && (
-				<>
-					<h3>
-						{ctx.t({
-							code: "audit_log.history_title",
-							desc: "Title for the audit log history section",
-							msg: "Audit log history",
-						})}
-					</h3>
-					<AuditLogHistory ctx={ctx} auditLogs={auditLogs} />
-				</>
-			)}
+			<HazardousEventReviewStep ctx={ctx} item={item} auditLogs={auditLogs} />
 		</ViewComponentMainDataCollection>
 	);
 }
