@@ -96,7 +96,10 @@ function escapeLikePattern(value: string): string {
 export class DrizzleHazardousEventRepository implements IHazardousEventRepository {
 	constructor(@Inject(DRIZZLE_CLIENT) private readonly db: Dr) {}
 
-	/** Strict subset of the table's columns -- excludes legacy approval/HIP/attachments-JSONB (Decision 4). */
+	/** Strict subset of the table's columns -- excludes legacy approval/HIP/attachments-JSONB
+	 * (Decision 4). Deliberately still true after design.md Decision 17 (`IHipCrosswalkPort`):
+	 * the three HIP columns are now write-populated, but never read back here into the domain
+	 * entity -- don't mistake that write-side change for the domain gaining a HIP field. */
 	private toProps(
 		row: SelectHazardousEvent,
 		children: ChildCollections,
@@ -131,7 +134,10 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 		};
 	}
 
-	/** Inverse of toProps (Decision 4); updatedAt set explicitly even when null, or Drizzle would apply the column's own default instead. */
+	/** Inverse of toProps (Decision 4); updatedAt set explicitly even when null, or Drizzle would
+	 * apply the column's own default instead. Still never sets the three HIP columns (Decision
+	 * 17) -- `IHipCrosswalkPort.stamp()` writes them separately, in its own UPDATE, right after
+	 * this repository's own insert()/update() call. */
 	private toRow(entity: HazardousEvent): InsertHazardousEvent & { id: string } {
 		return {
 			id: entity.id,
@@ -175,9 +181,15 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 		if (entity.attachments.length > 0) {
 			await tx.insert(hazardousEventAttachmentTable).values(
 				entity.attachments.map((attachment) => ({
-					id: attachment.id,
+					// Never attachment.id -- the widget's client-minted id isn't a UUID and this
+					// table's full delete-and-reinsert-every-time semantics mean there is no
+					// cross-save identity to preserve anyway (design.md Decision 6).
+					id: crypto.randomUUID(),
 					hazardousEventId,
 					title: attachment.title,
+					type: attachment.type,
+					url: attachment.url,
+					tag: attachment.tag ? [...attachment.tag] : null,
 					fileKey: attachment.fileKey,
 					fileName: attachment.fileName,
 					fileType: attachment.fileType,
@@ -283,6 +295,9 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 			(entry.attachments as HazardousEventAttachmentProps[]).push({
 				id: row.id,
 				title: row.title,
+				type: row.type,
+				url: row.url,
+				tag: row.tag,
 				fileKey: row.fileKey,
 				fileName: row.fileName,
 				fileType: row.fileType,
@@ -685,13 +700,6 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 			if (constraint === "hazardous_event_api_import_id_tenant_unique") {
 				throw new ConflictError(
 					"HazardousEvent apiImportId already exists for this tenant",
-					context,
-				);
-			}
-			// Attachments have no domain-level dedupe (HazardousEvent.ts validateAttachments), so a duplicate attachment id reaches this PK unmapped otherwise.
-			if (constraint === "hazardous_event_attachment_pkey") {
-				throw new ConflictError(
-					"HazardousEvent has a duplicate attachment id",
 					context,
 				);
 			}

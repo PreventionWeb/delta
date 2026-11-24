@@ -219,3 +219,157 @@ resolved successfully; it SHALL NOT be emitted when the transaction rolls back.
 - **AND** no `HazardousEvent`, no `WorkflowInstance`, and no causal edge from this call SHALL
   exist afterward
 - **AND** no log event SHALL be emitted
+
+### Requirement: An optional spatialObservation is recorded inside the same transaction as the create
+
+`CreateHazardousEventCommand` SHALL accept an optional `spatialObservation` field, with the same
+shape as `UpdateHazardousEventCommand`'s own `spatialObservation` field (`Omit<RecordSpatialObservationCommand,
+"tenantId" | "hazardousEventId" | "tx">`). When present, `execute()` SHALL call
+`RecordSpatialObservationUseCase.execute({ ...command.spatialObservation, tenantId: command.tenantId,
+hazardousEventId: <the saved event's id>, tx })` inside the same `transactionRunner.run()` block
+that persists the `HazardousEvent` and its `WorkflowInstance` — mirroring
+`UpdateHazardousEventUseCase`'s own composition of `RecordSpatialObservationUseCase` exactly. When
+absent, no spatial-observation write of any kind SHALL occur.
+
+#### Scenario: A command with spatialObservation records it inside the create's own transaction
+
+- **GIVEN** a valid `CreateHazardousEventCommand` with `spatialObservation` present
+- **WHEN** `execute(command)` resolves successfully
+- **THEN** `RecordSpatialObservationUseCase.execute` SHALL have been called exactly once, with
+  `hazardousEventId` equal to the newly-created event's id and the same `tx` used for the
+  `HazardousEvent`/`WorkflowInstance` writes
+- **AND** the structured success log SHALL be emitted only after this call (and every other write
+  in the transaction) has committed
+
+#### Scenario: A command with no spatialObservation performs no spatial-observation write
+
+- **GIVEN** a valid `CreateHazardousEventCommand` with `spatialObservation` omitted
+- **WHEN** `execute(command)` is called
+- **THEN** `RecordSpatialObservationUseCase.execute` SHALL NOT be called
+
+#### Scenario: A spatial-observation failure rolls back the whole transaction, including the already-inserted event
+
+- **GIVEN** a valid `CreateHazardousEventCommand` with `spatialObservation` present, and a fake
+  `RecordSpatialObservationUseCase.execute` stubbed to reject with a generic `Error`
+- **WHEN** `execute(command)` is called
+- **THEN** the call SHALL reject with that same `Error`
+- **AND** no `HazardousEvent`, no `WorkflowInstance`, and no spatial observation from this call
+  SHALL exist afterward — the same whole-transaction-rolls-back guarantee
+  "The full write sequence runs as one atomic transaction" already specifies for the other two
+  writes now extends to this third, conditional one
+
+### Requirement: An optional cause must not start after the new event, same guard Update already enforces
+
+When `command.causeId` is present, `execute()` SHALL call
+`assertCauseStartsNoLaterThanEffect(cause.startDate, newEvent.startDate)` immediately after the
+existing `assertCausalLinkDoesNotCreateCycle` check, and before any write. A cause whose `startDate`
+is later than the new event's `startDate` SHALL cause `execute()` to reject with the `ConflictError`
+`assertCauseStartsNoLaterThanEffect` throws, with no write of any kind performed.
+
+#### Scenario: A cause starting after the new event is rejected before any write
+
+- **GIVEN** a `CreateHazardousEventCommand` with `causeId` set to an existing event whose
+  `startDate` is later than `command.startDate`
+- **WHEN** `execute(command)` is called
+- **THEN** the call SHALL reject with the `ConflictError` thrown by
+  `assertCauseStartsNoLaterThanEffect`
+- **AND** `IHazardousEventRepository.insert`, `IWorkflowRepository.insert`, and
+  `ICausalChainRepository.saveEdge` SHALL NOT be called
+
+#### Scenario: A cause starting no later than the new event passes the check
+
+- **GIVEN** a `CreateHazardousEventCommand` with `causeId` set to an existing event whose
+  `startDate` is equal to or earlier than `command.startDate`
+- **WHEN** `execute(command)` is called
+- **THEN** execution SHALL proceed to persist the event, its workflow instance, and the causal edge
+
+#### Scenario: A malformed startDate on either event skips the check, same as Update's own behavior
+
+- **GIVEN** a `CreateHazardousEventCommand` with `causeId` present, where either the cause's or the
+  new event's `startDate` is not a validly-formatted flexible date
+- **WHEN** `execute(command)` is called
+- **THEN** `assertCauseStartsNoLaterThanEffect` SHALL NOT reject the call on that basis — the
+  temporal-order check is skipped, matching `assertCauseStartsNoLaterThanEffect`'s own documented
+  behavior (a malformed date skips the check rather than failing closed)
+
+### Requirement: The new event's legacy HIP columns are populated via the anti-corruption layer, inside the same transaction
+
+`execute()` SHALL call `IHipCrosswalkPort.resolve(command.specificHazardId)` and, inside the same
+`transactionRunner.run()` block that inserts the `HazardousEvent`, call
+`IHipCrosswalkPort.stamp(saved.id, command.tenantId, <the resolved ids>, tx)` immediately after the
+`HazardousEvent` insert succeeds.
+
+#### Scenario: A successful create stamps the resolved HIP ids inside its own transaction
+
+- **GIVEN** a valid `CreateHazardousEventCommand` whose `specificHazardId` resolves to a non-null
+  `hipHazardId`/`hipClusterId`/`hipTypeId` crosswalk
+- **WHEN** `execute(command)` resolves successfully
+- **THEN** `IHipCrosswalkPort.stamp` SHALL have been called exactly once, with the newly-created
+  event's id, `command.tenantId`, the resolved ids, and the same `tx` used for the `HazardousEvent`/
+  `WorkflowInstance` writes
+
+#### Scenario: A stamp() failure rolls back the whole transaction, including the already-inserted event
+
+- **GIVEN** a valid `CreateHazardousEventCommand`, and a fake `IHipCrosswalkPort.stamp` stubbed to
+  reject with a generic `Error`
+- **WHEN** `execute(command)` is called
+- **THEN** the call SHALL reject with that same `Error`
+- **AND** no `HazardousEvent` and no `WorkflowInstance` from this call SHALL exist afterward
+
+### Requirement: File-type attachments are promoted from temp to permanent storage on create
+
+When `CreateHazardousEventUseCase.execute(command)` is called with one or more `File`-type
+attachments, each one SHALL be promoted from its staged (temp) location to permanent,
+tenant-scoped storage via the shared attachments port as part of the same write, and the
+persisted attachment row SHALL carry the resulting permanent `file_key`, not a reference to the
+temp location. `Link`-type attachments are not staged files and SHALL be persisted as submitted,
+with no storage-port call.
+
+#### Scenario: A File-type attachment is promoted on create
+
+- **GIVEN** a `CreateHazardousEventCommand` whose `attachments` includes one `File`-type item
+  referencing a file currently staged in temp storage
+- **WHEN** `execute(command)` is called
+- **THEN** the file is moved to permanent storage before the use case resolves
+- **AND** the persisted attachment row's `file_key` refers to the permanent location, not the
+  temp location
+
+#### Scenario: A Link-type attachment requires no file promotion
+
+- **GIVEN** a `CreateHazardousEventCommand` whose `attachments` includes one `Link`-type item
+- **WHEN** `execute(command)` is called
+- **THEN** the persisted attachment row's `url` matches the submitted value
+- **AND** no file-storage promote operation is invoked for that item
+
+#### Scenario: A promotion failure prevents the event from being created with a dangling attachment
+
+- **GIVEN** a `CreateHazardousEventCommand` whose `attachments` includes one `File`-type item
+  whose staged file cannot be promoted (e.g. the staged file is missing)
+- **WHEN** `execute(command)` is called
+- **THEN** the use case rejects
+- **AND** no `HazardousEvent` row, `WorkflowInstance` row, or attachment row from this call is
+  left persisted
+
+### Requirement: An audit row is written inside the same transaction as a create
+
+`CreateHazardousEventUseCase.execute()` SHALL write one `audit_logs` row — `tableName:
+"hazardous_event"`, `recordId` the new event's id, `userId: command.actingUserId`, `action:
+"Create hazardous event"`, `oldValues: null`, `newValues` the inserted event (single-encoded, not
+double-JSON-stringified), `countryAccountsId: command.tenantId` — as part of the same transaction
+as the event insert, not after it.
+
+#### Scenario: A successful create writes exactly one correctly-shaped audit row
+
+- **WHEN** `execute()` is called with a valid command and completes successfully
+- **THEN** exactly one `audit_logs` row exists for the new event's id afterward
+- **AND** its `action` is `"Create hazardous event"`, its `oldValues` is null, and its
+  `newValues` matches the inserted event when parsed once (not nested JSON requiring a second
+  parse)
+- **AND** its `countryAccountsId` equals `command.tenantId`
+
+#### Scenario: A failure inside the create's own transaction leaves no audit row either
+
+- **WHEN** `execute()`'s transaction fails partway through (e.g. the HIP crosswalk stamp step
+  throws) after the event insert but before the transaction commits
+- **THEN** the event insert is rolled back
+- **AND** no `audit_logs` row exists for that attempted event id afterward

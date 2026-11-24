@@ -1,5 +1,7 @@
 import "../setup";
 import { randomUUID } from "crypto";
+import * as os from "os";
+import * as path from "path";
 import { describe, it, expect, vi } from "vitest";
 import { and, eq, sql } from "drizzle-orm";
 import { dr } from "~/db.server";
@@ -27,6 +29,7 @@ import { GetWorkflowInstanceByEntityUseCase } from "~/domains/validation-workflo
 import { WorkflowInstance } from "~/domains/validation-workflow/domain/WorkflowInstance";
 import { DrizzleHazardTaxonomyRepository } from "~/domains/hazardous-events/infrastructure/DrizzleHazardTaxonomyRepository.server";
 import { DrizzleCausalChainRepository } from "~/domains/hazardous-events/infrastructure/DrizzleCausalChainRepository.server";
+import { DrizzleHipCrosswalkAdapter } from "~/domains/hazardous-events/infrastructure/DrizzleHipCrosswalkAdapter.server";
 import { DrizzleTransactionRunner } from "~/infrastructure/DrizzleTransactionRunner.server";
 import { workflowInstanceTable } from "~/domains/validation-workflow/infrastructure/workflowInstanceTable";
 import { hipsVersionTable } from "~/domains/hazardous-events/infrastructure/hipsVersionTable";
@@ -35,6 +38,8 @@ import { hazardClusterTable } from "~/domains/hazardous-events/infrastructure/ha
 import { specificHazardTable } from "~/domains/hazardous-events/infrastructure/specificHazardTable";
 import { seedTextContent } from "../models/textContentTestHelpers";
 import { UpdateHazardousEventUseCase } from "~/domains/hazardous-events/application/use-cases/UpdateHazardousEvent";
+import { LocalDiskAttachmentStorageAdapter } from "~/domains/shared/attachments/infrastructure/LocalDiskAttachmentStorageAdapter.server";
+import { DrizzleAuditLogAdapter } from "~/domains/shared/audit-log/infrastructure/DrizzleAuditLogAdapter.server";
 import type { ILogger } from "~/shared/logging/ILogger";
 import { HazardousEvent } from "~/domains/hazardous-events/domain/HazardousEvent";
 import type { HazardousEventProps } from "~/domains/hazardous-events/domain/HazardousEvent";
@@ -232,6 +237,7 @@ async function insertAttachment(
 			id: overrides.id ?? randomUUID(),
 			hazardousEventId,
 			title: "Attachment",
+			type: "File",
 			fileKey: `key-${randomUUID()}`,
 			fileName: "file.pdf",
 			fileType: "application/pdf",
@@ -1221,10 +1227,15 @@ describe("DrizzleHazardousEventRepository", () => {
 			const fieldDefinitionId = await seedFieldDefinition();
 			const customFieldDefinitionId = await seedCustomFieldDefinition(tenantId);
 			const id = randomUUID();
+			// Discarded by the repository, which mints its own fresh UUID at insert time
+			// (design.md Decision 6) -- never asserted against the found row's id below.
 			const attachmentId = randomUUID();
 			const attachment = {
 				id: attachmentId,
 				title: "Attachment",
+				type: "File" as const,
+				url: null,
+				tag: null,
 				fileKey: "key-1",
 				fileName: "file.pdf",
 				fileType: "application/pdf",
@@ -1257,7 +1268,10 @@ describe("DrizzleHazardousEventRepository", () => {
 			const found = await repo.findById(id, tenantId);
 			expectScalarFieldsMatch(found, props);
 			expect(found.hazardDriverIds).toEqual([hazardDriverId]);
-			expect(found.attachments).toEqual([attachment]);
+			// id is the repository's own freshly-minted UUID, not attachmentId (Decision 6).
+			expect(found.attachments).toEqual([
+				{ ...attachment, id: expect.any(String) },
+			]);
 			expect(found.fieldValues).toEqual([
 				{
 					hazardTypeFieldDefinitionId: fieldDefinitionId,
@@ -1330,39 +1344,9 @@ describe("DrizzleHazardousEventRepository", () => {
 			expect((err as ConflictError).message).toContain("apiImportId");
 		});
 
-		// Attachments have no domain-level dedupe (HazardousEvent.ts validateAttachments), so a duplicate attachment id reaches this PK unmapped otherwise (Gate 8 finding).
-		it("rejects with ConflictError naming the attachment, not a duplicate-event-id message, when two attachments share an id", async () => {
-			const tenantId = (await seedCountryAccount()) as string;
-			const specificHazardId = await seedSpecificHazard();
-			const sharedAttachmentId = randomUUID();
-			const entity = makeHazardousEventEntity({
-				...baseNewEventProps(randomUUID(), tenantId, specificHazardId),
-				attachments: [
-					{
-						id: sharedAttachmentId,
-						title: "First",
-						fileKey: "key-1",
-						fileName: "a.pdf",
-						fileType: "application/pdf",
-						fileSize: 1,
-					},
-					{
-						id: sharedAttachmentId,
-						title: "Second",
-						fileKey: "key-2",
-						fileName: "b.pdf",
-						fileType: "application/pdf",
-						fileSize: 2,
-					},
-				],
-			});
-			const repo = new DrizzleHazardousEventRepository(dr);
-
-			const err = await repo.insert(entity).catch((e: unknown) => e);
-
-			expect(err).toBeInstanceOf(ConflictError);
-			expect((err as ConflictError).message).toContain("attachment");
-		});
+		// Removed (ca-shared-attachments-module, Decision 6): the repository now mints a fresh
+		// UUID per attachment, so client-supplied-id PK collisions (this test's old scenario)
+		// can no longer happen.
 
 		// Sibling-code mapping: a 23503 must reject typed, not leak as a raw driver exception.
 		it("rejects with ValidationError, rolling back the whole transaction, when a child collection references a nonexistent id", async () => {
@@ -1431,6 +1415,9 @@ describe("DrizzleHazardousEventRepository", () => {
 					{
 						id: sharedAttachmentId,
 						title: "Shared",
+						type: "File" as const,
+						url: null,
+						tag: null,
 						fileKey: "key-shared",
 						fileName: "shared.pdf",
 						fileType: "application/pdf",
@@ -1439,6 +1426,9 @@ describe("DrizzleHazardousEventRepository", () => {
 					{
 						id: randomUUID(),
 						title: "Removed",
+						type: "File" as const,
+						url: null,
+						tag: null,
 						fileKey: "key-removed",
 						fileName: "removed.pdf",
 						fileType: "application/pdf",
@@ -1471,6 +1461,9 @@ describe("DrizzleHazardousEventRepository", () => {
 					{
 						id: sharedAttachmentId,
 						title: "Shared",
+						type: "File" as const,
+						url: null,
+						tag: null,
 						fileKey: "key-shared",
 						fileName: "shared.pdf",
 						fileType: "application/pdf",
@@ -1479,6 +1472,9 @@ describe("DrizzleHazardousEventRepository", () => {
 					{
 						id: addedAttachmentId,
 						title: "Added",
+						type: "File" as const,
+						url: null,
+						tag: null,
 						fileKey: "key-added",
 						fileName: "added.pdf",
 						fileType: "application/pdf",
@@ -1505,8 +1501,11 @@ describe("DrizzleHazardousEventRepository", () => {
 			const found = await repo.findById(id, tenantId);
 			expectScalarFieldsMatch(found, changedProps);
 			expect(found.hazardDriverIds).toEqual([newDriverId]);
-			expect(found.attachments.map((a) => a.id).sort()).toEqual(
-				[sharedAttachmentId, addedAttachmentId].sort(),
+			// Keyed on fileKey, not id -- the repository mints a fresh id per attachment row on
+			// every write (design.md Decision 6), so sharedAttachmentId/addedAttachmentId (the
+			// submitted ids) never appear in the persisted row.
+			expect(found.attachments.map((a) => a.fileKey).sort()).toEqual(
+				["key-added", "key-shared"].sort(),
 			);
 			expect(found.fieldValues).toEqual([
 				{
@@ -1674,6 +1673,9 @@ describe("DrizzleHazardousEventRepository", () => {
 					{
 						id: keptAttachmentId,
 						title: "Kept",
+						type: "File" as const,
+						url: null,
+						tag: null,
 						fileKey: "key-kept",
 						fileName: "kept.pdf",
 						fileType: "application/pdf",
@@ -1713,7 +1715,13 @@ describe("DrizzleHazardousEventRepository", () => {
 			const found = await repo.findById(id, tenantId);
 			expectScalarFieldsMatch(found, firstUpdateProps);
 			expect(found.hazardDriverIds).toEqual([keptDriverId]);
-			expect(found.attachments).toEqual(firstUpdateProps.attachments);
+			// id is the repository's own freshly-minted UUID, not keptAttachmentId (Decision 6).
+			expect(found.attachments).toEqual(
+				firstUpdateProps.attachments.map((a) => ({
+					...a,
+					id: expect.any(String),
+				})),
+			);
 			expect(found.fieldValues).toEqual(firstUpdateProps.fieldValues);
 			expect(found.customFieldValues).toEqual(
 				firstUpdateProps.customFieldValues,
@@ -1924,6 +1932,9 @@ describe("DrizzleHazardousEventRepository", () => {
 						{
 							id: randomUUID(),
 							title: "Attachment",
+							type: "File" as const,
+							url: null,
+							tag: null,
 							fileKey: "key-1",
 							fileName: "file.pdf",
 							fileType: "application/pdf",
@@ -2920,7 +2931,7 @@ describe("UpdateHazardousEventUseCase against the real adapter", () => {
 	it("lets exactly one of two concurrent execute() calls for the same event win, racing against the real DrizzleHazardousEventRepository", async () => {
 		const tenantId = (await seedCountryAccount()) as string;
 		const specificHazardId = await seedSpecificHazard();
-		const actingUserId = randomUUID();
+		const actingUserId = await seedUser();
 		const id = randomUUID();
 		const setupRepo = new DrizzleHazardousEventRepository(dr);
 		const workflowRepository = new DrizzleWorkflowRepository(dr);
@@ -2957,6 +2968,11 @@ describe("UpdateHazardousEventUseCase against the real adapter", () => {
 		expect(beforeRace.updatedAt).not.toBeNull();
 
 		const raceRepo = new RaceBarrierHazardousEventRepository(dr);
+		// Never actually touched -- this test's command omits `attachments` entirely, so
+		// resolveAttachmentsForWrite's early-return path means no promote()/delete() call happens.
+		const attachmentStoragePort = new LocalDiskAttachmentStorageAdapter(
+			path.join(os.tmpdir(), "delta-test-uploads-unused"),
+		);
 		const useCase = new UpdateHazardousEventUseCase(
 			new NoOpLogger(),
 			taxonomyRepository,
@@ -2965,6 +2981,9 @@ describe("UpdateHazardousEventUseCase against the real adapter", () => {
 			causalChainRepository,
 			recordSpatialObservationUseCase,
 			new DrizzleTransactionRunner(dr),
+			new DrizzleHipCrosswalkAdapter(dr),
+			attachmentStoragePort,
+			new DrizzleAuditLogAdapter(dr),
 		);
 
 		const outcomes = await Promise.allSettled([

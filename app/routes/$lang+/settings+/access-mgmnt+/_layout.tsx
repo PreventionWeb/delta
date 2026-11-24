@@ -1,7 +1,10 @@
 import { MetaFunction, Outlet } from "react-router";
-import { getUserCountryAccountsWithUserByCountryAccountsId } from "~/db/queries/userCountryAccountsRepository";
+import {
+	type AccessManagementSortColumn,
+	getUserCountryAccountsWithUserByCountryAccountsId,
+	type SortDirection,
+} from "~/db/queries/userCountryAccountsRepository";
 import { OrganizationRepository } from "~/db/queries/organizationRepository";
-import { paginationQueryFromURL } from "~/frontend/pagination/api.server";
 import { authLoaderWithPerm } from "~/utils/auth";
 import {
 	getCountryAccountsIdFromSession,
@@ -10,6 +13,50 @@ import {
 import { ViewContext } from "~/frontend/context";
 import { htmlTitle } from "~/utils/htmlmeta";
 import AccessManagementPage from "~/pages/AccessManagementPage";
+
+const VALID_SORT_COLUMNS = new Set<AccessManagementSortColumn>([
+	"name",
+	"status",
+	"org",
+	"role",
+	"added",
+]);
+
+const VALID_PAGE_SIZES = new Set<number>([25, 50, 100]);
+
+export function parseAccessManagementQuery(url: URL): {
+	search: string;
+	role: string;
+	sort: AccessManagementSortColumn;
+	dir: SortDirection;
+	page: number;
+	pageSize: number;
+} {
+	const search = url.searchParams.get("search") || "";
+	const role = url.searchParams.get("role") || "all";
+
+	const rawSort = url.searchParams.get("sort") || "added";
+	const sort: AccessManagementSortColumn = VALID_SORT_COLUMNS.has(
+		rawSort as AccessManagementSortColumn,
+	)
+		? (rawSort as AccessManagementSortColumn)
+		: "added";
+
+	const rawDir = url.searchParams.get("dir");
+	const dir: SortDirection =
+		rawDir === "asc" || rawDir === "desc" ? rawDir : "desc";
+
+	const rawPage = Number.parseInt(url.searchParams.get("page") || "1", 10);
+	const page = Number.isFinite(rawPage) && rawPage >= 1 ? rawPage : 1;
+
+	const rawPageSize = Number.parseInt(
+		url.searchParams.get("pageSize") || "25",
+		10,
+	);
+	const pageSize = VALID_PAGE_SIZES.has(rawPageSize) ? rawPageSize : 25;
+
+	return { search, role, sort, dir, page, pageSize };
+}
 
 export const meta: MetaFunction = ({ params }) => {
 	const ctx = new ViewContext({ lang: params.lang || "en" });
@@ -20,7 +67,7 @@ export const meta: MetaFunction = ({ params }) => {
 				ctx,
 				ctx.t({
 					code: "meta.access_management",
-					msg: "Access Management",
+					msg: "Access management",
 				}),
 			),
 		},
@@ -28,7 +75,7 @@ export const meta: MetaFunction = ({ params }) => {
 			name: "description",
 			content: ctx.t({
 				code: "meta.access_management",
-				msg: "Access Management",
+				msg: "Access management",
 			}),
 		},
 	];
@@ -37,34 +84,21 @@ export const meta: MetaFunction = ({ params }) => {
 export const loader = authLoaderWithPerm("ViewUsers", async (loaderArgs) => {
 	const { request } = loaderArgs;
 	const url = new URL(request.url);
-	const search = url.searchParams.get("search") || "";
-	const roleFilter = url.searchParams.get("role") || "all";
-	const organizationFilter = url.searchParams.get("organization") || "";
+	const query = parseAccessManagementQuery(url);
 
 	const countryAccountsId = await getCountryAccountsIdFromSession(request);
 	const organizations =
 		await OrganizationRepository.getByCountryAccountsId(countryAccountsId);
 
-	const normalizedOrganizationFilter = organizationFilter.trim().toLowerCase();
-	const organizationIds = normalizedOrganizationFilter
-		? organizations
-				.filter((organization) =>
-					organization.name
-						.toLowerCase()
-						.includes(normalizedOrganizationFilter),
-				)
-				.map((organization) => organization.id)
-		: undefined;
-
-	const pagination = paginationQueryFromURL(request, []);
-
 	const items = await getUserCountryAccountsWithUserByCountryAccountsId(
-		pagination.viewData.page,
-		pagination.viewData.pageSize,
+		query.page,
+		query.pageSize,
 		countryAccountsId,
 		{
-			role: roleFilter !== "all" ? roleFilter : undefined,
-			organizationIds,
+			search: query.search || undefined,
+			role: query.role !== "all" ? query.role : undefined,
+			sort: query.sort,
+			dir: query.dir,
 		},
 	);
 
@@ -73,7 +107,10 @@ export const loader = authLoaderWithPerm("ViewUsers", async (loaderArgs) => {
 	return {
 		...items,
 		organizations,
-		search,
+		search: query.search,
+		roleFilter: query.role,
+		sort: query.sort,
+		dir: query.dir,
 		userRole,
 	};
 });

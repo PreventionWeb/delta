@@ -12,6 +12,7 @@ import { NotFoundError } from "~/shared/errors";
 import {
 	seedCountryAccount,
 	seedSpecificHazard,
+	seedUser,
 } from "../../db/models/hazardousEventTestHelpers";
 
 import { HAZARDOUS_EVENT_REPOSITORY } from "~/domains/hazardous-events/infrastructure/HazardousEventRepositoryToken";
@@ -455,7 +456,7 @@ describe("HazardousEventsModule", () => {
 		it("Create, read, list, update-with-spatial-observation, and delete all succeed in sequence against the correctly-wired module", async () => {
 			const tenantId = (await seedCountryAccount()) as string;
 			const specificHazardId = await seedSpecificHazard();
-			const actingUserId = randomUUID();
+			const actingUserId = await seedUser();
 
 			module = await Test.createTestingModule({
 				imports: [HazardousEventsModule],

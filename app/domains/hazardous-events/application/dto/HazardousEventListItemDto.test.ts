@@ -33,6 +33,9 @@ const baseHazardousEventProps: HazardousEventProps = {
 		{
 			id: "attachment-1",
 			title: "title",
+			type: "File",
+			url: null,
+			tag: null,
 			fileKey: "key",
 			fileName: "name",
 			fileType: "type",
@@ -140,6 +143,7 @@ describe("toHazardousEventListItemDto", () => {
 			specificHazardName: "Drought",
 			hazardClusterName: "Climatological",
 			hazardTypeName: "Natural",
+			specificHazardCode: "code-1",
 		});
 
 		expect(dto.specificHazardName).toBe("Drought");

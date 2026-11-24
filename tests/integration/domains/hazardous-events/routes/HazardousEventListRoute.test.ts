@@ -15,6 +15,7 @@ import type { HazardousEventListItemDto } from "~/domains/hazardous-events/appli
 import {
 	seedCountryAccount,
 	seedSpecificHazard,
+	seedUser,
 } from "../../../db/models/hazardousEventTestHelpers";
 import type { ErrorResponse } from "~/shared/errors/ErrorResponse";
 import {
@@ -38,6 +39,7 @@ vi.mock("~/utils/session", async (importOriginal) => {
 		...original,
 		getCountryAccountsIdFromSession: vi.fn(),
 		getUserRoleFromSession: vi.fn(),
+		getCountrySettingsFromSession: vi.fn(),
 	};
 });
 
@@ -49,6 +51,7 @@ vi.mock("~/utils/auth", async (importOriginal) => {
 import {
 	getCountryAccountsIdFromSession,
 	getUserRoleFromSession,
+	getCountrySettingsFromSession,
 } from "~/utils/session";
 import { requireUser } from "~/utils/auth";
 import { loader } from "~/routes/$lang+/_authenticated+/he-preview+/_index";
@@ -57,6 +60,9 @@ const mockGetCountryAccountsIdFromSession = vi.mocked(
 	getCountryAccountsIdFromSession,
 );
 const mockGetUserRoleFromSession = vi.mocked(getUserRoleFromSession);
+const mockGetCountrySettingsFromSession = vi.mocked(
+	getCountrySettingsFromSession,
+);
 const mockRequireUser = vi.mocked(requireUser);
 
 const TEST_USER_ID = randomUUID();
@@ -135,7 +141,7 @@ async function seedEventWithWorkflow(
 		specificHazardLocalName: null,
 		specificHazardNationalName: null,
 		apiImportId: null,
-		actingUserId: randomUUID(),
+		actingUserId: await seedUser(),
 		hazardDriverIds: [],
 		attachments: [],
 		fieldValues: [],
@@ -193,6 +199,7 @@ describe("Hazardous event list route loader", () => {
 
 		mockGetCountryAccountsIdFromSession.mockReset();
 		mockGetUserRoleFromSession.mockReset();
+		mockGetCountrySettingsFromSession.mockReset();
 		mockRequireUser.mockReset();
 		tenantId = await seedCountryAccount();
 		specificHazardId = await seedSpecificHazard();
@@ -347,6 +354,31 @@ describe("Hazardous event list route loader", () => {
 		expect(Array.isArray(result.taxonomyOptions.clusters)).toBe(true);
 		expect(Array.isArray(result.taxonomyOptions.specificHazards)).toBe(true);
 		executeSpy.mockRestore();
+	});
+
+	// design.md Decision 15: new to this loader -- settings.websiteName threaded through as
+	// instanceName for HazardousEventListHeader, same fallback legacy's own HazardEventHeader uses.
+	it("calls getCountrySettingsFromSession and returns instanceName: settings.websiteName when set", async () => {
+		mockGetCountrySettingsFromSession.mockResolvedValue({
+			websiteName: "Example Country Instance",
+		} as never);
+
+		const result = (await loader(
+			await makeArgs("http://localhost/en/he-preview", tenantId),
+		)) as { instanceName: string };
+
+		expect(mockGetCountrySettingsFromSession).toHaveBeenCalledTimes(1);
+		expect(result.instanceName).toBe("Example Country Instance");
+	});
+
+	it("falls back to instanceName: 'DELTA Resilience' when settings/websiteName is absent", async () => {
+		mockGetCountrySettingsFromSession.mockResolvedValue(undefined as never);
+
+		const result = (await loader(
+			await makeArgs("http://localhost/en/he-preview", tenantId),
+		)) as { instanceName: string };
+
+		expect(result.instanceName).toBe("DELTA Resilience");
 	});
 
 	it("returns items + totalCount with no generic success wrapper, covering both DEF-031 WorkflowInstance states", async () => {

@@ -28,4 +28,20 @@ export interface ICausalChainRepository {
 	/** Counts every edge touching nodeId as cause or effect. Not tenant-scoped (matches this
 	 * port's other methods). */
 	countEdgesTouching(nodeId: string, tx?: Tx): Promise<number>;
+
+	/** Resolves effectId's current cause edge, or null when none exists -- replaceCauseEdge's
+	 * delete-then-insert shape guarantees at most one row, so this is never ambiguous. */
+	findCauseEdge(
+		effectId: string,
+		tx?: Tx,
+	): Promise<{ causeId: string; causalityExplanation: string | null } | null>;
+
+	/** Direct (single-hop) children of causeId -- the structural inverse of findCauseEdge. Unlike
+	 * findCauseEdge, an array: nothing enforces at most one effect per cause. */
+	findEffectEdges(
+		causeId: string,
+		tx?: Tx,
+	): Promise<
+		readonly { effectId: string; causalityExplanation: string | null }[]
+	>;
 }

@@ -1,0 +1,39 @@
+name: Design system static checks
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+    paths:
+      - "app/design-system/**"
+      - "app/domains/*/presentation/**"
+      - "app/styles/**"
+      - "_docs/design/**"
+      - "tests/unit/design-system/**"
+      - "tests/e2e/helpers/designSystemChecks.ts"
+      - "scripts/check-design-a11y.ts"
+      - "vitest.dom.config.ts"
+      - ".github/workflows/design-system-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  design-system-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - name: Install dependencies
+        run: HUSKY=0 yarn install --frozen-lockfile
+
+      - name: Run static design-system guards & component tests
+        run: yarn test:design

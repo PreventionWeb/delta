@@ -10,6 +10,10 @@ export interface TableCellProps {
 	/** Auto-focuses this cell's interactive child when the grid cursor reaches it -- only set on a
 	 * row's last interactive cell (confirmed via live trace: ArrowRight can't pass a focused child). */
 	focusChild?: boolean;
+	/** Opts out of the fixed row height below, sizing to content instead. */
+	compact?: boolean;
+	/** Inline style, not className -- needed to beat this app's unlayered .dts-table rule (design.md Decision 15, Fix 7). */
+	padding?: "token" | "cozy";
 }
 
 // Matches the legacy .dts-table td rule exactly via @theme tokens (design.md Decision 8; see TableColumn).
@@ -19,19 +23,31 @@ const cellStyle = {
 	height: "var(--spacing-dts-row-height)",
 };
 
+const compactCellStyle = { ...cellStyle, height: "auto" };
+
+const cozyCellStyle = {
+	...cellStyle,
+	padding: "0.5rem 0.75rem",
+	height: "auto",
+};
+
 // Thin wrapper over React Aria's unstyled `Cell`, styled to match the legacy table's `<td>`.
 export function TableCell({
 	children,
 	centered,
 	className,
 	focusChild,
+	compact,
+	padding = "token",
 }: TableCellProps) {
 	const classes = [centered ? "dts-table__cell-centered" : undefined, className]
 		.filter(Boolean)
 		.join(" ");
+	const style =
+		padding === "cozy" ? cozyCellStyle : compact ? compactCellStyle : cellStyle;
 	return (
 		<Cell
-			style={cellStyle}
+			style={style}
 			className={classes || undefined}
 			focusMode={focusChild ? "child" : undefined}
 		>

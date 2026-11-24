@@ -17,13 +17,21 @@ import type {
 import type { EntityType } from "~/domains/validation-workflow/domain/WorkflowInstance";
 import type { IWorkflowRepository } from "~/domains/validation-workflow/application/ports/IWorkflowRepository";
 import { DeleteWorkflowInstanceUseCase } from "~/domains/validation-workflow/application/use-cases/DeleteWorkflowInstance";
+import type {
+	AttachmentDescriptor,
+	IAttachmentStoragePort,
+	StagedFileReference,
+} from "~/domains/shared/attachments/application/ports/IAttachmentStoragePort";
+import type {
+	AuditLogEntry,
+	IAuditLogPort,
+} from "~/domains/shared/audit-log/application/ports/IAuditLogPort";
 import {
 	DeleteHazardousEventUseCase,
 	type DeleteHazardousEventCommand,
 } from "./DeleteHazardousEvent";
 
-/** No real transaction semantics — just invokes fn with a placeholder tx, matching this
- * codebase's own inline-fake convention for every other port these use cases fake. */
+/** No real transaction semantics -- placeholder tx, matching this codebase's own inline-fake convention. */
 const fakeTx = {} as Tx;
 
 class FakeTransactionRunner implements ITransactionRunner {
@@ -223,6 +231,14 @@ class FakeCausalChainRepository implements ICausalChainRepository {
 		throw new Error("not used by DeleteHazardousEventUseCase's own tests");
 	}
 
+	async findCauseEdge(): Promise<never> {
+		throw new Error("not used by DeleteHazardousEventUseCase's own tests");
+	}
+
+	async findEffectEdges(): Promise<never> {
+		throw new Error("not used by DeleteHazardousEventUseCase's own tests");
+	}
+
 	async saveEdge(): Promise<void> {
 		throw new Error("not used by DeleteHazardousEventUseCase's own tests");
 	}
@@ -287,6 +303,60 @@ class FakeWorkflowRepository implements IWorkflowRepository {
 	}
 }
 
+class FakeAttachmentStoragePort implements IAttachmentStoragePort {
+	readonly deleteCalls: {
+		descriptor: AttachmentDescriptor;
+		fileKey: string;
+	}[] = [];
+	/** fileKey -> Error, for the partial-delete-failure test (Gate 8 finding). */
+	deleteFailuresByFileKey = new Map<string, Error>();
+
+	constructor(private readonly callLog: string[] = []) {}
+
+	async stage(): Promise<StagedFileReference> {
+		throw new Error("not used by this test file");
+	}
+
+	async promote(): Promise<{
+		fileKey: string;
+		fileSize: number;
+		fileName: string;
+	}> {
+		throw new Error("not used by this test file");
+	}
+
+	async delete(
+		descriptor: AttachmentDescriptor,
+		fileKey: string,
+	): Promise<void> {
+		this.deleteCalls.push({ descriptor, fileKey });
+		this.callLog.push("attachmentStoragePort.delete");
+		const failure = this.deleteFailuresByFileKey.get(fileKey);
+		if (failure !== undefined) {
+			throw failure;
+		}
+	}
+
+	async retrieve(): Promise<Buffer> {
+		throw new Error("not used by this test file");
+	}
+}
+
+class FakeAuditLogPort implements Pick<IAuditLogPort, "record"> {
+	readonly recordCalls: { entry: AuditLogEntry; tx: Tx | undefined }[] = [];
+	recordBehavior: "succeed" | Error = "succeed";
+
+	constructor(private readonly callLog: string[] = []) {}
+
+	async record(entry: AuditLogEntry, tx?: Tx): Promise<void> {
+		this.recordCalls.push({ entry, tx });
+		this.callLog.push("auditLogPort.record");
+		if (this.recordBehavior instanceof Error) {
+			throw this.recordBehavior;
+		}
+	}
+}
+
 const baseEventProps: HazardousEventProps = {
 	id: "event-A",
 	tenantId: "tenant-1",
@@ -345,6 +415,8 @@ function createHarness() {
 	const causalChainRepository = new FakeCausalChainRepository();
 	const workflowRepository = new FakeWorkflowRepository(callLog);
 	const transactionRunner = new FakeTransactionRunner();
+	const attachmentStoragePort = new FakeAttachmentStoragePort(callLog);
+	const auditLogPort = new FakeAuditLogPort(callLog);
 	const useCase = new DeleteHazardousEventUseCase(
 		logger,
 		hazardousEventRepository,
@@ -352,8 +424,12 @@ function createHarness() {
 		causalChainRepository,
 		new DeleteWorkflowInstanceUseCase(workflowRepository),
 		transactionRunner,
+		attachmentStoragePort,
+		auditLogPort,
 	);
 	return {
+		attachmentStoragePort,
+		auditLogPort,
 		callLog,
 		logger,
 		hazardousEventRepository,
@@ -768,6 +844,7 @@ describe("DeleteHazardousEventUseCase", () => {
 		expect(harness.callLog).toEqual([
 			"workflow.deleteByEntity",
 			"hazardousEvent.delete",
+			"auditLogPort.record",
 		]);
 	});
 
@@ -870,6 +947,7 @@ describe("DeleteHazardousEventUseCase", () => {
 			);
 			expect(harness.workflowRepository.deleteByEntityCalls[0].tx).toBe(fakeTx);
 			expect(harness.hazardousEventRepository.deleteCalls[0].tx).toBe(fakeTx);
+			expect(harness.auditLogPort.recordCalls[0].tx).toBe(fakeTx);
 		});
 
 		it("a deleteByEntity rejection propagates unmodified, with no log event", async () => {
@@ -885,6 +963,248 @@ describe("DeleteHazardousEventUseCase", () => {
 			).rejects.toThrow("boom-delete-by-entity");
 			expect(harness.hazardousEventRepository.deleteCalls).toHaveLength(0);
 			expect(harness.logger.info).not.toHaveBeenCalled();
+		});
+	});
+
+	// design.md Decision 6: record() runs inside the transaction, immediately after the row delete, with the pre-delete row as oldValues.
+	describe("IAuditLogPort composition (design.md Decision 6)", () => {
+		it('calls record() with the pre-delete row as oldValues, null newValues, and the lowercase "delete" action', async () => {
+			const harness = createHarness();
+
+			await harness.useCase.execute(
+				makeCommand({
+					id: "event-A",
+					tenantId: "tenant-1",
+					actingUserId: "user-9",
+				}),
+			);
+
+			expect(harness.auditLogPort.recordCalls).toHaveLength(1);
+			const [{ entry }] = harness.auditLogPort.recordCalls;
+			expect(entry).toMatchObject({
+				tableName: "hazardous_event",
+				recordId: "event-A",
+				userId: "user-9",
+				action: "delete",
+				newValues: null,
+				countryAccountsId: "tenant-1",
+			});
+			expect((entry.oldValues as { id: string }).id).toBe("event-A");
+		});
+
+		it("propagates a rejection from record(), with no log event", async () => {
+			const harness = createHarness();
+			harness.auditLogPort.recordBehavior = new Error("boom-audit-record");
+
+			await expect(
+				harness.useCase.execute(
+					makeCommand({ id: "event-A", tenantId: "tenant-1" }),
+				),
+			).rejects.toThrow("boom-audit-record");
+			expect(harness.logger.info).not.toHaveBeenCalled();
+		});
+
+		it("writes no audit row when the delete is blocked by a dependent", async () => {
+			const harness = createHarness();
+			harness.causalChainRepository.setCount("event-A", 1);
+
+			await expect(
+				harness.useCase.execute(
+					makeCommand({ id: "event-A", tenantId: "tenant-1" }),
+				),
+			).rejects.toThrow(ConflictError);
+			expect(harness.auditLogPort.recordCalls).toHaveLength(0);
+		});
+
+		it("writes no audit row for the no-op (already-deleted) path", async () => {
+			const harness = createHarness();
+			harness.hazardousEventRepository.findByIdForUpdateBehavior =
+				new NotFoundError("HazardousEvent", "event-A");
+
+			await harness.useCase.execute(
+				makeCommand({ id: "event-A", tenantId: "tenant-1" }),
+			);
+
+			expect(harness.auditLogPort.recordCalls).toHaveLength(0);
+		});
+	});
+
+	describe("attachment file deletion (ca-shared-attachments-module)", () => {
+		it("deletes the on-disk file for each File-type attachment, but makes no storage-port call for a Link-type attachment", async () => {
+			const callLog: string[] = [];
+			const logger = new FakeLogger();
+			const event = makeEvent({
+				attachments: [
+					{
+						id: "att-file",
+						title: "Report",
+						type: "File",
+						url: null,
+						tag: null,
+						fileKey: "key-1",
+						fileName: "report.pdf",
+						fileType: "application/pdf",
+						fileSize: 100,
+					},
+					{
+						id: "att-link",
+						title: "Reference",
+						type: "Link",
+						url: "https://example.com",
+						tag: null,
+						fileKey: null,
+						fileName: null,
+						fileType: null,
+						fileSize: null,
+					},
+				],
+			});
+			const hazardousEventRepository = new FakeHazardousEventRepository(
+				[event],
+				callLog,
+			);
+			const eventCausalityRepository = new FakeEventCausalityRepository();
+			const causalChainRepository = new FakeCausalChainRepository();
+			const workflowRepository = new FakeWorkflowRepository(callLog);
+			const attachmentStoragePort = new FakeAttachmentStoragePort(callLog);
+			const useCase = new DeleteHazardousEventUseCase(
+				logger,
+				hazardousEventRepository,
+				eventCausalityRepository,
+				causalChainRepository,
+				new DeleteWorkflowInstanceUseCase(workflowRepository),
+				new FakeTransactionRunner(),
+				attachmentStoragePort,
+				new FakeAuditLogPort(callLog),
+			);
+
+			await useCase.execute(
+				makeCommand({ id: "event-A", tenantId: "tenant-1" }),
+			);
+
+			expect(attachmentStoragePort.deleteCalls).toEqual([
+				{
+					descriptor: {
+						tenantId: "tenant-1",
+						ownerType: "hazardous-event",
+						ownerId: "event-A",
+					},
+					fileKey: "key-1",
+				},
+			]);
+		});
+
+		it("a blocked delete (dependents exist) makes no storage-port call at all", async () => {
+			const callLog: string[] = [];
+			const logger = new FakeLogger();
+			const event = makeEvent({
+				attachments: [
+					{
+						id: "att-file",
+						title: "Report",
+						type: "File",
+						url: null,
+						tag: null,
+						fileKey: "key-1",
+						fileName: "report.pdf",
+						fileType: "application/pdf",
+						fileSize: 100,
+					},
+				],
+			});
+			const hazardousEventRepository = new FakeHazardousEventRepository(
+				[event],
+				callLog,
+			);
+			hazardousEventRepository.setDisasterEventCount("event-A", 1);
+			const eventCausalityRepository = new FakeEventCausalityRepository();
+			const causalChainRepository = new FakeCausalChainRepository();
+			const workflowRepository = new FakeWorkflowRepository(callLog);
+			const attachmentStoragePort = new FakeAttachmentStoragePort(callLog);
+			const useCase = new DeleteHazardousEventUseCase(
+				logger,
+				hazardousEventRepository,
+				eventCausalityRepository,
+				causalChainRepository,
+				new DeleteWorkflowInstanceUseCase(workflowRepository),
+				new FakeTransactionRunner(),
+				attachmentStoragePort,
+				new FakeAuditLogPort(callLog),
+			);
+
+			await expect(
+				useCase.execute(makeCommand({ id: "event-A", tenantId: "tenant-1" })),
+			).rejects.toThrow(ConflictError);
+			expect(attachmentStoragePort.deleteCalls).toEqual([]);
+		});
+
+		// Gate 8 finding / Decision 7 addendum: a delete() failure on one attachment must not roll
+		// back the event deletion that already committed -- it's logged, not thrown, and every other fileKey is still attempted.
+		it("still commits the event deletion when one of several File-type attachments fails to delete, logging the failure instead of propagating it", async () => {
+			const callLog: string[] = [];
+			const logger = new FakeLogger();
+			const event = makeEvent({
+				attachments: [
+					{
+						id: "att-file-1",
+						title: "First",
+						type: "File",
+						url: null,
+						tag: null,
+						fileKey: "key-1",
+						fileName: "file-1.pdf",
+						fileType: "application/pdf",
+						fileSize: 100,
+					},
+					{
+						id: "att-file-2",
+						title: "Second",
+						type: "File",
+						url: null,
+						tag: null,
+						fileKey: "key-2",
+						fileName: "file-2.pdf",
+						fileType: "application/pdf",
+						fileSize: 200,
+					},
+				],
+			});
+			const hazardousEventRepository = new FakeHazardousEventRepository(
+				[event],
+				callLog,
+			);
+			const eventCausalityRepository = new FakeEventCausalityRepository();
+			const causalChainRepository = new FakeCausalChainRepository();
+			const workflowRepository = new FakeWorkflowRepository(callLog);
+			const attachmentStoragePort = new FakeAttachmentStoragePort(callLog);
+			attachmentStoragePort.deleteFailuresByFileKey.set(
+				"key-1",
+				Object.assign(new Error("EPERM: locked"), { code: "EPERM" }),
+			);
+			const useCase = new DeleteHazardousEventUseCase(
+				logger,
+				hazardousEventRepository,
+				eventCausalityRepository,
+				causalChainRepository,
+				new DeleteWorkflowInstanceUseCase(workflowRepository),
+				new FakeTransactionRunner(),
+				attachmentStoragePort,
+				new FakeAuditLogPort(callLog),
+			);
+
+			await expect(
+				useCase.execute(makeCommand({ id: "event-A", tenantId: "tenant-1" })),
+			).resolves.toBeUndefined();
+
+			expect(
+				attachmentStoragePort.deleteCalls.map((c) => c.fileKey).sort(),
+			).toEqual(["key-1", "key-2"]);
+			expect(logger.error).toHaveBeenCalledWith(
+				expect.objectContaining({
+					msg: "hazardous_event_attachment.delete_failed",
+					fileKey: "key-1",
+				}),
+			);
 		});
 	});
 
@@ -928,9 +1248,8 @@ describe("DeleteHazardousEventUseCase", () => {
 	});
 
 	describe("concurrent callers", () => {
-		// This test moved: the no-op-catch path is unit-tested directly below ("treats a
-		// post-findById NotFoundError ... as a successful no-op"); the real lock guarantee
-		// (design.md Decision 8) needs a real lock, proven in Task 8.4's PGlite test, not a fake.
+		// The no-op-catch path is unit-tested below; the real lock guarantee (design.md Decision 8)
+		// needs a real lock, proven in Task 8.4's PGlite test, not a fake.
 
 		it("concurrent callers for different tenants resolve independently, with no cross-contamination", async () => {
 			const callLog: string[] = [];
@@ -955,6 +1274,8 @@ describe("DeleteHazardousEventUseCase", () => {
 				causalChainRepository,
 				new DeleteWorkflowInstanceUseCase(workflowRepository),
 				new FakeTransactionRunner(),
+				new FakeAttachmentStoragePort(callLog),
+				new FakeAuditLogPort(callLog),
 			);
 
 			const results = await Promise.allSettled([

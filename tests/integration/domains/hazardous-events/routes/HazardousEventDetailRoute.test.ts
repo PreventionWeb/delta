@@ -14,6 +14,7 @@ import { CreateHazardousEventUseCase } from "~/domains/hazardous-events/applicat
 import {
 	seedCountryAccount,
 	seedSpecificHazard,
+	seedUser,
 } from "../../../db/models/hazardousEventTestHelpers";
 import type { ErrorResponse } from "~/shared/errors/ErrorResponse";
 import {
@@ -129,7 +130,7 @@ async function seedEventWithWorkflow(
 		specificHazardLocalName: null,
 		specificHazardNationalName: null,
 		apiImportId: null,
-		actingUserId: randomUUID(),
+		actingUserId: await seedUser(),
 		hazardDriverIds: [],
 		attachments: [],
 		fieldValues: [],
@@ -202,6 +203,16 @@ describe("Hazardous event detail route loader", () => {
 			(result as { workflowStatus: unknown }).workflowStatus,
 		).not.toBeNull();
 		expect(result).not.toHaveProperty("success");
+	});
+
+	// design.md Decision 11: role no longer surfaced (Edit/add-cause links removed);
+	// requireViewDataPermission() still runs for its 403 gate (covered below), just not captured.
+	it("does not include a role field alongside the detail DTO (design.md Decision 11)", async () => {
+		const id = await seedEventWithWorkflow(tenantId, specificHazardId);
+
+		const result = await loader(await makeArgs(id, tenantId, "data-collector"));
+
+		expect(result).not.toHaveProperty("role");
 	});
 
 	it("returns workflowStatus null (DEF-031), not a thrown error, for a known id with no WorkflowInstance", async () => {

@@ -196,4 +196,44 @@ export class DrizzleCausalChainRepository implements ICausalChainRepository {
 		// Same untyped-raw-row narrowing as queryReachableEdges — this query's own known projection.
 		return (result.rows[0] as unknown as { count: number }).count;
 	}
+
+	async findCauseEdge(
+		effectId: string,
+		tx?: Tx,
+	): Promise<{ causeId: string; causalityExplanation: string | null } | null> {
+		const [row] = await (tx ?? this.db)
+			.select({
+				causeHazardousEventId:
+					hazardousEventCausalityTable.causeHazardousEventId,
+				causalityExplanation: hazardousEventCausalityTable.causalityExplanation,
+			})
+			.from(hazardousEventCausalityTable)
+			.where(eq(hazardousEventCausalityTable.effectHazardousEventId, effectId));
+		return row
+			? {
+					causeId: row.causeHazardousEventId,
+					causalityExplanation: row.causalityExplanation,
+				}
+			: null;
+	}
+
+	async findEffectEdges(
+		causeId: string,
+		tx?: Tx,
+	): Promise<
+		readonly { effectId: string; causalityExplanation: string | null }[]
+	> {
+		const rows = await (tx ?? this.db)
+			.select({
+				effectHazardousEventId:
+					hazardousEventCausalityTable.effectHazardousEventId,
+				causalityExplanation: hazardousEventCausalityTable.causalityExplanation,
+			})
+			.from(hazardousEventCausalityTable)
+			.where(eq(hazardousEventCausalityTable.causeHazardousEventId, causeId));
+		return rows.map((row) => ({
+			effectId: row.effectHazardousEventId,
+			causalityExplanation: row.causalityExplanation,
+		}));
+	}
 }

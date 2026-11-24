@@ -29,11 +29,12 @@ context: |
   - Translation: ctx.t({ code: "key", msg: "Fallback" }). Run yarn i18n:extractor after adding strings.
   - New env vars: add to example.env with a comment.
   - Branches from dev, PRs target dev. Commit prefixes: Bug:, Feature:, Refactor:, Docs:.
-  - Style: Prettier (tabs, 80-char width, trailing commas). Run yarn format before committing.
+  - Style: Prettier (tabs, 80-char width, trailing commas). Run npx prettier --check <files> before committing.
 
   Testing infrastructure:
   - yarn test:run2  — Vitest + PGlite integration tests (no external DB needed). PRIMARY test suite.
   - yarn test:run3  — Vitest integration tests against real PostgreSQL (needs .env.test).
+  - yarn test:dom   — Vitest + jsdom component interaction tests (vitest.dom.config.ts).
   - yarn test:e2e   — Playwright end-to-end tests (expects PORT=4000).
   - yarn vitest run path/to/test.ts  — Run a single test file.
   - DO NOT use node:test. app/backend.server/models/*_test.ts files are orphaned — do not extend them.
@@ -45,12 +46,26 @@ context: |
 
   Critical anti-patterns: see .github/skills/anti-pattern-check/SKILL.md — never reproduce any item listed there.
 
+  UI Design Authority:
+  - Design-system authority: https://github.com/unisdr/delta-design (semantic tokens, reusable
+    components, typography, spacing, layout, iconography, chart conventions, interaction behaviour,
+    and accessibility requirements). Local reference files (DESIGN.md, tokens.json, tokens.css) are
+    manually synced from a pinned tag/commit of unisdr/delta-design.
+  - Feature design hand-off authority: https://github.com/unisdr/delta-feature-prototypes
+    (feature-specific prototypes demonstrating approved application of the DELTA Design System).
+  - Target UI stack for new or migrated screens: React Aria Components (accessible component
+    foundation), Tailwind CSS v4, Lucide React, Recharts, semantic design tokens, and WCAG 2.2
+    Level AA compliance.
+  - Coexistence during migration: legacy custom CSS (dts-*, mg-*, formScreen()) and interim
+    PrimeReact screens coexist with new React Aria screens. Every change must declare its
+    ui-classification as react-aria, legacy-exempt, or non-visual.
+
 rules:
   proposal:
     - Scope to a single coherent concern. If the change touches unrelated files, split it.
     - List every file expected to change with a one-line reason.
     - State explicitly whether a DB migration is required.
-    - "State the test approach: PGlite (test:run2) or real DB (test:run3) or E2E."
+    - "State the test approach: PGlite (test:run2) or real DB (test:run3) or DOM (test:dom) or E2E (test:e2e)."
     - If the change affects auth or multi-tenancy, call it out as a security-sensitive change.
 
   specs:
@@ -64,6 +79,9 @@ rules:
     - If Drizzle schema changes are needed, describe the column additions explicitly.
     - Identify whether tests use PGlite or require a real DB, and why.
     - Note any impact on the Form-CSV-API fieldsDef pipeline.
+    - "Always record ui-classification: react-aria | legacy-exempt | non-visual."
+    - "For any change affecting UI presentation or interaction, include the design-system and feature-prototype metadata block with immutable references (release tag and/or commit SHA, never solely a moving branch like main): design-system (repository: https://github.com/unisdr/delta-design, version-or-tag, commit) and feature-prototype (repository: https://github.com/unisdr/delta-feature-prototypes, path, commit, status: required | approved | not-required, exception-reason when not-required)."
+    - "For UI changes, specify: affected routes and presentation components; selected design tokens and UI components; content and interaction ground-truth checklist; field and column order; sorting, filtering, and pagination defaults; empty, loading, error, success, and destructive-action states; responsive expectations; keyboard behaviour and focus order; minimum 24x24 CSS pixel target size (32x32 preferred for icon-only controls); accessible names and label-in-name expectations; copy and localisation requirements (sentence case, DELTA content guidance, no em dashes); and any documented and approved deviations from the prototype or design system."
 
   tasks:
     - "TDD order is mandatory: write the failing Vitest test first, then implement, then refactor."
@@ -72,13 +90,13 @@ rules:
     - If a DB migration is involved, yarn dbsync is a task — never drizzle-kit push.
     - "Quality gate 1 of 10: yarn vitest run <test-file> — tests still green after refactor"
     - "Quality gate 2 of 10: yarn tsc — zero TypeScript errors"
-    - "Quality gate 3 of 10: yarn format:check — Prettier clean (run yarn format to fix)"
+    - "Quality gate 3 of 10: yarn format:check — Prettier clean (run npx prettier --write <files> to fix)"
     - "Quality gate 4 of 10: Anti-pattern review — check .github/skills/anti-pattern-check/SKILL.md"
     - "Quality gate 5 of 10: SOLID review — invoke solid-reviewer agent"
     - "Quality gate 6 of 10: Documentation review — comments explain WHY not WHAT, compacted where possible without losing meaning (no fixed line-count limit); one full-diff sweep before the final report, not just each round's delta, done by a fresh subagent (not self-review)"
     - "Quality gate 7 of 10: Project conventions review — check .github/copilot-instructions.md"
     - "Quality gate 8 of 10: Code review — run .github/skills/code-review/SKILL.md in full, via a fresh subagent"
-    - "Quality gate 9 of 10: Visual/UX parity review — required only if this change touches app/domains/*/presentation/ or app/routes/, else skip and say so explicitly"
+    - "Quality gate 9 of 10: Design system, accessibility & prototype parity review — required if this change touches app/domains/*/presentation/, app/routes/, app/components/, app/design-system/, or related styles (else skip and say so explicitly). Runs Gate 9a (static design-system and token compliance via yarn check:design-system + .github/skills/design-system-check/SKILL.md), Gate 9b (automated WCAG 2.2 AA axe-core and keyboard checks via tests/e2e/helpers/a11y.ts), and Gate 9c (implementation parity with the approved feature prototype, retaining commands, reports, screenshots in test-results/gate-9/<name>/, and review outcomes in openspec/changes/<name>/evidence/gate-9-report.md, audited by a fresh subagent)"
     - "Quality gate 10 of 10: Independent second-opinion review, Claude Code only — its built-in code-review at high effort via a second fresh subagent; other tools use an equivalent platform feature or skip"
     - "If this change adds or modifies any file under app/domains/** that contains real implementation logic (not a type-only interface/port declaration, not a trivial re-export): add a test quality task — invoke test-quality-auditor scoped to the changed files, resolve any real gap found"
     - "After all applicable gates: add a mandatory regression task — yarn test:run2 (full PGlite suite) must pass with no new failures before archiving; pre-existing failures must be confirmed as pre-existing, not assumed"

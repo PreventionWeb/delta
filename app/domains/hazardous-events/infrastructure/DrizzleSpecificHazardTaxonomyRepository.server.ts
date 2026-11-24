@@ -33,6 +33,7 @@ export class DrizzleSpecificHazardTaxonomyRepository implements ISpecificHazardT
 				specificHazardName: specificHazardName.originalText,
 				hazardClusterName: hazardClusterName.originalText,
 				hazardTypeName: hazardTypeName.originalText,
+				specificHazardCode: specificHazardTable.code,
 			})
 			.from(specificHazardTable)
 			.innerJoin(

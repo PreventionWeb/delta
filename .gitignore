@@ -25,6 +25,7 @@ dts_shared_binary/
 .env
 .env.*
 .env.local
+.env.playwright
 
 # AI Tool files
 .claude

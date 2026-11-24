@@ -7,6 +7,13 @@ import type {
 import type { DeleteWorkflowInstanceUseCase } from "~/domains/validation-workflow/application/use-cases/DeleteWorkflowInstance";
 import type { ILogger } from "~/shared/logging/ILogger";
 import type { ITransactionRunner } from "~/shared/persistence/ITransactionRunner";
+import type { IAttachmentStoragePort } from "~/domains/shared/attachments/application/ports/IAttachmentStoragePort";
+import type { IAuditLogPort } from "~/domains/shared/audit-log/application/ports/IAuditLogPort";
+import {
+	HAZARDOUS_EVENT_AUDIT_TABLE_NAME,
+	mapHazardousEventFields,
+} from "../dto/HazardousEventDto";
+import { deleteAttachmentFiles } from "./deleteAttachmentFiles";
 import { ConflictError, NotFoundError } from "~/shared/errors";
 import { assertNonEmptyString } from "../assertNonEmptyString";
 
@@ -62,6 +69,12 @@ export class DeleteHazardousEventUseCase {
 			"execute"
 		>,
 		private readonly transactionRunner: ITransactionRunner,
+		// Narrowed to the one method actually used (Gate 5/SOLID ISP finding).
+		private readonly attachmentStoragePort: Pick<
+			IAttachmentStoragePort,
+			"delete"
+		>,
+		private readonly auditLogPort: Pick<IAuditLogPort, "record">,
 	) {}
 
 	async execute(command: DeleteHazardousEventCommand): Promise<void> {
@@ -74,8 +87,9 @@ export class DeleteHazardousEventUseCase {
 		await this.hazardousEventRepository.findById(command.id, command.tenantId);
 
 		const deleted = await this.transactionRunner.run(async (tx) => {
+			let locked;
 			try {
-				await this.hazardousEventRepository.findByIdForUpdate(
+				locked = await this.hazardousEventRepository.findByIdForUpdate(
 					command.id,
 					command.tenantId,
 					tx,
@@ -130,6 +144,35 @@ export class DeleteHazardousEventUseCase {
 				command.tenantId,
 				tx,
 			);
+
+			// Same tx as the delete (Decision 6); lowercase "delete" reproduces legacy's quirk (Decision 3).
+			await this.auditLogPort.record(
+				{
+					tableName: HAZARDOUS_EVENT_AUDIT_TABLE_NAME,
+					recordId: command.id,
+					userId: command.actingUserId,
+					action: "delete",
+					oldValues: mapHazardousEventFields(locked),
+					newValues: null,
+					countryAccountsId: command.tenantId,
+				},
+				tx,
+			);
+
+			// After the row delete succeeds, not before -- a blocked delete (dependents.length > 0
+			// above) must leave attachments untouched; deleting first then throwing would orphan a file whose DB row remains.
+			const fileKeysToDelete = locked.attachments
+				.filter((attachment) => attachment.type === "File")
+				.map((attachment) => attachment.fileKey)
+				.filter((fileKey): fileKey is string => fileKey !== null);
+			await deleteAttachmentFiles(
+				this.attachmentStoragePort,
+				this.logger,
+				command.tenantId,
+				command.id,
+				fileKeysToDelete,
+			);
+
 			return true;
 		});
 

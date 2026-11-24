@@ -21,6 +21,14 @@ import { EventCausalityModule } from "~/domains/event-causality/infrastructure/E
 import { EVENT_CAUSALITY_REPOSITORY } from "~/domains/event-causality/infrastructure/EventCausalityRepositoryToken";
 import type { IEventCausalityRepository } from "~/domains/event-causality/application/ports/IEventCausalityRepository";
 
+import { SharedAttachmentStorageModule } from "~/domains/shared/attachments/infrastructure/SharedAttachmentStorageModule.server";
+import { ATTACHMENT_STORAGE_PORT } from "~/domains/shared/attachments/infrastructure/AttachmentStoragePortToken";
+import type { IAttachmentStoragePort } from "~/domains/shared/attachments/application/ports/IAttachmentStoragePort";
+
+import { SharedAuditLogModule } from "~/domains/shared/audit-log/infrastructure/SharedAuditLogModule.server";
+import { AUDIT_LOG_PORT } from "~/domains/shared/audit-log/infrastructure/AuditLogPortToken";
+import type { IAuditLogPort } from "~/domains/shared/audit-log/application/ports/IAuditLogPort";
+
 import { GetHazardousEventByIdUseCase } from "~/domains/hazardous-events/application/use-cases/GetHazardousEventById";
 import { ListHazardousEventsUseCase } from "~/domains/hazardous-events/application/use-cases/ListHazardousEvents";
 import { GetHazardTaxonomyOptionsUseCase } from "~/domains/hazardous-events/application/use-cases/GetHazardTaxonomyOptionsUseCase";
@@ -39,6 +47,7 @@ import type { IHazardTaxonomyRepository } from "~/domains/hazardous-events/appli
 import type { ISpecificHazardTaxonomyRepository } from "~/domains/hazardous-events/application/ports/ISpecificHazardTaxonomyRepository";
 import type { IHazardousEventAttachmentRepository } from "~/domains/hazardous-events/application/ports/IHazardousEventAttachmentRepository";
 import type { IHazardousEventAttachmentStorageService } from "~/domains/hazardous-events/application/ports/IHazardousEventAttachmentStorageService";
+import type { IHipCrosswalkPort } from "~/domains/hazardous-events/application/ports/IHipCrosswalkPort";
 
 import { HazardousEventsController } from "~/domains/hazardous-events/presentation/HazardousEventsController.server";
 import {
@@ -55,6 +64,7 @@ import { DrizzleSpecificHazardTaxonomyRepository } from "./DrizzleSpecificHazard
 import { DrizzleDivisionRepository } from "./DrizzleDivisionRepository.server";
 import { DrizzleHazardousEventAttachmentRepository } from "./DrizzleHazardousEventAttachmentRepository.server";
 import { DiskHazardousEventAttachmentStorageService } from "./DiskHazardousEventAttachmentStorageService.server";
+import { DrizzleHipCrosswalkAdapter } from "./DrizzleHipCrosswalkAdapter.server";
 import { HAZARDOUS_EVENT_REPOSITORY } from "./HazardousEventRepositoryToken";
 import { CAUSAL_CHAIN_REPOSITORY } from "./CausalChainRepositoryToken";
 import { HAZARD_TAXONOMY_REPOSITORY } from "./HazardTaxonomyRepositoryToken";
@@ -62,6 +72,7 @@ import { SPECIFIC_HAZARD_TAXONOMY_REPOSITORY } from "./SpecificHazardTaxonomyRep
 import { DIVISION_REPOSITORY } from "./DivisionRepositoryToken";
 import { HAZARDOUS_EVENT_ATTACHMENT_REPOSITORY } from "./HazardousEventAttachmentRepositoryToken";
 import { HAZARDOUS_EVENT_ATTACHMENT_STORAGE_SERVICE } from "./HazardousEventAttachmentStorageServiceToken";
+import { HIP_CROSSWALK_PORT } from "./HipCrosswalkPortToken";
 
 @Module({
 	controllers: [HazardousEventsController],
@@ -71,6 +82,10 @@ import { HAZARDOUS_EVENT_ATTACHMENT_STORAGE_SERVICE } from "./HazardousEventAtta
 		ValidationWorkflowModule,
 		// For IEventCausalityRepository — DeleteHazardousEventUseCase's own dependency.
 		EventCausalityModule,
+		// For ATTACHMENT_STORAGE_PORT — Create/Update/DeleteHazardousEventUseCase's own dependency.
+		SharedAttachmentStorageModule,
+		// For AUDIT_LOG_PORT — Create/Update/DeleteHazardousEventUseCase's own dependency.
+		SharedAuditLogModule,
 	],
 	providers: [
 		// Returns the same global dr singleton — no new DB connection.
@@ -103,6 +118,11 @@ import { HAZARDOUS_EVENT_ATTACHMENT_STORAGE_SERVICE } from "./HazardousEventAtta
 			provide: HAZARDOUS_EVENT_ATTACHMENT_STORAGE_SERVICE,
 			useClass: DiskHazardousEventAttachmentStorageService,
 		},
+		// TEMPORARY (DEF-055, design.md Decision 17) -- delete once no dependent domain reads hip_hazard_id/hip_cluster_id/hip_type_id off hazardous_event.
+		{
+			provide: HIP_CROSSWALK_PORT,
+			useClass: DrizzleHipCrosswalkAdapter,
+		},
 		// First real consumer of TRANSACTION_RUNNER in this codebase — design.md Decision 2.
 		{
 			provide: TRANSACTION_RUNNER,
@@ -117,17 +137,23 @@ import { HAZARDOUS_EVENT_ATTACHMENT_STORAGE_SERVICE } from "./HazardousEventAtta
 					"execute"
 				>,
 				specificHazardTaxonomyRepository: ISpecificHazardTaxonomyRepository,
+				causalChainRepository: ICausalChainRepository,
+				auditLogPort: IAuditLogPort,
 			) =>
 				new GetHazardousEventByIdUseCase(
 					getPinoLogger(),
 					hazardousEventRepository,
 					getWorkflowInstanceByEntityUseCase,
 					specificHazardTaxonomyRepository,
+					causalChainRepository,
+					auditLogPort,
 				),
 			inject: [
 				HAZARDOUS_EVENT_REPOSITORY,
 				GetWorkflowInstanceByEntityUseCase,
 				SPECIFIC_HAZARD_TAXONOMY_REPOSITORY,
+				CAUSAL_CHAIN_REPOSITORY,
+				AUDIT_LOG_PORT,
 			],
 		},
 		{
@@ -174,8 +200,8 @@ import { HAZARDOUS_EVENT_ATTACHMENT_STORAGE_SERVICE } from "./HazardousEventAtta
 		},
 		{
 			provide: CreateHazardousEventUseCase,
-			// Inject order mirrors the constructor's own declared order exactly (design.md's
-			// constructor table) — positional and untyped at this call site (design.md Risks).
+			// Inject order mirrors the constructor's own declared order exactly (standard NestJS useFactory wiring).
+			// recordSpatialObservationUseCase: own provider token (above), not a repository token.
 			useFactory: (
 				taxonomyRepository: IHazardTaxonomyRepository,
 				hazardousEventRepository: IHazardousEventRepository,
@@ -184,7 +210,14 @@ import { HAZARDOUS_EVENT_ATTACHMENT_STORAGE_SERVICE } from "./HazardousEventAtta
 					"execute"
 				>,
 				causalChainRepository: ICausalChainRepository,
+				recordSpatialObservationUseCase: Pick<
+					RecordSpatialObservationUseCase,
+					"execute"
+				>,
 				transactionRunner: ITransactionRunner,
+				hipCrosswalkPort: IHipCrosswalkPort,
+				attachmentStoragePort: IAttachmentStoragePort,
+				auditLogPort: IAuditLogPort,
 			) =>
 				new CreateHazardousEventUseCase(
 					getPinoLogger(),
@@ -192,14 +225,22 @@ import { HAZARDOUS_EVENT_ATTACHMENT_STORAGE_SERVICE } from "./HazardousEventAtta
 					hazardousEventRepository,
 					initializeWorkflowInstanceUseCase,
 					causalChainRepository,
+					recordSpatialObservationUseCase,
 					transactionRunner,
+					hipCrosswalkPort,
+					attachmentStoragePort,
+					auditLogPort,
 				),
 			inject: [
 				HAZARD_TAXONOMY_REPOSITORY,
 				HAZARDOUS_EVENT_REPOSITORY,
 				InitializeWorkflowInstanceUseCase,
 				CAUSAL_CHAIN_REPOSITORY,
+				RecordSpatialObservationUseCase,
 				TRANSACTION_RUNNER,
+				HIP_CROSSWALK_PORT,
+				ATTACHMENT_STORAGE_PORT,
+				AUDIT_LOG_PORT,
 			],
 		},
 		{
@@ -213,6 +254,8 @@ import { HAZARDOUS_EVENT_ATTACHMENT_STORAGE_SERVICE } from "./HazardousEventAtta
 					"execute"
 				>,
 				transactionRunner: ITransactionRunner,
+				attachmentStoragePort: IAttachmentStoragePort,
+				auditLogPort: IAuditLogPort,
 			) =>
 				new DeleteHazardousEventUseCase(
 					getPinoLogger(),
@@ -221,6 +264,8 @@ import { HAZARDOUS_EVENT_ATTACHMENT_STORAGE_SERVICE } from "./HazardousEventAtta
 					causalChainRepository,
 					deleteWorkflowInstanceUseCase,
 					transactionRunner,
+					attachmentStoragePort,
+					auditLogPort,
 				),
 			inject: [
 				HAZARDOUS_EVENT_REPOSITORY,
@@ -228,12 +273,13 @@ import { HAZARDOUS_EVENT_ATTACHMENT_STORAGE_SERVICE } from "./HazardousEventAtta
 				CAUSAL_CHAIN_REPOSITORY,
 				DeleteWorkflowInstanceUseCase,
 				TRANSACTION_RUNNER,
+				ATTACHMENT_STORAGE_PORT,
+				AUDIT_LOG_PORT,
 			],
 		},
 		{
 			provide: UpdateHazardousEventUseCase,
-			// recordSpatialObservationUseCase is injected via its own provider token (above), not a
-			// repository token — it's a same-module use-case dependency.
+			// recordSpatialObservationUseCase is injected via its own provider token (above), not a repository token.
 			useFactory: (
 				taxonomyRepository: IHazardTaxonomyRepository,
 				hazardousEventRepository: IHazardousEventRepository,
@@ -247,6 +293,9 @@ import { HAZARDOUS_EVENT_ATTACHMENT_STORAGE_SERVICE } from "./HazardousEventAtta
 					"execute"
 				>,
 				transactionRunner: ITransactionRunner,
+				hipCrosswalkPort: IHipCrosswalkPort,
+				attachmentStoragePort: IAttachmentStoragePort,
+				auditLogPort: IAuditLogPort,
 			) =>
 				new UpdateHazardousEventUseCase(
 					getPinoLogger(),
@@ -256,6 +305,9 @@ import { HAZARDOUS_EVENT_ATTACHMENT_STORAGE_SERVICE } from "./HazardousEventAtta
 					causalChainRepository,
 					recordSpatialObservationUseCase,
 					transactionRunner,
+					hipCrosswalkPort,
+					attachmentStoragePort,
+					auditLogPort,
 				),
 			inject: [
 				HAZARD_TAXONOMY_REPOSITORY,
@@ -264,6 +316,9 @@ import { HAZARDOUS_EVENT_ATTACHMENT_STORAGE_SERVICE } from "./HazardousEventAtta
 				CAUSAL_CHAIN_REPOSITORY,
 				RecordSpatialObservationUseCase,
 				TRANSACTION_RUNNER,
+				HIP_CROSSWALK_PORT,
+				ATTACHMENT_STORAGE_PORT,
+				AUDIT_LOG_PORT,
 			],
 		},
 		{
@@ -341,8 +396,7 @@ import { HAZARDOUS_EVENT_ATTACHMENT_STORAGE_SERVICE } from "./HazardousEventAtta
 		PermissionsGuard,
 		RequestContextMiddleware,
 	],
-	// RecordSpatialObservationUseCase is exported despite being same-module-only today —
-	// design.md Risks/Trade-offs.
+	// RecordSpatialObservationUseCase is exported despite being same-module-only today.
 	exports: [
 		GetHazardousEventByIdUseCase,
 		ListHazardousEventsUseCase,

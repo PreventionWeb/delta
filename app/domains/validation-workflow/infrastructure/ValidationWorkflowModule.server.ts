@@ -7,20 +7,35 @@ import { InitializeWorkflowInstanceUseCase } from "~/domains/validation-workflow
 import { DeleteWorkflowInstanceUseCase } from "~/domains/validation-workflow/application/use-cases/DeleteWorkflowInstance";
 import { GetWorkflowInstanceByEntityUseCase } from "~/domains/validation-workflow/application/use-cases/GetWorkflowInstanceByEntity";
 import { ListWorkflowInstancesByEntityIdsUseCase } from "~/domains/validation-workflow/application/use-cases/ListWorkflowInstancesByEntityIds";
+import { FindValidatorCandidatesUseCase } from "~/domains/validation-workflow/application/use-cases/FindValidatorCandidates";
 import type { IWorkflowRepository } from "~/domains/validation-workflow/application/ports/IWorkflowRepository";
 import type { INotificationPort } from "~/domains/validation-workflow/application/ports/INotificationPort";
+import type { IValidatorCandidateRepository } from "~/domains/validation-workflow/application/ports/IValidatorCandidateRepository";
+import { SharedAuditLogModule } from "~/domains/shared/audit-log/infrastructure/SharedAuditLogModule.server";
+import { AUDIT_LOG_PORT } from "~/domains/shared/audit-log/infrastructure/AuditLogPortToken";
+import type { IAuditLogPort } from "~/domains/shared/audit-log/application/ports/IAuditLogPort";
 import { DrizzleWorkflowRepository } from "./DrizzleWorkflowRepository.server";
 import { EmailNotificationAdapter } from "./EmailNotificationAdapter.server";
+import { DrizzleValidatorCandidateRepository } from "./DrizzleValidatorCandidateRepository.server";
 import { WORKFLOW_REPOSITORY } from "./WorkflowRepositoryToken";
 import { NOTIFICATION_PORT } from "./NotificationPortToken";
+import { VALIDATOR_CANDIDATE_REPOSITORY } from "./ValidatorCandidateRepositoryToken";
 
 @Module({
+	imports: [
+		// For AUDIT_LOG_PORT — ProcessWorkflowActionUseCase's own dependency.
+		SharedAuditLogModule,
+	],
 	providers: [
 		// Returns the same global dr singleton — no new DB connection.
 		DrizzleProvider,
 		{
 			provide: WORKFLOW_REPOSITORY,
 			useClass: DrizzleWorkflowRepository,
+		},
+		{
+			provide: VALIDATOR_CANDIDATE_REPOSITORY,
+			useClass: DrizzleValidatorCandidateRepository,
 		},
 		// useFactory, not useClass — design.md Decision 2.
 		{
@@ -29,9 +44,18 @@ import { NOTIFICATION_PORT } from "./NotificationPortToken";
 		},
 		{
 			provide: ProcessWorkflowActionUseCase,
-			useFactory: (repo: IWorkflowRepository, port: INotificationPort) =>
-				new ProcessWorkflowActionUseCase(getPinoLogger(), repo, port),
-			inject: [WORKFLOW_REPOSITORY, NOTIFICATION_PORT],
+			useFactory: (
+				repo: IWorkflowRepository,
+				notificationPort: INotificationPort,
+				auditLogPort: IAuditLogPort,
+			) =>
+				new ProcessWorkflowActionUseCase(
+					getPinoLogger(),
+					repo,
+					notificationPort,
+					auditLogPort,
+				),
+			inject: [WORKFLOW_REPOSITORY, NOTIFICATION_PORT, AUDIT_LOG_PORT],
 		},
 		{
 			provide: InitializeWorkflowInstanceUseCase,
@@ -57,6 +81,12 @@ import { NOTIFICATION_PORT } from "./NotificationPortToken";
 				new ListWorkflowInstancesByEntityIdsUseCase(repo),
 			inject: [WORKFLOW_REPOSITORY],
 		},
+		{
+			provide: FindValidatorCandidatesUseCase,
+			useFactory: (repo: IValidatorCandidateRepository) =>
+				new FindValidatorCandidatesUseCase(repo),
+			inject: [VALIDATOR_CANDIDATE_REPOSITORY],
+		},
 	],
 	// Tokens stay hidden — design.md Decision 4.
 	exports: [
@@ -65,6 +95,7 @@ import { NOTIFICATION_PORT } from "./NotificationPortToken";
 		DeleteWorkflowInstanceUseCase,
 		GetWorkflowInstanceByEntityUseCase,
 		ListWorkflowInstancesByEntityIdsUseCase,
+		FindValidatorCandidatesUseCase,
 	],
 })
 export class ValidationWorkflowModule {}

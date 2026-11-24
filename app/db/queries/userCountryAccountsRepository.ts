@@ -2,26 +2,98 @@ import {
 	InsertUserCountryAccounts,
 	userCountryAccountsTable,
 } from "~/drizzle/schema/userCountryAccountsTable";
-import { userTable } from "~/drizzle/schema";
-import { and, count, eq, inArray, ne, sql } from "drizzle-orm";
+import { organizationTable, userTable } from "~/drizzle/schema";
+import {
+	and,
+	asc,
+	count,
+	desc,
+	eq,
+	ilike,
+	inArray,
+	ne,
+	or,
+	sql,
+} from "drizzle-orm";
 import { dr, Tx } from "~/db.server";
 import {
 	countryAccountsTable,
 	countryAccountStatuses,
 } from "~/drizzle/schema/countryAccountsTable";
 
+export type AccessManagementSortColumn =
+	| "name"
+	| "status"
+	| "org"
+	| "role"
+	| "added";
+
+export type SortDirection = "asc" | "desc";
+
+export interface AccessManagementListFilters {
+	search?: string;
+	role?: string;
+	organizationIds?: string[];
+	sort?: AccessManagementSortColumn;
+	dir?: SortDirection;
+}
+
+export interface AccessManagementUserRow {
+	id: string;
+	userId: string;
+	countryAccountsId: string;
+	role: string;
+	isPrimaryAdmin: boolean;
+	addedAt: Date;
+	organizationId: string | null;
+	user: {
+		id: string;
+		firstName: string;
+		lastName: string;
+		email: string;
+		emailVerified: boolean;
+	};
+	organization: {
+		id: string;
+		name: string;
+	} | null;
+}
+
+function escapeLikePattern(value: string): string {
+	return value.replace(/[\\%_]/g, "\\$&");
+}
+
+function buildSortOrder(
+	sort: AccessManagementSortColumn = "added",
+	dir: SortDirection = "desc",
+) {
+	const direction = dir === "asc" ? asc : desc;
+	switch (sort) {
+		case "name":
+			return direction(
+				sql`lower(coalesce(nullif(trim(concat_ws(' ', ${userTable.firstName}, ${userTable.lastName})), ''), ${userTable.email}))`,
+			);
+		case "status":
+			return direction(userTable.emailVerified);
+		case "org":
+			return direction(sql`lower(coalesce(${organizationTable.name}, ''))`);
+		case "role":
+			return direction(userCountryAccountsTable.role);
+		case "added":
+		default:
+			return direction(userCountryAccountsTable.addedAt);
+	}
+}
+
 export async function getUserCountryAccountsWithUserByCountryAccountsId(
 	pageNumber: number,
 	pageSize: number,
 	countryAccountsId: string,
-	filters?: {
-		role?: string;
-		organizationIds?: string[];
-	},
+	filters?: AccessManagementListFilters,
 ) {
 	if (filters?.organizationIds && filters.organizationIds.length === 0) {
 		return {
-			items: [],
+			items: [] as AccessManagementUserRow[],
 			pagination: {
 				total: 0,
 				pageNumber,
@@ -47,31 +119,75 @@ export async function getUserCountryAccountsWithUserByCountryAccountsId(
 		);
 	}
 
-	const where = and(...conditions);
+	const trimmedSearch = filters?.search?.trim();
+	if (trimmedSearch) {
+		const pattern = `%${escapeLikePattern(trimmedSearch)}%`;
+		const searchCondition = or(
+			ilike(userTable.firstName, pattern),
+			ilike(userTable.lastName, pattern),
+			ilike(
+				sql`concat_ws(' ', ${userTable.firstName}, ${userTable.lastName})`,
+				pattern,
+			),
+			ilike(userTable.email, pattern),
+			ilike(organizationTable.name, pattern),
+		);
+		if (searchCondition) {
+			conditions.push(searchCondition);
+		}
+	}
 
-	const items = await dr.query.userCountryAccountsTable.findMany({
-		where,
-		limit: pageSize,
-		offset: offset,
-		with: {
+	const where = and(...conditions);
+	const primaryOrder = buildSortOrder(filters?.sort, filters?.dir);
+
+	const rows = await dr
+		.select({
+			id: userCountryAccountsTable.id,
+			userId: userCountryAccountsTable.userId,
+			countryAccountsId: userCountryAccountsTable.countryAccountsId,
+			role: userCountryAccountsTable.role,
+			isPrimaryAdmin: userCountryAccountsTable.isPrimaryAdmin,
+			addedAt: userCountryAccountsTable.addedAt,
+			organizationId: userCountryAccountsTable.organizationId,
 			user: {
-				columns: {
-					id: true,
-					firstName: true,
-					lastName: true,
-					email: true,
-					emailVerified: true,
-				},
+				id: userTable.id,
+				firstName: userTable.firstName,
+				lastName: userTable.lastName,
+				email: userTable.email,
+				emailVerified: userTable.emailVerified,
 			},
 			organization: {
-				columns: {
-					id: true,
-					name: true,
-				},
+				id: organizationTable.id,
+				name: organizationTable.name,
 			},
-		},
-	});
-	const total = await dr.$count(userCountryAccountsTable, where);
+		})
+		.from(userCountryAccountsTable)
+		.innerJoin(userTable, eq(userTable.id, userCountryAccountsTable.userId))
+		.leftJoin(
+			organizationTable,
+			eq(organizationTable.id, userCountryAccountsTable.organizationId),
+		)
+		.where(where)
+		.orderBy(primaryOrder, asc(userCountryAccountsTable.id))
+		.limit(pageSize)
+		.offset(offset);
+
+	const items: AccessManagementUserRow[] = rows.map((row) => ({
+		...row,
+		organization: row.organization?.id ? row.organization : null,
+	}));
+
+	const [countRow] = await dr
+		.select({ total: count() })
+		.from(userCountryAccountsTable)
+		.innerJoin(userTable, eq(userTable.id, userCountryAccountsTable.userId))
+		.leftJoin(
+			organizationTable,
+			eq(organizationTable.id, userCountryAccountsTable.organizationId),
+		)
+		.where(where);
+
+	const total = Number(countRow?.total ?? 0);
 
 	return {
 		items,

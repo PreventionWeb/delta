@@ -330,3 +330,121 @@ optimistic locking, not silently overwritten," unaffected by this change).
 - **AND** a subsequent `findById` for the same event SHALL resolve the event's prior
   `description` and prior causal link, unchanged — not the attempted new values
 - **AND** no log event SHALL be emitted
+
+### Requirement: The event's legacy HIP columns are re-stamped on every update, unconditionally, inside the same transaction
+
+`UpdateHazardousEventUseCase.execute()` SHALL call
+`IHipCrosswalkPort.resolve(updatedEvent.specificHazardId)` — the merged, final `specificHazardId`
+(the command's new value when provided, otherwise the existing event's own) — and, inside the same
+`transactionRunner.run()` block, call `IHipCrosswalkPort.stamp(saved.id, command.tenantId, <the
+resolved ids>, tx)` immediately after `IHazardousEventRepository.update()` succeeds. This SHALL run
+on every successful update, regardless of whether `command.specificHazardId` was present or
+different from the existing value — the HIP crosswalk is always re-derived fresh from whatever
+`specificHazardId` the event holds after this update, never left stale.
+
+#### Scenario: An update that does not change specificHazardId still re-stamps
+
+- **GIVEN** an existing event with `specificHazardId: "sh-1"`, and an `UpdateHazardousEventCommand`
+  that omits `specificHazardId` entirely (changes only `description`)
+- **WHEN** `execute(command)` resolves successfully
+- **THEN** `IHipCrosswalkPort.resolve` SHALL have been called with `"sh-1"`
+- **AND** `IHipCrosswalkPort.stamp` SHALL have been called exactly once with the freshly-resolved ids
+
+#### Scenario: An update that changes specificHazardId to one whose crosswalk is null clears the stale HIP columns
+
+- **GIVEN** an existing event whose `hip_cluster_id` is currently non-null (from a prior stamp), and
+  an `UpdateHazardousEventCommand` with `specificHazardId` set to a hazard whose cluster's
+  `sourceRefId` is `null`
+- **WHEN** `execute(command)` resolves successfully
+- **THEN** `IHipCrosswalkPort.stamp` SHALL have been called with `hipClusterId: null`
+- **AND** the event's `hip_cluster_id` column SHALL be `NULL` afterward — not the stale prior value
+
+#### Scenario: The optimistic-lock loser in a concurrent update never stamps
+
+- **GIVEN** two concurrent `execute()` calls against the same event, both reading the same
+  `existingEvent.updatedAt`
+- **WHEN** the first call's `IHazardousEventRepository.update()` commits, and the second call's
+  `update()` is then attempted against the now-stale `expectedUpdatedAt`
+- **THEN** the second call's `update()` SHALL reject with `ConcurrentModificationError`
+- **AND** the second call's `IHipCrosswalkPort.stamp` SHALL NOT have been called — a row can never
+  end up with one caller's content and a different caller's HIP ids
+
+#### Scenario: A stamp() failure rolls back the whole transaction, including the update already applied
+
+- **GIVEN** a valid `UpdateHazardousEventCommand` against an existing event, and a fake
+  `IHipCrosswalkPort.stamp` stubbed to reject with a generic `Error`
+- **WHEN** `execute(command)` is called
+- **THEN** the call SHALL reject with that same `Error`
+- **AND** the event's row SHALL be unchanged from before this call (the update itself rolls back too)
+
+### Requirement: Newly-added File-type attachments are promoted on update
+
+When `UpdateHazardousEventUseCase.execute(command)` is called with a present `attachments`
+collection containing one or more new `File`-type items, each new item SHALL be promoted from
+its staged (temp) location to permanent, tenant-scoped storage via the shared
+attachments port as part of the same write, matching `create-hazardous-event`'s own
+promotion behavior.
+
+#### Scenario: A newly-added File-type attachment is promoted on update
+
+- **GIVEN** an existing `HazardousEvent` with no attachments
+- **WHEN** `execute(command)` is called with `command.attachments` containing one new
+  `File`-type item referencing a file currently staged in temp storage
+- **THEN** the file is moved to permanent storage before the use case resolves
+- **AND** the persisted attachment row's `file_key` refers to the permanent location
+
+### Requirement: File-type attachments removed by an update are deleted from disk
+
+Because `attachments` is a full-replace collection field (see "Update an existing event's fields
+via a partial-patch command"), any existing `File`-type attachment whose `file_key` is not
+present in the new `command.attachments` collection SHALL have its on-disk file deleted via the
+shared attachments port as part of the same write. `Link`-type attachments removed this
+way require no file-storage call.
+
+#### Scenario: Removing a File-type attachment deletes its on-disk file
+
+- **GIVEN** an existing `HazardousEvent` with one `File`-type attachment already promoted to
+  permanent storage
+- **WHEN** `execute(command)` is called with `command.attachments` present and not containing
+  that attachment
+- **THEN** the attachment row is removed
+- **AND** its on-disk file is deleted via the shared attachments port
+
+#### Scenario: Removing a Link-type attachment requires no file-storage call
+
+- **GIVEN** an existing `HazardousEvent` with one `Link`-type attachment
+- **WHEN** `execute(command)` is called with `command.attachments` present and not containing
+  that attachment
+- **THEN** the attachment row is removed
+- **AND** no file-storage delete operation is invoked
+
+#### Scenario: An absent attachments field leaves existing files untouched
+
+- **GIVEN** an existing `HazardousEvent` with one `File`-type attachment already promoted to
+  permanent storage
+- **WHEN** `execute(command)` is called with `command.attachments` absent (`undefined`)
+- **THEN** the existing attachment row and its on-disk file are both left unchanged
+
+### Requirement: An audit row is written inside the same transaction as an update
+
+`UpdateHazardousEventUseCase.execute()` SHALL write one `audit_logs` row — `tableName:
+"hazardous_event"`, `recordId` the event's id, `userId: command.actingUserId`, `action: "Update
+hazardous event"`, `oldValues` the full pre-update row, `newValues` the full updated row,
+`countryAccountsId: command.tenantId` — as part of the same transaction as the row update, not
+after it.
+
+#### Scenario: A successful update writes exactly one correctly-shaped audit row
+
+- **WHEN** `execute()` is called with a valid command and completes successfully
+- **THEN** exactly one new `audit_logs` row exists for the event's id afterward
+- **AND** its `action` is `"Update hazardous event"`, its `oldValues` matches the event's state
+  before this update, and its `newValues` matches the event's state after this update
+- **AND** its `countryAccountsId` equals `command.tenantId`
+
+#### Scenario: A failure inside the update's own transaction leaves no audit row either
+
+- **WHEN** `execute()`'s transaction fails partway through (e.g. the HIP crosswalk stamp step, the
+  causal-edge change, or the spatial-observation delegation throws) after the row update but
+  before the transaction commits
+- **THEN** the row update is rolled back
+- **AND** no new `audit_logs` row from this attempted update exists afterward
