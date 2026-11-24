@@ -1,27 +1,27 @@
-import { useState } from "react";
-import { Form, useActionData, useLoaderData, useNavigate, useNavigation } from "react-router";
-import { Button } from "primereact/button";
-import { Dialog } from "primereact/dialog";
-import { InputText } from "primereact/inputtext";
-
+import { redirect } from "react-router";
 import { BackendContext } from "~/backend.server/context";
 import { ApiKeyRepository } from "~/db/queries/apiKeyRepository";
-
 import {
-	authActionWithPerm,
-	authLoaderWithPerm,
-} from "~/utils/auth";
+	type ApiKeyActionResult,
+	isFetcherRequest,
+} from "~/frontend/apiKeyAction";
+import { authActionWithPerm, authLoaderWithPerm } from "~/utils/auth";
 import {
 	getCountryAccountsIdFromSession,
 	redirectWithMessage,
 } from "~/utils/session";
 
-import { ViewContext } from "~/frontend/context";
-
 export const loader = authLoaderWithPerm("EditAPIKeys", async (args) => {
-	const { params } = args;
+	const { request, params } = args;
+	const countryAccountsId = await getCountryAccountsIdFromSession(request);
 	const item = params.id ? await ApiKeyRepository.getById(params.id) : null;
-	return { item };
+
+	if (!item || item.countryAccountsId !== countryAccountsId) {
+		throw new Response("Not Found", { status: 404 });
+	}
+
+	const lang = params.lang || "en";
+	return redirect(`/${lang}/settings/api-key/`);
 });
 
 export const action = authActionWithPerm("EditAPIKeys", async (actionArgs) => {
@@ -29,14 +29,36 @@ export const action = authActionWithPerm("EditAPIKeys", async (actionArgs) => {
 	const backendCtx = new BackendContext(actionArgs);
 	const countryAccountsId = await getCountryAccountsIdFromSession(request);
 	const formData = await request.formData();
-	const name = (formData.get("name") as string | null)?.trim() ?? "";
+	const fetcher = isFetcherRequest(request, formData);
+	const rawName = formData.get("name");
+	const name = typeof rawName === "string" ? rawName.trim() : "";
 
 	if (!name) {
-		return { ok: false, error: backendCtx.t({ code: "common.name_required", msg: "Name is required" }) };
+		const msg = backendCtx.t({
+			code: "api_keys.enter_name",
+			msg: "Enter a name.",
+		});
+		if (fetcher) {
+			return Response.json(
+				{ ok: false, fieldErrors: { name: msg } } satisfies ApiKeyActionResult,
+				{ status: 400 },
+			);
+		}
+		return { ok: false, error: msg };
 	}
 
 	if (!params.id) {
-		return { ok: false, error: "Missing ID" };
+		const msg = backendCtx.t({
+			code: "common.missing_id",
+			msg: "Missing ID",
+		});
+		if (fetcher) {
+			return Response.json(
+				{ ok: false, error: msg } satisfies ApiKeyActionResult,
+				{ status: 400 },
+			);
+		}
+		return { ok: false, error: msg };
 	}
 
 	const existing = await ApiKeyRepository.getById(params.id);
@@ -44,7 +66,30 @@ export const action = authActionWithPerm("EditAPIKeys", async (actionArgs) => {
 		throw new Response("Not Found", { status: 404 });
 	}
 
+	const duplicate = await ApiKeyRepository.existsByNameInTenant(
+		countryAccountsId,
+		name,
+		params.id,
+	);
+	if (duplicate) {
+		const msg = backendCtx.t({
+			code: "api_keys.duplicate_name",
+			msg: "A key with this name already exists.",
+		});
+		if (fetcher) {
+			return Response.json(
+				{ ok: false, fieldErrors: { name: msg } } satisfies ApiKeyActionResult,
+				{ status: 409 },
+			);
+		}
+		return { ok: false, error: msg };
+	}
+
 	await ApiKeyRepository.update(params.id, name);
+
+	if (fetcher) {
+		return Response.json({ ok: true } satisfies ApiKeyActionResult);
+	}
 
 	return redirectWithMessage(actionArgs, "/settings/api-key", {
 		type: "success",
@@ -52,67 +97,6 @@ export const action = authActionWithPerm("EditAPIKeys", async (actionArgs) => {
 	});
 });
 
-export default function ApiKeyEditPage() {
-	const ld = useLoaderData<typeof loader>();
-	const ctx = new ViewContext();
-	const navigate = useNavigate();
-	const actionData = useActionData<typeof action>();
-	const navigation = useNavigation();
-	const isSubmitting = navigation.state === "submitting";
-
-	const [nameValue, setNameValue] = useState(ld.item?.name || "");
-
-	const nameError = actionData && !actionData.ok ? actionData.error : "";
-
-	return (
-		<Dialog
-			header={ctx.t({
-				code: "common.edit",
-				msg: "Edit",
-			})}
-			visible
-			modal
-			onHide={() => navigate(ctx.url("/settings/api-key/"))}
-			className="w-[32rem] max-w-full"
-		>
-			<Form method="post" className="flex flex-col" noValidate>
-				<p className="mb-3 text-red-700">* Required information</p>
-				<div className="mb-3 flex flex-col gap-2">
-					<label htmlFor="edit-api-key-name">
-						<span className="inline-flex gap-1">
-							<span>{ctx.t({ code: "common.name", msg: "Name" })}</span>
-							<span className="text-red-700">*</span>
-						</span>
-					</label>
-					<InputText
-						id="edit-api-key-name"
-						name="name"
-						value={nameValue}
-						invalid={!!nameError}
-						aria-invalid={nameError ? true : false}
-						onChange={(e) => setNameValue(e.target.value)}
-					/>
-					{nameError ? <small className="text-red-700">{nameError}</small> : null}
-				</div>
-
-
-
-				<div className="mt-4 flex justify-end gap-2">
-					<Button
-						type="button"
-						outlined
-						label={ctx.t({ code: "common.cancel", msg: "Cancel" })}
-						onClick={() => navigate(ctx.url("/settings/api-key/"))}
-					/>
-					<Button
-						type="submit"
-						label={ctx.t({ code: "common.save", msg: "Save" })}
-						icon="pi pi-check"
-						loading={isSubmitting}
-						disabled={isSubmitting}
-					/>
-				</div>
-			</Form>
-		</Dialog>
-	);
+export default function ApiKeyEditRoute() {
+	return null;
 }
