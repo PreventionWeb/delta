@@ -276,6 +276,27 @@ describe("Notices list route loader", () => {
 		executeSpy.mockRestore();
 	});
 
+	it("omits details and the context values for a DomainError with { entity, id } context (6b, D8)", async () => {
+		const { ListNoticesUseCase } =
+			await import("~/domains/notices/application/use-cases/ListNotices");
+		const { NotFoundError } = await import("~/shared/errors/DomainError");
+		const executeSpy = vi
+			.spyOn(testingModule.get(ListNoticesUseCase), "execute")
+			.mockRejectedValueOnce(new NotFoundError("Notice", "notice-id-zz"));
+
+		const thrown = await loader(
+			await makeArgs("http://localhost/en/notices", tenantId),
+		).catch((e: unknown) => e);
+
+		expect((thrown as Response).status).toBe(404);
+		const text = await (thrown as Response).text();
+		expect((JSON.parse(text) as ErrorResponse).error).not.toHaveProperty(
+			"details",
+		);
+		expect(text).not.toContain("notice-id-zz");
+		executeSpy.mockRestore();
+	});
+
 	it("logs and rethrows a non-DomainError failure unmodified", async () => {
 		const { getPinoLogger } =
 			await import("~/infrastructure/logging/PinoLogger.server");

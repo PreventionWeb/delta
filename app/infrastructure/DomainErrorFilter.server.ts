@@ -10,6 +10,7 @@ import {
 import { I18nContext, I18nService } from "nestjs-i18n";
 
 import { DomainError } from "~/shared/errors/DomainError";
+import { toErrorResponseDetails } from "~/shared/errors/toErrorResponseDetails";
 import { InvalidLocaleTagError } from "~/shared/i18n/resolveLocale";
 import { OPENAPI_DOCS_PATH } from "~/shared/openApiDocsPath";
 
@@ -64,15 +65,15 @@ export class DomainErrorFilter implements ExceptionFilter<unknown> {
 				? (this.i18n?.t(exception.i18nKey, { lang, args: exception.context }) ??
 					exception.message)
 				: exception.message;
+			// context stays server-side as i18n args; only { field } may reach the client.
+			const details = toErrorResponseDetails(exception);
 			const body: Record<string, unknown> = {
 				success: false,
 				error: {
 					code: exception.code,
 					message,
 					// ADR-003: omit `details` entirely when empty, not null.
-					...(exception.context !== undefined
-						? { details: exception.context }
-						: {}),
+					...(details !== undefined ? { details } : {}),
 					traceId,
 					timestamp,
 				},
