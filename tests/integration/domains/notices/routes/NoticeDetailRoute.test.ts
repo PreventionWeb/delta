@@ -145,6 +145,21 @@ describe("Notice detail route loader", () => {
 		expect(body.error.code).toBe("NOT_FOUND");
 	});
 
+	it("sends no details and not the requested id in a not-found body (6b, D8)", async () => {
+		const unknownId = crypto.randomUUID();
+
+		const thrown = await loader(await makeArgs(unknownId, tenantId)).catch(
+			(e: unknown) => e,
+		);
+
+		expect((thrown as Response).status).toBe(404);
+		const text = await (thrown as Response).text();
+		expect((JSON.parse(text) as ErrorResponse).error).not.toHaveProperty(
+			"details",
+		);
+		expect(text).not.toContain(unknownId);
+	});
+
 	it("throws a 404, not the other tenant's data, when the notice belongs to a different tenant", async () => {
 		const otherTenantId = await insertCountryAccount();
 
