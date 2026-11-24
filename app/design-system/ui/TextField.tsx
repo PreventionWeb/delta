@@ -17,6 +17,7 @@ export interface TextFieldProps {
 	isRequired?: boolean;
 	requiredLabel?: string;
 	isDisabled?: boolean;
+	autoFocus?: boolean;
 	errorMessage?: string;
 	helpText?: string;
 	className?: string;
@@ -35,6 +36,7 @@ export function TextField({
 	isRequired = false,
 	requiredLabel = "(required)",
 	isDisabled = false,
+	autoFocus = false,
 	errorMessage,
 	helpText,
 	className,
@@ -67,6 +69,7 @@ export function TextField({
 			<Input
 				placeholder={placeholder}
 				autoComplete={autoComplete}
+				autoFocus={autoFocus}
 				className={[
 					"h-8 w-full rounded-md border bg-surface px-3 text-body text-fg placeholder:text-fg-2 outline-none",
 					"data-[hovered]:border-fg-2",

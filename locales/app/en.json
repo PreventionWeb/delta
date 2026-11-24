@@ -1837,7 +1837,7 @@
   {
     "id": "common.delete",
     "translation": "Delete",
-    "description": "File: app/pages/OrganizationManagementPage.tsx:143"
+    "description": "File: app/components/ContentRepeater/index.tsx:1683"
   },
   {
     "id": "common.deleting",
@@ -1877,7 +1877,7 @@
   {
     "id": "common.edit",
     "translation": "Edit",
-    "description": "File: app/pages/OrganizationManagementPage.tsx:131"
+    "description": "File: app/components/ContentRepeater/index.tsx:1701"
   },
   {
     "id": "common.edit_item",
@@ -2023,6 +2023,11 @@
     "id": "common.inactive",
     "translation": "Inactive",
     "description": "File: app/routes/$lang+/admin+/country-accounts+/_layout.tsx:131"
+  },
+  {
+    "id": "common.invalid_action",
+    "translation": "Invalid action",
+    "description": "File: app/services/organizationService.ts:211"
   },
   {
     "id": "common.invalid_action_provided",
@@ -2185,14 +2190,9 @@
     "description": "File: app/frontend/api_key.tsx:24"
   },
   {
-    "id": "common.name_already_exists",
-    "translation": "An organization with this name already exists",
-    "description": "File: app/services/organizationService.ts:83"
-  },
-  {
     "id": "common.name_required",
     "translation": "Name is required",
-    "description": "File: app/services/organizationService.ts:68"
+    "description": "File: app/routes/$lang+/settings+/api-key+/edit.$id.tsx:35"
   },
   {
     "id": "common.names",
@@ -2348,6 +2348,11 @@
     "id": "common.pagination",
     "translation": "Pagination",
     "description": "File: app/frontend/pagination/view.tsx:82"
+  },
+  {
+    "id": "common.pagination_page",
+    "translation": "Page {page} of {totalPages}",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:387"
   },
   {
     "id": "common.pagination.current_page",
@@ -2547,7 +2552,7 @@
   {
     "id": "common.search",
     "translation": "Search",
-    "description": "File: app/pages/OrganizationManagementPage.tsx:167"
+    "description": "File: app/frontend/components/list-page-filters.tsx:23"
   },
   {
     "id": "common.search_placeholder_dotdotdot",
@@ -2743,6 +2748,11 @@
     "id": "common.unexpected_error",
     "translation": "Unexpected error",
     "description": "File: app/pages/AccessManagementPage.tsx:200"
+  },
+  {
+    "id": "common.unknown_error",
+    "translation": "Unknown error",
+    "description": "File: app/services/organizationService.ts:258"
   },
   {
     "id": "common.unknown_server_error",
@@ -6452,32 +6462,157 @@
   {
     "id": "organization_added",
     "translation": "Organization added",
-    "description": "File: app/routes/$lang+/settings+/organizations+/new.tsx:30"
+    "description": "File: app/routes/$lang+/settings+/organizations+/new.tsx:52"
   },
   {
     "id": "organization.delete_blocked_by_dependencies",
     "translation": "This organization cannot be deleted because it is still being used by one or more records. Remove those assignments first.",
-    "description": "File: app/services/organizationService.ts:191"
-  },
-  {
-    "id": "organizations",
-    "translation": "Organizations",
-    "description": "File: app/pages/OrganizationManagementPage.tsx:175"
+    "description": "File: app/services/organizationService.ts:238"
   },
   {
     "id": "organizations.add",
     "translation": "Add organization",
-    "description": "File: app/routes/$lang+/settings+/organizations+/new.tsx:48"
+    "description": "File: app/pages/OrganizationManagementPage.tsx:355"
   },
   {
-    "id": "organizations.add_new",
-    "translation": "Add new organization",
-    "description": "File: app/pages/OrganizationManagementPage.tsx:184"
+    "id": "organizations.clear_search",
+    "translation": "Clear search",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:488"
+  },
+  {
+    "id": "organizations.delete",
+    "translation": "Delete organization",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:542"
+  },
+  {
+    "id": "organizations.delete_for",
+    "translation": "Delete {name}",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:549"
+  },
+  {
+    "id": "organizations.delete_warning",
+    "translation": "will be deleted. This cannot be undone.",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:770"
+  },
+  {
+    "id": "organizations.duplicate_name",
+    "translation": "An organization with this name already exists.",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:264"
   },
   {
     "id": "organizations.edit",
     "translation": "Edit organization",
-    "description": "File: app/routes/$lang+/settings+/organizations+/edit.$id.tsx:73"
+    "description": "File: app/pages/OrganizationManagementPage.tsx:522"
+  },
+  {
+    "id": "organizations.edit_for",
+    "translation": "Edit {name}",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:529"
+  },
+  {
+    "id": "organizations.empty_search",
+    "translation": "No organizations match \"{search}\".",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:479"
+  },
+  {
+    "id": "organizations.empty_state",
+    "translation": "No organizations yet.",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:496"
+  },
+  {
+    "id": "organizations.enter_name",
+    "translation": "Enter a name.",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:252"
+  },
+  {
+    "id": "organizations.id_required",
+    "translation": "Organization id is required",
+    "description": "File: app/services/organizationService.ts:127"
+  },
+  {
+    "id": "organizations.in_use_body",
+    "translation": "has {users}. Move them to another organization in Access management, then delete it.",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:757"
+  },
+  {
+    "id": "organizations.in_use_title",
+    "translation": "This organization is in use",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:712"
+  },
+  {
+    "id": "organizations.n_users",
+    "translation": "{count} users",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:399"
+  },
+  {
+    "id": "organizations.noun",
+    "translation": "organizations",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:572"
+  },
+  {
+    "id": "organizations.one_user",
+    "translation": "1 user",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:398"
+  },
+  {
+    "id": "organizations.pagination_showing",
+    "translation": "Showing {from}-{to} of {total} organizations",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:380"
+  },
+  {
+    "id": "organizations.pagination_showing_empty",
+    "translation": "Showing 0 of 0 organizations",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:376"
+  },
+  {
+    "id": "organizations.search_by_name",
+    "translation": "Search by name",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:365"
+  },
+  {
+    "id": "organizations.subtitle",
+    "translation": "The organizations people on this site belong to.",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:433"
+  },
+  {
+    "id": "organizations.title",
+    "translation": "Organizations",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:351"
+  },
+  {
+    "id": "organizations.toast_added",
+    "translation": "{name} was added.",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:118"
+  },
+  {
+    "id": "organizations.toast_deleted",
+    "translation": "{name} was deleted.",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:139"
+  },
+  {
+    "id": "organizations.toast_saved",
+    "translation": "Changes saved.",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:130"
+  },
+  {
+    "id": "organizations.unable_to_create",
+    "translation": "Unable to create organization",
+    "description": "File: app/services/organizationService.ts:110"
+  },
+  {
+    "id": "organizations.unable_to_delete",
+    "translation": "Unable to delete organization",
+    "description": "File: app/services/organizationService.ts:199"
+  },
+  {
+    "id": "organizations.unable_to_update",
+    "translation": "Unable to update organization",
+    "description": "File: app/services/organizationService.ts:167"
+  },
+  {
+    "id": "organizations.users",
+    "translation": "Users",
+    "description": "File: app/pages/OrganizationManagementPage.tsx:339"
   },
   {
     "id": "page_not_found",
