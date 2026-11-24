@@ -32,6 +32,7 @@ import { DrizzleHazardTaxonomyRepository } from "~/domains/hazardous-events/infr
 import { DrizzleCausalChainRepository } from "~/domains/hazardous-events/infrastructure/DrizzleCausalChainRepository.server";
 import { DrizzleHipCrosswalkAdapter } from "~/domains/hazardous-events/infrastructure/DrizzleHipCrosswalkAdapter.server";
 import { DrizzleTransactionRunner } from "~/infrastructure/DrizzleTransactionRunner.server";
+import { pgErrorCode } from "~/infrastructure/pgErrorCode.server";
 import { workflowInstanceTable } from "~/domains/validation-workflow/infrastructure/workflowInstanceTable";
 import { hipsVersionTable } from "~/domains/hazardous-events/infrastructure/hipsVersionTable";
 import { hazardTypeTable } from "~/domains/hazardous-events/infrastructure/hazardTypeTable";
@@ -479,6 +480,104 @@ describe("DrizzleHazardousEventRepository", () => {
 			await expect(repo.findById(id, tenantId)).rejects.toThrow(
 				ValidationError,
 			);
+		});
+
+		it("rejects with NotFoundError, not a driver error, for a malformed id", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const err = await repo
+				.findById("not-a-uuid", tenantId)
+				.catch((e: unknown) => e);
+
+			expect(err).toBeInstanceOf(NotFoundError);
+			expect((err as Error).message).not.toMatch(/select|query/i);
+		});
+
+		it("gives a malformed id and a missing id the same NotFoundError code", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const malformed = await repo
+				.findById("not-a-uuid", tenantId)
+				.catch((e: unknown) => e);
+			const missing = await repo
+				.findById(randomUUID(), tenantId)
+				.catch((e: unknown) => e);
+
+			expect(malformed).toBeInstanceOf(NotFoundError);
+			expect(missing).toBeInstanceOf(NotFoundError);
+			expect((malformed as NotFoundError).code).toBe(
+				(missing as NotFoundError).code,
+			);
+		});
+
+		it("rejects a malformed id without querying, so a caller's tx stays usable", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const found = await dr.transaction(async (tx) => {
+				await expect(repo.findById("not-a-uuid", tenantId, tx)).rejects.toThrow(
+					NotFoundError,
+				);
+				return repo.findById(id, tenantId, tx);
+			});
+
+			expect(found.id).toBe(id);
+		});
+
+		it("still resolves an existing id written in uppercase", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const found = await repo.findById(id.toUpperCase(), tenantId);
+
+			expect(found.id).toBe(id);
+		});
+
+		it("surfaces a malformed tenantId as the driver error, not NotFoundError", async () => {
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const err = await repo
+				.findById(randomUUID(), "not-a-uuid")
+				.catch((e: unknown) => e);
+
+			expect(err).not.toBeInstanceOf(NotFoundError);
+			expect(pgErrorCode(err)).toBe("22P02");
+		});
+
+		it("propagates a non-22P02 driver error unchanged", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			// A statement in an already-aborted transaction fails with 25P02, a real driver error.
+			const err = await dr
+				.transaction(async (tx) => {
+					await tx.execute(sql`select 1/0`).catch(() => undefined);
+					await repo.findById(randomUUID(), tenantId, tx);
+				})
+				.catch((e: unknown) => e);
+
+			expect(err).not.toBeInstanceOf(NotFoundError);
+			expect(pgErrorCode(err)).toBe("25P02");
+		});
+
+		it("rejects each of two concurrent malformed lookups and leaves the db usable", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const results = await Promise.allSettled([
+				repo.findById("bad-1", tenantId),
+				repo.findById("bad-2", tenantId),
+			]);
+
+			expect(results.map((r) => r.status)).toEqual(["rejected", "rejected"]);
+			for (const r of results) {
+				expect(r.status === "rejected" && r.reason).toBeInstanceOf(
+					NotFoundError,
+				);
+			}
+			await expect(repo.findById(id, tenantId)).resolves.toBeDefined();
 		});
 	});
 
@@ -2046,6 +2145,49 @@ describe("DrizzleHazardousEventRepository", () => {
 			expect(incomingRows).toHaveLength(1);
 		});
 
+		it("resolves normally for a malformed id, leaving every hazardous_event, event_relationship and event row", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const { id: causeId } = await seedRawHazardousEvent({ tenantId });
+			await dr
+				.insert(eventRelationshipTable)
+				.values({ parentId: causeId, childId: id, type: "caused_by" });
+			const countRows = async () => ({
+				he: (await dr.select().from(hazardousEventTable)).length,
+				rel: (await dr.select().from(eventRelationshipTable)).length,
+				ev: (await dr.select().from(eventTable)).length,
+			});
+			const before = await countRows();
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			await expect(
+				repo.delete("not-a-uuid", tenantId),
+			).resolves.toBeUndefined();
+
+			expect(await countRows()).toEqual(before);
+		});
+
+		it("surfaces a malformed tenantId as the driver error and deletes nothing", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const err = await repo.delete(id, "not-a-uuid").catch((e: unknown) => e);
+
+			expect(pgErrorCode(err)).toBe("22P02");
+			await expect(repo.findById(id, tenantId)).resolves.toBeDefined();
+		});
+
+		it("leaves a caller's tx usable after a malformed-id delete inside it", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const found = await dr.transaction(async (tx) => {
+				await repo.delete("not-a-uuid", tenantId, tx);
+				return repo.findById(id, tenantId, tx);
+			});
+
+			expect(found.id).toBe(id);
+		});
+
 		it("resolves both calls without throwing when delete() is called twice concurrently for the same zero-dependency event", async () => {
 			const { id, tenantId } = await seedRawHazardousEvent();
 			const repo = new DrizzleHazardousEventRepository(dr);
@@ -2186,6 +2328,31 @@ describe("DrizzleHazardousEventRepository", () => {
 					repo.findByIdForUpdate(randomUUID(), tenantId, tx),
 				),
 			).rejects.toThrow(NotFoundError);
+		});
+
+		it("throws NotFoundError for a malformed id inside a tx", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			await expect(
+				dr.transaction((tx) =>
+					repo.findByIdForUpdate("not-a-uuid", tenantId, tx),
+				),
+			).rejects.toThrow(NotFoundError);
+		});
+
+		it("leaves the caller's tx usable after a malformed-id NotFoundError", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const found = await dr.transaction(async (tx) => {
+				await expect(
+					repo.findByIdForUpdate("not-a-uuid", tenantId, tx),
+				).rejects.toThrow(NotFoundError);
+				return repo.findByIdForUpdate(id, tenantId, tx);
+			});
+
+			expect(found.id).toBe(id);
 		});
 
 		it("throws NotFoundError for a foreign-tenant id, same as findById", async () => {

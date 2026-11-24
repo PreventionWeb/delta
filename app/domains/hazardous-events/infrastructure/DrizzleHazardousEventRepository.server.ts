@@ -20,6 +20,7 @@ import {
 	pgErrorCode,
 	pgErrorConstraint,
 } from "~/infrastructure/pgErrorCode.server";
+import { isWellFormedUuid } from "./isWellFormedUuid";
 import {
 	ConcurrentModificationError,
 	ConflictError,
@@ -86,6 +87,13 @@ const EMPTY_CHILD_COLLECTIONS: ChildCollections = {
 	fieldValues: [],
 	customFieldValues: [],
 };
+
+/** A malformed id can match no row; rejected before querying so a caller's tx stays usable. */
+function throwIfMalformedId(id: string): void {
+	if (!isWellFormedUuid(id)) {
+		throw new NotFoundError("HazardousEvent", id);
+	}
+}
 
 /** Escapes a value's own literal `%`/`_` before it's wrapped in ILIKE wildcards, so an organization
  * name containing either matches itself, not a wildcard. */
@@ -347,6 +355,7 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 		tenantId: string,
 		tx?: Tx,
 	): Promise<HazardousEvent> {
+		throwIfMalformedId(id);
 		const executor = tx ?? this.db;
 		const rows = await executor
 			.select()
@@ -755,6 +764,10 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 
 	/** Replicates the legacy cleanup order (event.ts:1728), tenant-gated delete first (Decision 6); outgoing event_relationship gap is inherited, mapped to ConflictError (Decision 8). */
 	async delete(id: string, tenantId: string, tx?: Tx): Promise<void> {
+		// A malformed id matches no row: same no-op as no match.
+		if (!isWellFormedUuid(id)) {
+			return;
+		}
 		try {
 			await (tx ?? this.db).transaction(async (innerTx) => {
 				const deleted = await innerTx
@@ -813,6 +826,7 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 		tenantId: string,
 		tx: Tx,
 	): Promise<HazardousEvent> {
+		throwIfMalformedId(id);
 		const rows = await tx
 			.select()
 			.from(hazardousEventTable)
