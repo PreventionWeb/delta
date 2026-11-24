@@ -4,6 +4,7 @@ export {
 	type ButtonSize,
 	type ButtonVariant,
 } from "./Button";
+export { Callout, type CalloutProps, type CalloutTone } from "./Callout";
 export { ModalDialog, type ModalDialogProps } from "./ModalDialog";
 export { Pagination, type PaginationProps } from "./Pagination";
 export {
