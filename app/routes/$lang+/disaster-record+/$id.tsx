@@ -1,5 +1,4 @@
-﻿import { DisasterRecordsView } from "~/frontend/disaster-record/form";
-import { SectorEffectsTable } from "~/frontend/disaster-record/SectorEffectsTable";
+import { DisasterRecordsView } from "~/frontend/disaster-record/form";
 
 import {
 	createViewLoaderPublicApproved,
@@ -12,7 +11,6 @@ import { nonecoLossesFilderBydisasterRecordsId } from "~/backend.server/models/n
 import { sectorsFilterByDisasterRecordId } from "~/backend.server/models/disaster_record__sectors";
 import { getAffectedByDisasterRecord } from "~/backend.server/models/analytics/affected-people-by-disaster-record";
 import { loadData as loadHumanEffectsData } from "~/backend.server/handlers/human_effects";
-import AuditLogHistory from "~/components/AuditLogHistory";
 import { disasterRecordsTable } from "~/drizzle/schema/disasterRecordsTable";
 import { getTableName } from "drizzle-orm";
 
@@ -26,7 +24,6 @@ import {
 import { getCountryAccountsIdFromSession } from "~/utils/session";
 import { getUserIdFromSession } from "~/utils/session";
 import { useLoaderData } from "react-router";
-import { Fragment } from "react";
 import { ViewContext } from "~/frontend/context";
 
 import { LoaderFunctionArgs } from "react-router";
@@ -99,11 +96,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
 		DisasterRecordsGeomRepository.getByDisasterRecordId(id),
 		DisasterRecordsDivisionRepository.getByDisasterRecordId(id),
 	]);
-	const [
-		disruptions,
-		losses,
-		damages,
-	] = await Promise.all([
+	const [disruptions, losses, damages] = await Promise.all([
 		DisruptionRepository.getByRecordIdWithInfo(id, ctx.lang),
 		LossesRepository.getByRecordIdWithInfo(id, ctx.lang),
 		DamagesRepository.getByRecordIdWithInfo(id, ctx.lang),
@@ -251,6 +244,10 @@ export const loader = async (args: LoaderFunctionArgs) => {
 		hipHazard: hipHazard || undefined,
 		hipCluster: hipCluster || undefined,
 		hipType: hipType || undefined,
+		humanEffectsTotals: dbDisRecHumanEffectsSummaryTable,
+		humanEffectsDisaggregation,
+		recordsDisRecSectors: dbDisRecSectors,
+		recordsNonecoLosses: dbNonecoLosses,
 	};
 
 	return {
@@ -287,283 +284,12 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 export default function Screen() {
 	const ld = useLoaderData<typeof loader>();
 	const ctx = new ViewContext();
-	const auditLogs = (ld as any).auditLogs as any[] | undefined;
-	const hasHumanEffectsDisaggregation = ld.humanEffectsDisaggregation.some(
-		(table) => table.rows.length > 0,
-	);
 
 	return (
-		<>
-			<ViewScreenPublicApproved
-				loaderData={ld}
-				ctx={ctx}
-				viewComponent={DisasterRecordsView}
-			/>
-			{ld.item && (
-				<div className="mg-container">
-					<div>&nbsp;</div>
-					<section>
-						<div className="mx-auto px-4">
-							<fieldset className="mb-6">
-								<div className="mb-4">
-									<legend className="text-xl font-semibold text-gray-800">
-										{ctx.t({ code: "human_effects", msg: "Human effects" })}
-									</legend>
-								</div>
-
-								<div className="border-0">
-									<div className="overflow-x-auto">
-										<table className="w-full border border-gray-300 text-sm">
-											<thead className="bg-gray-50 text-gray-700">
-												<tr>
-													<th className="border border-gray-300 px-3 py-2"></th>
-													<th className="border border-gray-300 px-3 py-2"></th>
-													<th className="border border-gray-300 px-3 py-2"></th>
-													<th
-														className="border border-gray-300 px-3 py-2 text-center"
-														colSpan={2}
-													>
-														{ctx.t({
-															code: "human_effects.affected_old_desinventar",
-															desc: "Human effects Affected (DesInventar is an older system used for tracking disaster data)",
-															msg: "Affected (Old DesInventar)",
-														})}
-													</th>
-													<th className="border border-gray-300 px-3 py-2"></th>
-												</tr>
-												<tr>
-													{[
-														{ code: "human_effects.deaths", msg: "Deaths" },
-														{ code: "human_effects.injured", msg: "Injured" },
-														{ code: "human_effects.missing", msg: "Missing" },
-														{
-															code: "human_effects.directly_affected",
-															msg: "Directly",
-														},
-														{
-															code: "human_effects.indirectly_affected",
-															msg: "Indirectly",
-														},
-														{
-															code: "human_effects.displaced",
-															msg: "Displaced",
-														},
-													].map(({ code, msg }) => (
-														<th
-															key={code}
-															className="border border-gray-300 px-3 py-2 font-medium text-left"
-														>
-															{ctx.t({ code, msg })}
-														</th>
-													))}
-												</tr>
-											</thead>
-											<tbody>
-												<tr className="hover:bg-gray-50">
-													{(
-														[
-															{ key: "deaths", tbl: "Deaths" },
-															{ key: "injured", tbl: "Injured" },
-															{ key: "missing", tbl: "Missing" },
-															{ key: "directlyAffected", tbl: "Affected" },
-															{ key: "indirectlyAffected", tbl: "Affected" },
-															{ key: "displaced", tbl: "Displaced" },
-														] as const
-													).map(({ key }) => {
-														const value =
-															ld.dbDisRecHumanEffectsSummaryTable[key];
-														return (
-															<td
-																key={key}
-																className="border border-gray-300 px-3 py-2"
-															>
-																{typeof value === "number" ? (
-																	<span>{value}</span>
-																) : value === true ? (
-																	<span>
-																		{ctx.t({ code: "common.yes", msg: "Yes" })}
-																	</span>
-																) : (
-																	<span className="text-gray-400">-</span>
-																)}
-															</td>
-														);
-													})}
-												</tr>
-											</tbody>
-										</table>
-									</div>
-
-									{hasHumanEffectsDisaggregation && (
-										<div className="mt-5">
-											<p className="mb-2 text-sm font-extrabold text-gray-700">
-												{ctx.t({
-													code: "human_effects.disaggregation_details",
-													msg: "Disaggregation details",
-												})}
-											</p>
-											{ld.humanEffectsDisaggregation
-												.filter((table) => table.rows.length > 0)
-												.map((table) => (
-													<div key={table.tableId} className="mb-4">
-														<h4 className="mb-1 text-sm font-semibold text-gray-700">
-															{table.label}
-														</h4>
-														<div className="overflow-x-auto">
-															<table className="w-full border border-gray-300 text-xs">
-																<thead className="bg-gray-50 text-gray-700">
-																	<tr>
-																		{table.defs.map((def) => {
-																			const label =
-																				typeof def.uiName === "string"
-																					? def.uiName
-																					: (def.uiName as any).msg || def.dbName;
-																			return (
-																				<th
-																					key={def.dbName}
-																					className="border border-gray-300 px-2 py-1 text-left font-medium"
-																				>
-																					{label}
-																				</th>
-																			);
-																		})}
-																	</tr>
-																</thead>
-																<tbody>
-																	{table.rows.map((row, rowIndex) => (
-																		<tr key={rowIndex} className="hover:bg-gray-50">
-																			{row.map((value, valueIndex) => (
-																				<td
-																					key={`${table.tableId}-${rowIndex}-${valueIndex}`}
-																					className="border border-gray-300 px-2 py-1"
-																				>
-																					{value === null || value === undefined || value === "" ? (
-																						<span className="text-gray-400">-</span>
-																					) : typeof value === "boolean" ? (
-																						value ? (
-																							ctx.t({ code: "common.yes", msg: "Yes" })
-																						) : (
-																							ctx.t({ code: "common.no", msg: "No" })
-																						)
-																					) : (
-																						String(value)
-																					)}
-																				</td>
-																			))}
-																		</tr>
-																	))}
-																</tbody>
-															</table>
-														</div>
-													</div>
-												))}
-										</div>
-									)}
-								</div>
-							</fieldset>
-						</div>
-					</section>
-					<section>
-						<div className="mx-auto px-4">
-							<fieldset className="mb-6">
-								<div className="mb-4">
-									<legend className="text-xl font-semibold text-gray-800">
-										{ctx.t({ code: "sector_effects", msg: "Sector effects" })}
-									</legend>
-								</div>
-
-								<div className="border-0">
-									<div className="overflow-x-auto">
-										{Array.isArray(ld.recordsDisRecSectors) &&
-											ld.recordsDisRecSectors.map((item, index) => (<Fragment key={item.catId ?? index}>
-												<SectorEffectsTable
-													item={item}
-													disasterRecord={ld.item.disasterRecord ?? []}
-													ctx={ctx}
-												/>
-										</Fragment>))}
-									</div>
-								</div>
-							</fieldset>
-						</div>
-					</section>
-					<section>
-						<div className="mx-auto px-4">
-							<fieldset className="mb-6">
-								<div className="mb-4">
-									<legend className="text-xl font-semibold text-gray-800">
-										{ctx.t({
-											code: "non_economic_losses",
-											msg: "Non-economic losses",
-										})}
-									</legend>
-								</div>
-
-								<div className="border-0">
-									<div className="overflow-x-auto">
-										<table className="w-full border border-gray-300 text-sm">
-											<thead className="bg-gray-50 text-gray-700">
-												<tr>
-													{[
-														{ code: "common.category", msg: "Category" },
-														{ code: "common.description", msg: "Description" },
-													].map(({ code, msg }) => (
-														<th
-															key={code}
-															className="border border-gray-300 px-3 py-2 font-medium text-left"
-														>
-															{ctx.t({ code, msg })}
-														</th>
-													))}
-												</tr>
-											</thead>
-											<tbody>
-												{Array.isArray(ld.recordsNonecoLosses) &&
-													ld.recordsNonecoLosses.map((item, index) => (
-														<tr key={index} className="hover:bg-gray-50">
-															<td className="border border-gray-300 px-3 py-2">
-																{item.categoryTreeDisplay}
-															</td>
-															<td className="border border-gray-300 px-3 py-2 text-gray-700">
-																{item.noneccoDesc.slice(0, 300)}
-															</td>
-														</tr>
-													))}
-											</tbody>
-										</table>
-									</div>
-								</div>
-							</fieldset>
-						</div>
-					</section>
-				</div>
-			)}
-
-			{auditLogs && auditLogs.length > 0 && (
-				<>
-					<div className="mg-container">
-						<div>&nbsp;</div>
-						<section>
-							<div className="mx-auto px-4">
-								<fieldset className="mb-6">
-									<div className="mb-4">
-										<legend className="text-xl font-semibold text-gray-800">
-											{ctx.t({
-												code: "audit_log.history",
-												msg: "Audit log history",
-											})}
-										</legend>
-									</div>
-
-									<div className="border-0">
-										<AuditLogHistory ctx={ctx} auditLogs={auditLogs} />
-									</div>
-								</fieldset>
-							</div>
-						</section>
-					</div>
-				</>
-			)}
-		</>
+		<ViewScreenPublicApproved
+			loaderData={ld}
+			ctx={ctx}
+			viewComponent={DisasterRecordsView}
+		/>
 	);
 }
