@@ -23,10 +23,12 @@ import {
 	seedUser,
 } from "../../../db/models/hazardousEventTestHelpers";
 import type { ErrorResponse } from "~/shared/errors/ErrorResponse";
-import { i18nextMiddleware } from "~/middleware/i18next.server";
+import { getInstance, i18nextMiddleware } from "~/middleware/i18next.server";
 import { dr } from "~/db.server";
 import { userTable } from "~/drizzle/schema/userTable";
 import { userCountryAccountsTable } from "~/drizzle/schema/userCountryAccountsTable";
+import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
+import { eq } from "drizzle-orm";
 
 // A real candidate: composeWorkflowAction's own membership filter (code review finding) now
 // rejects any id FindValidatorCandidatesUseCase wouldn't also resolve -- plain seedUser() has
@@ -190,6 +192,54 @@ describe("Hazardous event create route", () => {
 			expect(body.error.code).toBe("FORBIDDEN");
 		});
 
+		it("loads the hazardous-events namespace before a loader 403 (6b, D5)", async () => {
+			const args = await makeArgs(
+				"http://localhost/en/he-preview/new",
+				tenantId,
+				"data-viewer",
+			);
+
+			const thrown = await loader(args).catch((e: unknown) => e);
+
+			expect((thrown as Response).status).toBe(403);
+			expect(
+				getInstance(args.context).hasLoadedNamespace("hazardous-events"),
+			).toBe(true);
+		});
+
+		it("loads the hazardous-events namespace before an action 403 (6b, D5)", async () => {
+			const args = await makeArgs(
+				"http://localhost/en/he-preview/new",
+				tenantId,
+				"data-viewer",
+				makeCreateBody({}, specificHazardId),
+			);
+
+			const thrown = await action(args).catch((e: unknown) => e);
+
+			expect((thrown as Response).status).toBe(403);
+			expect(
+				getInstance(args.context).hasLoadedNamespace("hazardous-events"),
+			).toBe(true);
+		});
+
+		it("still redirects an unauthenticated request to login (6b, D5)", async () => {
+			const redirect = new Response(null, {
+				status: 302,
+				headers: { Location: "/en/user/login" },
+			});
+			const args = await makeArgs(
+				"http://localhost/en/he-preview/new",
+				tenantId,
+			);
+			mockRequireUser.mockReset();
+			mockRequireUser.mockRejectedValueOnce(redirect);
+
+			const thrown = await loader(args).catch((e: unknown) => e);
+
+			expect(thrown).toBe(redirect);
+		});
+
 		it("redirects to /{lang}/user/select-instance when no tenant can be resolved", async () => {
 			let thrown: unknown;
 			try {
@@ -325,6 +375,205 @@ describe("Hazardous event create route", () => {
 				expect(thrown).toBeInstanceOf(Response);
 				expect((thrown as Response).status).toBe(404);
 			});
+		});
+	});
+
+	describe("unexpected failures at previously unwrapped awaits (6b, OD-11)", () => {
+		/** Asserts the D4 envelope: 500, INTERNAL_ERROR, nothing from the original error. */
+		async function expectInternalError(thrown: unknown, secret: string) {
+			expect(thrown).toBeInstanceOf(Response);
+			const response = thrown as Response;
+			expect(response.status).toBe(500);
+			const text = await response.text();
+			const body = JSON.parse(text) as ErrorResponse;
+			expect(body.error.code).toBe("INTERNAL_ERROR");
+			expect(body.error).not.toHaveProperty("details");
+			expect(text).not.toContain(secret);
+		}
+
+		async function thrownBy(run: () => Promise<unknown>): Promise<unknown> {
+			try {
+				await run();
+			} catch (err) {
+				return err;
+			}
+			return undefined;
+		}
+
+		beforeEach(async () => {
+			const { getPinoLogger } =
+				await import("~/infrastructure/logging/PinoLogger.server");
+			vi.spyOn(getPinoLogger(), "error").mockImplementation(() => undefined);
+		});
+
+		afterEach(() => {
+			vi.restoreAllMocks();
+		});
+
+		/** A non-form body makes request.formData() reject. */
+		const NON_FORM_BODY: RequestInit = {
+			method: "POST",
+			body: "not form data",
+			headers: { "Content-Type": "text/plain" },
+		};
+
+		it.each([
+			["GetHazardTaxonomyOptionsUseCase", "taxonomy"],
+			["FindValidatorCandidatesUseCase", "candidates"],
+		] as const)(
+			"loader: a %s failure becomes a 500 envelope",
+			async (useCaseName, secret) => {
+				const module =
+					useCaseName === "GetHazardTaxonomyOptionsUseCase"
+						? (
+								await import("~/domains/hazardous-events/application/use-cases/GetHazardTaxonomyOptionsUseCase")
+							).GetHazardTaxonomyOptionsUseCase
+						: (
+								await import("~/domains/validation-workflow/application/use-cases/FindValidatorCandidates")
+							).FindValidatorCandidatesUseCase;
+				vi.spyOn(testingModule.get(module), "execute").mockRejectedValueOnce(
+					new Error(`${secret}-secret`),
+				);
+
+				await expectInternalError(
+					await thrownBy(async () =>
+						loader(
+							await makeArgs("http://localhost/en/he-preview/new", tenantId),
+						),
+					),
+					`${secret}-secret`,
+				);
+			},
+		);
+
+		it("action: a request.formData() failure becomes a 500 envelope", async () => {
+			await expectInternalError(
+				await thrownBy(async () =>
+					action(
+						await makeArgs(
+							"http://localhost/en/he-preview/new",
+							tenantId,
+							"data-collector",
+							NON_FORM_BODY,
+						),
+					),
+				),
+				"FormData",
+			);
+		});
+
+		it("action: a validator-candidate lookup failure becomes a 500 envelope", async () => {
+			const { FindValidatorCandidatesUseCase } =
+				await import("~/domains/validation-workflow/application/use-cases/FindValidatorCandidates");
+			const validatorId = await seedValidator(tenantId);
+			vi.spyOn(
+				testingModule.get(FindValidatorCandidatesUseCase),
+				"execute",
+			).mockRejectedValueOnce(new Error("candidates-secret"));
+
+			await expectInternalError(
+				await thrownBy(async () =>
+					action(
+						await makeArgs(
+							"http://localhost/en/he-preview/new",
+							tenantId,
+							"data-collector",
+							makeCreateBody(
+								{
+									tempAction: "submit-validation",
+									tempValidatorUserIds: validatorId,
+								},
+								specificHazardId,
+							),
+						),
+					),
+				),
+				"candidates-secret",
+			);
+		});
+
+		it("action: a workflow-action step failure becomes a 500 envelope", async () => {
+			const { GetHazardousEventByIdUseCase } =
+				await import("~/domains/hazardous-events/application/use-cases/GetHazardousEventById");
+			vi.spyOn(
+				testingModule.get(GetHazardousEventByIdUseCase),
+				"execute",
+			).mockRejectedValueOnce(new Error("display-name-secret"));
+			const validatorId = await seedValidator(tenantId);
+
+			await expectInternalError(
+				await thrownBy(async () =>
+					action(
+						await makeArgs(
+							"http://localhost/en/he-preview/new",
+							tenantId,
+							"data-collector",
+							makeCreateBody(
+								{
+									tempAction: "submit-validation",
+									tempValidatorUserIds: validatorId,
+								},
+								specificHazardId,
+							),
+						),
+					),
+				),
+				"display-name-secret",
+			);
+		});
+	});
+
+	describe("malformed ids are not found (6b)", () => {
+		async function thrownBy(run: () => Promise<unknown>): Promise<unknown> {
+			try {
+				await run();
+			} catch (err) {
+				return err;
+			}
+			return undefined;
+		}
+
+		async function expectNotFound(thrown: unknown): Promise<void> {
+			expect(thrown).toBeInstanceOf(Response);
+			const response = thrown as Response;
+			expect(response.status).toBe(404);
+			const body = (await response.json()) as ErrorResponse;
+			expect(body.error.code).toBe("NOT_FOUND");
+		}
+
+		it("404s the loader for ?parent=not-a-uuid", async () => {
+			await expectNotFound(
+				await thrownBy(async () =>
+					loader(
+						await makeArgs(
+							"http://localhost/en/he-preview/new?parent=not-a-uuid",
+							tenantId,
+						),
+					),
+				),
+			);
+		});
+
+		it("treats a malformed causeId exactly like an unknown UUID, creating nothing", async () => {
+			const submitWithCause = async (causeId: string) =>
+				thrownBy(async () =>
+					action(
+						await makeArgs(
+							"http://localhost/en/he-preview/new",
+							tenantId,
+							"data-collector",
+							makeCreateBody({ causeId }, specificHazardId),
+						),
+					),
+				);
+
+			await expectNotFound(await submitWithCause("not-a-uuid"));
+			await expectNotFound(await submitWithCause(randomUUID()));
+			const rows = await dr
+				.select({ id: hazardousEventTable.id })
+				.from(hazardousEventTable)
+				.where(eq(hazardousEventTable.countryAccountsId, tenantId));
+			expect(rows).toHaveLength(0);
 		});
 	});
 

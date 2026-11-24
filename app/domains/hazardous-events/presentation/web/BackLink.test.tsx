@@ -29,6 +29,7 @@ describe("BackLink", () => {
 		expect(svgIndex).toBeLessThan(labelIndex);
 	});
 
+	// Legacy layout classes, with the accessible --color-dts-action colour (6b B1).
 	it("carries design.md Decision 12's exact outlined-button class list", () => {
 		const html = render("/en/he-preview", "Back to Hazardous events");
 		const match = html.match(/<a[^>]*class="([^"]*)"/);
@@ -43,13 +44,13 @@ describe("BackLink", () => {
 				"gap-2",
 				"rounded-[6px]",
 				"border",
-				"border-blue-500",
+				"border-dts-action",
 				"bg-transparent",
 				"px-[1.09375rem]",
 				"py-[0.65625rem]",
 				"text-sm",
 				"font-normal",
-				"text-blue-500",
+				"text-dts-action",
 			].sort(),
 		);
 	});

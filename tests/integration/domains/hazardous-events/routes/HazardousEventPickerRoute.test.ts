@@ -15,7 +15,7 @@ import {
 	seedSpecificHazard,
 } from "../../../db/models/hazardousEventTestHelpers";
 import type { ErrorResponse } from "~/shared/errors/ErrorResponse";
-import { i18nextMiddleware } from "~/middleware/i18next.server";
+import { getInstance, i18nextMiddleware } from "~/middleware/i18next.server";
 
 let testingModule: TestingModule;
 
@@ -202,6 +202,65 @@ describe("Hazardous event picker route loader", () => {
 		expect(response.status).toBe(403);
 		const body = (await response.json()) as ErrorResponse;
 		expect(body.error.code).toBe("FORBIDDEN");
+	});
+
+	it("loads the hazardous-events namespace before a 403 is thrown (6b, D5)", async () => {
+		const args = await makeArgs(
+			"http://localhost/en/he-preview/picker",
+			tenantId,
+			"data-viewer",
+		);
+
+		const thrown = await loader(args).catch((e: unknown) => e);
+
+		expect((thrown as Response).status).toBe(403);
+		expect(
+			getInstance(args.context).hasLoadedNamespace("hazardous-events"),
+		).toBe(true);
+	});
+
+	it("still redirects an unauthenticated request to login (6b, D5)", async () => {
+		const redirect = new Response(null, {
+			status: 302,
+			headers: { Location: "/en/user/login" },
+		});
+		const args = await makeArgs(
+			"http://localhost/en/he-preview/picker",
+			tenantId,
+		);
+		mockRequireUser.mockReset();
+		mockRequireUser.mockRejectedValueOnce(redirect);
+
+		const thrown = await loader(args).catch((e: unknown) => e);
+
+		expect(thrown).toBe(redirect);
+	});
+
+	it("throws a 500 INTERNAL_ERROR envelope for a non-DomainError use-case failure (6b, D4)", async () => {
+		const { getPinoLogger } =
+			await import("~/infrastructure/logging/PinoLogger.server");
+		const errorSpy = vi
+			.spyOn(getPinoLogger(), "error")
+			.mockImplementation(() => undefined);
+		const { ListHazardousEventsUseCase } =
+			await import("~/domains/hazardous-events/application/use-cases/ListHazardousEvents");
+		const executeSpy = vi
+			.spyOn(testingModule.get(ListHazardousEventsUseCase), "execute")
+			.mockRejectedValueOnce(new Error("picker-secret"));
+
+		const thrown = await loader(
+			await makeArgs("http://localhost/en/he-preview/picker", tenantId),
+		).catch((e: unknown) => e);
+
+		expect((thrown as Response).status).toBe(500);
+		const text = await (thrown as Response).text();
+		const body = JSON.parse(text) as ErrorResponse;
+		expect(body.error.code).toBe("INTERNAL_ERROR");
+		expect(body.error).not.toHaveProperty("details");
+		expect(text).not.toContain("picker-secret");
+		expect(errorSpy).toHaveBeenCalledTimes(1);
+		executeSpy.mockRestore();
+		errorSpy.mockRestore();
 	});
 
 	it("redirects to /{lang}/user/select-instance when no tenant can be resolved", async () => {

@@ -227,7 +227,7 @@ describe("HazardousEventDetailPage", () => {
 		expect(html).toContain(hazardousEvents.detail.back_to_list);
 		const linkMatch = html.match(/<a[^>]*href="\/en\/he-preview"[^>]*>/);
 		expect(linkMatch?.[0]).toContain("rounded-[6px]");
-		expect(linkMatch?.[0]).toContain("border-blue-500");
+		expect(linkMatch?.[0]).toContain("border-dts-action");
 	});
 
 	it("wraps the back-link in an mb-4 element, separating it from the first Card (design.md Decision 12)", () => {
@@ -1729,7 +1729,7 @@ describe("HazardousEventDetailPage", () => {
 			expect(html).toMatch(/<a[^>]*href="\/en\/he-preview"[^>]*>/);
 			expect(html).toContain(hazardousEvents.detail.back_to_list);
 			const linkMatch = html.match(/<a[^>]*href="\/en\/he-preview"[^>]*>/);
-			expect(linkMatch?.[0]).toContain("border-blue-500");
+			expect(linkMatch?.[0]).toContain("border-dts-action");
 		});
 	});
 });
