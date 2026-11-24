@@ -1300,9 +1300,14 @@
     "description": "File: app/frontend/api_key.tsx:153"
   },
   {
-    "id": "api_keys.add_new",
-    "translation": "Add new API key",
-    "description": "File: app/routes/$lang+/settings+/api-key+/_layout.tsx:110"
+    "id": "api_keys.add_api_key",
+    "translation": "Add API key",
+    "description": "File: app/pages/ApiKeysPage.tsx:358"
+  },
+  {
+    "id": "api_keys.api_key_created",
+    "translation": "API key created",
+    "description": "File: app/pages/ApiKeysPage.tsx:704"
   },
   {
     "id": "api_keys.api_keys",
@@ -1330,9 +1335,54 @@
     "description": "File: app/frontend/api_key.tsx:115"
   },
   {
+    "id": "api_keys.copy_key",
+    "translation": "Copy key",
+    "description": "File: app/pages/ApiKeysPage.tsx:364"
+  },
+  {
+    "id": "api_keys.copy_key_for",
+    "translation": "Copy key for {name}",
+    "description": "File: app/pages/ApiKeysPage.tsx:481"
+  },
+  {
+    "id": "api_keys.create_key",
+    "translation": "Create key",
+    "description": "File: app/pages/ApiKeysPage.tsx:606"
+  },
+  {
+    "id": "api_keys.created",
+    "translation": "Created",
+    "description": "File: app/pages/ApiKeysPage.tsx:345"
+  },
+  {
     "id": "api_keys.created_at",
     "translation": "Created at",
     "description": "File: app/frontend/api_key.tsx:236"
+  },
+  {
+    "id": "api_keys.delete_api_key",
+    "translation": "Delete API key",
+    "description": "File: app/pages/ApiKeysPage.tsx:759"
+  },
+  {
+    "id": "api_keys.delete_key",
+    "translation": "Delete key",
+    "description": "File: app/pages/ApiKeysPage.tsx:778"
+  },
+  {
+    "id": "api_keys.delete_key_for",
+    "translation": "Delete {name}",
+    "description": "File: app/pages/ApiKeysPage.tsx:538"
+  },
+  {
+    "id": "api_keys.delete_key_tooltip",
+    "translation": "Delete key",
+    "description": "File: app/pages/ApiKeysPage.tsx:531"
+  },
+  {
+    "id": "api_keys.delete_warning",
+    "translation": "will be deleted. Applications that use this key will stop working straight away. This cannot be undone.",
+    "description": "File: app/pages/ApiKeysPage.tsx:787"
   },
   {
     "id": "api_keys.disabled_reason",
@@ -1345,9 +1395,24 @@
     "description": "File: app/frontend/api_key.tsx:194"
   },
   {
+    "id": "api_keys.duplicate_name",
+    "translation": "A key with this name already exists.",
+    "description": "File: app/pages/ApiKeysPage.tsx:261"
+  },
+  {
     "id": "api_keys.edit",
     "translation": "Edit API key",
     "description": "File: app/frontend/api_key.tsx:152"
+  },
+  {
+    "id": "api_keys.empty_state",
+    "translation": "No API keys yet. Add one when another application needs access to this site's data.",
+    "description": "File: app/pages/ApiKeysPage.tsx:456"
+  },
+  {
+    "id": "api_keys.enter_name",
+    "translation": "Enter a name.",
+    "description": "File: app/pages/ApiKeysPage.tsx:249"
   },
   {
     "id": "api_keys.inactive_user",
@@ -1355,9 +1420,9 @@
     "description": "File: app/frontend/api_key.tsx:202"
   },
   {
-    "id": "api_keys.key_name",
-    "translation": "Key Name",
-    "description": "File: app/routes/$lang+/settings+/api-key+/_layout.tsx:135"
+    "id": "api_keys.key",
+    "translation": "Key",
+    "description": "File: app/pages/ApiKeysPage.tsx:335"
   },
   {
     "id": "api_keys.managed_by",
@@ -1370,9 +1435,54 @@
     "description": "File: app/frontend/api_key.tsx:53"
   },
   {
+    "id": "api_keys.name_help",
+    "translation": "Name the key after the application that will use it.",
+    "description": "File: app/pages/ApiKeysPage.tsx:632"
+  },
+  {
     "id": "api_keys.no_users_available",
     "translation": "No users are available for assignment. Please add users in the Access Management section first.",
     "description": "File: app/frontend/api_key.tsx:135"
+  },
+  {
+    "id": "api_keys.noun_keys",
+    "translation": "keys",
+    "description": "File: app/pages/ApiKeysPage.tsx:561"
+  },
+  {
+    "id": "api_keys.pagination_showing",
+    "translation": "Showing {from}-{to} of {total} keys",
+    "description": "File: app/pages/ApiKeysPage.tsx:380"
+  },
+  {
+    "id": "api_keys.pagination_showing_empty",
+    "translation": "Showing 0 of 0 keys",
+    "description": "File: app/pages/ApiKeysPage.tsx:376"
+  },
+  {
+    "id": "api_keys.ready_to_use_body",
+    "translation": "Copy the key and add it to the application that needs it.",
+    "description": "File: app/pages/ApiKeysPage.tsx:727"
+  },
+  {
+    "id": "api_keys.ready_to_use_title",
+    "translation": "{name} is ready to use",
+    "description": "File: app/pages/ApiKeysPage.tsx:719"
+  },
+  {
+    "id": "api_keys.rename_api_key",
+    "translation": "Rename API key",
+    "description": "File: app/pages/ApiKeysPage.tsx:645"
+  },
+  {
+    "id": "api_keys.rename_key_for",
+    "translation": "Rename {name}",
+    "description": "File: app/pages/ApiKeysPage.tsx:518"
+  },
+  {
+    "id": "api_keys.rename_key_tooltip",
+    "translation": "Rename key",
+    "description": "File: app/pages/ApiKeysPage.tsx:511"
   },
   {
     "id": "api_keys.secret",
@@ -1385,9 +1495,29 @@
     "description": "File: app/frontend/api_key.tsx:102"
   },
   {
-    "id": "api_keys.session_secret",
-    "translation": "Session Secret",
-    "description": "File: app/routes/$lang+/settings+/api-key+/_layout.tsx:155"
+    "id": "api_keys.subtitle",
+    "translation": "Keys that let other applications read and send data for this site.",
+    "description": "File: app/pages/ApiKeysPage.tsx:423"
+  },
+  {
+    "id": "api_keys.toast_copied",
+    "translation": "Key copied.",
+    "description": "File: app/pages/ApiKeysPage.tsx:229"
+  },
+  {
+    "id": "api_keys.toast_copy_failed",
+    "translation": "Could not copy key.",
+    "description": "File: app/pages/ApiKeysPage.tsx:237"
+  },
+  {
+    "id": "api_keys.toast_deleted",
+    "translation": "{name} was deleted.",
+    "description": "File: app/pages/ApiKeysPage.tsx:162"
+  },
+  {
+    "id": "api_keys.toast_saved",
+    "translation": "Changes saved.",
+    "description": "File: app/pages/ApiKeysPage.tsx:153"
   },
   {
     "id": "approval_status.draft",
@@ -1875,6 +2005,11 @@
     "description": "File: app/components/ContentRepeater/controls/mapper/index.tsx:577"
   },
   {
+    "id": "common.done",
+    "translation": "Done",
+    "description": "File: app/pages/ApiKeysPage.tsx:711"
+  },
+  {
     "id": "common.edit",
     "translation": "Edit",
     "description": "File: app/pages/OrganizationManagementPage.tsx:131"
@@ -2097,12 +2232,17 @@
   {
     "id": "common.managed_by",
     "translation": "Managed by",
-    "description": "File: app/routes/$lang+/settings+/api-key+/_layout.tsx:145"
+    "description": "File: app/pages/ApiKeysPage.tsx:340"
   },
   {
     "id": "common.map_coordinates_geographic_level",
     "translation": "Map coordinates / Geographic level",
     "description": "File: app/frontend/spatialFootprintFormView.tsx:296"
+  },
+  {
+    "id": "common.missing_id",
+    "translation": "Missing ID",
+    "description": "File: app/routes/$lang+/settings+/api-key+/delete.$id.tsx:40"
   },
   {
     "id": "common.missing_required_fields",
@@ -2348,6 +2488,11 @@
     "id": "common.pagination",
     "translation": "Pagination",
     "description": "File: app/frontend/pagination/view.tsx:82"
+  },
+  {
+    "id": "common.pagination_page",
+    "translation": "Page {page} of {totalPages}",
+    "description": "File: app/pages/ApiKeysPage.tsx:387"
   },
   {
     "id": "common.pagination.current_page",
