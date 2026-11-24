@@ -2417,6 +2417,12 @@ PrimeReact until its own domain's cutover retires it — same Strangler Fig patt
 this refactor, not an urgent rip-out. See `design-system-unification-roadmap.md` — its "Pass 1"
 PrimeReact-token-extraction plan is superseded for any module moving to React Aria.
 
+**Styling scope, agreed 2026-11-23 (6b):** HE keeps its legacy styling (HE's legacy-parity set in
+`app/design-system/components/`, `ui-classification: legacy-exempt`) until a dedicated "HE UI
+upgrade to the new design system" iteration, which runs after design-system unification
+(`DEF-014`: merging `components/` into `app/design-system/ui/`, assigned team member, before
+Disaster Event UI work). New screens outside HE use `app/design-system/ui/`.
+
 ### 🔷 6a — Web Route Adapters: List + Detail ✅ (Complete)
 
 **Branch:** `feature/ca-he-route-adapter-read`
@@ -2453,7 +2459,7 @@ ErrorResponse (Response.json) for DomainError, return the use case's result dire
 
 ---
 
-### 🔷 6b — HazardousEventErrorBoundary
+### 🔷 6b — HazardousEventErrorBoundary ✅ (Complete)
 
 **Branch:** `feature/ca-he-error-boundary`
 
