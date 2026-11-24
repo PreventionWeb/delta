@@ -293,5 +293,32 @@
 			"causal_chain": "Impossible de supprimer l'événement dangereux car il est lié à un autre événement dangereux en tant que cause ou effet. Supprimez d'abord ce lien.",
 			"generic": "Cet enregistrement ne peut pas être supprimé."
 		}
+	},
+	"error": {
+		"not_found": {
+			"title": "Événement dangereux introuvable",
+			"body": "L'enregistrement n'existe pas ou vous n'y avez pas accès."
+		},
+		"forbidden": {
+			"title": "Accès refusé",
+			"body": "Vous n'avez pas l'autorisation d'effectuer cette action."
+		},
+		"invalid_request": {
+			"title": "La demande n'a pas pu être traitée",
+			"body": "Vérifiez les informations saisies et réessayez."
+		},
+		"conflict": {
+			"title": "L'enregistrement n'a pas pu être enregistré",
+			"body": "Il a été modifié ou est lié à d'autres enregistrements. Rechargez la page et réessayez."
+		},
+		"unexpected": {
+			"title": "Une erreur s'est produite",
+			"body": "Une erreur inattendue s'est produite. Veuillez réessayer plus tard."
+		},
+		"trace": {
+			"label": "Référence de l'erreur",
+			"copy": "Copier la référence de l'erreur",
+			"copied": "Référence de l'erreur copiée"
+		}
 	}
 }

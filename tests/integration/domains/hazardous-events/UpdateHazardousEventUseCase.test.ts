@@ -23,7 +23,7 @@ import {
 import { UpdateHazardousEventUseCase } from "~/domains/hazardous-events/application/use-cases/UpdateHazardousEvent";
 import { LocalDiskAttachmentStorageAdapter } from "~/domains/shared/attachments/infrastructure/LocalDiskAttachmentStorageAdapter.server";
 import { DrizzleAuditLogAdapter } from "~/domains/shared/audit-log/infrastructure/DrizzleAuditLogAdapter.server";
-import { ConflictError } from "~/shared/errors";
+import { ConflictError, NotFoundError } from "~/shared/errors";
 import type { ILogger } from "~/shared/logging/ILogger";
 import {
 	seedCountryAccount,
@@ -432,6 +432,58 @@ describe("UpdateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 		const found = await harness.hazardousEventRepository.findById(id, tenantId);
 		expect(found.description).toBe("original description");
 		expect(await auditRowsFor(id)).toHaveLength(0);
+
+		await fs.rm(uploadRoot, { recursive: true, force: true });
+	});
+});
+
+describe("UpdateHazardousEventUseCase with a malformed causeId (6b)", () => {
+	it("rejects with the same error class as an unknown well-formed causeId and changes nothing", async () => {
+		const tenantId = (await seedCountryAccount()) as string;
+		const specificHazardId = await seedSpecificHazard();
+		const effectId = randomUUID();
+		const uploadRoot = await fs.mkdtemp(
+			path.join(os.tmpdir(), "delta-update-he-test-"),
+		);
+		const harness = createHarness(uploadRoot);
+		await harness.hazardousEventRepository.insert(
+			HazardousEvent.create(
+				baseEventProps(effectId, tenantId, specificHazardId),
+				new Set(),
+				new Set(),
+			),
+		);
+		await harness.workflowRepository.insert(
+			WorkflowInstance.createDraft({
+				id: randomUUID(),
+				entityId: effectId,
+				entityType: "HE",
+				now: new Date("2026-01-01T00:00:00Z"),
+			}),
+		);
+		const actingUserId = await seedUser();
+		const updateWithCause = (causeId: string) =>
+			harness.useCase
+				.execute({
+					id: effectId,
+					tenantId,
+					actingUserId,
+					description: "attempted new description",
+					causeId,
+				})
+				.catch((e: unknown) => e);
+
+		const malformed = await updateWithCause("not-a-uuid");
+		const unknown = await updateWithCause(randomUUID());
+
+		expect(unknown).toBeInstanceOf(NotFoundError);
+		expect(malformed).toBeInstanceOf(NotFoundError);
+		const found = await harness.hazardousEventRepository.findById(
+			effectId,
+			tenantId,
+		);
+		expect(found.description).toBe("original description");
+		expect(await auditRowsFor(effectId)).toHaveLength(0);
 
 		await fs.rm(uploadRoot, { recursive: true, force: true });
 	});

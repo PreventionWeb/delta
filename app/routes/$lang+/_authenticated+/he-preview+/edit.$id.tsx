@@ -17,6 +17,7 @@ import {
 	requireValidValidatorIds,
 } from "~/domains/hazardous-events/presentation/web/requestAuthorizationGuards.server";
 import { throwHazardousEventLoaderError } from "~/domains/hazardous-events/presentation/web/throwHazardousEventLoaderError.server";
+import { HazardousEventErrorBoundary } from "~/domains/hazardous-events/presentation/web/HazardousEventErrorBoundary";
 import { parseHazardousEventFormData } from "~/domains/hazardous-events/presentation/web/parseHazardousEventFormData.server";
 import {
 	composeWorkflowAction,
@@ -70,19 +71,29 @@ async function requireEditableEvent(args: {
 }
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
+	// Loaded first so an error boundary for any failure below is translated.
+	await getInstance(context).loadNamespaces(["hazardous-events", "common"]);
+
 	const { session, tenantId, role, event } = await requireEditableEvent({
 		request,
 		params,
 	});
 
-	await getInstance(context).loadNamespaces(["hazardous-events", "common"]);
-
-	const [taxonomyOptions, validatorCandidates] = await Promise.all([
-		getAppContext().get(GetHazardTaxonomyOptionsUseCase).execute(),
-		getAppContext()
-			.get(FindValidatorCandidatesUseCase)
-			.execute({ tenantId, excludingUserId: session.user.id }),
-	]);
+	let taxonomyOptions;
+	let validatorCandidates;
+	try {
+		[taxonomyOptions, validatorCandidates] = await Promise.all([
+			getAppContext().get(GetHazardTaxonomyOptionsUseCase).execute(),
+			getAppContext()
+				.get(FindValidatorCandidatesUseCase)
+				.execute({ tenantId, excludingUserId: session.user.id }),
+		]);
+	} catch (err) {
+		throwHazardousEventLoaderError(err, {
+			logMsg: "Unhandled error loading hazardous-event edit form options",
+			url: request.url,
+		});
+	}
 
 	const partial =
 		new URL(request.url).searchParams.get("partial") === "transition-failed";
@@ -96,7 +107,9 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
 	};
 }
 
-export async function action({ request, params }: ActionFunctionArgs) {
+export async function action({ request, params, context }: ActionFunctionArgs) {
+	// Loaded first so an error boundary for any failure below is translated.
+	await getInstance(context).loadNamespaces(["hazardous-events", "common"]);
 	// Validated, not raw params.lang -- an unvalidated route param interpolated into a redirect
 	// target is an open redirect (resolveTenantId.server.ts's own precedent, code review finding).
 	const lang = getLanguageAllowDefault({ params });
@@ -105,14 +118,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
 		params,
 	});
 
-	const formData = await request.formData();
 	// A malformed attachments payload now throws (Gate 10 finding: a dropped item used to mean
 	// "lost on save," now it means "removed," which deletes a real file) -- routed through the
 	// same structured-error helper every other pre-write guard in this action already uses,
 	// instead of escaping to the generic error boundary.
 	let parsed: ReturnType<typeof parseHazardousEventFormData>;
 	try {
-		parsed = parseHazardousEventFormData(formData);
+		parsed = parseHazardousEventFormData(await request.formData());
 	} catch (err) {
 		throwHazardousEventLoaderError(err, {
 			logMsg: "Unhandled error parsing hazardous-event edit form data",
@@ -140,12 +152,21 @@ export async function action({ request, params }: ActionFunctionArgs) {
 			tenantId,
 			actingUserId: session.user.id,
 		});
-	const validatorUserIds = await requireValidValidatorIds({
-		mappedAction,
-		parsed,
-		getValidCandidateIds,
-		request,
-	});
+	let validatorUserIds: Awaited<ReturnType<typeof requireValidValidatorIds>>;
+	try {
+		validatorUserIds = await requireValidValidatorIds({
+			mappedAction,
+			parsed,
+			getValidCandidateIds,
+			request,
+		});
+	} catch (err) {
+		throwHazardousEventLoaderError(err, {
+			logMsg:
+				"Unhandled error checking validators on hazardous-event edit action",
+			url: request.url,
+		});
+	}
 
 	const updateHazardousEventUseCase = getAppContext().get(
 		UpdateHazardousEventUseCase,
@@ -212,17 +233,25 @@ export async function action({ request, params }: ActionFunctionArgs) {
 	const processWorkflowActionUseCase = getAppContext().get(
 		ProcessWorkflowActionUseCase,
 	);
-	const result = await composeWorkflowAction({
-		processWorkflowActionUseCase,
-		mappedAction,
-		parsed,
-		entityId: event.id,
-		tenantId,
-		actingUserId: session.user.id,
-		actingUserRole: role,
-		getRecordDisplayName: () => getRecordDisplayName(event.id),
-		validatorUserIds,
-	});
+	let result;
+	try {
+		result = await composeWorkflowAction({
+			processWorkflowActionUseCase,
+			mappedAction,
+			parsed,
+			entityId: event.id,
+			tenantId,
+			actingUserId: session.user.id,
+			actingUserRole: role,
+			getRecordDisplayName: () => getRecordDisplayName(event.id),
+			validatorUserIds,
+		});
+	} catch (err) {
+		throwHazardousEventLoaderError(err, {
+			logMsg: "Unhandled error in hazardous-event edit workflow action",
+			url: request.url,
+		});
+	}
 
 	if (result.attempted && result.outcome === "failed") {
 		return redirect(
@@ -232,6 +261,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
 	return redirect(`/${lang}/he-preview/${event.id}`);
 }
+
+export { HazardousEventErrorBoundary as ErrorBoundary };
 
 export default function HazardousEventEditRoute() {
 	const data = useLoaderData<typeof loader>();

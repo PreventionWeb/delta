@@ -21,7 +21,7 @@ import {
 } from "~/domains/hazardous-events/presentation/web/mapDeleteErrorToMessageKey";
 
 /** Expected failures, including authorization, are returned, not thrown: a thrown Response from a
- * fetcher action lands in the root error boundary (design.md D1). */
+ * fetcher action replaces the list page with its error boundary. */
 function deleteFailure(err: unknown, url: string) {
 	const messageKeys = mapDeleteErrorToMessageKeys(err);
 	if (messageKeys === null || !(err instanceof DomainError)) {

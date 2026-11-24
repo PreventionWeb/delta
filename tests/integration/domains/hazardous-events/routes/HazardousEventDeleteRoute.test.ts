@@ -30,6 +30,7 @@ import {
 	seedSpecificHazard,
 	seedUser,
 } from "../../../db/models/hazardousEventTestHelpers";
+import type { ErrorResponse } from "~/shared/errors/ErrorResponse";
 import { i18nextMiddleware } from "~/middleware/i18next.server";
 import { dr } from "~/db.server";
 import { userTable } from "~/drizzle/schema/userTable";
@@ -161,7 +162,10 @@ function expectFailure(
 }
 
 /** Refused as returned data (a toast), never a thrown Response that hits the error boundary. */
-function expectForbidden(result: { returned?: unknown; thrown?: unknown }): void {
+function expectForbidden(result: {
+	returned?: unknown;
+	thrown?: unknown;
+}): void {
 	expect(result.thrown).toBeUndefined();
 	expectFailure(result.returned, ["delete.forbidden"], 403);
 }
@@ -368,6 +372,18 @@ describe("Hazardous event delete route action", () => {
 
 			const { returned, thrown } = await runAction(
 				await makeArgs(randomUUID(), tenantId),
+			);
+
+			expect(thrown).toBeUndefined();
+			expectFailure(returned, ["delete.not_found"], 404);
+			expect(await hazardousEventExists(keep)).toBe(true);
+		});
+
+		it("returns the not-found key with a 404 for a malformed id, deleting nothing", async () => {
+			const keep = await seedDraftEvent();
+
+			const { returned, thrown } = await runAction(
+				await makeArgs("not-a-uuid", tenantId),
 			);
 
 			expect(thrown).toBeUndefined();
@@ -638,19 +654,25 @@ describe("Hazardous event delete route action", () => {
 	});
 
 	describe("unexpected errors", () => {
-		it("rethrows an unknown error instead of returning a message", async () => {
+		it("throws a 500 INTERNAL_ERROR envelope, not toast data, for an unknown error", async () => {
 			const id = await seedDraftEvent();
-			const boom = new Error("boom");
 			const executeSpy = vi
 				.spyOn(testingModule.get(DeleteHazardousEventUseCase), "execute")
-				.mockRejectedValueOnce(boom);
+				.mockRejectedValueOnce(new Error("boom-secret"));
 
 			const { thrown, returned } = await runAction(
 				await makeArgs(id, tenantId),
 			);
 
 			expect(returned).toBeUndefined();
-			expect(thrown).toBe(boom);
+			expect(thrown).toBeInstanceOf(Response);
+			const response = thrown as Response;
+			expect(response.status).toBe(500);
+			const text = await response.text();
+			const body = JSON.parse(text) as ErrorResponse;
+			expect(body.error.code).toBe("INTERNAL_ERROR");
+			expect(body.error).not.toHaveProperty("details");
+			expect(text).not.toContain("boom-secret");
 			executeSpy.mockRestore();
 		});
 	});
