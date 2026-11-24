@@ -21,6 +21,7 @@ import {
 	buildWorkflowComposerCallbacks,
 } from "~/domains/hazardous-events/presentation/web/composeWorkflowAction.server";
 import { throwHazardousEventLoaderError } from "~/domains/hazardous-events/presentation/web/throwHazardousEventLoaderError.server";
+import { HazardousEventErrorBoundary } from "~/domains/hazardous-events/presentation/web/HazardousEventErrorBoundary";
 import {
 	extractFieldError,
 	extractCauseConflictError,
@@ -32,20 +33,30 @@ import { MainContainer } from "~/frontend/container";
 import { getLanguageAllowDefault } from "~/utils/lang.backend";
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
+	// Loaded first so an error boundary for any failure below is translated.
+	await getInstance(context).loadNamespaces(["hazardous-events", "common"]);
+
 	// Order matters: requireUser, then resolveTenantId before requireEditDataPermission (same
 	// ordering rationale as 6a's requireViewDataPermission.server.ts).
 	const session = await requireUser({ request, params });
 	const tenantId = await resolveTenantId(request, params.lang ?? "en");
 	const role = await requireEditDataPermission({ request });
 
-	await getInstance(context).loadNamespaces(["hazardous-events", "common"]);
-
-	const [taxonomyOptions, validatorCandidates] = await Promise.all([
-		getAppContext().get(GetHazardTaxonomyOptionsUseCase).execute(),
-		getAppContext()
-			.get(FindValidatorCandidatesUseCase)
-			.execute({ tenantId, excludingUserId: session.user.id }),
-	]);
+	let taxonomyOptions;
+	let validatorCandidates;
+	try {
+		[taxonomyOptions, validatorCandidates] = await Promise.all([
+			getAppContext().get(GetHazardTaxonomyOptionsUseCase).execute(),
+			getAppContext()
+				.get(FindValidatorCandidatesUseCase)
+				.execute({ tenantId, excludingUserId: session.user.id }),
+		]);
+	} catch (err) {
+		throwHazardousEventLoaderError(err, {
+			logMsg: "Unhandled error loading hazardous-event create form options",
+			url: request.url,
+		});
+	}
 
 	// Legacy's own new.tsx?parent= prefill -- links the new event as an effect of an existing
 	// one (Decision 13's picker writes this param). Reusing GetHazardousEventByIdUseCase's
@@ -78,7 +89,9 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
 	return { taxonomyOptions, validatorCandidates, parent, role: role ?? null };
 }
 
-export async function action({ request, params }: ActionFunctionArgs) {
+export async function action({ request, params, context }: ActionFunctionArgs) {
+	// Loaded first so an error boundary for any failure below is translated.
+	await getInstance(context).loadNamespaces(["hazardous-events", "common"]);
 	// Validated, not raw params.lang -- an unvalidated route param interpolated into a redirect
 	// target is an open redirect (resolveTenantId.server.ts's own precedent, code review finding).
 	const lang = getLanguageAllowDefault({ params });
@@ -86,14 +99,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
 	const tenantId = await resolveTenantId(request, lang);
 	const role = await requireEditDataPermission({ request });
 
-	const formData = await request.formData();
 	// A malformed attachments payload now throws (Gate 10 finding: a dropped item used to mean
 	// "lost on save," now it means "removed," which deletes a real file) -- routed through the
 	// same structured-error helper every other pre-write guard in this action already uses,
 	// instead of escaping to the generic error boundary.
 	let parsed: ReturnType<typeof parseHazardousEventFormData>;
 	try {
-		parsed = parseHazardousEventFormData(formData);
+		parsed = parseHazardousEventFormData(await request.formData());
 	} catch (err) {
 		throwHazardousEventLoaderError(err, {
 			logMsg: "Unhandled error parsing hazardous-event create form data",
@@ -119,12 +131,21 @@ export async function action({ request, params }: ActionFunctionArgs) {
 			tenantId,
 			actingUserId: session.user.id,
 		});
-	const validatorUserIds = await requireValidValidatorIds({
-		mappedAction,
-		parsed,
-		getValidCandidateIds,
-		request,
-	});
+	let validatorUserIds: Awaited<ReturnType<typeof requireValidValidatorIds>>;
+	try {
+		validatorUserIds = await requireValidValidatorIds({
+			mappedAction,
+			parsed,
+			getValidCandidateIds,
+			request,
+		});
+	} catch (err) {
+		throwHazardousEventLoaderError(err, {
+			logMsg:
+				"Unhandled error checking validators on hazardous-event create action",
+			url: request.url,
+		});
+	}
 
 	const createHazardousEventUseCase = getAppContext().get(
 		CreateHazardousEventUseCase,
@@ -188,17 +209,25 @@ export async function action({ request, params }: ActionFunctionArgs) {
 	const processWorkflowActionUseCase = getAppContext().get(
 		ProcessWorkflowActionUseCase,
 	);
-	const result = await composeWorkflowAction({
-		processWorkflowActionUseCase,
-		mappedAction,
-		parsed,
-		entityId: created.id,
-		tenantId,
-		actingUserId: session.user.id,
-		actingUserRole: role,
-		getRecordDisplayName: () => getRecordDisplayName(created.id),
-		validatorUserIds,
-	});
+	let result;
+	try {
+		result = await composeWorkflowAction({
+			processWorkflowActionUseCase,
+			mappedAction,
+			parsed,
+			entityId: created.id,
+			tenantId,
+			actingUserId: session.user.id,
+			actingUserRole: role,
+			getRecordDisplayName: () => getRecordDisplayName(created.id),
+			validatorUserIds,
+		});
+	} catch (err) {
+		throwHazardousEventLoaderError(err, {
+			logMsg: "Unhandled error in hazardous-event create workflow action",
+			url: request.url,
+		});
+	}
 
 	if (result.attempted && result.outcome === "failed") {
 		return redirect(
@@ -208,6 +237,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
 	return redirect(`/${lang}/he-preview/${created.id}`);
 }
+
+export { HazardousEventErrorBoundary as ErrorBoundary };
 
 export default function HazardousEventNewRoute() {
 	const data = useLoaderData<typeof loader>();

@@ -293,5 +293,32 @@
 			"causal_chain": "Cannot delete hazard event because it is linked to another hazardous event as a cause or effect. Remove that link first.",
 			"generic": "This record cannot be deleted."
 		}
+	},
+	"error": {
+		"not_found": {
+			"title": "Hazardous event not found",
+			"body": "The record does not exist or you do not have access to it."
+		},
+		"forbidden": {
+			"title": "Access denied",
+			"body": "You do not have permission to do this."
+		},
+		"invalid_request": {
+			"title": "The request could not be processed",
+			"body": "Check the information you entered and try again."
+		},
+		"conflict": {
+			"title": "The record could not be saved",
+			"body": "It changed or is linked to other records. Reload the page and try again."
+		},
+		"unexpected": {
+			"title": "Something went wrong",
+			"body": "An unexpected error occurred. Please try again later."
+		},
+		"trace": {
+			"label": "Error reference",
+			"copy": "Copy error reference",
+			"copied": "Error reference copied"
+		}
 	}
 }
