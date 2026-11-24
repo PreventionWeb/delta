@@ -40,6 +40,16 @@ class StubController {
 		throw new ValidationError("Title must not be empty");
 	}
 
+	@Get("/validation-field")
+	throwValidationWithField() {
+		throw new ValidationError("bad", { field: "title", tenantId: "t-1" });
+	}
+
+	@Get("/validation-field-a")
+	throwValidationWithFieldA() {
+		throw new ValidationError("bad", { field: "a" });
+	}
+
 	@Get("/authorization")
 	throwAuthorization() {
 		throw new AuthorizationError("Insufficient permissions");
@@ -210,10 +220,26 @@ describe("DomainErrorFilter", () => {
 	// Context / details field
 	// -------------------------------------------------------------------------
 
-	it("NotFoundError includes error.details from context", async () => {
-		// NotFoundError always sets context = { entity, id } in its constructor.
+	it("NotFoundError omits error.details and never sends its id (ADR-003, 6b D8)", async () => {
+		// NotFoundError's context is { entity, id }; none of it may reach the client.
 		const res = await request.get("/test/not-found");
-		expect(res.body.error.details).toEqual({ entity: "Notice", id: "abc-123" });
+		expect(res.body.error).not.toHaveProperty("details");
+		expect(JSON.stringify(res.body)).not.toContain("abc-123");
+	});
+
+	it("ValidationError with a field sends only { field } (6b D8)", async () => {
+		const res = await request.get("/test/validation-field");
+		expect(res.body.error.details).toEqual({ field: "title" });
+		expect(JSON.stringify(res.body)).not.toContain("t-1");
+	});
+
+	it("concurrent requests do not share details (6b D8)", async () => {
+		const [withField, notFound] = await Promise.all([
+			request.get("/test/validation-field-a"),
+			request.get("/test/not-found"),
+		]);
+		expect(withField.body.error.details).toEqual({ field: "a" });
+		expect(notFound.body.error).not.toHaveProperty("details");
 	});
 
 	it("ValidationError without context omits error.details", async () => {
