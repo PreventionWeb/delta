@@ -135,7 +135,7 @@ const SpatialFootprintMapViewer: React.FC<SpatialFootprintMapViewerProps> = ({
     
               window.onload = () => {
                 const map = L.map("map"); //.setView([11.3233, 124.9200], 6);
-                L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+                L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
                   attribution: "",
                 }).addTo(map);
     
