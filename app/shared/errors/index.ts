@@ -7,3 +7,4 @@ export {
 	ValidationError,
 } from "./DomainError";
 export type { ErrorResponse } from "./ErrorResponse";
+export { toErrorResponseDetails } from "./toErrorResponseDetails";
