@@ -22,7 +22,7 @@ import {
 	withRequestContext,
 	getRequestContext,
 } from "~/utils/requestContext.server";
-import { i18nextMiddleware } from "~/middleware/i18next.server";
+import { getInstance, i18nextMiddleware } from "~/middleware/i18next.server";
 
 let testingModule: TestingModule;
 
@@ -333,6 +333,25 @@ describe("Hazardous event list route loader", () => {
 		executeSpy.mockRestore();
 	});
 
+	it("ignores a malformed hazardTypeId filter and returns the list (status quo pinned, 6b)", async () => {
+		await seedEventWithWorkflow(tenantId, specificHazardId);
+		await seedEventWithoutWorkflow(tenantId, specificHazardId);
+
+		const unfiltered = await loader(
+			await makeArgs("http://localhost/en/he-preview", tenantId, "admin"),
+		);
+		const result = await loader(
+			await makeArgs(
+				"http://localhost/en/he-preview?hazardTypeId=not-a-uuid",
+				tenantId,
+				"admin",
+			),
+		);
+
+		expect(unfiltered.totalCount).toBeGreaterThan(0);
+		expect(result.totalCount).toBe(unfiltered.totalCount);
+	});
+
 	it("calls GetHazardTaxonomyOptionsUseCase exactly once and includes its result as taxonomyOptions", async () => {
 		const { GetHazardTaxonomyOptionsUseCase } =
 			await import("~/domains/hazardous-events/application/use-cases/GetHazardTaxonomyOptionsUseCase");
@@ -491,6 +510,57 @@ describe("Hazardous event list route loader", () => {
 		executeSpy.mockRestore();
 	});
 
+	it("sends only { field } from a ValidationError's context (6b, D8)", async () => {
+		const { ListHazardousEventsUseCase } =
+			await import("~/domains/hazardous-events/application/use-cases/ListHazardousEvents");
+		const { ValidationError } = await import("~/shared/errors/DomainError");
+		const executeSpy = vi
+			.spyOn(testingModule.get(ListHazardousEventsUseCase), "execute")
+			.mockRejectedValueOnce(
+				new ValidationError("bad", {
+					field: "page",
+					tenantId: "t-1",
+					sql: "select 1",
+				}),
+			);
+
+		const thrown = await loader(
+			await makeArgs("http://localhost/en/he-preview", tenantId),
+		).catch((e: unknown) => e);
+
+		const text = await (thrown as Response).text();
+		expect((JSON.parse(text) as ErrorResponse).error.details).toEqual({
+			field: "page",
+		});
+		expect(text).not.toContain('"t-1"');
+		expect(text).not.toContain("select 1");
+		executeSpy.mockRestore();
+	});
+
+	it("never sends a ConflictError's context (6b, D8)", async () => {
+		const { ListHazardousEventsUseCase } =
+			await import("~/domains/hazardous-events/application/use-cases/ListHazardousEvents");
+		const { ConflictError } = await import("~/shared/errors/DomainError");
+		const executeSpy = vi
+			.spyOn(testingModule.get(ListHazardousEventsUseCase), "execute")
+			.mockRejectedValueOnce(
+				new ConflictError("x", {
+					id: "he-1",
+					tenantId: "t-1",
+					reason: "OTHER",
+				}),
+			);
+
+		const thrown = await loader(
+			await makeArgs("http://localhost/en/he-preview", tenantId),
+		).catch((e: unknown) => e);
+
+		expect((thrown as Response).status).toBe(409);
+		const body = (await (thrown as Response).json()) as ErrorResponse;
+		expect(body.error).not.toHaveProperty("details");
+		executeSpy.mockRestore();
+	});
+
 	// Code-review finding: the two use cases in the loader's own Promise.all were only ever tested
 	// with ListHazardousEventsUseCase rejecting -- confirms the taxonomy use case's own rejection
 	// path is handled identically (same try/catch, same throwHazardousEventLoaderError), not special-cased.
@@ -574,6 +644,21 @@ describe("Hazardous event list route loader", () => {
 		executeSpy.mockRestore();
 	});
 
+	it("loads the hazardous-events namespace before a 403 is thrown (6b, D5)", async () => {
+		const args = await makeArgs(
+			"http://localhost/en/he-preview",
+			tenantId,
+			null,
+		);
+
+		const thrown = await loader(args).catch((e: unknown) => e);
+
+		expect((thrown as Response).status).toBe(403);
+		expect(
+			getInstance(args.context).hasLoadedNamespace("hazardous-events"),
+		).toBe(true);
+	});
+
 	it("calls requireUser before resolving the tenant (session gate runs first)", async () => {
 		await loader(await makeArgs("http://localhost/en/he-preview", tenantId));
 
@@ -605,17 +690,30 @@ describe("Hazardous event list route loader", () => {
 		executeSpy.mockRestore();
 	});
 
-	it("logs and rethrows a non-DomainError failure unmodified", async () => {
+	/** Asserts the D4 envelope: 500, INTERNAL_ERROR, nothing from the original error. */
+	async function expectInternalError(thrown: unknown, secret: string) {
+		expect(thrown).toBeInstanceOf(Response);
+		const response = thrown as Response;
+		expect(response.status).toBe(500);
+		const text = await response.text();
+		const body = JSON.parse(text) as ErrorResponse;
+		expect(body.error.code).toBe("INTERNAL_ERROR");
+		expect(body.error).not.toHaveProperty("details");
+		expect(text).not.toContain(secret);
+	}
+
+	it("logs once and throws a 500 INTERNAL_ERROR envelope for a non-DomainError use-case failure", async () => {
 		const { getPinoLogger } =
 			await import("~/infrastructure/logging/PinoLogger.server");
-		const errorSpy = vi.spyOn(getPinoLogger(), "error");
+		const errorSpy = vi
+			.spyOn(getPinoLogger(), "error")
+			.mockImplementation(() => undefined);
 
 		const { ListHazardousEventsUseCase } =
 			await import("~/domains/hazardous-events/application/use-cases/ListHazardousEvents");
-		const dbError = new Error("DB connection lost");
 		const executeSpy = vi
 			.spyOn(testingModule.get(ListHazardousEventsUseCase), "execute")
-			.mockRejectedValueOnce(dbError);
+			.mockRejectedValueOnce(new Error("DB connection lost"));
 
 		let thrown: unknown;
 		try {
@@ -624,10 +722,32 @@ describe("Hazardous event list route loader", () => {
 			thrown = err;
 		}
 
-		expect(thrown).toBe(dbError);
+		await expectInternalError(thrown, "DB connection lost");
 		expect(errorSpy).toHaveBeenCalledTimes(1);
 
 		executeSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
+	it("throws a 500 INTERNAL_ERROR envelope when the country-settings lookup fails", async () => {
+		const { getPinoLogger } =
+			await import("~/infrastructure/logging/PinoLogger.server");
+		const errorSpy = vi
+			.spyOn(getPinoLogger(), "error")
+			.mockImplementation(() => undefined);
+		mockGetCountrySettingsFromSession.mockRejectedValueOnce(
+			new Error("settings lookup failed"),
+		);
+
+		let thrown: unknown;
+		try {
+			await loader(await makeArgs("http://localhost/en/he-preview", tenantId));
+		} catch (err) {
+			thrown = err;
+		}
+
+		await expectInternalError(thrown, "settings lookup failed");
+		expect(errorSpy).toHaveBeenCalledTimes(1);
 		errorSpy.mockRestore();
 	});
 

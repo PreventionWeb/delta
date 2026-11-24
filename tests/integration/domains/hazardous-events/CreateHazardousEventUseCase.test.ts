@@ -6,7 +6,7 @@ import { randomUUID } from "crypto";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { dr } from "~/db.server";
-import { ValidationError } from "~/shared/errors";
+import { NotFoundError, ValidationError } from "~/shared/errors";
 import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
 import { auditLogsTable } from "~/drizzle/schema/auditLogsTable";
 import { hazardousEventAttachmentTable } from "~/domains/hazardous-events/infrastructure/hazardousEventAttachmentTable";
@@ -415,6 +415,37 @@ describe("CreateHazardousEventUseCase against real adapters (DEF-026 rollback pr
 		expect(rows).toHaveLength(0);
 		expect(await dr.select().from(workflowInstanceTable)).toHaveLength(0);
 		expect(await auditRowsForTenant(tenantId)).toHaveLength(0);
+	});
+});
+
+describe("CreateHazardousEventUseCase with a malformed causeId (6b)", () => {
+	it("rejects with the same error class as an unknown well-formed causeId and writes no row", async () => {
+		const tenantId = (await seedCountryAccount()) as string;
+		const specificHazardId = await seedSpecificHazard();
+		const useCase = makeAttachmentTestUseCase(
+			new DrizzleHazardousEventRepository(dr),
+			new DrizzleWorkflowRepository(dr),
+			new DrizzleCausalChainRepository(dr),
+			new DrizzleHazardTaxonomyRepository(dr),
+			new DrizzleTransactionRunner(dr),
+			new DrizzleHipCrosswalkAdapter(dr),
+		);
+		const base = await baseAttachmentTestCommand(tenantId, specificHazardId);
+
+		const malformed = await useCase
+			.execute({ ...base, attachments: [], causeId: "not-a-uuid" })
+			.catch((e: unknown) => e);
+		const unknown = await useCase
+			.execute({ ...base, attachments: [], causeId: randomUUID() })
+			.catch((e: unknown) => e);
+
+		expect(unknown).toBeInstanceOf(NotFoundError);
+		expect(malformed).toBeInstanceOf(NotFoundError);
+		const rows = await dr
+			.select()
+			.from(hazardousEventTable)
+			.where(eq(hazardousEventTable.countryAccountsId, tenantId));
+		expect(rows).toHaveLength(0);
 	});
 });
 

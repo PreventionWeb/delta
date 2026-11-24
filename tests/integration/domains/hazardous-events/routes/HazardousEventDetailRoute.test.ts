@@ -21,7 +21,7 @@ import {
 	withRequestContext,
 	getRequestContext,
 } from "~/utils/requestContext.server";
-import { i18nextMiddleware } from "~/middleware/i18next.server";
+import { getInstance, i18nextMiddleware } from "~/middleware/i18next.server";
 
 let testingModule: TestingModule;
 
@@ -52,6 +52,7 @@ import {
 } from "~/utils/session";
 import { requireUser } from "~/utils/auth";
 import { loader } from "~/routes/$lang+/_authenticated+/he-preview+/$id";
+import { loader as editLoader } from "~/routes/$lang+/_authenticated+/he-preview+/edit.$id";
 
 const mockGetCountryAccountsIdFromSession = vi.mocked(
 	getCountryAccountsIdFromSession,
@@ -242,6 +243,21 @@ describe("Hazardous event detail route loader", () => {
 		expect(body.error.code).toBe("NOT_FOUND");
 	});
 
+	it("sends no details and not the requested id in a not-found body (6b, D8)", async () => {
+		const unknownId = randomUUID();
+
+		const thrown = await loader(await makeArgs(unknownId, tenantId)).catch(
+			(e: unknown) => e,
+		);
+
+		expect((thrown as Response).status).toBe(404);
+		const text = await (thrown as Response).text();
+		expect((JSON.parse(text) as ErrorResponse).error).not.toHaveProperty(
+			"details",
+		);
+		expect(text).not.toContain(unknownId);
+	});
+
 	it("throws a 404, not the other tenant's data, when the event belongs to a different tenant", async () => {
 		const id = await seedEventWithWorkflow(tenantId, specificHazardId);
 		const otherTenantId = await seedCountryAccount();
@@ -371,6 +387,29 @@ describe("Hazardous event detail route loader", () => {
 		executeSpy.mockRestore();
 	});
 
+	it("loads the French hazardous-events namespace before a 403 is thrown (6b, D5)", async () => {
+		const id = randomUUID();
+		const url = `http://localhost/fr/he-preview/${id}`;
+		mockGetCountryAccountsIdFromSession.mockResolvedValue(tenantId);
+		mockGetUserRoleFromSession.mockResolvedValue(undefined as never);
+		mockRequireUser.mockResolvedValue({} as never);
+		const context = await makeI18nContext(url);
+
+		const thrown = await loader({
+			request: new Request(url),
+			params: { lang: "fr", id },
+			context,
+		} as unknown as Parameters<typeof loader>[0]).catch((e: unknown) => e);
+
+		expect((thrown as Response).status).toBe(403);
+		const i18n = getInstance(context);
+		expect(i18n.language).toBe("fr");
+		expect(i18n.hasLoadedNamespace("hazardous-events")).toBe(true);
+		expect(i18n.getResource("fr", "hazardous-events", "title")).toBe(
+			"Événements dangereux",
+		);
+	});
+
 	it("calls requireUser before resolving the tenant (session gate runs first)", async () => {
 		const id = await seedEventWithWorkflow(tenantId, specificHazardId);
 
@@ -405,31 +444,167 @@ describe("Hazardous event detail route loader", () => {
 		executeSpy.mockRestore();
 	});
 
-	it("logs and rethrows a non-DomainError failure unmodified", async () => {
-		const id = await seedEventWithWorkflow(tenantId, specificHazardId);
+	/** Silences error logs, recording each call's argument and the active request traceId. */
+	async function spyOnErrorLog() {
 		const { getPinoLogger } =
 			await import("~/infrastructure/logging/PinoLogger.server");
-		const errorSpy = vi.spyOn(getPinoLogger(), "error");
+		const loggedTraceIds: (string | undefined)[] = [];
+		const loggedArgs: unknown[] = [];
+		const spy = vi.spyOn(getPinoLogger(), "error").mockImplementation((arg) => {
+			loggedArgs.push(arg);
+			loggedTraceIds.push(getRequestContext()?.traceId);
+		});
+		return { spy, loggedTraceIds, loggedArgs };
+	}
 
+	/** Runs the loader under a request context with `traceId`; the use case rejects with `failure`. */
+	async function loaderFailingWith(
+		failure: unknown,
+		traceId: string,
+	): Promise<{ thrown: unknown; url: string }> {
+		const id = await seedEventWithWorkflow(tenantId, specificHazardId);
+		const url = `http://localhost/en/he-preview/${id}`;
+		const context = await makeI18nContext(url);
 		const { GetHazardousEventByIdUseCase } =
 			await import("~/domains/hazardous-events/application/use-cases/GetHazardousEventById");
-		const dbError = new Error("DB connection lost");
-		const executeSpy = vi
-			.spyOn(testingModule.get(GetHazardousEventByIdUseCase), "execute")
-			.mockRejectedValueOnce(dbError);
+		vi.spyOn(
+			testingModule.get(GetHazardousEventByIdUseCase),
+			"execute",
+		).mockRejectedValueOnce(failure);
 
 		let thrown: unknown;
-		try {
-			await loader(await makeArgs(id, tenantId));
-		} catch (err) {
-			thrown = err;
-		}
+		await withRequestContext(
+			async () => {
+				const ctx = getRequestContext();
+				if (ctx) ctx.tenantId = tenantId;
+				try {
+					await loader({
+						request: new Request(url),
+						params: { lang: "en", id },
+						context,
+					} as unknown as Parameters<typeof loader>[0]);
+				} catch (err) {
+					thrown = err;
+				}
+			},
+			{ traceId },
+		);
+		return { thrown, url };
+	}
 
-		expect(thrown).toBe(dbError);
-		expect(errorSpy).toHaveBeenCalledTimes(1);
+	describe("non-DomainError failures (6b, D4)", () => {
+		beforeEach(() => {
+			mockGetUserRoleFromSession.mockResolvedValue("data-viewer" as never);
+			mockRequireUser.mockResolvedValue({} as never);
+		});
 
-		executeSpy.mockRestore();
-		errorSpy.mockRestore();
+		afterEach(() => {
+			vi.restoreAllMocks();
+		});
+
+		it("throws a 500 INTERNAL_ERROR envelope with the request traceId, no details and nothing from the error", async () => {
+			const log = await spyOnErrorLog();
+
+			const { thrown } = await loaderFailingWith(
+				new Error("DB connection lost"),
+				"trace-500",
+			);
+
+			expect(thrown).toBeInstanceOf(Response);
+			const response = thrown as Response;
+			expect(response.status).toBe(500);
+			const text = await response.text();
+			const body = JSON.parse(text) as ErrorResponse;
+			expect(body.success).toBe(false);
+			expect(body.error.code).toBe("INTERNAL_ERROR");
+			expect(body.error.traceId).toBe("trace-500");
+			expect(body.error.message).toBe(
+				"An unexpected error occurred. Please try again later.",
+			);
+			expect(typeof body.error.timestamp).toBe("string");
+			expect(body.error).not.toHaveProperty("details");
+			expect(text).not.toContain("DB connection lost");
+			expect(log.loggedTraceIds).toEqual(["trace-500"]);
+		});
+
+		it("logs the original error and the request URL exactly once", async () => {
+			const log = await spyOnErrorLog();
+			const dbError = new Error("DB connection lost");
+
+			const { url } = await loaderFailingWith(dbError, "trace-log");
+
+			expect(log.loggedArgs).toHaveLength(1);
+			expect(log.loggedArgs[0]).toMatchObject({ err: dbError, url });
+		});
+
+		it("propagates a thrown redirect Response unchanged without logging", async () => {
+			const log = await spyOnErrorLog();
+			const redirect = new Response(null, {
+				status: 302,
+				headers: { Location: "/en/somewhere" },
+			});
+
+			const { thrown } = await loaderFailingWith(redirect, "trace-302");
+
+			expect(thrown).toBe(redirect);
+			expect(log.loggedArgs).toEqual([]);
+		});
+
+		it("keeps each of two concurrent failing requests' own trace id", async () => {
+			await spyOnErrorLog();
+
+			const [a, b] = await Promise.all([
+				loaderFailingWith(new Error("a"), "trace-a"),
+				loaderFailingWith(new Error("b"), "trace-b"),
+			]);
+
+			const bodyA = (await (a.thrown as Response).json()) as ErrorResponse;
+			const bodyB = (await (b.thrown as Response).json()) as ErrorResponse;
+			expect(bodyA.error.traceId).toBe("trace-a");
+			expect(bodyB.error.traceId).toBe("trace-b");
+		});
+	});
+
+	it("serves concurrent malformed-id detail and edit requests each a 404 with its own trace id", async () => {
+		mockGetCountryAccountsIdFromSession.mockResolvedValue(tenantId);
+		mockGetUserRoleFromSession.mockResolvedValue("admin" as never);
+		mockRequireUser.mockResolvedValue({ user: { id: randomUUID() } } as never);
+		const run = async (
+			path: string,
+			id: string,
+			traceId: string,
+			call: (args: never) => Promise<unknown>,
+		) => {
+			const url = `http://localhost/en/he-preview/${path}`;
+			const context = await makeI18nContext(url);
+			let thrown: unknown;
+			await withRequestContext(
+				async () => {
+					try {
+						await call({
+							request: new Request(url),
+							params: { lang: "en", id },
+							context,
+						} as never);
+					} catch (err) {
+						thrown = err;
+					}
+				},
+				{ traceId },
+			);
+			return thrown as Response;
+		};
+
+		const [detail, edit] = await Promise.all([
+			run("not-a-uuid", "not-a-uuid", "trace-detail", loader),
+			run("edit/also-bad", "also-bad", "trace-edit", editLoader),
+		]);
+
+		expect([detail.status, edit.status]).toEqual([404, 404]);
+		const detailBody = (await detail.json()) as ErrorResponse;
+		const editBody = (await edit.json()) as ErrorResponse;
+		expect(detailBody.error.traceId).toBe("trace-detail");
+		expect(editBody.error.traceId).toBe("trace-edit");
 	});
 
 	it("rejects a session without ViewData with a 403 FORBIDDEN, without calling the use case", async () => {
@@ -458,13 +633,19 @@ describe("Hazardous event detail route loader", () => {
 		executeSpy.mockRestore();
 	});
 
-	// design.md Risk: IHazardousEventRepository.findById is a Drizzle uuid-column lookup -- a
-	// non-UUID string raises a raw Postgres 22P02 error (not a DomainError), surfacing as an
-	// unhandled 500, not a clean 404. Confirmed against the real DrizzleHazardousEventRepository
-	// behavior, not assumed.
-	it("propagates a raw error (not a clean 404) for a malformed, non-UUID id param", async () => {
-		await expect(
-			loader(await makeArgs("not-a-uuid", tenantId)),
-		).rejects.not.toBeInstanceOf(Response);
+	it("throws a 404 NOT_FOUND, with no SQL text, for a malformed, non-UUID id param", async () => {
+		let thrown: unknown;
+		try {
+			await loader(await makeArgs("not-a-uuid", tenantId));
+		} catch (err) {
+			thrown = err;
+		}
+
+		expect(thrown).toBeInstanceOf(Response);
+		const response = thrown as Response;
+		expect(response.status).toBe(404);
+		const text = await response.text();
+		expect((JSON.parse(text) as ErrorResponse).error.code).toBe("NOT_FOUND");
+		expect(text).not.toMatch(/select|Failed query/i);
 	});
 });

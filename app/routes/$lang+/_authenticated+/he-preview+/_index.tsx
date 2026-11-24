@@ -14,11 +14,15 @@ import { parsePagination } from "~/domains/hazardous-events/presentation/web/par
 import { parseHazardousEventListFilters } from "~/domains/hazardous-events/presentation/web/parseHazardousEventListFilters";
 import { resolveTenantId } from "~/domains/hazardous-events/presentation/web/resolveTenantId.server";
 import { throwHazardousEventLoaderError } from "~/domains/hazardous-events/presentation/web/throwHazardousEventLoaderError.server";
+import { HazardousEventErrorBoundary } from "~/domains/hazardous-events/presentation/web/HazardousEventErrorBoundary";
 import { requireViewDataPermission } from "~/domains/hazardous-events/presentation/web/requireViewDataPermission.server";
 import { MainContainer } from "~/frontend/container";
 import { getInstance } from "~/middleware/i18next.server";
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
+	// Loaded first so an error boundary for any failure below is translated.
+	await getInstance(context).loadNamespaces(["hazardous-events", "common"]);
+
 	// Order matters, in both lines below: requireUser (parallel-loader layout gap, design.md
 	// Decision 1), then resolveTenantId before requireViewDataPermission (see
 	// requireViewDataPermission.server.ts for why reversing the last two mis-fires a 403).
@@ -35,8 +39,6 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
 	const getHazardTaxonomyOptionsUseCase = getAppContext().get(
 		GetHazardTaxonomyOptionsUseCase,
 	);
-
-	await getInstance(context).loadNamespaces(["hazardous-events", "common"]);
 
 	try {
 		const [{ items, totalCount, unfilteredTotalCount }, taxonomyOptions] =
@@ -70,6 +72,8 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
 		});
 	}
 }
+
+export { HazardousEventErrorBoundary as ErrorBoundary };
 
 export default function HazardousEventListRoute() {
 	const data = useLoaderData<typeof loader>();

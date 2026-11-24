@@ -11,18 +11,20 @@ import { parseHazardousEventListFilters } from "~/domains/hazardous-events/prese
 import { resolveTenantId } from "~/domains/hazardous-events/presentation/web/resolveTenantId.server";
 import { requireEditDataPermission } from "~/domains/hazardous-events/presentation/web/requestAuthorizationGuards.server";
 import { throwHazardousEventLoaderError } from "~/domains/hazardous-events/presentation/web/throwHazardousEventLoaderError.server";
+import { HazardousEventErrorBoundary } from "~/domains/hazardous-events/presentation/web/HazardousEventErrorBoundary";
 import { MainContainer } from "~/frontend/container";
 import { getAppContext } from "~/init.server";
 import { getInstance } from "~/middleware/i18next.server";
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
+	// Loaded first so an error boundary for any failure below is translated.
+	await getInstance(context).loadNamespaces(["hazardous-events", "common"]);
+
 	// Same EditData gate as new.tsx/edit.$id.tsx -- the picker is only ever reachable from the
 	// create/edit form (design.md Decision 13).
 	const userSession = await requireUser({ request, params });
 	const tenantId = await resolveTenantId(request, params.lang ?? "en");
 	const role = await requireEditDataPermission({ request });
-
-	await getInstance(context).loadNamespaces(["hazardous-events", "common"]);
 
 	const searchParams = new URL(request.url).searchParams;
 	const { page, pageSize } = parsePagination(searchParams);
@@ -63,6 +65,8 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
 		});
 	}
 }
+
+export { HazardousEventErrorBoundary as ErrorBoundary };
 
 export default function HazardousEventPickerRoute() {
 	const data = useLoaderData<typeof loader>();
