@@ -76,8 +76,8 @@ import { ListHazardousEventAttachmentsUseCase } from "~/domains/hazardous-events
 import { DeleteHazardousEventAttachmentUseCase } from "~/domains/hazardous-events/application/use-cases/DeleteHazardousEventAttachment";
 import { DownloadHazardousEventAttachmentUseCase } from "~/domains/hazardous-events/application/use-cases/DownloadHazardousEventAttachment";
 
-import { parsePagination } from "./parsePagination";
-import { parseHazardousEventListFilters } from "./parseHazardousEventListFilters";
+import { parsePagination } from "./web/parsePagination";
+import { parseHazardousEventListFilters } from "./web/parseHazardousEventListFilters";
 import ContentRepeaterFileValidator from "~/components/ContentRepeater/FileValidator";
 
 // 422 for bodies vs. ZodValidationPipe's 400 default for :id (design.md Decision 4).

@@ -15,17 +15,47 @@ export const flexibleDateSchema = z
 			"Invalid date format: must be YYYY, YYYY-MM, or YYYY-MM-DD (zero-padded, valid calendar date)",
 	});
 
-export const hazardousEventAttachmentRequestSchema = z.object({
-	id: z
-		.string()
-		.uuid()
-		.default(() => crypto.randomUUID()),
-	title: z.string().min(1),
-	fileKey: z.string().min(1),
-	fileName: z.string().min(1),
-	fileType: z.string().min(1),
-	fileSize: z.number().int().nonnegative(),
-});
+const attachmentTagSchema = z
+	.array(z.object({ id: z.string().min(1), name: z.string().min(1) }))
+	.nullable()
+	.default(null);
+
+export const hazardousEventAttachmentRequestSchema = z.discriminatedUnion(
+	"kind",
+	[
+		z.object({
+			kind: z.literal("link"),
+			id: z
+				.string()
+				.uuid()
+				.default(() => crypto.randomUUID()),
+			title: z.string().min(1),
+			tag: attachmentTagSchema,
+			url: z.string().min(1),
+		}),
+		z.object({
+			kind: z.literal("existingFile"),
+			id: z
+				.string()
+				.uuid()
+				.default(() => crypto.randomUUID()),
+			title: z.string().min(1),
+			tag: attachmentTagSchema,
+			fileKey: z.string().min(1),
+		}),
+		z.object({
+			kind: z.literal("newFile"),
+			id: z
+				.string()
+				.uuid()
+				.default(() => crypto.randomUUID()),
+			title: z.string().min(1),
+			tag: attachmentTagSchema,
+			stagedFileName: z.string().min(1),
+			contentType: z.string().min(1),
+		}),
+	],
+);
 
 export const hazardousEventFieldValueRequestSchema = z.object({
 	hazardTypeFieldDefinitionId: z.string().uuid(),
