@@ -1877,12 +1877,7 @@
   {
     "id": "common.country",
     "translation": "Country",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:255"
-  },
-  {
-    "id": "common.country_instance",
-    "translation": "Country instance",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:249"
+    "description": "File: app/pages/SystemSettingsPage.tsx:274"
   },
   {
     "id": "common.country_type",
@@ -1917,7 +1912,7 @@
   {
     "id": "common.currency",
     "translation": "Currency",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:277"
+    "description": "File: app/pages/SystemSettingsPage.tsx:282"
   },
   {
     "id": "common.damages",
@@ -1977,7 +1972,7 @@
   {
     "id": "common.description",
     "translation": "Description",
-    "description": "File: app/pages/SectorsPage.tsx:190"
+    "description": "File: app/pages/SectorsPage.tsx:195"
   },
   {
     "id": "common.disabled",
@@ -2012,7 +2007,7 @@
   {
     "id": "common.edit",
     "translation": "Edit",
-    "description": "File: app/components/ContentRepeater/index.tsx:1701"
+    "description": "File: app/pages/SystemSettingsPage.tsx:359"
   },
   {
     "id": "common.edit_item",
@@ -2182,7 +2177,7 @@
   {
     "id": "common.language",
     "translation": "Language",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:273"
+    "description": "File: app/pages/SystemSettingsPage.tsx:253"
   },
   {
     "id": "common.last_name",
@@ -2197,7 +2192,7 @@
   {
     "id": "common.level",
     "translation": "Level",
-    "description": "File: app/pages/SectorsPage.tsx:187"
+    "description": "File: app/pages/SectorsPage.tsx:192"
   },
   {
     "id": "common.link",
@@ -2357,7 +2352,7 @@
   {
     "id": "common.no",
     "translation": "No",
-    "description": "File: app/frontend/components/delete-dialog.tsx:63"
+    "description": "File: app/pages/SystemSettingsPage.tsx:313"
   },
   {
     "id": "common.no_data",
@@ -2597,7 +2592,7 @@
   {
     "id": "common.required_information",
     "translation": "Required information",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:417"
+    "description": "Indicates required information on login form File: app/routes/$lang+/user+/accept-invite.tsx:224"
   },
   {
     "id": "common.required_parens",
@@ -2790,11 +2785,6 @@
     "description": "File: app/frontend/disaster-event/DisasterEventReviewStep.tsx:1221"
   },
   {
-    "id": "common.success",
-    "translation": "Success",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:198"
-  },
-  {
     "id": "common.successfully_saved",
     "translation": "Successfully saved",
     "description": "File: app/services/validationWorkflowRejectionService.ts:79"
@@ -2867,7 +2857,7 @@
   {
     "id": "common.type",
     "translation": "Type",
-    "description": "File: app/backend.server/models/losses.ts:356"
+    "description": "File: app/pages/SystemSettingsPage.tsx:278"
   },
   {
     "id": "common.unexpected_error",
@@ -3022,7 +3012,7 @@
   {
     "id": "common.yes",
     "translation": "Yes",
-    "description": "File: app/frontend/components/delete-dialog.tsx:61"
+    "description": "File: app/pages/SystemSettingsPage.tsx:312"
   },
   {
     "id": "content_repeater.btn_clear",
@@ -6237,7 +6227,7 @@
   {
     "id": "meta.access_management",
     "translation": "Access management",
-    "description": "File: app/routes/$lang+/settings+/access-mgmnt+/_layout.tsx:68"
+    "description": "File: app/routes/$lang+/settings+/access-mgmnt+/_layout.tsx:70"
   },
   {
     "id": "meta.change_password",
@@ -6331,8 +6321,8 @@
   },
   {
     "id": "meta.system_settings",
-    "translation": "System Settings",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:129"
+    "translation": "System settings",
+    "description": "File: app/routes/$lang+/settings+/system.tsx:120"
   },
   {
     "id": "meta.technical_specifications",
@@ -6937,7 +6927,7 @@
   {
     "id": "sectors.category",
     "translation": "Category",
-    "description": "File: app/pages/SectorsPage.tsx:107"
+    "description": "File: app/pages/SectorsPage.tsx:108"
   },
   {
     "id": "sectors.id",
@@ -6962,7 +6952,7 @@
   {
     "id": "sectors.sector",
     "translation": "Sector",
-    "description": "File: app/pages/SectorsPage.tsx:103"
+    "description": "File: app/pages/SectorsPage.tsx:104"
   },
   {
     "id": "sectors.select_sector",
@@ -6977,12 +6967,12 @@
   {
     "id": "sectors.sub_sector",
     "translation": "Sub-sector",
-    "description": "File: app/pages/SectorsPage.tsx:105"
+    "description": "File: app/pages/SectorsPage.tsx:106"
   },
   {
     "id": "sectors.type",
     "translation": "Type",
-    "description": "File: app/pages/SectorsPage.tsx:101"
+    "description": "File: app/pages/SectorsPage.tsx:102"
   },
   {
     "id": "session.expired_message",
@@ -7220,7 +7210,7 @@
   {
     "id": "settings.sectors.collapse_all",
     "translation": "Collapse all",
-    "description": "File: app/pages/SectorsPage.tsx:167"
+    "description": "File: app/pages/SectorsPage.tsx:172"
   },
   {
     "id": "settings.sectors.count_plural",
@@ -7245,92 +7235,157 @@
   {
     "id": "settings.sectors.empty_catalog",
     "translation": "No sectors available.",
-    "description": "File: app/pages/SectorsPage.tsx:121"
+    "description": "File: app/pages/SectorsPage.tsx:122"
   },
   {
     "id": "settings.sectors.empty_search",
     "translation": "No sectors match \"{query}\".",
-    "description": "File: app/pages/SectorsPage.tsx:114"
+    "description": "File: app/pages/SectorsPage.tsx:115"
   },
   {
     "id": "settings.sectors.expand_all",
     "translation": "Expand all",
-    "description": "File: app/pages/SectorsPage.tsx:157"
+    "description": "File: app/pages/SectorsPage.tsx:161"
   },
   {
     "id": "settings.sectors.search_placeholder",
     "translation": "Search sectors",
-    "description": "File: app/pages/SectorsPage.tsx:92"
+    "description": "File: app/pages/SectorsPage.tsx:93"
   },
   {
     "id": "settings.sectors.subtitle",
     "translation": "The sectors used to classify losses and damages. The list is the same for every country and cannot be changed here.",
-    "description": "File: app/pages/SectorsPage.tsx:135"
-  },
-  {
-    "id": "settings.system.2fa_totp_issuer_name",
-    "translation": "2FA/TOTP Issuer Name",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:312"
+    "description": "File: app/pages/SectorsPage.tsx:137"
   },
   {
     "id": "settings.system.application_url",
     "translation": "Application URL",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:304"
+    "description": "File: app/pages/SystemSettingsPage.tsx:257"
+  },
+  {
+    "id": "settings.system.authenticator_name",
+    "translation": "Name shown in authenticator apps",
+    "description": "File: app/pages/SystemSettingsPage.tsx:264"
+  },
+  {
+    "id": "settings.system.changes_next_signin",
+    "translation": "Changes apply the next time you sign in.",
+    "description": "File: app/pages/SystemSettingsPage.tsx:487"
   },
   {
     "id": "settings.system.delta_resilience_software_application_version",
     "translation": "DELTA Resilience version",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:345"
+    "description": "File: app/pages/SystemSettingsPage.tsx:321"
   },
   {
-    "id": "settings.system.edit_settings",
-    "translation": "Edit Settings",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:233"
+    "id": "settings.system.edit_instance_settings",
+    "translation": "Edit instance settings",
+    "description": "File: app/pages/SystemSettingsPage.tsx:403"
+  },
+  {
+    "id": "settings.system.error_instance_name_max_length",
+    "translation": "Instance name must be {max} characters or fewer.",
+    "description": "File: app/pages/SystemSettingsPage.tsx:202"
+  },
+  {
+    "id": "settings.system.error_instance_name_required",
+    "translation": "Enter an instance name.",
+    "description": "File: app/pages/SystemSettingsPage.tsx:197"
+  },
+  {
+    "id": "settings.system.error_language_required",
+    "translation": "Select a language.",
+    "description": "File: app/pages/SystemSettingsPage.tsx:212"
+  },
+  {
+    "id": "settings.system.group_country",
+    "translation": "Country",
+    "description": "File: app/pages/SystemSettingsPage.tsx:366"
+  },
+  {
+    "id": "settings.system.group_country_subtitle",
+    "translation": "Set when the instance was created. Contact UNDRR to change it.",
+    "description": "File: app/pages/SystemSettingsPage.tsx:370"
+  },
+  {
+    "id": "settings.system.group_email",
+    "translation": "Email",
+    "description": "File: app/pages/SystemSettingsPage.tsx:378"
+  },
+  {
+    "id": "settings.system.group_email_subtitle",
+    "translation": "Set on the server. How DELTA sends invitations and password emails.",
+    "description": "File: app/pages/SystemSettingsPage.tsx:382"
+  },
+  {
+    "id": "settings.system.group_instance",
+    "translation": "Instance",
+    "description": "File: app/pages/SystemSettingsPage.tsx:352"
   },
   {
     "id": "settings.system.host",
     "translation": "Host",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:369"
-  },
-  {
-    "id": "settings.system.instance_configuration",
-    "translation": "Instance configuration",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:294"
+    "description": "File: app/pages/SystemSettingsPage.tsx:295"
   },
   {
     "id": "settings.system.instance_name",
-    "translation": "Instance Name",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:300"
+    "translation": "Instance name",
+    "description": "File: app/pages/SystemSettingsPage.tsx:246"
+  },
+  {
+    "id": "settings.system.instance_name_help",
+    "translation": "Shown in the site selector and in emails.",
+    "description": "File: app/pages/SystemSettingsPage.tsx:456"
+  },
+  {
+    "id": "settings.system.language_help",
+    "translation": "The default language for everyone on this instance.",
+    "description": "File: app/pages/SystemSettingsPage.tsx:479"
+  },
+  {
+    "id": "settings.system.not_set",
+    "translation": "Not set",
+    "description": "File: app/pages/SystemSettingsPage.tsx:239"
   },
   {
     "id": "settings.system.port",
     "translation": "Port",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:373"
+    "description": "File: app/pages/SystemSettingsPage.tsx:299"
   },
   {
-    "id": "settings.system.secure",
-    "translation": "Secure",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:377"
+    "id": "settings.system.save_failed",
+    "translation": "Could not save settings. Please try again.",
+    "description": "File: app/routes/$lang+/settings+/system.tsx:102"
+  },
+  {
+    "id": "settings.system.secure_connection",
+    "translation": "Secure connection",
+    "description": "File: app/pages/SystemSettingsPage.tsx:307"
+  },
+  {
+    "id": "settings.system.select_language",
+    "translation": "Select a language",
+    "description": "File: app/pages/SystemSettingsPage.tsx:475"
   },
   {
     "id": "settings.system.software",
     "translation": "Software",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:340"
+    "description": "File: app/pages/SystemSettingsPage.tsx:390"
   },
   {
-    "id": "settings.system.system_email_routing_configuration",
-    "translation": "Email routing",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:358"
+    "id": "settings.system.subtitle",
+    "translation": "How this instance of DELTA Resilience is set up.",
+    "description": "File: app/pages/SystemSettingsPage.tsx:343"
+  },
+  {
+    "id": "settings.system.toast_saved",
+    "translation": "Settings saved. They apply the next time you sign in.",
+    "description": "File: app/pages/SystemSettingsPage.tsx:150"
   },
   {
     "id": "settings.system.transport",
     "translation": "Transport",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:364"
-  },
-  {
-    "id": "settings.system.updated_successfully",
-    "translation": "System settings updated successfully. Changes will take effect after you login again.",
-    "description": "File: app/routes/$lang+/settings+/system.tsx:199"
+    "description": "File: app/pages/SystemSettingsPage.tsx:289"
   },
   {
     "id": "sign_in",
