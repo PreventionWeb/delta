@@ -2,7 +2,7 @@
 
 Design rules for anyone building DELTA UI, human or AI-assisted ("vibe coding"). Read this before writing UI code. The code standards are in [AGENTS.md](AGENTS.md); this file covers the visual and interaction side only.
 
-Status: draft v0.7.2, written from `tokens.json` v0.7.2. Owner: the DELTA design lead (UNDRR, IDTS unit). No items are pending; the earlier proposals were agreed on 2026-11-09, the added components on 2026-11-10, WCAG 2.2 on 2026-11-11 and the table, pagination and tree list rules on 2026-11-12.
+Status: draft v0.7.3, written from `tokens.json` v0.7.3. Owner: the DELTA design lead (UNDRR, IDTS unit). No items are pending; the earlier proposals were agreed on 2026-11-09, the added components on 2026-11-10, WCAG 2.2 on 2026-11-11 and the table, pagination and tree list rules on 2026-11-12.
 
 ## Source of truth
 
@@ -118,7 +118,8 @@ Built on React Aria. Figma has every component below with its states. Components
 - **Pagination**: range text left ("Showing 1-25 of 64 users"); on the right a "Rows per page" select with 25, 50 and 100, then previous and next icon buttons with "Page x of y". Default is 25 rows. Built from Select and Button.
 - **Dialog**: 480px (640 large, full-screen on mobile), radius-xl, shadow-lg, scrim `--overlay`, 24px padding (8px under the header, 24px above the footer), section-title header with close button, footer actions right-aligned with 8px gap. Destructive actions use the destructive button and name the object.
 - **Dialog use**: add, edit, view, delete and import open as dialogs on the list page, not as separate pages. Errors show under the field they belong to and clear when the field is edited. After saving, the dialog closes and a toast confirms it.
-- **Toast**: 320px, bottom right, `--toast-bg` with white text, icon in status colour. Auto-dismiss 4s, critical stays until dismissed, stack up to 3.
+- **Dialog dismiss**: clicking outside a dialog does not close it, so nobody loses what they typed. A dialog closes only with its Cancel button, its close button or the Escape key. Applies to all dialogs.
+- **Toast**: 320px, bottom right, `--toast-bg` with white text, icon in status colour (success uses `--good-on-dark` so it reads on the dark background; the other statuses are not agreed yet). Auto-dismiss 4s, critical stays until dismissed, stack up to 3.
 - **Checkbox** 16px radius 4, **radio** 16px, **switch** 32x18, **date picker** (input with calendar button, popover calendar with 32px day cells, selected = accent fill).
 - **Top nav**: 48px on the page colour, subtle bottom border. Left: DELTA wordmark plus instance selector (bordered select trigger). Right: Data, Analysis, About, Settings (quiet pill triggers, 32px, `--fg-2`; hover/open `--inset` at 55%; current `--inset`; no underline, no accent) plus avatar menu. Dropdown items are label only. Below 768px: hamburger, full-height menu, groups separated by 1px `--border` dividers, group titles section-title, items 14px `--fg-2`. React Aria MenuBar, MenuTrigger and Menu.
 

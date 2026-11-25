@@ -32,9 +32,8 @@ export function ToastRegion({
 					className="flex items-start gap-3 rounded-lg bg-toast px-4 py-3 text-body text-fg-inverse shadow-lg"
 				>
 					{toast.tone === "success" ? (
-						// Pending upstream token --good-on-dark (unisdr/delta-design#1); --good-bg provides high contrast on --toast-bg.
 						<CheckCircle2
-							className="h-4 w-4 shrink-0 text-good-bg"
+							className="h-4 w-4 shrink-0 text-good-on-dark"
 							aria-hidden="true"
 						/>
 					) : (
