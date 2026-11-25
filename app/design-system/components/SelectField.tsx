@@ -7,6 +7,7 @@ import {
 	Popover,
 	Select as AriaSelect,
 	SelectValue,
+	Text,
 } from "react-aria-components";
 import { Check, ChevronDown } from "lucide-react";
 
@@ -80,6 +81,7 @@ export interface FormSelectProps {
 	value: string | null;
 	onChange: (value: string | null) => void;
 	placeholder: string;
+	helpText?: string;
 	errorMessage?: string;
 	isRequired?: boolean;
 	requiredLabel?: string;
@@ -96,6 +98,7 @@ export function FormSelect({
 	value,
 	onChange,
 	placeholder,
+	helpText,
 	errorMessage,
 	isRequired = false,
 	requiredLabel = "(required)",
@@ -156,6 +159,11 @@ export function FormSelect({
 					aria-hidden="true"
 				/>
 			</AriaButton>
+			{helpText && !errorMessage ? (
+				<Text slot="description" className="text-label text-fg-2">
+					{helpText}
+				</Text>
+			) : null}
 			{errorMessage ? (
 				<FieldError className="text-label text-crit">{errorMessage}</FieldError>
 			) : null}

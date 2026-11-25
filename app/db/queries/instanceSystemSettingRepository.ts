@@ -52,4 +52,27 @@ export const InstanceSystemSettingRepository = {
 			.execute()
 			.then((result) => result[0] || null);
 	},
+
+	updateByCountryAccountId: async (
+		countryAccountId: string,
+		data: Partial<
+			Omit<
+				InsertInstanceSystemSettings,
+				"id" | "countryAccountsId" | "dtsInstanceCtryIso3" | "countryName"
+			>
+		>,
+		tx?: Tx,
+	): Promise<SelectInstanceSystemSettings | null> => {
+		return (tx ?? dr)
+			.update(instanceSystemSettingsTable)
+			.set({
+				...data,
+			})
+			.where(
+				eq(instanceSystemSettingsTable.countryAccountsId, countryAccountId),
+			)
+			.returning()
+			.execute()
+			.then((result) => result[0] || null);
+	},
 };

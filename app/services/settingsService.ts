@@ -1,7 +1,10 @@
 import { getAvailableLanguages } from "~/backend.server/translations";
 import { dr } from "~/db.server";
 import { InstanceSystemSettingRepository } from "~/db/queries/instanceSystemSettingRepository";
+import { INSTANCE_NAME_MAX_LENGTH } from "~/frontend/systemSettingsAction";
 import { configSupportedLanguages } from "~/utils/config";
+
+export { INSTANCE_NAME_MAX_LENGTH };
 
 export class SettingsValidationError extends Error {
 	errors: Record<string, string>;
@@ -14,72 +17,48 @@ export class SettingsValidationError extends Error {
 
 export const SettingsService = {
 	async updateSettings(
-		id: string | null,
-		// privacyUrl: string | null,
-		// termsUrl: string | null,
-		// websiteLogoUrl: string,
+		countryAccountsId: string | null,
 		instanceName: string,
-		// isApprovedRecordsPublic: boolean,
-		// totpIssuer: string,
 		language: string,
 	) {
 		const errors: Record<string, string> = {};
+		const trimmedName = (instanceName ?? "").trim();
 
-		if (!id) {
-			errors.id = "Instance system settings Id is required";
+		if (!countryAccountsId) {
+			errors.countryAccountsId = "Country account context is required";
 		}
 
-		if (!instanceName || instanceName.trim().length === 0) {
-			errors.instanceName = "Instance name is required";
+		if (trimmedName.length === 0) {
+			errors.instanceName = "Enter an instance name.";
+		} else if (trimmedName.length > INSTANCE_NAME_MAX_LENGTH) {
+			errors.instanceName = `Instance name must be ${INSTANCE_NAME_MAX_LENGTH} characters or fewer.`;
 		}
-
-		// if (!totpIssuer || totpIssuer.trim().length === 0) {
-		// 	errors.totpIssuer = "Totp Issuer is required";
-		// }
-
-		// if (!privacyUrl || privacyUrl.trim().length === 0) {
-		// 	privacyUrl = null;
-		// }
-
-		// if (!termsUrl || termsUrl.trim().length === 0) {
-		// 	termsUrl = null;
-		// }
-
-		// if (
-		// 	isApprovedRecordsPublic === null ||
-		// 	isApprovedRecordsPublic === undefined
-		// ) {
-		// 	errors.approvedRecordsArePublic =
-		// 		"Approved records visibility is required";
-		// }
 
 		const allowedLanguages = configSupportedLanguages(getAvailableLanguages());
 		if (!language || !allowedLanguages.includes(language)) {
-			errors.language = "Language is required and must be supported";
+			errors.language = "Select a supported language.";
 		}
 
 		if (Object.keys(errors).length > 0) {
 			throw new SettingsValidationError(errors);
 		}
 
-		// id is guaranteed to be non-null after validation
-		const idNonNull = id as string;
+		const tenantId = countryAccountsId as string;
 
 		return dr.transaction(async (tx) => {
 			const instanceSystemSettings =
-				await InstanceSystemSettingRepository.update(
-					idNonNull,
+				await InstanceSystemSettingRepository.updateByCountryAccountId(
+					tenantId,
 					{
-						// footerUrlPrivacyPolicy: privacyUrl,
-						// footerUrlTermsConditions: termsUrl,
-						// websiteLogo: websiteLogoUrl,
-						websiteName: instanceName,
-						// approvedRecordsArePublic: isApprovedRecordsPublic,
-						// totpIssuer,
+						websiteName: trimmedName,
 						language,
 					},
 					tx,
 				);
+
+			if (!instanceSystemSettings) {
+				throw new Error("Instance system settings not found for tenant");
+			}
 
 			return { instanceSystemSettings };
 		});

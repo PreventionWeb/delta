@@ -46,7 +46,7 @@ describe("Albanian language selection persistence", () => {
 		expect(created!.language).toBe("en"); // default before selecting Albanian
 
 		const { instanceSystemSettings } = await SettingsService.updateSettings(
-			created!.id,
+			countryAccountsId,
 			"Albania DELTA",
 			"sq",
 		);
@@ -71,14 +71,14 @@ describe("Albanian language selection persistence", () => {
 	it("keeps a previously persisted Albanian selection when unrelated settings are updated", async () => {
 		const countryAccountsId = await insertCountryAccount();
 
-		const created = await InstanceSystemSettingRepository.create({
+		await InstanceSystemSettingRepository.create({
 			countryAccountsId,
 			websiteName: "Albania DELTA",
 			language: "sq",
 		});
 
 		await SettingsService.updateSettings(
-			created!.id,
+			countryAccountsId,
 			"Albania DELTA renamed",
 			"sq",
 		);
@@ -93,13 +93,13 @@ describe("Albanian language selection persistence", () => {
 
 	it("accepts zh as a tenant default language, previously excluded by the narrower availableLanguagesWhiteList", async () => {
 		const countryAccountsId = await insertCountryAccount();
-		const created = await InstanceSystemSettingRepository.create({
+		await InstanceSystemSettingRepository.create({
 			countryAccountsId,
 			websiteName: "China DELTA",
 		});
 
 		const { instanceSystemSettings } = await SettingsService.updateSettings(
-			created!.id,
+			countryAccountsId,
 			"China DELTA",
 			"zh",
 		);
@@ -114,13 +114,13 @@ describe("Albanian language selection persistence", () => {
 
 	it("rejects an unsupported language so only a supported Albanian selection can be persisted", async () => {
 		const countryAccountsId = await insertCountryAccount();
-		const created = await InstanceSystemSettingRepository.create({
+		await InstanceSystemSettingRepository.create({
 			countryAccountsId,
 			websiteName: "Albania DELTA",
 		});
 
 		await expect(
-			SettingsService.updateSettings(created!.id, "Albania DELTA", "xx"),
+			SettingsService.updateSettings(countryAccountsId, "Albania DELTA", "xx"),
 		).rejects.toBeInstanceOf(SettingsValidationError);
 
 		const fromDb =
