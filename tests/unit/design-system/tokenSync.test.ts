@@ -32,6 +32,7 @@ const REQUIRED_SEMANTIC_TOKENS = [
 	"--good",
 	"--good-bg",
 	"--good-border",
+	"--good-on-dark",
 	"--warn",
 	"--warn-bg",
 	"--warn-border",

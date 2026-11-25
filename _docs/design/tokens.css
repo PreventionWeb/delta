@@ -1,4 +1,4 @@
-/* DELTA design tokens - generated from tokens.json v0.7.2. Do not edit by hand: change tokens.json, then regenerate.
+/* DELTA design tokens - generated from tokens.json v0.7.3. Do not edit by hand: change tokens.json, then regenerate.
    Components use the semantic tokens only. Primitives are listed for reference.
    Light theme only: no dark tokens have been agreed. */
 :root {
@@ -39,6 +39,7 @@
   --info-border: #C8DCF0;
   --focus-ring: #2D6FA3;  /* 2px solid, 2px offset */
   --toast-bg: #1E273B;  /* neutral-900 */
+  --good-on-dark: #8FD3AE;  /* toast success icon, green-300 */
   /* Spacing (4px base) */
   --space-1: 4px;
   --space-2: 8px;
@@ -107,6 +108,7 @@
   --color-accent-1100: #040F18;
   --color-green-100: #E6F4EC;
   --color-green-200: #C0E4CE;
+  --color-green-300: #8FD3AE;
   --color-green-500: #1D8F56;
   --color-green-600: #146B40;
   --color-green-700: #0E4F2F;

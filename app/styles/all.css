@@ -29,6 +29,7 @@
 	--color-good: var(--good);
 	--color-good-bg: var(--good-bg);
 	--color-good-border: var(--good-border);
+	--color-good-on-dark: var(--good-on-dark);
 	--color-warn: var(--warn);
 	--color-warn-bg: var(--warn-bg);
 	--color-warn-border: var(--warn-border);
