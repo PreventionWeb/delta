@@ -376,21 +376,21 @@ currently-selected option as its own chip with a control to remove it — matchi
 
 ### Requirement: DELTA Design System v0.7.2 React Aria UI primitives use semantic tokens only
 
-Reusable v0.7.2 primitives under `app/design-system/ui/` SHALL use `react-aria-components`, Tailwind CSS v4, `lucide-react`, and semantic tokens from `_docs/design/tokens.css` only (no hex values, `--color-*` primitives, PrimeReact, or `app/domains/*` imports), leaving `app/design-system/components/` unchanged.
+Reusable v0.7.2 primitives under `app/design-system/components/` (exported from `app/design-system/components/index.ts`) SHALL use `react-aria-components`, Tailwind CSS v4, `lucide-react`, and semantic tokens from `_docs/design/tokens.css` only (no hex values, `--color-*` primitives, PrimeReact, or `app/domains/*` imports), coexisting alongside transitional Phase 6a/6h primitives such as `LegacyButton` until those legacy primitives are retired.
 
 #### Scenario: Primitives pass static design-system compliance checks
 
-- **WHEN** files under `app/design-system/ui/` are inspected by `yarn check:design-system`
+- **WHEN** files under `app/design-system/components/` are inspected by `yarn check:design-system` and `tests/unit/design-system/components/imports.test.ts`
 - **THEN** zero hardcoded hex colors, zero `--color-*` primitive references, zero PrimeReact imports, and zero `app/domains/*` imports MUST be reported
 
 #### Scenario: Transitional Phase 6a/6h components remain intact
 
 - **WHEN** existing `app/design-system/components/` tests run
-- **THEN** all existing `Table`, `Select`, `Combobox`, `Checkbox`, `DateRangePicker`, and `Link` tests MUST continue to pass unchanged
+- **THEN** all existing `LegacyButton`, `Table`, `Select`, `Combobox`, `Checkbox`, `DateRangePicker`, and `Link` tests MUST continue to pass unchanged
 
 ### Requirement: ModalDialog primitive enforces non-backdrop dismissal and focus trapping
 
-The `ModalDialog` primitive under `app/design-system/ui/ModalDialog.tsx` SHALL use React Aria `ModalOverlay`, `Modal`, and `Dialog` with `isDismissable={false}` and `isKeyboardDismissDisabled={false}` so modals close only via Escape, the header close button, or explicit footer actions, and never via outside backdrop clicks.
+The `ModalDialog` primitive under `app/design-system/components/ModalDialog.tsx` SHALL use React Aria `ModalOverlay`, `Modal`, and `Dialog` with `isDismissable={false}` and `isKeyboardDismissDisabled={false}` so modals close only via Escape, the header close button, or explicit footer actions, and never via outside backdrop clicks.
 
 #### Scenario: ModalDialog ignores backdrop click and closes on Escape
 
@@ -401,7 +401,7 @@ The `ModalDialog` primitive under `app/design-system/ui/ModalDialog.tsx` SHALL u
 
 ### Requirement: StatusIndicator primitive pairs a semantic dot with visible text
 
-The `StatusIndicator` primitive under `app/design-system/ui/StatusIndicator.tsx` SHALL render an 8px circular indicator dot alongside visible sentence-case text so color is never the sole carrier of status meaning.
+The `StatusIndicator` primitive under `app/design-system/components/StatusIndicator.tsx` SHALL render an 8px circular indicator dot alongside visible sentence-case text so color is never the sole carrier of status meaning.
 
 #### Scenario: StatusIndicator renders dot and text for positive and warning tones
 
@@ -426,7 +426,7 @@ The `SortableTable` primitive SHALL render a React Aria `Table` with sortable co
 
 ### Requirement: Callout primitive renders semantic-token status banners with accessible landmarks
 
-The `Callout` primitive under `app/design-system/ui/Callout.tsx` SHALL render a semantic-token status banner supporting `tone` values `"success"`, `"error"`, `"info"`, and `"warning"`, an optional `title`, body `children`, and a decorative Lucide status icon (`aria-hidden="true"`), using `role="alert"` for `"error"` banners and `role="status"` for non-error banners without any hardcoded hex colors or `--color-*` primitive tokens.
+The `Callout` primitive under `app/design-system/components/Callout.tsx` SHALL render a semantic-token status banner supporting `tone` values `"success"`, `"error"`, `"info"`, and `"warning"`, an optional `title`, body `children`, and a decorative Lucide status icon (`aria-hidden="true"`), using `role="alert"` for `"error"` banners and `role="status"` for non-error banners without any hardcoded hex colors or `--color-*` primitive tokens.
 
 #### Scenario: Success callout renders title, body, and status role
 
@@ -442,7 +442,7 @@ The `Callout` primitive under `app/design-system/ui/Callout.tsx` SHALL render a 
 
 ### Requirement: TextField primitive supports read-only, autofocus, and focus callbacks
 
-The `TextField` primitive under `app/design-system/ui/TextField.tsx` SHALL support optional `isReadOnly`, `autoFocus`, and `onFocus` props so read-only copyable fields (such as newly created API keys) can render non-editable text that auto-selects on focus and modal forms can focus their initial field on open.
+The `TextField` primitive under `app/design-system/components/TextField.tsx` SHALL support optional `isReadOnly`, `autoFocus`, and `onFocus` props so read-only copyable fields (such as newly created API keys) can render non-editable text that auto-selects on focus and modal forms can focus their initial field on open.
 
 #### Scenario: Read-only TextField prevents editing and invokes onFocus
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderToString } from "react-dom/server";
-import { Button } from "./Button";
+import { LegacyButton as Button } from "./LegacyButton";
 
 // Node tier -- non-interactive render only (matches Card.tsx's own test-friendly simplicity).
 // This is the design-system component family's first test file (design.md Decision 12).

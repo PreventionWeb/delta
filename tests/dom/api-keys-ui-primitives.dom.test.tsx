@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { Callout, TextField } from "~/design-system/ui";
+import { Callout, TextField } from "~/design-system/components";
 
 describe("Callout", () => {
 	it("renders success tone with role=status, title, and body", () => {

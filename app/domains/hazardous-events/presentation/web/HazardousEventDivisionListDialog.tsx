@@ -10,7 +10,7 @@ import {
 	type Selection,
 } from "react-aria-components";
 import { Dialog } from "~/design-system/components/Dialog";
-import { Button } from "~/design-system/components/Button";
+import { LegacyButton as Button } from "~/design-system/components/LegacyButton";
 import {
 	collectParentIds,
 	filterDivisionTree,

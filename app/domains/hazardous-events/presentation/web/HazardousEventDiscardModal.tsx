@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Dialog } from "~/design-system/components/Dialog";
-import { Button } from "~/design-system/components/Button";
+import { LegacyButton as Button } from "~/design-system/components/LegacyButton";
 
 export interface HazardousEventDiscardModalProps {
 	visible: boolean;

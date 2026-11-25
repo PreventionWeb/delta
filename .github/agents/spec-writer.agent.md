@@ -172,8 +172,8 @@ Proceed only when all artifacts required for apply (`applyRequires`) show `statu
   3. **Required UI Design Sections (for any presentation or interaction change)**:
      - **Affected routes and presentation components**: Exact route modules and component files.
      - **Selected design tokens and UI components**: Semantic CSS tokens (`var(--fg)`,
-       `var(--accent)`, spacing scale, typography roles) and React Aria / Lucide / Recharts
-       components to use.
+       `var(--accent)`, spacing scale, typography roles) and reusable React Aria / Lucide / Recharts
+       components under `app/design-system/components/` (`~/design-system/components`).
      - **Content and interaction ground-truth checklist**:
        - field, column, and action order;
        - sorting, filtering, and pagination defaults;

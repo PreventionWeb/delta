@@ -55,7 +55,9 @@ context: |
     (feature-specific prototypes demonstrating approved application of the DELTA Design System).
   - Target UI stack for new or migrated screens: React Aria Components (accessible component
     foundation), Tailwind CSS v4, Lucide React, Recharts, semantic design tokens, and WCAG 2.2
-    Level AA compliance.
+    Level AA compliance. All reusable React Aria design-system primitives MUST live under
+    app/design-system/components/ (exported from app/design-system/components/index.ts, imported via
+    ~/design-system/components) — do not create a separate app/design-system/ui/ directory.
   - Coexistence during migration: legacy custom CSS (dts-*, mg-*, formScreen()) and interim
     PrimeReact screens coexist with new React Aria screens. Every change must declare its
     ui-classification as react-aria, legacy-exempt, or non-visual.

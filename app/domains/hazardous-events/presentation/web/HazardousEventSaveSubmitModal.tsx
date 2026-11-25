@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ValidatorCandidate } from "~/domains/validation-workflow/application/ports/IValidatorCandidateRepository";
 import { Dialog } from "~/design-system/components/Dialog";
-import { Button } from "~/design-system/components/Button";
+import { LegacyButton as Button } from "~/design-system/components/LegacyButton";
 import { Checkbox } from "~/design-system/components/Checkbox";
 import { MultiSelectCombobox } from "~/design-system/components/MultiSelectCombobox";
 
