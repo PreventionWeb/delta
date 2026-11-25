@@ -12,7 +12,7 @@ import {
 	TextField,
 	ToastRegion,
 	Tooltip,
-} from "~/design-system/ui";
+} from "~/design-system/components";
 
 beforeAll(() => {
 	if (!Element.prototype.scrollTo) {

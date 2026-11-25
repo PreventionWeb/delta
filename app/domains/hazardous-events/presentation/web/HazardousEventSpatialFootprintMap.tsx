@@ -23,7 +23,7 @@ import {
 } from "./spatialFootprintGeometry";
 import { searchLocation } from "./locationSearch";
 import { Dialog } from "~/design-system/components/Dialog";
-import { Button } from "~/design-system/components/Button";
+import { LegacyButton as Button } from "~/design-system/components/LegacyButton";
 
 export interface HazardousEventSpatialFootprintMapProps {
 	geometries: readonly unknown[];

@@ -1,67 +1,77 @@
-import { Button as AriaButton } from "react-aria-components";
 import type { ReactNode } from "react";
+import {
+	Button as AriaButton,
+	type ButtonProps as AriaButtonProps,
+} from "react-aria-components";
+import { Loader2 } from "lucide-react";
 
-export interface ButtonProps {
-	/** `system`/`system-primary`/`icon` reuse legacy's own button classes; `accent*`/
-	 * `muted-outline` reproduce legacy's item-dialog buttons in Tailwind palette classes. */
-	variant:
-		| "primary"
-		| "outline"
-		| "system"
-		| "system-primary"
-		| "icon"
-		| "accent"
-		| "accent-outline"
-		| "muted-outline";
-	type?: "button" | "submit";
-	disabled?: boolean;
-	autoFocus?: boolean;
-	onPress?: () => void;
-	children: ReactNode;
-	/** For an icon-only button whose visible content isn't its accessible name. */
-	"aria-label"?: string;
-	/** Caller's own layout utilities, e.g. squared corners inside an input group. */
+export type ButtonVariant =
+	| "primary"
+	| "secondary"
+	| "ghost"
+	| "destructive"
+	| "icon";
+
+export type ButtonSize = "sm" | "md" | "lg";
+
+export interface ButtonProps extends Omit<
+	AriaButtonProps,
+	"children" | "className"
+> {
+	variant?: ButtonVariant;
+	size?: ButtonSize;
+	isLoading?: boolean;
 	className?: string;
-	/** React Aria slot, e.g. "chevron" for a Tree row's expand toggle. */
-	slot?: string;
+	children: ReactNode;
 }
 
-const ITEM_DIALOG_BASE =
-	"inline-flex cursor-pointer items-center justify-center gap-2 rounded-md border px-5 py-3 text-base font-bold disabled:cursor-not-allowed disabled:opacity-60";
+const VARIANT_CLASSES: Record<ButtonVariant, string> = {
+	primary:
+		"bg-accent text-fg-inverse data-[hovered]:bg-accent-hover data-[pressed]:bg-accent-active data-[disabled]:bg-accent-disabled data-[disabled]:text-fg-inverse",
+	secondary:
+		"bg-surface text-fg border border-control data-[hovered]:border-fg-2 data-[hovered]:bg-inset/55 data-[pressed]:bg-inset data-[disabled]:bg-inset data-[disabled]:text-fg-3 data-[disabled]:border-border",
+	ghost:
+		"bg-transparent text-fg-2 data-[hovered]:bg-inset/55 data-[hovered]:text-fg data-[pressed]:bg-inset data-[disabled]:text-fg-3",
+	destructive:
+		"bg-crit text-fg-inverse data-[hovered]:bg-crit-hover data-[pressed]:bg-crit-hover data-[disabled]:bg-accent-disabled data-[disabled]:text-fg-inverse",
+	icon: "bg-transparent text-fg-2 data-[hovered]:bg-inset data-[hovered]:text-fg data-[pressed]:bg-inset data-[disabled]:text-fg-3 data-[disabled]:bg-transparent",
+};
 
-const VARIANT_CLASS = {
-	primary: "dts-button dts-button--primary",
-	outline: "dts-button dts-button--outline",
-	system: "mg-button mg-button-system",
-	"system-primary": "mg-button mg-button-primary",
-	icon: "inline-flex cursor-pointer",
-	accent: `${ITEM_DIALOG_BASE} border-blue-500 bg-blue-500 text-white enabled:hover:border-blue-600 enabled:hover:bg-blue-600`,
-	"accent-outline": `${ITEM_DIALOG_BASE} border-blue-500 bg-transparent text-blue-500 enabled:hover:bg-blue-500/5`,
-	"muted-outline": `${ITEM_DIALOG_BASE} border-slate-500 bg-transparent text-slate-500 enabled:hover:bg-slate-500/5`,
-} as const;
+const SIZE_CLASSES: Record<ButtonSize, string> = {
+	sm: "h-7 px-3 text-body",
+	md: "h-8 px-3 text-body",
+	lg: "h-10 px-4 text-body",
+};
 
-// Wraps RAC's Button -- a real native <button> (design.md Decision 12).
 export function Button({
-	variant,
-	type = "button",
-	disabled = false,
-	autoFocus,
-	onPress,
-	children,
-	"aria-label": ariaLabel,
+	variant = "secondary",
+	size = "md",
+	isLoading = false,
+	isDisabled,
 	className,
-	slot,
+	children,
+	...props
 }: ButtonProps) {
+	const isIcon = variant === "icon";
+	const disabled = Boolean(isDisabled || isLoading);
+
 	return (
 		<AriaButton
-			type={type}
+			{...props}
 			isDisabled={disabled}
-			autoFocus={autoFocus}
-			onPress={onPress}
-			aria-label={ariaLabel}
-			slot={slot}
-			className={[VARIANT_CLASS[variant], className].filter(Boolean).join(" ")}
+			className={[
+				"inline-flex items-center justify-center gap-2 rounded-md font-normal leading-none transition-colors select-none cursor-pointer data-[disabled]:cursor-not-allowed",
+				"data-[focus-visible]:outline-2 data-[focus-visible]:outline-offset-2 data-[focus-visible]:outline-[var(--focus-ring)]",
+				isIcon ? "h-8 w-8 p-0" : SIZE_CLASSES[size],
+				VARIANT_CLASSES[variant],
+				className,
+			]
+				.filter(Boolean)
+				.join(" ")}
 		>
+			{isLoading ? (
+				<Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />
+			) : null}
 			{children}
 		</AriaButton>
 	);

@@ -22,7 +22,7 @@ import {
 	type ToastItem,
 	ToastRegion,
 	Tooltip,
-} from "~/design-system/ui";
+} from "~/design-system/components";
 import type { ApiKeyActionResult } from "~/frontend/apiKeyAction";
 import { ViewContext } from "~/frontend/context";
 import type { loader } from "~/routes/$lang+/settings+/api-key+/_layout";

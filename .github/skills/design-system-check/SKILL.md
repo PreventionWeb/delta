@@ -64,7 +64,8 @@ Run `yarn check:design-system --change "<name>"` first, then verify every item b
 
 - [ ] **React Aria Components foundation**: New or migrated interactive widgets (`Button`, `Table`,
       `Select`, `ComboBox`, `Checkbox`, `Dialog`, `Modal`, `Tabs`, `DatePicker`, `Menu`, etc.) are
-      built on `react-aria-components`.
+      built on `react-aria-components`, and reusable primitives live under
+      `app/design-system/components/` (imported via `~/design-system/components`).
 - [ ] **No new PrimeReact dependency**: Zero imports from `primereact` or `primeicons` in any
       `react-aria` classified change.
 - [ ] **Lucide React iconography**: Icons use `lucide-react` at the approved sizes and stroke

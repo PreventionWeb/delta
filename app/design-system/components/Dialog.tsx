@@ -5,7 +5,7 @@ import {
 	Modal,
 	ModalOverlay,
 } from "react-aria-components";
-import { Button } from "./Button";
+import { LegacyButton as Button } from "./LegacyButton";
 
 export interface DialogProps {
 	isOpen: boolean;

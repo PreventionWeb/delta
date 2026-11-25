@@ -24,7 +24,7 @@ import {
 	type ToastItem,
 	ToastRegion,
 	Tooltip,
-} from "~/design-system/ui";
+} from "~/design-system/components";
 import { ViewContext } from "~/frontend/context";
 import type { AccessManagementActionResult } from "~/frontend/user/accessManagementAction";
 import { getCountryRole, getCountryRoles } from "~/frontend/user/roles";

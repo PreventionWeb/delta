@@ -21,7 +21,7 @@ import {
 	type ToastItem,
 	ToastRegion,
 	Tooltip,
-} from "~/design-system/ui";
+} from "~/design-system/components";
 import { ViewContext } from "~/frontend/context";
 import type { OrganizationFetcherResult } from "~/frontend/organizationAction";
 import type { loader } from "~/routes/$lang+/settings+/organizations+/_layout";

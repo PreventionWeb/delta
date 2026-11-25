@@ -13,7 +13,7 @@ import { describeGeometry } from "./describeGeometry";
 import type { BareGeometry } from "./spatialFootprintGeometry";
 import { useDivisionTree, divisionLabel } from "./useDivisionTree";
 import { Section } from "~/design-system/components/Section";
-import { Button } from "~/design-system/components/Button";
+import { LegacyButton as Button } from "~/design-system/components/LegacyButton";
 import { Dialog } from "~/design-system/components/Dialog";
 import { Table } from "~/design-system/components/Table";
 import { TableColumn } from "~/design-system/components/TableColumn";
