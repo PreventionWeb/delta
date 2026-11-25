@@ -69,6 +69,18 @@
 	}
 }
 
+/* Transitional scope for migrated DELTA Design System screens and React Aria portals.
+   Unlayered intentionally so it beats legacy style-dts.css (html { font-size: 14px })
+   and lara-light-blue/theme.css (:root font-family & --focus-ring).
+   Keep color/font-size out of this unlayered rule so Tailwind utilities like text-fg-inverse
+   and text-label on the same element (e.g. Tooltip, ToastRegion) are never overridden.
+   Remove once style-dts.css and lara-light-blue are retired. */
+.ds-scope {
+	--spacing: 4px;
+	--focus-ring: var(--accent);
+	font-family: var(--font);
+}
+
 /*
  * Minimal, 6a-scoped design-system tokens (ca-he-route-adapter-read design.md Decision 8).
  * Only the tokens app/design-system/components/ actually consumes, extracted from the exact

@@ -127,7 +127,7 @@ export default function SectorsPage({ sectors, lang }: SectorsPageProps) {
 	const footerText = formatFooterCount(ctx, visibleCount, isSearching);
 
 	return (
-		<div className="-my-8 min-h-full w-full bg-bg">
+		<div className="min-h-full w-full bg-bg">
 			<div className="mx-auto w-full max-w-[1280px] px-[16px] md:px-[24px] xl:px-[32px]">
 				<div className="flex flex-col gap-[4px] pt-[32px] pb-[24px]">
 					<h1 className="text-page font-medium leading-[var(--lh-tight)] text-fg">
