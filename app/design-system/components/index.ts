@@ -32,3 +32,4 @@ export {
 	type ToastRegionProps,
 } from "./ToastRegion";
 export { Tooltip, type TooltipProps } from "./Tooltip";
+export { TreeList, type TreeListNode, type TreeListProps } from "./TreeList";

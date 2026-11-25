@@ -90,6 +90,7 @@ export type PermissionId =
 	| "DeleteValidatedData"
 	| "ManageCountrySettings"
 	| "ManageOrganizations"
+	| "ManageSectorSettings"
 	| "activate_country_account"
 	| "deactivate_country_account"
 	| "modify_country_account"
@@ -229,6 +230,14 @@ export function permissions(ctx: DContext): PermissionOption[] {
 			label: ctx.t({
 				code: "user.permission.manage_organizations.label",
 				msg: "Manage organizations",
+			}),
+		},
+		{
+			id: "ManageSectorSettings",
+			role: "admin",
+			label: ctx.t({
+				code: "user.permission.manage_sector_settings.label",
+				msg: "Manage sector settings",
 			}),
 		},
 		// Super admin specific permissions
@@ -372,6 +381,7 @@ export const roles: {
 		"EditHumanEffectsCustomDsg",
 		"ManageCountrySettings",
 		"ManageOrganizations",
+		"ManageSectorSettings",
 	],
 	// Global role (cross-tenant)
 	super_admin: [

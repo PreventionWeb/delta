@@ -1977,7 +1977,7 @@
   {
     "id": "common.description",
     "translation": "Description",
-    "description": "File: app/backend.server/models/losses.ts:394"
+    "description": "File: app/pages/SectorsPage.tsx:190"
   },
   {
     "id": "common.disabled",
@@ -2140,11 +2140,6 @@
     "description": "File: app/routes/$lang+/user+/select-instance.tsx:224"
   },
   {
-    "id": "common.grouping",
-    "translation": "Grouping",
-    "description": "File: app/routes/$lang+/settings+/sectors.tsx:297"
-  },
-  {
     "id": "common.id",
     "translation": "ID",
     "description": "File: app/frontend/asset-content-picker-config.tsx:25"
@@ -2198,6 +2193,11 @@
     "id": "common.legacy_data",
     "translation": "Legacy data",
     "description": "File: app/frontend/disaster-record/form.tsx:157"
+  },
+  {
+    "id": "common.level",
+    "translation": "Level",
+    "description": "File: app/pages/SectorsPage.tsx:187"
   },
   {
     "id": "common.link",
@@ -2515,11 +2515,6 @@
     "description": "File: app/frontend/pagination/view.tsx:94"
   },
   {
-    "id": "common.parent",
-    "translation": "Parent",
-    "description": "File: app/routes/$lang+/settings+/sectors.tsx:315"
-  },
-  {
     "id": "common.parent_id",
     "translation": "Parent ID",
     "description": "File: app/routes/$lang+/disaster-record+/content-picker-config.tsx:387"
@@ -2703,11 +2698,6 @@
     "id": "common.sector",
     "translation": "Sector",
     "description": "File: app/frontend/asset.tsx:48"
-  },
-  {
-    "id": "common.sector_name",
-    "translation": "Sector Name",
-    "description": "File: app/routes/$lang+/settings+/sectors.tsx:289"
   },
   {
     "id": "common.sectors",
@@ -6947,7 +6937,7 @@
   {
     "id": "sectors.category",
     "translation": "Category",
-    "description": "File: app/routes/$lang+/settings+/sectors.tsx:35"
+    "description": "File: app/pages/SectorsPage.tsx:107"
   },
   {
     "id": "sectors.id",
@@ -6972,7 +6962,7 @@
   {
     "id": "sectors.sector",
     "translation": "Sector",
-    "description": "File: app/routes/$lang+/settings+/sectors.tsx:31"
+    "description": "File: app/pages/SectorsPage.tsx:103"
   },
   {
     "id": "sectors.select_sector",
@@ -6987,12 +6977,12 @@
   {
     "id": "sectors.sub_sector",
     "translation": "Sub-sector",
-    "description": "File: app/frontend/components/DisasterRecordsFilter.tsx:326"
+    "description": "File: app/pages/SectorsPage.tsx:105"
   },
   {
     "id": "sectors.type",
     "translation": "Type",
-    "description": "File: app/routes/$lang+/settings+/sectors.tsx:29"
+    "description": "File: app/pages/SectorsPage.tsx:101"
   },
   {
     "id": "session.expired_message",
@@ -7228,14 +7218,54 @@
     "description": "File: app/pages/AccessManagementPage.tsx:730"
   },
   {
-    "id": "settings.sectors.table_view",
-    "translation": "Table view",
-    "description": "File: app/routes/$lang+/settings+/sectors.tsx:270"
+    "id": "settings.sectors.collapse_all",
+    "translation": "Collapse all",
+    "description": "File: app/pages/SectorsPage.tsx:167"
   },
   {
-    "id": "settings.sectors.tree_view",
-    "translation": "Tree View",
-    "description": "File: app/routes/$lang+/settings+/sectors.tsx:212"
+    "id": "settings.sectors.count_plural",
+    "translation": "{count} sectors",
+    "description": "File: app/pages/SectorsPage.tsx:50"
+  },
+  {
+    "id": "settings.sectors.count_search_plural",
+    "translation": "{count} sectors match your search",
+    "description": "File: app/pages/SectorsPage.tsx:33"
+  },
+  {
+    "id": "settings.sectors.count_search_singular",
+    "translation": "{count} sector matches your search",
+    "description": "File: app/pages/SectorsPage.tsx:26"
+  },
+  {
+    "id": "settings.sectors.count_singular",
+    "translation": "{count} sector",
+    "description": "File: app/pages/SectorsPage.tsx:43"
+  },
+  {
+    "id": "settings.sectors.empty_catalog",
+    "translation": "No sectors available.",
+    "description": "File: app/pages/SectorsPage.tsx:121"
+  },
+  {
+    "id": "settings.sectors.empty_search",
+    "translation": "No sectors match \"{query}\".",
+    "description": "File: app/pages/SectorsPage.tsx:114"
+  },
+  {
+    "id": "settings.sectors.expand_all",
+    "translation": "Expand all",
+    "description": "File: app/pages/SectorsPage.tsx:157"
+  },
+  {
+    "id": "settings.sectors.search_placeholder",
+    "translation": "Search sectors",
+    "description": "File: app/pages/SectorsPage.tsx:92"
+  },
+  {
+    "id": "settings.sectors.subtitle",
+    "translation": "The sectors used to classify losses and damages. The list is the same for every country and cannot be changed here.",
+    "description": "File: app/pages/SectorsPage.tsx:135"
   },
   {
     "id": "settings.system.2fa_totp_issuer_name",
@@ -7920,132 +7950,137 @@
   {
     "id": "user.permission.activate_country_account.label",
     "translation": "Activate country account",
-    "description": "File: app/frontend/user/roles.ts:238"
+    "description": "File: app/frontend/user/roles.ts:247"
   },
   {
     "id": "user.permission.add_country_account.label",
     "translation": "Add country account",
-    "description": "File: app/frontend/user/roles.ts:310"
+    "description": "File: app/frontend/user/roles.ts:319"
   },
   {
     "id": "user.permission.add_fictitious_country.label",
     "translation": "Add fictitious country",
-    "description": "File: app/frontend/user/roles.ts:262"
+    "description": "File: app/frontend/user/roles.ts:271"
   },
   {
     "id": "user.permission.clone_country_account.label",
     "translation": "Clone country account",
-    "description": "File: app/frontend/user/roles.ts:294"
+    "description": "File: app/frontend/user/roles.ts:303"
   },
   {
     "id": "user.permission.delete_country_account.label",
     "translation": "Delete country account",
-    "description": "File: app/frontend/user/roles.ts:286"
+    "description": "File: app/frontend/user/roles.ts:295"
   },
   {
     "id": "user.permission.delete_disaster_event.label",
     "translation": "Delete disaster event",
-    "description": "File: app/frontend/user/roles.ts:165"
+    "description": "File: app/frontend/user/roles.ts:166"
   },
   {
     "id": "user.permission.delete_fictitious_country.label",
     "translation": "Delete fictitious country",
-    "description": "File: app/frontend/user/roles.ts:278"
+    "description": "File: app/frontend/user/roles.ts:287"
   },
   {
     "id": "user.permission.delete_validated_data.label",
     "translation": "Delete validated data records",
-    "description": "File: app/frontend/user/roles.ts:213"
+    "description": "File: app/frontend/user/roles.ts:214"
   },
   {
     "id": "user.permission.disaster_event_list.label",
     "translation": "Disaster event list",
-    "description": "File: app/frontend/user/roles.ts:157"
+    "description": "File: app/frontend/user/roles.ts:158"
   },
   {
     "id": "user.permission.edit_api_keys.label",
     "translation": "Edit API Keys",
-    "description": "File: app/frontend/user/roles.ts:141"
+    "description": "File: app/frontend/user/roles.ts:142"
   },
   {
     "id": "user.permission.edit_country_account.label",
     "translation": "Edit country account",
-    "description": "File: app/frontend/user/roles.ts:318"
+    "description": "File: app/frontend/user/roles.ts:327"
   },
   {
     "id": "user.permission.edit_data.label",
     "translation": "Edit data",
-    "description": "File: app/frontend/user/roles.ts:181"
+    "description": "File: app/frontend/user/roles.ts:182"
   },
   {
     "id": "user.permission.edit_disaster_event.label",
     "translation": "Edit disaster event",
-    "description": "File: app/frontend/user/roles.ts:173"
+    "description": "File: app/frontend/user/roles.ts:174"
   },
   {
     "id": "user.permission.edit_fictitious_country.label",
     "translation": "Edit fictitious country",
-    "description": "File: app/frontend/user/roles.ts:270"
+    "description": "File: app/frontend/user/roles.ts:279"
   },
   {
     "id": "user.permission.edit_human_effects_custom_dsg.label",
     "translation": "Edit custom disaggregations for human effects",
-    "description": "File: app/frontend/user/roles.ts:197"
+    "description": "File: app/frontend/user/roles.ts:198"
   },
   {
     "id": "user.permission.edit_users.label",
     "translation": "Edit other user details",
-    "description": "File: app/frontend/user/roles.ts:125"
+    "description": "File: app/frontend/user/roles.ts:126"
   },
   {
     "id": "user.permission.invite_users.label",
     "translation": "Invite users",
-    "description": "File: app/frontend/user/roles.ts:133"
+    "description": "File: app/frontend/user/roles.ts:134"
   },
   {
     "id": "user.permission.manage_country_settings.label",
     "translation": "Manage country settings",
-    "description": "File: app/frontend/user/roles.ts:221"
+    "description": "File: app/frontend/user/roles.ts:222"
   },
   {
     "id": "user.permission.manage_organizations.label",
     "translation": "Manage organizations",
-    "description": "File: app/frontend/user/roles.ts:229"
+    "description": "File: app/frontend/user/roles.ts:230"
+  },
+  {
+    "id": "user.permission.manage_sector_settings.label",
+    "translation": "Manage sector settings",
+    "description": "File: app/frontend/user/roles.ts:238"
   },
   {
     "id": "user.permission.modify_country_account.label",
     "translation": "Modify country account",
-    "description": "File: app/frontend/user/roles.ts:246"
+    "description": "File: app/frontend/user/roles.ts:255"
   },
   {
     "id": "user.permission.validate_data.label",
     "translation": "Validate data records",
-    "description": "File: app/frontend/user/roles.ts:205"
+    "description": "File: app/frontend/user/roles.ts:206"
   },
   {
     "id": "user.permission.view_api_docs.label",
     "translation": "View API Docs",
-    "description": "File: app/frontend/user/roles.ts:189"
+    "description": "File: app/frontend/user/roles.ts:190"
   },
   {
     "id": "user.permission.view_country_accounts.label",
     "translation": "View country accounts",
-    "description": "File: app/frontend/user/roles.ts:302"
+    "description": "File: app/frontend/user/roles.ts:311"
   },
   {
     "id": "user.permission.view_data.label",
     "translation": "View data",
-    "description": "File: app/frontend/user/roles.ts:149"
+    "description": "File: app/frontend/user/roles.ts:150"
   },
   {
     "id": "user.permission.view_fictitious_countries.label",
     "translation": "View fictitious countries",
-    "description": "File: app/frontend/user/roles.ts:254"
+    "description": "File: app/frontend/user/roles.ts:263"
   },
   {
     "id": "user.permission.view_users.label",
     "translation": "View users",
-    "description": "File: app/frontend/user/roles.ts:117"
+    "description": "File: app/frontend/user/roles.ts:118"
   },
   {
     "id": "user.role.admin.desc",
