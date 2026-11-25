@@ -14,6 +14,8 @@ import {
 	getUserRoleFromSession,
 } from "~/utils/session";
 
+export const handle = { useDesignSystemCanvas: true };
+
 const VALID_SORT_COLUMNS = new Set<ApiKeySortColumn>([
 	"name",
 	"managedBy",

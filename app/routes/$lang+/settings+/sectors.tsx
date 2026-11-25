@@ -9,6 +9,8 @@ import SectorsPage from "~/pages/SectorsPage";
 import { authLoaderWithPerm } from "~/utils/auth";
 import { htmlTitle } from "~/utils/htmlmeta";
 
+export const handle = { useDesignSystemCanvas: true };
+
 export const meta: MetaFunction = ({ params }) => {
 	const ctx = new ViewContext({ lang: params.lang || "en" });
 

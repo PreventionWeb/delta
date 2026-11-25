@@ -33,7 +33,7 @@ function SelectPopoverList({
 	return (
 		<Popover
 			offset={4}
-			className="z-50 min-w-[var(--trigger-width)] rounded-xl border border-border bg-surface p-2 shadow-md outline-none"
+			className="ds-scope z-50 min-w-[var(--trigger-width)] rounded-xl border border-border bg-surface p-2 shadow-md outline-none"
 		>
 			<ListBox
 				aria-label={label}

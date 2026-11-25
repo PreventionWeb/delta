@@ -31,7 +31,7 @@ export function ModalDialog({
 			onOpenChange={onOpenChange}
 			isDismissable={false}
 			isKeyboardDismissDisabled={false}
-			className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4"
+			className="ds-scope fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4"
 		>
 			<Modal
 				isDismissable={false}

@@ -1,4 +1,4 @@
-import { Mail, Pencil, Trash2, UserPlus } from "lucide-react";
+import { Mail, Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
 	useFetcher,
@@ -485,7 +485,7 @@ export default function AccessManagementPage() {
 					</p>
 				</div>
 				<Button variant="primary" onPress={openInviteModal}>
-					<UserPlus className="h-4 w-4" aria-hidden="true" />
+					<Plus className="h-4 w-4" aria-hidden="true" />
 					{ctx.t({
 						code: "settings.access_mgmnt.invite_user",
 						msg: "Invite user",

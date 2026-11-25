@@ -12,7 +12,7 @@ export function Tooltip({ text, children }: TooltipProps) {
 			{children}
 			<AriaTooltip
 				offset={4}
-				className="z-50 rounded-md bg-toast px-2 py-1 text-label font-normal text-fg-inverse shadow-md"
+				className="ds-scope z-50 rounded-md bg-toast px-2 py-1 text-label font-normal text-fg-inverse shadow-md"
 			>
 				{text}
 			</AriaTooltip>

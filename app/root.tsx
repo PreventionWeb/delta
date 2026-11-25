@@ -186,9 +186,15 @@ export default function Screen() {
 	const onAdminRoute = location.pathname.startsWith(ctx.url("/admin/"));
 	const hideMainNavigation = matches.some((match) => {
 		const routeHandle = match.handle as
-			| { hideMainNavigation?: boolean }
+			| { hideMainNavigation?: boolean; useDesignSystemCanvas?: boolean }
 			| undefined;
 		return routeHandle?.hideMainNavigation === true;
+	});
+	const useDesignSystemCanvas = matches.some((match) => {
+		const routeHandle = match.handle as
+			| { useDesignSystemCanvas?: boolean }
+			| undefined;
+		return routeHandle?.useDesignSystemCanvas === true;
 	});
 
 	const {
@@ -344,8 +350,14 @@ export default function Screen() {
 						) : null}
 
 						{/* Main Content */}
-						<main className="flex-1 w-full">
-							<div className="w-full py-8">
+						<main
+							className={
+								useDesignSystemCanvas
+									? "flex-1 w-full bg-bg text-body text-fg ds-scope"
+									: "flex-1 w-full"
+							}
+						>
+							<div className={useDesignSystemCanvas ? "w-full" : "w-full py-8"}>
 								<Outlet />
 							</div>
 						</main>
