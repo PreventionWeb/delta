@@ -11,6 +11,7 @@ import { InitializeWorkflowInstanceUseCase } from "~/domains/validation-workflow
 import { DeleteWorkflowInstanceUseCase } from "~/domains/validation-workflow/application/use-cases/DeleteWorkflowInstance";
 import { GetWorkflowInstanceByEntityUseCase } from "~/domains/validation-workflow/application/use-cases/GetWorkflowInstanceByEntity";
 import { ListWorkflowInstancesByEntityIdsUseCase } from "~/domains/validation-workflow/application/use-cases/ListWorkflowInstancesByEntityIds";
+import { ApplyImportedWorkflowStatusUseCase } from "~/domains/validation-workflow/application/use-cases/ApplyImportedWorkflowStatus";
 
 import { EventCausalityModule } from "~/domains/event-causality/infrastructure/EventCausalityModule.server";
 import { EVENT_CAUSALITY_REPOSITORY } from "~/domains/event-causality/infrastructure/EventCausalityRepositoryToken";
@@ -31,6 +32,9 @@ import { RecordSpatialObservationUseCase } from "~/domains/hazardous-events/appl
 import { CreateHazardousEventUseCase } from "~/domains/hazardous-events/application/use-cases/CreateHazardousEvent";
 import { DeleteHazardousEventUseCase } from "~/domains/hazardous-events/application/use-cases/DeleteHazardousEvent";
 import { UpdateHazardousEventUseCase } from "~/domains/hazardous-events/application/use-cases/UpdateHazardousEvent";
+import { ImportHazardousEventsCsvUseCase } from "~/domains/hazardous-events/application/use-cases/ImportHazardousEventsCsv";
+import { ExportHazardousEventsCsvUseCase } from "~/domains/hazardous-events/application/use-cases/ExportHazardousEventsCsv";
+import { GetHazardousEventCsvTemplateUseCase } from "~/domains/hazardous-events/application/use-cases/GetHazardousEventCsvTemplate";
 import type { IHazardousEventRepository } from "~/domains/hazardous-events/application/ports/IHazardousEventRepository";
 import type { IDivisionRepository } from "~/domains/hazardous-events/application/ports/IDivisionRepository";
 import type { ICausalChainRepository } from "~/domains/hazardous-events/application/ports/ICausalChainRepository";
@@ -289,6 +293,56 @@ import { HIP_CROSSWALK_PORT } from "./HipCrosswalkPortToken";
 				AUDIT_LOG_PORT,
 			],
 		},
+		{
+			provide: ImportHazardousEventsCsvUseCase,
+			useFactory: (
+				hazardousEventRepository: IHazardousEventRepository,
+				specificHazardTaxonomyRepository: ISpecificHazardTaxonomyRepository,
+				createHazardousEventUseCase: CreateHazardousEventUseCase,
+				updateHazardousEventUseCase: UpdateHazardousEventUseCase,
+				applyImportedWorkflowStatusUseCase: ApplyImportedWorkflowStatusUseCase,
+				getWorkflowInstanceByEntityUseCase: GetWorkflowInstanceByEntityUseCase,
+				transactionRunner: ITransactionRunner,
+			) =>
+				new ImportHazardousEventsCsvUseCase(
+					getPinoLogger(),
+					hazardousEventRepository,
+					specificHazardTaxonomyRepository,
+					createHazardousEventUseCase,
+					updateHazardousEventUseCase,
+					applyImportedWorkflowStatusUseCase,
+					getWorkflowInstanceByEntityUseCase,
+					transactionRunner,
+				),
+			inject: [
+				HAZARDOUS_EVENT_REPOSITORY,
+				SPECIFIC_HAZARD_TAXONOMY_REPOSITORY,
+				CreateHazardousEventUseCase,
+				UpdateHazardousEventUseCase,
+				ApplyImportedWorkflowStatusUseCase,
+				GetWorkflowInstanceByEntityUseCase,
+				TRANSACTION_RUNNER,
+			],
+		},
+		{
+			provide: GetHazardousEventCsvTemplateUseCase,
+			useFactory: (
+				specificHazardTaxonomyRepository: ISpecificHazardTaxonomyRepository,
+			) =>
+				new GetHazardousEventCsvTemplateUseCase(
+					specificHazardTaxonomyRepository,
+				),
+			inject: [SPECIFIC_HAZARD_TAXONOMY_REPOSITORY],
+		},
+		{
+			provide: ExportHazardousEventsCsvUseCase,
+			useFactory: (hazardousEventRepository: IHazardousEventRepository) =>
+				new ExportHazardousEventsCsvUseCase(
+					getPinoLogger(),
+					hazardousEventRepository,
+				),
+			inject: [HAZARDOUS_EVENT_REPOSITORY],
+		},
 	],
 	// RecordSpatialObservationUseCase is exported despite being same-module-only today.
 	exports: [
@@ -299,6 +353,9 @@ import { HIP_CROSSWALK_PORT } from "./HipCrosswalkPortToken";
 		CreateHazardousEventUseCase,
 		DeleteHazardousEventUseCase,
 		UpdateHazardousEventUseCase,
+		ImportHazardousEventsCsvUseCase,
+		ExportHazardousEventsCsvUseCase,
+		GetHazardousEventCsvTemplateUseCase,
 	],
 })
 export class HazardousEventsModule {}
