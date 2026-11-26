@@ -154,10 +154,11 @@ describe("requestContextMiddleware", () => {
 
 		await requestContextMiddleware(makeArgs(), async () => new Response());
 
-		// Asserts on both `err` and `reason`
+		// Only under `err`, so the redacting serializer applies; no raw `reason` copy.
 		expect(pinoErrorMock).toHaveBeenCalledWith(
-			expect.objectContaining({ err: rejectionError, reason: rejectionError }),
+			expect.objectContaining({ err: rejectionError }),
 		);
+		expect(pinoErrorMock.mock.calls[0][0]).not.toHaveProperty("reason");
 		expect(consoleErrorSpy).not.toHaveBeenCalled();
 
 		consoleErrorSpy.mockRestore();
@@ -174,8 +175,9 @@ describe("requestContextMiddleware", () => {
 		await requestContextMiddleware(makeArgs(), async () => new Response());
 
 		expect(pinoErrorMock).toHaveBeenCalledWith(
-			expect.objectContaining({ err: rejectionError, reason: rejectionError }),
+			expect.objectContaining({ err: rejectionError }),
 		);
+		expect(pinoErrorMock.mock.calls[0][0]).not.toHaveProperty("reason");
 		expect(consoleErrorSpy).not.toHaveBeenCalled();
 
 		consoleErrorSpy.mockRestore();
