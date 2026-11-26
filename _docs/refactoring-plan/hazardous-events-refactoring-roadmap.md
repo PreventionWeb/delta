@@ -2417,11 +2417,12 @@ PrimeReact until its own domain's cutover retires it — same Strangler Fig patt
 this refactor, not an urgent rip-out. See `design-system-unification-roadmap.md` — its "Pass 1"
 PrimeReact-token-extraction plan is superseded for any module moving to React Aria.
 
-**Styling scope, agreed 2026-11-23 (6b):** HE keeps its legacy styling (HE's legacy-parity set in
-`app/design-system/components/`, `ui-classification: legacy-exempt`) until a dedicated "HE UI
-upgrade to the new design system" iteration, which runs after design-system unification
-(`DEF-014`: merging `components/` into `app/design-system/ui/`, assigned team member, before
-Disaster Event UI work). New screens outside HE use `app/design-system/ui/`.
+**Styling scope, agreed 2026-11-23 (6b), updated 2026-11-26:** design-system unification landed in
+PR #848 (`app/design-system/ui/` merged into `app/design-system/components/`; the old HE button is
+now `LegacyButton`). HE keeps its legacy styling (the HE legacy-parity components,
+`ui-classification: legacy-exempt`) until a dedicated "HE UI upgrade to the unified design
+system" iteration (`DEF-068`), which moves all of HE at once. New screens use the design-system
+components exported from `app/design-system/components/index.ts`.
 
 ### 🔷 6a — Web Route Adapters: List + Detail ✅ (Complete)
 
