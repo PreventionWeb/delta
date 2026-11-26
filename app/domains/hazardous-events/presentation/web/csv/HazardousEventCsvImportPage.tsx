@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Form } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Button } from "~/design-system/components/Button";
+import { LegacyButton as Button } from "~/design-system/components/LegacyButton";
 import { Select } from "~/design-system/components/Select";
 import { BackLink } from "~/domains/hazardous-events/presentation/web/BackLink";
 import type {

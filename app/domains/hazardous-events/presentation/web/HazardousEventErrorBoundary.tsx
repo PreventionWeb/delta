@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useRouteError } from "react-router";
 import { useTranslation } from "react-i18next";
 import { TriangleAlert } from "lucide-react";
-import { Button } from "~/design-system/components/Button";
+import { LegacyButton as Button } from "~/design-system/components/LegacyButton";
 import { MainContainer } from "~/frontend/container";
 import { BackLink } from "./BackLink";
 import { mapRouteErrorToView } from "./mapRouteErrorToView";
