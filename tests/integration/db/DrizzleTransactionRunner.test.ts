@@ -1,6 +1,6 @@
 import "./setup";
 import { randomUUID } from "crypto";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { dr } from "~/db.server";
 import { eventTable } from "~/drizzle/schema/eventTable";
@@ -121,5 +121,92 @@ describe("DrizzleTransactionRunner", () => {
 		expect(committed).toBe("committed");
 		await expect(findEvent(commitId)).resolves.not.toBeNull();
 		await expect(findEvent(rollbackId)).resolves.toBeNull();
+	});
+
+	describe("run(fn, outerTx) joins the caller's transaction as a savepoint (ca-he-csv-migration)", () => {
+		it("nested writes commit only with the outer transaction: an outer rollback undoes them", async () => {
+			const runner = new DrizzleTransactionRunner(dr);
+			const nestedId = crypto.randomUUID();
+			const outerFailure = new Error("outer-rollback");
+
+			await expect(
+				runner.run(async (outerTx) => {
+					const nested = await runner.run(async (tx) => {
+						await tx.insert(eventTable).values({ id: nestedId });
+						return "nested-done";
+					}, outerTx);
+					expect(nested).toBe("nested-done");
+					throw outerFailure;
+				}),
+			).rejects.toBe(outerFailure);
+
+			await expect(findEvent(nestedId)).resolves.toBeNull();
+		});
+
+		it("a rejected nested call rolls back only its own writes and the outer transaction can still commit", async () => {
+			const runner = new DrizzleTransactionRunner(dr);
+			const rowA = crypto.randomUUID();
+			const rowB = crypto.randomUUID();
+			const nestedFailure = new Error("nested-boom");
+
+			await runner.run(async (outerTx) => {
+				await outerTx.insert(eventTable).values({ id: rowA });
+				await expect(
+					runner.run(async (tx) => {
+						await tx.insert(eventTable).values({ id: rowB });
+						throw nestedFailure;
+					}, outerTx),
+				).rejects.toBe(nestedFailure);
+
+				const seen = await outerTx
+					.select({ id: eventTable.id })
+					.from(eventTable)
+					.where(inArray(eventTable.id, [rowA, rowB]));
+				expect(seen.map((row) => row.id)).toEqual([rowA]);
+			});
+
+			await expect(findEvent(rowA)).resolves.not.toBeNull();
+			await expect(findEvent(rowB)).resolves.toBeNull();
+		});
+
+		it("sequential nested calls on one outer transaction see each other's writes", async () => {
+			const runner = new DrizzleTransactionRunner(dr);
+			const tenantId = (await seedCountryAccount()) as string;
+			const specificHazardId = await seedSpecificHazard();
+			const repo = new DrizzleHazardousEventRepository(dr);
+			const id = randomUUID();
+			const apiImportId = `X-${randomUUID()}`;
+
+			await runner.run(async (outerTx) => {
+				await runner.run(async (tx) => {
+					await tx.insert(eventTable).values({ id });
+					await tx.insert(hazardousEventTable).values({
+						id,
+						countryAccountsId: tenantId,
+						specificHazardId,
+						apiImportId,
+					});
+				}, outerTx);
+				const found = await runner.run(
+					(tx) => repo.findIdByApiImportId(apiImportId, tenantId, tx),
+					outerTx,
+				);
+				expect(found).toBe(id);
+			});
+		});
+
+		it("concurrent top-level calls without outerTx are unaffected", async () => {
+			const runner = new DrizzleTransactionRunner(dr);
+			const first = crypto.randomUUID();
+			const second = crypto.randomUUID();
+
+			await Promise.all([
+				runner.run((tx) => tx.insert(eventTable).values({ id: first })),
+				runner.run((tx) => tx.insert(eventTable).values({ id: second })),
+			]);
+
+			await expect(findEvent(first)).resolves.not.toBeNull();
+			await expect(findEvent(second)).resolves.not.toBeNull();
+		});
 	});
 });

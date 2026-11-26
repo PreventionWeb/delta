@@ -908,3 +908,23 @@ describe("DrizzleWorkflowRepository", () => {
 		});
 	});
 });
+
+describe("DrizzleWorkflowRepository.findByEntity with tx (ca-he-csv-migration)", () => {
+	it("finds an instance inserted earlier in the same uncommitted transaction", async () => {
+		const entityId = randomUUID();
+		const instance = draft(entityId);
+
+		await dr
+			.transaction(async (tx) => {
+				await repository.insert(instance, tx);
+				const found = await repository.findByEntity(entityId, "HE", tx);
+				expect(found?.id).toBe(instance.id);
+				tx.rollback();
+			})
+			.catch((err: unknown) => {
+				if (!(err instanceof Error) || err.message !== "Rollback") throw err;
+			});
+
+		await expect(repository.findByEntity(entityId, "HE")).resolves.toBeNull();
+	});
+});

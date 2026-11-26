@@ -72,8 +72,9 @@ export class DrizzleWorkflowRepository implements IWorkflowRepository {
 	async findByEntity(
 		entityId: string,
 		entityType: EntityType,
+		tx?: Tx,
 	): Promise<WorkflowInstance | null> {
-		const rows = await this.db
+		const rows = await (tx ?? this.db)
 			.select()
 			.from(workflowInstanceTable)
 			.where(
