@@ -21,6 +21,7 @@ import { InitializeWorkflowInstanceUseCase } from "~/domains/validation-workflow
 import { DeleteWorkflowInstanceUseCase } from "~/domains/validation-workflow/application/use-cases/DeleteWorkflowInstance";
 import { GetWorkflowInstanceByEntityUseCase } from "~/domains/validation-workflow/application/use-cases/GetWorkflowInstanceByEntity";
 import { ListWorkflowInstancesByEntityIdsUseCase } from "~/domains/validation-workflow/application/use-cases/ListWorkflowInstancesByEntityIds";
+import { ApplyImportedWorkflowStatusUseCase } from "~/domains/validation-workflow/application/use-cases/ApplyImportedWorkflowStatus";
 import { FindValidatorCandidatesUseCase } from "~/domains/validation-workflow/application/use-cases/FindValidatorCandidates";
 import { CoreModule } from "~/infrastructure/CoreModule.server";
 import { DrizzleProvider } from "~/infrastructure/DrizzleProvider.server";
@@ -279,7 +280,7 @@ describe("ValidationWorkflowModule", () => {
 	});
 
 	describe("exports metadata", () => {
-		it("exports exactly the six use cases, and no hidden token", () => {
+		it("exports exactly the seven use cases, and no hidden token", () => {
 			const exported = Reflect.getMetadata(
 				MODULE_METADATA.EXPORTS,
 				ValidationWorkflowModule,
@@ -291,6 +292,7 @@ describe("ValidationWorkflowModule", () => {
 				GetWorkflowInstanceByEntityUseCase,
 				ListWorkflowInstancesByEntityIdsUseCase,
 				FindValidatorCandidatesUseCase,
+				ApplyImportedWorkflowStatusUseCase,
 			]);
 			expect(exported).not.toContain(WORKFLOW_REPOSITORY);
 			expect(exported).not.toContain(NOTIFICATION_PORT);

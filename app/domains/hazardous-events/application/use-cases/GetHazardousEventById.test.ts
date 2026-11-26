@@ -115,6 +115,14 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		throw new Error("not used by GetHazardousEventByIdUseCase's own tests");
 	}
 
+	async findIdByApiImportId(): Promise<never> {
+		throw new Error("findIdByApiImportId is not used by this test");
+	}
+
+	async findExportRows(): Promise<never> {
+		throw new Error("findExportRows is not used by this test");
+	}
+
 	async saveSpatialObservation(): Promise<never> {
 		throw new Error("not used by GetHazardousEventByIdUseCase's own tests");
 	}
@@ -175,6 +183,14 @@ class FakeSpecificHazardTaxonomyRepository implements ISpecificHazardTaxonomyRep
 		ReadonlyMap<string, SpecificHazardTaxonomyNames>
 	> {
 		return this.impl();
+	}
+
+	async findBySourceRefIds(): Promise<never> {
+		throw new Error("findBySourceRefIds is not used by this test");
+	}
+
+	async findAnySpecificHazardId(): Promise<never> {
+		throw new Error("findAnySpecificHazardId is not used by this test");
 	}
 
 	async listAll(): Promise<HazardTaxonomyOptions> {
@@ -841,6 +857,12 @@ describe("GetHazardousEventByIdUseCase", () => {
 				listAll: async () => {
 					throw new Error("not used by this test");
 				},
+				findBySourceRefIds: async () => {
+					throw new Error("not used by this test");
+				},
+				findAnySpecificHazardId: async () => {
+					throw new Error("not used by this test");
+				},
 			};
 			const useCase = new GetHazardousEventByIdUseCase(
 				new FakeLogger(),
@@ -1022,6 +1044,12 @@ describe("GetHazardousEventByIdUseCase", () => {
 			const taxonomyRepository: ISpecificHazardTaxonomyRepository = {
 				findNamesByIds: findNamesByIdsSpy,
 				listAll: async () => {
+					throw new Error("not used by this test");
+				},
+				findBySourceRefIds: async () => {
+					throw new Error("not used by this test");
+				},
+				findAnySpecificHazardId: async () => {
 					throw new Error("not used by this test");
 				},
 			};

@@ -13,6 +13,7 @@ import type { WorkflowInstanceDto } from "../dto/WorkflowInstanceDto";
 import { toWorkflowInstanceDto } from "../dto/WorkflowInstanceDto";
 import { WorkflowInstanceNotFoundError } from "../errors/WorkflowInstanceErrors";
 import { isWorkflowActionAuthorized } from "../isWorkflowActionAuthorized";
+import { ENTITY_TYPE_AUDIT_TABLE_NAME } from "../entityTypeAuditTableName";
 import type { ILogger } from "~/shared/logging/ILogger";
 import type { IAuditLogPort } from "~/domains/shared/audit-log/application/ports/IAuditLogPort";
 import { AuthorizationError, ValidationError } from "~/shared/errors";
@@ -24,12 +25,6 @@ interface ProcessWorkflowActionCommandBase {
 	tenantId: string;
 	actingUserId: string;
 }
-
-/** Local, domain-agnostic lookup (design.md Decision 7) -- an unmapped entityType skips the
- * audit write (WARN-logged) instead of throwing. */
-const ENTITY_TYPE_TABLE_NAME: Partial<Record<EntityType, string>> = {
-	HE: "hazardous_event",
-};
 
 export type ProcessWorkflowActionCommand =
 	| (ProcessWorkflowActionCommandBase & {
@@ -221,7 +216,7 @@ export class ProcessWorkflowActionUseCase {
 		fromStatus: Status,
 		saved: WorkflowInstance,
 	): Promise<void> {
-		const tableName = ENTITY_TYPE_TABLE_NAME[command.entityType];
+		const tableName = ENTITY_TYPE_AUDIT_TABLE_NAME[command.entityType];
 		if (tableName === undefined) {
 			this.logger.warn({
 				msg: "workflow_action.audit_write_skipped_unmapped_entity_type",

@@ -8,6 +8,7 @@ import { DeleteWorkflowInstanceUseCase } from "~/domains/validation-workflow/app
 import { GetWorkflowInstanceByEntityUseCase } from "~/domains/validation-workflow/application/use-cases/GetWorkflowInstanceByEntity";
 import { ListWorkflowInstancesByEntityIdsUseCase } from "~/domains/validation-workflow/application/use-cases/ListWorkflowInstancesByEntityIds";
 import { FindValidatorCandidatesUseCase } from "~/domains/validation-workflow/application/use-cases/FindValidatorCandidates";
+import { ApplyImportedWorkflowStatusUseCase } from "~/domains/validation-workflow/application/use-cases/ApplyImportedWorkflowStatus";
 import type { IWorkflowRepository } from "~/domains/validation-workflow/application/ports/IWorkflowRepository";
 import type { INotificationPort } from "~/domains/validation-workflow/application/ports/INotificationPort";
 import type { IValidatorCandidateRepository } from "~/domains/validation-workflow/application/ports/IValidatorCandidateRepository";
@@ -81,6 +82,13 @@ import { VALIDATOR_CANDIDATE_REPOSITORY } from "./ValidatorCandidateRepositoryTo
 				new ListWorkflowInstancesByEntityIdsUseCase(repo),
 			inject: [WORKFLOW_REPOSITORY],
 		},
+		// No NOTIFICATION_PORT: imported statuses never notify (NOD-3).
+		{
+			provide: ApplyImportedWorkflowStatusUseCase,
+			useFactory: (repo: IWorkflowRepository, auditLogPort: IAuditLogPort) =>
+				new ApplyImportedWorkflowStatusUseCase(repo, auditLogPort),
+			inject: [WORKFLOW_REPOSITORY, AUDIT_LOG_PORT],
+		},
 		{
 			provide: FindValidatorCandidatesUseCase,
 			useFactory: (repo: IValidatorCandidateRepository) =>
@@ -96,6 +104,7 @@ import { VALIDATOR_CANDIDATE_REPOSITORY } from "./ValidatorCandidateRepositoryTo
 		GetWorkflowInstanceByEntityUseCase,
 		ListWorkflowInstancesByEntityIdsUseCase,
 		FindValidatorCandidatesUseCase,
+		ApplyImportedWorkflowStatusUseCase,
 	],
 })
 export class ValidationWorkflowModule {}

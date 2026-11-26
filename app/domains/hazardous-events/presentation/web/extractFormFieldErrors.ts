@@ -1,4 +1,5 @@
 import { ConflictError, ValidationError } from "~/shared/errors";
+import { causalConflictKind } from "~/domains/hazardous-events/application/causalConflictKind";
 
 /** Fields the create/edit form renders -- the only names this heuristic maps a message to. */
 const KNOWN_FIELDS = new Set([
@@ -47,14 +48,7 @@ export function extractFieldError(
 export function extractCauseConflictError(
 	err: ConflictError,
 ): { field: string; message: string } | null {
-	const context = err.context;
-	if (context === undefined) {
-		return null;
-	}
-	const isCausalChainConflict =
-		("causeId" in context && "effectId" in context) ||
-		("causeStartDate" in context && "effectStartDate" in context);
-	return isCausalChainConflict
+	return causalConflictKind(err) !== null
 		? { field: "causeId", message: err.message }
 		: null;
 }

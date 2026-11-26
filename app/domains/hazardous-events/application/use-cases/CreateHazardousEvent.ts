@@ -30,6 +30,7 @@ import type { SpatialObservationDto } from "../dto/SpatialObservationDto";
 import type { InitializeWorkflowInstanceUseCase } from "~/domains/validation-workflow/application/use-cases/InitializeWorkflowInstance";
 import type { ILogger } from "~/shared/logging/ILogger";
 import type { ITransactionRunner } from "~/shared/persistence/ITransactionRunner";
+import type { Tx } from "~/db.server";
 import { ValidationError } from "~/shared/errors";
 import { assertNonEmptyString } from "../assertNonEmptyString";
 
@@ -64,6 +65,8 @@ export interface CreateHazardousEventCommand {
 		RecordSpatialObservationCommand,
 		"tenantId" | "hazardousEventId" | "tx"
 	>;
+	/** A batch caller's open transaction: every read and write runs on it, as a savepoint (NOD-12). */
+	tx?: Tx;
 }
 
 /** `""`/`undefined` both count as absent -- narrowed once so downstream code agrees without a cast; a non-string `causeId` throws rather than silently no-op. */
@@ -150,11 +153,13 @@ export class CreateHazardousEventUseCase {
 			await this.taxonomyRepository.findValidHazardDriverIds(
 				toSafeStringArray(command.hazardDriverIds),
 				command.tenantId,
+				command.tx,
 			);
 		const validCustomFieldDefinitionIds =
 			await this.taxonomyRepository.findValidCustomFieldDefinitionIds(
 				customFieldDefinitionIds,
 				command.tenantId,
+				command.tx,
 			);
 
 		// Captures the fetched entity's own id, so a cause whose canonical stored form differs cosmetically from the caller's input still links correctly.
@@ -164,11 +169,15 @@ export class CreateHazardousEventUseCase {
 			cause = await this.hazardousEventRepository.findById(
 				causeId,
 				command.tenantId,
+				command.tx,
 			);
 
 			// Can never fire against a correct adapter (a fresh id has no edges) -- kept as defense-in-depth so a future update use case reuses the same convention (Decision 1).
 			// Uses the raw id/startDate -- the entity itself isn't constructed until inside the transaction below (Decision 7).
-			const edges = await this.causalChainRepository.findReachableEdgesFrom(id);
+			const edges = await this.causalChainRepository.findReachableEdgesFrom(
+				id,
+				command.tx,
+			);
 			assertCausalLinkDoesNotCreateCycle(edges, cause.id, id);
 			// Mirrors UpdateHazardousEvent.ts:331 -- malformed startDate skips rather than fails closed.
 			assertCauseStartsNoLaterThanEffect(cause.startDate, command.startDate);
@@ -176,6 +185,7 @@ export class CreateHazardousEventUseCase {
 
 		const hipCrosswalkIds = await this.hipCrosswalkPort.resolve(
 			command.specificHazardId,
+			command.tx,
 		);
 
 		// Whole write sequence is one transaction (DEF-026) -- a failure partway rolls back
@@ -280,10 +290,10 @@ export class CreateHazardousEventUseCase {
 				}
 
 				return { saved, savedWorkflow, savedSpatialObservation };
-			});
+			}, command.tx);
 
 		// Logged only after the transaction resolves successfully -- a rolled-back transaction
-		// rejects the await above and short-circuits past this call entirely.
+		// rejects the await above. With a caller `tx` that is a savepoint release, not a commit.
 		this.logger.info({
 			msg: "hazardous_event.created",
 			hazardousEventId: saved.id,
@@ -291,7 +301,7 @@ export class CreateHazardousEventUseCase {
 			hasCause,
 		});
 
-		// Mirrors UpdateHazardousEvent.ts's own post-commit log for the same event.
+		// Mirrors UpdateHazardousEvent.ts's log for the same event.
 		if (savedSpatialObservation !== undefined) {
 			this.logger.info({
 				msg: "spatial_observation.recorded",
