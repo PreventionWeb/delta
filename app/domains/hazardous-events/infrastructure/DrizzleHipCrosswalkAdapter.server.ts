@@ -31,8 +31,8 @@ export class DrizzleHipCrosswalkAdapter implements IHipCrosswalkPort {
 	 * yields a null join, never a thrown error -- design.md Decision 17's defensive requirement).
 	 * The hazardCluster/hazardType joins are inner: both FKs are NOT NULL on the CA taxonomy
 	 * tables, so they're always present for any specificHazardId that exists at all. */
-	async resolve(specificHazardId: string): Promise<HipCrosswalkIds> {
-		const [row] = await this.db
+	async resolve(specificHazardId: string, tx?: Tx): Promise<HipCrosswalkIds> {
+		const [row] = await (tx ?? this.db)
 			.select({
 				hipHazardId: hipHazardTable.id,
 				hipClusterId: hipClusterTable.id,

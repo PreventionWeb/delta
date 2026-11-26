@@ -1,3 +1,4 @@
+import type { Tx } from "~/db.server";
 import { describe, expect, it } from "vitest";
 import type { IHazardTaxonomyRepository } from "./IHazardTaxonomyRepository";
 
@@ -114,11 +115,11 @@ type AssertEqual<A, B> = A extends B ? (B extends A ? true : never) : never;
 
 const _findValidHazardDriverIdsArity: AssertEqual<
 	Parameters<IHazardTaxonomyRepository["findValidHazardDriverIds"]>,
-	[readonly string[], string]
+	[readonly string[], string, Tx?]
 > = true;
 const _findValidCustomFieldDefinitionIdsArity: AssertEqual<
 	Parameters<IHazardTaxonomyRepository["findValidCustomFieldDefinitionIds"]>,
-	[readonly string[], string]
+	[readonly string[], string, Tx?]
 > = true;
 
 void _findValidHazardDriverIdsArity;

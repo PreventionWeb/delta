@@ -122,3 +122,47 @@ describe("DrizzleHazardTaxonomyRepository", () => {
 		});
 	});
 });
+
+describe("DrizzleHazardTaxonomyRepository with tx (ca-he-csv-migration NOD-12)", () => {
+	it("reads inside an open transaction without waiting on another connection", async () => {
+		const tenantId = (await seedCountryAccount()) as string;
+		const repo = new DrizzleHazardTaxonomyRepository(dr);
+
+		const result = await dr.transaction(async (tx) => {
+			const driver = await tx
+				.insert(hazardDriverTable)
+				.values({ name: `Driver ${randomUUID()}`, countryAccountsId: tenantId })
+				.returning();
+			const empty = await repo.findValidHazardDriverIds([], tenantId, tx);
+			const seen = await repo.findValidHazardDriverIds(
+				[driver[0].id],
+				tenantId,
+				tx,
+			);
+			const customFields = await repo.findValidCustomFieldDefinitionIds(
+				[randomUUID()],
+				tenantId,
+				tx,
+			);
+			return { empty, seen, driverId: driver[0].id, customFields };
+		});
+
+		expect(result.empty.size).toBe(0);
+		expect([...result.seen]).toEqual([result.driverId]);
+		expect(result.customFields.size).toBe(0);
+	});
+
+	it("concurrent calls without tx resolve the same tenant-scoped set", async () => {
+		const tenantId = (await seedCountryAccount()) as string;
+		const driver = await seedHazardDriver(tenantId);
+		const repo = new DrizzleHazardTaxonomyRepository(dr);
+
+		const [first, second] = await Promise.all([
+			repo.findValidHazardDriverIds([driver.id], tenantId),
+			repo.findValidHazardDriverIds([driver.id], tenantId),
+		]);
+
+		expect([...first]).toEqual([driver.id]);
+		expect([...second]).toEqual([driver.id]);
+	});
+});

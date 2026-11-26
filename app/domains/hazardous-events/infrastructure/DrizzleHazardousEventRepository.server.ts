@@ -39,7 +39,11 @@ import type {
 	IHazardousEventRepository,
 	SpatialObservationRecord,
 } from "../application/ports/IHazardousEventRepository";
-import { OUTGOING_EVENT_RELATIONSHIP_CONFLICT } from "../application/ports/IHazardousEventRepository";
+import {
+	API_IMPORT_ID_CONFLICT,
+	OUTGOING_EVENT_RELATIONSHIP_CONFLICT,
+} from "../application/ports/IHazardousEventRepository";
+import type { HazardousEventExportRow } from "../application/dto/HazardousEventExportRow";
 import type { Pagination } from "~/shared/types";
 import { eventTable } from "~/drizzle/schema/eventTable";
 import { eventRelationshipTable } from "~/drizzle/schema/eventRelationshipTable";
@@ -47,6 +51,8 @@ import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import { divisionTable } from "~/drizzle/schema/divisionTable";
 import { specificHazardTable } from "./specificHazardTable";
 import { hazardClusterTable } from "./hazardClusterTable";
+import { hazardTypeTable } from "./hazardTypeTable";
+import { hazardousEventCausalityTable } from "./hazardousEventCausalityTable";
 import { workflowInstanceTable } from "~/domains/validation-workflow/infrastructure/workflowInstanceTable";
 import {
 	hazardousEventTable,
@@ -710,7 +716,7 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 			if (constraint === "hazardous_event_api_import_id_tenant_unique") {
 				throw new ConflictError(
 					"HazardousEvent apiImportId already exists for this tenant",
-					context,
+					{ ...context, reason: API_IMPORT_ID_CONFLICT },
 				);
 			}
 			throw new ConflictError(
@@ -1230,5 +1236,126 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 				observationTime: observation.observationTime,
 			});
 		}
+	}
+
+	async findIdByApiImportId(
+		apiImportId: string,
+		tenantId: string,
+		tx?: Tx,
+	): Promise<string | null> {
+		if (apiImportId === "") {
+			return null;
+		}
+		const [row] = await (tx ?? this.db)
+			.select({ id: hazardousEventTable.id })
+			.from(hazardousEventTable)
+			.where(
+				and(
+					eq(hazardousEventTable.apiImportId, apiImportId),
+					eq(hazardousEventTable.countryAccountsId, tenantId),
+				),
+			);
+		return row?.id ?? null;
+	}
+
+	/** One statement, so the export is a consistent snapshot (D9); legacy columns ride along as
+	 * NOD-9 fallbacks for rows Phase M has not migrated yet. */
+	async findExportRows(
+		tenantId: string,
+		tx?: Tx,
+	): Promise<HazardousEventExportRow[]> {
+		const rows = await (tx ?? this.db)
+			.select({
+				event: hazardousEventTable,
+				workflow: workflowInstanceTable,
+				hazardSourceRefId: specificHazardTable.sourceRefId,
+				clusterSourceRefId: hazardClusterTable.sourceRefId,
+				typeSourceRefId: hazardTypeTable.sourceRefId,
+				// Migrated data can hold several causes per effect; one row per event, lowest id.
+				causeId: sql<string | null>`(
+					SELECT min(${hazardousEventCausalityTable.causeHazardousEventId}::text)
+					FROM ${hazardousEventCausalityTable}
+					WHERE ${hazardousEventCausalityTable.effectHazardousEventId} = ${hazardousEventTable.id}
+				)`,
+				causeCount: sql<number>`(
+					SELECT count(*)::int
+					FROM ${hazardousEventCausalityTable}
+					WHERE ${hazardousEventCausalityTable.effectHazardousEventId} = ${hazardousEventTable.id}
+				)`,
+				// Legacy allows several parents; the lowest id keeps the export deterministic.
+				legacyParentId: sql<string | null>`(
+					SELECT min(${eventRelationshipTable.parentId}::text)
+					FROM ${eventRelationshipTable}
+					WHERE ${eventRelationshipTable.childId} = ${hazardousEventTable.id}
+				)`,
+			})
+			.from(hazardousEventTable)
+			.leftJoin(
+				workflowInstanceTable,
+				and(
+					eq(workflowInstanceTable.entityId, hazardousEventTable.id),
+					eq(workflowInstanceTable.entityType, "HE"),
+				),
+			)
+			.leftJoin(
+				specificHazardTable,
+				eq(specificHazardTable.id, hazardousEventTable.specificHazardId),
+			)
+			.leftJoin(
+				hazardClusterTable,
+				eq(hazardClusterTable.id, specificHazardTable.hazardClusterId),
+			)
+			.leftJoin(
+				hazardTypeTable,
+				eq(hazardTypeTable.id, hazardClusterTable.hazardTypeId),
+			)
+			.where(eq(hazardousEventTable.countryAccountsId, tenantId))
+			.orderBy(asc(hazardousEventTable.id));
+
+		return rows.map(({ event, workflow, ...joined }) => ({
+			id: event.id,
+			tenantId,
+			specificHazardId: event.specificHazardId,
+			apiImportId: event.apiImportId,
+			status: event.status,
+			nationalSpecification: event.nationalSpecification,
+			startDate: event.startDate,
+			endDate: event.endDate,
+			description: event.description,
+			chainsExplanation: event.chainsExplanation,
+			magnitude: event.magnitude,
+			recordOriginator: event.recordOriginator,
+			hazardousEventStatus: event.hazardousEventStatus,
+			dataSource: event.dataSource,
+			specificHazardLocalName: event.specificHazardLocalName,
+			specificHazardNationalName: event.specificHazardNationalName,
+			createdByUserId: event.createdByUserId,
+			updatedByUserId: event.updatedByUserId,
+			createdAt: event.createdAt,
+			updatedAt: event.updatedAt,
+			workflowStatus: workflow?.status ?? null,
+			workflowSubmittedByUserId: workflow?.submittedByUserId ?? null,
+			workflowSubmittedAt: workflow?.submittedAt ?? null,
+			workflowValidatedByUserId: workflow?.validatedByUserId ?? null,
+			workflowValidatedAt: workflow?.validatedAt ?? null,
+			workflowPublishedByUserId: workflow?.publishedByUserId ?? null,
+			workflowPublishedAt: workflow?.publishedAt ?? null,
+			hazardSourceRefId: joined.hazardSourceRefId,
+			clusterSourceRefId: joined.clusterSourceRefId,
+			typeSourceRefId: joined.typeSourceRefId,
+			causeId: joined.causeId,
+			causeCount: Number(joined.causeCount),
+			legacyApprovalStatus: event.approvalStatus,
+			legacySubmittedByUserId: event.submittedByUserId,
+			legacySubmittedAt: event.submittedAt,
+			legacyValidatedByUserId: event.validatedByUserId,
+			legacyValidatedAt: event.validatedAt,
+			legacyPublishedByUserId: event.publishedByUserId,
+			legacyPublishedAt: event.publishedAt,
+			legacyHipHazardId: event.hipHazardId,
+			legacyHipClusterId: event.hipClusterId,
+			legacyHipTypeId: event.hipTypeId,
+			legacyParentId: joined.legacyParentId,
+		}));
 	}
 }

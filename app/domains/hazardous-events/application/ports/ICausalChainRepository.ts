@@ -4,8 +4,11 @@ import type { Tx } from "~/db.server";
 /** Port for `hazardous_event_causality`. No whole-table load (design.md Decision 2). */
 export interface ICausalChainRepository {
 	/** MUST resolve the complete set or reject (a partial set misreports "no cycle"). Not
-	 * tenant-scoped — the table has no tenant column of its own (`DEF-012`). */
-	findReachableEdgesFrom(nodeId: string): Promise<readonly CausalEdge[]>;
+	 * tenant-scoped (`DEF-012`). `tx` sees edges written earlier in it (NOD-12). */
+	findReachableEdgesFrom(
+		nodeId: string,
+		tx?: Tx,
+	): Promise<readonly CausalEdge[]>;
 
 	/** FK/CHECK constraints guard a dangling/self-referencing edge; this also re-verifies,
 	 * lock-guarded and in-transaction, that the edge won't close a cycle — rejects with

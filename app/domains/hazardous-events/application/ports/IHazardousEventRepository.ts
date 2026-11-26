@@ -3,6 +3,7 @@ import type { SpatialObservationProps } from "../../domain/SpatialObservation";
 import type { Tx } from "~/db.server";
 import type { Pagination } from "~/shared/types";
 import type { Status } from "~/domains/validation-workflow/domain/WorkflowInstance";
+import type { HazardousEventExportRow } from "../dto/HazardousEventExportRow";
 
 /** Type alias, not a separate interface — a field change is one edit, not two (closes DEF-027). */
 export type SpatialObservationRecord = SpatialObservationProps;
@@ -36,6 +37,10 @@ export interface HazardousEventRepositoryFilters {
  * parent (outgoing `event_relationship`, DEF-044). */
 export const OUTGOING_EVENT_RELATIONSHIP_CONFLICT =
 	"OUTGOING_EVENT_RELATIONSHIP";
+
+/** `context.reason` on insert()/update()'s ConflictError when the tenant already has this
+ * `apiImportId`. */
+export const API_IMPORT_ID_CONFLICT = "API_IMPORT_ID_TAKEN";
 
 export interface IHazardousEventRepository {
 	/** @throws {NotFoundError} when no HazardousEvent exists for `id` within `tenantId`. `tx` lets a caller nesting this inside its own open transaction avoid mixing connections (design.md Decision 9). */
@@ -109,4 +114,17 @@ export interface IHazardousEventRepository {
 		tenantId: string,
 		tx?: Tx,
 	): Promise<SpatialObservationRecord>;
+
+	/** Tenant-scoped `api_import_id` lookup, `null` when absent; an empty id never matches
+	 * (0e bug 3). */
+	findIdByApiImportId(
+		apiImportId: string,
+		tenantId: string,
+		tx?: Tx,
+	): Promise<string | null>;
+
+	/** One plain projection per tenant event, `id` ascending, no role filter (OD-9) and no
+	 * rehydration, read in one statement (D9). `tx` lets the import compare inside its own
+	 * transaction (NOD-12). */
+	findExportRows(tenantId: string, tx?: Tx): Promise<HazardousEventExportRow[]>;
 }
