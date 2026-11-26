@@ -13,12 +13,9 @@ export interface HipCrosswalkIds {
  * domain (Disaster Events, analytics) no longer reads hip_hazard_id/hip_cluster_id/hip_type_id
  * off hazardous_event. */
 export interface IHipCrosswalkPort {
-	/** Pure read, no tx -- taxonomy rows are immutable at request time, same precedent as
-	 * IHazardTaxonomyRepository's own pre-transaction lookups in both use cases. Null for any
-	 * level whose sourceRefId is itself null, OR whose resolved value has no matching row in the
-	 * live hip_hazard/hip_cluster/hip_class table (dangling sourceRefId -- defensive, so a stale
-	 * sourceRefId can never fail the HIP columns' own FK constraint). */
-	resolve(specificHazardId: string): Promise<HipCrosswalkIds>;
+	/** Pure read; `tx` lets a caller in an open transaction read on it (NOD-12). Null per level
+	 * whose sourceRefId is null or dangling, so a stale ref never fails the HIP FK. */
+	resolve(specificHazardId: string, tx?: Tx): Promise<HipCrosswalkIds>;
 
 	/** Direct UPDATE of hazardous_event's three HIP columns only, tenant-scoped, by id. MUST run
 	 * inside the same tx as the event write it follows -- never called standalone. */

@@ -140,7 +140,7 @@ type AssertEqual<A, B> = A extends B ? (B extends A ? true : never) : never;
 
 const _resolveArity: AssertEqual<
 	Parameters<IHipCrosswalkPort["resolve"]>,
-	[string]
+	[string, Tx?]
 > = true;
 
 const _stampArity: AssertEqual<

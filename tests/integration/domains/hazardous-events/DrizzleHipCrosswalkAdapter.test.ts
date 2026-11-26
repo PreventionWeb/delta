@@ -127,3 +127,29 @@ describe("DrizzleHipCrosswalkAdapter against PGlite", () => {
 		});
 	});
 });
+
+describe("DrizzleHipCrosswalkAdapter.resolve with tx (ca-he-csv-migration NOD-12)", () => {
+	it("resolves inside an open transaction without deadlocking", async () => {
+		const { specificHazardId, hipHazardId, hipClusterId, hipTypeId } =
+			await seedSpecificHazardWithHipCrosswalk();
+		const adapter = new DrizzleHipCrosswalkAdapter(dr);
+
+		const resolved = await dr.transaction((tx) =>
+			adapter.resolve(specificHazardId, tx),
+		);
+
+		expect(resolved).toEqual({ hipHazardId, hipClusterId, hipTypeId });
+	});
+
+	it("two concurrent calls without tx resolve equal results", async () => {
+		const { specificHazardId } = await seedSpecificHazardWithHipCrosswalk();
+		const adapter = new DrizzleHipCrosswalkAdapter(dr);
+
+		const [first, second] = await Promise.all([
+			adapter.resolve(specificHazardId),
+			adapter.resolve(specificHazardId),
+		]);
+
+		expect(first).toEqual(second);
+	});
+});

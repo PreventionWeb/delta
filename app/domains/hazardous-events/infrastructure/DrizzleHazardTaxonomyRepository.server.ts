@@ -1,6 +1,6 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { and, eq, inArray } from "drizzle-orm";
-import type { Dr } from "~/db.server";
+import type { Dr, Tx } from "~/db.server";
 import { DRIZZLE_CLIENT } from "~/infrastructure/DrizzleProvider.server";
 import type { IHazardTaxonomyRepository } from "../application/ports/IHazardTaxonomyRepository";
 import { hazardDriverTable } from "./hazardDriverTable";
@@ -17,13 +17,14 @@ export class DrizzleHazardTaxonomyRepository implements IHazardTaxonomyRepositor
 			| typeof hazardTypeCustomFieldDefinitionTable,
 		ids: readonly string[],
 		tenantId: string,
+		tx?: Tx,
 	): Promise<ReadonlySet<string>> {
 		// No query issued for an empty input — matches the port's spec, and avoids an `IN ()`
 		// query shape some drivers reject outright.
 		if (ids.length === 0) {
 			return new Set();
 		}
-		const rows = await this.db
+		const rows = await (tx ?? this.db)
 			.select({ id: table.id })
 			.from(table)
 			.where(
@@ -35,18 +36,21 @@ export class DrizzleHazardTaxonomyRepository implements IHazardTaxonomyRepositor
 	async findValidHazardDriverIds(
 		ids: readonly string[],
 		tenantId: string,
+		tx?: Tx,
 	): Promise<ReadonlySet<string>> {
-		return this.resolveValidIds(hazardDriverTable, ids, tenantId);
+		return this.resolveValidIds(hazardDriverTable, ids, tenantId, tx);
 	}
 
 	async findValidCustomFieldDefinitionIds(
 		ids: readonly string[],
 		tenantId: string,
+		tx?: Tx,
 	): Promise<ReadonlySet<string>> {
 		return this.resolveValidIds(
 			hazardTypeCustomFieldDefinitionTable,
 			ids,
 			tenantId,
+			tx,
 		);
 	}
 }

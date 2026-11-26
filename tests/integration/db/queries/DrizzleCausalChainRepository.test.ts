@@ -465,3 +465,31 @@ describe("DrizzleCausalChainRepository", () => {
 		});
 	});
 });
+
+describe("DrizzleCausalChainRepository.findReachableEdgesFrom with tx (ca-he-csv-migration NOD-12)", () => {
+	it("sees an edge saved earlier in the same transaction", async () => {
+		const [a, b] = await Promise.all([seedNode(), seedNode()]);
+		const repo = new DrizzleCausalChainRepository(dr);
+
+		const edges = await dr.transaction(async (tx) => {
+			await repo.saveEdge({ causeId: a, effectId: b }, null, tx);
+			return repo.findReachableEdgesFrom(a, tx);
+		});
+
+		expect(edges).toEqual([{ causeId: a, effectId: b }]);
+	});
+
+	it("concurrent calls without tx resolve the committed edges only", async () => {
+		const [a, b] = await Promise.all([seedNode(), seedNode()]);
+		await insertEdge(a, b);
+		const repo = new DrizzleCausalChainRepository(dr);
+
+		const [first, second] = await Promise.all([
+			repo.findReachableEdgesFrom(a),
+			repo.findReachableEdgesFrom(a),
+		]);
+
+		expect(first).toEqual([{ causeId: a, effectId: b }]);
+		expect(second).toEqual(first);
+	});
+});

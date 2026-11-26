@@ -239,6 +239,14 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		);
 	}
 
+	async findIdByApiImportId(): Promise<never> {
+		throw new Error("findIdByApiImportId is not used by this test");
+	}
+
+	async findExportRows(): Promise<never> {
+		throw new Error("findExportRows is not used by this test");
+	}
+
 	async saveSpatialObservation(
 		hazardousEventId: string,
 		observation: SpatialObservationRecord,
@@ -691,3 +699,14 @@ void _findCurrentSpatialObservationArity;
 void _findSpatialObservationByTimeArity;
 void _saveSpatialObservationArity;
 void _countReferencingDisasterEventsArity;
+
+const _findIdByApiImportIdArity: AssertEqual<
+	Parameters<IHazardousEventRepository["findIdByApiImportId"]>,
+	[string, string, Tx?]
+> = true;
+const _findExportRowsArity: AssertEqual<
+	Parameters<IHazardousEventRepository["findExportRows"]>,
+	[string, Tx?]
+> = true;
+void _findIdByApiImportIdArity;
+void _findExportRowsArity;

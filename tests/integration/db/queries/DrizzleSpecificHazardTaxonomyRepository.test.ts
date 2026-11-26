@@ -1,6 +1,6 @@
 import "../setup";
 import { randomUUID } from "crypto";
-import { describe, it, expect, vi } from "vitest";
+import { beforeAll, describe, it, expect, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { dr } from "~/db.server";
 import { hipsVersionTable } from "~/domains/hazardous-events/infrastructure/hipsVersionTable";
@@ -9,6 +9,7 @@ import { hazardClusterTable } from "~/domains/hazardous-events/infrastructure/ha
 import { specificHazardTable } from "~/domains/hazardous-events/infrastructure/specificHazardTable";
 import { DrizzleSpecificHazardTaxonomyRepository } from "~/domains/hazardous-events/infrastructure/DrizzleSpecificHazardTaxonomyRepository.server";
 import { seedTextContent } from "../models/textContentTestHelpers";
+import { seedSpecificHazard } from "../models/hazardousEventTestHelpers";
 
 /** Full real-schema chain (hipsVersion -> hazardType -> hazardCluster -> specificHazard), each
  * level with its own distinct name, so a test can assert all three resolved levels independently. */
@@ -197,5 +198,190 @@ describe("DrizzleSpecificHazardTaxonomyRepository", () => {
 				result.types.some((t) => t.id === seededCluster.hazardTypeId),
 			).toBe(true);
 		});
+	});
+});
+
+// ---------------------------------------------------------------------------
+// ca-he-csv-migration tasks.md 5.2 -- specs/specific-hazard-taxonomy-repository-port
+// (findBySourceRefIds).
+// ---------------------------------------------------------------------------
+interface SeededSourceRefChain {
+	specificHazardId: string;
+	hazardClusterId: string;
+	hazardTypeId: string;
+	hazardRef: string;
+	clusterRef: string;
+	typeRef: string;
+}
+
+/** source_ref_id is UNIQUE per table, so every ref is a fresh random string. */
+async function seedSourceRefChain(): Promise<SeededSourceRefChain> {
+	const refs = {
+		hipTypeId: `type-ref-${randomUUID()}`,
+		hipClusterId: `cluster-ref-${randomUUID()}`,
+		hipHazardId: `hazard-ref-${randomUUID()}`,
+	};
+	const specificHazardId = await seedSpecificHazard(refs);
+	const [sh] = await dr
+		.select({ hazardClusterId: specificHazardTable.hazardClusterId })
+		.from(specificHazardTable)
+		.where(eq(specificHazardTable.id, specificHazardId));
+	const [hc] = await dr
+		.select({ hazardTypeId: hazardClusterTable.hazardTypeId })
+		.from(hazardClusterTable)
+		.where(eq(hazardClusterTable.id, sh.hazardClusterId));
+	return {
+		specificHazardId,
+		hazardClusterId: sh.hazardClusterId,
+		hazardTypeId: hc.hazardTypeId,
+		hazardRef: refs.hipHazardId,
+		clusterRef: refs.hipClusterId,
+		typeRef: refs.hipTypeId,
+	};
+}
+
+describe("DrizzleSpecificHazardTaxonomyRepository.findBySourceRefIds (ca-he-csv-migration D13)", () => {
+	const repo = new DrizzleSpecificHazardTaxonomyRepository(dr);
+	let chain: SeededSourceRefChain;
+
+	beforeAll(async () => {
+		// Warms PGlite and the adapter modules once, outside any per-test timeout.
+		chain = await seedSourceRefChain();
+	}, 60_000);
+
+	it("Scenario: A hazard ref resolves with its ancestors -- { specificHazardId, hazardClusterId, hazardTypeId }", async () => {
+		const result = await repo.findBySourceRefIds({
+			hazardRefs: [chain.hazardRef],
+			clusterRefs: [],
+			typeRefs: [],
+		});
+
+		expect(result.hazards.get(chain.hazardRef)).toEqual({
+			specificHazardId: chain.specificHazardId,
+			hazardClusterId: chain.hazardClusterId,
+			hazardTypeId: chain.hazardTypeId,
+		});
+		expect(result.hazards.size).toBe(1);
+	});
+
+	it("a cluster ref resolves to its id and type; a type ref resolves to its id", async () => {
+		const result = await repo.findBySourceRefIds({
+			hazardRefs: [],
+			clusterRefs: [chain.clusterRef],
+			typeRefs: [chain.typeRef],
+		});
+
+		expect(result.clusters.get(chain.clusterRef)).toEqual({
+			hazardClusterId: chain.hazardClusterId,
+			hazardTypeId: chain.hazardTypeId,
+		});
+		expect(result.types.get(chain.typeRef)).toEqual({
+			hazardTypeId: chain.hazardTypeId,
+		});
+		expect(result.hazards.size).toBe(0);
+	});
+
+	it("a CA id in specificHazardIds resolves its ancestors in result.specificHazards", async () => {
+		const result = await repo.findBySourceRefIds({
+			hazardRefs: [],
+			clusterRefs: [],
+			typeRefs: [],
+			specificHazardIds: [chain.specificHazardId],
+		});
+
+		expect(result.specificHazards.get(chain.specificHazardId)).toEqual({
+			hazardClusterId: chain.hazardClusterId,
+			hazardTypeId: chain.hazardTypeId,
+		});
+	});
+
+	it("Scenario: An unknown ref is absent, not an error -- 99999999 resolves and is not in the result", async () => {
+		const result = await repo.findBySourceRefIds({
+			hazardRefs: ["99999999", chain.hazardRef],
+			clusterRefs: ["99999999"],
+			typeRefs: ["99999999"],
+			specificHazardIds: [randomUUID()],
+		});
+
+		expect(result.hazards.has("99999999")).toBe(false);
+		expect(result.clusters.has("99999999")).toBe(false);
+		expect(result.types.has("99999999")).toBe(false);
+		expect(result.specificHazards.size).toBe(0);
+		expect(result.hazards.has(chain.hazardRef)).toBe(true);
+	});
+
+	it("all-empty input resolves to empty maps", async () => {
+		const result = await repo.findBySourceRefIds({
+			hazardRefs: [],
+			clusterRefs: [],
+			typeRefs: [],
+		});
+
+		expect(result.hazards.size).toBe(0);
+		expect(result.clusters.size).toBe(0);
+		expect(result.types.size).toBe(0);
+		expect(result.specificHazards.size).toBe(0);
+	});
+
+	it("Scenario: Many refs use one query -- 500 hazard refs issue exactly one database query", async () => {
+		const second = await seedSourceRefChain();
+		const hazardRefs = [
+			chain.hazardRef,
+			second.hazardRef,
+			...Array.from({ length: 498 }, () => `unknown-${randomUUID()}`),
+		];
+		const executeSpy = vi.spyOn(dr, "execute");
+		const selectSpy = vi.spyOn(dr, "select");
+
+		try {
+			const result = await repo.findBySourceRefIds({
+				hazardRefs,
+				clusterRefs: [],
+				typeRefs: [],
+			});
+
+			expect(hazardRefs).toHaveLength(500);
+			expect(executeSpy).toHaveBeenCalledTimes(1);
+			expect(selectSpy).not.toHaveBeenCalled();
+			expect(result.hazards.size).toBe(2);
+			expect(result.hazards.get(second.hazardRef)?.specificHazardId).toBe(
+				second.specificHazardId,
+			);
+		} finally {
+			executeSpy.mockRestore();
+			selectSpy.mockRestore();
+		}
+	});
+
+	it("Scenario: Concurrent callers get the same answer -- two simultaneous calls resolve to equal results", async () => {
+		const refs = {
+			hazardRefs: [chain.hazardRef, "99999999"],
+			clusterRefs: [chain.clusterRef],
+			typeRefs: [chain.typeRef],
+			specificHazardIds: [chain.specificHazardId],
+		};
+
+		const [first, second] = await Promise.all([
+			repo.findBySourceRefIds(refs),
+			repo.findBySourceRefIds(refs),
+		]);
+
+		expect(second).toEqual(first);
+		expect(first.hazards.size).toBe(1);
+	});
+});
+
+describe("findBySourceRefIds binds each list as one array parameter (review m6)", () => {
+	it("resolves 70,000 distinct unknown hazard refs without exceeding the bind-parameter limit", async () => {
+		const repo = new DrizzleSpecificHazardTaxonomyRepository(dr);
+		const hazardRefs = Array.from({ length: 70_000 }, (_, i) => `none-${i}`);
+
+		const result = await repo.findBySourceRefIds({
+			hazardRefs,
+			clusterRefs: [],
+			typeRefs: [],
+		});
+
+		expect(result.hazards.size).toBe(0);
 	});
 });
