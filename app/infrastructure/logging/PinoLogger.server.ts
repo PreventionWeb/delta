@@ -2,6 +2,7 @@
  * PinoLogger — production ILogger adapter backed by Pino (ADR-004).
  */
 import pino from "pino";
+import { DrizzleQueryError } from "drizzle-orm/errors";
 import type { ILogger } from "~/shared/logging/ILogger";
 import { getRequestContext } from "~/utils/requestContext.server";
 
@@ -42,10 +43,61 @@ export const REDACT_PATHS = [
 	"*.secret",
 ];
 
+const SAFE_QUERY_MESSAGE = "Failed query";
+const SAFE_DRIVER_FIELDS = ["code", "constraint", "table", "routine"] as const;
+
+/** Driver fields that never carry a cell value; `message`, `detail` and `where` can. */
+function safeDriverFields(cause: unknown): Record<string, unknown> {
+	if (typeof cause !== "object" || cause === null) return {};
+	const source = cause as Record<string, unknown>;
+	return Object.fromEntries(
+		SAFE_DRIVER_FIELDS.filter((key) => typeof source[key] === "string").map(
+			(key) => [key, source[key]],
+		),
+	);
+}
+
+/** Pino's `err` serializer; DrizzleQueryError's message, stack, params and driver cause embed
+ * query values, so only safe fields are kept, at any depth of the cause chain. */
+function serializeLogError(
+	err: unknown,
+	seen: WeakSet<object> = new WeakSet(),
+): unknown {
+	if (!(err instanceof Error)) return err;
+	if (seen.has(err)) return "[Circular]";
+	seen.add(err);
+	if (err instanceof DrizzleQueryError) {
+		return {
+			type: "DrizzleQueryError",
+			message: SAFE_QUERY_MESSAGE,
+			stack: err.stack?.replace(err.message, SAFE_QUERY_MESSAGE),
+			db: safeDriverFields(err.cause),
+		};
+	}
+	if (err.cause === undefined) return pino.stdSerializers.err(err);
+	// Serialize a cause-less copy: pino would append cause messages to `message` unsanitized.
+	const withoutCause: Error = Object.assign(
+		Object.create(Object.getPrototypeOf(err)),
+		err,
+		{ message: err.message, stack: err.stack },
+	);
+	Reflect.deleteProperty(withoutCause, "cause");
+	return {
+		...pino.stdSerializers.err(withoutCause),
+		cause: serializeLogError(err.cause, seen),
+	};
+}
+
+/** Exported so tests assert the base instance uses it. */
+export const LOG_SERIALIZERS = {
+	err: (err: unknown): unknown => serializeLogError(err),
+};
+
 /**
  * Module-level base Pino instance — constructed exactly once at module load.
  */
 const basePinoInstance = pino({
+	serializers: LOG_SERIALIZERS,
 	level: process.env.NODE_ENV === "production" ? "info" : "debug",
 	transport:
 		process.env.NODE_ENV !== "production"
