@@ -2516,32 +2516,124 @@ submission flow.
 
 ---
 
-### 🔷 6d — CSV Import/Export Migration
+### 🔷 6d-1 — CSV Import/Export Migration: columns, status, parent, export ✅ (Complete)
 
-**Branch:** `feature/ca-he-csv-migration`
+**Branch:** `feature/ca-he-csv-migration` · **OpenSpec change:** `ca-he-csv-migration`
+
+**Split, user decision 2026-11-24 (NOD-11):** the original 6d intent was split in two. 6d-1 is
+the OpenSpec change above. 6d-2, below, follows it, and gets its own OpenSpec change only after
+6d-1 is archived (one active change at a time). The decisions and evidence are in
+`openspec/changes/ca-he-csv-migration/design.md`, which moves under `archive/` at archive time.
+
+**Intent for `/opsx:propose` (as proposed and narrowed):**
+
+```
+Migrate CSV import/export onto CreateHazardousEventUseCase/UpdateHazardousEventUseCase,
+backward compatible with existing users' legacy CSV files and templates. The tenant is
+always forced from the uploader's session, never from the file, which reverses 0e
+findings 1-3. Legacy HIP ids resolve to the CA taxonomy through its UNIQUE source_ref_id.
+Legacy approvalStatus maps to the CA WorkflowInstance status through the domain's own
+transitions: admin only for non-draft, no notifications. `parent` maps to the CA cause
+link. Export keeps the legacy header and appends `parent`. One transaction per file, all
+or nothing. spatialFootprint/attachments columns are accepted and ignored with a notice
+until 6d-2.
+```
+
+**Files touched:** see the change's proposal.md "Impact". The routes are under
+`app/routes/$lang+/_authenticated+/he-preview+/` (`csv-import.tsx`, `csv-export.ts`,
+`csv-template.ts`). The path originally listed here (`app/routes/$lang+/he-preview+/`) was wrong:
+every he-preview route lives under `_authenticated+`.
+
+**Test tier:** unit, PGlite (including the direct port of the 0e attack scenarios with the
+opposite outcome), `test:run3` for interleaving concurrency, DOM, and Playwright E2E.
+
+---
+
+### ⬜ 6d-2 — CSV Import/Export Migration: spatial footprint and attachments
+
+**Follows 6d-1** (must be archived first). There is no OpenSpec change yet; propose one from
+this entry.
 
 **Intent for `/opsx:propose`:**
 
 ```
-Migrate CSV import/export onto CreateHazardousEventUseCase/UpdateHazardousEventUseCase
-— countryAccountsId is forced server-side from the uploader's own session before any
-use case call, exactly matching the pattern the existing JSON API routes
-(add.ts/upsert.ts) already get right (0e's "confirmed safe by contrast" finding) —
-not the pattern the legacy CSV handler gets wrong (a function-signature mismatch
-that silently drops the session-derived tenant, 0e findings 1–2). No new
-observationTime column — CSV always targets the current/latest spatial observation
-(resolved open decision #8).
+Extend the 6d-1 CSV import/export to map the legacy `spatialFootprint` and `attachments`
+columns, in legacy's own JSON formats. spatialFootprint becomes a tenant-checked CA
+spatial observation via RecordSpatialObservationUseCase, inside the import transaction,
+targeting the current observation at import time (resolved open decision #8).
+attachments become CA attachment rows: http(s) Link items, and File items only as
+references to files already on that event (a CSV cannot carry file bytes). Export appends
+`spatialFootprint` and `attachments` after `parent`, in the legacy formats, falling back
+to legacy geometry/division rows and the legacy attachments jsonb for unmigrated rows.
 ```
 
-**Files touched:**
+**Decisions already approved (user, 2026-11-24, recorded in 6d-1 design.md "Resolved
+decisions, round 2"):**
 
-- `app/routes/$lang+/he-preview+/csv-import.tsx` (new)
-- `app/routes/$lang+/he-preview+/csv-export.tsx` (new)
+- **NOD-7, attachments:**
+  - Link URLs http/https only, otherwise row error `invalid_attachment_url`;
+  - File items only as `existingFile` references to that event's own `fileKey`, otherwise
+    `file_reference_not_supported`;
+  - a present column replaces the set on update.
+- **NOD-8, spatial footprint:**
+  - `[]` on update clears the footprint (as legacy), recording an empty observation only when
+    the current one is non-empty (the domain allows an empty observation);
+  - a new observation only when the content differs;
+  - observation time = import time; no new column.
+- **NOD-9, export:** fall back to legacy geometry/division rows and the legacy `attachments`
+  jsonb when the event has no CA data of that kind (DEF-061).
+- **NOD-10:** `spatialFootprint` and `attachments` are appended after `parent`. The trailing
+  column check of 6d-1 task 1.5 applies here too.
 
-**Test tier:** PGlite integration — direct port of the 0e characterization tests'
-attack scenarios (`hazardousEventCsvImportTenant.test.ts`), now asserting the
-opposite outcome: a foreign-tenant `countryAccountsId` column in the CSV row is
-ignored, not honored.
+**Carried-over design** (the pre-split draft's D15/D16, moved here in full; the evidence stays in
+6d-1 design.md, "Legacy behaviour observed live, round 2", rows S1-S6 and A1-A5):
+
+- **Formats.**
+  - Spatial items use `map_option` `"Map coordinates"`; the geometry comes from `geojson` (a
+    Feature, a FeatureCollection or a bare geometry, the same rules as legacy
+    `extractGeojsonGeometry`, `event.ts:120-150`).
+  - Division items use `"Geographic level"`, with the division id in `geojson.properties.division_id`
+    or `division_id`.
+  - Attachment items are `{ id, title, tag, file_option: "Link" | "File", url?, file?: { name, content_type } }`,
+    parsed by the he-preview form's rules (`parseHazardousEventFormData.server.ts:55-130`).
+- **Tenant checks.** Divisions go through `IDivisionRepository.findValidDivisionIds` (5e);
+  unknown or other-tenant gives row error `invalid_division`. Legacy checks existence only
+  (DEF-005).
+- **Deferred file deletion.** `UpdateHazardousEventUseCase` deletes removed attachment files as
+  the last step inside its own transaction (`UpdateHazardousEvent.ts:364`). Under the 6d-1
+  import's outer transaction, a later row failing would roll the rows back after the files were
+  deleted. So when a caller `tx` is given, Update must return `fileKeysToDelete`, and the import
+  deletes them after commit. This is a new `update-hazardous-event` requirement for 6d-2. 6d-1
+  does not need it, because it never passes `attachments` (`UpdateHazardousEvent.ts:286-294`
+  resolves `fileKeysToDelete: []`). Confirmed by the 6d-1 gate 10 review (2026-11-25):
+  under a caller `tx`, Update deletes files at savepoint release, before the import commits.
+- **Security review.** Legacy stores attachment JSON unvalidated:
+  - a `javascript:` link is kept;
+  - a File item naming a non-existent temp file is kept as a dangling path;
+  - an untenanted empty upload directory is created per row, even for rolled-back rows;
+  - the legacy upload helper takes its tenant directory from the client-supplied
+    `file.tenantPath` (code-derived, not exploited; DEF-064).
+
+  The CA path must never use a client-supplied path. Promote and delete go through
+  `IAttachmentStoragePort` with a server-derived tenant.
+
+- **Geometry.** Check the projection cost of the export's geometry and division aggregation on
+  realistic data (EXPLAIN), and that GeoJSON round-trips unchanged.
+
+**Legacy behaviour observed live (2026-11-24):**
+
+- `spatialFootprint` writes the legacy geometry/division tables.
+- An empty or invalid `spatialFootprint` cell is a row error ("must be of type valid JSON").
+- `[]` clears the footprint.
+- Neither `spatialFootprint` nor `attachments` is exported.
+- A JSON object instead of an array in `attachments` is silently dropped.
+
+**Test tier:**
+
+- unit, for both legacy-JSON mappers in both directions;
+- PGlite: import/export with an other-tenant division; an unchanged footprint records nothing;
+  a rolled-back import deletes no files (a fake storage port); deletion after commit;
+- E2E: a legacy file with a footprint and a Link attachment.
 
 ---
 
