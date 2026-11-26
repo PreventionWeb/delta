@@ -80,8 +80,11 @@ export class DrizzleCausalChainRepository implements ICausalChainRepository {
 		return dedupeByCauseEffectPair(rawRows);
 	}
 
-	async findReachableEdgesFrom(nodeId: string): Promise<readonly CausalEdge[]> {
-		return this.queryReachableEdges(this.db, nodeId);
+	async findReachableEdgesFrom(
+		nodeId: string,
+		tx?: Tx,
+	): Promise<readonly CausalEdge[]> {
+		return this.queryReachableEdges(tx ?? this.db, nodeId);
 	}
 
 	/** Sorted lock order prevents deadlock between two calls on the same node pair (design.md

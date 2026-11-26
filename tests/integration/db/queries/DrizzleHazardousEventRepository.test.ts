@@ -2,8 +2,8 @@ import "../setup";
 import { randomUUID } from "crypto";
 import * as os from "os";
 import * as path from "path";
-import { describe, it, expect, vi } from "vitest";
-import { and, eq, sql } from "drizzle-orm";
+import { beforeAll, describe, it, expect, vi } from "vitest";
+import { and, eq, sql, TransactionRollbackError } from "drizzle-orm";
 import { dr } from "~/db.server";
 import type { Tx } from "~/db.server";
 import { getPinoLogger } from "~/infrastructure/logging/PinoLogger.server";
@@ -23,7 +23,10 @@ import { hazardDriverTable } from "~/domains/hazardous-events/infrastructure/haz
 import { hazardTypeFieldDefinitionTable } from "~/domains/hazardous-events/infrastructure/hazardTypeFieldDefinitionTable";
 import { hazardTypeCustomFieldDefinitionTable } from "~/domains/hazardous-events/infrastructure/hazardTypeCustomFieldDefinitionTable";
 import { DrizzleHazardousEventRepository } from "~/domains/hazardous-events/infrastructure/DrizzleHazardousEventRepository.server";
-import { OUTGOING_EVENT_RELATIONSHIP_CONFLICT } from "~/domains/hazardous-events/application/ports/IHazardousEventRepository";
+import {
+	API_IMPORT_ID_CONFLICT,
+	OUTGOING_EVENT_RELATIONSHIP_CONFLICT,
+} from "~/domains/hazardous-events/application/ports/IHazardousEventRepository";
 import type { SpatialObservationRecord } from "~/domains/hazardous-events/application/ports/IHazardousEventRepository";
 import { DrizzleWorkflowRepository } from "~/domains/validation-workflow/infrastructure/DrizzleWorkflowRepository.server";
 import { GetWorkflowInstanceByEntityUseCase } from "~/domains/validation-workflow/application/use-cases/GetWorkflowInstanceByEntity";
@@ -53,6 +56,7 @@ import {
 } from "~/shared/errors";
 import {
 	seedCountryAccount,
+	seedHipChain,
 	seedSpecificHazard,
 	seedUser,
 } from "../models/hazardousEventTestHelpers";
@@ -3194,5 +3198,314 @@ describe("UpdateHazardousEventUseCase against the real adapter", () => {
 			fulfilled[0] as PromiseFulfilledResult<{ description: string }>
 		).value.description;
 		expect(found.description).toBe(winnerDescription);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// ca-he-csv-migration tasks.md 5.1 -- specs/hazardous-event-repository-port
+// (findIdByApiImportId, findExportRows).
+// ---------------------------------------------------------------------------
+interface ExportSeedOverrides {
+	id?: string;
+	tenantId: string | null;
+	specificHazardId: string | null;
+	apiImportId?: string | null;
+	approvalStatus?: "draft" | "published";
+	hip?: { hipHazardId: string; hipClusterId: string; hipTypeId: string };
+}
+
+/** Direct insert, so a null tenant, a null specific hazard or legacy columns can be seeded. */
+async function seedExportEvent(
+	overrides: ExportSeedOverrides,
+): Promise<string> {
+	const [event] = await dr
+		.insert(eventTable)
+		.values({ id: overrides.id })
+		.returning({ id: eventTable.id });
+	await dr.insert(hazardousEventTable).values({
+		id: event.id,
+		countryAccountsId: overrides.tenantId,
+		specificHazardId: overrides.specificHazardId,
+		apiImportId: overrides.apiImportId ?? null,
+		startDate: "2026-01-01",
+		...(overrides.approvalStatus !== undefined
+			? { approvalStatus: overrides.approvalStatus }
+			: {}),
+		...(overrides.hip ?? {}),
+	});
+	return event.id;
+}
+
+describe("DrizzleHazardousEventRepository CSV ports (ca-he-csv-migration)", () => {
+	const repo = new DrizzleHazardousEventRepository(dr);
+
+	beforeAll(async () => {
+		// Warms PGlite and the adapter modules once, outside any per-test timeout.
+		await seedCountryAccount();
+	}, 60_000);
+
+	describe("findIdByApiImportId", () => {
+		it("Scenario: Match in the tenant -- resolves with that event's id", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const apiImportId = `A1-${randomUUID()}`;
+			const id = await seedExportEvent({
+				tenantId,
+				specificHazardId: await seedSpecificHazard(),
+				apiImportId,
+			});
+
+			await expect(
+				repo.findIdByApiImportId(apiImportId, tenantId),
+			).resolves.toBe(id);
+		});
+
+		it("Scenario: Same id in another tenant is not visible -- resolves null", async () => {
+			const t1 = (await seedCountryAccount()) as string;
+			const t2 = (await seedCountryAccount()) as string;
+			const apiImportId = `A1-${randomUUID()}`;
+			await seedExportEvent({
+				tenantId: t2,
+				specificHazardId: await seedSpecificHazard(),
+				apiImportId,
+			});
+
+			await expect(
+				repo.findIdByApiImportId(apiImportId, t1),
+			).resolves.toBeNull();
+		});
+
+		it("Scenario: A null-tenant legacy row is not visible -- resolves null", async () => {
+			const t1 = (await seedCountryAccount()) as string;
+			const apiImportId = `A1-${randomUUID()}`;
+			await seedExportEvent({
+				tenantId: null,
+				specificHazardId: null,
+				apiImportId,
+			});
+
+			await expect(
+				repo.findIdByApiImportId(apiImportId, t1),
+			).resolves.toBeNull();
+		});
+
+		it("an empty apiImportId resolves null and does not match rows whose api_import_id is empty", async () => {
+			const t1 = (await seedCountryAccount()) as string;
+			await seedExportEvent({
+				tenantId: t1,
+				specificHazardId: await seedSpecificHazard(),
+				apiImportId: "",
+			});
+
+			await expect(repo.findIdByApiImportId("", t1)).resolves.toBeNull();
+		});
+
+		it("Scenario: Uncommitted insert in the same transaction is visible -- resolves with the id when read with tx", async () => {
+			const t1 = (await seedCountryAccount()) as string;
+			const specificHazardId = await seedSpecificHazard();
+			const apiImportId = `A1-${randomUUID()}`;
+			const id = randomUUID();
+
+			let found: string | null = null;
+			try {
+				await dr.transaction(async (tx) => {
+					await tx.insert(eventTable).values({ id });
+					await tx.insert(hazardousEventTable).values({
+						id,
+						countryAccountsId: t1,
+						specificHazardId,
+						apiImportId,
+					});
+					found = await repo.findIdByApiImportId(apiImportId, t1, tx);
+					tx.rollback();
+				});
+			} catch (err) {
+				if (!(err instanceof TransactionRollbackError)) {
+					throw err;
+				}
+			}
+
+			expect(found).toBe(id);
+			await expect(
+				repo.findIdByApiImportId(apiImportId, t1),
+			).resolves.toBeNull();
+		});
+	});
+
+	describe("findExportRows", () => {
+		it("Scenario: A row that findAll skips is returned -- specificHazardId null in findExportRows, still skipped by findAll", async () => {
+			const t1 = (await seedCountryAccount()) as string;
+			const nullHazardId = await seedExportEvent({
+				tenantId: t1,
+				specificHazardId: null,
+			});
+
+			const rows = await repo.findExportRows(t1);
+			expect(rows.map((r) => r.id)).toEqual([nullHazardId]);
+			expect(rows[0].specificHazardId).toBeNull();
+
+			const warnSpy = vi
+				.spyOn(getPinoLogger(), "warn")
+				.mockImplementation(() => {});
+			try {
+				const listed = await repo.findAll(t1, { page: 1, pageSize: 10 });
+				expect(listed.map((e) => e.id)).not.toContain(nullHazardId);
+			} finally {
+				warnSpy.mockRestore();
+			}
+		});
+
+		it("Scenario: Tenant scope and order -- only T1 events, sorted by id ascending", async () => {
+			const t1 = (await seedCountryAccount()) as string;
+			const t2 = (await seedCountryAccount()) as string;
+			const specificHazardId = await seedSpecificHazard();
+			const ids = [randomUUID(), randomUUID(), randomUUID()].sort().reverse();
+			// Seeded in descending id order, so an insertion-order result would fail.
+			for (const id of ids) {
+				await seedExportEvent({ id, tenantId: t1, specificHazardId });
+			}
+			const otherTenantId = await seedExportEvent({
+				tenantId: t2,
+				specificHazardId,
+			});
+
+			const rows = await repo.findExportRows(t1);
+
+			expect(rows.map((r) => r.id)).toEqual([...ids].sort());
+			expect(rows.map((r) => r.id)).not.toContain(otherTenantId);
+			expect(rows.every((r) => r.tenantId === t1)).toBe(true);
+		});
+
+		it("Scenario: Legacy fallback values are carried for an unmigrated row -- workflowStatus null, legacy status published, parent P", async () => {
+			const t1 = (await seedCountryAccount()) as string;
+			const hip = await seedHipChain();
+			const id = await seedExportEvent({
+				tenantId: t1,
+				specificHazardId: null,
+				approvalStatus: "published",
+				hip,
+			});
+			const [parent] = await dr
+				.insert(eventTable)
+				.values({})
+				.returning({ id: eventTable.id });
+			await dr
+				.insert(eventRelationshipTable)
+				.values({ parentId: parent.id, childId: id, type: "caused_by" });
+
+			const [row] = await repo.findExportRows(t1);
+
+			expect(row.id).toBe(id);
+			expect(row.workflowStatus).toBeNull();
+			expect(row.legacyApprovalStatus).toBe("published");
+			expect(row.legacyParentId).toBe(parent.id);
+			expect(row.causeId).toBeNull();
+			expect(row.legacyHipHazardId).toBe(hip.hipHazardId);
+			expect(row.legacyHipClusterId).toBe(hip.hipClusterId);
+			expect(row.legacyHipTypeId).toBe(hip.hipTypeId);
+			expect(row.hazardSourceRefId).toBeNull();
+		});
+
+		it("a CA row carries its workflow status and attribution, CA cause id, and the three taxonomy source refs", async () => {
+			const t1 = (await seedCountryAccount()) as string;
+			const refs = {
+				hipTypeId: `type-ref-${randomUUID()}`,
+				hipClusterId: `cluster-ref-${randomUUID()}`,
+				hipHazardId: `hazard-ref-${randomUUID()}`,
+			};
+			const specificHazardId = await seedSpecificHazard(refs);
+			const causeId = await seedExportEvent({ tenantId: t1, specificHazardId });
+			const effectId = await seedExportEvent({
+				tenantId: t1,
+				specificHazardId,
+			});
+			const submitterId = await seedUser();
+			const submittedAt = new Date("2026-02-01T00:00:00Z");
+			await new DrizzleWorkflowRepository(dr).insert(
+				WorkflowInstance.createDraft({
+					id: randomUUID(),
+					entityId: effectId,
+					entityType: "HE",
+					now: submittedAt,
+				}).submit({ userId: submitterId, now: submittedAt }),
+			);
+			await new DrizzleCausalChainRepository(dr).saveEdge(
+				{ causeId, effectId },
+				null,
+			);
+
+			const rows = await repo.findExportRows(t1);
+			const effect = rows.find((r) => r.id === effectId);
+
+			expect(rows).toHaveLength(2);
+			expect(effect).toMatchObject({
+				specificHazardId,
+				workflowStatus: "SUBMITTED",
+				workflowSubmittedByUserId: submitterId,
+				causeId,
+				hazardSourceRefId: refs.hipHazardId,
+				clusterSourceRefId: refs.hipClusterId,
+				typeSourceRefId: refs.hipTypeId,
+			});
+			expect(effect?.workflowSubmittedAt?.getTime()).toBe(
+				submittedAt.getTime(),
+			);
+			expect(rows.find((r) => r.id === causeId)?.causeId).toBeNull();
+		});
+	});
+});
+
+describe("apiImportId conflict carries the port's reason (SOLID round 2, finding 9)", () => {
+	async function conflictOf(promise: Promise<unknown>): Promise<ConflictError> {
+		const err = await promise.then(
+			() => null,
+			(caught: unknown) => caught,
+		);
+		if (!(err instanceof ConflictError)) {
+			throw new Error(`expected a ConflictError, got ${String(err)}`);
+		}
+		return err;
+	}
+
+	it("insert() of a second event with the tenant's apiImportId rejects with context.reason API_IMPORT_ID_CONFLICT", async () => {
+		const repo = new DrizzleHazardousEventRepository(dr);
+		const tenantId = (await seedCountryAccount()) as string;
+		const specificHazardId = await seedSpecificHazard();
+		const apiImportId = `dup-${randomUUID()}`;
+		await repo.insert(
+			makeHazardousEventEntity({
+				...baseNewEventProps(randomUUID(), tenantId, specificHazardId),
+				apiImportId,
+			}),
+		);
+
+		const err = await conflictOf(
+			repo.insert(
+				makeHazardousEventEntity({
+					...baseNewEventProps(randomUUID(), tenantId, specificHazardId),
+					apiImportId,
+				}),
+			),
+		);
+
+		expect(err.context?.reason).toBe(API_IMPORT_ID_CONFLICT);
+	});
+
+	it("update() onto another event's apiImportId rejects with the same reason", async () => {
+		const repo = new DrizzleHazardousEventRepository(dr);
+		const tenantId = (await seedCountryAccount()) as string;
+		const specificHazardId = await seedSpecificHazard();
+		const first = baseNewEventProps(randomUUID(), tenantId, specificHazardId);
+		const second = baseNewEventProps(randomUUID(), tenantId, specificHazardId);
+		await repo.insert(makeHazardousEventEntity(first));
+		await repo.insert(makeHazardousEventEntity(second));
+
+		const err = await conflictOf(
+			repo.update(
+				makeHazardousEventEntity({ ...second, apiImportId: first.apiImportId }),
+				null,
+			),
+		);
+
+		expect(err.context?.reason).toBe(API_IMPORT_ID_CONFLICT);
 	});
 });

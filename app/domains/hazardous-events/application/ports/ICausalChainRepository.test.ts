@@ -384,7 +384,7 @@ type AssertEqual<A, B> = A extends B ? (B extends A ? true : never) : never;
 
 const _findReachableEdgesFromArity: AssertEqual<
 	Parameters<ICausalChainRepository["findReachableEdgesFrom"]>,
-	[string]
+	[string, Tx?]
 > = true;
 const _saveEdgeArity: AssertEqual<
 	Parameters<ICausalChainRepository["saveEdge"]>,
