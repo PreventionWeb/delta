@@ -1,12 +1,15 @@
-# Hazardous Events legacy-parity components
+# Design-system components
 
-This folder is the **Hazardous Events (HE) legacy-parity component set**. Its components
-reproduce the legacy HE look on React Aria so the CA `he-preview` pages match legacy HE until
-HE's UI is upgraded to the new design system.
+Since pull request 848 this folder is the single DELTA design-system component folder (the former
+`app/design-system/ui/` was merged into it).
 
-- **Do not use these components for new screens.** New screens use the DELTA Design System
-  components in [`app/design-system/ui/`](../ui/).
-- **Do not add new variants here** to keep a legacy look on a new screen.
-- This folder will be **removed** when HE's UI is upgraded to the new design system. Merging it
-  into `app/design-system/ui/` is tracked by DEF-014
-  (`_docs/refactoring-plan/deferred-items-register.md`).
+- **DELTA Design System components** are the ones exported from [`index.ts`](./index.ts)
+  (`Button`, `ModalDialog`, `ToastRegion`, `SelectField`, `TextField`, …). New screens use these.
+- **Hazardous Events (HE) legacy-parity components** reproduce the legacy HE look so the CA
+  `he-preview` pages match legacy HE (`ui-classification: legacy-exempt`): `LegacyButton`,
+  `Dialog`, `Toast`, `Card`, `Section`, `Table*`, `Link`, `Select`, `Combobox`, `Checkbox`,
+  `DateRangePicker`, `MultiSelectCombobox`. Do not use them for new screens and do not add
+  legacy variants to the design-system components.
+- HE moves to the DELTA Design System components in the "HE UI upgrade" iteration, tracked by
+  DEF-068 (`_docs/refactoring-plan/deferred-items-register.md`); the legacy-parity components
+  are removed then.

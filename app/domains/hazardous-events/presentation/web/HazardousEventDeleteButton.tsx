@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useFetcher, useRevalidator } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Button } from "~/design-system/components/Button";
+import { LegacyButton as Button } from "~/design-system/components/LegacyButton";
 import { Dialog } from "~/design-system/components/Dialog";
 import type { ToastQueue } from "~/design-system/components/Toast";
 import type { DeleteHazardousEventFailure } from "./mapDeleteErrorToMessageKey";
