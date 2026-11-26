@@ -1,0 +1,98 @@
+## MODIFIED Requirements
+
+### Requirement: run() executes a callback inside a real transaction, committing its result or rolling back on rejection
+
+`ITransactionRunner.run<T>(fn: (tx: Tx) => Promise<T>, outerTx?: Tx): Promise<T>` MUST be
+declared on the interface. This requirement describes a call without `outerTx`; a call with
+`outerTx` is specified by "run() can join a caller's open transaction as a savepoint". An implementation MUST open a real database transaction, invoke `fn` with that
+transaction's own handle as `tx`, and:
+
+- when `fn` resolves, commit the transaction and resolve `run()` with `fn`'s own resolved value,
+  unmodified;
+- when `fn` rejects, roll back the transaction — undoing every write `fn` made via `tx` — and
+  reject `run()` with that same error, unmodified, not wrapped or replaced.
+
+The `tx` handle passed to `fn` MUST be directly usable, with no cast, as the `tx` parameter of
+every `IHazardousEventRepository`/`IWorkflowRepository`/`ICausalChainRepository`/
+`IEventCausalityRepository` method this change threads `tx` through.
+
+#### Scenario: A successful callback commits and resolves with its own return value
+
+- **GIVEN** a callback `fn` that performs one or more writes via `tx` and resolves with a value
+  `V`
+- **WHEN** `run(fn)` is called
+- **THEN** it MUST resolve with `V`
+- **AND** every write `fn` made via `tx` MUST be visible to a read made after `run()` resolves,
+  via a separate connection
+
+#### Scenario: A rejecting callback rolls back every write it made, and the same error propagates unmodified
+
+- **GIVEN** a callback `fn` that performs one write via `tx`, then rejects with an `Error` `E`
+- **WHEN** `run(fn)` is called
+- **THEN** it MUST reject with that same `E`, unmodified — not wrapped, not replaced
+- **AND** the write `fn` made via `tx` before rejecting MUST NOT be visible to any read made
+  after `run()` rejects — it MUST be rolled back, not partially committed
+
+#### Scenario: The tx handle passed to fn is usable, with no cast, by every Tx-accepting port method
+
+- **GIVEN** a callback `fn` that calls `IHazardousEventRepository.insert(entity, tx)` using the
+  `tx` `run()` passed it
+- **WHEN** `run(fn)` is called
+- **THEN** the call MUST type-check with no cast and MUST execute against that same transaction
+  — a subsequent read via that same `tx`, before `run()` resolves, MUST see the inserted entity
+
+#### Scenario: Two concurrent run() calls use independent transactions — neither sees the other's uncommitted writes, and one's rollback does not affect the other's commit
+
+- **GIVEN** two concurrent `run()` calls, each with its own callback performing an unrelated
+  write, invoked before either resolves
+- **WHEN** one callback resolves successfully and the other rejects
+- **THEN** the resolving call's own write MUST commit, regardless of the other call's outcome
+- **AND** the rejecting call's own write MUST roll back, regardless of the other call's outcome
+- **AND** at no point does either call's own in-progress, uncommitted write become visible to a
+  read made through the other call's own `tx`
+
+## ADDED Requirements
+
+### Requirement: run() can join a caller's open transaction as a savepoint
+
+`ITransactionRunner.run<T>(fn: (tx: Tx) => Promise<T>, outerTx?: Tx): Promise<T>` SHALL accept an
+optional `outerTx`. When `outerTx` is omitted, behaviour MUST stay exactly as the existing
+requirement describes: a new top-level transaction. When `outerTx` is given, the implementation
+MUST open a nested transaction (SAVEPOINT) on `outerTx` and pass that nested handle to `fn`:
+
+- When `fn` resolves, the savepoint is released and `run()` resolves with `fn`'s value. The
+  writes are committed only when the caller's outer transaction commits.
+- When `fn` rejects, the savepoint is rolled back and `run()` rejects with the same error,
+  unmodified. The outer transaction stays usable.
+
+Callers MUST NOT start two `run(fn, outerTx)` calls on the same `outerTx` at the same time,
+because a single database transaction cannot run statements in parallel. This is why
+`ImportHazardousEventsCsvUseCase` processes rows sequentially (OD-4).
+
+#### Scenario: Nested writes commit only with the outer transaction
+
+- **GIVEN** an outer transaction opened by `run(outerFn)`
+- **WHEN** inside it, `run(fn, outerTx)` writes a row and resolves, and then `outerFn` rejects
+- **THEN** the row written by `fn` MUST NOT be visible after the outer `run()` rejects
+
+#### Scenario: A rejected nested call rolls back only its own writes
+
+- **GIVEN** an outer transaction that has written row A
+- **WHEN** `run(fn, outerTx)` writes row B and then rejects with `E`
+- **THEN** `run(fn, outerTx)` rejects with `E`, unmodified
+- **AND** a read through `outerTx` sees A but not B
+- **AND** the outer transaction can still commit A
+
+#### Scenario: Sequential nested calls on one outer transaction see each other's writes
+
+- **GIVEN** an outer transaction
+- **WHEN** `run(fn1, outerTx)` inserts a row with `api_import_id = "X"` and resolves, and then
+  `run(fn2, outerTx)` reads by `api_import_id = "X"` through its own handle
+- **THEN** `fn2` finds the row
+
+#### Scenario: Concurrent top-level callers are unaffected
+
+- **GIVEN** two concurrent `run()` calls with no `outerTx`
+- **WHEN** they run as they did before this change
+- **THEN** the existing "two concurrent run() calls use independent transactions" scenario still
+  holds

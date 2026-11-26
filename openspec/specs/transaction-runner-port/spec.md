@@ -41,8 +41,9 @@ domain's use cases depend on.
 
 ### Requirement: run() executes a callback inside a real transaction, committing its result or rolling back on rejection
 
-`ITransactionRunner.run<T>(fn: (tx: Tx) => Promise<T>): Promise<T>` MUST be declared on the
-interface. An implementation MUST open a real database transaction, invoke `fn` with that
+`ITransactionRunner.run<T>(fn: (tx: Tx) => Promise<T>, outerTx?: Tx): Promise<T>` MUST be
+declared on the interface. This requirement describes a call without `outerTx`; a call with
+`outerTx` is specified by "run() can join a caller's open transaction as a savepoint". An implementation MUST open a real database transaction, invoke `fn` with that
 transaction's own handle as `tx`, and:
 
 - when `fn` resolves, commit the transaction and resolve `run()` with `fn`'s own resolved value,
@@ -105,3 +106,47 @@ rollback semantics this port's contract requires; this adapter MUST NOT re-imple
 - **WHEN** `run(fn)` is called
 - **THEN** `fn` MUST be invoked with the real transaction handle `this.db.transaction()` itself
   passes to its own callback — not a wrapped or adapted value
+
+### Requirement: run() can join a caller's open transaction as a savepoint
+
+`ITransactionRunner.run<T>(fn: (tx: Tx) => Promise<T>, outerTx?: Tx): Promise<T>` SHALL accept an
+optional `outerTx`. When `outerTx` is omitted, behaviour MUST stay exactly as the existing
+requirement describes: a new top-level transaction. When `outerTx` is given, the implementation
+MUST open a nested transaction (SAVEPOINT) on `outerTx` and pass that nested handle to `fn`:
+
+- When `fn` resolves, the savepoint is released and `run()` resolves with `fn`'s value. The
+  writes are committed only when the caller's outer transaction commits.
+- When `fn` rejects, the savepoint is rolled back and `run()` rejects with the same error,
+  unmodified. The outer transaction stays usable.
+
+Callers MUST NOT start two `run(fn, outerTx)` calls on the same `outerTx` at the same time,
+because a single database transaction cannot run statements in parallel. This is why
+`ImportHazardousEventsCsvUseCase` processes rows sequentially (OD-4).
+
+#### Scenario: Nested writes commit only with the outer transaction
+
+- **GIVEN** an outer transaction opened by `run(outerFn)`
+- **WHEN** inside it, `run(fn, outerTx)` writes a row and resolves, and then `outerFn` rejects
+- **THEN** the row written by `fn` MUST NOT be visible after the outer `run()` rejects
+
+#### Scenario: A rejected nested call rolls back only its own writes
+
+- **GIVEN** an outer transaction that has written row A
+- **WHEN** `run(fn, outerTx)` writes row B and then rejects with `E`
+- **THEN** `run(fn, outerTx)` rejects with `E`, unmodified
+- **AND** a read through `outerTx` sees A but not B
+- **AND** the outer transaction can still commit A
+
+#### Scenario: Sequential nested calls on one outer transaction see each other's writes
+
+- **GIVEN** an outer transaction
+- **WHEN** `run(fn1, outerTx)` inserts a row with `api_import_id = "X"` and resolves, and then
+  `run(fn2, outerTx)` reads by `api_import_id = "X"` through its own handle
+- **THEN** `fn2` finds the row
+
+#### Scenario: Concurrent top-level callers are unaffected
+
+- **GIVEN** two concurrent `run()` calls with no `outerTx`
+- **WHEN** they run as they did before this change
+- **THEN** the existing "two concurrent run() calls use independent transactions" scenario still
+  holds
