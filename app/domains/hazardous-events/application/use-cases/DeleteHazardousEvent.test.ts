@@ -174,6 +174,14 @@ class FakeHazardousEventRepository implements IHazardousEventRepository {
 		throw new Error("not used by DeleteHazardousEventUseCase's own tests");
 	}
 
+	async findIdByApiImportId(): Promise<never> {
+		throw new Error("findIdByApiImportId is not used by this test");
+	}
+
+	async findExportRows(): Promise<never> {
+		throw new Error("findExportRows is not used by this test");
+	}
+
 	async saveSpatialObservation(): Promise<never> {
 		throw new Error("not used by DeleteHazardousEventUseCase's own tests");
 	}

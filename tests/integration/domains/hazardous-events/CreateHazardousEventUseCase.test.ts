@@ -3,12 +3,22 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { randomUUID } from "crypto";
-import { eq } from "drizzle-orm";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { dr } from "~/db.server";
-import { NotFoundError, ValidationError } from "~/shared/errors";
+import { eq, TransactionRollbackError } from "drizzle-orm";
+import {
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	vi,
+} from "vitest";
+import { dr, type Tx } from "~/db.server";
+import { ConflictError, NotFoundError, ValidationError } from "~/shared/errors";
 import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
+import { eventTable } from "~/drizzle/schema/eventTable";
 import { auditLogsTable } from "~/drizzle/schema/auditLogsTable";
+import { hazardDriverTable } from "~/domains/hazardous-events/infrastructure/hazardDriverTable";
 import { hazardousEventAttachmentTable } from "~/domains/hazardous-events/infrastructure/hazardousEventAttachmentTable";
 import { DrizzleTransactionRunner } from "~/infrastructure/DrizzleTransactionRunner.server";
 import { DrizzleHazardousEventRepository } from "~/domains/hazardous-events/infrastructure/DrizzleHazardousEventRepository.server";
@@ -668,5 +678,212 @@ describe("CreateHazardousEventUseCase attachment promotion (ca-shared-attachment
 		expect(await dr.select().from(hazardousEventAttachmentTable)).toHaveLength(
 			attachmentCountBefore,
 		);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// ca-he-csv-migration tasks.md 3.1 -- specs/create-hazardous-event (optional caller tx).
+// ---------------------------------------------------------------------------
+class RecordingLogger implements ILogger {
+	infoCalls: Record<string, unknown>[] = [];
+	info(data: Record<string, unknown>): void {
+		this.infoCalls.push(data);
+	}
+	warn(): void {}
+	error(): void {}
+	debug(): void {}
+}
+
+/** Rolls back `fn`'s caller transaction, swallowing only Drizzle's own rollback signal. */
+async function runAndRollBack(fn: (outer: Tx) => Promise<void>): Promise<void> {
+	try {
+		await dr.transaction(async (outer) => {
+			await fn(outer);
+			outer.rollback();
+		});
+	} catch (err) {
+		if (!(err instanceof TransactionRollbackError)) {
+			throw err;
+		}
+	}
+}
+
+function makeCallerTxUseCase(logger: ILogger): CreateHazardousEventUseCase {
+	const workflowRepository = new DrizzleWorkflowRepository(dr);
+	return new CreateHazardousEventUseCase(
+		logger,
+		new DrizzleHazardTaxonomyRepository(dr),
+		new DrizzleHazardousEventRepository(dr),
+		new InitializeWorkflowInstanceUseCase(workflowRepository),
+		new DrizzleCausalChainRepository(dr),
+		{ execute: vi.fn() },
+		new DrizzleTransactionRunner(dr),
+		new DrizzleHipCrosswalkAdapter(dr),
+		attachmentStoragePort,
+		new DrizzleAuditLogAdapter(dr),
+	);
+}
+
+describe("CreateHazardousEventUseCase with a caller transaction (ca-he-csv-migration)", () => {
+	let tenantId: string;
+	let specificHazardId: string;
+	let actingUserId: string;
+
+	beforeAll(async () => {
+		// Warms PGlite and the adapter modules once, outside any per-test timeout.
+		tenantId = (await seedCountryAccount()) as string;
+		specificHazardId = await seedSpecificHazard();
+		actingUserId = await seedUser();
+	}, 60_000);
+
+	function validCommand() {
+		return {
+			tenantId,
+			specificHazardId,
+			startDate: "2026-03-01",
+			endDate: "",
+			nationalSpecification: "",
+			description: "",
+			chainsExplanation: "",
+			magnitude: "",
+			recordOriginator: "",
+			dataSource: "",
+			hazardousEventStatus: null,
+			specificHazardLocalName: null,
+			specificHazardNationalName: null,
+			apiImportId: null,
+			actingUserId,
+			hazardDriverIds: [],
+			attachments: [],
+			fieldValues: [],
+			customFieldValues: [],
+		};
+	}
+
+	it("Scenario: A create inside a caller transaction is undone by the caller's rollback -- no hazardous_event, event, workflow_instance or audit_logs row for the new id", async () => {
+		const useCase = makeCallerTxUseCase(new NoOpLogger());
+		let newId = "";
+
+		await runAndRollBack(async (outer) => {
+			const created = await useCase.execute({ ...validCommand(), tx: outer });
+			newId = created.id;
+			// Proves the write happened on `outer` before the rollback.
+			const inTx = await outer
+				.select({ id: hazardousEventTable.id })
+				.from(hazardousEventTable)
+				.where(eq(hazardousEventTable.id, newId));
+			expect(inTx).toHaveLength(1);
+		});
+
+		expect(newId).not.toBe("");
+		expect(
+			await dr
+				.select()
+				.from(hazardousEventTable)
+				.where(eq(hazardousEventTable.id, newId)),
+		).toHaveLength(0);
+		expect(
+			await dr.select().from(eventTable).where(eq(eventTable.id, newId)),
+		).toHaveLength(0);
+		expect(
+			await dr
+				.select()
+				.from(workflowInstanceTable)
+				.where(eq(workflowInstanceTable.entityId, newId)),
+		).toHaveLength(0);
+		expect(
+			await dr
+				.select()
+				.from(auditLogsTable)
+				.where(eq(auditLogsTable.recordId, newId)),
+		).toHaveLength(0);
+	});
+
+	it("Scenario: A create with a cause inside a caller transaction does not deadlock on PGlite -- it resolves", async () => {
+		const causeId = randomUUID();
+		await new DrizzleHazardousEventRepository(dr).insert(
+			HazardousEvent.create(
+				baseEventProps(causeId, tenantId, specificHazardId),
+				new Set(),
+				new Set(),
+			),
+		);
+		// A real driver id, so the taxonomy valid-id read actually queries (empty input returns early).
+		const [driver] = await dr
+			.insert(hazardDriverTable)
+			.values({ name: `Driver ${randomUUID()}`, countryAccountsId: tenantId })
+			.returning({ id: hazardDriverTable.id });
+		const useCase = makeCallerTxUseCase(new NoOpLogger());
+
+		await runAndRollBack(async (outer) => {
+			const created = await useCase.execute({
+				...validCommand(),
+				hazardDriverIds: [driver.id],
+				causeId,
+				tx: outer,
+			});
+			expect(created.id).toEqual(expect.any(String));
+		});
+	});
+
+	it("Scenario: The success log is still written when a caller transaction is given -- one hazardous_event.created line", async () => {
+		const logger = new RecordingLogger();
+		const useCase = makeCallerTxUseCase(logger);
+		let createdId = "";
+
+		await runAndRollBack(async (outer) => {
+			createdId = (await useCase.execute({ ...validCommand(), tx: outer })).id;
+		});
+
+		const createdLogs = logger.infoCalls.filter(
+			(c) => c.msg === "hazardous_event.created",
+		);
+		expect(createdLogs).toHaveLength(1);
+		expect(createdLogs[0]).toMatchObject({ hazardousEventId: createdId });
+	});
+
+	// Outcome-only variant: PGlite serializes the two transactions, so this checks the end state, not interleaving.
+	it("Scenario: Two callers creating the same apiImportId in separate transactions -- exactly one commits, the other rejects with ConflictError", async () => {
+		const useCase = makeCallerTxUseCase(new NoOpLogger());
+		const apiImportId = `RACE-1-${randomUUID()}`;
+		const attempt = () =>
+			dr.transaction((outer) =>
+				useCase.execute({ ...validCommand(), apiImportId, tx: outer }),
+			);
+
+		const results = await Promise.allSettled([attempt(), attempt()]);
+
+		const fulfilled = results.filter((r) => r.status === "fulfilled");
+		const rejected = results.filter(
+			(r): r is PromiseRejectedResult => r.status === "rejected",
+		);
+		expect(fulfilled).toHaveLength(1);
+		expect(rejected).toHaveLength(1);
+		expect(rejected[0].reason).toBeInstanceOf(ConflictError);
+		expect(
+			await dr
+				.select()
+				.from(hazardousEventTable)
+				.where(eq(hazardousEventTable.apiImportId, apiImportId)),
+		).toHaveLength(1);
+	});
+
+	it("Scenario: Without a caller transaction nothing changes -- the event commits and hazardous_event.created is logged once", async () => {
+		const logger = new RecordingLogger();
+		const useCase = makeCallerTxUseCase(logger);
+
+		const created = await useCase.execute(validCommand());
+
+		expect(
+			await dr
+				.select()
+				.from(hazardousEventTable)
+				.where(eq(hazardousEventTable.id, created.id)),
+		).toHaveLength(1);
+		const createdLogs = logger.infoCalls.filter(
+			(c) => c.msg === "hazardous_event.created",
+		);
+		expect(createdLogs).toHaveLength(1);
+		expect(createdLogs[0]).toMatchObject({ hazardousEventId: created.id });
 	});
 });
