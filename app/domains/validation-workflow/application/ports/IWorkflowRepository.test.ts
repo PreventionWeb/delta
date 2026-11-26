@@ -229,7 +229,7 @@ type AssertEqual<A, B> = A extends B ? (B extends A ? true : never) : never;
 
 const _findByEntityArity: AssertEqual<
 	Parameters<IWorkflowRepository["findByEntity"]>,
-	[string, EntityType]
+	[string, EntityType, Tx?]
 > = true;
 const _findByEntityIdsArity: AssertEqual<
 	Parameters<IWorkflowRepository["findByEntityIds"]>,

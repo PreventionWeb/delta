@@ -7,8 +7,8 @@ import type { ITransactionRunner } from "~/shared/persistence/ITransactionRunner
  * transaction semantics, just invokes fn with a placeholder tx and relays its outcome.
  */
 class FakeTransactionRunner implements ITransactionRunner {
-	async run<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
-		return fn({} as Tx);
+	async run<T>(fn: (tx: Tx) => Promise<T>, outerTx?: Tx): Promise<T> {
+		return fn(outerTx ?? ({} as Tx));
 	}
 }
 
@@ -22,6 +22,15 @@ describe("ITransactionRunner conformance", () => {
 		});
 
 		expect(result).toBe("resolved-value");
+	});
+
+	it("accepts an optional outer transaction and hands fn a handle for it (savepoint, ca-he-csv-migration)", async () => {
+		const runner = new FakeTransactionRunner();
+		const outer = { marker: "outer" } as unknown as Tx;
+
+		const seen = await runner.run(async (tx) => tx, outer);
+
+		expect(seen).toBe(outer);
 	});
 
 	it("propagates fn's rejection unmodified", async () => {
@@ -101,7 +110,7 @@ type AssertEqual<A, B> = A extends B ? (B extends A ? true : never) : never;
 
 const _runArity: AssertEqual<
 	Parameters<ITransactionRunner["run"]>,
-	[(tx: Tx) => Promise<unknown>]
+	[(tx: Tx) => Promise<unknown>, (Tx | undefined)?]
 > = true;
 void _runArity;
 
