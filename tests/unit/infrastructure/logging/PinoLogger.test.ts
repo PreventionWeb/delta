@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Writable } from "node:stream";
 import pino from "pino";
+import { DrizzleQueryError } from "drizzle-orm/errors";
 
 import {
 	PinoLogger,
 	getPinoLogger,
 	__getBasePinoInstanceForTest,
+	LOG_SERIALIZERS,
 	REDACT_PATHS,
 	contextMixin,
 } from "~/infrastructure/logging/PinoLogger.server";
@@ -183,6 +185,124 @@ describe("PinoLogger — error object serialization", () => {
 
 		const [line] = getLines();
 		expect(line.reason).toEqual({});
+	});
+});
+
+describe("PinoLogger — query errors never log their parameters", () => {
+	const SENTINEL = "SENTINEL-CELL-VALUE";
+
+	function queryError(): DrizzleQueryError {
+		const driverError = Object.assign(
+			new Error(`invalid input syntax for type uuid: "${SENTINEL}"`),
+			{
+				code: "22P02",
+				detail: `Key (id)=(${SENTINEL})`,
+				where: `unnamed portal parameter $1 = '${SENTINEL}'`,
+				constraint: "hazardous_event_pkey",
+				table: "hazardous_event",
+				routine: "string_to_uuid",
+			},
+		);
+		return new DrizzleQueryError(
+			'select * from "hazardous_event" where "id" = $1',
+			[SENTINEL],
+			driverError,
+		);
+	}
+
+	it("logs a DrizzleQueryError under 'err' without params, query values or driver message", () => {
+		const { instance, getLines } = createTestPino({
+			serializers: LOG_SERIALIZERS,
+		});
+
+		new PinoLogger(instance).error({ msg: "load failed", err: queryError() });
+
+		const [line] = getLines();
+		expect(JSON.stringify(line)).not.toContain(SENTINEL);
+		expect(line.err).toMatchObject({
+			type: "DrizzleQueryError",
+			message: "Failed query",
+			db: {
+				code: "22P02",
+				constraint: "hazardous_event_pkey",
+				table: "hazardous_event",
+				routine: "string_to_uuid",
+			},
+		});
+	});
+
+	it("sanitizes a DrizzleQueryError nested as the cause of another error", () => {
+		const { instance, getLines } = createTestPino({
+			serializers: LOG_SERIALIZERS,
+		});
+		const wrapper = new Error("import failed", { cause: queryError() });
+
+		new PinoLogger(instance).error({ msg: "import failed", err: wrapper });
+
+		const [line] = getLines();
+		expect(JSON.stringify(line)).not.toContain(SENTINEL);
+		expect(line.err).toMatchObject({
+			message: "import failed",
+			cause: { type: "DrizzleQueryError", db: { code: "22P02" } },
+		});
+	});
+
+	it("logs a cyclic cause chain without overflowing the stack", () => {
+		const { instance, getLines } = createTestPino({
+			serializers: LOG_SERIALIZERS,
+		});
+		const a = new Error("a");
+		const b = new Error("b", { cause: a });
+		Object.defineProperty(a, "cause", { value: b });
+
+		new PinoLogger(instance).error({ err: a });
+
+		const [line] = getLines();
+		expect(line.err).toMatchObject({
+			message: "a",
+			cause: { message: "b", cause: "[Circular]" },
+		});
+	});
+
+	it("keeps a wrapper error's own fields and constructor name", () => {
+		class ImportFailedError extends Error {}
+		const { instance, getLines } = createTestPino({
+			serializers: LOG_SERIALIZERS,
+		});
+		const wrapper = Object.assign(
+			new ImportFailedError("import failed", { cause: queryError() }),
+			{ code: "E_IMPORT" },
+		);
+
+		new PinoLogger(instance).error({ err: wrapper });
+
+		const [line] = getLines();
+		expect(line.err).toMatchObject({
+			type: "ImportFailedError",
+			code: "E_IMPORT",
+			message: "import failed",
+		});
+		expect(JSON.stringify(line)).not.toContain(SENTINEL);
+	});
+
+	it("leaves an ordinary error's message and stack intact", () => {
+		const { instance, getLines } = createTestPino({
+			serializers: LOG_SERIALIZERS,
+		});
+
+		new PinoLogger(instance).error({ err: new Error("transient DB error") });
+
+		const [line] = getLines();
+		expect(line.err).toMatchObject({ message: "transient DB error" });
+		expect(typeof (line.err as Record<string, unknown>).stack).toBe("string");
+	});
+
+	it("is the base instance's 'err' serializer", () => {
+		const serializers: unknown = Reflect.get(
+			__getBasePinoInstanceForTest(),
+			pino.symbols.serializersSym,
+		);
+		expect(serializers).toMatchObject({ err: LOG_SERIALIZERS.err });
 	});
 });
 

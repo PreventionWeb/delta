@@ -43,14 +43,12 @@ export const requestContextMiddleware = (
 				getPinoLogger().error({
 					msg: "requestContextMiddleware: getUserFromSession failed",
 					err: userResult.reason,
-					reason: userResult.reason,
 				});
 			}
 			if (tenantIdResult.status === "rejected") {
 				getPinoLogger().error({
 					msg: "requestContextMiddleware: getCountryAccountsIdFromSession failed",
 					err: tenantIdResult.reason,
-					reason: tenantIdResult.reason,
 				});
 			}
 
