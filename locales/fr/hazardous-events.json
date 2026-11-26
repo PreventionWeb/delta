@@ -320,5 +320,78 @@
 			"copy": "Copier la référence de l'erreur",
 			"copied": "Référence de l'erreur copiée"
 		}
+	},
+	"csv": {
+		"title": "Importation CSV des événements dangereux",
+		"file_label": "Téléversement du fichier",
+		"mode_label": "Type",
+		"mode": {
+			"create": "Créer",
+			"update": "Mettre à jour",
+			"upsert": "Créer ou mettre à jour"
+		},
+		"submit": "Importer",
+		"submitting": "Importation…",
+		"back": "Retour aux événements dangereux",
+		"success": "{{created}}, {{updated}}, {{unchanged}}.",
+		"success_parts": {
+			"created_one": "{{count}} événement créé",
+			"created_other": "{{count}} événements créés",
+			"updated_one": "{{count}} mis à jour",
+			"updated_other": "{{count}} mis à jour",
+			"unchanged_one": "{{count}} inchangé",
+			"unchanged_other": "{{count}} inchangés"
+		},
+		"failure_summary_one": "Le fichier n'a pas été importé. Corrigez {{count}} problème et téléversez-le à nouveau.",
+		"failure_summary_other": "Le fichier n'a pas été importé. Corrigez {{count}} problèmes et téléversez-le à nouveau.",
+		"more_errors_one": "…et {{count}} autre problème.",
+		"more_errors_other": "…et {{count}} autres problèmes.",
+		"ignored_columns": "Colonnes non importées : {{columns}}",
+		"skipped_data_notice_one": "{{count}} ligne contenait une empreinte spatiale ou des pièces jointes qui n'ont pas été importées.",
+		"skipped_data_notice_other": "{{count}} lignes contenaient une empreinte spatiale ou des pièces jointes qui n'ont pas été importées.",
+		"location": {
+			"line": "Ligne {{line}}",
+			"line_column": "Ligne {{line}}, colonne {{column}}",
+			"file": "Fichier",
+			"column": "Colonne {{column}}"
+		},
+		"value": "Valeur : {{value}}",
+		"error_item": "{{location}} : {{message}}",
+		"templates": {
+			"title": "Fichiers d'exemple",
+			"create": "Créer",
+			"update": "Mettre à jour",
+			"upsert": "Créer ou mettre à jour"
+		},
+		"error": {
+			"unknown_column": "Cette colonne n'est pas reconnue.",
+			"duplicate_column": "Cette colonne apparaît plusieurs fois.",
+			"missing_required_column": "Cette colonne obligatoire est absente.",
+			"invalid_mode": "Choisissez un type d'importation valide.",
+			"no_data": "Le fichier contient un en-tête mais aucune ligne de données.",
+			"file_too_large": "Le fichier dépasse 10 Mo.",
+			"invalid_encoding": "Le fichier n'est pas un texte UTF-8 valide. Enregistrez-le au format CSV UTF-8 et réessayez.",
+			"malformed_csv": "Le fichier n'est pas un CSV valide. Vérifiez qu'aucune ligne n'a un nombre de champs incorrect ou un guillemet non fermé.",
+			"missing_file": "Choisissez un fichier CSV à téléverser.",
+			"required": "Cette valeur est obligatoire.",
+			"invalid_date": "Saisissez une date au format AAAA, AAAA-MM ou AAAA-MM-JJ.",
+			"invalid_enum": "Cette valeur ne fait pas partie des valeurs autorisées.",
+			"invalid_id": "Cet identifiant n'est pas valide.",
+			"duplicate_key": "Cette clé apparaît sur une ligne précédente du fichier.",
+			"not_found": "Aucun enregistrement correspondant n'a été trouvé.",
+			"conflict": "Cela entre en conflit avec un enregistrement existant.",
+			"not_editable": "Cet événement ne peut pas être modifié dans son statut de flux de travail actuel.",
+			"not_migrated": "Cet événement n'a pas encore été migré et ne peut pas être mis à jour.",
+			"concurrent_modification": "Cet événement a été modifié par quelqu'un d'autre. Téléversez à nouveau le fichier.",
+			"api_import_id_immutable": "L'identifiant d'importation API d'un événement existant ne peut pas être modifié.",
+			"hip_mismatch": "L'aléa, le groupe et le type ne correspondent pas.",
+			"specific_hazard_required": "Un aléa spécifique est obligatoire.",
+			"status_not_permitted": "Seul un administrateur peut importer ce statut d'approbation.",
+			"status_change_not_supported": "Ce changement de statut d'approbation n'est pas pris en charge.",
+			"cause_after_effect": "L'événement parent ne doit pas commencer après cet événement.",
+			"parent_multiple_causes": "Cet événement a plusieurs causes. Modifiez ses causes dans l'application, pas dans le fichier.",
+			"invalid_character": "Cette valeur contient un caractère nul, qui ne peut pas être enregistré. Supprimez-le et réessayez.",
+			"validation": "Cette ligne n'est pas valide."
+		}
 	}
 }
