@@ -3,10 +3,20 @@ import { randomUUID } from "crypto";
 import * as fs from "fs/promises";
 import * as os from "os";
 import * as path from "path";
-import { eq } from "drizzle-orm";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { dr } from "~/db.server";
+import { eq, TransactionRollbackError } from "drizzle-orm";
+import {
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	vi,
+} from "vitest";
+import { dr, type Tx } from "~/db.server";
 import { auditLogsTable } from "~/drizzle/schema/auditLogsTable";
+import { eventTable } from "~/drizzle/schema/eventTable";
+import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
 import { DrizzleTransactionRunner } from "~/infrastructure/DrizzleTransactionRunner.server";
 import { DrizzleHazardousEventRepository } from "~/domains/hazardous-events/infrastructure/DrizzleHazardousEventRepository.server";
 import { DrizzleCausalChainRepository } from "~/domains/hazardous-events/infrastructure/DrizzleCausalChainRepository.server";
@@ -23,7 +33,7 @@ import {
 import { UpdateHazardousEventUseCase } from "~/domains/hazardous-events/application/use-cases/UpdateHazardousEvent";
 import { LocalDiskAttachmentStorageAdapter } from "~/domains/shared/attachments/infrastructure/LocalDiskAttachmentStorageAdapter.server";
 import { DrizzleAuditLogAdapter } from "~/domains/shared/audit-log/infrastructure/DrizzleAuditLogAdapter.server";
-import { ConflictError, NotFoundError } from "~/shared/errors";
+import { ConflictError, NotFoundError, ValidationError } from "~/shared/errors";
 import type { ILogger } from "~/shared/logging/ILogger";
 import {
 	seedCountryAccount,
@@ -779,5 +789,180 @@ describe("UpdateHazardousEventUseCase attachment promote/delete wiring (design.m
 		expect(deleteSpy).not.toHaveBeenCalled();
 		expect(promoteSpy).not.toHaveBeenCalled();
 		await expect(fs.stat(permanentPath)).resolves.toBeDefined();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// ca-he-csv-migration tasks.md 3.2 -- specs/update-hazardous-event (optional caller tx).
+// ---------------------------------------------------------------------------
+/** Rolls back `fn`'s caller transaction, swallowing only Drizzle's own rollback signal. */
+async function runAndRollBack(fn: (outer: Tx) => Promise<void>): Promise<void> {
+	try {
+		await dr.transaction(async (outer) => {
+			await fn(outer);
+			outer.rollback();
+		});
+	} catch (err) {
+		if (!(err instanceof TransactionRollbackError)) {
+			throw err;
+		}
+	}
+}
+
+describe("UpdateHazardousEventUseCase with a caller transaction (ca-he-csv-migration)", () => {
+	const seededUpdatedAt = new Date("2026-01-02T00:00:00Z");
+	let uploadRoot: string;
+	let tenantId: string;
+	let specificHazardId: string;
+	let actingUserId: string;
+
+	beforeAll(async () => {
+		// Warms PGlite and the adapter modules once, outside any per-test timeout.
+		tenantId = (await seedCountryAccount()) as string;
+		specificHazardId = await seedSpecificHazard();
+		actingUserId = await seedUser();
+	}, 60_000);
+
+	beforeEach(async () => {
+		uploadRoot = await fs.mkdtemp(
+			path.join(os.tmpdir(), "delta-update-he-tx-test-"),
+		);
+	});
+
+	afterEach(async () => {
+		await fs.rm(uploadRoot, { recursive: true, force: true });
+	});
+
+	async function seedCommittedEvent(
+		harness: ReturnType<typeof createHarness>,
+	): Promise<string> {
+		const id = randomUUID();
+		await harness.hazardousEventRepository.insert(
+			HazardousEvent.create(
+				baseEventProps(id, tenantId, specificHazardId, {
+					updatedAt: seededUpdatedAt,
+				}),
+				new Set(),
+				new Set(),
+			),
+		);
+		await harness.workflowRepository.insert(
+			WorkflowInstance.createDraft({
+				id: randomUUID(),
+				entityId: id,
+				entityType: "HE",
+				now: new Date("2026-01-01T00:00:00Z"),
+			}),
+		);
+		return id;
+	}
+
+	async function storedRow(id: string) {
+		const [row] = await dr
+			.select()
+			.from(hazardousEventTable)
+			.where(eq(hazardousEventTable.id, id));
+		return row;
+	}
+
+	it("Scenario: An update inside a caller transaction is undone by the caller's rollback -- description and updated_at unchanged, no new audit row", async () => {
+		const harness = createHarness(uploadRoot);
+		const id = await seedCommittedEvent(harness);
+
+		await runAndRollBack(async (outer) => {
+			await harness.useCase.execute({
+				id,
+				tenantId,
+				actingUserId,
+				description: "new",
+				tx: outer,
+			});
+			// Proves the write happened on `outer` before the rollback.
+			const [inTx] = await outer
+				.select({ description: hazardousEventTable.description })
+				.from(hazardousEventTable)
+				.where(eq(hazardousEventTable.id, id));
+			expect(inTx.description).toBe("new");
+		});
+
+		const row = await storedRow(id);
+		expect(row.description).toBe("original description");
+		expect(row.updatedAt?.getTime()).toBe(seededUpdatedAt.getTime());
+		expect(await auditRowsFor(id)).toHaveLength(0);
+	});
+
+	// Spec example "2025-13-45" is accepted by the entity, so startDate > endDate is used instead.
+	it("Scenario: A rejected update throws inside the caller transaction -- ValidationError, and outer is still usable for further statements", async () => {
+		const harness = createHarness(uploadRoot);
+		const id = await seedCommittedEvent(harness);
+		const followUpId = randomUUID();
+
+		await dr.transaction(async (outer) => {
+			await expect(
+				harness.useCase.execute({
+					id,
+					tenantId,
+					actingUserId,
+					startDate: "2026-06-01",
+					endDate: "2026-01-01",
+					tx: outer,
+				}),
+			).rejects.toBeInstanceOf(ValidationError);
+			await outer.insert(eventTable).values({ id: followUpId });
+		});
+
+		expect(
+			await dr.select().from(eventTable).where(eq(eventTable.id, followUpId)),
+		).toHaveLength(1);
+		expect((await storedRow(id)).startDate).toBe("2026-01-01");
+		expect(await auditRowsFor(id)).toHaveLength(0);
+	});
+
+	it("Requirement (NOD-12): an event inserted earlier in the same caller transaction is visible to an update with that tx", async () => {
+		const harness = createHarness(uploadRoot);
+		const id = randomUUID();
+
+		await dr.transaction(async (outer) => {
+			await harness.hazardousEventRepository.insert(
+				HazardousEvent.create(
+					baseEventProps(id, tenantId, specificHazardId),
+					new Set(),
+					new Set(),
+				),
+				outer,
+			);
+			const result = await harness.useCase.execute({
+				id,
+				tenantId,
+				actingUserId,
+				description: "updated in the same tx",
+				tx: outer,
+			});
+			expect(result.description).toBe("updated in the same tx");
+		});
+
+		expect((await storedRow(id)).description).toBe("updated in the same tx");
+	});
+
+	it("Requirement: one hazardous_event.updated log line when a caller transaction is given", async () => {
+		const logger = new RecordingLogger();
+		const harness = createHarness(uploadRoot, logger);
+		const id = await seedCommittedEvent(harness);
+
+		await runAndRollBack(async (outer) => {
+			await harness.useCase.execute({
+				id,
+				tenantId,
+				actingUserId,
+				description: "new",
+				tx: outer,
+			});
+		});
+
+		const updatedLogs = logger.infoCalls.filter(
+			(c) => c.msg === "hazardous_event.updated",
+		);
+		expect(updatedLogs).toHaveLength(1);
+		expect(updatedLogs[0]).toMatchObject({ hazardousEventId: id });
 	});
 });

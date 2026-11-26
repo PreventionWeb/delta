@@ -74,6 +74,8 @@ export interface UpdateHazardousEventCommand {
 		RecordSpatialObservationCommand,
 		"tenantId" | "hazardousEventId" | "tx"
 	>;
+	/** A batch caller's open transaction: every read and write runs on it, as a savepoint (NOD-12). */
+	tx?: Tx;
 }
 
 type CauseAction =
@@ -215,6 +217,7 @@ export class UpdateHazardousEventUseCase {
 		const existingEvent = await this.hazardousEventRepository.findById(
 			command.id,
 			command.tenantId,
+			command.tx,
 		);
 
 		// DEF-031: degrades gracefully instead of throwing -- every event created before this
@@ -223,6 +226,7 @@ export class UpdateHazardousEventUseCase {
 			await this.getWorkflowInstanceByEntityUseCase.execute({
 				entityId: existingEvent.id,
 				entityType: "HE",
+				tx: command.tx,
 			});
 
 		const causeAction = resolveCauseAction(command);
@@ -244,11 +248,13 @@ export class UpdateHazardousEventUseCase {
 			await this.taxonomyRepository.findValidHazardDriverIds(
 				toSafeStringArray(mergedHazardDriverIds),
 				command.tenantId,
+				command.tx,
 			);
 		const validCustomFieldDefinitionIds =
 			await this.taxonomyRepository.findValidCustomFieldDefinitionIds(
 				customFieldDefinitionIds,
 				command.tenantId,
+				command.tx,
 			);
 
 		// Entity construction itself now happens inside the transaction, after promote()
@@ -268,12 +274,14 @@ export class UpdateHazardousEventUseCase {
 		// project's standing rule against assuming is written to prevent).
 		const hipCrosswalkIds = await this.hipCrosswalkPort.resolve(
 			mergedSpecificHazardId,
+			command.tx,
 		);
 
 		const cause = await this.validateCauseIfSet(
 			causeAction,
 			{ id: existingEvent.id, startDate: mergedStartDate },
 			command.tenantId,
+			command.tx,
 		);
 
 		// Whole write sequence is one transaction (DEF-026) -- a failure partway rolls back every
@@ -371,8 +379,10 @@ export class UpdateHazardousEventUseCase {
 
 				return { saved, savedSpatialObservation };
 			},
+			command.tx,
 		);
 
+		// With a caller `tx` this logs at savepoint release, before the caller commits.
 		this.logger.info({
 			msg: "hazardous_event.updated",
 			hazardousEventId: saved.id,
@@ -382,8 +392,8 @@ export class UpdateHazardousEventUseCase {
 			...(existingWorkflow === null ? { workflowStatusMissing: true } : {}),
 		});
 
-		// Moved here from RecordSpatialObservationUseCase (design.md Decision 6 addendum) -- logs
-		// only after this use case's own outer transaction has committed, not mid-transaction.
+		// Moved here from RecordSpatialObservationUseCase (Decision 6 addendum); logs after the write
+		// transaction resolves, not mid-transaction.
 		if (savedSpatialObservation !== undefined) {
 			this.logger.info({
 				msg: "spatial_observation.recorded",
@@ -404,6 +414,7 @@ export class UpdateHazardousEventUseCase {
 		// Raw id/startDate, not a constructed entity's -- same reason as above (Decision 7).
 		updatedEvent: { id: string; startDate: string },
 		tenantId: string,
+		tx: Tx | undefined,
 	): Promise<HazardousEvent | undefined> {
 		if (causeAction.kind !== "set") {
 			return undefined;
@@ -412,9 +423,11 @@ export class UpdateHazardousEventUseCase {
 		const cause = await this.hazardousEventRepository.findById(
 			causeAction.causeId,
 			tenantId,
+			tx,
 		);
 		const edges = await this.causalChainRepository.findReachableEdgesFrom(
 			updatedEvent.id,
+			tx,
 		);
 		// Advisory only — replaceCauseEdge's own in-transaction recheck is authoritative.
 		assertCausalLinkDoesNotCreateCycle(edges, cause.id, updatedEvent.id);
