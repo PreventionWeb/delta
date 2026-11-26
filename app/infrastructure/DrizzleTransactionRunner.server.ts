@@ -7,7 +7,8 @@ import type { ITransactionRunner } from "~/shared/persistence/ITransactionRunner
 export class DrizzleTransactionRunner implements ITransactionRunner {
 	constructor(@Inject(DRIZZLE_CLIENT) private readonly db: Dr) {}
 
-	run<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
-		return this.db.transaction(fn);
+	run<T>(fn: (tx: Tx) => Promise<T>, outerTx?: Tx): Promise<T> {
+		// A nested transaction() on an open one is a SAVEPOINT in Drizzle.
+		return (outerTx ?? this.db).transaction(fn);
 	}
 }

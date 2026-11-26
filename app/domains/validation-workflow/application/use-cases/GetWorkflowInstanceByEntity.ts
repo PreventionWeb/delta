@@ -3,10 +3,13 @@ import type {
 	WorkflowInstance,
 } from "../../domain/WorkflowInstance";
 import type { IWorkflowRepository } from "../ports/IWorkflowRepository";
+import type { Tx } from "~/db.server";
 
 export interface GetWorkflowInstanceByEntityQuery {
 	entityId: string;
 	entityType: EntityType;
+	/** Reads inside the caller's open transaction (NOD-12). */
+	tx?: Tx;
 }
 
 /**
@@ -23,6 +26,7 @@ export class GetWorkflowInstanceByEntityUseCase {
 		return this.workflowRepository.findByEntity(
 			query.entityId,
 			query.entityType,
+			query.tx,
 		);
 	}
 }

@@ -12,10 +12,12 @@ import type { Tx } from "~/db.server";
  * never a `$inferSelect`/`$inferInsert` row type (design.md Decision 3).
  */
 export interface IWorkflowRepository {
-	/** Resolves null, never throws, when no instance exists yet (diverges from INoticeRepository.findById). */
+	/** Resolves null, never throws, when no instance exists yet (diverges from INoticeRepository.findById).
+	 * With `tx`, sees an instance inserted earlier in that transaction. */
 	findByEntity(
 		entityId: string,
 		entityType: EntityType,
+		tx?: Tx,
 	): Promise<WorkflowInstance | null>;
 
 	/** Batched lookup for list views; omits entities with no instance rather than returning nulls. */
