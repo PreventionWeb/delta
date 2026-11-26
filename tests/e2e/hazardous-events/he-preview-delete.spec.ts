@@ -10,6 +10,11 @@ import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import { eventRelationshipTable } from "~/drizzle/schema/eventRelationshipTable";
 import { auditLogsTable } from "~/drizzle/schema/auditLogsTable";
 import { workflowInstanceTable } from "~/domains/validation-workflow/infrastructure/workflowInstanceTable";
+import { specificHazardTable } from "~/domains/hazardous-events/infrastructure/specificHazardTable";
+import { hazardClusterTable } from "~/domains/hazardous-events/infrastructure/hazardClusterTable";
+import { hazardTypeTable } from "~/domains/hazardous-events/infrastructure/hazardTypeTable";
+import { hipsVersionTable } from "~/domains/hazardous-events/infrastructure/hipsVersionTable";
+import { textContentTable } from "~/domains/shared/infrastructure/textContentTable";
 import { dr, initDB } from "~/db.server";
 // Plain Drizzle inserts only -- Playwright's transform can't parse NestJS decorators (he-preview.spec.ts).
 import {
@@ -114,6 +119,48 @@ test.afterAll(async () => {
 			.delete(userCountryAccountsTable)
 			.where(eq(userCountryAccountsTable.countryAccountsId, countryAccountId));
 		await tx.delete(userTable).where(eq(userTable.id, userId));
+		// Seeded taxonomy too: a leftover "Hazard ..." entry crowds he-preview-filters' "Z" combobox search.
+		const [taxonomy] = await tx
+			.select({
+				hazardText: specificHazardTable.nameTextContentId,
+				clusterId: hazardClusterTable.id,
+				clusterText: hazardClusterTable.nameTextContentId,
+				typeId: hazardTypeTable.id,
+				typeText: hazardTypeTable.nameTextContentId,
+				hipsVersionId: hazardTypeTable.hipsVersionId,
+			})
+			.from(specificHazardTable)
+			.innerJoin(
+				hazardClusterTable,
+				eq(hazardClusterTable.id, specificHazardTable.hazardClusterId),
+			)
+			.innerJoin(
+				hazardTypeTable,
+				eq(hazardTypeTable.id, hazardClusterTable.hazardTypeId),
+			)
+			.where(eq(specificHazardTable.id, specificHazardId));
+		await tx
+			.delete(specificHazardTable)
+			.where(eq(specificHazardTable.id, specificHazardId));
+		await tx
+			.delete(hazardClusterTable)
+			.where(eq(hazardClusterTable.id, taxonomy.clusterId));
+		await tx
+			.delete(hazardTypeTable)
+			.where(eq(hazardTypeTable.id, taxonomy.typeId));
+		await tx
+			.delete(hipsVersionTable)
+			.where(eq(hipsVersionTable.id, taxonomy.hipsVersionId));
+		// Translations cascade.
+		await tx
+			.delete(textContentTable)
+			.where(
+				inArray(textContentTable.id, [
+					taxonomy.hazardText,
+					taxonomy.clusterText,
+					taxonomy.typeText,
+				]),
+			);
 	});
 });
 
