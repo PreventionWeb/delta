@@ -320,5 +320,78 @@
 			"copy": "Copy error reference",
 			"copied": "Error reference copied"
 		}
+	},
+	"csv": {
+		"title": "Hazardous events CSV import",
+		"file_label": "File upload",
+		"mode_label": "Type",
+		"mode": {
+			"create": "Create",
+			"update": "Update",
+			"upsert": "Upsert"
+		},
+		"submit": "Import",
+		"submitting": "Importing…",
+		"back": "Back to hazardous events",
+		"success": "{{created}}, {{updated}}, {{unchanged}}.",
+		"success_parts": {
+			"created_one": "{{count}} event created",
+			"created_other": "{{count}} events created",
+			"updated_one": "{{count}} updated",
+			"updated_other": "{{count}} updated",
+			"unchanged_one": "{{count}} unchanged",
+			"unchanged_other": "{{count}} unchanged"
+		},
+		"failure_summary_one": "The file was not imported. Fix {{count}} problem and upload it again.",
+		"failure_summary_other": "The file was not imported. Fix {{count}} problems and upload it again.",
+		"more_errors_one": "…and {{count}} more problem.",
+		"more_errors_other": "…and {{count}} more problems.",
+		"ignored_columns": "Columns not imported: {{columns}}",
+		"skipped_data_notice_one": "{{count}} row had spatial footprint or attachment data that was not imported.",
+		"skipped_data_notice_other": "{{count}} rows had spatial footprint or attachment data that was not imported.",
+		"location": {
+			"line": "Line {{line}}",
+			"line_column": "Line {{line}}, column {{column}}",
+			"file": "File",
+			"column": "Column {{column}}"
+		},
+		"value": "Value: {{value}}",
+		"error_item": "{{location}}: {{message}}",
+		"templates": {
+			"title": "Example files",
+			"create": "Create",
+			"update": "Update",
+			"upsert": "Upsert"
+		},
+		"error": {
+			"unknown_column": "This column is not recognised.",
+			"duplicate_column": "This column appears more than once.",
+			"missing_required_column": "This required column is missing.",
+			"invalid_mode": "Choose a valid import type.",
+			"no_data": "The file has a header but no data rows.",
+			"file_too_large": "The file is larger than 10 MB.",
+			"invalid_encoding": "The file is not valid UTF-8 text. Save it as CSV UTF-8 and try again.",
+			"malformed_csv": "The file is not valid CSV. Check for a row with the wrong number of fields or an unclosed quote.",
+			"missing_file": "Choose a CSV file to upload.",
+			"required": "This value is required.",
+			"invalid_date": "Enter a date as YYYY, YYYY-MM or YYYY-MM-DD.",
+			"invalid_enum": "This value is not one of the allowed values.",
+			"invalid_id": "This is not a valid identifier.",
+			"duplicate_key": "This key appears on an earlier line of the file.",
+			"not_found": "No matching record was found.",
+			"conflict": "This conflicts with an existing record.",
+			"not_editable": "This event cannot be changed in its current workflow status.",
+			"not_migrated": "This event has not been migrated yet and cannot be updated.",
+			"concurrent_modification": "This event was changed by someone else. Upload the file again.",
+			"api_import_id_immutable": "The API import ID of an existing event cannot be changed.",
+			"hip_mismatch": "The hazard, cluster and type do not belong together.",
+			"specific_hazard_required": "A specific hazard is required.",
+			"status_not_permitted": "Only an administrator can import this approval status.",
+			"status_change_not_supported": "This approval status change is not supported.",
+			"cause_after_effect": "The parent event must not start after this event.",
+			"parent_multiple_causes": "This event has more than one cause. Change its causes in the app, not in the file.",
+			"invalid_character": "This value contains a null character, which cannot be stored. Remove it and try again.",
+			"validation": "This row is not valid."
+		}
 	}
 }
