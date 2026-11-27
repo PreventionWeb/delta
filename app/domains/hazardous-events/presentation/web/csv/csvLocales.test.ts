@@ -37,6 +37,11 @@ const ROW_CODES: Record<HazardousEventCsvRowErrorCode, true> = {
 	status_change_not_supported: true,
 	cause_after_effect: true,
 	parent_multiple_causes: true,
+	invalid_spatial_footprint: true,
+	invalid_division: true,
+	invalid_attachments: true,
+	invalid_attachment_url: true,
+	file_reference_not_supported: true,
 	validation: true,
 };
 
@@ -74,6 +79,36 @@ describe("csv.* locale keys (D11, task 9.5)", () => {
 			);
 		expect(keys(fr.csv).sort()).toEqual(keys(en.csv).sort());
 	});
+
+	it.each([
+		["en", en.csv],
+		["fr", fr.csv],
+	] as const)(
+		"%s no longer has the 6d-1 skipped-data notice keys",
+		(_, block) => {
+			expect(
+				Object.keys(block).filter((key) =>
+					key.startsWith("skipped_data_notice"),
+				),
+			).toEqual([]);
+		},
+	);
+
+	it.each([
+		["en", en.form],
+		["fr", fr.form],
+	] as const)(
+		"%s has the form's attachment URL message, sentence case, no em dash (D12)",
+		(_, form) => {
+			const message: unknown = (form as Record<string, unknown>)
+				.attachments_invalid_url;
+			expect(typeof message).toBe("string");
+			const text = message as string;
+			expect(text).toContain("http://");
+			expect(text).not.toContain("—");
+			expect(text[0]).toBe(text[0].toUpperCase());
+		},
+	);
 
 	it.each([
 		["en", en.csv],

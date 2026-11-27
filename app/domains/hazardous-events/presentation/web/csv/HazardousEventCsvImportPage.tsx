@@ -92,13 +92,6 @@ function ImportOutcome({ result }: { result: HazardousEventCsvImportResult }) {
 						interpolation: { escapeValue: false },
 					})}
 				</p>
-				{result.skippedDataNotice !== undefined ? (
-					<p>
-						{t("csv.skipped_data_notice", {
-							count: result.skippedDataNotice.rows,
-						})}
-					</p>
-				) : null}
 				{ignored}
 			</div>
 		);

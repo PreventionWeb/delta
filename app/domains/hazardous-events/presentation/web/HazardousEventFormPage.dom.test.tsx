@@ -657,3 +657,51 @@ describe("HazardousEventHazardPicker memoization (design.md Decision 20)", () =>
 		expect(hazardPickerRenderSpy).toHaveBeenCalledTimes(1);
 	});
 });
+
+describe("HazardousEventFormPage attachments field error spacing (6d-2 Gate 9 F1)", () => {
+	function attachmentsWrapper(container: HTMLElement): HTMLElement {
+		const hidden = container.querySelector("#attachments");
+		const wrapper = hidden?.closest(".dts-form-component");
+		if (!(wrapper instanceof HTMLElement)) {
+			throw new Error("attachments field wrapper not found");
+		}
+		return wrapper;
+	}
+
+	it("keeps the card's own spacing (no bottom margin) when there is no error", async () => {
+		await setupI18n();
+		const { container } = renderPage(
+			<HazardousEventFormPage
+				mode="create"
+				taxonomyOptions={EMPTY_TAXONOMY}
+				validatorCandidates={[]}
+				parent={null}
+			/>,
+		);
+
+		expect(attachmentsWrapper(container).className).toContain("!mb-0");
+	});
+
+	it("restores the field's bottom margin when an error renders, so it does not touch the next label", async () => {
+		await setupI18n();
+		const { container } = renderPage(
+			<HazardousEventFormPage
+				mode="create"
+				taxonomyOptions={EMPTY_TAXONOMY}
+				validatorCandidates={[]}
+				parent={null}
+				fieldErrors={{
+					attachments: [
+						"Attachment links must start with http:// or https://.",
+					],
+				}}
+			/>,
+		);
+
+		const wrapper = attachmentsWrapper(container);
+		expect(wrapper.className).not.toContain("!mb-0");
+		expect(
+			wrapper.querySelector(".dts-field-error-list")?.textContent,
+		).toContain("Attachment links must start");
+	});
+});

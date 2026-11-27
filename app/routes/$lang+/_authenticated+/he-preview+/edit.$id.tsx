@@ -19,6 +19,7 @@ import {
 import { throwHazardousEventLoaderError } from "~/domains/hazardous-events/presentation/web/throwHazardousEventLoaderError.server";
 import { HazardousEventErrorBoundary } from "~/domains/hazardous-events/presentation/web/HazardousEventErrorBoundary";
 import { parseHazardousEventFormData } from "~/domains/hazardous-events/presentation/web/parseHazardousEventFormData.server";
+import { attachmentFieldError } from "~/domains/hazardous-events/presentation/web/attachmentFieldError";
 import {
 	composeWorkflowAction,
 	buildWorkflowComposerCallbacks,
@@ -130,6 +131,14 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
 			logMsg: "Unhandled error parsing hazardous-event edit form data",
 			url: request.url,
 		});
+	}
+
+	// Before any guard that can write and before any use case (6d-2 D12).
+	const attachmentError = attachmentFieldError(parsed.attachments, (key) =>
+		getInstance(context).t(key),
+	);
+	if (attachmentError !== null) {
+		return { success: false as const, fieldErrors: attachmentError };
 	}
 
 	// Must run before UpdateHazardousEventUseCase, not after -- a rejected request must not silently

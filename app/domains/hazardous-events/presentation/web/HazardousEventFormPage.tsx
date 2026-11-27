@@ -238,7 +238,8 @@ export function HazardousEventFormPage({
 					label=""
 					htmlFor="attachments"
 					errors={fieldErrors?.attachments}
-					className="!mb-0"
+					// The field's own bottom margin returns with an error, so it cannot sit on the next label.
+					className={fieldErrors?.attachments ? undefined : "!mb-0"}
 				>
 					{/* Reuses legacy's AttachmentsFormView as-is -- no CA-native upload path exists yet
 					 * (DEF-054). Manages its own hidden field. */}
