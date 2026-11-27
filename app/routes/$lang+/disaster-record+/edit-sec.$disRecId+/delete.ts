@@ -1,20 +1,26 @@
-import { authLoaderWithPerm } from "~/utils/auth";
+import { authActionWithPerm, authLoaderWithPerm } from "~/utils/auth";
+import { dr } from "~/db.server";
 
 import {
-	disRecSectorsById,
+	disRecSectorsByIdTx,
 	deleteRecordsDeleteById,
 } from "~/backend.server/models/disaster_record__sectors";
 
 import { disruptionDeleteBySectorId } from "~/backend.server/models/disruption";
 import { damagesDeleteBySectorId } from "~/backend.server/models/damages";
 import { lossesDeleteBySectorId } from "~/backend.server/models/losses";
+import { updateTotalsUsingDisasterRecordId } from "~/backend.server/models/analytics/disaster-events-cost-calculator";
 
 import { redirectLangFromRoute } from "~/utils/url.backend";
 
 import { disasterRecordsById } from "~/backend.server/models/disaster_record";
 import { requireDisasterRecordAccess } from "../requireDisasterRecordAccess.server";
 
-export const loader = authLoaderWithPerm("EditData", async (actionArgs) => {
+export const loader = authLoaderWithPerm("EditData", async (_loaderArgs) => {
+	return new Response("Method Not Allowed", { status: 405 });
+});
+
+export const action = authActionWithPerm("EditData", async (actionArgs) => {
 	const { params, request } = actionArgs;
 
 	// Route guard: ensures tenant is selected, record exists for that tenant,
@@ -32,44 +38,48 @@ export const loader = authLoaderWithPerm("EditData", async (actionArgs) => {
 	const queryParams = parsedUrl.searchParams;
 	const disasterRecordId = params.disRecId || "";
 	const xId = queryParams.get("id") || "";
+	if (!xId) {
+		return Response.json({}, { status: 404 });
+	}
 
 	const disasterRecord = await disasterRecordsById(
 		disasterRecordId,
 		countryAccountsId,
-	).catch(console.error);
+	);
 	if (!disasterRecord) {
 		return Response.json({}, { status: 404 });
 	}
 
-	const record = await disRecSectorsById(xId, countryAccountsId).catch(console.error);
-
-	if (record) {
-		if (record.disasterRecordId !== disasterRecord.id) {
-			return Response.json({}, { status: 401 });
-		}
-
+	const deleted = await dr.transaction(async (tx) => {
+		let record;
 		try {
-			// Delete damages by sector id
-			await damagesDeleteBySectorId(record.sectorId).catch(console.error);
-
-			// Delete disruptions by sector id
-			await disruptionDeleteBySectorId(record.sectorId).catch(console.error);
-
-			// Delete losses by sector id
-			await lossesDeleteBySectorId(record.sectorId).catch(console.error);
-
-			// Delete disaster record sector relation
-			await deleteRecordsDeleteById(xId).catch(console.error);
-
-			return redirectLangFromRoute(
-				actionArgs,
-				"/disaster-record/edit/" + params.disRecId,
-			);
-		} catch (e) {
-			console.log(e);
-			throw e;
+			record = await disRecSectorsByIdTx(tx, xId, countryAccountsId);
+		} catch {
+			return false;
 		}
-	} else {
+
+		if (record.disasterRecordId !== disasterRecord.id) {
+			return false;
+		}
+
+		await damagesDeleteBySectorId(record.disasterRecordId, record.sectorId, tx);
+		await disruptionDeleteBySectorId(
+			record.disasterRecordId,
+			record.sectorId,
+			tx,
+		);
+		await lossesDeleteBySectorId(record.disasterRecordId, record.sectorId, tx);
+		await deleteRecordsDeleteById(xId, tx);
+		await updateTotalsUsingDisasterRecordId(tx, record.disasterRecordId);
+		return true;
+	});
+
+	if (!deleted) {
 		return Response.json({}, { status: 404 });
 	}
+
+	return redirectLangFromRoute(
+		actionArgs,
+		"/disaster-record/edit/" + params.disRecId,
+	);
 });

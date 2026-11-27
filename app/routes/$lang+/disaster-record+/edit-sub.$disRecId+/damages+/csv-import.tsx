@@ -28,7 +28,7 @@ export const action = async (actionArgs: ActionFunctionArgs) => {
 	return createAction({
 		fieldsDef: async () => {
 			const settings = await getCountrySettingsFromSession(request);
-			const currencies = settings.currencyCode
+			const currencies = settings?.currencyCode
 				? [settings.currencyCode]
 				: ["USD"];
 			return await fieldsDefApi(ctx, currencies);

@@ -182,7 +182,12 @@ export async function assetUpdateByIdAndCountryAccountsId(
 		throw new Error("Attempted to modify builtin asset");
 	}
 
-	const updateValues: Partial<InsertAsset> = { ...fields };
+	const {
+		countryAccountsId: _ignoredCountryAccountsId,
+		isBuiltIn: _ignoredIsBuiltIn,
+		...safeFields
+	} = fields as any;
+	const updateValues: Partial<InsertAsset> = { ...safeFields };
 	if (fields.name !== undefined) updateValues.customName = fields.name;
 	if (fields.category !== undefined)
 		updateValues.customCategory = fields.category;
@@ -198,7 +203,15 @@ export async function assetUpdateByIdAndCountryAccountsId(
 		return { ok: false, errors: { form: ["No fields to update"] } };
 	}
 
-	await tx.update(assetTable).set(updateValues).where(eq(assetTable.id, id));
+	await tx
+		.update(assetTable)
+		.set(updateValues)
+		.where(
+			and(
+				eq(assetTable.id, id),
+				eq(assetTable.countryAccountsId, countryAccountsId),
+			),
+		);
 
 	return { ok: true };
 }

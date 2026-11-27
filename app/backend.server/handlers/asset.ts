@@ -1,7 +1,7 @@
 import { sectorTable } from "~/drizzle/schema/sectorTable";
 import { assetTable } from "~/drizzle/schema/assetTable";
 
-import { dr } from "~/db.server";
+import { dr, Tx } from "~/db.server";
 
 import {
 	executeQueryForPagination3,
@@ -162,9 +162,10 @@ export async function isAssetInSectorByAssetId(
 	id: string,
 	sectorId: string,
 	countryAccountsId: string,
+	tx: Tx = dr,
 ): Promise<boolean> {
 	let assetSectorChildren: string[] = [];
-	const assetSectorIds = await dr.query.assetTable.findFirst({
+	const assetSectorIds = await tx.query.assetTable.findFirst({
 		where: or(
 			and(eq(assetTable.id, id), eq(assetTable.isBuiltIn, true)),
 			and(
@@ -181,7 +182,7 @@ export async function isAssetInSectorByAssetId(
 	if (assetSectorIds) {
 		const sectorIdsArray = assetSectorIds.sectorIds.split(",");
 		for (const itemSectorId of sectorIdsArray) {
-			const children = await dr
+			const children = await tx
 				.select({
 					id: sectorTable.id,
 					name: sql<string>`dts_jsonb_localized(${sectorTable.name}, ${ctx.lang})`.as(

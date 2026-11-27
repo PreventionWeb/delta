@@ -931,8 +931,11 @@ export async function hazardousEventUpdate(
 	return await tx.transaction(async (tx) => {
 		try {
 			const spatialFootprintValue = (fields as any).spatialFootprint;
-			const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
-				fields as any;
+			const {
+				spatialFootprint: _ignoredSpatialFootprint,
+				countryAccountsId: _ignoredCountryAccountsId,
+				...updateValues
+			} = fields as any;
 
 			// 3. Handle parent relationship updates if needed
 			if (fields.parent !== undefined) {
@@ -963,7 +966,12 @@ export async function hazardousEventUpdate(
 					...updateValues,
 					updatedAt: sql`CURRENT_TIMESTAMP`,
 				})
-				.where(eq(hazardousEventTable.id, id))
+				.where(
+					and(
+						eq(hazardousEventTable.id, id),
+						eq(hazardousEventTable.countryAccountsId, fields.countryAccountsId!),
+					),
+				)
 				.returning();
 
 			await syncHazardousEventSpatialFootprint(
@@ -1242,8 +1250,11 @@ export async function hazardousEventUpdateByIdAndCountryAccountsId(
 	return await tx.transaction(async (tx) => {
 		try {
 			const spatialFootprintValue = (fields as any).spatialFootprint;
-			const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
-				fields as any;
+			const {
+				spatialFootprint: _ignoredSpatialFootprint,
+				countryAccountsId: _ignoredCountryAccountsId,
+				...updateValues
+			} = fields as any;
 
 			// 3. Handle parent relationship updates if needed
 			if (fields.parent !== undefined) {
@@ -1274,7 +1285,12 @@ export async function hazardousEventUpdateByIdAndCountryAccountsId(
 					...updateValues,
 					updatedAt: sql`CURRENT_TIMESTAMP`,
 				})
-				.where(eq(hazardousEventTable.id, id))
+				.where(
+					and(
+						eq(hazardousEventTable.id, id),
+						eq(hazardousEventTable.countryAccountsId, countryAccountsId),
+					),
+				)
 				.returning();
 
 			await syncHazardousEventSpatialFootprint(
@@ -2115,8 +2131,11 @@ export async function disasterEventUpdateByIdAndCountryAccountsId(
 
 	try {
 		const spatialFootprintValue = (fields as any).spatialFootprint;
-		const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
-			fields as any;
+		const {
+			spatialFootprint: _ignoredSpatialFootprint,
+			countryAccountsId: _ignoredCountryAccountsId,
+			...updateValues
+		} = fields as any;
 		const [updatedDisasterEvent] = await tx
 			.update(disasterEventTable)
 			.set({

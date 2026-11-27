@@ -123,6 +123,7 @@ async function syncLossesSpatialFootprint(
 	tx: Tx,
 	lossId: string,
 	spatialFootprintValue: unknown,
+	countryAccountsId?: string,
 ) {
 	const items = parseSpatialFootprintItems(spatialFootprintValue);
 	const mapCoordinateItems = items.filter(
@@ -168,7 +169,14 @@ async function syncLossesSpatialFootprint(
 			const validDivisions = await tx
 				.select({ id: divisionTable.id })
 				.from(divisionTable)
-				.where(inArray(divisionTable.id, divisionIds));
+				.where(
+					countryAccountsId
+						? and(
+								inArray(divisionTable.id, divisionIds),
+								eq(divisionTable.countryAccountsId, countryAccountsId),
+							)
+						: inArray(divisionTable.id, divisionIds),
+				);
 
 			const validDivisionIds = new Set(validDivisions.map((row) => row.id));
 			const rows = geographicItems
@@ -465,26 +473,33 @@ export async function lossesCreate(
 	_ctx: BackendContext,
 	tx: Tx,
 	fields: LossesFields,
-	countryAccountsId?: string,
+	countryAccountsId: string,
 ): Promise<CreateResult<LossesFields>> {
 	let errors = validate(fields);
 	if (hasErrors(errors)) return { ok: false, errors };
 
-	if (countryAccountsId) {
-		const disasterRecords =
-			await DisasterRecordsRepository.getByIdAndCountryAccountsId(
-				fields.recordId,
-				countryAccountsId,
-				tx,
-			);
-		if (!disasterRecords || disasterRecords.length === 0) {
-			return {
-				ok: false,
-				errors: {
-					general: ["No matching disaster record found or you don't have access"],
-				},
-			};
-		}
+	if (!countryAccountsId) {
+		return {
+			ok: false,
+			errors: {
+				form: ["No matching disaster record found or you don't have access"],
+			},
+		};
+	}
+
+	const disasterRecords =
+		await DisasterRecordsRepository.getByIdAndCountryAccountsId(
+			fields.recordId,
+			countryAccountsId,
+			tx,
+		);
+	if (!disasterRecords || disasterRecords.length === 0) {
+		return {
+			ok: false,
+			errors: {
+				form: ["No matching disaster record found or you don't have access"],
+			},
+		};
 	}
 
 	if (fields.sectorIsAgriculture) {
@@ -502,7 +517,12 @@ export async function lossesCreate(
 		.values({ ...insertValues })
 		.returning({ id: lossesTable.id });
 
-	await syncLossesSpatialFootprint(tx, res[0].id, spatialFootprintValue);
+	await syncLossesSpatialFootprint(
+		tx,
+		res[0].id,
+		spatialFootprintValue,
+		countryAccountsId,
+	);
 	return { ok: true, id: res[0].id };
 }
 
@@ -555,7 +575,7 @@ export async function lossesUpdateByIdAndCountryAccountsId(
 		return {
 			ok: false,
 			errors: {
-				general: ["No matching disaster record found or you don't have access"],
+				form: ["No matching disaster record found or you don't have access"],
 			},
 		};
 	}
@@ -570,7 +590,7 @@ export async function lossesUpdateByIdAndCountryAccountsId(
 		return {
 			ok: false,
 			errors: {
-				general: ["No matching disaster record found or you don't have access"],
+				form: ["No matching disaster record found or you don't have access"],
 			},
 		};
 	}
@@ -586,7 +606,7 @@ export async function lossesUpdateByIdAndCountryAccountsId(
 			return {
 				ok: false,
 				errors: {
-					general: [
+					form: [
 						"No matching target disaster record found or you don't have access",
 					],
 				},
@@ -612,7 +632,12 @@ export async function lossesUpdateByIdAndCountryAccountsId(
 		.where(eq(lossesTable.id, id));
 
 	if ("spatialFootprint" in fields) {
-		await syncLossesSpatialFootprint(tx, id, spatialFootprintValue);
+		await syncLossesSpatialFootprint(
+			tx,
+			id,
+			spatialFootprintValue,
+			countryAccountsId,
+		);
 	}
 	return { ok: true };
 }
@@ -743,9 +768,18 @@ export async function lossesDeleteById(
 }
 
 export async function lossesDeleteBySectorId(
-	id: string,
+	recordId: string,
+	sectorId: string,
+	tx: Tx = dr,
 ): Promise<DeleteResult> {
-	await dr.delete(lossesTable).where(eq(lossesTable.sectorId, id));
+	await tx
+		.delete(lossesTable)
+		.where(
+			and(
+				eq(lossesTable.recordId, recordId),
+				eq(lossesTable.sectorId, sectorId),
+			),
+		);
 
 	return { ok: true };
 }

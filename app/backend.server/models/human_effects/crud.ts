@@ -207,10 +207,17 @@ export async function update(
 	ids: string[],
 	data: any[][],
 	dataStrings: boolean,
-	expectedRecordId?: string,
+	expectedRecordId: string,
 ): Promise<Res> {
 	let spl = splitDefsByShared(defs);
 	let tbl = tableFromType(tblId);
+
+	if (!expectedRecordId) {
+		return {
+			ok: false,
+			error: new ETError("other", "Update: record id is required"),
+		};
+	}
 
 	if (ids.length !== data.length) {
 		return {
@@ -234,13 +241,11 @@ export async function update(
 			custom = Object.fromEntries(dataSpl.custom);
 		}
 
-		let dsgIdRes = expectedRecordId
-			? await tx.execute(
-					sql`SELECT t.dsg_id FROM ${tbl} t
-						INNER JOIN ${humanDsgTable} d ON d.id = t.dsg_id
-						WHERE t.id = ${id} AND d.record_id = ${expectedRecordId}`,
-				)
-			: await tx.execute(sql`SELECT dsg_id FROM ${tbl} WHERE id = ${id}`);
+		let dsgIdRes = await tx.execute(
+			sql`SELECT t.dsg_id FROM ${tbl} t
+				INNER JOIN ${humanDsgTable} d ON d.id = t.dsg_id
+				WHERE t.id = ${id} AND d.record_id = ${expectedRecordId}`,
+		);
 		if (!dsgIdRes.rows.length) {
 			return {
 				ok: false,
@@ -286,19 +291,24 @@ export async function deleteRows(
 	tx: Tx,
 	tblId: HumanEffectsTable,
 	ids: string[],
-	expectedRecordId?: string,
+	expectedRecordId: string,
 ): Promise<Res> {
 	let tbl = tableFromType(tblId);
 	let deletedIds: string[] = [];
 
+	if (!expectedRecordId) {
+		return {
+			ok: false,
+			error: new ETError("other", "Delete: record id is required"),
+		};
+	}
+
 	for (let id of ids) {
-		let dsgIdRes = expectedRecordId
-			? await tx.execute(
-					sql`SELECT t.dsg_id FROM ${tbl} t
-						INNER JOIN ${humanDsgTable} d ON d.id = t.dsg_id
-						WHERE t.id = ${id} AND d.record_id = ${expectedRecordId}`,
-				)
-			: await tx.execute(sql`SELECT dsg_id FROM ${tbl} WHERE id = ${id}`);
+		let dsgIdRes = await tx.execute(
+			sql`SELECT t.dsg_id FROM ${tbl} t
+				INNER JOIN ${humanDsgTable} d ON d.id = t.dsg_id
+				WHERE t.id = ${id} AND d.record_id = ${expectedRecordId}`,
+		);
 		let dsgId = dsgIdRes.rows[0]?.dsg_id;
 
 		if (!dsgId) {

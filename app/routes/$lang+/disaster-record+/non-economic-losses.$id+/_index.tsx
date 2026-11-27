@@ -100,7 +100,7 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 	
 	// Route guard: ensures tenant is selected, record exists for that tenant,
 	// and current user has access to proceed with this disaster record.
-	await requireDisasterRecordAccess(
+	const { countryAccountsId } = await requireDisasterRecordAccess(
 		request,
 		params.id,
 		() => redirectLangFromRoute(actionArgs, "/user/select-instance"),
@@ -123,16 +123,11 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 			description: String(frmDescription),
 		};
 
-		try {
-			await upsertRecord(formRecord).catch(console.error);
-			return redirectLangFromRoute(
-				actionArgs,
-				"/disaster-record/edit/" + params.id,
-			);
-		} catch (e) {
-			console.log(e);
-			throw e;
-		}
+		await upsertRecord(formRecord, countryAccountsId);
+		return redirectLangFromRoute(
+			actionArgs,
+			"/disaster-record/edit/" + params.id,
+		);
 	}
 
 	return {

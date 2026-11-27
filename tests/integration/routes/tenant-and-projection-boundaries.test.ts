@@ -33,19 +33,41 @@ import {
 import {
 	hazardousEventBasicInfoById,
 	hazardousEventById,
+	hazardousEventUpdateByIdAndCountryAccountsId,
+	disasterEventUpdateByIdAndCountryAccountsId,
 } from "~/backend.server/models/event";
+import { disasterRecordsUpdate } from "~/backend.server/models/disaster_record";
+import { assetUpdateByIdAndCountryAccountsId } from "~/backend.server/models/asset";
 import { hazardousEventBasicInfoById as hazardousEventBasicInfoByIdAlt } from "~/backend.server/models/event/hazardous_event_get";
 import { loader as hazardousEventViewLoader } from "~/routes/$lang+/hazardous-event+/$id";
 import { loader as damagesCsvLoader } from "~/routes/$lang+/disaster-record+/edit-sub.$disRecId+/damages+/csv-export";
 import { loader as lossesCsvLoader } from "~/routes/$lang+/disaster-record+/edit-sub.$disRecId+/losses+/csv-export";
 import { loader as disruptionsCsvLoader } from "~/routes/$lang+/disaster-record+/edit-sub.$disRecId+/disruptions+/csv-export";
+import { action as damagesCsvImportAction } from "~/routes/$lang+/disaster-record+/edit-sub.$disRecId+/damages+/csv-import";
+import { action as lossesCsvImportAction } from "~/routes/$lang+/disaster-record+/edit-sub.$disRecId+/losses+/csv-import";
+import { action as disruptionsCsvImportAction } from "~/routes/$lang+/disaster-record+/edit-sub.$disRecId+/disruptions+/csv-import";
 import { loader as damagesListLoader } from "~/routes/$lang+/disaster-record+/edit-sub.$disRecId+/damages+/_index";
 import { loader as lossesListLoader } from "~/routes/$lang+/disaster-record+/edit-sub.$disRecId+/losses+/_index";
 import { loader as disruptionsListLoader } from "~/routes/$lang+/disaster-record+/edit-sub.$disRecId+/disruptions+/_index";
+import {
+	loader as sectorDeleteLoader,
+	action as sectorDeleteAction,
+} from "~/routes/$lang+/disaster-record+/edit-sec.$disRecId+/delete";
+import { action as nonEcoWebAction } from "~/routes/$lang+/disaster-record+/non-economic-losses.$id+/_index";
+import { action as apiNonecoAddAction } from "~/routes/$lang+/api+/nonecolosses+/add";
+import { action as apiNonecoUpdateAction } from "~/routes/$lang+/api+/nonecolosses+/update";
+import { action as apiNonecoUpsertAction } from "~/routes/$lang+/api+/nonecolosses+/upsert";
+import { action as apiSectorRelAddAction } from "~/routes/$lang+/api+/sector-disaster-record-relation+/add";
+import { action as apiSectorRelUpdateAction } from "~/routes/$lang+/api+/sector-disaster-record-relation+/update";
+import { action as apiSectorRelUpsertAction } from "~/routes/$lang+/api+/sector-disaster-record-relation+/upsert";
+import { action as apiDamageUpsertAction } from "~/routes/$lang+/api+/damage+/upsert";
+import { action as apiLossesUpsertAction } from "~/routes/$lang+/api+/losses+/upsert";
+import { action as apiDisruptionUpsertAction } from "~/routes/$lang+/api+/disruption+/upsert";
 import { loader as spatialFootprintLoader } from "~/routes/$lang+/api+/spatial-footprint-geojson";
 import { action as categoryPresenceSaveAction } from "~/routes/$lang+/api+/human-effects+/category-presence-save";
 import { loader as getAssetsLoader } from "~/routes/$lang+/api+/asset+/getassets";
 import { loader as contentPickerLoader } from "~/routes/$lang+/disaster-record+/content-picker-datasource";
+import { loader as analyticsContentPickerLoader } from "~/routes/$lang+/analytics+/content-picker-datasource";
 import { loader as tempViewerLoader } from "~/routes/$lang+/disaster-record+/file-temp-viewer";
 import { loader as disasterEventViewLoader } from "~/routes/$lang+/disaster-event+/$id";
 import { loader as analyticsDisasterEventsLoader } from "~/routes/$lang+/analytics+/disaster-events";
@@ -74,6 +96,9 @@ import {
 } from "~/backend.server/models/disruption";
 import { humanDsgTable } from "../db/testSchema/humanDsgTable";
 import { deathsTable } from "../db/testSchema/deathsTable";
+import { sectorDisasterRecordsRelationTable } from "../db/testSchema/sectorDisasterRecordsRelationTable";
+import { nonecoLossesTable } from "../db/testSchema/nonecoLossesTable";
+import { categoriesTable } from "../db/testSchema/categoriesTable";
 
 const FORBIDDEN_USER_KEYS = new Set([
 	"password",
@@ -738,6 +763,78 @@ describe("Tenant scoping and response projections", () => {
 			.where(eq(deathsTable.id, deathB.id));
 		expect(stillThere?.deaths).toBe(42);
 
+		// 3b. saveHumanEffectsData on own record cannot update a foreign row ID, while own create+update succeeds
+		const deathsColIdx = cols.indexOf("deaths");
+		const updateRowValues = cols.map((_, idx) =>
+			idx === deathsColIdx ? 99 : null,
+		);
+		const badUpdateRes = await saveHumanEffectsData(
+			ctx,
+			new Request("http://localhost:3000/en/save", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					table: "Deaths",
+					columns: cols,
+					data: { updates: { [deathB.id]: updateRowValues } },
+				}),
+			}),
+			recA.id,
+			tenantA,
+		);
+		expect(((await badUpdateRes.json()) as { ok: boolean }).ok).toBe(false);
+		const [stillUnmodified] = await dr
+			.select()
+			.from(deathsTable)
+			.where(eq(deathsTable.id, deathB.id));
+		expect(stillUnmodified?.deaths).toBe(42);
+
+		const newRowValues = cols.map((_, idx) =>
+			idx === deathsColIdx ? 7 : null,
+		);
+		const ownCreateRes = await saveHumanEffectsData(
+			ctx,
+			new Request("http://localhost:3000/en/save", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					table: "Deaths",
+					columns: cols,
+					data: { newRows: { _temp1: newRowValues } },
+				}),
+			}),
+			recA.id,
+			tenantA,
+		);
+		expect(((await ownCreateRes.json()) as { ok: boolean }).ok).toBe(true);
+		const ownAfterCreate = await loadHumanEffectsData(
+			ctx,
+			recA.id,
+			"Deaths",
+			tenantA,
+		);
+		expect(ownAfterCreate.ids.length).toBe(1);
+		const ownUpdateRes = await saveHumanEffectsData(
+			ctx,
+			new Request("http://localhost:3000/en/save", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					table: "Deaths",
+					columns: cols,
+					data: { updates: { [ownAfterCreate.ids[0]]: updateRowValues } },
+				}),
+			}),
+			recA.id,
+			tenantA,
+		);
+		expect(((await ownUpdateRes.json()) as { ok: boolean }).ok).toBe(true);
+		const [ownDeathAfter] = await dr
+			.select()
+			.from(deathsTable)
+			.where(eq(deathsTable.id, ownAfterCreate.ids[0]));
+		expect(ownDeathAfter?.deaths).toBe(99);
+
 		// 4. Web human-effects index action & csv-import action reject foreign record with 404
 		const editorA = await insertUser();
 		const cookieA = await buildSessionCookie({
@@ -1174,5 +1271,1050 @@ describe("Tenant scoping and response projections", () => {
 		expect((thrownHazards as Response).headers.get("Location")).toContain(
 			"/en/user/login",
 		);
+
+		// 6. Public analytics picker lists only published events for the session tenant, and positive analytics queries succeed
+		const [valDeEvA] = await dr.insert(eventTable).values({}).returning();
+		await dr.insert(disasterEventTable).values({
+			id: valDeEvA.id,
+			countryAccountsId: tenantA,
+			nameNational: "Validated Event A",
+			approvalStatus: "validated",
+		});
+
+		const publicPickerRes = await analyticsContentPickerLoader(
+			makeArgs(
+				"http://localhost:3000/en/analytics/content-picker-datasource?query=&page=1&limit=20",
+				{},
+				{ Cookie: anonCookieA },
+			),
+		);
+		const publicPickerBody = (await publicPickerRes.json()) as {
+			data: Array<{ _CpID: string }>;
+		};
+		const publicPickerIds = publicPickerBody.data.map((row) => row._CpID);
+		expect(publicPickerIds).toContain(pubDeEvA.id);
+		expect(publicPickerIds).not.toContain(valDeEvA.id);
+		expect(publicPickerIds).not.toContain(draftDeEvA.id);
+		expect(publicPickerIds).not.toContain(pubDeEvB.id);
+
+		const pubAnalyticsRes = await analyticsDisasterEventsLoader(
+			makeArgs(
+				`http://localhost:3000/en/analytics/disaster-events?disasterEventId=${pubDeEvA.id}`,
+				{},
+				{ Cookie: anonCookieA },
+			),
+		);
+		expect(pubAnalyticsRes).not.toBeInstanceOf(Response);
+		if (!(pubAnalyticsRes instanceof Response)) {
+			expect(pubAnalyticsRes.record?.id).toBe(pubDeEvA.id);
+			expect(pubAnalyticsRes.record?.hazardousEvent).toBeUndefined();
+		}
+
+		const pubSectorRes = await analyticsSectorLoader(
+			makeArgs(
+				`http://localhost:3000/en/analytics/disaster-events/sector?disasterEventId=${pubDeEvA.id}&sectorid=${sector.id}`,
+				{},
+				{ Cookie: anonCookieA },
+			),
+		);
+		expect(pubSectorRes.sectorData?.id).toBe(sector.id);
+	});
+
+	it("sector deletion removes only the target record's sector rows and requires POST", async () => {
+		const tenantA = await insertTenant();
+		const tenantB = await insertTenant();
+		const editorA = await insertUser();
+		const cookieA = await buildSessionCookie({
+			userId: editorA,
+			tenantId: tenantA,
+			role: "admin",
+		});
+
+		const [sector] = await dr
+			.insert(sectorTable)
+			.values({ name: { en: "Housing" }, level: 1 })
+			.returning();
+		const [asset] = await dr
+			.insert(assetTable)
+			.values({
+				sectorIds: sector.id,
+				isBuiltIn: true,
+				builtInName: { en: "House" },
+			})
+			.returning();
+
+		const [recA1] = await dr
+			.insert(disasterRecordsTable)
+			.values({ countryAccountsId: tenantA, approvalStatus: "draft" })
+			.returning();
+		const [recA2] = await dr
+			.insert(disasterRecordsTable)
+			.values({ countryAccountsId: tenantA, approvalStatus: "draft" })
+			.returning();
+		const [recB1] = await dr
+			.insert(disasterRecordsTable)
+			.values({ countryAccountsId: tenantB, approvalStatus: "draft" })
+			.returning();
+
+		const [relA1] = await dr
+			.insert(sectorDisasterRecordsRelationTable)
+			.values({
+				disasterRecordId: recA1.id,
+				sectorId: sector.id,
+				withDamage: true,
+				withLosses: true,
+				withDisruption: true,
+			})
+			.returning();
+		const [relA2] = await dr
+			.insert(sectorDisasterRecordsRelationTable)
+			.values({
+				disasterRecordId: recA2.id,
+				sectorId: sector.id,
+				withDamage: true,
+			})
+			.returning();
+		const [relB1] = await dr
+			.insert(sectorDisasterRecordsRelationTable)
+			.values({
+				disasterRecordId: recB1.id,
+				sectorId: sector.id,
+				withDamage: true,
+			})
+			.returning();
+
+		const [dmgA1] = await dr
+			.insert(damagesTable)
+			.values({ recordId: recA1.id, sectorId: sector.id, assetId: asset.id })
+			.returning();
+		const [dmgA2] = await dr
+			.insert(damagesTable)
+			.values({ recordId: recA2.id, sectorId: sector.id, assetId: asset.id })
+			.returning();
+		const [dmgB1] = await dr
+			.insert(damagesTable)
+			.values({ recordId: recB1.id, sectorId: sector.id, assetId: asset.id })
+			.returning();
+
+		const [lossA1] = await dr
+			.insert(lossesTable)
+			.values({
+				recordId: recA1.id,
+				sectorId: sector.id,
+				sectorIsAgriculture: false,
+			})
+			.returning();
+		const [lossA2] = await dr
+			.insert(lossesTable)
+			.values({
+				recordId: recA2.id,
+				sectorId: sector.id,
+				sectorIsAgriculture: false,
+			})
+			.returning();
+		const [lossB1] = await dr
+			.insert(lossesTable)
+			.values({
+				recordId: recB1.id,
+				sectorId: sector.id,
+				sectorIsAgriculture: false,
+			})
+			.returning();
+
+		const [disA1] = await dr
+			.insert(disruptionTable)
+			.values({ recordId: recA1.id, sectorId: sector.id })
+			.returning();
+		const [disA2] = await dr
+			.insert(disruptionTable)
+			.values({ recordId: recA2.id, sectorId: sector.id })
+			.returning();
+		const [disB1] = await dr
+			.insert(disruptionTable)
+			.values({ recordId: recB1.id, sectorId: sector.id })
+			.returning();
+
+		// GET loader rejects with 405 and leaves all rows intact
+		const getRes = await sectorDeleteLoader(
+			makeArgs(
+				`http://localhost:3000/en/disaster-record/edit-sec/${recA1.id}/delete?id=${relA1.id}`,
+				{ disRecId: recA1.id },
+				{ Cookie: cookieA },
+			),
+		);
+		expect(getRes.status).toBe(405);
+
+		// POST with foreign tenant's or another record's relation ID returns 404
+		const foreignRes = await sectorDeleteAction(
+			makeArgs(
+				`http://localhost:3000/en/disaster-record/edit-sec/${recA1.id}/delete?id=${relB1.id}`,
+				{ disRecId: recA1.id },
+				{ Cookie: cookieA },
+				{ method: "POST" },
+			),
+		);
+		expect(foreignRes.status).toBe(404);
+
+		const mismatchRes = await sectorDeleteAction(
+			makeArgs(
+				`http://localhost:3000/en/disaster-record/edit-sec/${recA1.id}/delete?id=${relA2.id}`,
+				{ disRecId: recA1.id },
+				{ Cookie: cookieA },
+				{ method: "POST" },
+			),
+		);
+		expect(mismatchRes.status).toBe(404);
+
+		// POST for recA1 deletes only recA1's rows; recA2 and recB1 rows remain intact
+		const okRes = await sectorDeleteAction(
+			makeArgs(
+				`http://localhost:3000/en/disaster-record/edit-sec/${recA1.id}/delete?id=${relA1.id}`,
+				{ disRecId: recA1.id },
+				{ Cookie: cookieA },
+				{ method: "POST" },
+			),
+		);
+		expect(okRes.status).toBe(302);
+
+		expect(
+			await dr.select().from(damagesTable).where(eq(damagesTable.id, dmgA1.id)),
+		).toHaveLength(0);
+		expect(
+			await dr.select().from(lossesTable).where(eq(lossesTable.id, lossA1.id)),
+		).toHaveLength(0);
+		expect(
+			await dr
+				.select()
+				.from(disruptionTable)
+				.where(eq(disruptionTable.id, disA1.id)),
+		).toHaveLength(0);
+		expect(
+			await dr
+				.select()
+				.from(sectorDisasterRecordsRelationTable)
+				.where(eq(sectorDisasterRecordsRelationTable.id, relA1.id)),
+		).toHaveLength(0);
+
+		expect(
+			await dr.select().from(damagesTable).where(eq(damagesTable.id, dmgA2.id)),
+		).toHaveLength(1);
+		expect(
+			await dr.select().from(damagesTable).where(eq(damagesTable.id, dmgB1.id)),
+		).toHaveLength(1);
+		expect(
+			await dr.select().from(lossesTable).where(eq(lossesTable.id, lossA2.id)),
+		).toHaveLength(1);
+		expect(
+			await dr.select().from(lossesTable).where(eq(lossesTable.id, lossB1.id)),
+		).toHaveLength(1);
+		expect(
+			await dr
+				.select()
+				.from(disruptionTable)
+				.where(eq(disruptionTable.id, disA2.id)),
+		).toHaveLength(1);
+		expect(
+			await dr
+				.select()
+				.from(disruptionTable)
+				.where(eq(disruptionTable.id, disB1.id)),
+		).toHaveLength(1);
+		expect(
+			await dr
+				.select()
+				.from(sectorDisasterRecordsRelationTable)
+				.where(eq(sectorDisasterRecordsRelationTable.id, relA2.id)),
+		).toHaveLength(1);
+		expect(
+			await dr
+				.select()
+				.from(sectorDisasterRecordsRelationTable)
+				.where(eq(sectorDisasterRecordsRelationTable.id, relB1.id)),
+		).toHaveLength(1);
+	});
+
+	it("non-economic losses and sector relations routes enforce tenant ownership on add, update, upsert, and web actions", async () => {
+		const tenantA = await insertTenant();
+		const tenantB = await insertTenant();
+		const adminA = await insertUser();
+		const cookieA = await buildSessionCookie({
+			userId: adminA,
+			tenantId: tenantA,
+			role: "admin",
+		});
+
+		const secretA = `key-a-${crypto.randomUUID()}`;
+		await dr.insert(apiKeyTable).values({
+			name: "Tenant A Key",
+			secret: secretA,
+			managedByUserId: adminA,
+			countryAccountsId: tenantA,
+		});
+
+		const [cat] = await dr
+			.insert(categoriesTable)
+			.values({ name: { en: "Cultural" }, level: 1 })
+			.returning();
+		const [cat2] = await dr
+			.insert(categoriesTable)
+			.values({ name: { en: "Environmental" }, level: 1 })
+			.returning();
+		const [cat3] = await dr
+			.insert(categoriesTable)
+			.values({ name: { en: "Social" }, level: 1 })
+			.returning();
+		const [cat4] = await dr
+			.insert(categoriesTable)
+			.values({ name: { en: "Heritage" }, level: 1 })
+			.returning();
+		const [sec1] = await dr
+			.insert(sectorTable)
+			.values({ name: { en: "Water" }, level: 1 })
+			.returning();
+		const [sec2] = await dr
+			.insert(sectorTable)
+			.values({ name: { en: "Health" }, level: 1 })
+			.returning();
+
+		const [recA1] = await dr
+			.insert(disasterRecordsTable)
+			.values({ countryAccountsId: tenantA, approvalStatus: "draft" })
+			.returning();
+		const [recA2] = await dr
+			.insert(disasterRecordsTable)
+			.values({ countryAccountsId: tenantA, approvalStatus: "draft" })
+			.returning();
+		const [recB1] = await dr
+			.insert(disasterRecordsTable)
+			.values({ countryAccountsId: tenantB, approvalStatus: "draft" })
+			.returning();
+
+		const [nonecoA] = await dr
+			.insert(nonecoLossesTable)
+			.values({
+				disasterRecordId: recA1.id,
+				categoryId: cat.id,
+				description: "Tenant A initial",
+			})
+			.returning();
+		const [nonecoB] = await dr
+			.insert(nonecoLossesTable)
+			.values({
+				disasterRecordId: recB1.id,
+				categoryId: cat.id,
+				description: "Tenant B original",
+			})
+			.returning();
+
+		const [secRelA] = await dr
+			.insert(sectorDisasterRecordsRelationTable)
+			.values({
+				disasterRecordId: recA1.id,
+				sectorId: sec1.id,
+				withDamage: true,
+			})
+			.returning();
+		const [secRelB] = await dr
+			.insert(sectorDisasterRecordsRelationTable)
+			.values({
+				disasterRecordId: recB1.id,
+				sectorId: sec1.id,
+				withDamage: true,
+			})
+			.returning();
+
+		const apiPost = (url: string, body: unknown) =>
+			makeArgs(
+				url,
+				{},
+				{ "X-Auth": secretA, "Content-Type": "application/json" },
+				{ method: "POST", body: JSON.stringify(body) },
+			);
+
+		// 1. Non-economic losses API: add, update, upsert
+		const badNonecoAdd = (await (
+			await apiNonecoAddAction(
+				apiPost("http://localhost:3000/en/api/nonecolosses/add", [
+					{
+						disasterRecordId: recB1.id,
+						categoryId: cat.id,
+						description: "Foreign parent",
+					},
+				]),
+			)
+		).json()) as { ok: boolean };
+		expect(badNonecoAdd.ok).toBe(false);
+
+		const okNonecoAdd = (await (
+			await apiNonecoAddAction(
+				apiPost("http://localhost:3000/en/api/nonecolosses/add", [
+					{
+						disasterRecordId: recA1.id,
+						categoryId: cat2.id,
+						description: "Own add",
+					},
+				]),
+			)
+		).json()) as { ok: boolean };
+		expect(okNonecoAdd.ok).toBe(true);
+
+		const badNonecoUpdateForeign = (await (
+			await apiNonecoUpdateAction(
+				apiPost("http://localhost:3000/en/api/nonecolosses/update", [
+					{
+						id: nonecoB.id,
+						disasterRecordId: recA1.id,
+						description: "Moved",
+					},
+				]),
+			)
+		).json()) as { ok: boolean };
+		expect(badNonecoUpdateForeign.ok).toBe(false);
+
+		const badNonecoReparent = (await (
+			await apiNonecoUpdateAction(
+				apiPost("http://localhost:3000/en/api/nonecolosses/update", [
+					{
+						id: nonecoA.id,
+						disasterRecordId: recB1.id,
+						description: "Foreign target",
+					},
+				]),
+			)
+		).json()) as { ok: boolean };
+		expect(badNonecoReparent.ok).toBe(false);
+
+		const okNonecoUpdate = (await (
+			await apiNonecoUpdateAction(
+				apiPost("http://localhost:3000/en/api/nonecolosses/update", [
+					{
+						id: nonecoA.id,
+						disasterRecordId: recA2.id,
+						description: "Updated own",
+					},
+				]),
+			)
+		).json()) as { ok: boolean };
+		expect(okNonecoUpdate.ok).toBe(true);
+
+		const nonecoImpId = `nel-imp-${crypto.randomUUID()}`;
+		const badNonecoUpsert = (await (
+			await apiNonecoUpsertAction(
+				apiPost("http://localhost:3000/en/api/nonecolosses/upsert", [
+					{
+						apiImportId: nonecoImpId,
+						disasterRecordId: recB1.id,
+						categoryId: cat.id,
+						description: "Foreign upsert",
+					},
+				]),
+			)
+		).json()) as { ok: boolean };
+		expect(badNonecoUpsert.ok).toBe(false);
+
+		const okNonecoUpsertCreate = (await (
+			await apiNonecoUpsertAction(
+				apiPost("http://localhost:3000/en/api/nonecolosses/upsert", [
+					{
+						apiImportId: nonecoImpId,
+						disasterRecordId: recA1.id,
+						categoryId: cat3.id,
+						description: "Upsert v1",
+					},
+				]),
+			)
+		).json()) as { ok: boolean };
+		expect(okNonecoUpsertCreate.ok).toBe(true);
+
+		const badNonecoUpsertReparent = (await (
+			await apiNonecoUpsertAction(
+				apiPost("http://localhost:3000/en/api/nonecolosses/upsert", [
+					{
+						apiImportId: nonecoImpId,
+						disasterRecordId: recB1.id,
+						categoryId: cat3.id,
+						description: "Upsert foreign parent",
+					},
+				]),
+			)
+		).json()) as { ok: boolean };
+		expect(badNonecoUpsertReparent.ok).toBe(false);
+
+		// 2. Non-economic losses web action rejects foreign row ID and succeeds for own record
+		const badWebForm = new FormData();
+		badWebForm.append("id", nonecoB.id);
+		badWebForm.append("categoryId", cat.id);
+		badWebForm.append("description", "Web overwrite");
+		let thrownWebNoneco: unknown;
+		try {
+			await nonEcoWebAction(
+				makeArgs(
+					`http://localhost:3000/en/disaster-record/non-economic-losses/${recA1.id}`,
+					{ id: recA1.id },
+					{ Cookie: cookieA },
+					{ method: "POST", body: badWebForm },
+				),
+			);
+		} catch (e) {
+			thrownWebNoneco = e;
+		}
+		expect(thrownWebNoneco).toBeInstanceOf(Response);
+		expect((thrownWebNoneco as Response).status).toBe(404);
+
+		const [nonecoBAfter] = await dr
+			.select()
+			.from(nonecoLossesTable)
+			.where(eq(nonecoLossesTable.id, nonecoB.id));
+		expect(nonecoBAfter.disasterRecordId).toBe(recB1.id);
+		expect(nonecoBAfter.description).toBe("Tenant B original");
+
+		const okWebForm = new FormData();
+		okWebForm.append("categoryId", cat4.id);
+		okWebForm.append("description", "Web own create");
+		const okWebRes = await nonEcoWebAction(
+			makeArgs(
+				`http://localhost:3000/en/disaster-record/non-economic-losses/${recA1.id}`,
+				{ id: recA1.id },
+				{ Cookie: cookieA },
+				{ method: "POST", body: okWebForm },
+			),
+		);
+		expect(okWebRes).toBeInstanceOf(Response);
+		expect((okWebRes as Response).status).toBe(302);
+
+		// 3. Sector relations API: add, update, upsert
+		const badSecAdd = (await (
+			await apiSectorRelAddAction(
+				apiPost(
+					"http://localhost:3000/en/api/sector-disaster-record-relation/add",
+					[
+						{
+							disasterRecordId: recB1.id,
+							sectorId: sec2.id,
+							withDamage: true,
+						},
+					],
+				),
+			)
+		).json()) as { ok: boolean };
+		expect(badSecAdd.ok).toBe(false);
+
+		const okSecAdd = (await (
+			await apiSectorRelAddAction(
+				apiPost(
+					"http://localhost:3000/en/api/sector-disaster-record-relation/add",
+					[
+						{
+							disasterRecordId: recA1.id,
+							sectorId: sec2.id,
+							withDamage: true,
+						},
+					],
+				),
+			)
+		).json()) as { ok: boolean };
+		expect(okSecAdd.ok).toBe(true);
+
+		const badSecUpdateForeign = (await (
+			await apiSectorRelUpdateAction(
+				apiPost(
+					"http://localhost:3000/en/api/sector-disaster-record-relation/update",
+					[
+						{
+							id: secRelB.id,
+							disasterRecordId: recA1.id,
+							withDamage: true,
+							withLosses: true,
+						},
+					],
+				),
+			)
+		).json()) as { ok: boolean };
+		expect(badSecUpdateForeign.ok).toBe(false);
+
+		const badSecReparent = (await (
+			await apiSectorRelUpdateAction(
+				apiPost(
+					"http://localhost:3000/en/api/sector-disaster-record-relation/update",
+					[
+						{
+							id: secRelA.id,
+							disasterRecordId: recB1.id,
+							withDamage: true,
+						},
+					],
+				),
+			)
+		).json()) as { ok: boolean };
+		expect(badSecReparent.ok).toBe(false);
+
+		const okSecUpdate = (await (
+			await apiSectorRelUpdateAction(
+				apiPost(
+					"http://localhost:3000/en/api/sector-disaster-record-relation/update",
+					[
+						{
+							id: secRelA.id,
+							withDamage: true,
+							withDisruption: true,
+						},
+					],
+				),
+			)
+		).json()) as { ok: boolean };
+		expect(okSecUpdate.ok).toBe(true);
+
+		const secImpId = `sec-imp-${crypto.randomUUID()}`;
+		const badSecUpsert = (await (
+			await apiSectorRelUpsertAction(
+				apiPost(
+					"http://localhost:3000/en/api/sector-disaster-record-relation/upsert",
+					[
+						{
+							apiImportId: secImpId,
+							disasterRecordId: recB1.id,
+							sectorId: sec2.id,
+							withDamage: true,
+						},
+					],
+				),
+			)
+		).json()) as { ok: boolean };
+		expect(badSecUpsert.ok).toBe(false);
+
+		const okSecUpsert = (await (
+			await apiSectorRelUpsertAction(
+				apiPost(
+					"http://localhost:3000/en/api/sector-disaster-record-relation/upsert",
+					[
+						{
+							apiImportId: secImpId,
+							disasterRecordId: recA2.id,
+							sectorId: sec2.id,
+							withDamage: true,
+						},
+					],
+				),
+			)
+		).json()) as { ok: boolean };
+		expect(okSecUpsert.ok).toBe(true);
+
+		const [secRelBAfter] = await dr
+			.select()
+			.from(sectorDisasterRecordsRelationTable)
+			.where(eq(sectorDisasterRecordsRelationTable.id, secRelB.id));
+		expect(secRelBAfter.disasterRecordId).toBe(recB1.id);
+		expect(secRelBAfter.withLosses).toBeFalsy();
+	});
+
+	it("CSV import routes, API sub-record upserts, custom asset checks, and entity updates preserve tenant ownership", async () => {
+		const tenantA = await insertTenant();
+		const tenantB = await insertTenant();
+		const adminA = await insertUser();
+		const cookieA = await buildSessionCookie({
+			userId: adminA,
+			tenantId: tenantA,
+			role: "admin",
+		});
+		const ctx = new BackendContext({ params: { lang: "en" } } as any);
+
+		const secretA = `key-imp-a-${crypto.randomUUID()}`;
+		await dr.insert(apiKeyTable).values({
+			name: "Tenant A Import Key",
+			secret: secretA,
+			managedByUserId: adminA,
+			countryAccountsId: tenantA,
+		});
+
+		const [sector] = await dr
+			.insert(sectorTable)
+			.values({ name: { en: "Telecom" }, level: 1 })
+			.returning();
+		const [builtInAsset] = await dr
+			.insert(assetTable)
+			.values({
+				sectorIds: sector.id,
+				isBuiltIn: true,
+				builtInName: { en: "Tower" },
+			})
+			.returning();
+		const [customAssetA] = await dr
+			.insert(assetTable)
+			.values({
+				sectorIds: sector.id,
+				isBuiltIn: false,
+				customName: "Asset A",
+				countryAccountsId: tenantA,
+			})
+			.returning();
+		const [customAssetB] = await dr
+			.insert(assetTable)
+			.values({
+				sectorIds: sector.id,
+				isBuiltIn: false,
+				customName: "Asset B",
+				countryAccountsId: tenantB,
+			})
+			.returning();
+
+		const [recA] = await dr
+			.insert(disasterRecordsTable)
+			.values({ countryAccountsId: tenantA, approvalStatus: "draft" })
+			.returning();
+		const [recB] = await dr
+			.insert(disasterRecordsTable)
+			.values({ countryAccountsId: tenantB, approvalStatus: "draft" })
+			.returning();
+
+		const [dmgB] = await dr
+			.insert(damagesTable)
+			.values({
+				recordId: recB.id,
+				sectorId: sector.id,
+				assetId: builtInAsset.id,
+				totalDamageAmount: 11,
+			})
+			.returning();
+		const [lossB] = await dr
+			.insert(lossesTable)
+			.values({
+				recordId: recB.id,
+				sectorId: sector.id,
+				sectorIsAgriculture: false,
+			})
+			.returning();
+		const [disB] = await dr
+			.insert(disruptionTable)
+			.values({ recordId: recB.id, sectorId: sector.id })
+			.returning();
+
+		const makeCsvForm = (importType: string, csv: string) => {
+			const fd = new FormData();
+			fd.append("import_type", importType);
+			fd.append("file", new File([csv], "import.csv", { type: "text/csv" }));
+			return fd;
+		};
+
+		// 1. Route-level CSV import rejects cross-tenant update/create with a non-empty error message and succeeds for own record
+		const dmgCsvForeign = await damagesCsvImportAction(
+			makeArgs(
+				`http://localhost:3000/en/disaster-record/edit-sub/${recA.id}/damages/csv-import`,
+				{ disRecId: recA.id },
+				{ Cookie: cookieA },
+				{
+					method: "POST",
+					body: makeCsvForm(
+						"update",
+						`id,recordId,sectorId,assetId\n${dmgB.id},${recA.id},${sector.id},${builtInAsset.id}\n`,
+					),
+				},
+			),
+		);
+		expect(dmgCsvForeign.res.ok).toBe(false);
+		expect((dmgCsvForeign.res as any).rowError?.message).toBeTruthy();
+
+		const dmgCsvOwn = await damagesCsvImportAction(
+			makeArgs(
+				`http://localhost:3000/en/disaster-record/edit-sub/${recA.id}/damages/csv-import`,
+				{ disRecId: recA.id },
+				{ Cookie: cookieA },
+				{
+					method: "POST",
+					body: makeCsvForm(
+						"create",
+						`recordId,sectorId,assetId\n${recA.id},${sector.id},${builtInAsset.id}\n`,
+					),
+				},
+			),
+		);
+		expect(dmgCsvOwn.res.ok).toBe(true);
+
+		const lossCsvForeign = await lossesCsvImportAction(
+			makeArgs(
+				`http://localhost:3000/en/disaster-record/edit-sub/${recA.id}/losses/csv-import`,
+				{ disRecId: recA.id },
+				{ Cookie: cookieA },
+				{
+					method: "POST",
+					body: makeCsvForm(
+						"update",
+						`id,recordId,sectorId,sectorIsAgriculture\n${lossB.id},${recA.id},${sector.id},false\n`,
+					),
+				},
+			),
+		);
+		expect(lossCsvForeign.res.ok).toBe(false);
+		expect((lossCsvForeign.res as any).rowError?.message).toBeTruthy();
+
+		const lossCsvOwn = await lossesCsvImportAction(
+			makeArgs(
+				`http://localhost:3000/en/disaster-record/edit-sub/${recA.id}/losses/csv-import`,
+				{ disRecId: recA.id },
+				{ Cookie: cookieA },
+				{
+					method: "POST",
+					body: makeCsvForm(
+						"create",
+						`recordId,sectorId,sectorIsAgriculture\n${recA.id},${sector.id},false\n`,
+					),
+				},
+			),
+		);
+		expect(lossCsvOwn.res.ok).toBe(true);
+
+		const disCsvForeign = await disruptionsCsvImportAction(
+			makeArgs(
+				`http://localhost:3000/en/disaster-record/edit-sub/${recA.id}/disruptions/csv-import`,
+				{ disRecId: recA.id },
+				{ Cookie: cookieA },
+				{
+					method: "POST",
+					body: makeCsvForm(
+						"update",
+						`id,recordId,sectorId\n${disB.id},${recA.id},${sector.id}\n`,
+					),
+				},
+			),
+		);
+		expect(disCsvForeign.res.ok).toBe(false);
+		expect((disCsvForeign.res as any).rowError?.message).toBeTruthy();
+
+		const disCsvOwn = await disruptionsCsvImportAction(
+			makeArgs(
+				`http://localhost:3000/en/disaster-record/edit-sub/${recA.id}/disruptions/csv-import`,
+				{ disRecId: recA.id },
+				{ Cookie: cookieA },
+				{
+					method: "POST",
+					body: makeCsvForm(
+						"create",
+						`recordId,sectorId\n${recA.id},${sector.id}\n`,
+					),
+				},
+			),
+		);
+		expect(disCsvOwn.res.ok).toBe(true);
+
+		// 2. Damages create rejects another tenant's custom asset while allowing own custom asset
+		const badCustomAsset = await damagesCreate(
+			ctx,
+			dr,
+			{
+				recordId: recA.id,
+				sectorId: sector.id,
+				assetId: customAssetB.id,
+			} as any,
+			tenantA,
+		);
+		expect(badCustomAsset.ok).toBe(false);
+
+		const okCustomAsset = await damagesCreate(
+			ctx,
+			dr,
+			{
+				recordId: recA.id,
+				sectorId: sector.id,
+				assetId: customAssetA.id,
+			} as any,
+			tenantA,
+		);
+		expect(okCustomAsset.ok).toBe(true);
+
+		// 3. Route-level API upsert for damage, losses, and disruption rejects foreign parent and succeeds for own record
+		const apiPost = (url: string, body: unknown) =>
+			makeArgs(
+				url,
+				{},
+				{ "X-Auth": secretA, "Content-Type": "application/json" },
+				{ method: "POST", body: JSON.stringify(body) },
+			);
+
+		const dmgImp = `api-dmg-${crypto.randomUUID()}`;
+		expect(
+			(
+				(await (
+					await apiDamageUpsertAction(
+						apiPost("http://localhost:3000/en/api/damage/upsert", [
+							{
+								apiImportId: dmgImp,
+								recordId: recB.id,
+								sectorId: sector.id,
+								assetId: builtInAsset.id,
+							},
+						]),
+					)
+				).json()) as { ok: boolean }
+			).ok,
+		).toBe(false);
+		expect(
+			(
+				(await (
+					await apiDamageUpsertAction(
+						apiPost("http://localhost:3000/en/api/damage/upsert", [
+							{
+								apiImportId: dmgImp,
+								recordId: recA.id,
+								sectorId: sector.id,
+								assetId: builtInAsset.id,
+							},
+						]),
+					)
+				).json()) as { ok: boolean }
+			).ok,
+		).toBe(true);
+
+		const lossImp = `api-loss-${crypto.randomUUID()}`;
+		expect(
+			(
+				(await (
+					await apiLossesUpsertAction(
+						apiPost("http://localhost:3000/en/api/losses/upsert", [
+							{
+								apiImportId: lossImp,
+								recordId: recB.id,
+								sectorId: sector.id,
+								sectorIsAgriculture: false,
+							},
+						]),
+					)
+				).json()) as { ok: boolean }
+			).ok,
+		).toBe(false);
+		expect(
+			(
+				(await (
+					await apiLossesUpsertAction(
+						apiPost("http://localhost:3000/en/api/losses/upsert", [
+							{
+								apiImportId: lossImp,
+								recordId: recA.id,
+								sectorId: sector.id,
+								sectorIsAgriculture: false,
+							},
+						]),
+					)
+				).json()) as { ok: boolean }
+			).ok,
+		).toBe(true);
+
+		const disImp = `api-dis-${crypto.randomUUID()}`;
+		expect(
+			(
+				(await (
+					await apiDisruptionUpsertAction(
+						apiPost("http://localhost:3000/en/api/disruption/upsert", [
+							{
+								apiImportId: disImp,
+								recordId: recB.id,
+								sectorId: sector.id,
+							},
+						]),
+					)
+				).json()) as { ok: boolean }
+			).ok,
+		).toBe(false);
+		expect(
+			(
+				(await (
+					await apiDisruptionUpsertAction(
+						apiPost("http://localhost:3000/en/api/disruption/upsert", [
+							{
+								apiImportId: disImp,
+								recordId: recA.id,
+								sectorId: sector.id,
+							},
+						]),
+					)
+				).json()) as { ok: boolean }
+			).ok,
+		).toBe(true);
+
+		// 4. Tenant-scoped entity updates ignore supplied countryAccountsId so rows cannot be reassigned to another tenant
+		const hipTypeId = `ht-up-${crypto.randomUUID().slice(0, 8)}`;
+		await dr
+			.insert(hipTypeTable)
+			.values({ id: hipTypeId, name: { en: "Meteorological" } });
+		const [heEv] = await dr.insert(eventTable).values({}).returning();
+		await dr.insert(hazardousEventTable).values({
+			id: heEv.id,
+			countryAccountsId: tenantA,
+			hipTypeId,
+			approvalStatus: "draft",
+		});
+		const [deEv] = await dr.insert(eventTable).values({}).returning();
+		await dr.insert(disasterEventTable).values({
+			id: deEv.id,
+			countryAccountsId: tenantA,
+			nameNational: "Event A",
+			approvalStatus: "draft",
+		});
+
+		expect(
+			(
+				await disasterRecordsUpdate(
+					ctx,
+					dr,
+					recA.id,
+					{ countryAccountsId: tenantB } as any,
+					tenantA,
+				)
+			).ok,
+		).toBe(true);
+		const [recAAfter] = await dr
+			.select()
+			.from(disasterRecordsTable)
+			.where(eq(disasterRecordsTable.id, recA.id));
+		expect(recAAfter.countryAccountsId).toBe(tenantA);
+
+		expect(
+			(
+				await disasterEventUpdateByIdAndCountryAccountsId(
+					ctx,
+					dr,
+					deEv.id,
+					tenantA,
+					{ nameNational: "Event A Updated", countryAccountsId: tenantB } as any,
+				)
+			).ok,
+		).toBe(true);
+		const [deAfter] = await dr
+			.select()
+			.from(disasterEventTable)
+			.where(eq(disasterEventTable.id, deEv.id));
+		expect(deAfter.countryAccountsId).toBe(tenantA);
+
+		expect(
+			(
+				await hazardousEventUpdateByIdAndCountryAccountsId(
+					ctx,
+					dr,
+					heEv.id,
+					tenantA,
+					{ description: "Updated", countryAccountsId: tenantB } as any,
+				)
+			).ok,
+		).toBe(true);
+		const [heAfter] = await dr
+			.select()
+			.from(hazardousEventTable)
+			.where(eq(hazardousEventTable.id, heEv.id));
+		expect(heAfter.countryAccountsId).toBe(tenantA);
+
+		expect(
+			(
+				await assetUpdateByIdAndCountryAccountsId(
+					ctx,
+					dr,
+					customAssetA.id,
+					tenantA,
+					{ name: "Asset A Updated", countryAccountsId: tenantB } as any,
+				)
+			).ok,
+		).toBe(true);
+		const [assetAAfter] = await dr
+			.select()
+			.from(assetTable)
+			.where(eq(assetTable.id, customAssetA.id));
+		expect(assetAAfter.countryAccountsId).toBe(tenantA);
 	});
 });

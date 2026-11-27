@@ -224,10 +224,35 @@ export async function disRecSectorsCreate(
 	_ctx: BackendContext,
 	tx: Tx,
 	fields: DisRecSectorsFields,
+	countryAccountsId: string,
 ): Promise<CreateResult<DisRecSectorsFields>> {
 	let errors = validate(fields);
 	if (hasErrors(errors)) {
 		return { ok: false, errors };
+	}
+
+	if (!countryAccountsId) {
+		return {
+			ok: false,
+			errors: {
+				form: ["No matching disaster record found or you don't have access"],
+			},
+		};
+	}
+
+	const disasterRecords =
+		await DisasterRecordsRepository.getByIdAndCountryAccountsId(
+			fields.disasterRecordId,
+			countryAccountsId,
+			tx,
+		);
+	if (!disasterRecords || disasterRecords.length === 0) {
+		return {
+			ok: false,
+			errors: {
+				form: ["No matching disaster record found or you don't have access"],
+			},
+		};
 	}
 
 	try {
@@ -247,7 +272,7 @@ export async function disRecSectorsCreate(
 		return {
 			ok: false,
 			errors: {
-				general: ["Error during validation: " + errorMessage],
+				form: ["Error during validation: " + errorMessage],
 			},
 		};
 	}
@@ -288,18 +313,51 @@ export async function disRecSectorsUpdateByIdAndCountryAccountsId(
 	if (hasErrors(errors)) {
 		return { ok: false, errors };
 	}
-	let recordId = await getRecordId(tx, id);
-	const disasterRecords = DisasterRecordsRepository.getByIdAndCountryAccountsId(
-		recordId,
-		countryAccountsId,
-	);
-	if (!disasterRecords) {
+
+	let recordId: string;
+	try {
+		recordId = await getRecordId(tx, id);
+	} catch {
 		return {
 			ok: false,
 			errors: {
-				general: ["No matching disaster record found or you don't have access"],
+				form: ["No matching disaster record found or you don't have access"],
 			},
 		};
+	}
+
+	const disasterRecords =
+		await DisasterRecordsRepository.getByIdAndCountryAccountsId(
+			recordId,
+			countryAccountsId,
+			tx,
+		);
+	if (!disasterRecords || disasterRecords.length === 0) {
+		return {
+			ok: false,
+			errors: {
+				form: ["No matching disaster record found or you don't have access"],
+			},
+		};
+	}
+
+	if (fields.disasterRecordId && fields.disasterRecordId !== recordId) {
+		const targetRecords =
+			await DisasterRecordsRepository.getByIdAndCountryAccountsId(
+				fields.disasterRecordId,
+				countryAccountsId,
+				tx,
+			);
+		if (!targetRecords || targetRecords.length === 0) {
+			return {
+				ok: false,
+				errors: {
+					form: [
+						"No matching target disaster record found or you don't have access",
+					],
+				},
+			};
+		}
 	}
 
 	try {
@@ -311,13 +369,16 @@ export async function disRecSectorsUpdateByIdAndCountryAccountsId(
 			.where(eq(sectorDisasterRecordsRelationTable.id, id));
 
 		await updateTotalsUsingDisasterRecordId(tx, recordId);
+		if (fields.disasterRecordId && fields.disasterRecordId !== recordId) {
+			await updateTotalsUsingDisasterRecordId(tx, fields.disasterRecordId);
+		}
 	} catch (e) {
 		const errorMessage = e instanceof Error ? e.message : String(e);
 
 		return {
 			ok: false,
 			errors: {
-				general: ["Error during validation: " + errorMessage],
+				form: ["Error during validation: " + errorMessage],
 			},
 		};
 	}
@@ -362,8 +423,11 @@ export async function filterByDisasterRecordId_SectorIdTx(
 
 export async function deleteRecordsDeleteById(
 	idStr: string,
+	tx: Tx = dr,
 ): Promise<DeleteResult> {
-	await deleteByIdForStringId(idStr, sectorDisasterRecordsRelationTable);
+	await tx
+		.delete(sectorDisasterRecordsRelationTable)
+		.where(eq(sectorDisasterRecordsRelationTable.id, idStr));
 	return { ok: true };
 }
 

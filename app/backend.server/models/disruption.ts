@@ -120,6 +120,7 @@ async function syncDisruptionSpatialFootprint(
 	tx: Tx,
 	disruptionId: string,
 	spatialFootprintValue: unknown,
+	countryAccountsId?: string,
 ) {
 	const items = parseSpatialFootprintItems(spatialFootprintValue);
 	const mapCoordinateItems = items.filter(
@@ -165,7 +166,14 @@ async function syncDisruptionSpatialFootprint(
 			const validDivisions = await tx
 				.select({ id: divisionTable.id })
 				.from(divisionTable)
-				.where(inArray(divisionTable.id, divisionIds));
+				.where(
+					countryAccountsId
+						? and(
+								inArray(divisionTable.id, divisionIds),
+								eq(divisionTable.countryAccountsId, countryAccountsId),
+							)
+						: inArray(divisionTable.id, divisionIds),
+				);
 
 			const validDivisionIds = new Set(validDivisions.map((row) => row.id));
 			const rows = geographicItems
@@ -448,28 +456,35 @@ export async function disruptionCreate(
 	ctx: BackendContext,
 	tx: Tx,
 	fields: DisruptionFields,
-	countryAccountsId?: string,
+	countryAccountsId: string,
 ): Promise<CreateResult<DisruptionFields>> {
 	let errors = validate(ctx, fields);
 	if (hasErrors(errors)) {
 		return { ok: false, errors };
 	}
 
-	if (countryAccountsId) {
-		const disasterRecords =
-			await DisasterRecordsRepository.getByIdAndCountryAccountsId(
-				fields.recordId,
-				countryAccountsId,
-				tx,
-			);
-		if (!disasterRecords || disasterRecords.length === 0) {
-			return {
-				ok: false,
-				errors: {
-					general: ["No matching disaster record found or you don't have access"],
-				},
-			};
-		}
+	if (!countryAccountsId) {
+		return {
+			ok: false,
+			errors: {
+				form: ["No matching disaster record found or you don't have access"],
+			},
+		};
+	}
+
+	const disasterRecords =
+		await DisasterRecordsRepository.getByIdAndCountryAccountsId(
+			fields.recordId,
+			countryAccountsId,
+			tx,
+		);
+	if (!disasterRecords || disasterRecords.length === 0) {
+		return {
+			ok: false,
+			errors: {
+				form: ["No matching disaster record found or you don't have access"],
+			},
+		};
 	}
 
 	const spatialFootprintValue = (fields as any).spatialFootprint;
@@ -483,7 +498,12 @@ export async function disruptionCreate(
 		})
 		.returning({ id: disruptionTable.id });
 
-	await syncDisruptionSpatialFootprint(tx, res[0].id, spatialFootprintValue);
+	await syncDisruptionSpatialFootprint(
+		tx,
+		res[0].id,
+		spatialFootprintValue,
+		countryAccountsId,
+	);
 
 	await updateTotalsUsingDisasterRecordId(tx, fields.recordId);
 
@@ -543,7 +563,7 @@ export async function disruptionUpdateByIdAndCountryAccountsId(
 		return {
 			ok: false,
 			errors: {
-				general: ["No matching disaster record found or you don't have access"],
+				form: ["No matching disaster record found or you don't have access"],
 			},
 		};
 	}
@@ -558,7 +578,7 @@ export async function disruptionUpdateByIdAndCountryAccountsId(
 		return {
 			ok: false,
 			errors: {
-				general: ["No matching disaster record found or you don't have access"],
+				form: ["No matching disaster record found or you don't have access"],
 			},
 		};
 	}
@@ -574,7 +594,7 @@ export async function disruptionUpdateByIdAndCountryAccountsId(
 			return {
 				ok: false,
 				errors: {
-					general: [
+					form: [
 						"No matching target disaster record found or you don't have access",
 					],
 				},
@@ -590,7 +610,12 @@ export async function disruptionUpdateByIdAndCountryAccountsId(
 		.where(and(eq(disruptionTable.id, id)));
 
 	if ("spatialFootprint" in fields) {
-		await syncDisruptionSpatialFootprint(tx, id, spatialFootprintValue);
+		await syncDisruptionSpatialFootprint(
+			tx,
+			id,
+			spatialFootprintValue,
+			countryAccountsId,
+		);
 	}
 
 	await updateTotalsUsingDisasterRecordId(tx, recordId);
@@ -743,9 +768,18 @@ export async function disruptionDeleteById(
 }
 
 export async function disruptionDeleteBySectorId(
-	id: string,
+	recordId: string,
+	sectorId: string,
+	tx: Tx = dr,
 ): Promise<DeleteResult> {
-	await dr.delete(disruptionTable).where(eq(disruptionTable.sectorId, id));
+	await tx
+		.delete(disruptionTable)
+		.where(
+			and(
+				eq(disruptionTable.recordId, recordId),
+				eq(disruptionTable.sectorId, sectorId),
+			),
+		);
 
 	return { ok: true };
 }
