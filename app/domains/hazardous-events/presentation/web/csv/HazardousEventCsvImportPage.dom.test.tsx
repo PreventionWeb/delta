@@ -282,45 +282,31 @@ describe("HazardousEventCsvImportPage: success state (item 3)", () => {
 		);
 	});
 
-	it("shows the skipped-data notice with a plural row count", async () => {
-		await renderPage({
-			result: { ...SUCCESS, skippedDataNotice: { rows: 4 } },
-		});
-
-		expect(screen.getByRole("status").textContent).toContain(
-			"4 rows had spatial footprint or attachment data that was not imported.",
-		);
-	});
-
-	it("shows the skipped-data notice with a singular row count", async () => {
-		await renderPage({
-			result: { ...SUCCESS, skippedDataNotice: { rows: 1 } },
-		});
-
-		expect(screen.getByRole("status").textContent).toContain(
-			"1 row had spatial footprint or attachment data that was not imported.",
-		);
-	});
-
-	it("omits the skipped-data notice when there is none", async () => {
+	it("never renders the 6d-1 skipped-data notice: the counts line is the only paragraph (6d-2)", async () => {
 		await renderPage({ result: SUCCESS });
 
-		expect(screen.getByRole("status").textContent).not.toContain(
-			"spatial footprint",
-		);
+		const status = screen.getByRole("status");
+		expect(status.querySelectorAll("p")).toHaveLength(1);
+		expect(status.textContent).not.toContain("not imported");
+	});
+
+	it("never renders the notice in French either", async () => {
+		await renderPage({ lang: "fr", result: SUCCESS });
+
+		expect(screen.getByRole("status").querySelectorAll("p")).toHaveLength(1);
 	});
 
 	it("lists ignored columns in one line (item 9)", async () => {
 		await renderPage({
 			result: {
 				...SUCCESS,
-				ignoredColumns: ["spatialFootprint", "attachments"],
+				ignoredColumns: ["createdAt", "countryAccountsId"],
 			},
 		});
 
 		expect(
 			within(screen.getByRole("status")).getByText(
-				"Columns not imported: spatialFootprint, attachments",
+				"Columns not imported: createdAt, countryAccountsId",
 			),
 		).toBeTruthy();
 	});
@@ -329,6 +315,76 @@ describe("HazardousEventCsvImportPage: success state (item 3)", () => {
 		const { container } = await renderPage({ result: SUCCESS });
 
 		expect(container.textContent).not.toContain("Columns not imported");
+	});
+});
+
+describe("HazardousEventCsvImportPage: footprint and attachment row errors (6d-2, D10)", () => {
+	const ROW_ERRORS: HazardousEventCsvImportResult = {
+		ok: false,
+		mode: "create",
+		fileErrors: [],
+		rowErrors: [
+			{
+				line: 2,
+				column: "spatialFootprint",
+				code: "invalid_spatial_footprint",
+			},
+			{
+				line: 3,
+				column: "spatialFootprint",
+				code: "invalid_division",
+				value: "abc",
+			},
+			{ line: 4, column: "attachments", code: "invalid_attachments" },
+			{
+				line: 5,
+				column: "attachments",
+				code: "invalid_attachment_url",
+				value: "javascript:alert(1)",
+			},
+			{
+				line: 6,
+				column: "attachments",
+				code: "file_reference_not_supported",
+				value: "report.pdf",
+			},
+		],
+		errorCount: 5,
+		ignoredColumns: [],
+	};
+
+	it("renders the five new messages with line, column and echoed value in English", async () => {
+		await renderPage({ result: ROW_ERRORS });
+
+		const items = within(screen.getByRole("alert"))
+			.getAllByRole("listitem")
+			.map((li) => li.textContent);
+		expect(items).toEqual([
+			"Line 2, column spatialFootprint: This is not a valid spatial footprint. Enter a JSON array of map coordinates and geographic level items.",
+			"Line 3, column spatialFootprint: This division does not exist in your country instance. Value: abc",
+			"Line 4, column attachments: These attachments are not valid. Enter a JSON array of link and file items.",
+			"Line 5, column attachments: Attachment links must start with http:// or https://. Value: javascript:alert(1)",
+			"Line 6, column attachments: A file can only be kept if this event already has it. Upload new files in the app. Value: report.pdf",
+		]);
+	});
+
+	it("renders the five new messages in French", async () => {
+		await renderPage({ lang: "fr", result: ROW_ERRORS });
+
+		const items = within(screen.getByRole("alert"))
+			.getAllByRole("listitem")
+			.map((li) => li.textContent ?? "");
+		const codes = [
+			"invalid_spatial_footprint",
+			"invalid_division",
+			"invalid_attachments",
+			"invalid_attachment_url",
+			"file_reference_not_supported",
+		] as const;
+		codes.forEach((code, index) => {
+			expect(items[index]).toContain(`Ligne ${index + 2}, colonne`);
+			expect(items[index]).toContain(frHazardousEvents.csv.error[code]);
+		});
 	});
 });
 

@@ -62,6 +62,8 @@
 		"create_title": "Ajouter un événement dangereux",
 		"edit_title": "Modifier l'événement dangereux",
 		"partial_transition_failed": "Événement enregistré ; la soumission demandée n'a pas pu être effectuée. Veuillez réessayer.",
+		"attachments_invalid_url": "Les liens des pièces jointes doivent commencer par http:// ou https://.",
+		"attachments_invalid_tag": "Les étiquettes des pièces jointes ne sont pas valides. Supprimez-les et ajoutez-les de nouveau.",
 		"close": "Fermer",
 		"spatial_footprint": {
 			"add_action": "Ajouter",
@@ -347,8 +349,6 @@
 		"more_errors_one": "…et {{count}} autre problème.",
 		"more_errors_other": "…et {{count}} autres problèmes.",
 		"ignored_columns": "Colonnes non importées : {{columns}}",
-		"skipped_data_notice_one": "{{count}} ligne contenait une empreinte spatiale ou des pièces jointes qui n'ont pas été importées.",
-		"skipped_data_notice_other": "{{count}} lignes contenaient une empreinte spatiale ou des pièces jointes qui n'ont pas été importées.",
 		"location": {
 			"line": "Ligne {{line}}",
 			"line_column": "Ligne {{line}}, colonne {{column}}",
@@ -391,6 +391,11 @@
 			"cause_after_effect": "L'événement parent ne doit pas commencer après cet événement.",
 			"parent_multiple_causes": "Cet événement a plusieurs causes. Modifiez ses causes dans l'application, pas dans le fichier.",
 			"invalid_character": "Cette valeur contient un caractère nul, qui ne peut pas être enregistré. Supprimez-le et réessayez.",
+			"invalid_spatial_footprint": "Cette empreinte spatiale n'est pas valide. Saisissez un tableau JSON d'éléments de coordonnées cartographiques et de niveau géographique.",
+			"invalid_division": "Cette division n'existe pas dans votre instance nationale.",
+			"invalid_attachments": "Ces pièces jointes ne sont pas valides. Saisissez un tableau JSON d'éléments de lien et de fichier.",
+			"invalid_attachment_url": "Les liens des pièces jointes doivent commencer par http:// ou https://.",
+			"file_reference_not_supported": "Un fichier ne peut être conservé que si cet événement le possède déjà. Téléversez les nouveaux fichiers dans l'application.",
 			"validation": "Cette ligne n'est pas valide."
 		}
 	}

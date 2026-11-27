@@ -21,9 +21,9 @@ function roundTrip(column: string, value: string): string {
 }
 
 describe("serializeCsv: record format", () => {
-	it("writes the export header as the legacy header followed by ,parent", () => {
+	it("writes the export header as the legacy header followed by the appended columns", () => {
 		const out = serializeCsv(EXPORT_HEADER, []);
-		expect(out).toBe(`${E1_LINE},parent\r\n`);
+		expect(out).toBe(`${E1_LINE},parent,spatialFootprint,attachments\r\n`);
 	});
 
 	it("ends every record with CRLF and has no bare LF", () => {
