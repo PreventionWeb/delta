@@ -12,8 +12,14 @@ import {
 
 import CustomPieChart from "~/components/PieChart";
 
+import { and, eq } from "drizzle-orm";
+import { dr } from "~/db.server";
+import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import { unitName } from "~/frontend/unit_picker";
-import { getCountrySettingsFromSession } from "~/utils/session";
+import {
+	getCountryAccountsIdFromSession,
+	getCountrySettingsFromSession,
+} from "~/utils/session";
 
 import { ViewContext } from "~/frontend/context";
 import { BackendContext } from "~/backend.server/context";
@@ -50,11 +56,16 @@ export const loader = authLoaderPublicOrWithPerm(
 		let sectorData: any = {};
 		let sectorId: string = "0";
 
-		const settings = await getCountrySettingsFromSession(req);
-		let confCurrency;
-		if (settings) {
-			confCurrency = settings.currencyCode.toUpperCase();
+		const countryAccountsId = await getCountryAccountsIdFromSession(req);
+		if (!countryAccountsId) {
+			throw new Response("Unauthorized", { status: 401 });
 		}
+		const isPublicAccess = !(loaderArgs as any).userSession?.user;
+
+		const settings = await getCountrySettingsFromSession(req);
+		const confCurrency = settings?.currencyCode
+			? settings.currencyCode.toUpperCase()
+			: "USD";
 
 		let sectorDamagePieChartData: interfacePieChart[] = [];
 		let sectorLossesPieChartData: interfacePieChart[] = [];
@@ -64,10 +75,22 @@ export const loader = authLoaderPublicOrWithPerm(
 			throw new Response("Missing required parameters", { status: 400 });
 		}
 
-		if (confCurrency.length === 0) {
-			throw new Response("Missing required currencies in configuration.", {
-				status: 400,
-			});
+		const [ownedEvent] = await dr
+			.select({ id: disasterEventTable.id })
+			.from(disasterEventTable)
+			.where(
+				and(
+					eq(disasterEventTable.id, disasterEventId),
+					eq(disasterEventTable.countryAccountsId, countryAccountsId),
+					...(isPublicAccess
+						? [eq(disasterEventTable.approvalStatus, "published")]
+						: []),
+				),
+			)
+			.limit(1);
+
+		if (!ownedEvent) {
+			throw new Response("Not Found", { status: 404 });
 		}
 
 		if (qs_sectorid.length > 0 && qs_subsectorid.length > 0) {

@@ -8,7 +8,10 @@ import {
 
 import { jsonUpsert } from "~/backend.server/handlers/form/form_api";
 
-import { damagesCreate, damagesUpdate } from "~/backend.server/models/damages";
+import {
+	damagesCreate,
+	damagesUpdateByIdAndCountryAccountsId,
+} from "~/backend.server/models/damages";
 import { ActionFunctionArgs } from "react-router";
 import { InstanceSystemSettingRepository } from "~/db/queries/instanceSystemSettingRepository";
 import { apiAuth } from "~/backend.server/models/api_key";
@@ -53,7 +56,14 @@ export const action = async (args: ActionFunctionArgs) => {
 		data,
 		fieldsDef,
 		create: damagesCreate,
-		update: damagesUpdate,
+		update: (ctx, tx, id, data, tenantId) =>
+			damagesUpdateByIdAndCountryAccountsId(
+				ctx,
+				tx,
+				id,
+				tenantId || countryAccountsId,
+				data,
+			),
 		idByImportIdAndCountryAccountsId: damagesIdByImportIdAndCountryAccountsId,
 		countryAccountsId,
 		tableName: "damages",

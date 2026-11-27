@@ -1,7 +1,7 @@
 // Main page for editing human direct effects data for a disaster record.
 // Displays editable table with disaggregation columns for each effect type.
 // See _docs/human-direct-effects.md for overview.
-import { authLoaderWithPerm } from "~/utils/auth";
+import { authActionWithPerm, authLoaderWithPerm } from "~/utils/auth";
 import { MainContainer } from "~/frontend/container";
 import { Table } from "~/frontend/editabletable/view";
 import { validateTotalGroup } from "~/frontend/editabletable/data";
@@ -52,14 +52,21 @@ export const loader = authLoaderWithPerm("EditData", async (args) => {
 	};
 });
 
-export const action = authLoaderWithPerm("EditData", async (actionArgs) => {
+export const action = authActionWithPerm("EditData", async (actionArgs) => {
 	const ctx = new BackendContext(actionArgs);
 	let { params, request } = actionArgs;
 	let recordId = params.disRecId;
 	const countryAccountsId = await getCountryAccountsIdFromSession(request);
 
+	if (!countryAccountsId) {
+		throw new Response("Unauthorized", { status: 401 });
+	}
 	if (!recordId) {
-		throw new Error("no record id");
+		throw new Response("Not Found", { status: 404 });
+	}
+	const record = await disasterRecordsById(recordId, countryAccountsId);
+	if (!record) {
+		throw new Response("Not Found", { status: 404 });
 	}
 	let formData = await request.formData();
 	let tblIdStr = String(formData.get("tblId"));

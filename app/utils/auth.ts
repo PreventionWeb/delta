@@ -532,6 +532,49 @@ export function authActionWithPerm<T extends ActionFunction>(
 	}) as T;
 }
 
+export function authActionPublicOrWithPerm<T extends ActionFunction>(
+	permission: PermissionId,
+	fn: T,
+): T {
+	const wrappedAction = async (args: ActionFunctionArgs) => {
+		const countryAccountsId = await getCountryAccountsIdFromSession(
+			args.request,
+		);
+		if (!countryAccountsId) {
+			throw redirectLangFromRoute(args, "/user/select-instance");
+		}
+		const countryAccount =
+			await CountryAccountsRepository.getById(countryAccountsId);
+		const liveSettings =
+			countryAccount && countryAccount.status === countryAccountStatuses.ACTIVE
+				? await InstanceSystemSettingRepository.getByCountryAccountId(
+						countryAccountsId,
+					)
+				: null;
+		if (!liveSettings?.approvedRecordsArePublic) {
+			const authActionHandler = authActionWithPerm(permission, fn);
+			return await authActionHandler(args);
+		}
+
+		const userSession = await optionalUser(args);
+		if (!userSession) {
+			return await fn(args);
+		}
+
+		const userRole = await getEffectiveUserRole(args.request);
+		if (!roleHasPermission(userRole, permission)) {
+			throw new Response("Forbidden", { status: 403 });
+		}
+
+		return await fn({
+			...(args as any),
+			userSession,
+		});
+	};
+
+	return wrappedAction as T;
+}
+
 export function authActionAllowUnverifiedEmail<T extends ActionFunction>(
 	fn: T,
 ): T {

@@ -1,8 +1,8 @@
 import { authLoaderWithPerm } from "~/utils/auth";
 
 import {
-	hazardousEventUpdate,
-	hazardousEventIdByImportId,
+	hazardousEventUpdateByIdAndCountryAccountsId,
+	hazardousEventIdByImportIdAndCountryAccountsId,
 	hazardousEventCreate,
 } from "~/backend.server/models/event";
 
@@ -21,9 +21,17 @@ export const loader = authLoaderWithPerm("EditData", async () => {
 
 export const action = createAction({
 	fieldsDef: async (ctx) => fieldsDefApi(ctx),
-	create: hazardousEventCreate,
-	update: hazardousEventUpdate,
-	idByImportId: hazardousEventIdByImportId,
+	create: (ctx, tx, data, countryAccountsId) =>
+		hazardousEventCreate(ctx, tx, { ...data, countryAccountsId }),
+	update: (ctx, tx, id, data, countryAccountsId) =>
+		hazardousEventUpdateByIdAndCountryAccountsId(
+			ctx,
+			tx,
+			id,
+			countryAccountsId,
+			data,
+		),
+	idByImportId: hazardousEventIdByImportIdAndCountryAccountsId,
 });
 
 export default function Screen() {

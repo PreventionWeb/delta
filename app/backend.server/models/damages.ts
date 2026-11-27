@@ -605,9 +605,27 @@ export async function damagesCreate(
 	_ctx: BackendContext,
 	tx: Tx,
 	fields: DamagesFields,
+	countryAccountsId?: string,
 ): Promise<CreateResult<DamagesFields>> {
 	let errors = validate(fields);
 	if (hasErrors(errors)) return { ok: false, errors };
+
+	if (countryAccountsId) {
+		const disasterRecords =
+			await DisasterRecordsRepository.getByIdAndCountryAccountsId(
+				fields.recordId,
+				countryAccountsId,
+				tx,
+			);
+		if (!disasterRecords || disasterRecords.length === 0) {
+			return {
+				ok: false,
+				errors: {
+					general: ["No matching disaster record found or you don't have access"],
+				},
+			};
+		}
+	}
 
 	const spatialFootprintValue = (fields as any).spatialFootprint;
 	const { spatialFootprint: _ignoredSpatialFootprint, ...insertValues } =
@@ -666,7 +684,17 @@ export async function damagesUpdateByIdAndCountryAccountsId(
 	const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
 		fields as any;
 
-	let recordId = await getRecordId(tx, id);
+	let recordId: string;
+	try {
+		recordId = await getRecordId(tx, id);
+	} catch {
+		return {
+			ok: false,
+			errors: {
+				general: ["No matching disaster record found or you don't have access"],
+			},
+		};
+	}
 	const disasterRecords =
 		await DisasterRecordsRepository.getByIdAndCountryAccountsId(
 			recordId,
@@ -682,6 +710,25 @@ export async function damagesUpdateByIdAndCountryAccountsId(
 		};
 	}
 
+	if (fields.recordId && fields.recordId !== recordId) {
+		const targetRecords =
+			await DisasterRecordsRepository.getByIdAndCountryAccountsId(
+				fields.recordId,
+				countryAccountsId,
+				tx,
+			);
+		if (!targetRecords || targetRecords.length === 0) {
+			return {
+				ok: false,
+				errors: {
+					general: [
+						"No matching target disaster record found or you don't have access",
+					],
+				},
+			};
+		}
+	}
+
 	await tx
 		.update(damagesTable)
 		.set({ ...updateValues })
@@ -692,6 +739,9 @@ export async function damagesUpdateByIdAndCountryAccountsId(
 	}
 
 	await updateTotalsUsingDisasterRecordId(tx, recordId);
+	if (fields.recordId && fields.recordId !== recordId) {
+		await updateTotalsUsingDisasterRecordId(tx, fields.recordId);
+	}
 
 	return { ok: true };
 }
@@ -715,7 +765,6 @@ export async function damagesIdByImportId(tx: Tx, importId: string) {
 		.where(eq(damagesTable.apiImportId, importId));
 	return res.length == 0 ? null : String(res[0].id);
 }
-// BUG: join on sectorId looks wrong — should probably be recordId to link through the disaster record for tenant scoping
 export async function damagesIdByImportIdAndCountryAccountsId(
 	tx: Tx,
 	importId: string,
@@ -726,7 +775,7 @@ export async function damagesIdByImportIdAndCountryAccountsId(
 		.from(damagesTable)
 		.innerJoin(
 			disasterRecordsTable,
-			eq(damagesTable.sectorId, disasterRecordsTable.id),
+			eq(damagesTable.recordId, disasterRecordsTable.id),
 		)
 		.where(
 			and(

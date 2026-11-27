@@ -2,8 +2,8 @@ import { authLoaderWithPerm } from "~/utils/auth";
 
 import {
 	lossesCreate,
-	lossesUpdate,
-	lossesIdByImportId,
+	lossesUpdateByIdAndCountryAccountsId,
+	lossesIdByImportIdAndCountryAccountsId,
 	createFieldsDefApi,
 } from "~/backend.server/models/losses";
 
@@ -34,9 +34,16 @@ export const action = async (actionArgs: ActionFunctionArgs) => {
 			return createFieldsDefApi(ctx, currencies);
 		},
 		create: lossesCreate,
-		update: lossesUpdate,
-		idByImportId: lossesIdByImportId,
-	});
+		update: (ctx, tx, id, data, countryAccountsId) =>
+			lossesUpdateByIdAndCountryAccountsId(
+				ctx,
+				tx,
+				id,
+				countryAccountsId,
+				data,
+			),
+		idByImportId: lossesIdByImportIdAndCountryAccountsId,
+	})(actionArgs);
 };
 
 type ActionData = Awaited<ReturnType<typeof action>>;

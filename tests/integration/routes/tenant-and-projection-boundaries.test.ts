@@ -47,6 +47,33 @@ import { action as categoryPresenceSaveAction } from "~/routes/$lang+/api+/human
 import { loader as getAssetsLoader } from "~/routes/$lang+/api+/asset+/getassets";
 import { loader as contentPickerLoader } from "~/routes/$lang+/disaster-record+/content-picker-datasource";
 import { loader as tempViewerLoader } from "~/routes/$lang+/disaster-record+/file-temp-viewer";
+import { loader as disasterEventViewLoader } from "~/routes/$lang+/disaster-event+/$id";
+import { loader as analyticsDisasterEventsLoader } from "~/routes/$lang+/analytics+/disaster-events";
+import { loader as analyticsSectorLoader } from "~/routes/$lang+/analytics+/disaster-events.sector";
+import { action as analyticsHazardsAction } from "~/routes/$lang+/analytics+/hazards";
+import {
+	loadData as loadHumanEffectsData,
+	saveHumanEffectsData,
+} from "~/backend.server/handlers/human_effects";
+import { action as humanEffectsIndexAction } from "~/routes/$lang+/disaster-record+/edit-sub.$disRecId+/human-effects+/_index";
+import { action as humanEffectsCsvImportAction } from "~/routes/$lang+/disaster-record+/edit-sub.$disRecId+/human-effects+/csv-import";
+import {
+	damagesCreate,
+	damagesIdByImportIdAndCountryAccountsId,
+	damagesUpdateByIdAndCountryAccountsId,
+} from "~/backend.server/models/damages";
+import {
+	lossesCreate,
+	lossesIdByImportIdAndCountryAccountsId,
+	lossesUpdateByIdAndCountryAccountsId,
+} from "~/backend.server/models/losses";
+import {
+	disruptionCreate,
+	disruptionIdByImportIdAndCountryAccountsId,
+	disruptionUpdateByIdAndCountryAccountsId,
+} from "~/backend.server/models/disruption";
+import { humanDsgTable } from "../db/testSchema/humanDsgTable";
+import { deathsTable } from "../db/testSchema/deathsTable";
 
 const FORBIDDEN_USER_KEYS = new Set([
 	"password",
@@ -237,6 +264,10 @@ describe("Tenant scoping and response projections", () => {
 			.insert(disasterRecordsTable)
 			.values({ countryAccountsId: tenantA, approvalStatus: "draft" })
 			.returning();
+		const [recA2] = await dr
+			.insert(disasterRecordsTable)
+			.values({ countryAccountsId: tenantA, approvalStatus: "draft" })
+			.returning();
 		const [recB] = await dr
 			.insert(disasterRecordsTable)
 			.values({ countryAccountsId: tenantB, approvalStatus: "published" })
@@ -249,6 +280,15 @@ describe("Tenant scoping and response projections", () => {
 				sectorId: sector.id,
 				assetId: asset.id,
 				totalDamageAmount: 10,
+			})
+			.returning();
+		const [dmgA2] = await dr
+			.insert(damagesTable)
+			.values({
+				recordId: recA2.id,
+				sectorId: sector.id,
+				assetId: asset.id,
+				totalDamageAmount: 20,
 			})
 			.returning();
 		const [dmgB] = await dr
@@ -270,6 +310,15 @@ describe("Tenant scoping and response projections", () => {
 				description: "TenantA-Loss",
 			})
 			.returning();
+		const [lossA2] = await dr
+			.insert(lossesTable)
+			.values({
+				recordId: recA2.id,
+				sectorId: sector.id,
+				sectorIsAgriculture: false,
+				description: "TenantA2-Loss",
+			})
+			.returning();
 		const [lossB] = await dr
 			.insert(lossesTable)
 			.values({
@@ -288,6 +337,14 @@ describe("Tenant scoping and response projections", () => {
 				comment: "TenantA-Disruption",
 			})
 			.returning();
+		const [disA2] = await dr
+			.insert(disruptionTable)
+			.values({
+				recordId: recA2.id,
+				sectorId: sector.id,
+				comment: "TenantA2-Disruption",
+			})
+			.returning();
 		const [disB] = await dr
 			.insert(disruptionTable)
 			.values({
@@ -304,7 +361,7 @@ describe("Tenant scoping and response projections", () => {
 			role: "data-viewer",
 		});
 
-		// Own-tenant CSV exports return only recA rows and include no-store cache header
+		// Own-tenant CSV exports return only recA rows (excluding both recA2 and recB)
 		const dmgRes = await damagesCsvLoader(
 			makeArgs(
 				`http://localhost:3000/en/disaster-record/edit-sub/${recA.id}/damages/csv-export`,
@@ -316,6 +373,7 @@ describe("Tenant scoping and response projections", () => {
 		expect(dmgRes.headers.get("Cache-Control")).toBe("private, no-store");
 		const dmgCsv = await dmgRes.text();
 		expect(dmgCsv).toContain(dmgA.id);
+		expect(dmgCsv).not.toContain(dmgA2.id);
 		expect(dmgCsv).not.toContain(dmgB.id);
 
 		const lossRes = await lossesCsvLoader(
@@ -326,8 +384,10 @@ describe("Tenant scoping and response projections", () => {
 			),
 		);
 		expect(lossRes.status).toBe(200);
+		expect(lossRes.headers.get("Cache-Control")).toBe("private, no-store");
 		const lossCsv = await lossRes.text();
 		expect(lossCsv).toContain(lossA.id);
+		expect(lossCsv).not.toContain(lossA2.id);
 		expect(lossCsv).not.toContain(lossB.id);
 
 		const disRes = await disruptionsCsvLoader(
@@ -338,8 +398,10 @@ describe("Tenant scoping and response projections", () => {
 			),
 		);
 		expect(disRes.status).toBe(200);
+		expect(disRes.headers.get("Cache-Control")).toBe("private, no-store");
 		const disCsv = await disRes.text();
 		expect(disCsv).toContain(disA.id);
+		expect(disCsv).not.toContain(disA2.id);
 		expect(disCsv).not.toContain(disB.id);
 
 		// Foreign tenant disRecId returns 404 on all three CSV exports and list pages
@@ -588,6 +650,528 @@ describe("Tenant scoping and response projections", () => {
 		expect(thrownTemp).toBeInstanceOf(Response);
 		expect((thrownTemp as Response).status).toBe(302);
 		expect((thrownTemp as Response).headers.get("Location")).toContain(
+			"/en/user/login",
+		);
+	});
+
+	it("human-effects reads and writes enforce record ownership and row-to-record binding", async () => {
+		const tenantA = await insertTenant();
+		const tenantB = await insertTenant();
+		const ctx = new BackendContext({ params: { lang: "en" } } as any);
+
+		const [recA] = await dr
+			.insert(disasterRecordsTable)
+			.values({ countryAccountsId: tenantA, approvalStatus: "draft" })
+			.returning();
+		const [recB] = await dr
+			.insert(disasterRecordsTable)
+			.values({ countryAccountsId: tenantB, approvalStatus: "draft" })
+			.returning();
+
+		// Seed a human-effects death row belonging to Tenant B
+		const [dsgB] = await dr
+			.insert(humanDsgTable)
+			.values({ recordId: recB.id })
+			.returning();
+		const [deathB] = await dr
+			.insert(deathsTable)
+			.values({ dsgId: dsgB.id, deaths: 42 })
+			.returning();
+
+		// 1. loadData rejects foreign record with 404
+		let thrownLoad: unknown;
+		try {
+			await loadHumanEffectsData(ctx, recB.id, "Deaths", tenantA);
+		} catch (e) {
+			thrownLoad = e;
+		}
+		expect(thrownLoad).toBeInstanceOf(Response);
+		expect((thrownLoad as Response).status).toBe(404);
+
+		// 2. saveHumanEffectsData rejects foreign record with 404
+		let thrownSaveForeign: unknown;
+		try {
+			await saveHumanEffectsData(
+				ctx,
+				new Request("http://localhost:3000/en/save", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						table: "Deaths",
+						columns: ["sex", "age", "disability", "globalPovertyLine", "nationalPovertyLine", "deaths"],
+						data: { deletes: [deathB.id] },
+					}),
+				}),
+				recB.id,
+				tenantA,
+			);
+		} catch (e) {
+			thrownSaveForeign = e;
+		}
+		expect(thrownSaveForeign).toBeInstanceOf(Response);
+		expect((thrownSaveForeign as Response).status).toBe(404);
+
+		// 3. saveHumanEffectsData on own record cannot delete a row ID belonging to another tenant's record
+		const ownData = await loadHumanEffectsData(ctx, recA.id, "Deaths", tenantA);
+		const cols = ownData.defs.map((d) => d.jsName);
+		const deleteRes = await saveHumanEffectsData(
+			ctx,
+			new Request("http://localhost:3000/en/save", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					table: "Deaths",
+					columns: cols,
+					data: { deletes: [deathB.id] },
+				}),
+			}),
+			recA.id,
+			tenantA,
+		);
+		const deleteBody = (await deleteRes.json()) as { ok: boolean };
+		expect(deleteBody.ok).toBe(false);
+
+		// Verify Tenant B's death row is untouched
+		const [stillThere] = await dr
+			.select()
+			.from(deathsTable)
+			.where(eq(deathsTable.id, deathB.id));
+		expect(stillThere?.deaths).toBe(42);
+
+		// 4. Web human-effects index action & csv-import action reject foreign record with 404
+		const editorA = await insertUser();
+		const cookieA = await buildSessionCookie({
+			userId: editorA,
+			tenantId: tenantA,
+			role: "admin",
+		});
+
+		const idxForm = new FormData();
+		idxForm.append("tblId", "Deaths");
+		idxForm.append("deaths", "1");
+		let thrownIdx: unknown;
+		try {
+			await humanEffectsIndexAction(
+				makeArgs(
+					`http://localhost:3000/en/disaster-record/edit-sub/${recB.id}/human-effects`,
+					{ disRecId: recB.id },
+					{ Cookie: cookieA },
+					{ method: "POST", body: idxForm },
+				),
+			);
+		} catch (e) {
+			thrownIdx = e;
+		}
+		expect(thrownIdx).toBeInstanceOf(Response);
+		expect((thrownIdx as Response).status).toBe(404);
+
+		const csvForm = new FormData();
+		csvForm.append("tableId", "Deaths");
+		csvForm.append(
+			"file",
+			new File([`${cols.join(",")}\n,,,,,10\n`], "deaths.csv", {
+				type: "text/csv",
+			}),
+		);
+		let thrownCsv: unknown;
+		try {
+			await humanEffectsCsvImportAction(
+				makeArgs(
+					`http://localhost:3000/en/disaster-record/edit-sub/${recB.id}/human-effects/csv-import`,
+					{ disRecId: recB.id },
+					{ Cookie: cookieA },
+					{ method: "POST", body: csvForm },
+				),
+			);
+		} catch (e) {
+			thrownCsv = e;
+		}
+		expect(thrownCsv).toBeInstanceOf(Response);
+		expect((thrownCsv as Response).status).toBe(404);
+	});
+
+	it("damages, losses, and disruptions writes prevent cross-tenant create, update, re-parenting, and import lookup", async () => {
+		const tenantA = await insertTenant();
+		const tenantB = await insertTenant();
+		const ctx = new BackendContext({ params: { lang: "en" } } as any);
+
+		const [sector] = await dr
+			.insert(sectorTable)
+			.values({ name: { en: "Transport" }, level: 1 })
+			.returning();
+		const [asset] = await dr
+			.insert(assetTable)
+			.values({
+				sectorIds: sector.id,
+				isBuiltIn: true,
+				builtInName: { en: "Road" },
+			})
+			.returning();
+
+		const [recA] = await dr
+			.insert(disasterRecordsTable)
+			.values({ countryAccountsId: tenantA, approvalStatus: "draft" })
+			.returning();
+		const [recB] = await dr
+			.insert(disasterRecordsTable)
+			.values({ countryAccountsId: tenantB, approvalStatus: "draft" })
+			.returning();
+
+		const impDmg = `imp-dmg-${crypto.randomUUID()}`;
+		const impLoss = `imp-loss-${crypto.randomUUID()}`;
+		const impDis = `imp-dis-${crypto.randomUUID()}`;
+
+		const [dmgA] = await dr
+			.insert(damagesTable)
+			.values({
+				recordId: recA.id,
+				sectorId: sector.id,
+				assetId: asset.id,
+				apiImportId: impDmg,
+				totalDamageAmount: 5,
+			})
+			.returning();
+		const [dmgB] = await dr
+			.insert(damagesTable)
+			.values({
+				recordId: recB.id,
+				sectorId: sector.id,
+				assetId: asset.id,
+				totalDamageAmount: 50,
+			})
+			.returning();
+
+		const [lossA] = await dr
+			.insert(lossesTable)
+			.values({
+				recordId: recA.id,
+				sectorId: sector.id,
+				sectorIsAgriculture: false,
+				apiImportId: impLoss,
+			})
+			.returning();
+		const [lossB] = await dr
+			.insert(lossesTable)
+			.values({
+				recordId: recB.id,
+				sectorId: sector.id,
+				sectorIsAgriculture: false,
+			})
+			.returning();
+
+		const [disA] = await dr
+			.insert(disruptionTable)
+			.values({
+				recordId: recA.id,
+				sectorId: sector.id,
+				apiImportId: impDis,
+			})
+			.returning();
+		const [disB] = await dr
+			.insert(disruptionTable)
+			.values({
+				recordId: recB.id,
+				sectorId: sector.id,
+			})
+			.returning();
+
+		// Import ID lookups are tenant-scoped through recordId
+		expect(
+			await damagesIdByImportIdAndCountryAccountsId(dr, impDmg, tenantA),
+		).toBe(dmgA.id);
+		expect(
+			await damagesIdByImportIdAndCountryAccountsId(dr, impDmg, tenantB),
+		).toBeNull();
+		expect(
+			await lossesIdByImportIdAndCountryAccountsId(dr, impLoss, tenantA),
+		).toBe(lossA.id);
+		expect(
+			await lossesIdByImportIdAndCountryAccountsId(dr, impLoss, tenantB),
+		).toBeNull();
+		expect(
+			await disruptionIdByImportIdAndCountryAccountsId(dr, impDis, tenantA),
+		).toBe(disA.id);
+		expect(
+			await disruptionIdByImportIdAndCountryAccountsId(dr, impDis, tenantB),
+		).toBeNull();
+
+		// Creating under a foreign tenant's recordId is rejected
+		const badDmgCreate = await damagesCreate(
+			ctx,
+			dr,
+			{
+				recordId: recB.id,
+				sectorId: sector.id,
+				assetId: asset.id,
+			} as any,
+			tenantA,
+		);
+		expect(badDmgCreate.ok).toBe(false);
+
+		const badLossCreate = await lossesCreate(
+			ctx,
+			dr,
+			{
+				recordId: recB.id,
+				sectorId: sector.id,
+				sectorIsAgriculture: false,
+			} as any,
+			tenantA,
+		);
+		expect(badLossCreate.ok).toBe(false);
+
+		const badDisCreate = await disruptionCreate(
+			ctx,
+			dr,
+			{
+				recordId: recB.id,
+				sectorId: sector.id,
+			} as any,
+			tenantA,
+		);
+		expect(badDisCreate.ok).toBe(false);
+
+		// Updating a foreign row or re-parenting own row to a foreign recordId is rejected
+		const badDmgUpdate = await damagesUpdateByIdAndCountryAccountsId(
+			ctx,
+			dr,
+			dmgB.id,
+			tenantA,
+			{ recordId: recA.id },
+		);
+		expect(badDmgUpdate.ok).toBe(false);
+
+		const badDmgReparent = await damagesUpdateByIdAndCountryAccountsId(
+			ctx,
+			dr,
+			dmgA.id,
+			tenantA,
+			{ recordId: recB.id },
+		);
+		expect(badDmgReparent.ok).toBe(false);
+
+		const badLossReparent = await lossesUpdateByIdAndCountryAccountsId(
+			ctx,
+			dr,
+			lossA.id,
+			tenantA,
+			{ recordId: recB.id },
+		);
+		expect(badLossReparent.ok).toBe(false);
+		expect(
+			(
+				await lossesUpdateByIdAndCountryAccountsId(
+					ctx,
+					dr,
+					lossB.id,
+					tenantA,
+					{ recordId: recA.id },
+				)
+			).ok,
+		).toBe(false);
+
+		const badDisReparent = await disruptionUpdateByIdAndCountryAccountsId(
+			ctx,
+			dr,
+			disA.id,
+			tenantA,
+			{ recordId: recB.id },
+		);
+		expect(badDisReparent.ok).toBe(false);
+		expect(
+			(
+				await disruptionUpdateByIdAndCountryAccountsId(
+					ctx,
+					dr,
+					disB.id,
+					tenantA,
+					{ recordId: recA.id },
+				)
+			).ok,
+		).toBe(false);
+
+		// Confirm foreign damage row was not re-parented
+		const [dmgBAfter] = await dr
+			.select()
+			.from(damagesTable)
+			.where(eq(damagesTable.id, dmgB.id));
+		expect(dmgBAfter.recordId).toBe(recB.id);
+	});
+
+	it("analytics routes and public disaster-event view enforce tenant scoping and publication status", async () => {
+		const tenantA = await insertTenant();
+		const tenantB = await insertTenant();
+
+		await dr.insert(instanceSystemSettingsTable).values([
+			{ countryAccountsId: tenantA, approvedRecordsArePublic: true },
+			{ countryAccountsId: tenantB, approvedRecordsArePublic: false },
+		]);
+
+		const hipTypeId = `ht-an-${crypto.randomUUID().slice(0, 8)}`;
+		await dr.insert(hipTypeTable).values({
+			id: hipTypeId,
+			name: { en: "Hydrological" },
+		});
+
+		const [draftHeEv] = await dr.insert(eventTable).values({}).returning();
+		const [pubDeEvA] = await dr.insert(eventTable).values({}).returning();
+		const [draftDeEvA] = await dr.insert(eventTable).values({}).returning();
+		const [pubDeEvB] = await dr.insert(eventTable).values({}).returning();
+
+		await dr.insert(hazardousEventTable).values({
+			id: draftHeEv.id,
+			countryAccountsId: tenantA,
+			hipTypeId,
+			approvalStatus: "draft",
+		});
+
+		await dr.insert(disasterEventTable).values([
+			{
+				id: pubDeEvA.id,
+				countryAccountsId: tenantA,
+				hazardousEventId: draftHeEv.id,
+				nameNational: "Published Event A",
+				approvalStatus: "published",
+			},
+			{
+				id: draftDeEvA.id,
+				countryAccountsId: tenantA,
+				nameNational: "Draft Event A",
+				approvalStatus: "draft",
+			},
+			{
+				id: pubDeEvB.id,
+				countryAccountsId: tenantB,
+				nameNational: "Published Event B",
+				approvalStatus: "published",
+			},
+		]);
+
+		const [pubRecA] = await dr
+			.insert(disasterRecordsTable)
+			.values({
+				countryAccountsId: tenantA,
+				disasterEventId: pubDeEvA.id,
+				approvalStatus: "published",
+			})
+			.returning();
+		const [draftRecA] = await dr
+			.insert(disasterRecordsTable)
+			.values({
+				countryAccountsId: tenantA,
+				disasterEventId: pubDeEvA.id,
+				approvalStatus: "draft",
+			})
+			.returning();
+
+		const [sector] = await dr
+			.insert(sectorTable)
+			.values({ name: { en: "Energy" }, level: 1 })
+			.returning();
+
+		const anonSessionA = await sessionCookie().getSession();
+		anonSessionA.set("countryAccountsId", tenantA);
+		anonSessionA.set("countrySettings", {
+			approvedRecordsArePublic: true,
+			currencyCode: "USD",
+		});
+		const anonCookieA = (
+			await sessionCookie().commitSession(anonSessionA)
+		).split(";")[0];
+
+		// 1. Public disaster-event detail view omits draft linked hazardous event and draft disaster record
+		const deViewRes = await disasterEventViewLoader(
+			makeArgs(
+				`http://localhost:3000/en/disaster-event/${pubDeEvA.id}`,
+				{ id: pubDeEvA.id },
+				{ Cookie: anonCookieA },
+			),
+		);
+		expect(deViewRes.item.hazardousEvent).toBeUndefined();
+		const linkedRecIds = deViewRes.item.linkedDisasterRecords.map(
+			(r: { id: string }) => r.id,
+		);
+		expect(linkedRecIds).toContain(pubRecA.id);
+		expect(linkedRecIds).not.toContain(draftRecA.id);
+
+		// 2. Public analytics/disaster-events returns 404 for unpublished disaster event
+		let thrownAnalyticsDraft: unknown;
+		try {
+			await analyticsDisasterEventsLoader(
+				makeArgs(
+					`http://localhost:3000/en/analytics/disaster-events?disasterEventId=${draftDeEvA.id}`,
+					{},
+					{ Cookie: anonCookieA },
+				),
+			);
+		} catch (e) {
+			thrownAnalyticsDraft = e;
+		}
+		expect(thrownAnalyticsDraft).toBeInstanceOf(Response);
+		expect((thrownAnalyticsDraft as Response).status).toBe(404);
+
+		// 3. Sector analytics returns 404 for another tenant's event (even when authenticated)
+		const userA = await insertUser();
+		const cookieA = await buildSessionCookie({
+			userId: userA,
+			tenantId: tenantA,
+			role: "data-viewer",
+		});
+		let thrownSectorForeign: unknown;
+		try {
+			await analyticsSectorLoader(
+				makeArgs(
+					`http://localhost:3000/en/analytics/disaster-events/sector?disasterEventId=${pubDeEvB.id}&sectorid=${sector.id}`,
+					{},
+					{ Cookie: cookieA },
+				),
+			);
+		} catch (e) {
+			thrownSectorForeign = e;
+		}
+		expect(thrownSectorForeign).toBeInstanceOf(Response);
+		expect((thrownSectorForeign as Response).status).toBe(404);
+
+		// 4. Sector analytics returns 404 for unpublished event on public path
+		let thrownSectorDraft: unknown;
+		try {
+			await analyticsSectorLoader(
+				makeArgs(
+					`http://localhost:3000/en/analytics/disaster-events/sector?disasterEventId=${draftDeEvA.id}&sectorid=${sector.id}`,
+					{},
+					{ Cookie: anonCookieA },
+				),
+			);
+		} catch (e) {
+			thrownSectorDraft = e;
+		}
+		expect(thrownSectorDraft).toBeInstanceOf(Response);
+		expect((thrownSectorDraft as Response).status).toBe(404);
+
+		// 5. Hazards analytics action redirects unauthenticated requests when tenant is private
+		const anonSessionB = await sessionCookie().getSession();
+		anonSessionB.set("countryAccountsId", tenantB);
+		anonSessionB.set("countrySettings", { approvedRecordsArePublic: false });
+		const anonCookieB = (
+			await sessionCookie().commitSession(anonSessionB)
+		).split(";")[0];
+
+		let thrownHazards: unknown;
+		try {
+			await analyticsHazardsAction(
+				makeArgs(
+					"http://localhost:3000/en/analytics/hazards",
+					{},
+					{ Cookie: anonCookieB },
+					{ method: "POST", body: new FormData() },
+				),
+			);
+		} catch (e) {
+			thrownHazards = e;
+		}
+		expect(thrownHazards).toBeInstanceOf(Response);
+		expect((thrownHazards as Response).status).toBe(302);
+		expect((thrownHazards as Response).headers.get("Location")).toContain(
 			"/en/user/login",
 		);
 	});

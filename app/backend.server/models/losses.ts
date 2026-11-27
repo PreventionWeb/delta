@@ -465,9 +465,27 @@ export async function lossesCreate(
 	_ctx: BackendContext,
 	tx: Tx,
 	fields: LossesFields,
+	countryAccountsId?: string,
 ): Promise<CreateResult<LossesFields>> {
 	let errors = validate(fields);
 	if (hasErrors(errors)) return { ok: false, errors };
+
+	if (countryAccountsId) {
+		const disasterRecords =
+			await DisasterRecordsRepository.getByIdAndCountryAccountsId(
+				fields.recordId,
+				countryAccountsId,
+				tx,
+			);
+		if (!disasterRecords || disasterRecords.length === 0) {
+			return {
+				ok: false,
+				errors: {
+					general: ["No matching disaster record found or you don't have access"],
+				},
+			};
+		}
+	}
 
 	if (fields.sectorIsAgriculture) {
 		fields.relatedToNotAgriculture = null;
@@ -530,12 +548,23 @@ export async function lossesUpdateByIdAndCountryAccountsId(
 	let errors = validate(fields);
 	if (hasErrors(errors)) return { ok: false, errors };
 
-	let recordId = await getRecordId(tx, id);
+	let recordId: string;
+	try {
+		recordId = await getRecordId(tx, id);
+	} catch {
+		return {
+			ok: false,
+			errors: {
+				general: ["No matching disaster record found or you don't have access"],
+			},
+		};
+	}
 
 	const disasterRecords =
 		await DisasterRecordsRepository.getByIdAndCountryAccountsId(
 			recordId,
 			countryAccountsId,
+			tx,
 		);
 	if (!disasterRecords || disasterRecords.length === 0) {
 		return {
@@ -544,6 +573,25 @@ export async function lossesUpdateByIdAndCountryAccountsId(
 				general: ["No matching disaster record found or you don't have access"],
 			},
 		};
+	}
+
+	if (fields.recordId && fields.recordId !== recordId) {
+		const targetRecords =
+			await DisasterRecordsRepository.getByIdAndCountryAccountsId(
+				fields.recordId,
+				countryAccountsId,
+				tx,
+			);
+		if (!targetRecords || targetRecords.length === 0) {
+			return {
+				ok: false,
+				errors: {
+					general: [
+						"No matching target disaster record found or you don't have access",
+					],
+				},
+			};
+		}
 	}
 
 	if (typeof fields.sectorIsAgriculture == "boolean") {
@@ -593,7 +641,6 @@ export async function lossesIdByImportId(tx: Tx, importId: string) {
 		.where(eq(lossesTable.apiImportId, importId));
 	return res.length == 0 ? null : String(res[0].id);
 }
-// BUG: join on sectorId looks wrong — should probably be recordId to link through the disaster record for tenant scoping
 export async function lossesIdByImportIdAndCountryAccountsId(
 	tx: Tx,
 	importId: string,
@@ -604,7 +651,7 @@ export async function lossesIdByImportIdAndCountryAccountsId(
 		.from(lossesTable)
 		.innerJoin(
 			disasterRecordsTable,
-			eq(lossesTable.sectorId, disasterRecordsTable.id),
+			eq(lossesTable.recordId, disasterRecordsTable.id),
 		)
 		.where(
 			and(

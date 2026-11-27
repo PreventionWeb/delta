@@ -2,8 +2,8 @@ import { authLoaderWithPerm } from "~/utils/auth";
 
 import {
 	damagesCreate,
-	damagesUpdate,
-	damagesIdByImportId,
+	damagesUpdateByIdAndCountryAccountsId,
+	damagesIdByImportIdAndCountryAccountsId,
 	fieldsDefApi,
 } from "~/backend.server/models/damages";
 
@@ -34,8 +34,15 @@ export const action = async (actionArgs: ActionFunctionArgs) => {
 			return await fieldsDefApi(ctx, currencies);
 		},
 		create: damagesCreate,
-		update: damagesUpdate,
-		idByImportId: damagesIdByImportId,
+		update: (ctx, tx, id, data, countryAccountsId) =>
+			damagesUpdateByIdAndCountryAccountsId(
+				ctx,
+				tx,
+				id,
+				countryAccountsId,
+				data,
+			),
+		idByImportId: damagesIdByImportIdAndCountryAccountsId,
 	})(actionArgs);
 };
 

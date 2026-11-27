@@ -448,10 +448,28 @@ export async function disruptionCreate(
 	ctx: BackendContext,
 	tx: Tx,
 	fields: DisruptionFields,
+	countryAccountsId?: string,
 ): Promise<CreateResult<DisruptionFields>> {
 	let errors = validate(ctx, fields);
 	if (hasErrors(errors)) {
 		return { ok: false, errors };
+	}
+
+	if (countryAccountsId) {
+		const disasterRecords =
+			await DisasterRecordsRepository.getByIdAndCountryAccountsId(
+				fields.recordId,
+				countryAccountsId,
+				tx,
+			);
+		if (!disasterRecords || disasterRecords.length === 0) {
+			return {
+				ok: false,
+				errors: {
+					general: ["No matching disaster record found or you don't have access"],
+				},
+			};
+		}
 	}
 
 	const spatialFootprintValue = (fields as any).spatialFootprint;
@@ -518,7 +536,17 @@ export async function disruptionUpdateByIdAndCountryAccountsId(
 	const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
 		fields as any;
 
-	let recordId = await getRecordId(tx, id);
+	let recordId: string;
+	try {
+		recordId = await getRecordId(tx, id);
+	} catch {
+		return {
+			ok: false,
+			errors: {
+				general: ["No matching disaster record found or you don't have access"],
+			},
+		};
+	}
 
 	const disasterRecords =
 		await DisasterRecordsRepository.getByIdAndCountryAccountsId(
@@ -535,6 +563,25 @@ export async function disruptionUpdateByIdAndCountryAccountsId(
 		};
 	}
 
+	if (fields.recordId && fields.recordId !== recordId) {
+		const targetRecords =
+			await DisasterRecordsRepository.getByIdAndCountryAccountsId(
+				fields.recordId,
+				countryAccountsId,
+				tx,
+			);
+		if (!targetRecords || targetRecords.length === 0) {
+			return {
+				ok: false,
+				errors: {
+					general: [
+						"No matching target disaster record found or you don't have access",
+					],
+				},
+			};
+		}
+	}
+
 	await tx
 		.update(disruptionTable)
 		.set({
@@ -547,6 +594,9 @@ export async function disruptionUpdateByIdAndCountryAccountsId(
 	}
 
 	await updateTotalsUsingDisasterRecordId(tx, recordId);
+	if (fields.recordId && fields.recordId !== recordId) {
+		await updateTotalsUsingDisasterRecordId(tx, fields.recordId);
+	}
 
 	return { ok: true };
 }
@@ -592,7 +642,7 @@ export async function disruptionIdByImportIdAndCountryAccountsId(
 		.from(disruptionTable)
 		.innerJoin(
 			disasterRecordsTable,
-			eq(disruptionTable.sectorId, disasterRecordsTable.id),
+			eq(disruptionTable.recordId, disasterRecordsTable.id),
 		)
 		.where(
 			and(

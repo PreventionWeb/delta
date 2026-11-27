@@ -9,7 +9,7 @@ import { jsonUpsert } from "~/backend.server/handlers/form/form_api";
 
 import {
 	disruptionCreate,
-	disruptionUpdate,
+	disruptionUpdateByIdAndCountryAccountsId,
 } from "~/backend.server/models/disruption";
 import { apiAuth } from "~/backend.server/models/api_key";
 import { ActionFunctionArgs } from "react-router";
@@ -42,7 +42,14 @@ export const action = async (args: ActionFunctionArgs) => {
 		data,
 		fieldsDef: getFieldsDefApi(ctx),
 		create: disruptionCreate,
-		update: disruptionUpdate,
+		update: (ctx, tx, id, data, tenantId) =>
+			disruptionUpdateByIdAndCountryAccountsId(
+				ctx,
+				tx,
+				id,
+				tenantId || countryAccountsId,
+				data,
+			),
 		idByImportIdAndCountryAccountsId:
 			disruptionIdByImportIdAndCountryAccountsId,
 		countryAccountsId: countryAccountsId,

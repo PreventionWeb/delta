@@ -23,6 +23,7 @@ import {
 	validate,
 } from "~/backend.server/models/human_effects";
 import { eqArr } from "~/utils/array";
+import { DisasterRecordsRepository } from "~/db/queries/disasterRecordsRepository";
 import { getCountryAccountsIdFromSession } from "~/utils/session";
 import { ViewContext } from "~/frontend/context";
 
@@ -32,6 +33,18 @@ import { BackendContext } from "~/backend.server/context";
 export const loader = authLoaderWithPerm("EditData", async (loaderArgs) => {
 	const { request, params } = loaderArgs;
 	let recordId = params.disRecId || "";
+	const countryAccountsId = await getCountryAccountsIdFromSession(request);
+	if (!countryAccountsId) {
+		throw new Response("Unauthorized", { status: 401 });
+	}
+	const ownedRecords =
+		await DisasterRecordsRepository.getByIdAndCountryAccountsId(
+			recordId,
+			countryAccountsId,
+		);
+	if (!ownedRecords || ownedRecords.length === 0) {
+		throw new Response("Not Found", { status: 404 });
+	}
 	let url = new URL(request.url);
 	let tblStr = url.searchParams.get("table") || "";
 	let tbl = HumanEffectsTableFromString(tblStr);
@@ -93,7 +106,15 @@ export const action: ActionFunction = async (args: ActionFunctionArgs) => {
 			const imported = all.length - 1;
 
 			if (!recordId) {
-				throw new Error("No record id");
+				throw new Response("Not Found", { status: 404 });
+			}
+			const ownedRecords =
+				await DisasterRecordsRepository.getByIdAndCountryAccountsId(
+					recordId,
+					countryAccountsId,
+				);
+			if (!ownedRecords || ownedRecords.length === 0) {
+				throw new Response("Not Found", { status: 404 });
 			}
 
 			let table: HumanEffectsTable;
@@ -166,6 +187,9 @@ export const action: ActionFunction = async (args: ActionFunctionArgs) => {
 
 			return { ok: true, imported };
 		} catch (e) {
+			if (e instanceof Response) {
+				throw e;
+			}
 			if (e instanceof UserError) {
 				return { ok: false, error: e.message };
 			}

@@ -130,6 +130,10 @@ export const loader = authLoaderPublicOrWithPerm(
 
 		// Use the shared public tenant context for analytics
 		const countryAccountsId = await getCountryAccountsIdFromSession(request);
+		if (!countryAccountsId) {
+			throw new Response("Unauthorized", { status: 401 });
+		}
+		const isPublicAccess = !(loaderArgs as any).userSession?.user;
 
 		if (qsDisEventId) {
 			// Pass public tenant context for analytics access
@@ -138,6 +142,16 @@ export const loader = authLoaderPublicOrWithPerm(
 				try {
 					if (record.countryAccountsId !== countryAccountsId) {
 						throw new Response("Unauthorized access", { status: 403 });
+					}
+					if (isPublicAccess && record.approvalStatus !== "published") {
+						throw new Response("Not Found", { status: 404 });
+					}
+					if (
+						isPublicAccess &&
+						record.hazardousEvent &&
+						record.hazardousEvent.approvalStatus !== "published"
+					) {
+						record = { ...record, hazardousEvent: undefined };
 					}
 					cpDisplayName = await contentPickerConfig(ctx).selectedDisplay(
 						ctx,

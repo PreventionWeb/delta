@@ -32,7 +32,12 @@ export interface JsonCreateArgs<T> {
 	ctx: BackendContext;
 	data: any;
 	fieldsDef: FormInputDef<T>[];
-	create: (ctx: BackendContext, tx: Tx, data: T) => Promise<SaveResult<T>>;
+	create: (
+		ctx: BackendContext,
+		tx: Tx,
+		data: T,
+		countryAccountsId?: string,
+	) => Promise<SaveResult<T>>;
 	countryAccountsId: string;
 	tableName?: string; // database table name, requires specific validation for damage table
 }
@@ -103,7 +108,12 @@ export async function jsonCreate<T>(
 					res.push({ id: null, errors: validateRes.errors });
 					return fail();
 				}
-				const one = await args.create(ctx, tx, validateRes.resOk!);
+				const one = await args.create(
+					ctx,
+					tx,
+					validateRes.resOk!,
+					args.countryAccountsId,
+				);
 				if (!one.ok) {
 					res.push({ id: null, errors: one.errors });
 					return fail();
@@ -129,12 +139,18 @@ export interface JsonUpsertArgs<T extends ObjectWithImportId> {
 	ctx: BackendContext;
 	data: any;
 	fieldsDef: FormInputDef<T>[];
-	create: (ctx: BackendContext, tx: Tx, data: T) => Promise<CreateResult<T>>;
+	create: (
+		ctx: BackendContext,
+		tx: Tx,
+		data: T,
+		countryAccountsId?: string,
+	) => Promise<CreateResult<T>>;
 	update: (
 		ctx: BackendContext,
 		tx: Tx,
 		id: string,
 		data: Partial<T>,
+		countryAccountsId?: string,
 	) => Promise<UpdateResult<T>>;
 	idByImportIdAndCountryAccountsId: (
 		tx: Tx,
@@ -221,6 +237,7 @@ export async function jsonUpsert<T extends ObjectWithImportId>(
 						tx,
 						existingId,
 						validateRes.resOk!,
+						args.countryAccountsId,
 					);
 					if (!updateRes.ok) {
 						res.push({ ok: false, errors: updateRes.errors });
@@ -228,7 +245,12 @@ export async function jsonUpsert<T extends ObjectWithImportId>(
 					}
 					res.push({ ok: true, status: "update", id: existingId });
 				} else {
-					const createRes = await args.create(ctx, tx, validateRes.resOk!);
+					const createRes = await args.create(
+						ctx,
+						tx,
+						validateRes.resOk!,
+						args.countryAccountsId,
+					);
 					if (!createRes.ok) {
 						res.push({ ok: false, errors: createRes.errors });
 						return fail();

@@ -3,7 +3,7 @@ import { authLoaderWithPerm } from "~/utils/auth";
 import {
 	disasterRecordsCreate,
 	disasterRecordsUpdate,
-	disasterRecordsIdByImportId,
+	disasterRecordsIdByImportIdAndCountryAccountsId,
 } from "~/backend.server/models/disaster_record";
 
 import { fieldsDefApi } from "~/frontend/disaster-record/form";
@@ -21,9 +21,10 @@ export const loader = authLoaderWithPerm("EditData", async () => {
 
 export const action = createAction({
 	fieldsDef: async (ctx) => fieldsDefApi(ctx),
-	create: disasterRecordsCreate,
+	create: (ctx, tx, data, countryAccountsId) =>
+		disasterRecordsCreate(ctx, tx, { ...data, countryAccountsId }),
 	update: disasterRecordsUpdate,
-	idByImportId: disasterRecordsIdByImportId,
+	idByImportId: disasterRecordsIdByImportIdAndCountryAccountsId,
 });
 
 export default function Screen() {
