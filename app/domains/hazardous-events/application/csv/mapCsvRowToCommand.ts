@@ -7,9 +7,10 @@ import type {
 	SourceRefQuery,
 	SourceRefResolution,
 } from "../ports/ISpecificHazardTaxonomyRepository";
-import type {
-	HazardousEventCsvRowError,
-	HazardousEventCsvRowErrorCode,
+import {
+	MAX_ECHOED_CSV_VALUE_LENGTH,
+	type HazardousEventCsvRowError,
+	type HazardousEventCsvRowErrorCode,
 } from "../dto/HazardousEventCsvImportResult";
 import {
 	legacyApprovalStatusToStatus,
@@ -17,11 +18,19 @@ import {
 } from "./approvalStatusMapping";
 import { stripFormulaGuard } from "./formulaGuard";
 import type { CsvImportMode, MappedColumn } from "./hazardousEventCsvColumns";
-import { createPathErrors, requiredCellErrors } from "./importRowPolicy";
+import {
+	createPathAttachmentInputs,
+	createPathErrors,
+	requiredCellErrors,
+} from "./importRowPolicy";
+import {
+	parseSpatialFootprintCell,
+	type CsvSpatialFootprint,
+} from "./spatialFootprintCsv";
+import { parseAttachmentsCell, type CsvAttachmentItem } from "./attachmentsCsv";
 
 const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const MAX_ECHOED_VALUE_LENGTH = 100;
 
 /** Event fields a row supplies; an absent key leaves the stored value unchanged. */
 export interface CsvEventFields {
@@ -53,7 +62,10 @@ export interface MappedCsvRow {
 	targetStatus?: ImportableStatus;
 	/** `undefined` when the column is absent; `""` means no cause or clear (D14). */
 	causeId?: string;
-	hasNotYetImportedData: boolean;
+	/** Parsed `spatialFootprint`; `undefined` when absent, empty (OD-2) or malformed. */
+	spatialFootprint?: CsvSpatialFootprint;
+	/** Parsed `attachments`; `undefined` when absent, empty (OD-2) or malformed. */
+	attachments?: readonly CsvAttachmentItem[];
 	/** Update/upsert only: rule errors that apply only if the row is not unchanged (NOD-4). */
 	deferredErrors: HazardousEventCsvRowError[];
 }
@@ -61,13 +73,14 @@ export interface MappedCsvRow {
 export interface MapCsvRowsInput {
 	mode: CsvImportMode;
 	columns: ReadonlyMap<MappedColumn, number>;
-	notYetImportedIndexes: readonly number[];
 	rows: readonly (readonly string[])[];
 	firstDataLine: number;
 	/** Physical start line per row; falls back to `firstDataLine + index` (D1). */
 	lineNumbers?: readonly number[];
 	role: string | null;
 	lookup: SourceRefResolution;
+	/** The session tenant's divisions among `collectDivisionIds` (D4). */
+	validDivisionIds: ReadonlySet<string>;
 }
 
 function rowError(
@@ -81,7 +94,7 @@ function rowError(
 		code,
 		...(column !== undefined ? { column } : {}),
 		...(value !== undefined
-			? { value: value.slice(0, MAX_ECHOED_VALUE_LENGTH) }
+			? { value: value.slice(0, MAX_ECHOED_CSV_VALUE_LENGTH) }
 			: {}),
 	};
 }
@@ -138,6 +151,27 @@ export function collectSourceRefs(
 		typeRefs: collect("hipTypeId", any),
 		specificHazardIds: collect("specificHazardId", (v) => UUID_RE.test(v)),
 	};
+}
+
+/** Every well-formed division id the file names, for the single tenant check of D4. Malformed
+ * cells are skipped here; the mapper reports them. */
+export function collectDivisionIds(
+	columns: ReadonlyMap<MappedColumn, number>,
+	rows: readonly (readonly string[])[],
+): string[] {
+	const index = columns.get("spatialFootprint");
+	if (index === undefined) return [];
+	const ids = new Set<string>();
+	for (const row of rows) {
+		const parsed = parseSpatialFootprintCell(
+			stripFormulaGuard(row[index] ?? ""),
+		);
+		if (!parsed.ok) continue;
+		for (const id of parsed.footprint.divisionIds) {
+			if (UUID_RE.test(id)) ids.add(id);
+		}
+	}
+	return [...ids];
 }
 
 /** D13 rules 1-2; `undefined` when the row names no hazard or an error was pushed (rule 3 is the caller's). */
@@ -337,6 +371,64 @@ function mapRules(
 	}
 }
 
+/** Create mode checks every rule now; update and upsert reject only bad JSON now and defer the
+ * rest past the unchanged check, so an exported row always re-imports (D10). */
+function mapFootprint(
+	mapped: MappedCsvRow,
+	input: MapCsvRowsInput,
+	errors: HazardousEventCsvRowError[],
+): void {
+	const raw = mapped.cells.get("spatialFootprint");
+	if (raw === undefined || raw === "") return;
+	const ruleErrors = input.mode === "create" ? errors : mapped.deferredErrors;
+	const parsed = parseSpatialFootprintCell(raw);
+	if (!parsed.ok) {
+		(parsed.syntax ? errors : ruleErrors).push(
+			rowError(mapped.line, "invalid_spatial_footprint", "spatialFootprint"),
+		);
+		return;
+	}
+	// A foreign division and a missing one get the same answer, so nothing is disclosed (D4).
+	const invalidDivision = parsed.footprint.divisionIds.find(
+		(id) => !input.validDivisionIds.has(id),
+	);
+	if (invalidDivision !== undefined) {
+		ruleErrors.push(
+			rowError(
+				mapped.line,
+				"invalid_division",
+				"spatialFootprint",
+				invalidDivision,
+			),
+		);
+	}
+	mapped.spatialFootprint = parsed.footprint;
+}
+
+/** Same phase split as the footprint (D10). File checks need the event's files, so on update
+ * and upsert every item check runs in phase 2 (D5). */
+function mapAttachments(
+	mapped: MappedCsvRow,
+	input: MapCsvRowsInput,
+	errors: HazardousEventCsvRowError[],
+): void {
+	const raw = mapped.cells.get("attachments");
+	if (raw === undefined || raw === "") return;
+	const parsed = parseAttachmentsCell(raw);
+	if (!parsed.ok) {
+		const ruleErrors =
+			parsed.syntax || input.mode === "create" ? errors : mapped.deferredErrors;
+		ruleErrors.push(
+			rowError(mapped.line, "invalid_attachments", "attachments"),
+		);
+		return;
+	}
+	mapped.attachments = parsed.items;
+	if (input.mode !== "create") return;
+	const inputs = createPathAttachmentInputs(mapped);
+	if (!inputs.ok) errors.push(inputs.error);
+}
+
 function mapRow(
 	input: MapCsvRowsInput,
 	row: readonly string[],
@@ -353,14 +445,13 @@ function mapRow(
 		line,
 		cells,
 		fields: mapFields(cells, line, errors),
-		hasNotYetImportedData: input.notYetImportedIndexes.some(
-			(index) => (row[index] ?? "") !== "",
-		),
 		deferredErrors: [],
 	};
 	mapKeys(mapped, input.mode, errors);
 	mapStatusAndParent(mapped, errors);
 	mapRules(mapped, input, errors);
+	mapFootprint(mapped, input, errors);
+	mapAttachments(mapped, input, errors);
 	return mapped;
 }
 

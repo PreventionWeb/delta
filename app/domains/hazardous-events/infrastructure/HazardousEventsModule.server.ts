@@ -303,6 +303,8 @@ import { HIP_CROSSWALK_PORT } from "./HipCrosswalkPortToken";
 				applyImportedWorkflowStatusUseCase: ApplyImportedWorkflowStatusUseCase,
 				getWorkflowInstanceByEntityUseCase: GetWorkflowInstanceByEntityUseCase,
 				transactionRunner: ITransactionRunner,
+				divisionRepository: IDivisionRepository,
+				attachmentStoragePort: IAttachmentStoragePort,
 			) =>
 				new ImportHazardousEventsCsvUseCase(
 					getPinoLogger(),
@@ -313,6 +315,8 @@ import { HIP_CROSSWALK_PORT } from "./HipCrosswalkPortToken";
 					applyImportedWorkflowStatusUseCase,
 					getWorkflowInstanceByEntityUseCase,
 					transactionRunner,
+					divisionRepository,
+					attachmentStoragePort,
 				),
 			inject: [
 				HAZARDOUS_EVENT_REPOSITORY,
@@ -322,6 +326,8 @@ import { HIP_CROSSWALK_PORT } from "./HipCrosswalkPortToken";
 				ApplyImportedWorkflowStatusUseCase,
 				GetWorkflowInstanceByEntityUseCase,
 				TRANSACTION_RUNNER,
+				DIVISION_REPOSITORY,
+				ATTACHMENT_STORAGE_PORT,
 			],
 		},
 		{

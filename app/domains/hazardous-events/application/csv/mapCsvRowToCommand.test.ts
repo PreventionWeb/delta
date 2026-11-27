@@ -7,6 +7,7 @@ import {
 	type MappedColumn,
 } from "./hazardousEventCsvColumns";
 import {
+	collectDivisionIds,
 	collectSourceRefs,
 	mapCsvRows,
 	type MappedCsvRow,
@@ -22,6 +23,8 @@ const TYPE_1037 = "t1037000-0000-4000-8000-000000000000";
 const TYPE_1038 = "t1038000-0000-4000-8000-000000000000";
 const EVENT_ID = "44444444-4444-4444-8444-444444444444";
 const PARENT_ID = "55555555-5555-4555-8555-555555555555";
+const DIVISION_OWN = "694d72d0-0000-4000-8000-000000000001";
+const DIVISION_OTHER = "694d72d0-0000-4000-8000-000000000002";
 
 // 78424 sits under cluster 1844 and type 1037; SH_OTHER under cluster 1743.
 const lookup: SourceRefResolution = {
@@ -61,6 +64,8 @@ const VALID_CREATE: Record<string, string> = {
 interface MapOptions {
 	role?: string | null;
 	firstDataLine?: number;
+	/** The session tenant's divisions among those the file names (D4). */
+	validDivisionIds?: ReadonlySet<string>;
 }
 
 /** Runs the real header check first, then the mapper, as the use case does. */
@@ -77,11 +82,11 @@ function mapFile(
 	return mapCsvRows({
 		mode,
 		columns: check.columns,
-		notYetImportedIndexes: check.notYetImportedIndexes,
 		rows,
 		firstDataLine: options.firstDataLine ?? 2,
 		role: options.role === undefined ? "admin" : options.role,
 		lookup,
+		validDivisionIds: options.validDivisionIds ?? new Set([DIVISION_OWN]),
 	});
 }
 
@@ -774,24 +779,422 @@ describe("mapCsvRows: formula-guard reversal (NOD-13)", () => {
 	});
 });
 
-describe("mapCsvRows: not-yet-imported columns (D15)", () => {
-	it("flags a row with spatialFootprint or attachments data without parsing it", () => {
+function attachments(items: unknown): string {
+	return JSON.stringify(items);
+}
+
+const LINK_ITEM = {
+	id: "1",
+	title: "Report",
+	tag: [{ id: "t", name: "Tag" }],
+	file_option: "Link",
+	url: "https://example.com/a",
+};
+
+function fileItem(name: string) {
+	return {
+		title: "Scan",
+		file_option: "File",
+		file: { name, content_type: "application/pdf" },
+	};
+}
+
+describe("mapCsvRows: attachments (D5, D10)", () => {
+	it("maps a Link item to an attachment item, dropping its id", () => {
 		const { rows, errors } = mapRecords("create", [
-			createRow({ spatialFootprint: "{not json", attachments: "" }),
-			createRow({ spatialFootprint: "", attachments: "[]" }),
-			createRow({ spatialFootprint: "", attachments: "" }),
+			createRow({ attachments: attachments([LINK_ITEM]) }),
 		]);
 		expect(errors).toEqual([]);
-		expect(rows.map((r) => r.hasNotYetImportedData)).toEqual([
-			true,
-			true,
-			false,
+		expect(rows[0].attachments).toStrictEqual([
+			{
+				type: "Link",
+				title: "Report",
+				tag: [{ id: "t", name: "Tag" }],
+				url: "https://example.com/a",
+			},
 		]);
 	});
 
-	it("is false when neither column is in the header", () => {
-		const { rows } = mapRecords("create", [createRow()]);
-		expect(rows[0].hasNotYetImportedData).toBe(false);
+	it("never reports a row as carrying not-yet-imported data", () => {
+		const { rows } = mapRecords("create", [
+			createRow({ attachments: "[]", spatialFootprint: "[]" }),
+		]);
+		expect("hasNotYetImportedData" in rows[0]).toBe(false);
+	});
+
+	it.each(["create", "update", "upsert"] as const)(
+		"OD-2: treats an empty cell as not supplied in %s mode",
+		(mode) => {
+			const key: Record<string, string> =
+				mode === "create"
+					? createRow()
+					: mode === "update"
+						? { id: EVENT_ID }
+						: { apiImportId: "A1" };
+			const { rows, errors } = mapRecords(mode, [{ ...key, attachments: "" }]);
+			expect(errors).toEqual([]);
+			expect(rows[0].attachments).toBeUndefined();
+			expect(rows[0].deferredErrors).toEqual([]);
+		},
+	);
+
+	describe("create mode: every rule in phase 1", () => {
+		it("rejects unparseable JSON and an object, without echoing the cell", () => {
+			const { errors } = mapRecords("create", [
+				createRow({ attachments: "{bad" }),
+				createRow({ attachments: attachments(LINK_ITEM) }),
+			]);
+			expect(errors).toEqual([
+				{ line: 2, code: "invalid_attachments", column: "attachments" },
+				{ line: 3, code: "invalid_attachments", column: "attachments" },
+			]);
+		});
+
+		it("rejects an item with no file_option (OD-3)", () => {
+			const { errors } = mapRecords("create", [
+				createRow({
+					attachments: attachments([{ title: "x", url: "https://a.example" }]),
+				}),
+			]);
+			expect(codes(errors)).toEqual(["invalid_attachments"]);
+		});
+
+		it("rejects an empty Link URL with invalid_attachment_url, without echoing it", () => {
+			const { errors } = mapRecords("create", [
+				createRow({ attachments: attachments([{ ...LINK_ITEM, url: "" }]) }),
+			]);
+			expect(errors).toEqual([
+				{ line: 2, code: "invalid_attachment_url", column: "attachments" },
+			]);
+		});
+
+		it.each(["javascript:alert(1)", "data:text/html,x"])(
+			"rejects the Link %j with invalid_attachment_url, echoing it",
+			(url) => {
+				const { errors } = mapRecords("create", [
+					createRow({ attachments: attachments([{ ...LINK_ITEM, url }]) }),
+				]);
+				expect(errors).toEqual([
+					{
+						line: 2,
+						code: "invalid_attachment_url",
+						column: "attachments",
+						value: url,
+					},
+				]);
+			},
+		);
+
+		it("truncates an echoed URL to 100 characters", () => {
+			const url = `javascript:${"a".repeat(200)}`;
+			const { errors } = mapRecords("create", [
+				createRow({ attachments: attachments([{ ...LINK_ITEM, url }]) }),
+			]);
+			expect(errors[0].value).toBe(url.slice(0, 100));
+		});
+
+		it.each([
+			"/uploads/temp/report.pdf",
+			"/uploads/hazardous-event/E/report.pdf",
+		])(
+			"rejects the File item %s with file_reference_not_supported, echoing the basename",
+			(name) => {
+				const { errors } = mapRecords("create", [
+					createRow({ attachments: attachments([fileItem(name)]) }),
+				]);
+				expect(errors).toEqual([
+					{
+						line: 2,
+						code: "file_reference_not_supported",
+						column: "attachments",
+						value: "report.pdf",
+					},
+				]);
+			},
+		);
+	});
+
+	describe.each(["update", "upsert"] as const)(
+		"%s mode: only JSON syntax in phase 1 (D10, NOD-4)",
+		(mode) => {
+			const key: Record<string, string> =
+				mode === "update" ? { id: EVENT_ID } : { apiImportId: "A1" };
+
+			it("rejects unparseable JSON at once", () => {
+				const { rows, errors } = mapRecords(mode, [
+					{ ...key, attachments: "{bad" },
+				]);
+				expect(errors).toEqual([
+					{ line: 2, code: "invalid_attachments", column: "attachments" },
+				]);
+				expect(rows[0].deferredErrors).toEqual([]);
+			});
+
+			it("defers a shape error until the row is known to be changed", () => {
+				const { rows, errors } = mapRecords(mode, [
+					{ ...key, attachments: attachments(LINK_ITEM) },
+				]);
+				expect(errors).toEqual([]);
+				expect(rows[0].deferredErrors).toEqual([
+					{ line: 2, code: "invalid_attachments", column: "attachments" },
+				]);
+			});
+
+			it("leaves URL and File checks to phase 2, which knows the event's files", () => {
+				const { rows, errors } = mapRecords(mode, [
+					{
+						...key,
+						attachments: attachments([
+							{ ...LINK_ITEM, url: "javascript:x" },
+							fileItem("/uploads/temp/r.pdf"),
+						]),
+					},
+				]);
+				expect(errors).toEqual([]);
+				expect(rows[0].deferredErrors).toEqual([]);
+				expect(rows[0].attachments).toHaveLength(2);
+			});
+		},
+	);
+});
+
+function footprint(items: unknown): string {
+	return JSON.stringify(items);
+}
+
+const POINT_ITEM = {
+	map_option: "Map coordinates",
+	geojson: {
+		type: "Feature",
+		geometry: { type: "Point", coordinates: [77.2, 28.6] },
+		properties: {},
+	},
+};
+
+function divisionItem(id: string) {
+	return {
+		map_option: "Geographic level",
+		geojson: { properties: { division_id: id } },
+	};
+}
+
+describe("mapCsvRows: spatialFootprint (D2, D4, D10)", () => {
+	it("maps a legacy footprint to geometries and division ids", () => {
+		const { rows, errors } = mapRecords("create", [
+			createRow({
+				spatialFootprint: footprint([POINT_ITEM, divisionItem(DIVISION_OWN)]),
+			}),
+		]);
+		expect(errors).toEqual([]);
+		expect(rows[0].spatialFootprint).toStrictEqual({
+			geometries: [{ type: "Point", coordinates: [77.2, 28.6] }],
+			divisionIds: [DIVISION_OWN],
+		});
+	});
+
+	it("maps [] to an empty footprint", () => {
+		const { rows, errors } = mapRecords("create", [
+			createRow({ spatialFootprint: "[]" }),
+		]);
+		expect(errors).toEqual([]);
+		expect(rows[0].spatialFootprint).toStrictEqual({
+			geometries: [],
+			divisionIds: [],
+		});
+	});
+
+	it.each(["create", "update", "upsert"] as const)(
+		"OD-2: treats an empty cell as not supplied in %s mode",
+		(mode) => {
+			const record =
+				mode === "create"
+					? createRow({ spatialFootprint: "" })
+					: mode === "update"
+						? { id: EVENT_ID, spatialFootprint: "" }
+						: { apiImportId: "A1", spatialFootprint: "" };
+			const { rows, errors } = mapRecords(mode, [record]);
+			expect(errors).toEqual([]);
+			expect(rows[0].spatialFootprint).toBeUndefined();
+			expect(rows[0].deferredErrors).toEqual([]);
+		},
+	);
+
+	describe("create mode: every rule in phase 1", () => {
+		it("rejects unparseable JSON and a structurally broken geometry, without echoing the cell", () => {
+			const { errors } = mapRecords("create", [
+				createRow({ spatialFootprint: "{not json" }),
+				createRow({
+					spatialFootprint: footprint([
+						{
+							map_option: "Map coordinates",
+							geojson: { type: "Point", coordinates: "x" },
+						},
+					]),
+				}),
+			]);
+			expect(errors).toEqual([
+				{
+					line: 2,
+					code: "invalid_spatial_footprint",
+					column: "spatialFootprint",
+				},
+				{
+					line: 3,
+					code: "invalid_spatial_footprint",
+					column: "spatialFootprint",
+				},
+			]);
+		});
+
+		it("rejects an object instead of an array (OD-3)", () => {
+			const { errors } = mapRecords("create", [
+				createRow({ spatialFootprint: footprint(POINT_ITEM) }),
+			]);
+			expect(codes(errors)).toEqual(["invalid_spatial_footprint"]);
+		});
+
+		it("rejects a division outside the session tenant's valid set, echoing the id", () => {
+			const { errors } = mapRecords("create", [
+				createRow({
+					spatialFootprint: footprint([divisionItem(DIVISION_OTHER)]),
+				}),
+			]);
+			expect(errors).toEqual([
+				{
+					line: 2,
+					code: "invalid_division",
+					column: "spatialFootprint",
+					value: DIVISION_OTHER,
+				},
+			]);
+		});
+
+		it("rejects a non-UUID division id with invalid_division, echoing it", () => {
+			const { errors } = mapRecords("create", [
+				createRow({
+					spatialFootprint: footprint([
+						{ map_option: "Geographic level", division_id: "abc" },
+					]),
+				}),
+			]);
+			expect(errors).toEqual([
+				{
+					line: 2,
+					code: "invalid_division",
+					column: "spatialFootprint",
+					value: "abc",
+				},
+			]);
+		});
+
+		it("accepts a valid division written in upper case", () => {
+			const { rows, errors } = mapRecords("create", [
+				createRow({
+					spatialFootprint: footprint([
+						divisionItem(DIVISION_OWN.toUpperCase()),
+					]),
+				}),
+			]);
+			expect(errors).toEqual([]);
+			expect(rows[0].spatialFootprint?.divisionIds).toEqual([DIVISION_OWN]);
+		});
+
+		it("lists a footprint error beside the row's other errors", () => {
+			const { errors } = mapRecords("create", [
+				createRow({ startDate: "bad", spatialFootprint: "{x" }),
+			]);
+			expect(codes(errors).sort()).toEqual(
+				["invalid_date", "invalid_spatial_footprint"].sort(),
+			);
+		});
+	});
+
+	describe.each(["update", "upsert"] as const)(
+		"%s mode: only JSON syntax in phase 1 (D10, NOD-4)",
+		(mode) => {
+			const key: Record<string, string> =
+				mode === "update" ? { id: EVENT_ID } : { apiImportId: "A1" };
+
+			it("rejects unparseable JSON at once", () => {
+				const { rows, errors } = mapRecords(mode, [
+					{ ...key, spatialFootprint: "{not json" },
+				]);
+				expect(errors).toEqual([
+					{
+						line: 2,
+						code: "invalid_spatial_footprint",
+						column: "spatialFootprint",
+					},
+				]);
+				expect(rows[0].deferredErrors).toEqual([]);
+			});
+
+			it("defers a content error until the row is known to be changed", () => {
+				const { rows, errors } = mapRecords(mode, [
+					{ ...key, spatialFootprint: footprint(POINT_ITEM) },
+				]);
+				expect(errors).toEqual([]);
+				expect(rows[0].deferredErrors).toEqual([
+					{
+						line: 2,
+						code: "invalid_spatial_footprint",
+						column: "spatialFootprint",
+					},
+				]);
+			});
+
+			it("defers invalid_division for a division outside the tenant", () => {
+				const { rows, errors } = mapRecords(mode, [
+					{
+						...key,
+						spatialFootprint: footprint([divisionItem(DIVISION_OTHER)]),
+					},
+				]);
+				expect(errors).toEqual([]);
+				expect(rows[0].deferredErrors).toEqual([
+					{
+						line: 2,
+						code: "invalid_division",
+						column: "spatialFootprint",
+						value: DIVISION_OTHER,
+					},
+				]);
+				expect(rows[0].spatialFootprint?.divisionIds).toEqual([DIVISION_OTHER]);
+			});
+		},
+	);
+});
+
+describe("collectDivisionIds (D4)", () => {
+	it("collects distinct well-formed division ids, lower-cased, skipping malformed cells and ids", () => {
+		const check = checkHeader(
+			["spatialFootprint", "startDate", "endDate", "recordOriginator"],
+			"create",
+		);
+		if (!check.ok) throw new Error("header rejected");
+		const tail = ["2025", "2025", "A"];
+		const ids = collectDivisionIds(check.columns, [
+			[
+				footprint([divisionItem(DIVISION_OWN.toUpperCase()), POINT_ITEM]),
+				...tail,
+			],
+			[
+				footprint([divisionItem(DIVISION_OWN), divisionItem(DIVISION_OTHER)]),
+				...tail,
+			],
+			[
+				footprint([{ map_option: "Geographic level", division_id: "abc" }]),
+				...tail,
+			],
+			["{not json", ...tail],
+			["", ...tail],
+		]);
+		expect([...ids].sort()).toEqual([DIVISION_OWN, DIVISION_OTHER].sort());
+	});
+
+	it("returns no ids when the column is absent", () => {
+		const columns = new Map<MappedColumn, number>([["description", 0]]);
+		expect(collectDivisionIds(columns, [["d"]])).toEqual([]);
 	});
 });
 
@@ -861,7 +1264,6 @@ describe("createPathErrors", () => {
 			line: 7,
 			cells: new Map(entries),
 			fields: {},
-			hasNotYetImportedData: false,
 			deferredErrors: [],
 			...extra,
 		};

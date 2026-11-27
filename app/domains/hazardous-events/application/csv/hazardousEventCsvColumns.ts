@@ -45,6 +45,8 @@ export const LEGACY_EXPORT_HEADER = [
 export const EXPORT_HEADER: readonly string[] = [
 	...LEGACY_EXPORT_HEADER,
 	"parent",
+	"spatialFootprint",
+	"attachments",
 ];
 
 /** Columns whose cells become command fields (D3). `id` is handled per mode. */
@@ -67,14 +69,10 @@ export const MAPPED_COLUMNS = [
 	"specificHazardLocalName",
 	"specificHazardNationalName",
 	"apiImportId",
-] as const;
-export type MappedColumn = (typeof MAPPED_COLUMNS)[number] | "id";
-
-/** Accepted and ignored with a per-file notice until 6d-2 (D15). */
-export const NOT_YET_IMPORTED_COLUMNS: readonly string[] = [
 	"spatialFootprint",
 	"attachments",
-];
+] as const;
+export type MappedColumn = (typeof MAPPED_COLUMNS)[number] | "id";
 
 /** Read-only legacy export columns plus the never-honoured tenant column (D3, OD-2). */
 const READ_ONLY_COLUMNS: readonly string[] = [
@@ -113,13 +111,7 @@ function columnRole(column: string, mode: CsvImportMode): ColumnRole {
 		return mode === "upsert" ? "ignored" : "rejected";
 	}
 	if ((MAPPED_COLUMNS as readonly string[]).includes(column)) return "mapped";
-	if (
-		READ_ONLY_COLUMNS.includes(column) ||
-		NOT_YET_IMPORTED_COLUMNS.includes(column)
-	) {
-		return "ignored";
-	}
-	return "rejected";
+	return READ_ONLY_COLUMNS.includes(column) ? "ignored" : "rejected";
 }
 
 export type HeaderCheck =
@@ -127,8 +119,6 @@ export type HeaderCheck =
 			ok: true;
 			/** Mapped column name → cell index. */
 			columns: ReadonlyMap<MappedColumn, number>;
-			/** Cell indexes of the not-yet-imported columns, for the D15 notice. */
-			notYetImportedIndexes: readonly number[];
 			ignoredColumns: string[];
 	  }
 	| {
@@ -145,7 +135,6 @@ export function checkHeader(
 	const fileErrors: HazardousEventCsvFileError[] = [];
 	const ignoredColumns: string[] = [];
 	const columns = new Map<MappedColumn, number>();
-	const notYetImportedIndexes: number[] = [];
 	const seen = new Set<string>();
 
 	header.forEach((rawColumn, index) => {
@@ -160,9 +149,6 @@ export function checkHeader(
 			fileErrors.push({ code: "unknown_column", column });
 		} else if (role === "ignored") {
 			ignoredColumns.push(column);
-			if (NOT_YET_IMPORTED_COLUMNS.includes(column)) {
-				notYetImportedIndexes.push(index);
-			}
 		} else {
 			columns.set(column as MappedColumn, index);
 		}
@@ -176,5 +162,5 @@ export function checkHeader(
 
 	return fileErrors.length > 0
 		? { ok: false, fileErrors, ignoredColumns }
-		: { ok: true, columns, notYetImportedIndexes, ignoredColumns };
+		: { ok: true, columns, ignoredColumns };
 }

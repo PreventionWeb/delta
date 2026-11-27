@@ -43,12 +43,17 @@ import {
 	API_IMPORT_ID_CONFLICT,
 	OUTGOING_EVENT_RELATIONSHIP_CONFLICT,
 } from "../application/ports/IHazardousEventRepository";
-import type { HazardousEventExportRow } from "../application/dto/HazardousEventExportRow";
+import type {
+	HazardousEventExportAttachment,
+	HazardousEventExportRow,
+} from "../application/dto/HazardousEventExportRow";
 import type { Pagination } from "~/shared/types";
 import { eventTable } from "~/drizzle/schema/eventTable";
 import { eventRelationshipTable } from "~/drizzle/schema/eventRelationshipTable";
 import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import { divisionTable } from "~/drizzle/schema/divisionTable";
+import { hazardousEventGeomTable } from "~/drizzle/schema/hazardousEventGeomTable";
+import { hazardousEventDivisionTable } from "~/drizzle/schema/hazardousEventDivisionTable";
 import { specificHazardTable } from "./specificHazardTable";
 import { hazardClusterTable } from "./hazardClusterTable";
 import { hazardTypeTable } from "./hazardTypeTable";
@@ -105,6 +110,34 @@ function throwIfMalformedId(id: string): void {
  * name containing either matches itself, not a wildcard. */
 function escapeLikePattern(value: string): string {
 	return value.replace(/[%_\\]/g, "\\$&");
+}
+
+const DIVISION_LINK_INSERT_CHUNK = 10_000;
+
+/** Drivers differ on whether a `json` column arrives parsed, so accept text too. */
+function decodeJson(value: unknown): unknown {
+	return typeof value === "string" ? (JSON.parse(value) as unknown) : value;
+}
+
+function jsonArray(value: unknown): unknown[] {
+	const decoded = decodeJson(value);
+	return Array.isArray(decoded) ? decoded : [];
+}
+
+function toExportObservation(
+	value: unknown,
+): HazardousEventExportRow["currentObservation"] {
+	const decoded = decodeJson(value) as {
+		observationTime: string;
+		geometries: unknown;
+		divisionIds: unknown;
+	} | null;
+	if (decoded === null || decoded === undefined) return null;
+	return {
+		observationTime: new Date(decoded.observationTime),
+		geometries: jsonArray(decoded.geometries),
+		divisionIds: jsonArray(decoded.divisionIds) as string[],
+	};
 }
 
 @Injectable()
@@ -1083,7 +1116,8 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 			.where(
 				and(
 					eq(divisionTable.countryAccountsId, tenantId),
-					inArray(divisionTable.id, distinctDivisionIds),
+					// One array parameter, so no id count hits the bind-parameter limit.
+					sql`${divisionTable.id} = ANY(${sql.param(distinctDivisionIds)}::uuid[])`,
 				),
 			);
 		if (validDivisionRows.length < distinctDivisionIds.length) {
@@ -1177,14 +1211,21 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 			}
 		}
 		// Full array, not deduped -- a duplicate divisionId must reach the DB's unique constraint and be rejected, not silently collapsed.
-		if (observation.divisionIds.length > 0) {
+		// Chunked: one insert is limited to 65,535 bind parameters (two per link).
+		for (
+			let start = 0;
+			start < observation.divisionIds.length;
+			start += DIVISION_LINK_INSERT_CHUNK
+		) {
 			await executor
 				.insert(hazardousEventSpatialObservationDivisionTable)
 				.values(
-					observation.divisionIds.map((divisionId) => ({
-						hazardousEventSpatialObservationId: observationId,
-						divisionId,
-					})),
+					observation.divisionIds
+						.slice(start, start + DIVISION_LINK_INSERT_CHUNK)
+						.map((divisionId) => ({
+							hazardousEventSpatialObservationId: observationId,
+							divisionId,
+						})),
 				);
 		}
 	}
@@ -1288,6 +1329,48 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 					FROM ${eventRelationshipTable}
 					WHERE ${eventRelationshipTable.childId} = ${hazardousEventTable.id}
 				)`,
+				// Latest by observation time (D9); child order is unspecified, so comparison and export sort.
+				currentObservation: sql<unknown>`(
+					SELECT json_build_object(
+						'observationTime', ${hazardousEventSpatialObservationTable.observationTime},
+						'geometries', COALESCE((
+							SELECT json_agg(ST_AsGeoJSON(${hazardousEventSpatialObservationGeomTable.geom})::json)
+							FROM ${hazardousEventSpatialObservationGeomTable}
+							WHERE ${hazardousEventSpatialObservationGeomTable.hazardousEventSpatialObservationId} = ${hazardousEventSpatialObservationTable.id}
+						), '[]'::json),
+						'divisionIds', COALESCE((
+							SELECT json_agg(${hazardousEventSpatialObservationDivisionTable.divisionId})
+							FROM ${hazardousEventSpatialObservationDivisionTable}
+							WHERE ${hazardousEventSpatialObservationDivisionTable.hazardousEventSpatialObservationId} = ${hazardousEventSpatialObservationTable.id}
+						), '[]'::json)
+					)
+					FROM ${hazardousEventSpatialObservationTable}
+					WHERE ${hazardousEventSpatialObservationTable.hazardousEventId} = ${hazardousEventTable.id}
+					ORDER BY ${hazardousEventSpatialObservationTable.observationTime} DESC
+					LIMIT 1
+				)`,
+				legacyGeometries: sql<unknown>`COALESCE((
+					SELECT json_agg(ST_AsGeoJSON(${hazardousEventGeomTable.geom})::json)
+					FROM ${hazardousEventGeomTable}
+					WHERE ${hazardousEventGeomTable.hazardousEventId} = ${hazardousEventTable.id}
+				), '[]'::json)`,
+				legacyDivisionIds: sql<unknown>`COALESCE((
+					SELECT json_agg(${hazardousEventDivisionTable.divisionId})
+					FROM ${hazardousEventDivisionTable}
+					WHERE ${hazardousEventDivisionTable.hazardousEventId} = ${hazardousEventTable.id}
+				), '[]'::json)`,
+				attachments: sql<unknown>`COALESCE((
+					SELECT json_agg(json_build_object(
+						'type', ${hazardousEventAttachmentTable.type},
+						'title', ${hazardousEventAttachmentTable.title},
+						'url', ${hazardousEventAttachmentTable.url},
+						'tag', ${hazardousEventAttachmentTable.tag},
+						'fileKey', ${hazardousEventAttachmentTable.fileKey},
+						'fileType', ${hazardousEventAttachmentTable.fileType}
+					))
+					FROM ${hazardousEventAttachmentTable}
+					WHERE ${hazardousEventAttachmentTable.hazardousEventId} = ${hazardousEventTable.id}
+				), '[]'::json)`,
 			})
 			.from(hazardousEventTable)
 			.leftJoin(
@@ -1356,6 +1439,13 @@ export class DrizzleHazardousEventRepository implements IHazardousEventRepositor
 			legacyHipClusterId: event.hipClusterId,
 			legacyHipTypeId: event.hipTypeId,
 			legacyParentId: joined.legacyParentId,
+			currentObservation: toExportObservation(joined.currentObservation),
+			legacyGeometries: jsonArray(joined.legacyGeometries),
+			legacyDivisionIds: jsonArray(joined.legacyDivisionIds) as string[],
+			attachments: jsonArray(
+				joined.attachments,
+			) as HazardousEventExportAttachment[],
+			legacyAttachments: event.attachments,
 		}));
 	}
 }
