@@ -1,0 +1,106 @@
+name: Deploy Generic Container to UNOG (Dev 2)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: unog-generic-deploy-branch-testing
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAME: delta-country
+      IMAGE_TAG: branch-testing
+      DEPLOY_ENVIRONMENT: branch-testing
+
+    steps:
+      - name: Checkout selected branch
+        uses: actions/checkout@v4
+
+      - name: Resolve build metadata
+        id: meta
+        env:
+          TARGET_BRANCH: ${{ github.ref_name }}
+        run: |
+          if [ ! -f ./Dockerfile.dev ]; then
+            echo "::error::Dockerfile.dev not found on branch '${TARGET_BRANCH}'."
+            exit 1
+          fi
+
+          owner_lc="$(printf '%s' "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          echo "Using image: ${REGISTRY}/${owner_lc}/${IMAGE_NAME}:${IMAGE_TAG}"
+          echo "Branch: ${TARGET_BRANCH} (${GITHUB_SHA})"
+          echo "image_owner=${owner_lc}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: ${{ !env.ACT }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image (GitHub)
+        if: ${{ !env.ACT }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.dev
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.image_owner }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          labels: |
+            org.opencontainers.image.title=${{ env.IMAGE_NAME }}
+            org.opencontainers.image.description=DELTA country instance container image for branch testing deployments.
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.ref.name=${{ github.ref_name }}
+          cache-from: type=gha,scope=unog-branch-testing
+          cache-to: type=gha,mode=max,scope=unog-branch-testing
+
+      - name: Build image locally (act)
+        if: ${{ env.ACT }}
+        run: >-
+          docker build
+          -f ./Dockerfile.dev
+          -t ${{ env.REGISTRY }}/${{ steps.meta.outputs.image_owner }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          .
+
+      - name: Trigger Automatic Branch-Testing Deploy Hook
+        if: ${{ !env.ACT }}
+        env:
+          DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+          DEPLOY_WEBHOOK_TOKEN: ${{ secrets.DEPLOY_WEBHOOK_TOKEN }}
+          DEPLOY_REPO: ${{ github.repository }}
+          DEPLOY_BRANCH: ${{ github.ref_name }}
+          DEPLOY_SHA: ${{ github.sha }}
+          DEPLOY_ACTOR: ${{ github.actor }}
+        run: |
+          if [ -z "$DEPLOY_WEBHOOK_URL" ]; then
+            echo "DEPLOY_WEBHOOK_URL is not set; skipping deploy webhook."
+            exit 0
+          fi
+
+          payload="$(jq -n \
+            --arg event "deploy" \
+            --arg environment "$DEPLOY_ENVIRONMENT" \
+            --arg repo "$DEPLOY_REPO" \
+            --arg branch "$DEPLOY_BRANCH" \
+            --arg sha "$DEPLOY_SHA" \
+            --arg actor "$DEPLOY_ACTOR" \
+            '{event: $event, environment: $environment, repo: $repo, branch: $branch, sha: $sha, actor: $actor}')"
+
+          curl --fail-with-body --silent --show-error \
+            -X POST "$DEPLOY_WEBHOOK_URL" \
+            -H "Authorization: Bearer $DEPLOY_WEBHOOK_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$payload"
