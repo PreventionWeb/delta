@@ -114,5 +114,17 @@ describe("DrizzleDivisionRepository", () => {
 
 			expect(result.has(divisionId)).toBe(true);
 		});
+
+		it("checks more ids than Postgres's 65,535 bind parameters in one call (6d-2)", async () => {
+			const tenantId = (await seedCountryAccount()) as string;
+			const real = await seedDivision(tenantId);
+			const ids = [...Array.from({ length: 70_000 }, () => randomUUID()), real];
+
+			const result = await new DrizzleDivisionRepository(
+				dr,
+			).findValidDivisionIds(ids, tenantId);
+
+			expect([...result]).toEqual([real]);
+		}, 60_000);
 	});
 });

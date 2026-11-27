@@ -12,6 +12,8 @@ import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
 import { eventRelationshipTable } from "~/drizzle/schema/eventRelationshipTable";
 import { divisionTable } from "~/drizzle/schema/divisionTable";
+import { hazardousEventGeomTable } from "~/drizzle/schema/hazardousEventGeomTable";
+import { hazardousEventDivisionTable } from "~/drizzle/schema/hazardousEventDivisionTable";
 import { hazardousEventHazardDriverTable } from "~/domains/hazardous-events/infrastructure/hazardousEventHazardDriverTable";
 import { hazardousEventAttachmentTable } from "~/domains/hazardous-events/infrastructure/hazardousEventAttachmentTable";
 import { hazardousEventFieldValueTable } from "~/domains/hazardous-events/infrastructure/hazardousEventFieldValueTable";
@@ -2651,6 +2653,25 @@ describe("DrizzleHazardousEventRepository", () => {
 	});
 
 	describe("saveSpatialObservation", () => {
+		it("saves an observation with more division links than one insert's bind-parameter limit (6d-2)", async () => {
+			const { id, tenantId } = await seedRawHazardousEvent();
+			const inserted = await dr.execute<{ id: string }>(sql`
+				INSERT INTO division (name, country_accounts_id)
+				SELECT jsonb_build_object('en', 'Bulk ' || g), ${tenantId}::uuid
+				FROM generate_series(1, 40000) g
+				RETURNING id`);
+			const divisionIds = inserted.rows.map((row) => row.id);
+			const repo = new DrizzleHazardousEventRepository(dr);
+
+			const saved = await repo.saveSpatialObservation(
+				id,
+				makeSpatialObservationRecord(id, { divisionIds }),
+				tenantId,
+			);
+
+			expect(saved.divisionIds).toHaveLength(40_000);
+		}, 120_000);
+
 		it("rejects with ValidationError when observation.hazardousEventId differs from the hazardousEventId parameter, writing no row", async () => {
 			const { id, tenantId } = await seedRawHazardousEvent();
 			const repo = new DrizzleHazardousEventRepository(dr);
@@ -3451,6 +3472,368 @@ describe("DrizzleHazardousEventRepository CSV ports (ca-he-csv-migration)", () =
 			);
 			expect(rows.find((r) => r.id === causeId)?.causeId).toBeNull();
 		});
+
+		describe("attachment projection (6d-2, D9)", () => {
+			it("Scenario: Attachments of the event are carried -- the Link's URL, the File's key and type", async () => {
+				const t1 = (await seedCountryAccount()) as string;
+				const id = await seedExportEvent({
+					tenantId: t1,
+					specificHazardId: await seedSpecificHazard(),
+				});
+				await dr.insert(hazardousEventAttachmentTable).values([
+					{
+						hazardousEventId: id,
+						title: "Report",
+						type: "Link",
+						url: "https://example.com/a",
+						tag: [{ id: "t", name: "Tag" }],
+					},
+					{
+						hazardousEventId: id,
+						title: "Scan",
+						type: "File",
+						fileKey: "k.pdf",
+						fileName: "scan.pdf",
+						fileType: "application/pdf",
+						fileSize: 3,
+					},
+				]);
+
+				const [row] = await repo.findExportRows(t1);
+
+				const byType = new Map(row.attachments.map((a) => [a.type, a]));
+				expect(row.attachments).toHaveLength(2);
+				expect(byType.get("Link")).toStrictEqual({
+					type: "Link",
+					title: "Report",
+					url: "https://example.com/a",
+					tag: [{ id: "t", name: "Tag" }],
+					fileKey: null,
+					fileType: null,
+				});
+				expect(byType.get("File")).toStrictEqual({
+					type: "File",
+					title: "Scan",
+					url: null,
+					tag: null,
+					fileKey: "k.pdf",
+					fileType: "application/pdf",
+				});
+			});
+
+			it("carries no attachments as [] and the legacy jsonb as stored", async () => {
+				const t1 = (await seedCountryAccount()) as string;
+				const id = await seedExportEvent({
+					tenantId: t1,
+					specificHazardId: null,
+				});
+				const legacy = [
+					{
+						id: "a",
+						title: "F",
+						file_option: "File",
+						file: { name: "/uploads/x/f.pdf", tenantPath: "uploads/tenant-x" },
+					},
+				];
+				await dr
+					.update(hazardousEventTable)
+					.set({ attachments: legacy })
+					.where(eq(hazardousEventTable.id, id));
+
+				const [row] = await repo.findExportRows(t1);
+
+				expect(row.attachments).toEqual([]);
+				expect(row.legacyAttachments).toEqual(legacy);
+			});
+
+			it("tenant scope: another tenant's attachments never appear on a T1 row", async () => {
+				const t1 = (await seedCountryAccount()) as string;
+				const t2 = (await seedCountryAccount()) as string;
+				const specificHazardId = await seedSpecificHazard();
+				await seedExportEvent({ tenantId: t1, specificHazardId });
+				const foreign = await seedExportEvent({
+					tenantId: t2,
+					specificHazardId,
+				});
+				await dr.insert(hazardousEventAttachmentTable).values({
+					hazardousEventId: foreign,
+					title: "Foreign",
+					type: "Link",
+					url: "https://foreign.example",
+				});
+
+				const [row] = await repo.findExportRows(t1);
+
+				expect(row.attachments).toEqual([]);
+			});
+		});
+
+		describe("footprint projection (6d-2, D9)", () => {
+			const POINT = { type: "Point", coordinates: [77.2, 28.6] };
+			const LINE = {
+				type: "LineString",
+				coordinates: [
+					[77, 28],
+					[78, 29],
+				],
+			};
+
+			async function legacyGeom(eventId: string, geometry: unknown) {
+				await dr.insert(hazardousEventGeomTable).values({
+					hazardousEventId: eventId,
+					geom: sql`ST_GeomFromGeoJSON(${JSON.stringify(geometry)})`,
+				});
+			}
+
+			it("Scenario: The current observation is the latest by observation time -- the later-dated one inserted first", async () => {
+				const t1 = (await seedCountryAccount()) as string;
+				const division = await seedDivisionRow(t1);
+				const id = await seedExportEvent({
+					tenantId: t1,
+					specificHazardId: await seedSpecificHazard(),
+				});
+				const later = await seedRawSpatialObservation(id, {
+					observationTime: new Date("2026-03-01T00:00:00Z"),
+				});
+				await seedRawGeom(later.id, POINT);
+				await seedRawGeom(later.id, LINE);
+				await seedRawDivisionLink(later.id, division);
+				const earlier = await seedRawSpatialObservation(id, {
+					observationTime: new Date("2026-02-01T00:00:00Z"),
+				});
+				await seedRawGeom(earlier.id, LINE);
+
+				const [row] = await repo.findExportRows(t1);
+
+				expect(row.currentObservation?.observationTime.getTime()).toBe(
+					new Date("2026-03-01T00:00:00Z").getTime(),
+				);
+				expect(row.currentObservation?.divisionIds).toEqual([division]);
+				expect(
+					[...(row.currentObservation?.geometries ?? [])]
+						.map((g) => JSON.stringify(g))
+						.sort(),
+				).toEqual([JSON.stringify(LINE), JSON.stringify(POINT)].sort());
+			});
+
+			it("carries an empty current observation as empty lists, not null", async () => {
+				const t1 = (await seedCountryAccount()) as string;
+				const id = await seedExportEvent({
+					tenantId: t1,
+					specificHazardId: await seedSpecificHazard(),
+				});
+				await seedRawSpatialObservation(id, {
+					observationTime: new Date("2026-03-01T00:00:00Z"),
+				});
+
+				const [row] = await repo.findExportRows(t1);
+
+				expect(row.currentObservation).toMatchObject({
+					geometries: [],
+					divisionIds: [],
+				});
+			});
+
+			it("is null without an observation, with empty legacy fallbacks", async () => {
+				const t1 = (await seedCountryAccount()) as string;
+				await seedExportEvent({
+					tenantId: t1,
+					specificHazardId: await seedSpecificHazard(),
+				});
+
+				const [row] = await repo.findExportRows(t1);
+
+				expect(row.currentObservation).toBeNull();
+				expect(row.legacyGeometries).toEqual([]);
+				expect(row.legacyDivisionIds).toEqual([]);
+			});
+
+			it("Scenario: Legacy fallback values are carried -- legacy geometry and division rows", async () => {
+				const t1 = (await seedCountryAccount()) as string;
+				const division = await seedDivisionRow(t1);
+				const id = await seedExportEvent({
+					tenantId: t1,
+					specificHazardId: null,
+				});
+				await legacyGeom(id, POINT);
+				await dr
+					.insert(hazardousEventDivisionTable)
+					.values({ hazardousEventId: id, divisionId: division });
+
+				const [row] = await repo.findExportRows(t1);
+
+				expect(row.currentObservation).toBeNull();
+				expect(row.legacyGeometries).toEqual([POINT]);
+				expect(row.legacyDivisionIds).toEqual([division]);
+			});
+
+			it("tenant scope: another tenant's footprint never appears on a T1 row", async () => {
+				const t1 = (await seedCountryAccount()) as string;
+				const t2 = (await seedCountryAccount()) as string;
+				const specificHazardId = await seedSpecificHazard();
+				const own = await seedExportEvent({ tenantId: t1, specificHazardId });
+				const foreign = await seedExportEvent({
+					tenantId: t2,
+					specificHazardId,
+				});
+				const observation = await seedRawSpatialObservation(foreign, {
+					observationTime: new Date("2026-03-01T00:00:00Z"),
+				});
+				await seedRawGeom(observation.id, POINT);
+				await legacyGeom(foreign, LINE);
+
+				const rows = await repo.findExportRows(t1);
+
+				expect(rows.map((r) => r.id)).toEqual([own]);
+				expect(rows[0].currentObservation).toBeNull();
+				expect(rows[0].legacyGeometries).toEqual([]);
+			});
+
+			it("reads on a caller transaction, seeing an uncommitted observation", async () => {
+				const t1 = (await seedCountryAccount()) as string;
+				const id = await seedExportEvent({
+					tenantId: t1,
+					specificHazardId: await seedSpecificHazard(),
+				});
+				let seen: unknown = undefined;
+				try {
+					await dr.transaction(async (tx) => {
+						await tx.insert(hazardousEventSpatialObservationTable).values({
+							hazardousEventId: id,
+							observationTime: new Date("2026-03-01T00:00:00Z"),
+						});
+						const [row] = await repo.findExportRows(t1, tx);
+						seen = row.currentObservation;
+						tx.rollback();
+					});
+				} catch (err) {
+					if (!(err instanceof TransactionRollbackError)) throw err;
+				}
+
+				expect(seen).toMatchObject({ geometries: [], divisionIds: [] });
+				const [after] = await repo.findExportRows(t1);
+				expect(after.currentObservation).toBeNull();
+			});
+		});
+	});
+});
+
+// ca-he-csv-spatial-attachments task 2.2: the CSV unchanged check mirrors this round trip (OD-8).
+describe("PostGIS GeoJSON round trip pinned for the CSV footprint comparator (OD-8)", () => {
+	beforeAll(async () => {
+		await dr.execute(sql`select 1`);
+	}, 60_000);
+
+	async function roundTrip(geojson: unknown): Promise<unknown> {
+		const result = await dr.execute<{ g: string }>(
+			sql`select ST_AsGeoJSON(ST_GeomFromGeoJSON(${JSON.stringify(geojson)})) as g`,
+		);
+		return JSON.parse(result.rows[0].g);
+	}
+
+	it("rounds coordinates to 9 decimal places and drops trailing zeros", async () => {
+		await expect(
+			roundTrip({
+				type: "Point",
+				coordinates: [77.123456789012345, 28.1000000004],
+			}),
+		).resolves.toStrictEqual({
+			type: "Point",
+			coordinates: [77.123456789, 28.1],
+		});
+	});
+
+	// Ties round half-even on the shortest decimal text, not on the binary value: toFixed(9) gives
+	// 2.000000001, 0.123456789 and -77.123456789 for the first three.
+	it.each([
+		[2.0000000005, 2],
+		[0.1234567895, 0.12345679],
+		[-77.1234567895, -77.12345679],
+		[0.99999999995, 1],
+		[1.0000000006, 1.000000001],
+		[0.1234567894999, 0.123456789],
+		[12.3456789012345, 12.345678901],
+		[0.0000123456789, 0.000012346],
+		[1.04e-8, 0.00000001],
+		[1234567890.1234567, 1234567890.1234567],
+	])("prints %s as %s", async (input, printed) => {
+		await expect(
+			roundTrip({ type: "Point", coordinates: [input, 0] }),
+		).resolves.toStrictEqual({ type: "Point", coordinates: [printed, 0] });
+	});
+
+	it.each([1e-8, -1e-8, 9.9e-9, 1.5e-9, -1e-10, 1e15, 1.5e15])(
+		"prints %s unrounded (magnitude at most 1e-8 or at least 1e15)",
+		async (input) => {
+			await expect(
+				roundTrip({ type: "Point", coordinates: [input, 0] }),
+			).resolves.toStrictEqual({ type: "Point", coordinates: [input, 0] });
+		},
+	);
+
+	it("keeps a Z ordinate", async () => {
+		await expect(
+			roundTrip({ type: "Point", coordinates: [77.2, 28.6, 120.5] }),
+		).resolves.toStrictEqual({
+			type: "Point",
+			coordinates: [77.2, 28.6, 120.5],
+		});
+	});
+
+	it("drops a fourth ordinate", async () => {
+		await expect(
+			roundTrip({ type: "Point", coordinates: [77.2, 28.6, 120.5, 9] }),
+		).resolves.toStrictEqual({
+			type: "Point",
+			coordinates: [77.2, 28.6, 120.5],
+		});
+	});
+
+	it("drops bbox, crs and foreign members", async () => {
+		await expect(
+			roundTrip({
+				type: "Point",
+				coordinates: [77.2, 28.6],
+				bbox: [77.2, 28.6, 77.2, 28.6],
+				crs: { type: "name", properties: { name: "EPSG:4326" } },
+				foreign: { a: 1 },
+			}),
+		).resolves.toStrictEqual({ type: "Point", coordinates: [77.2, 28.6] });
+	});
+
+	// Mixed 2D/3D input is stored padded with Z=0, which the CSV comparator must account for.
+	it("pads a 2D position with Z=0 when another position has Z", async () => {
+		await expect(
+			roundTrip({
+				type: "LineString",
+				coordinates: [
+					[0, 0],
+					[1, 1, 5],
+				],
+			}),
+		).resolves.toStrictEqual({
+			type: "LineString",
+			coordinates: [
+				[0, 0, 0],
+				[1, 1, 5],
+			],
+		});
+	});
+
+	it("keeps a self-intersecting ring unrepaired (OD-4)", async () => {
+		const bowtie = {
+			type: "Polygon",
+			coordinates: [
+				[
+					[0, 0],
+					[1, 1],
+					[1, 0],
+					[0, 1],
+					[0, 0],
+				],
+			],
+		};
+		await expect(roundTrip(bowtie)).resolves.toStrictEqual(bowtie);
 	});
 });
 

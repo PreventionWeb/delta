@@ -23,10 +23,14 @@ import { dr } from "~/db.server";
 import { userTable } from "~/drizzle/schema/userTable";
 import { seedCountryAccount } from "../../../db/models/hazardousEventTestHelpers";
 import {
+	attachmentRowsOf,
 	eventsOfTenant,
 	nullTenantEventCount,
+	seedDivision,
 	seedTaxonomyWithRefs,
 } from "../hazardousEventCsvTestHarness";
+import { serializeCsv } from "~/domains/hazardous-events/presentation/web/csv/serializeCsv";
+import { DrizzleHazardousEventRepository } from "~/domains/hazardous-events/infrastructure/DrizzleHazardousEventRepository.server";
 
 let testingModule: TestingModule;
 
@@ -297,6 +301,93 @@ describe("Hazardous event CSV import route", () => {
 			expect(rows).toHaveLength(1);
 			expect(rows[0].specificHazardId).toBe(tax.specificHazardId);
 			expect(await nullTenantEventCount()).toBe(nullBefore);
+		});
+
+		it("imports a legacy footprint and an https link end-to-end in the session tenant (6d-2)", async () => {
+			const division = await seedDivision(tenantId);
+			const record: Record<string, string> = {
+				startDate: "2025-03-01",
+				endDate: "2025-03-02",
+				recordOriginator: "Field survey",
+				hipTypeId: tax.hipTypeId,
+				hipClusterId: tax.hipClusterId,
+				hipHazardId: tax.hipHazardId,
+				spatialFootprint: JSON.stringify([
+					{
+						map_option: "Map coordinates",
+						geojson: {
+							type: "Feature",
+							geometry: { type: "Point", coordinates: [77.2, 28.6] },
+							properties: {},
+						},
+					},
+					{ map_option: "Geographic level", division_id: division },
+				]),
+				attachments: JSON.stringify([
+					{
+						title: "Report",
+						tag: [],
+						file_option: "Link",
+						url: "https://example.com/a",
+					},
+				]),
+			};
+			const header = Object.keys(record);
+			const csv = serializeCsv(header, [header.map((c) => record[c])]);
+
+			const result = await action(
+				await makeArgs(tenantId, "data-collector", multipart(csv, "create")),
+			);
+
+			expect(result).toMatchObject({ ok: true, created: 1 });
+			const [event] = await eventsOfTenant(tenantId);
+			const observation = await new DrizzleHazardousEventRepository(
+				dr,
+			).findCurrentSpatialObservation(event.id, tenantId);
+			expect(observation?.geometries).toStrictEqual([
+				{ type: "Point", coordinates: [77.2, 28.6] },
+			]);
+			expect(observation?.divisionIds).toStrictEqual([division]);
+			expect(await attachmentRowsOf(event.id)).toMatchObject([
+				{ type: "Link", title: "Report", url: "https://example.com/a" },
+			]);
+		});
+
+		it("rejects another tenant's division and a javascript: link through the route, writing nothing", async () => {
+			const foreignDivision = await seedDivision(await seedCountryAccount());
+			const record: Record<string, string> = {
+				startDate: "2025-03-01",
+				endDate: "2025-03-02",
+				recordOriginator: "Field survey",
+				hipTypeId: tax.hipTypeId,
+				hipClusterId: tax.hipClusterId,
+				hipHazardId: tax.hipHazardId,
+				spatialFootprint: JSON.stringify([
+					{ map_option: "Geographic level", division_id: foreignDivision },
+				]),
+				attachments: JSON.stringify([
+					{ title: "X", file_option: "Link", url: "javascript:alert(1)" },
+				]),
+			};
+			const header = Object.keys(record);
+			const csv = serializeCsv(header, [header.map((c) => record[c])]);
+
+			const result = await action(
+				await makeArgs(tenantId, "data-collector", multipart(csv, "create")),
+			);
+
+			expect(result).toMatchObject({
+				ok: false,
+				rowErrors: [
+					{ line: 2, code: "invalid_division", value: foreignDivision },
+					{
+						line: 2,
+						code: "invalid_attachment_url",
+						value: "javascript:alert(1)",
+					},
+				],
+			});
+			expect(await eventsOfTenant(tenantId)).toHaveLength(0);
 		});
 
 		it("ignores a countryAccountsId column naming another tenant", async () => {

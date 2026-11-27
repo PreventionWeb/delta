@@ -108,6 +108,73 @@ function createTestUploadFile(outputPath: (name: string) => string): string {
 	return filePath;
 }
 
+test.describe("Link URL scheme check on save (6d-2 SA-1, D12)", () => {
+	test("saving the create form with a javascript: Link shows the attachments field error and creates no event", async ({
+		page,
+	}) => {
+		page.on("dialog", (dialog) => {
+			throw new Error(`Unexpected native dialog: ${dialog.message()}`);
+		});
+		const eventsBefore = await dr
+			.select({ id: hazardousEventTable.id })
+			.from(hazardousEventTable)
+			.where(eq(hazardousEventTable.countryAccountsId, countryAccountId));
+		await login(page, dataCollectorEmail);
+		await page.goto("/en/he-preview/new");
+
+		await page.getByLabel("Hazard type").selectOption({ index: 1 });
+		await page.getByLabel("Hazard cluster").selectOption({ index: 1 });
+		await page.selectOption("#specificHazardId", { index: 1 });
+		await page.fill("#startDate", "2026-01-01");
+		await page.fill("#endDate", "2026-01-02");
+		await page.fill("#recordOriginator", "E2E originator");
+
+		const attachments = page.locator("#attachments");
+		await attachments
+			.locator(".content-repeater-actions")
+			.getByText("Add", { exact: true })
+			.click();
+		const dialog = page.getByRole("dialog");
+		await dialog.getByLabel("Title").fill("E2E unsafe link");
+		await dialog.locator('label[for="attachments_file_option_1"]').click();
+		await dialog.locator("#attachments_url").fill("javascript:alert(1)");
+		await dialog.getByRole("button", { name: "Apply" }).click();
+
+		await page.getByRole("button", { name: "Save or submit" }).click();
+		await page.getByRole("radio", { name: "Save as draft" }).click();
+		await page.getByRole("button", { name: "Save as draft" }).click();
+
+		const fieldError = page.getByText(
+			"Attachment links must start with http:// or https://.",
+		);
+		await expect(fieldError).toBeVisible();
+		// The error belongs to Attachments: it must end above the next field's label, not touch it.
+		const errorBox = await fieldError.boundingBox();
+		const nextLabelBox = await page
+			.locator('label[for="recordOriginator"]')
+			.boundingBox();
+		if (errorBox === null || nextLabelBox === null) {
+			throw new Error("the field error or the next label did not render");
+		}
+		expect(nextLabelBox.y).toBeGreaterThan(errorBox.y + errorBox.height);
+		await page.screenshot({
+			path: test.info().outputPath("attachments-field-error.png"),
+			clip: {
+				x: 0,
+				y: Math.max(0, errorBox.y - 240),
+				width: 1280,
+				height: 400,
+			},
+		});
+		expect(page.url()).toMatch(/\/en\/he-preview\/new$/);
+		const eventsAfter = await dr
+			.select({ id: hazardousEventTable.id })
+			.from(hazardousEventTable)
+			.where(eq(hazardousEventTable.countryAccountsId, countryAccountId));
+		expect(eventsAfter).toHaveLength(eventsBefore.length);
+	});
+});
+
 test.describe("Hazardous event attachments widget (6.1, DEF-054 regression)", () => {
 	test("a File-type and a Link-type attachment both survive save and reload, and the File link resolves", async ({
 		page,

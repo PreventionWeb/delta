@@ -1,5 +1,6 @@
 import "../../db/setup";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
+import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
 import {
 	afterEach,
 	beforeAll,
@@ -19,9 +20,13 @@ import {
 	exportAndReparse,
 	runImport,
 	seedCaEvent,
+	seedCaEventWithFile,
 	seedCausalLink,
+	seedDivision,
 	seedLegacyEvent,
+	seedLegacyFootprint,
 	seedLegacyHipWithTaxonomy,
+	seedObservation,
 	seedLegacyParentLink,
 	seedUser,
 	tenantSnapshot,
@@ -91,7 +96,93 @@ async function seedRoundTripTenant() {
 		specificHazardId,
 		overrides: { apiImportId: "RT-MAGNITUDE", magnitude: "-5" },
 	});
-	return { tenantId, rowCount: 7 };
+	// 6d-2 footprints: a CA observation, a migrated row on legacy rows only, an unmigrated
+	// row with another tenant's legacy division (DEF-005), and a cleared observation.
+	const division = await seedDivision(tenantId);
+	const foreignDivision = await seedDivision(await seedCountryAccount());
+	const footprinted = await seedCaEvent(harness, {
+		tenantId,
+		specificHazardId,
+		overrides: { apiImportId: "RT-FOOTPRINT" },
+	});
+	await seedObservation(harness, {
+		tenantId,
+		eventId: footprinted,
+		geometries: [
+			{ type: "Point", coordinates: [77.123456789012345, 28.6] },
+			{
+				type: "Polygon",
+				coordinates: [
+					[
+						[77, 28],
+						[78, 28],
+						[78, 29],
+						[77, 28],
+					],
+				],
+			},
+		],
+		divisionIds: [division],
+	});
+	await seedLegacyFootprint(legacyOnlyChild, [
+		{ type: "Point", coordinates: [1.0000000006, 2] },
+	]);
+	await seedLegacyFootprint(
+		unmigrated,
+		[
+			{
+				type: "LineString",
+				coordinates: [
+					[0, 0],
+					[1, 1],
+				],
+			},
+		],
+		[foreignDivision],
+	);
+	await seedObservation(harness, { tenantId, eventId: effect, geometries: [] });
+	// 6d-2 attachments: a CA file and link, a form-stored ftp link, and legacy jsonb on the
+	// unmigrated row (a tenantPath item and one with no file_option, A7).
+	await seedCaEventWithFile(harness, {
+		tenantId,
+		specificHazardId,
+		links: [
+			{ title: "Report", url: "https://example.com/a" },
+			{ title: "Old", url: "ftp://example.com/f" },
+		],
+	}).then(({ id }) =>
+		dr
+			.update(hazardousEventTable)
+			.set({ apiImportId: "RT-ATTACHMENTS" })
+			.where(eq(hazardousEventTable.id, id)),
+	);
+	await dr
+		.update(hazardousEventTable)
+		.set({
+			attachments: [
+				{
+					id: "l1",
+					title: "Legacy link",
+					tag: [],
+					file_option: "Link",
+					url: "https://legacy.example/a",
+					view: 1,
+				},
+				{
+					id: "l2",
+					title: "Legacy file",
+					file_option: "File",
+					file: {
+						name: "/uploads/tenant-x/hazardous-event/e/l.pdf",
+						tenantPath: "uploads/tenant-x",
+						content_type: "application/pdf",
+					},
+				},
+				{ id: "l3", title: "No option", url: "https://legacy.example/b" },
+			],
+		})
+		.where(eq(hazardousEventTable.id, unmigrated));
+	return { tenantId, rowCount: 9 };
 }
 
 describe("an exported file re-imports with no change", () => {
@@ -120,6 +211,8 @@ describe("an exported file re-imports with no change", () => {
 			ignoredColumns: expect.any(Array),
 		});
 		expect(await tenantSnapshot(tenantId)).toEqual(before);
+		// No file deleted or promoted; an observation would also have moved updated_at above.
+		expect(harness.storageEvents.filter((e) => e.op !== "commit")).toEqual([]);
 	});
 
 	it("an admin re-imports the export in upsert mode: every row unchanged and no table changes", async () => {
@@ -146,6 +239,8 @@ describe("an exported file re-imports with no change", () => {
 			ignoredColumns: expect.any(Array),
 		});
 		expect(await tenantSnapshot(tenantId)).toEqual(before);
+		// No file deleted or promoted; an observation would also have moved updated_at above.
+		expect(harness.storageEvents.filter((e) => e.op !== "commit")).toEqual([]);
 	});
 
 	// Real data can hold a legacy hip_* id that Phase M never mapped (DEF-055 residual).
