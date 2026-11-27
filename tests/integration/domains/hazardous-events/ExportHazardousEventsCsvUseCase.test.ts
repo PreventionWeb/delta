@@ -1,5 +1,6 @@
 import "../../db/setup";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
+import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
 import { parse } from "csv-parse/sync";
 import {
 	afterEach,
@@ -22,8 +23,12 @@ import {
 	buildCsvHarness,
 	exportAndReparse,
 	seedCaEvent,
+	seedCaEventWithFile,
+	seedDivision,
 	seedLegacyEvent,
+	seedLegacyFootprint,
 	seedLegacyParentLink,
+	seedObservation,
 	seedTaxonomyWithRefs,
 	seedUser,
 	type CsvHarness,
@@ -116,15 +121,18 @@ describe("export contains every event of the session tenant", () => {
 	});
 });
 
-describe("the export keeps the legacy header and appends parent", () => {
-	it("the header is exactly the legacy export header followed by parent", async () => {
+describe("the export keeps the legacy header and appends its columns", () => {
+	it("the header is exactly the legacy export header followed by parent, spatialFootprint and attachments", async () => {
 		const tenantId = await seedCountryAccount();
 
 		const exported = await harness.exportUseCase.execute({ tenantId });
 
-		expect([...exported.header]).toEqual([...E1_HEADER, "parent"]);
-		expect(exported.header).not.toContain("spatialFootprint");
-		expect(exported.header).not.toContain("attachments");
+		expect([...exported.header]).toEqual([
+			...E1_HEADER,
+			"parent",
+			"spatialFootprint",
+			"attachments",
+		]);
 	});
 
 	it("an empty tenant gives a header-only file", async () => {
@@ -134,7 +142,9 @@ describe("the export keeps the legacy header and appends parent", () => {
 		const text = serializeCsv(exported.header, exported.rows);
 
 		expect(exported).toMatchObject({ rows: [], count: 0 });
-		expect(text).toBe(`${[...E1_HEADER, "parent"].join(",")}\r\n`);
+		expect(text).toBe(
+			`${[...E1_HEADER, "parent", "spatialFootprint", "attachments"].join(",")}\r\n`,
+		);
 	});
 });
 
@@ -219,6 +229,155 @@ describe("values come from the CA model, falling back to legacy data", () => {
 	});
 });
 
+describe("spatialFootprint comes from the CA observation, falling back to legacy rows (6d-2)", () => {
+	const POINT = { type: "Point", coordinates: [77.2, 28.6] };
+
+	it("Scenario: A CA footprint exports in the legacy format", async () => {
+		const tenantId = await seedCountryAccount();
+		const tax = await seedTaxonomyWithRefs();
+		const division = await seedDivision(tenantId);
+		const id = await seedCaEvent(harness, {
+			tenantId,
+			specificHazardId: tax.specificHazardId,
+		});
+		await seedObservation(harness, {
+			tenantId,
+			eventId: id,
+			geometries: [POINT],
+			divisionIds: [division],
+		});
+
+		const [record] = await exportedRecords(tenantId);
+
+		expect(JSON.parse(record.spatialFootprint)).toStrictEqual([
+			{
+				map_option: "Map coordinates",
+				geojson: { type: "Feature", geometry: POINT, properties: {} },
+			},
+			{
+				map_option: "Geographic level",
+				division_id: division,
+				geojson: {
+					type: "Feature",
+					geometry: null,
+					properties: { division_id: division },
+				},
+			},
+		]);
+	});
+
+	it("Scenario: A cleared footprint is not resurrected from legacy rows", async () => {
+		const tenantId = await seedCountryAccount();
+		const tax = await seedTaxonomyWithRefs();
+		const id = await seedCaEvent(harness, {
+			tenantId,
+			specificHazardId: tax.specificHazardId,
+		});
+		await seedLegacyFootprint(id, [POINT]);
+		await seedObservation(harness, { tenantId, eventId: id, geometries: [] });
+
+		const [record] = await exportedRecords(tenantId);
+
+		expect(record.spatialFootprint).toBe("[]");
+	});
+
+	it("Scenario: An unmigrated row exports its legacy footprint", async () => {
+		const tenantId = await seedCountryAccount();
+		const id = await seedLegacyEvent({ tenantId });
+		await seedLegacyFootprint(id, [POINT]);
+
+		const [record] = await exportedRecords(tenantId);
+
+		expect(
+			(JSON.parse(record.spatialFootprint) as { geojson: unknown }[]).map(
+				(item) => item.geojson,
+			),
+		).toStrictEqual([{ type: "Feature", geometry: POINT, properties: {} }]);
+	});
+
+	it("an event with no footprint exports []", async () => {
+		const tenantId = await seedCountryAccount();
+		await seedLegacyEvent({ tenantId });
+
+		const [record] = await exportedRecords(tenantId);
+
+		expect(record.spatialFootprint).toBe("[]");
+	});
+});
+
+describe("attachments come from CA rows; unmigrated rows use the legacy jsonb (6d-2)", () => {
+	it("Scenario: A CA link and file export in the legacy format, without tenantPath", async () => {
+		const tenantId = await seedCountryAccount();
+		const tax = await seedTaxonomyWithRefs();
+		const { id, fileKey } = await seedCaEventWithFile(harness, {
+			tenantId,
+			specificHazardId: tax.specificHazardId,
+			links: [{ title: "Report", url: "https://example.com/a" }],
+		});
+
+		const [record] = await exportedRecords(tenantId);
+
+		expect(JSON.parse(record.attachments)).toStrictEqual([
+			{
+				title: "Scan",
+				tag: null,
+				file_option: "File",
+				file: {
+					name: `/uploads/tenant-${tenantId}/hazardous-event/${id}/${fileKey}`,
+					content_type: "application/pdf",
+				},
+			},
+			{
+				title: "Report",
+				tag: null,
+				file_option: "Link",
+				url: "https://example.com/a",
+			},
+		]);
+		expect(record.attachments).not.toContain("tenantPath");
+	});
+
+	it("Scenario: An unmigrated row exports its legacy jsonb items, without tenantPath", async () => {
+		const tenantId = await seedCountryAccount();
+		const id = await seedLegacyEvent({ tenantId });
+		await dr
+			.update(hazardousEventTable)
+			.set({
+				attachments: [
+					{
+						id: "l1",
+						title: "Legacy link",
+						tag: [],
+						file_option: "Link",
+						url: "https://legacy.example/a",
+						view: 1,
+					},
+					{
+						id: "l2",
+						title: "Legacy file",
+						file_option: "File",
+						file: {
+							name: "/uploads/tenant-x/hazardous-event/e/l.pdf",
+							tenantPath: "uploads/tenant-x",
+							content_type: "application/pdf",
+						},
+					},
+					{ id: "l3", title: "No option", url: "https://legacy.example/b" },
+				],
+			})
+			.where(eq(hazardousEventTable.id, id));
+
+		const [record] = await exportedRecords(tenantId);
+
+		const items = JSON.parse(record.attachments) as { title: string }[];
+		expect(items.map((item) => item.title).sort()).toEqual(
+			["Legacy file", "Legacy link", "No option"].sort(),
+		);
+		expect(record.attachments).not.toContain("tenantPath");
+		expect(record.attachments).not.toContain('"view"');
+	});
+});
+
 describe("the file is RFC 4180 CSV in UTF-8", () => {
 	it("a description with a comma, quotes and a line break survives an RFC 4180 round trip", async () => {
 		const tenantId = await seedCountryAccount();
@@ -233,7 +392,9 @@ describe("the file is RFC 4180 CSV in UTF-8", () => {
 		const file = await exportAndReparse(harness, tenantId);
 
 		expect(file.rows[0][file.header.indexOf("description")]).toBe(description);
-		expect(file.text.split("\r\n")[0]).toBe([...E1_HEADER, "parent"].join(","));
+		expect(file.text.split("\r\n")[0]).toBe(
+			[...E1_HEADER, "parent", "spatialFootprint", "attachments"].join(","),
+		);
 	});
 
 	it("non-ASCII text such as Météo-France is preserved through UTF-8", async () => {

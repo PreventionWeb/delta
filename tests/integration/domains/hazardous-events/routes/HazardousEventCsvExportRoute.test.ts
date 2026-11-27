@@ -21,7 +21,13 @@ import { i18nextMiddleware } from "~/middleware/i18next.server";
 import { dr } from "~/db.server";
 import { userTable } from "~/drizzle/schema/userTable";
 import { seedCountryAccount } from "../../../db/models/hazardousEventTestHelpers";
-import { E1_HEADER, seedLegacyEvent } from "../hazardousEventCsvTestHarness";
+import {
+	E1_HEADER,
+	seedLegacyEvent,
+	seedLegacyFootprint,
+} from "../hazardousEventCsvTestHarness";
+import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
+import { eq } from "drizzle-orm";
 
 let testingModule: TestingModule;
 
@@ -63,7 +69,7 @@ const mockRequireUser = vi.mocked(requireUser);
 
 const URL_EXPORT = "http://localhost/en/he-preview/csv-export";
 const TEST_USER_ID = randomUUID();
-const EXPECTED_HEADER_LINE = `${E1_HEADER.join(",")},parent`;
+const EXPECTED_HEADER_LINE = `${E1_HEADER.join(",")},parent,spatialFootprint,attachments`;
 
 beforeAll(async () => {
 	await dr
@@ -216,12 +222,54 @@ describe("Hazardous event CSV export route", () => {
 			]);
 		});
 
-		it("starts with the E1 legacy header followed by ,parent", async () => {
+		it("starts with the E1 legacy header followed by ,parent,spatialFootprint,attachments", async () => {
 			await seedLegacyEvent({ tenantId });
 
 			const text = await (await exportAs(tenantId, "data-viewer")).text();
 
 			expect(text.split("\r\n")[0]).toBe(EXPECTED_HEADER_LINE);
+		});
+
+		it("writes the spatialFootprint and attachments cells as JSON that survives the CSV quoting (6d-2)", async () => {
+			const id = await seedLegacyEvent({ tenantId });
+			await seedLegacyFootprint(id, [
+				{ type: "Point", coordinates: [77.2, 28.6] },
+			]);
+			await dr
+				.update(hazardousEventTable)
+				.set({
+					attachments: [
+						{
+							title: 'Legacy, "quoted"',
+							file_option: "Link",
+							url: "https://example.com/a",
+							tenantPath: "uploads/tenant-x",
+						},
+					],
+				})
+				.where(eq(hazardousEventTable.id, id));
+
+			const parsed = parseBody(
+				await (await exportAs(tenantId, "data-viewer")).text(),
+			);
+
+			expect(JSON.parse(column(parsed, "spatialFootprint")[0])).toStrictEqual([
+				{
+					map_option: "Map coordinates",
+					geojson: {
+						type: "Feature",
+						geometry: { type: "Point", coordinates: [77.2, 28.6] },
+						properties: {},
+					},
+				},
+			]);
+			expect(JSON.parse(column(parsed, "attachments")[0])).toStrictEqual([
+				{
+					title: 'Legacy, "quoted"',
+					file_option: "Link",
+					url: "https://example.com/a",
+				},
+			]);
 		});
 
 		it("ends every record with CRLF and has no bare LF", async () => {

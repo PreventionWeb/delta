@@ -31,6 +31,9 @@ import { getInstance, i18nextMiddleware } from "~/middleware/i18next.server";
 import { dr } from "~/db.server";
 import { userTable } from "~/drizzle/schema/userTable";
 import { userCountryAccountsTable } from "~/drizzle/schema/userCountryAccountsTable";
+import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
+import { hazardousEventAttachmentTable } from "~/domains/hazardous-events/infrastructure/hazardousEventAttachmentTable";
+import { eq } from "drizzle-orm";
 import { SPECIFIC_HAZARD_TAXONOMY_REPOSITORY } from "~/domains/hazardous-events/infrastructure/SpecificHazardTaxonomyRepositoryToken";
 import type { ISpecificHazardTaxonomyRepository } from "~/domains/hazardous-events/application/ports/ISpecificHazardTaxonomyRepository";
 
@@ -1182,6 +1185,147 @@ describe("Hazardous event edit route", () => {
 			expect(detail.specificHazardLocalName).toBe(
 				"Local name kept from legacy import",
 			);
+		});
+	});
+
+	// 6d-2 SA-1 (D12): the shared http(s) rule refuses a Link before anything is written.
+	describe("Link URL scheme check (6d-2, D12)", () => {
+		async function storedState(id: string) {
+			const [event] = await dr
+				.select()
+				.from(hazardousEventTable)
+				.where(eq(hazardousEventTable.id, id));
+			const attachments = await dr
+				.select()
+				.from(hazardousEventAttachmentTable)
+				.where(eq(hazardousEventAttachmentTable.hazardousEventId, id));
+			return { event, attachments };
+		}
+
+		it("Scenario: A data: link is refused on edit and the event is unchanged", async () => {
+			const id = await seedEventAtStatus(tenantId, specificHazardId, "DRAFT");
+			const before = await storedState(id);
+			const { UpdateHazardousEventUseCase } =
+				await import("~/domains/hazardous-events/application/use-cases/UpdateHazardousEvent");
+			const updateSpy = vi.spyOn(
+				testingModule.get(UpdateHazardousEventUseCase),
+				"execute",
+			);
+
+			const result = await action(
+				await makeArgs(
+					id,
+					tenantId,
+					"data-collector",
+					makeEditBody(
+						{
+							description: "would change",
+							attachments: JSON.stringify([
+								{
+									id: "a1",
+									title: "Link",
+									tag: null,
+									file_option: "Link",
+									url: "data:text/html,x",
+								},
+							]),
+						},
+						specificHazardId,
+					),
+				),
+			);
+
+			expect(result).toEqual({
+				success: false,
+				fieldErrors: {
+					attachments: [
+						"Attachment links must start with http:// or https://.",
+					],
+				},
+			});
+			expect(updateSpy).not.toHaveBeenCalled();
+			expect(await storedState(id)).toEqual(before);
+			updateSpy.mockRestore();
+		});
+
+		it("refuses a malformed tag with the translated tag message, before any write", async () => {
+			const id = await seedEventAtStatus(tenantId, specificHazardId, "DRAFT");
+			const before = await storedState(id);
+
+			const result = await action(
+				await makeArgs(
+					id,
+					tenantId,
+					"data-collector",
+					makeEditBody(
+						{
+							attachments: JSON.stringify([
+								{
+									id: "a1",
+									title: "Link",
+									tag: [null],
+									file_option: "Link",
+									url: "https://example.com",
+								},
+							]),
+						},
+						specificHazardId,
+					),
+				),
+			);
+
+			expect(result).toEqual({
+				success: false,
+				fieldErrors: {
+					attachments: [
+						"Attachment tags are not valid. Remove them and add them again.",
+					],
+				},
+			});
+			expect(await storedState(id)).toEqual(before);
+		});
+
+		it("Scenario: Saving an event that already holds an unsafe link is refused until it is fixed", async () => {
+			const id = await seedEventAtStatus(tenantId, specificHazardId, "DRAFT");
+			await dr.insert(hazardousEventAttachmentTable).values({
+				hazardousEventId: id,
+				title: "Old link",
+				type: "Link",
+				url: "ftp://example.com/f",
+			});
+			const before = await storedState(id);
+
+			const result = await action(
+				await makeArgs(
+					id,
+					tenantId,
+					"data-collector",
+					makeEditBody(
+						{
+							attachments: JSON.stringify([
+								{
+									id: "old",
+									title: "Old link",
+									tag: null,
+									file_option: "Link",
+									url: "ftp://example.com/f",
+								},
+							]),
+						},
+						specificHazardId,
+					),
+				),
+			);
+
+			expect(result).toEqual({
+				success: false,
+				fieldErrors: {
+					attachments: [
+						"Attachment links must start with http:// or https://.",
+					],
+				},
+			});
+			expect(await storedState(id)).toEqual(before);
 		});
 	});
 
