@@ -33,6 +33,7 @@ import type { ITransactionRunner } from "~/shared/persistence/ITransactionRunner
 import type { Tx } from "~/db.server";
 import { ValidationError } from "~/shared/errors";
 import { assertNonEmptyString } from "../assertNonEmptyString";
+import { assertAttachmentInputsAllowed } from "../attachmentInputPolicy";
 
 /** Input for CreateHazardousEventUseCase; omits id/createdAt/updatedAt/submittedByUserId/submittedAt/updatedByUserId -- generated or defaulted internally. */
 export interface CreateHazardousEventCommand {
@@ -140,6 +141,7 @@ export class CreateHazardousEventUseCase {
 		// Malformed runtime input (bypassing TypeScript) must fail with ValidationError.
 		assertNonEmptyString(command.tenantId, "tenantId");
 		assertNonEmptyString(command.actingUserId, "actingUserId");
+		assertAttachmentInputsAllowed(command.attachments);
 
 		const id = crypto.randomUUID();
 		const now = new Date();
