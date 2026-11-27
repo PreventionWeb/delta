@@ -124,7 +124,7 @@ export interface IHazardousEventRepository {
 	): Promise<string | null>;
 
 	/** One plain projection per tenant event, `id` ascending, no role filter (OD-9) and no
-	 * rehydration, read in one statement (D9). `tx` lets the import compare inside its own
-	 * transaction (NOD-12). */
+	 * rehydration, read in one statement (D9), including the current observation, attachments
+	 * and their legacy fallbacks. `tx` lets the import compare inside its own transaction (NOD-12). */
 	findExportRows(tenantId: string, tx?: Tx): Promise<HazardousEventExportRow[]>;
 }

@@ -1,6 +1,11 @@
 import type { HazardousEventExportRow } from "../dto/HazardousEventExportRow";
 import { statusToLegacyApprovalStatus } from "./approvalStatusMapping";
 import { EXPORT_HEADER } from "./hazardousEventCsvColumns";
+import { formatSpatialFootprintCell } from "./spatialFootprintCsv";
+import {
+	formatAttachmentsCell,
+	formatLegacyAttachmentsCell,
+} from "./attachmentsCsv";
 
 function timestampCell(value: Date | null): string {
 	return value === null ? "" : value.toISOString();
@@ -70,7 +75,26 @@ export function exportRowCells(
 		specificHazardNationalName: row.specificHazardNationalName ?? "",
 		// Only unmigrated rows fall back: on a migrated row no CA cause means it was cleared (NOD-9).
 		parent: row.causeId ?? (hasHazard ? null : row.legacyParentId) ?? "",
+		spatialFootprint: footprintCell(row),
+		// Only unmigrated rows fall back to the legacy jsonb (OD-6).
+		attachments: hasHazard
+			? formatAttachmentsCell(row.attachments, {
+					tenantId: row.tenantId,
+					eventId: row.id,
+				})
+			: formatLegacyAttachmentsCell(row.legacyAttachments),
 	};
+}
+
+/** A recorded empty observation exports `[]`; legacy rows only stand in when there is none (OD-6). */
+function footprintCell(row: HazardousEventExportRow): string {
+	const observation = row.currentObservation;
+	return observation !== null
+		? formatSpatialFootprintCell(
+				observation.geometries,
+				observation.divisionIds,
+			)
+		: formatSpatialFootprintCell(row.legacyGeometries, row.legacyDivisionIds);
 }
 
 /** One export record in `EXPORT_HEADER` order. */

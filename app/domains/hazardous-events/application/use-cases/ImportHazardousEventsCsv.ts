@@ -2,10 +2,12 @@ import type { Tx } from "~/db.server";
 import type { ILogger } from "~/shared/logging/ILogger";
 import type { ITransactionRunner } from "~/shared/persistence/ITransactionRunner";
 import { DomainError } from "~/shared/errors";
+import type { IAttachmentStoragePort } from "~/domains/shared/attachments/application/ports/IAttachmentStoragePort";
 import type { ApplyImportedWorkflowStatusUseCase } from "~/domains/validation-workflow/application/use-cases/ApplyImportedWorkflowStatus";
 import type { GetWorkflowInstanceByEntityUseCase } from "~/domains/validation-workflow/application/use-cases/GetWorkflowInstanceByEntity";
 import type { IHazardousEventRepository } from "../ports/IHazardousEventRepository";
 import type { ISpecificHazardTaxonomyRepository } from "../ports/ISpecificHazardTaxonomyRepository";
+import type { IDivisionRepository } from "../ports/IDivisionRepository";
 import type { HazardousEventExportRow } from "../dto/HazardousEventExportRow";
 import {
 	MAX_REPORTED_CSV_ERRORS,
@@ -16,15 +18,18 @@ import {
 } from "../dto/HazardousEventCsvImportResult";
 import { checkHeader, isCsvImportMode } from "../csv/hazardousEventCsvColumns";
 import {
+	collectDivisionIds,
 	collectSourceRefs,
 	mapCsvRows,
 	type MappedCsvRow,
 } from "../csv/mapCsvRowToCommand";
 import {
 	changedColumns,
-	checkCreatePathRow,
 	checkUpdateRow,
+	planCreatePathRow,
+	heldFileKeys,
 	planUpdateRow,
+	rowAttachmentInputs,
 	rowErrorForDomainError,
 	toCreateCommand,
 	toUpdateCommand,
@@ -32,6 +37,7 @@ import {
 } from "../csv/importRowPolicy";
 import type { CreateHazardousEventUseCase } from "./CreateHazardousEvent";
 import type { UpdateHazardousEventUseCase } from "./UpdateHazardousEvent";
+import { deleteAttachmentFiles } from "./deleteAttachmentFiles";
 
 export interface ImportHazardousEventsCsvCommand {
 	tenantId: string;
@@ -55,6 +61,9 @@ class CsvRowRejected extends Error {
 }
 
 type Counts = { created: number; updated: number; unchanged: number };
+
+/** Files an update row removed, deleted only once the import has committed (D7). */
+type FileDeletion = { ownerId: string; fileKeys: readonly string[] };
 
 type RejectedResult = Extract<HazardousEventCsvImportResult, { ok: false }>;
 
@@ -98,6 +107,14 @@ export class ImportHazardousEventsCsvUseCase {
 			"execute"
 		>,
 		private readonly transactionRunner: ITransactionRunner,
+		private readonly divisionRepository: Pick<
+			IDivisionRepository,
+			"findValidDivisionIds"
+		>,
+		private readonly attachmentStoragePort: Pick<
+			IAttachmentStoragePort,
+			"delete"
+		>,
 	) {}
 
 	async execute(
@@ -119,19 +136,24 @@ export class ImportHazardousEventsCsvUseCase {
 			return this.rejected(command.tenantId, mode, header);
 		}
 
-		// The only pre-transaction read: one taxonomy lookup for every row (D13).
+		// The only pre-transaction reads: one taxonomy lookup (D13) and one tenant-scoped
+		// division check (D4) for every row.
 		const lookup = await this.taxonomyRepository.findBySourceRefIds(
 			collectSourceRefs(header.columns, command.rows),
+		);
+		const validDivisionIds = await this.divisionRepository.findValidDivisionIds(
+			collectDivisionIds(header.columns, command.rows),
+			command.tenantId,
 		);
 		const mapped = mapCsvRows({
 			mode,
 			columns: header.columns,
-			notYetImportedIndexes: header.notYetImportedIndexes,
 			rows: command.rows,
 			firstDataLine: command.firstDataLine,
 			lineNumbers: command.lineNumbers,
 			role: command.role,
 			lookup,
+			validDivisionIds,
 		});
 		if (mapped.errors.length > 0) {
 			return this.rejected(command.tenantId, mode, {
@@ -140,10 +162,11 @@ export class ImportHazardousEventsCsvUseCase {
 			});
 		}
 
-		let counts: Counts;
+		const importTime = new Date();
+		let written: { counts: Counts; fileDeletions: FileDeletion[] };
 		try {
-			counts = await this.transactionRunner.run((tx) =>
-				this.writeRows(command, mode, mapped.rows, tx),
+			written = await this.transactionRunner.run((tx) =>
+				this.writeRows(command, mode, mapped.rows, tx, importTime),
 			);
 		} catch (err) {
 			if (!(err instanceof CsvRowRejected)) {
@@ -155,21 +178,28 @@ export class ImportHazardousEventsCsvUseCase {
 			});
 		}
 
+		// Committed: a failure here can only orphan a file, never leave a dangling row.
+		for (const { ownerId, fileKeys } of written.fileDeletions) {
+			await deleteAttachmentFiles(
+				this.attachmentStoragePort,
+				this.logger,
+				command.tenantId,
+				ownerId,
+				fileKeys,
+			);
+		}
+		const { counts } = written;
 		this.logger.info({
 			msg: "hazardous_events.csv_imported",
 			tenantId: command.tenantId,
 			mode,
 			...counts,
 		});
-		const skippedRows = mapped.rows.filter(
-			(row) => row.hasNotYetImportedData,
-		).length;
 		return {
 			ok: true,
 			mode,
 			...counts,
 			ignoredColumns: header.ignoredColumns,
-			...(skippedRows > 0 ? { skippedDataNotice: { rows: skippedRows } } : {}),
 		};
 	}
 
@@ -223,12 +253,15 @@ export class ImportHazardousEventsCsvUseCase {
 		mode: HazardousEventCsvImportMode,
 		rows: readonly MappedCsvRow[],
 		tx: Tx,
-	): Promise<Counts> {
+		importTime: Date,
+	): Promise<{ counts: Counts; fileDeletions: FileDeletion[] }> {
 		const counts: Counts = { created: 0, updated: 0, unchanged: 0 };
+		const fileDeletions: FileDeletion[] = [];
 		const context: CsvCommandContext = {
 			tenantId: command.tenantId,
 			actingUserId: command.actingUserId,
 			tx,
+			importTime,
 		};
 		// Read once in the import's transaction; a matched row always pre-exists the file (D14).
 		const existingById =
@@ -251,6 +284,7 @@ export class ImportHazardousEventsCsvUseCase {
 					row,
 					existingById,
 					context,
+					fileDeletions,
 				);
 				counts[outcome] += 1;
 			} catch (err) {
@@ -263,7 +297,7 @@ export class ImportHazardousEventsCsvUseCase {
 				throw err;
 			}
 		}
-		return counts;
+		return { counts, fileDeletions };
 	}
 
 	private async writeRow(
@@ -272,9 +306,10 @@ export class ImportHazardousEventsCsvUseCase {
 		row: MappedCsvRow,
 		existingById: ReadonlyMap<string, HazardousEventExportRow>,
 		context: CsvCommandContext,
+		fileDeletions: FileDeletion[],
 	): Promise<keyof Counts> {
 		if (mode === "create") {
-			return this.createRow(command, row, context);
+			return this.createPathRow(command, row, context);
 		}
 		if (mode === "update") {
 			const existing = existingById.get(row.id ?? "");
@@ -285,7 +320,7 @@ export class ImportHazardousEventsCsvUseCase {
 					column: "id",
 				});
 			}
-			return this.updateRow(command, row, existing, context);
+			return this.updateRow(command, row, existing, context, fileDeletions);
 		}
 		const existingId = await this.hazardousEventRepository.findIdByApiImportId(
 			row.apiImportId ?? "",
@@ -293,11 +328,7 @@ export class ImportHazardousEventsCsvUseCase {
 			context.tx,
 		);
 		if (existingId === null) {
-			const ruleError = checkCreatePathRow(row, command.role);
-			if (ruleError !== null) {
-				throw new CsvRowRejected(ruleError);
-			}
-			return this.createRow(command, row, context);
+			return this.createPathRow(command, row, context);
 		}
 		const existing = existingById.get(existingId);
 		if (existing === undefined) {
@@ -308,16 +339,21 @@ export class ImportHazardousEventsCsvUseCase {
 				column: "apiImportId",
 			});
 		}
-		return this.updateRow(command, row, existing, context);
+		return this.updateRow(command, row, existing, context, fileDeletions);
 	}
 
-	private async createRow(
+	/** Create mode re-checks what phase 1 already reported; upsert rows are checked here first. */
+	private async createPathRow(
 		command: ImportHazardousEventsCsvCommand,
 		row: MappedCsvRow,
 		context: CsvCommandContext,
 	): Promise<"created"> {
+		const plan = planCreatePathRow(row, command.role);
+		if (!plan.ok) {
+			throw new CsvRowRejected(plan.error);
+		}
 		const created = await this.createHazardousEventUseCase.execute(
-			toCreateCommand(row, context),
+			toCreateCommand(row, context, plan.attachments),
 		);
 		if (row.targetStatus !== undefined && row.targetStatus !== "DRAFT") {
 			await this.applyStatus(command, created.id, row, context.tx);
@@ -330,6 +366,7 @@ export class ImportHazardousEventsCsvUseCase {
 		row: MappedCsvRow,
 		existing: HazardousEventExportRow,
 		context: CsvCommandContext,
+		fileDeletions: FileDeletion[],
 	): Promise<"updated" | "unchanged"> {
 		const changed = changedColumns(row, existing);
 		if (changed.length === 0) {
@@ -348,14 +385,31 @@ export class ImportHazardousEventsCsvUseCase {
 			plan,
 			role: command.role,
 			workflowStatus: workflow?.status ?? null,
+			importTime: context.importTime,
 		});
 		if (ruleError !== null) {
 			throw new CsvRowRejected(ruleError);
 		}
+		// File references resolve against the files this transaction's read shows (D5).
+		const attachments = rowAttachmentInputs(row, heldFileKeys(existing));
+		if (!attachments.ok) {
+			throw new CsvRowRejected(attachments.error);
+		}
 		if (plan.fieldsChanged) {
-			await this.updateHazardousEventUseCase.execute(
-				toUpdateCommand(row, existing.id, changed, context),
+			const result = await this.updateHazardousEventUseCase.execute(
+				toUpdateCommand(row, existing.id, changed, context, {
+					attachments: attachments.inputs,
+					// Locks against this transaction's snapshot, so two overlapping imports
+					// cannot both commit a change to one event.
+					expectedUpdatedAt: existing.updatedAt,
+				}),
 			);
+			if (result.fileKeysToDelete.length > 0) {
+				fileDeletions.push({
+					ownerId: existing.id,
+					fileKeys: result.fileKeysToDelete,
+				});
+			}
 		}
 		if (plan.statusChanged) {
 			await this.applyStatus(command, existing.id, row, context.tx);

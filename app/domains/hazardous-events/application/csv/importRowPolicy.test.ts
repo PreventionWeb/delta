@@ -13,6 +13,7 @@ import {
 	WorkflowInstanceNotFoundError,
 } from "~/domains/validation-workflow/application/errors/WorkflowInstanceErrors";
 import type { Status } from "~/domains/validation-workflow/domain/WorkflowInstance";
+import type { HazardousEventAttachmentInput } from "../dto/HazardousEventAttachmentInput";
 import type { HazardousEventCsvRowError } from "../dto/HazardousEventCsvImportResult";
 import type { HazardousEventExportRow } from "../dto/HazardousEventExportRow";
 import { API_IMPORT_ID_CONFLICT } from "../ports/IHazardousEventRepository";
@@ -22,9 +23,12 @@ import {
 	changedColumns,
 	checkCreatePathRow,
 	checkUpdateRow,
+	planCreatePathRow,
 	type CsvCommandContext,
+	heldFileKeys,
 	planUpdateRow,
 	requiredCellErrors,
+	rowAttachmentInputs,
 	rowErrorForDomainError,
 	toCreateCommand,
 	toUpdateCommand,
@@ -86,6 +90,11 @@ describe("importRowPolicy: changedColumns", () => {
 			legacyHipClusterId: "1743",
 			legacyHipTypeId: "1038",
 			legacyParentId: null,
+			currentObservation: null,
+			legacyGeometries: [],
+			legacyDivisionIds: [],
+			attachments: [],
+			legacyAttachments: [],
 			...overrides,
 		};
 	}
@@ -98,7 +107,6 @@ describe("importRowPolicy: changedColumns", () => {
 			line: 2,
 			cells: new Map(cells),
 			fields: {},
-			hasNotYetImportedData: false,
 			deferredErrors: [],
 			...extra,
 		};
@@ -466,12 +474,226 @@ describe("importRowPolicy: changedColumns", () => {
 				).toStrictEqual([]);
 			});
 		});
+
+		describe("attachments (D6, OD-2, OD-6)", () => {
+			const LINK = {
+				type: "Link" as const,
+				title: "Report",
+				url: "https://example.com/a",
+				tag: null,
+				fileKey: null,
+				fileType: null,
+			};
+			const FILE = {
+				type: "File" as const,
+				title: "Scan",
+				url: null,
+				tag: [{ id: "t", name: "Tag" }],
+				fileKey: "k.pdf",
+				fileType: "application/pdf",
+			};
+			const withBoth = exportRow({ attachments: [LINK, FILE] });
+
+			function attachmentsRow(value: unknown) {
+				return row([
+					[
+						"attachments",
+						typeof value === "string" ? value : JSON.stringify(value),
+					],
+				]);
+			}
+
+			const linkItem = {
+				title: "Report",
+				tag: [],
+				file_option: "Link",
+				url: "https://example.com/a",
+			};
+			const fileItem = {
+				title: "Scan",
+				tag: [{ id: "t", name: "Tag" }],
+				file_option: "File",
+				file: { name: "/elsewhere/k.pdf" },
+			};
+
+			it("does not report an empty cell, even over attachments", () => {
+				expect(changedColumns(attachmentsRow(""), withBoth)).toStrictEqual([]);
+			});
+
+			it("does not report the same set in another order, without ids, with a null tag written as []", () => {
+				expect(
+					changedColumns(attachmentsRow([fileItem, linkItem]), withBoth),
+				).toStrictEqual([]);
+			});
+
+			it("reports a changed title", () => {
+				expect(
+					changedColumns(
+						attachmentsRow([{ ...linkItem, title: "Other" }, fileItem]),
+						withBoth,
+					),
+				).toStrictEqual(["attachments"]);
+			});
+
+			it("reports [] over attachments, and not over none", () => {
+				expect(changedColumns(attachmentsRow("[]"), withBoth)).toStrictEqual([
+					"attachments",
+				]);
+				expect(changedColumns(attachmentsRow("[]"), exportRow())).toStrictEqual(
+					[],
+				);
+			});
+
+			it("compares an unmigrated row with its legacy jsonb (OD-6)", () => {
+				const legacy = exportRow({
+					specificHazardId: null,
+					attachments: [LINK],
+					legacyAttachments: [
+						{
+							id: "x",
+							title: "Legacy",
+							file_option: "Link",
+							url: "https://l.example",
+						},
+					],
+				});
+				expect(
+					changedColumns(
+						attachmentsRow([
+							{
+								title: "Legacy",
+								file_option: "Link",
+								url: "https://l.example",
+							},
+						]),
+						legacy,
+					),
+				).toStrictEqual([]);
+			});
+		});
+
+		describe("spatialFootprint (D6, OD-2)", () => {
+			const D1 = "694d72d0-0000-4000-8000-000000000001";
+			const D2 = "694d72d0-0000-4000-8000-000000000002";
+			const POINT = { type: "Point", coordinates: [77.2, 28.6] };
+			const LINE_GEOM = {
+				type: "LineString",
+				coordinates: [
+					[77, 28],
+					[78, 29],
+				],
+			};
+			const observed = exportRow({
+				currentObservation: {
+					observationTime: new Date("2026-01-01T00:00:00Z"),
+					geometries: [POINT, LINE_GEOM],
+					divisionIds: [D1],
+				},
+			});
+
+			function footprintRow(value: unknown) {
+				return row([
+					[
+						"spatialFootprint",
+						typeof value === "string" ? value : JSON.stringify(value),
+					],
+				]);
+			}
+
+			it("does not report an empty cell, even over a non-empty footprint", () => {
+				expect(changedColumns(footprintRow(""), observed)).toStrictEqual([]);
+			});
+
+			it("does not report the same footprint reformatted and reordered", () => {
+				const cell = JSON.stringify(
+					[
+						{ map_option: "Geographic level", division_id: D1 },
+						{ map_option: "Map coordinates", geojson: LINE_GEOM },
+						{
+							map_option: "Map coordinates",
+							geojson: { type: "Feature", geometry: POINT, properties: {} },
+						},
+					],
+					null,
+					2,
+				);
+				expect(changedColumns(footprintRow(cell), observed)).toStrictEqual([]);
+			});
+
+			it("reports a different footprint", () => {
+				expect(
+					changedColumns(
+						footprintRow([
+							{ map_option: "Map coordinates", geojson: POINT },
+							{ map_option: "Geographic level", division_id: D2 },
+						]),
+						observed,
+					),
+				).toStrictEqual(["spatialFootprint"]);
+			});
+
+			it("reports [] over a non-empty current observation", () => {
+				expect(changedColumns(footprintRow("[]"), observed)).toStrictEqual([
+					"spatialFootprint",
+				]);
+			});
+
+			it("does not report [] when the event has no footprint at all", () => {
+				expect(changedColumns(footprintRow("[]"), exportRow())).toStrictEqual(
+					[],
+				);
+			});
+
+			it("does not report [] over an empty current observation, whatever the legacy rows", () => {
+				expect(
+					changedColumns(
+						footprintRow("[]"),
+						exportRow({
+							currentObservation: {
+								observationTime: new Date("2026-01-01T00:00:00Z"),
+								geometries: [],
+								divisionIds: [],
+							},
+							legacyGeometries: [POINT],
+							legacyDivisionIds: [D1],
+						}),
+					),
+				).toStrictEqual([]);
+			});
+
+			it("compares against the legacy rows when there is no CA observation (OD-6)", () => {
+				const legacy = exportRow({
+					legacyGeometries: [POINT],
+					legacyDivisionIds: [D1],
+				});
+				expect(
+					changedColumns(
+						footprintRow([
+							{ map_option: "Map coordinates", geojson: POINT },
+							{ map_option: "Geographic level", division_id: D1 },
+						]),
+						legacy,
+					),
+				).toStrictEqual([]);
+				expect(changedColumns(footprintRow("[]"), legacy)).toStrictEqual([
+					"spatialFootprint",
+				]);
+			});
+
+			it("reports a cell the parser rejects when its JSON differs from the export", () => {
+				const odd = JSON.stringify([{ map_option: "Other" }]);
+				expect(changedColumns(footprintRow(odd), observed)).toStrictEqual([
+					"spatialFootprint",
+				]);
+			});
+		});
 	});
 });
 
 describe("importRowPolicy: rowRules", () => {
 	const SH_ID = "11111111-1111-4111-8111-111111111111";
 	const LINE = 7;
+	const IMPORT_TIME = new Date("2026-11-26T10:00:00.000Z");
 
 	function exportRow(
 		overrides: Partial<HazardousEventExportRow> = {},
@@ -520,6 +742,11 @@ describe("importRowPolicy: rowRules", () => {
 			legacyHipClusterId: null,
 			legacyHipTypeId: null,
 			legacyParentId: null,
+			currentObservation: null,
+			legacyGeometries: [],
+			legacyDivisionIds: [],
+			attachments: [],
+			legacyAttachments: [],
 			...overrides,
 		};
 	}
@@ -529,7 +756,6 @@ describe("importRowPolicy: rowRules", () => {
 			line: LINE,
 			cells: new Map(),
 			fields: {},
-			hasNotYetImportedData: false,
 			deferredErrors: [],
 			...extra,
 		};
@@ -550,26 +776,31 @@ describe("importRowPolicy: rowRules", () => {
 		fieldsChanged: true,
 		statusChanged: false,
 		parentChanged: false,
+		footprintChanged: false,
 	};
 	const STATUS = {
 		fieldsChanged: false,
 		statusChanged: true,
 		parentChanged: false,
+		footprintChanged: false,
 	};
 	const BOTH = {
 		fieldsChanged: true,
 		statusChanged: true,
 		parentChanged: false,
+		footprintChanged: false,
 	};
 	const NONE = {
 		fieldsChanged: false,
 		statusChanged: false,
 		parentChanged: false,
+		footprintChanged: false,
 	};
 	const PARENT = {
 		fieldsChanged: true,
 		statusChanged: false,
 		parentChanged: true,
+		footprintChanged: false,
 	};
 
 	describe("planUpdateRow", () => {
@@ -610,6 +841,16 @@ describe("importRowPolicy: rowRules", () => {
 				fieldsChanged: true,
 				statusChanged: true,
 				parentChanged: true,
+				footprintChanged: false,
+			});
+		});
+
+		it("flags a footprint change as a field change (D6)", () => {
+			expect(planUpdateRow(["spatialFootprint"])).toStrictEqual({
+				fieldsChanged: true,
+				statusChanged: false,
+				parentChanged: false,
+				footprintChanged: true,
 			});
 		});
 	});
@@ -621,6 +862,7 @@ describe("importRowPolicy: rowRules", () => {
 			plan?: UpdateRowPlan;
 			role?: string | null;
 			workflowStatus?: Status | null;
+			importTime?: Date;
 		}) =>
 			checkUpdateRow({
 				row: args.row ?? row(),
@@ -629,6 +871,7 @@ describe("importRowPolicy: rowRules", () => {
 				role: args.role === undefined ? "admin" : args.role,
 				workflowStatus:
 					args.workflowStatus === undefined ? null : args.workflowStatus,
+				importTime: args.importTime ?? IMPORT_TIME,
 			});
 
 		it("returns null when every rule passes", () => {
@@ -929,6 +1172,324 @@ describe("importRowPolicy: rowRules", () => {
 					}),
 				).toBeNull();
 			});
+		});
+	});
+
+	describe("heldFileKeys and rowAttachmentInputs (D5)", () => {
+		const FILE_ROW = {
+			type: "File" as const,
+			title: "Scan",
+			url: null,
+			tag: null,
+			fileKey: "k.pdf",
+			fileType: "application/pdf",
+		};
+		const LINK_ROW = {
+			type: "Link" as const,
+			title: "Report",
+			url: "https://example.com/k2.pdf",
+			tag: null,
+			fileKey: null,
+			fileType: null,
+		};
+
+		it("holds only the CA File rows' keys, never Link rows or the legacy jsonb", () => {
+			expect([
+				...heldFileKeys(
+					exportRow({
+						attachments: [FILE_ROW, LINK_ROW],
+						legacyAttachments: [
+							{ file_option: "File", file: { name: "/x/legacy.pdf" } },
+						],
+					}),
+				),
+			]).toStrictEqual(["k.pdf"]);
+		});
+
+		it("gives no inputs for a row without attachment items", () => {
+			expect(rowAttachmentInputs(row(), new Set())).toStrictEqual({
+				ok: true,
+				inputs: undefined,
+			});
+		});
+
+		it("builds link and existing-file inputs", () => {
+			expect(
+				rowAttachmentInputs(
+					row({
+						attachments: [
+							{ type: "Link", title: "L", tag: null, url: "https://a.example" },
+							{
+								type: "File",
+								title: "F",
+								tag: null,
+								fileKey: "k.pdf",
+								staged: false,
+							},
+						],
+					}),
+					new Set(["k.pdf"]),
+				),
+			).toStrictEqual({
+				ok: true,
+				inputs: [
+					{
+						id: "",
+						title: "L",
+						tag: null,
+						kind: "link",
+						url: "https://a.example",
+					},
+					{
+						id: "",
+						title: "F",
+						tag: null,
+						kind: "existingFile",
+						fileKey: "k.pdf",
+					},
+				],
+			});
+		});
+
+		it("reports invalid_attachment_url on the attachments column, echoing the URL", () => {
+			expect(
+				rowAttachmentInputs(
+					row({
+						attachments: [
+							{
+								type: "Link",
+								title: "L",
+								tag: null,
+								url: "ftp://example.com/f",
+							},
+						],
+					}),
+					new Set(),
+				),
+			).toStrictEqual({
+				ok: false,
+				error: {
+					line: LINE,
+					code: "invalid_attachment_url",
+					column: "attachments",
+					value: "ftp://example.com/f",
+				},
+			});
+		});
+
+		it("reports file_reference_not_supported for a key the event does not hold", () => {
+			expect(
+				rowAttachmentInputs(
+					row({
+						attachments: [
+							{
+								type: "File",
+								title: "F",
+								tag: null,
+								fileKey: "other.pdf",
+								staged: false,
+							},
+						],
+					}),
+					new Set(["k.pdf"]),
+				),
+			).toMatchObject({
+				ok: false,
+				error: { code: "file_reference_not_supported", value: "other.pdf" },
+			});
+		});
+
+		it("truncates an echoed URL to 100 characters", () => {
+			const url = `ftp://${"a".repeat(200)}`;
+			const result = rowAttachmentInputs(
+				row({ attachments: [{ type: "Link", title: "L", tag: null, url }] }),
+				new Set(),
+			);
+			expect(!result.ok && result.error.value).toBe(url.slice(0, 100));
+		});
+	});
+
+	describe("checkCreatePathRow: File references (D5)", () => {
+		it("rejects a File item on the create path, after the deferred errors", () => {
+			const fileRow = row({
+				cells: new Map([
+					["startDate", "2025"],
+					["endDate", "2025"],
+					["recordOriginator", "A"],
+				]),
+				specificHazardId: SH_ID,
+				attachments: [
+					{
+						type: "File",
+						title: "F",
+						tag: null,
+						fileKey: "k.pdf",
+						staged: false,
+					},
+				],
+			});
+			expect(checkCreatePathRow(fileRow, "admin")).toStrictEqual({
+				line: LINE,
+				code: "file_reference_not_supported",
+				column: "attachments",
+				value: "k.pdf",
+			});
+			expect(
+				checkCreatePathRow({ ...fileRow, deferredErrors: [deferred] }, "admin"),
+			).toStrictEqual(deferred);
+		});
+
+		it("accepts an https Link on the create path", () => {
+			expect(
+				checkCreatePathRow(
+					row({
+						cells: new Map([
+							["startDate", "2025"],
+							["endDate", "2025"],
+							["recordOriginator", "A"],
+						]),
+						specificHazardId: SH_ID,
+						attachments: [
+							{ type: "Link", title: "L", tag: null, url: "https://a.example" },
+						],
+					}),
+					"admin",
+				),
+			).toBeNull();
+		});
+	});
+
+	describe("planCreatePathRow (6d-2)", () => {
+		const complete = new Map<MappedColumn, string>([
+			["startDate", "2025"],
+			["endDate", "2025"],
+			["recordOriginator", "A"],
+		]);
+
+		it("returns the attachment inputs of a valid create-path row", () => {
+			expect(
+				planCreatePathRow(
+					row({
+						cells: complete,
+						specificHazardId: SH_ID,
+						attachments: [
+							{ type: "Link", title: "L", tag: null, url: "https://a.example" },
+						],
+					}),
+					"admin",
+				),
+			).toStrictEqual({
+				ok: true,
+				attachments: [
+					{
+						id: "",
+						title: "L",
+						tag: null,
+						kind: "link",
+						url: "https://a.example",
+					},
+				],
+			});
+		});
+
+		it("returns no inputs for a row without attachments", () => {
+			expect(
+				planCreatePathRow(
+					row({ cells: complete, specificHazardId: SH_ID }),
+					"admin",
+				),
+			).toStrictEqual({ ok: true, attachments: [] });
+		});
+
+		it("returns the first rule error, as checkCreatePathRow does", () => {
+			expect(
+				planCreatePathRow(row({ cells: complete }), "admin"),
+			).toStrictEqual({
+				ok: false,
+				error: { line: LINE, code: "specific_hazard_required" },
+			});
+		});
+	});
+
+	describe("checkUpdateRow: OD-9 current observation dated after the import", () => {
+		const FOOTPRINT = {
+			fieldsChanged: true,
+			statusChanged: false,
+			parentChanged: false,
+			footprintChanged: true,
+		};
+		const check = (args: {
+			observationTime: Date | null;
+			plan?: UpdateRowPlan;
+		}) =>
+			checkUpdateRow({
+				row: row(),
+				existing: exportRow({
+					currentObservation:
+						args.observationTime === null
+							? null
+							: {
+									observationTime: args.observationTime,
+									geometries: [],
+									divisionIds: [],
+								},
+				}),
+				plan: args.plan ?? FOOTPRINT,
+				role: "admin",
+				workflowStatus: null,
+				importTime: IMPORT_TIME,
+			});
+
+		it("rejects a changed footprint with conflict on spatialFootprint", () => {
+			expect(
+				check({ observationTime: new Date(IMPORT_TIME.getTime() + 1) }),
+			).toStrictEqual({
+				line: LINE,
+				code: "conflict",
+				column: "spatialFootprint",
+			});
+		});
+
+		it("allows a current observation dated before the import", () => {
+			expect(
+				check({ observationTime: new Date(IMPORT_TIME.getTime() - 1) }),
+			).toBeNull();
+		});
+
+		it("leaves an observation at the import time to the unique constraint", () => {
+			expect(check({ observationTime: IMPORT_TIME })).toBeNull();
+		});
+
+		it("allows an event with no observation", () => {
+			expect(check({ observationTime: null })).toBeNull();
+		});
+
+		it("does not apply when the footprint did not change", () => {
+			expect(
+				check({
+					observationTime: new Date(IMPORT_TIME.getTime() + 1),
+					plan: FIELDS,
+				}),
+			).toBeNull();
+		});
+
+		it("comes after not_editable", () => {
+			expect(
+				checkUpdateRow({
+					row: row(),
+					existing: exportRow({
+						currentObservation: {
+							observationTime: new Date(IMPORT_TIME.getTime() + 1),
+							geometries: [],
+							divisionIds: [],
+						},
+					}),
+					plan: FOOTPRINT,
+					role: "data-collector",
+					workflowStatus: "PUBLISHED",
+					importTime: IMPORT_TIME,
+				}),
+			).toStrictEqual({ line: LINE, code: "not_editable" });
 		});
 	});
 
@@ -1289,10 +1850,12 @@ describe("importRowPolicy: csvRowCommands", () => {
 
 	// Opaque handle: the mappers only pass it through, never call it.
 	const tx = {} as Tx;
+	const IMPORT_TIME = new Date("2026-11-26T10:00:00.000Z");
 	const context: CsvCommandContext = {
 		tenantId: TENANT_ID,
 		actingUserId: USER_ID,
 		tx,
+		importTime: IMPORT_TIME,
 	};
 
 	function row(extra: Partial<MappedCsvRow> = {}): MappedCsvRow {
@@ -1300,7 +1863,6 @@ describe("importRowPolicy: csvRowCommands", () => {
 			line: 2,
 			cells: new Map(),
 			fields: {},
-			hasNotYetImportedData: false,
 			deferredErrors: [],
 			...extra,
 		};
@@ -1534,6 +2096,132 @@ describe("importRowPolicy: csvRowCommands", () => {
 
 		it("passes the transaction through by reference", () => {
 			expect(toUpdateCommand(row(), EVENT_ID, [], context).tx).toBe(tx);
+		});
+	});
+
+	describe("attachments (D5, NOD-7)", () => {
+		const inputs: HazardousEventAttachmentInput[] = [
+			{ kind: "link", id: "", title: "L", tag: null, url: "https://a.example" },
+		];
+
+		it("puts the given inputs on a create command, defaulting to none", () => {
+			expect(toCreateCommand(row(), context, inputs).attachments).toBe(inputs);
+			expect(toCreateCommand(row(), context).attachments).toStrictEqual([]);
+		});
+
+		it("carries attachments on an update command only when they changed", () => {
+			expect(
+				toUpdateCommand(row(), EVENT_ID, ["attachments"], context, {
+					attachments: inputs,
+				}).attachments,
+			).toBe(inputs);
+			expect(
+				"attachments" in
+					toUpdateCommand(row(), EVENT_ID, ["description"], context, {
+						attachments: inputs,
+					}),
+			).toBe(false);
+		});
+
+		it("carries an empty set when [] changed the attachments, so they are cleared", () => {
+			expect(
+				toUpdateCommand(row(), EVENT_ID, ["attachments"], context, {
+					attachments: [],
+				}).attachments,
+			).toStrictEqual([]);
+		});
+	});
+
+	describe("expectedUpdatedAt (6d-2 concurrency)", () => {
+		it("passes the projection's updatedAt to Update as the expected version", () => {
+			const at = new Date("2026-01-05T12:30:00.000Z");
+			expect(
+				toUpdateCommand(row(), EVENT_ID, ["description"], context, {
+					expectedUpdatedAt: at,
+				}).expectedUpdatedAt,
+			).toBe(at);
+			expect(
+				toUpdateCommand(row(), EVENT_ID, ["description"], context, {
+					expectedUpdatedAt: null,
+				}).expectedUpdatedAt,
+			).toBeNull();
+		});
+	});
+
+	describe("spatialObservation (D3)", () => {
+		const D1 = "694d72d0-0000-4000-8000-000000000001";
+		const POINT = { type: "Point", coordinates: [77.2, 28.6] };
+		const footprint = { geometries: [POINT], divisionIds: [D1] };
+		const empty = { geometries: [], divisionIds: [] };
+
+		it("adds a non-empty footprint to a create command at the import time", () => {
+			expect(
+				toCreateCommand(row({ spatialFootprint: footprint }), context)
+					.spatialObservation,
+			).toStrictEqual({
+				geometries: [POINT],
+				divisionIds: [D1],
+				observationTime: IMPORT_TIME,
+			});
+		});
+
+		it("records nothing on create for [] or an absent footprint", () => {
+			expect(
+				"spatialObservation" in
+					toCreateCommand(row({ spatialFootprint: empty }), context),
+			).toBe(false);
+			expect("spatialObservation" in toCreateCommand(row(), context)).toBe(
+				false,
+			);
+		});
+
+		it("adds the footprint to an update command only when it changed", () => {
+			expect(
+				toUpdateCommand(
+					row({ spatialFootprint: footprint }),
+					EVENT_ID,
+					["spatialFootprint"],
+					context,
+				).spatialObservation,
+			).toStrictEqual({
+				geometries: [POINT],
+				divisionIds: [D1],
+				observationTime: IMPORT_TIME,
+			});
+			expect(
+				"spatialObservation" in
+					toUpdateCommand(
+						row({ spatialFootprint: footprint }),
+						EVENT_ID,
+						["description"],
+						context,
+					),
+			).toBe(false);
+		});
+
+		it("records an empty observation when [] changed the footprint (NOD-8)", () => {
+			expect(
+				toUpdateCommand(
+					row({ spatialFootprint: empty }),
+					EVENT_ID,
+					["spatialFootprint"],
+					context,
+				).spatialObservation,
+			).toStrictEqual({
+				geometries: [],
+				divisionIds: [],
+				observationTime: IMPORT_TIME,
+			});
+		});
+
+		it("does not put the footprint among the event fields", () => {
+			const command = toUpdateCommand(
+				row({ spatialFootprint: footprint }),
+				EVENT_ID,
+				["spatialFootprint"],
+				context,
+			);
+			expect(Object.keys(command)).not.toContain("spatialFootprint");
 		});
 	});
 });
