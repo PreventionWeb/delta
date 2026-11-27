@@ -65,10 +65,24 @@ export const loader = async (
 				}))
 			: [];
 
+	const isPublicAccess = !userSession;
+	const visibleParent =
+		isPublicAccess && result.item.parent?.approvalStatus !== "published"
+			? null
+			: result.item.parent;
+	const visibleChildren =
+		isPublicAccess && Array.isArray(result.item.children)
+			? result.item.children.filter(
+					(child: any) => child?.approvalStatus === "published",
+				)
+			: result.item.children;
+
 	return {
 		...result,
 		item: {
 			...result.item,
+			parent: visibleParent,
+			children: visibleChildren,
 			returnAssignees,
 		},
 	};

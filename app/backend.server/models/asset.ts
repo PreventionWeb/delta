@@ -432,8 +432,18 @@ function notesExpr(ctx: BackendContext) {
   `;
 }
 
-export async function searchAssets(ctx: BackendContext, query: string) {
+export async function searchAssets(
+	ctx: BackendContext,
+	query: string,
+	countryAccountsId: string,
+) {
 	return await assetSelect(ctx, dr).where(
-		sql`lower(${nameExpr(ctx)}) ILIKE ${`%${query}%`}`,
+		and(
+			sql`lower(${nameExpr(ctx)}) ILIKE ${`%${query}%`}`,
+			or(
+				eq(assetTable.isBuiltIn, true),
+				eq(assetTable.countryAccountsId, countryAccountsId),
+			),
+		),
 	);
 }

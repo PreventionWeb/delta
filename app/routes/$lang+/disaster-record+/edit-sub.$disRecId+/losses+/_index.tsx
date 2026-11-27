@@ -25,6 +25,7 @@ import { ViewContext } from "~/frontend/context";
 import { LangLink } from "~/utils/link";
 import { BackendContext } from "~/backend.server/context";
 import { sectorTable } from "~/drizzle/schema/sectorTable";
+import { DisasterRecordsRepository } from "~/db/queries/disasterRecordsRepository";
 
 export const loader = authLoaderWithPerm("ViewData", async (loaderArgs) => {
 	const ctx = new BackendContext(loaderArgs);
@@ -42,9 +43,20 @@ export const loader = authLoaderWithPerm("ViewData", async (loaderArgs) => {
 	}
 
 	const countryAccountsId = await getCountryAccountsIdFromSession(request);
+	if (!countryAccountsId) {
+		throw new Response("Unauthorized", { status: 401 });
+	}
+	const disasterRecords =
+		await DisasterRecordsRepository.getByIdAndCountryAccountsId(
+			recordId,
+			countryAccountsId,
+		);
+	if (!disasterRecords || disasterRecords.length === 0) {
+		throw new Response("Not Found", { status: 404 });
+	}
 	let instanceName = "DELTA Resilience";
-	if (countryAccountsId) {
-		const settigns = await getCountrySettingsFromSession(request);
+	const settigns = await getCountrySettingsFromSession(request);
+	if (settigns?.websiteName) {
 		instanceName = settigns.websiteName;
 	}
 	let dataFetcher = async (offsetLimit: OffsetLimit) => {

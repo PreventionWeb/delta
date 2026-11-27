@@ -1,3 +1,5 @@
+import { eq } from "drizzle-orm";
+import { disasterEventTable } from "~/drizzle/schema/disasterEventTable";
 import { authLoaderPublicOrWithPerm } from "~/utils/auth";
 import {
 	fetchData,
@@ -34,11 +36,20 @@ export const loader = authLoaderPublicOrWithPerm(
 		const config = configMap[view] || contentPickerConfig(ctx);
 
 		try {
-			let countryAccountsId = undefined;
+			const countryAccountsId = await getCountryAccountsIdFromSession(request);
+			if (!countryAccountsId) {
+				return Response.json({ error: "Unauthorized" }, { status: 401 });
+			}
 
-			// Extract tenant context from user session (if available)
-			if (loaderArgs.userSession) {
-				countryAccountsId = await getCountryAccountsIdFromSession(request);
+			const isPublicAccess = !loaderArgs.userSession?.user;
+			if (
+				isPublicAccess &&
+				config?.dataSourceDrizzle?.table === disasterEventTable
+			) {
+				config.dataSourceDrizzle.where = [
+					...(config.dataSourceDrizzle.where || []),
+					eq(disasterEventTable.approvalStatus, "published"),
+				];
 			}
 
 			// Pass tenant context to fetchData and getTotalRecords

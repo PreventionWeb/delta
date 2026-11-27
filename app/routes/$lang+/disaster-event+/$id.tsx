@@ -198,8 +198,9 @@ async function getLinkedViewData(args: {
 	itemId: string;
 	countryAccountsId: string;
 	lang: string;
+	requirePublished?: boolean;
 }) {
-	const { itemId, countryAccountsId, lang } = args;
+	const { itemId, countryAccountsId, lang, requirePublished = false } = args;
 
 	const [triggeringHeLinks, triggeredHeLinks, triggeringDeLinks, triggeredDeLinks] =
 		await Promise.all([
@@ -279,6 +280,9 @@ async function getLinkedViewData(args: {
 						where: and(
 							eq(hazardousEventTable.countryAccountsId, countryAccountsId),
 							inArray(hazardousEventTable.id, hazardousEventIds),
+							...(requirePublished
+								? [eq(hazardousEventTable.approvalStatus, "published")]
+								: []),
 						),
 					})
 				: [],
@@ -299,6 +303,9 @@ async function getLinkedViewData(args: {
 						where: and(
 							eq(disasterEventTable.countryAccountsId, countryAccountsId),
 							inArray(disasterEventTable.id, disasterEventIds),
+							...(requirePublished
+								? [eq(disasterEventTable.approvalStatus, "published")]
+								: []),
 						),
 					})
 				: [],
@@ -317,6 +324,9 @@ async function getLinkedViewData(args: {
 				where: and(
 					eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
 					eq(disasterRecordsTable.disasterEventId, itemId),
+					...(requirePublished
+						? [eq(disasterRecordsTable.approvalStatus, "published")]
+						: []),
 				),
 				orderBy: [desc(disasterRecordsTable.updatedAt)],
 			}),
@@ -562,18 +572,27 @@ export const loader = async (args: LoaderFunctionArgs) => {
 				)
 			: [];
 
+	const isPublicAccess = !userSession;
 	const lang = typeof params.lang === "string" && params.lang ? params.lang : "en";
 	const linkedViewData = await getLinkedViewData({
 		itemId: result.item.id,
 		countryAccountsId,
 		lang,
+		requirePublished: isPublicAccess,
 	});
+
+	const visibleHazardousEvent =
+		isPublicAccess &&
+		result.item.hazardousEvent?.approvalStatus !== "published"
+			? undefined
+			: result.item.hazardousEvent;
 
 	return {
 		...result,
 
 		item: {
 			...result.item,
+			hazardousEvent: visibleHazardousEvent,
 			spatialFootprintsDataSource: [],
 			attachments: disasterEventAttachments,
 			responses: disasterEventResponses,

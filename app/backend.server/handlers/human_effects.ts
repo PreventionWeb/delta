@@ -31,6 +31,7 @@ import {
 } from "~/backend.server/models/human_effects";
 import { eqArr } from "~/utils/array";
 import { dr } from "~/db.server";
+import { DisasterRecordsRepository } from "~/db/queries/disasterRecordsRepository";
 import { BackendContext } from "../context";
 import { sql } from "drizzle-orm";
 
@@ -42,6 +43,14 @@ export async function loadData(
 ) {
 	if (!recordId) {
 		throw new Error("no record id");
+	}
+	const ownedRecords =
+		await DisasterRecordsRepository.getByIdAndCountryAccountsId(
+			recordId,
+			countryAccountsId,
+		);
+	if (!ownedRecords || ownedRecords.length === 0) {
+		throw new Response("Not Found", { status: 404 });
 	}
 	let tblId: HumanEffectsTable;
 	if (!tblStr) {

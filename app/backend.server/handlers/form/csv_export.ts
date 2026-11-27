@@ -4,14 +4,18 @@ import { stringifyCSV } from "~/utils/csv";
 
 interface csvExportLoaderArgs<T> {
 	table: any;
-	fetchData: (ctx: BackendContext, request: Request) => Promise<T[]>;
+	fetchData: (
+		ctx: BackendContext,
+		request: Request,
+		params: Record<string, string | undefined>,
+	) => Promise<T[]>;
 }
 
 export function csvExportLoader<T>(args: csvExportLoaderArgs<T>) {
 	return authLoaderWithPerm("ViewData", async (loaderArgs) => {
 		const ctx = new BackendContext(loaderArgs);
 
-		const { request } = loaderArgs;
+		const { request, params } = loaderArgs;
 		const url = new URL(request.url);
 
 		const parts = url.pathname.split("/").filter((s) => s !== "");
@@ -24,10 +28,13 @@ export function csvExportLoader<T>(args: csvExportLoaderArgs<T>) {
 			});
 		}
 
-		let data = await args.fetchData(ctx, request);
+		let data = await args.fetchData(ctx, request, params);
 		if (!data.length) {
 			return new Response(`No data for ${typeName}`, {
-				headers: { "Content-Type": "text/plain" },
+				headers: {
+					"Content-Type": "text/plain",
+					"Cache-Control": "private, no-store",
+				},
 			});
 		}
 		let headers: string[] = [];
@@ -53,6 +60,7 @@ export function csvExportLoader<T>(args: csvExportLoaderArgs<T>) {
 			headers: {
 				"Content-Type": "text/csv",
 				"Content-Disposition": `attachment; filename="${typeName}.csv"`,
+				"Cache-Control": "private, no-store",
 			},
 		});
 	});

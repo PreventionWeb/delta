@@ -11,6 +11,7 @@ import {
 import { disasterEventTable } from "./disasterEventTable";
 import {
 	apiImportIdField,
+	approvalWorkflowFields,
 	hipRelationColumnsOptional,
 	ourRandomUUID,
 	approvalFields,
@@ -26,6 +27,7 @@ export const disasterRecordsTable = pgTable(
 	"disaster_records",
 	{
 		...apiImportIdField(),
+		...approvalWorkflowFields,
 		...hipRelationColumnsOptional(),
 		id: ourRandomUUID(),
 		countryAccountsId: uuid("country_accounts_id").references(

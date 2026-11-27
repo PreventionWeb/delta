@@ -63,7 +63,6 @@ export async function hazardousEventBasicInfoById(
 					country: true,
 				},
 			},
-			userSubmittedBy: true,
 		},
 	});
 
