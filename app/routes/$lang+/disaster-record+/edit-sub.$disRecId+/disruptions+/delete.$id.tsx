@@ -35,10 +35,11 @@ export const action: ActionFunction = async (args) => {
 		tableName: getTableName(disruptionTable),
 		getById: disruptionById,
 		postProcess: async (_id, data) => {
-			//console.log(`Post-processing record: ${id}`);
-			//console.log(`Data before deletion:`, data);
-
-			ContentRepeaterUploadFile.delete(data.attachments);
+			ContentRepeaterUploadFile.delete(
+				data.attachments,
+				undefined,
+				countryAccountsId,
+			);
 		},
 		countryAccountsId,
 	})(args);

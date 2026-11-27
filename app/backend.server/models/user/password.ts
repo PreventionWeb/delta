@@ -359,12 +359,18 @@ export async function changePassword(
 
 	const hashedPassword = passwordHash(newPassword);
 
-	await dr
-		.update(userTable)
-		.set({
-			password: hashedPassword,
-		})
-		.where(eq(userTable.id, userId));
+	await dr.transaction(async (tx) => {
+		await tx
+			.update(userTable)
+			.set({
+				password: hashedPassword,
+				resetPasswordToken: "",
+				resetPasswordExpiresAt: new Date(0),
+			})
+			.where(eq(userTable.id, userId));
+
+		await tx.delete(sessionTable).where(eq(sessionTable.userId, userId));
+	});
 
 	return { ok: true };
 }

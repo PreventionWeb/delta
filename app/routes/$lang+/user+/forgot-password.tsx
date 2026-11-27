@@ -13,7 +13,7 @@ import { sendForgotPasswordEmail } from "~/utils/emailUtil";
 
 import { randomBytes } from "crypto";
 import { sessionCookie } from "~/utils/session";
-import { createCSRFToken } from "~/utils/csrf";
+import { createCSRFToken, verifyCSRFToken } from "~/utils/csrf";
 import { redirectLangFromRoute } from "~/utils/url.backend";
 
 import { ViewContext } from "~/frontend/context";
@@ -80,7 +80,7 @@ export const action = async (actionArgs: ActionFunctionArgs) => {
 	const cookieHeader = request.headers.get("Cookie") || "";
 	const sessionCurrent = await sessionCookie().getSession(cookieHeader);
 
-	if (formData.csrfToken !== sessionCurrent.get("csrfToken")) {
+	if (!verifyCSRFToken(formData.csrfToken, sessionCurrent.get("csrfToken"))) {
 		return Response.json(
 			{
 				data,

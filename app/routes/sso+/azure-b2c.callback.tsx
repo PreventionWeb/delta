@@ -18,11 +18,13 @@ import {
 import { verifyAzureB2CIdToken } from "~/utils/ssoJwtVerify.server";
 import {
 	loginAzureB2C,
-	registerAzureB2C,
 	checkSuperAdminByEmail,
 	loginSuperAdminAzureB2C,
 } from "~/backend.server/models/user/auth";
-import { validateInviteCode } from "~/backend.server/models/user/invite";
+import {
+	redeemSsoInviteAtomic,
+	validateInviteCode,
+} from "~/backend.server/models/user/invite";
 import { getAvailableLanguages } from "~/backend.server/translations";
 import { UserCountryAccountRepository } from "~/db/queries/userCountryAccountsRepository";
 import { InstanceSystemSettingRepository } from "~/db/queries/instanceSystemSettingRepository";
@@ -265,27 +267,45 @@ export const loader = async (loaderArgs: LoaderFunctionArgs) => {
 			);
 		}
 
-		const retLogin = await registerAzureB2C(
-			data2.email,
-			data2.firstName,
-			data2.lastName,
-		);
-		if (!retLogin.ok) {
-			throw new Response(retLogin.error || "Registration failed.", {
+		if (!data2.firstName) {
+			throw new Response("User first name is required.", {
 				status: 400,
 				statusText: "Bad Request",
 			});
 		}
 
-		const headers = await createUserSession(retLogin.userId);
-		const userCountryAccounts = await UserCountryAccountRepository.getByUserId(
-			retLogin.userId,
-		);
+		const redeemedUser = await redeemSsoInviteAtomic({
+			userId: inviteValidation.userId,
+			inviteCode,
+			firstName: data2.firstName,
+			lastName: data2.lastName,
+		});
+		if (!redeemedUser) {
+			throw new Response("Invalid or expired invitation.", {
+				status: 400,
+				statusText: "Bad Request",
+			});
+		}
 
-		if (userCountryAccounts && userCountryAccounts.length === 1) {
+		const activeCountryAccounts =
+			await UserCountryAccountRepository.getActiveByUserId(redeemedUser.id);
+
+		if (!activeCountryAccounts || activeCountryAccounts.length === 0) {
+			throw new Response(
+				"No active country account is associated with this user.",
+				{
+					status: 403,
+					statusText: "Forbidden",
+				},
+			);
+		}
+
+		const headers = await createUserSession(redeemedUser.id);
+
+		if (activeCountryAccounts.length === 1) {
 			const countrySettings =
 				await InstanceSystemSettingRepository.getByCountryAccountId(
-					userCountryAccounts[0].countryAccountsId,
+					activeCountryAccounts[0].countryAccountsId,
 				);
 
 			const userSession = await sessionCookie().getSession(
@@ -293,7 +313,7 @@ export const loader = async (loaderArgs: LoaderFunctionArgs) => {
 			);
 			userSession.set(
 				"countryAccountsId",
-				userCountryAccounts[0].countryAccountsId,
+				activeCountryAccounts[0].countryAccountsId,
 			);
 			userSession.set("countrySettings", countrySettings);
 			const setCookie = await sessionCookie().commitSession(userSession);
@@ -304,15 +324,8 @@ export const loader = async (loaderArgs: LoaderFunctionArgs) => {
 			});
 		}
 
-		if (userCountryAccounts && userCountryAccounts.length > 1) {
-			return redirect(`/${safeLang}/user/select-instance`, {
-				headers: headers,
-			});
-		}
-
-		throw new Response("No country account is associated with this user.", {
-			status: 403,
-			statusText: "Forbidden",
+		return redirect(`/${safeLang}/user/select-instance`, {
+			headers: headers,
 		});
 	} else if (storedOAuthState.action === "azure_sso_b2c-login") {
 		try {
@@ -394,15 +407,25 @@ export const loader = async (loaderArgs: LoaderFunctionArgs) => {
 				});
 			}
 
-			const headers = await createUserSession(retLogin.userId);
-			const userCountryAccounts = await UserCountryAccountRepository.getByUserId(
-				retLogin.userId,
-			);
+			const activeCountryAccounts =
+				await UserCountryAccountRepository.getActiveByUserId(retLogin.userId);
 
-			if (userCountryAccounts && userCountryAccounts.length === 1) {
+			if (!activeCountryAccounts || activeCountryAccounts.length === 0) {
+				throw new Response(
+					"No active country account is associated with this user.",
+					{
+						status: 403,
+						statusText: "Forbidden",
+					},
+				);
+			}
+
+			const headers = await createUserSession(retLogin.userId);
+
+			if (activeCountryAccounts.length === 1) {
 				const countrySettings =
 					await InstanceSystemSettingRepository.getByCountryAccountId(
-						userCountryAccounts[0].countryAccountsId,
+						activeCountryAccounts[0].countryAccountsId,
 					);
 
 				const userSession = await sessionCookie().getSession(
@@ -410,7 +433,7 @@ export const loader = async (loaderArgs: LoaderFunctionArgs) => {
 				);
 				userSession.set(
 					"countryAccountsId",
-					userCountryAccounts[0].countryAccountsId,
+					activeCountryAccounts[0].countryAccountsId,
 				);
 				userSession.set("countrySettings", countrySettings);
 				const setCookie = await sessionCookie().commitSession(userSession);
@@ -419,15 +442,10 @@ export const loader = async (loaderArgs: LoaderFunctionArgs) => {
 				return redirect(`/${lang}/hazardous-event/`, {
 					headers: { "Set-Cookie": setCookie },
 				});
-			} else if (userCountryAccounts && userCountryAccounts.length > 1) {
-				return redirect(`/${safeLang}/user/select-instance`, {
-					headers: headers,
-				});
 			}
 
-			throw new Response("No country account is associated with this user.", {
-				status: 403,
-				statusText: "Forbidden",
+			return redirect(`/${safeLang}/user/select-instance`, {
+				headers: headers,
 			});
 		} catch (error) {
 			if (error instanceof Response) {

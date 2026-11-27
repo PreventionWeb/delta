@@ -324,6 +324,8 @@ export const action = authActionWithPerm(
 					attachmentsArray,
 					save_path_temp,
 					save_path,
+					undefined,
+					countryAccountsId,
 				);
 
 				// Update the `attachments` field in the database

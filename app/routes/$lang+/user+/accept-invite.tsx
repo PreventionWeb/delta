@@ -25,7 +25,7 @@ import { BackendContext } from "~/backend.server/context";
 import { sendWelcomeRegistrationEmail } from "~/utils/emailUtil";
 import { ErrorState } from "~/components/ErrorState";
 import { redirectWithMessage, sessionCookie } from "~/utils/session";
-import { createCSRFToken } from "~/utils/csrf";
+import { createCSRFToken, verifyCSRFToken } from "~/utils/csrf";
 
 export const meta: MetaFunction = ({ params }) => {
 	const ctx = new ViewContext({ lang: params.lang || "en" });
@@ -100,7 +100,7 @@ export const action = async (actionArgs: ActionFunctionArgs) => {
 	const csrfToken = String(formData.get("csrfToken") || "");
 	const sessionCsrfToken = sessionCurrent.get("csrfToken");
 
-	if (!sessionCsrfToken || csrfToken !== sessionCsrfToken) {
+	if (!verifyCSRFToken(csrfToken, sessionCsrfToken)) {
 		return Response.json(
 			{
 				ok: false,

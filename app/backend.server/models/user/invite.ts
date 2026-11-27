@@ -234,6 +234,51 @@ export async function redeemInviteAtomic(params: {
 	});
 }
 
+export async function redeemSsoInviteAtomic(params: {
+	userId: string;
+	inviteCode: string;
+	firstName: string;
+	lastName: string;
+}): Promise<SelectUser | null> {
+	const trimmedCode = params.inviteCode.trim();
+	if (!trimmedCode || !params.firstName || params.firstName.length === 0) {
+		return null;
+	}
+
+	const now = new Date();
+
+	return await dr.transaction(async (tx) => {
+		const res = await tx
+			.update(userTable)
+			.set({
+				inviteCode: "",
+				inviteExpiresAt: new Date(0),
+				firstName: params.firstName,
+				lastName: params.lastName,
+				emailVerified: true,
+				authType: "sso_azure_b2c",
+			})
+			.where(
+				and(
+					eq(userTable.id, params.userId),
+					eq(userTable.inviteCode, trimmedCode),
+					gt(userTable.inviteExpiresAt, now),
+				),
+			)
+			.returning();
+
+		if (res.length === 0) {
+			return null;
+		}
+
+		await tx
+			.delete(sessionTable)
+			.where(eq(sessionTable.userId, params.userId));
+
+		return res[0];
+	});
+}
+
 type AcceptInviteResult =
 	| { ok: true; userId: string }
 	| { ok: false; errors: Errors<AcceptInviteFields> };

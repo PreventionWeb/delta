@@ -278,6 +278,24 @@ export const UserCountryAccountRepository = {
 			.from(userCountryAccountsTable)
 			.where(eq(userCountryAccountsTable.userId, userId));
 	},
+	getActiveByUserId: async (userId: string, tx?: Tx) => {
+		const rows = await (tx ?? dr)
+			.select({
+				userCountryAccount: userCountryAccountsTable,
+			})
+			.from(userCountryAccountsTable)
+			.innerJoin(
+				countryAccountsTable,
+				eq(userCountryAccountsTable.countryAccountsId, countryAccountsTable.id),
+			)
+			.where(
+				and(
+					eq(userCountryAccountsTable.userId, userId),
+					eq(countryAccountsTable.status, countryAccountStatuses.ACTIVE),
+				),
+			);
+		return rows.map((row) => row.userCountryAccount);
+	},
 	countActiveByUserId: async (userId: string) => {
 		const [row] = await dr
 			.select({ count: count() })

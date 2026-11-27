@@ -9,7 +9,7 @@ import {
 	ChangePasswordFields,
 	changePassword,
 } from "~/backend.server/models/user/password";
-import { redirectWithMessage } from "~/utils/session";
+import { rotateUserSession } from "~/utils/session";
 import { MainContainer } from "~/frontend/container";
 import { redirectLangFromRoute } from "~/utils/url.backend";
 import { LoaderFunctionArgs } from "react-router";
@@ -39,7 +39,7 @@ export const action = authAction(
 		}
 
 		const { request } = actionArgs;
-		const { user } = authActionGetAuth(actionArgs);
+		const { user, session } = authActionGetAuth(actionArgs);
 		const formData = formStringData(await request.formData());
 		const ctx = new BackendContext(actionArgs);
 
@@ -55,10 +55,15 @@ export const action = authAction(
 			return { ok: false, errors: res.errors };
 		}
 
-		return redirectWithMessage(actionArgs, "/hazardous-event", {
-			type: "info",
-			text: ctx.t({ code: "user.password_changed", msg: "Password changed." }),
+		const headers = await rotateUserSession(request, user.id, {
+			totpAuthed: Boolean(session?.totpAuthed),
+			flash: {
+				type: "info",
+				text: ctx.t({ code: "user.password_changed", msg: "Password changed." }),
+			},
 		});
+
+		return redirectLangFromRoute(actionArgs, "/hazardous-event", { headers });
 	},
 );
 

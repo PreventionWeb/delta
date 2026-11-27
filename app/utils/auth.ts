@@ -6,7 +6,6 @@ import {
 } from "react-router";
 
 import {
-	getCountrySettingsFromSession,
 	getUserFromSession,
 	getUserRoleFromSession,
 	sessionMarkTotpAuthed,
@@ -24,6 +23,9 @@ import {
 	loginTotp as modelLoginTotp,
 } from "~/backend.server/models/user/auth";
 import { apiAuth } from "~/backend.server/models/api_key";
+import { CountryAccountsRepository } from "~/db/queries/countryAccountsRepository";
+import { InstanceSystemSettingRepository } from "~/db/queries/instanceSystemSettingRepository";
+import { countryAccountStatuses } from "~/drizzle/schema/countryAccountsTable";
 import {
 	PermissionId,
 	roleHasPermission,
@@ -313,8 +315,15 @@ export function authLoaderPublicOrWithPerm<T extends LoaderFunction>(
 		if (!countryAccountsId) {
 			throw redirectLangFromRoute(args, "/user/select-instance");
 		}
-		let settings = await getCountrySettingsFromSession(args.request);
-		if (!settings.approvedRecordsArePublic) {
+		const countryAccount =
+			await CountryAccountsRepository.getById(countryAccountsId);
+		const liveSettings =
+			countryAccount && countryAccount.status === countryAccountStatuses.ACTIVE
+				? await InstanceSystemSettingRepository.getByCountryAccountId(
+						countryAccountsId,
+					)
+				: null;
+		if (!liveSettings?.approvedRecordsArePublic) {
 			const authLoader = authLoaderWithPerm(permission, fn);
 			return await authLoader(args);
 		}

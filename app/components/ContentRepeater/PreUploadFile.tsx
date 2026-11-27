@@ -37,6 +37,19 @@ export default class ContentRepeaterPreUploadFile {
 
 		try {
 			const countryAccountsId = await getCountryAccountsIdFromSession(request);
+			const trimmedTenantId = String(countryAccountsId || "").trim();
+			if (!trimmedTenantId) {
+				return new Response(JSON.stringify({ error: "Unauthorized" }), {
+					status: 401,
+					headers: { "Content-Type": "application/json" },
+				});
+			}
+			if (!/^[a-zA-Z0-9_-]+$/.test(trimmedTenantId)) {
+				return new Response(
+					JSON.stringify({ error: "Invalid tenant identifier" }),
+					{ status: 400, headers: { "Content-Type": "application/json" } },
+				);
+			}
 
 			const formData = await parseFormData(request, {
 				maxFileSize: ContentRepeaterFileValidator.maxFileSize,
@@ -87,9 +100,7 @@ export default class ContentRepeaterPreUploadFile {
 			const baseName = path.basename(safeOriginalFilename, extension);
 			const tempFilename = `${randomUUID()}__${baseName}${extension}`;
 
-			const tenantPath = countryAccountsId
-				? path.join(BASE_UPLOAD_PATH, `tenant-${countryAccountsId}`)
-				: BASE_UPLOAD_PATH;
+			const tenantPath = path.join(BASE_UPLOAD_PATH, `tenant-${trimmedTenantId}`);
 			const tenantRoot = path.resolve(tenantPath);
 			const tempDirectory = path.resolve(tenantRoot, "temp");
 			const tempFilePath = path.resolve(tempDirectory, tempFilename);
@@ -121,12 +132,13 @@ export default class ContentRepeaterPreUploadFile {
 
 				if (
 					previousName &&
+					previousName !== "." &&
+					previousName !== ".." &&
 					!previousName.includes("/") &&
 					!previousName.includes("\\")
 				) {
 					const prevFilePath = path.resolve(tempDirectory, previousName);
 					const isWithinTempDirectory =
-						prevFilePath === tempDirectory ||
 						prevFilePath.startsWith(`${tempDirectory}${path.sep}`);
 					if (!isWithinTempDirectory) {
 						return new Response(
@@ -140,7 +152,10 @@ export default class ContentRepeaterPreUploadFile {
 
 					if (fs.existsSync(prevFilePath)) {
 						try {
-							fs.unlinkSync(prevFilePath);
+							const stat = fs.lstatSync(prevFilePath);
+							if (stat.isFile() && !stat.isSymbolicLink()) {
+								fs.unlinkSync(prevFilePath);
+							}
 						} catch (e) {
 							console.warn("Failed to delete previous temp file", e);
 						}

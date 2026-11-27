@@ -28,6 +28,28 @@ function normalizePathInsideTenant(inputPath: string): string {
 	return normalized;
 }
 
+function stripVerifiedTenantUploadPrefix(
+	rawFileName: string,
+	tenantId: string,
+	tenantScopedUploadPath: string,
+): string {
+	const normalized = rawFileName.replace(/\\/g, "/").trim();
+	const prefixSegments = [BASE_UPLOAD_PATH, `tenant-${tenantId}`];
+	if (tenantScopedUploadPath) {
+		prefixSegments.push(tenantScopedUploadPath);
+	}
+	const exactPrefix = `${prefixSegments.join("/")}/`;
+	const slashPrefixed = `/${exactPrefix}`;
+
+	if (normalized.startsWith(slashPrefixed)) {
+		return normalized.slice(slashPrefixed.length);
+	}
+	if (normalized.startsWith(exactPrefix)) {
+		return normalized.slice(exactPrefix.length);
+	}
+	return rawFileName;
+}
+
 function validateRelativeFileName(rawFileName: string): string | null {
 	if (!rawFileName || rawFileName.includes("\0")) {
 		return null;
@@ -48,7 +70,7 @@ function validateRelativeFileName(rawFileName: string): string | null {
 	}
 
 	for (const segment of segments) {
-		if (segment === "." || segment === ".." || segment.includes("..")) {
+		if (segment === "." || segment === "..") {
 			return null;
 		}
 	}
@@ -81,13 +103,20 @@ export async function handleFileRequest(
 		return new Response("Invalid tenant identifier", { status: 400 });
 	}
 
-	const safeRelativeFileName = validateRelativeFileName(fileName);
+	const tenantScopedUploadPath = normalizePathInsideTenant(upload_path);
+	const normalizedNameCandidate = stripVerifiedTenantUploadPrefix(
+		fileName,
+		tenantId,
+		tenantScopedUploadPath,
+	);
+	const safeRelativeFileName = validateRelativeFileName(
+		normalizedNameCandidate,
+	);
 	if (!safeRelativeFileName) {
 		return new Response("Invalid file path", { status: 400 });
 	}
 
 	const publicRoot = process.cwd();
-	const tenantScopedUploadPath = normalizePathInsideTenant(upload_path);
 
 	const uploadsRoot = path.resolve(publicRoot, BASE_UPLOAD_PATH);
 	const tenantBaseDir = path.resolve(uploadsRoot, `tenant-${tenantId}`);

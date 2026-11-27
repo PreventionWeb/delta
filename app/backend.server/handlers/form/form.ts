@@ -623,7 +623,11 @@ interface CreateActionArgsWithCountryAccountsId<T> {
 	redirectTo: (id: string) => string;
 	tableName: string;
 	action?: (isCreate: boolean) => string;
-	postProcess?: (id: string, data: T) => Promise<void>;
+	postProcess?: (
+		id: string,
+		data: T,
+		countryAccountsId: string,
+	) => Promise<void>;
 }
 export function createActionWithCountryAccountsId<T>(
 	args: CreateActionArgsWithCountryAccountsId<T>,
@@ -684,7 +688,9 @@ export function createActionWithCountryAccountsId<T>(
 				}
 			},
 			redirectTo: args.redirectTo,
-			postProcess: args.postProcess,
+			postProcess: args.postProcess
+				? (id, data) => args.postProcess!(id, data, countryAccountsId)
+				: undefined,
 		});
 	});
 }

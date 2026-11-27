@@ -2,12 +2,16 @@ import type { LoaderFunctionArgs } from "react-router";
 import { dr } from "~/db.server";
 import { sql } from "drizzle-orm";
 import { apiAuth } from "~/backend.server/models/api_key";
+import { CountryAccountsRepository } from "~/db/queries/countryAccountsRepository";
+import { countryAccountStatuses } from "~/drizzle/schema/countryAccountsTable";
+import { disasterRecordsTable } from "~/drizzle/schema/disasterRecordsTable";
 import { authLoaderPublicOrWithPerm } from "~/utils/auth";
 import { getCountryAccountsIdFromSession } from "~/utils/session";
 
 async function fetchSpatialFootprintGeojson(
 	request: Request,
 	countryAccountsId: string,
+	requirePublished: boolean,
 ): Promise<Response> {
 	const url = new URL(request.url);
 	const division_id = url.searchParams.get("division_id");
@@ -20,12 +24,17 @@ async function fetchSpatialFootprintGeojson(
 		});
 	}
 
+	const approvalPredicate = requirePublished
+		? sql`AND ${disasterRecordsTable.approvalStatus} = 'published'`
+		: sql``;
+
 	const query = sql`
     SELECT value -> 'geojson' AS geojson
     FROM disaster_records,
          jsonb_array_elements(spatial_footprint) AS value
     WHERE disaster_records.id = ${record_id}
       AND disaster_records.country_accounts_id = ${countryAccountsId}
+      ${approvalPredicate}
       AND value -> 'geojson' -> 'properties' ->> 'division_id' = ${division_id}
     LIMIT 1
   `;
@@ -52,12 +61,17 @@ async function fetchSpatialFootprintGeojson(
 
 const sessionLoader = authLoaderPublicOrWithPerm(
 	"ViewData",
-	async ({ request }) => {
+	async ({ request, userSession }: any) => {
 		const countryAccountsId = await getCountryAccountsIdFromSession(request);
 		if (!countryAccountsId) {
 			throw new Response("Unauthorized", { status: 401 });
 		}
-		return fetchSpatialFootprintGeojson(request, countryAccountsId);
+		const isPublicAccess = !userSession?.user;
+		return fetchSpatialFootprintGeojson(
+			request,
+			countryAccountsId,
+			isPublicAccess,
+		);
 	},
 );
 
@@ -68,9 +82,19 @@ export const loader = async (args: LoaderFunctionArgs) => {
 		if (!apiKey.countryAccountsId) {
 			throw new Response("Unauthorized", { status: 401 });
 		}
+		const countryAccount = await CountryAccountsRepository.getById(
+			apiKey.countryAccountsId,
+		);
+		if (
+			!countryAccount ||
+			countryAccount.status !== countryAccountStatuses.ACTIVE
+		) {
+			throw new Response("Forbidden", { status: 403 });
+		}
 		return fetchSpatialFootprintGeojson(
 			args.request,
 			apiKey.countryAccountsId,
+			false,
 		);
 	}
 	return sessionLoader(args);

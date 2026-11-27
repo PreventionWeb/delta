@@ -140,7 +140,7 @@ export const action: ActionFunction = async (args: ActionFunctionArgs) => {
 		getById: lossesByIdAndCountryAccountsIdTx,
 		redirectTo: (id) => `${route}/${id}`,
 		tableName: getTableName(lossesTable),
-		postProcess: async (id, data) => {
+		postProcess: async (id, data, countryAccountsId) => {
 			const save_path = `${DISASTER_RECORDS_LOSSES_UPLOAD_PATH}/${id}`;
 			const save_path_temp = TEMP_UPLOAD_PATH;
 
@@ -154,6 +154,8 @@ export const action: ActionFunction = async (args: ActionFunctionArgs) => {
 				attachmentsArray,
 				save_path_temp,
 				save_path,
+				undefined,
+				countryAccountsId,
 			);
 
 			// Update the `attachments` field in the database

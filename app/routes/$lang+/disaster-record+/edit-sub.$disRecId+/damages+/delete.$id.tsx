@@ -35,7 +35,11 @@ export const action: ActionFunction = async (args) => {
 		tableName: getTableName(damagesTable),
 		getById: damagesById,
 		postProcess: async (_id, data) => {
-			ContentRepeaterUploadFile.delete(data.attachments);
+			ContentRepeaterUploadFile.delete(
+				data.attachments,
+				undefined,
+				countryAccountsId,
+			);
 		},
 		countryAccountsId,
 	})(args);

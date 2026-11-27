@@ -279,6 +279,8 @@ describe("processAndSaveAttachments (via hazardousEventCreate/Update) — DB-col
 			[],
 			expect.any(String),
 			expect.any(String),
+			undefined,
+			countryAccountsId,
 		);
 
 		const [row] = await dr
@@ -361,6 +363,8 @@ describe("processAndSaveAttachments (via hazardousEventCreate/Update) — DB-col
 			[],
 			expect.any(String),
 			expect.stringContaining("hazardous-event"),
+			undefined,
+			countryAccountsId,
 		);
 	});
 });

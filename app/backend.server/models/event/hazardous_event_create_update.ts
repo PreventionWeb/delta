@@ -198,6 +198,7 @@ export async function hazardousEventCreate(
 				eventId,
 				Array.isArray(fields?.attachments) ? fields.attachments : [],
 				"hazardous-event",
+				fields.countryAccountsId,
 			);
 		}
 	} catch (error: any) {
@@ -416,6 +417,7 @@ export async function hazardousEventUpdate(
 					id,
 					fields.attachments,
 					"hazardous-event",
+					fields.countryAccountsId,
 				);
 			}
 
@@ -626,6 +628,7 @@ export async function hazardousEventUpdateByIdAndCountryAccountsId(
 					id,
 					fields.attachments,
 					"hazardous-event",
+					countryAccountsId,
 				);
 			}
 

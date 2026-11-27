@@ -38,7 +38,11 @@ export const action = async (args: ActionFunctionArgs) => {
 		getById: getByIdWithTenant,
 		postProcess: async (id, data) => {
 			console.log(`Post-processing record: ${id}`);
-			ContentRepeaterUploadFile.delete(data.attachments);
+			ContentRepeaterUploadFile.delete(
+				data.attachments,
+				undefined,
+				countryAccountsId,
+			);
 		},
 		countryAccountsId,
 	});

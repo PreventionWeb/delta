@@ -33,7 +33,11 @@ export const action: ActionFunction = async (args) => {
 		getById: hazardousEventById,
 		postProcess: async (_id: string, data: any) => {
 			if (data.attachments) {
-				ContentRepeaterUploadFile.delete(data.attachments);
+				ContentRepeaterUploadFile.delete(
+					data.attachments,
+					undefined,
+					countryAccountsId,
+				);
 			}
 		},
 		countryAccountsId,

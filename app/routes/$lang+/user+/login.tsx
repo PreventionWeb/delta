@@ -21,11 +21,10 @@ import {
 	configAuthSupportedAzureSSOB2C,
 	configAuthSupportedForm,
 } from "~/utils/config";
-import { CountryAccountsRepository } from "~/db/queries/countryAccountsRepository";
 import { UserCountryAccountRepository } from "~/db/queries/userCountryAccountsRepository";
 import { InstanceSystemSettingRepository } from "~/db/queries/instanceSystemSettingRepository";
 import { UserRepository } from "~/db/queries/UserRepository";
-import { createCSRFToken } from "~/utils/csrf";
+import { createCSRFToken, verifyCSRFToken } from "~/utils/csrf";
 import { redirectLangFromRoute, replaceLang } from "~/utils/url.backend";
 import { ViewContext } from "~/frontend/context";
 
@@ -38,7 +37,6 @@ import { Button } from "primereact/button";
 import { Message } from "primereact/message";
 import { Divider } from "primereact/divider";
 import { urlLang } from "~/utils/url";
-import { countryAccountStatuses } from "~/drizzle/schema";
 import { Card } from "primereact/card";
 
 interface LoginFields {
@@ -87,7 +85,7 @@ export const action = async (routeArgs: ActionFunctionArgs) => {
 	const cookieHeader = request.headers.get("Cookie") || "";
 	const sessionCurrent = await sessionCookie().getSession(cookieHeader);
 
-	if (formData.csrfToken !== sessionCurrent.get("csrfToken")) {
+	if (!verifyCSRFToken(formData.csrfToken, sessionCurrent.get("csrfToken"))) {
 		return Response.json(
 			{
 				data: { email: data.email },
@@ -120,28 +118,26 @@ export const action = async (routeArgs: ActionFunctionArgs) => {
 		);
 	}
 
-	// Check if user's country accounts is inactive, then show error message and redirect to login
-	const countryAccountId = res.countryAccountId;
-	if (countryAccountId) {
-		const countryAccount =
-			await CountryAccountsRepository.getByIdWithCountry(countryAccountId);
-		if (
-			countryAccount &&
-			countryAccount.status === countryAccountStatuses.INACTIVE
-		) {
-			return Response.json(
-				{
-					data: { email: data.email },
-					errors: { general: ["Your country account is inactive"] },
-				},
-				{ status: 400 },
-			);
-		}
+	const allUserCountryAccounts =
+		await UserCountryAccountRepository.getByUserId(res.userId);
+	const activeUserCountryAccounts =
+		await UserCountryAccountRepository.getActiveByUserId(res.userId);
+
+	if (
+		allUserCountryAccounts.length > 0 &&
+		activeUserCountryAccounts.length === 0
+	) {
+		return Response.json(
+			{
+				data: { email: data.email },
+				errors: { general: ["Your country account is inactive"] },
+			},
+			{ status: 400 },
+		);
 	}
 
-	//check if he has more than one instance assosiated, redirect to select-instance page,
-	//otherwise take him to first page.
-	const userCountryAccounts = await UserCountryAccountRepository.getByUserId(res.userId);
+	// Check if user has more than one active instance associated; redirect to select-instance page,
+	// otherwise take user to first page.
 	const headerSession = await createUserSession(res.userId);
 	const user = await UserRepository.getById(res.userId);
 
@@ -157,25 +153,27 @@ export const action = async (routeArgs: ActionFunctionArgs) => {
 		);
 	}
 
-	if (userCountryAccounts && userCountryAccounts.length === 1) {
-		const countrySettings = await InstanceSystemSettingRepository.getByCountryAccountId(
-			userCountryAccounts[0].countryAccountsId,
-		);
+	if (activeUserCountryAccounts.length === 1) {
+		const countrySettings =
+			await InstanceSystemSettingRepository.getByCountryAccountId(
+				activeUserCountryAccounts[0].countryAccountsId,
+			);
 
 		const session = await sessionCookie().getSession(
 			headerSession["Set-Cookie"],
 		);
-		session.set("countryAccountsId", userCountryAccounts[0].countryAccountsId);
+		session.set(
+			"countryAccountsId",
+			activeUserCountryAccounts[0].countryAccountsId,
+		);
 		session.set("countrySettings", countrySettings);
 		const setCookie = await sessionCookie().commitSession(session);
 
-		redirectTo =
-			replaceLang(redirectTo, countrySettings?.language || "en")
-		console.log("redirectTo=", redirectTo)
+		redirectTo = replaceLang(redirectTo, countrySettings?.language || "en");
 		return redirectDocument(redirectTo, {
 			headers: { "Set-Cookie": setCookie },
 		});
-	} else if (userCountryAccounts && userCountryAccounts.length > 1) {
+	} else if (activeUserCountryAccounts.length > 1) {
 		return redirectLangFromRoute(routeArgs, "/user/select-instance", {
 			headers: headerSession,
 		});
@@ -205,12 +203,14 @@ export const loader = async (args: LoaderFunctionArgs) => {
 	const setCookie = await sessionCookie().commitSession(session);
 
 	if (user) {
-		const userCountryAccounts = await UserCountryAccountRepository.getByUserId(
-			user.user.id,
-		);
-		if (userCountryAccounts.length > 1) {
+		const activeUserCountryAccounts =
+			await UserCountryAccountRepository.getActiveByUserId(user.user.id);
+		if (activeUserCountryAccounts.length > 1) {
 			const countryAccountsId = await getCountryAccountsIdFromSession(request);
-			if (countryAccountsId) {
+			const isActiveSelected = activeUserCountryAccounts.some(
+				(uca) => uca.countryAccountsId === countryAccountsId,
+			);
+			if (countryAccountsId && isActiveSelected) {
 				return redirectDocument(redirectTo, {
 					headers: { "Set-Cookie": setCookie },
 				});
