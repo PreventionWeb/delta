@@ -2593,7 +2593,7 @@ INSERT INTO public.declaration_status VALUES ('80033fe6-cef6-435d-910e-a0396aaeb
 -- Data for Name: dts_system_info; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO public.dts_system_info VALUES ('73f0defb-4eba-4398-84b3-5e6737fec2b7', '0.3.1', NULL, '2026-09-15 16:01:28.401496', NULL);
+INSERT INTO public.dts_system_info VALUES ('73f0defb-4eba-4398-84b3-5e6737fec2b7', '0.3.3', NULL, '2026-11-28 01:18:28.401496', NULL);
 
 
 --
