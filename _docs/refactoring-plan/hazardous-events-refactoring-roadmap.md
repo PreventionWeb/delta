@@ -2550,10 +2550,29 @@ opposite outcome), `test:run3` for interleaving concurrency, DOM, and Playwright
 
 ---
 
-### ⬜ 6d-2 — CSV Import/Export Migration: spatial footprint and attachments
+### 🔷 6d-2 — CSV Import/Export Migration: spatial footprint and attachments ✅ (Complete)
 
-**Follows 6d-1** (must be archived first). There is no OpenSpec change yet; propose one from
-this entry.
+**Branch:** `feature/ca-he-csv-migration` · **OpenSpec change:** `ca-he-csv-spatial-attachments`
+(built as one intent in two stages, OD-1).
+
+**What shipped (2026-11-26):**
+
+- `spatialFootprint` imports as one CA spatial observation at the import time. Divisions are
+  checked against the session tenant (`invalid_division`). `[]` clears the footprint and an
+  unchanged footprint records nothing. The comparison mirrors PostGIS output precision, pinned
+  against PGlite and the real server.
+- `attachments` import as http(s) Links and as references to files the event already holds.
+  Removed files are deleted only after the import commits. Under a caller `tx`, Update returns
+  `fileKeysToDelete` instead of deleting.
+- Export appends `spatialFootprint` and `attachments` in the legacy formats, with the OD-6
+  fallbacks. Exported files re-import with every row `unchanged`.
+- SA-1: the he-preview create and edit form refuses a non-http(s) Link with a translated field
+  error, using the same shared rule as the CSV import.
+- Register re-check:
+  - DEF-005 is closed for the CA CSV path; the row stays open for the legacy function.
+  - DEF-061 is not affected.
+  - DEF-064 is handled on the CA side (no client path, no `tenantPath`, deletion after commit);
+    the legacy part stays open.
 
 **Intent for `/opsx:propose`:**
 
