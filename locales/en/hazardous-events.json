@@ -62,6 +62,8 @@
 		"create_title": "Add hazardous event",
 		"edit_title": "Edit hazardous event",
 		"partial_transition_failed": "Event saved; the requested submission could not be completed. Please retry.",
+		"attachments_invalid_url": "Attachment links must start with http:// or https://.",
+		"attachments_invalid_tag": "Attachment tags are not valid. Remove them and add them again.",
 		"close": "Close",
 		"spatial_footprint": {
 			"add_action": "Add",
@@ -347,8 +349,6 @@
 		"more_errors_one": "…and {{count}} more problem.",
 		"more_errors_other": "…and {{count}} more problems.",
 		"ignored_columns": "Columns not imported: {{columns}}",
-		"skipped_data_notice_one": "{{count}} row had spatial footprint or attachment data that was not imported.",
-		"skipped_data_notice_other": "{{count}} rows had spatial footprint or attachment data that was not imported.",
 		"location": {
 			"line": "Line {{line}}",
 			"line_column": "Line {{line}}, column {{column}}",
@@ -391,6 +391,11 @@
 			"cause_after_effect": "The parent event must not start after this event.",
 			"parent_multiple_causes": "This event has more than one cause. Change its causes in the app, not in the file.",
 			"invalid_character": "This value contains a null character, which cannot be stored. Remove it and try again.",
+			"invalid_spatial_footprint": "This is not a valid spatial footprint. Enter a JSON array of map coordinates and geographic level items.",
+			"invalid_division": "This division does not exist in your country instance.",
+			"invalid_attachments": "These attachments are not valid. Enter a JSON array of link and file items.",
+			"invalid_attachment_url": "Attachment links must start with http:// or https://.",
+			"file_reference_not_supported": "A file can only be kept if this event already has it. Upload new files in the app.",
 			"validation": "This row is not valid."
 		}
 	}
