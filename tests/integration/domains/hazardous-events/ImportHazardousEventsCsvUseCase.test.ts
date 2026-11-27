@@ -1,5 +1,7 @@
 import "../../db/setup";
 import { randomUUID } from "crypto";
+import * as fs from "fs";
+import * as path from "path";
 import { eq, sql } from "drizzle-orm";
 import {
 	afterEach,
@@ -12,30 +14,38 @@ import {
 } from "vitest";
 import { dr } from "~/db.server";
 import { hazardousEventTable } from "~/drizzle/schema/hazardousEventTable";
+import { divisionTable } from "~/drizzle/schema/divisionTable";
 import { hazardousEventAttachmentTable } from "~/domains/hazardous-events/infrastructure/hazardousEventAttachmentTable";
-import { hazardousEventSpatialObservationTable } from "~/domains/hazardous-events/infrastructure/hazardousEventSpatialObservationTable";
 import { seedCountryAccount } from "../../db/models/hazardousEventTestHelpers";
 import {
 	E1_HEADER,
 	X1_CREATE_HEADER,
 	RecordingLogger,
+	attachmentRowsOf,
 	buildCsvHarness,
 	causalityForEffect,
 	csvTable,
+	currentFootprint,
 	eventsOfTenant,
 	exportAndReparse,
 	globalCounts,
 	notificationsFor,
 	nullTenantEventCount,
+	observationCount,
 	runImport,
 	seedCaEvent,
+	seedCaEventWithFile,
 	seedCausalLink,
+	seedDivision,
 	seedLegacyEvent,
+	seedObservation,
 	seedTaxonomyWithRefs,
 	seedUser,
 	tenantSnapshot,
+	totalObservationCount,
 	workflowFor,
 	type CsvHarness,
+	type StorageEvent,
 } from "./hazardousEventCsvTestHarness";
 
 vi.setConfig({ testTimeout: 30_000 });
@@ -792,91 +802,1092 @@ describe("parent becomes the CA cause link", () => {
 	});
 });
 
-describe("spatialFootprint and attachments are accepted and ignored", () => {
-	it("legacy footprint and attachment cells, even malformed JSON, are ignored, listed, and counted in the notice", async () => {
+describe("spatialFootprint becomes a tenant-checked CA spatial observation (6d-2)", () => {
+	const POINT = { type: "Point", coordinates: [77.2, 28.6] };
+	const POLYGON = {
+		type: "Polygon",
+		coordinates: [
+			[
+				[77, 28],
+				[78, 28],
+				[78, 29],
+				[77, 28],
+			],
+		],
+	};
+
+	function footprintCell(items: unknown[]): string {
+		return JSON.stringify(items);
+	}
+
+	function pointItem(point: unknown = POINT) {
+		return {
+			map_option: "Map coordinates",
+			geojson: { type: "Feature", geometry: point, properties: {} },
+		};
+	}
+
+	function divisionItem(divisionId: string) {
+		return {
+			map_option: "Geographic level",
+			geojson: { properties: { division_id: divisionId } },
+		};
+	}
+
+	const FOOTPRINT_HEADER = [...CREATE_HEADER, "spatialFootprint"];
+
+	it("Scenario: A legacy footprint creates an observation at the import time, shared by every row", async () => {
 		const { tenantId, userId, tax } = await setupTenant();
-		const header = [...CREATE_HEADER, "spatialFootprint", "attachments"];
+		const division = await seedDivision(tenantId);
+		const before = Date.now();
 
 		const result = await runImport(harness, {
 			tenantId,
 			actingUserId: userId,
 			mode: "create",
-			...csvTable(header, [
+			...csvTable(FOOTPRINT_HEADER, [
 				createRecord(tax, {
-					spatialFootprint: '[{"id":"1","title":"t","geojson":{}}]',
-					attachments: '[{"id":"a","title":"doc","file_option":"Link"}]',
+					apiImportId: "fp-1",
+					spatialFootprint: footprintCell([
+						pointItem(),
+						divisionItem(division),
+					]),
 				}),
-				createRecord(tax, { spatialFootprint: "{not json" }),
-				createRecord(tax),
+				createRecord(tax, {
+					apiImportId: "fp-2",
+					spatialFootprint: footprintCell([
+						{ map_option: "Map coordinates", geojson: POLYGON },
+						{ map_option: "Geographic level", division_id: division },
+					]),
+				}),
+			]),
+		});
+		const after = Date.now();
+
+		expect(result).toMatchObject({ ok: true, created: 2 });
+		const events = await eventsOfTenant(tenantId);
+		const byImportId = new Map(events.map((e) => [e.apiImportId, e.id]));
+		const first = await currentFootprint(
+			harness,
+			tenantId,
+			byImportId.get("fp-1") as string,
+		);
+		const second = await currentFootprint(
+			harness,
+			tenantId,
+			byImportId.get("fp-2") as string,
+		);
+		expect(first?.geometries).toStrictEqual([POINT]);
+		expect(first?.divisionIds).toStrictEqual([division]);
+		expect(second?.geometries).toStrictEqual([POLYGON]);
+		expect(second?.divisionIds).toStrictEqual([division]);
+		const time = first?.observationTime.getTime() ?? 0;
+		expect(time).toBeGreaterThanOrEqual(before);
+		expect(time).toBeLessThanOrEqual(after);
+		expect(second?.observationTime.getTime()).toBe(time);
+		expect(harness.logger.messages()).toContain("spatial_observation.recorded");
+	});
+
+	it("Scenario: Another tenant's division, or one that exists nowhere, is rejected and nothing is written", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+		const otherTenant = await seedCountryAccount();
+		const foreignDivision = await seedDivision(otherTenant);
+		const missingDivision = randomUUID();
+		const countsBefore = await globalCounts();
+		const observationsBefore = await totalObservationCount();
+
+		const result = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "create",
+			...csvTable(FOOTPRINT_HEADER, [
+				createRecord(tax, {
+					spatialFootprint: footprintCell([divisionItem(foreignDivision)]),
+				}),
+				createRecord(tax, {
+					spatialFootprint: footprintCell([divisionItem(missingDivision)]),
+				}),
 			]),
 		});
 
 		expect(result).toMatchObject({
-			ok: true,
-			created: 3,
-			skippedDataNotice: { rows: 2 },
+			ok: false,
+			rowErrors: [
+				{
+					line: 2,
+					code: "invalid_division",
+					column: "spatialFootprint",
+					value: foreignDivision,
+				},
+				{
+					line: 3,
+					code: "invalid_division",
+					column: "spatialFootprint",
+					value: missingDivision,
+				},
+			],
 		});
-		expect(result.ignoredColumns).toEqual(
-			expect.arrayContaining(["spatialFootprint", "attachments"]),
-		);
+		expect(await globalCounts()).toEqual(countsBefore);
+		expect(await totalObservationCount()).toBe(observationsBefore);
+	});
+
+	it("Scenario: A malformed footprint is rejected before any write", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+		const countsBefore = await globalCounts();
+
+		const result = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "create",
+			...csvTable(FOOTPRINT_HEADER, [
+				createRecord(tax),
+				createRecord(tax, { spatialFootprint: "{not json" }),
+				createRecord(tax, {
+					spatialFootprint: footprintCell([
+						pointItem({ type: "Point", coordinates: "x" }),
+					]),
+				}),
+			]),
+		});
+
+		expect(result).toMatchObject({
+			ok: false,
+			rowErrors: [
+				{ line: 3, code: "invalid_spatial_footprint" },
+				{ line: 4, code: "invalid_spatial_footprint" },
+			],
+		});
+		expect(await globalCounts()).toEqual(countsBefore);
+	});
+
+	it("L9: [] on the create path records no observation, nor does an empty cell", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+
+		const result = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "create",
+			...csvTable(FOOTPRINT_HEADER, [
+				createRecord(tax, { spatialFootprint: "[]" }),
+				createRecord(tax, { spatialFootprint: "" }),
+			]),
+		});
+
+		expect(result).toMatchObject({ ok: true, created: 2 });
 		for (const event of await eventsOfTenant(tenantId)) {
-			const attachments = await dr
-				.select()
-				.from(hazardousEventAttachmentTable)
-				.where(eq(hazardousEventAttachmentTable.hazardousEventId, event.id));
-			const observations = await dr
-				.select()
-				.from(hazardousEventSpatialObservationTable)
-				.where(
-					eq(hazardousEventSpatialObservationTable.hazardousEventId, event.id),
-				);
-			expect(attachments).toHaveLength(0);
-			expect(observations).toHaveLength(0);
+			expect(await observationCount(event.id)).toBe(0);
 		}
 	});
 
-	async function seedEventWithLinkAttachment(tenantId: string, tax: Taxonomy) {
+	it("Scenario: An unchanged footprint records nothing, even reformatted and reordered", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+		const division = await seedDivision(tenantId);
 		const id = await seedCaEvent(harness, {
 			tenantId,
 			specificHazardId: tax.specificHazardId,
 		});
+		await seedObservation(harness, {
+			tenantId,
+			eventId: id,
+			geometries: [POINT, POLYGON],
+			divisionIds: [division],
+		});
+		const updatedAtBefore = (await eventRow(id)).updatedAt;
+
+		const exported = await exportAndReparse(harness, tenantId);
+		const reimport = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "update",
+			header: exported.header,
+			rows: exported.rows,
+		});
+		const reordered = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "update",
+			header: ["id", "spatialFootprint"],
+			rows: [
+				[
+					id,
+					JSON.stringify(
+						[
+							{ map_option: "Geographic level", division_id: division },
+							{ map_option: "Map coordinates", geojson: POLYGON },
+							pointItem(),
+						],
+						null,
+						2,
+					),
+				],
+			],
+		});
+
+		expect(reimport).toMatchObject({ ok: true, updated: 0, unchanged: 1 });
+		expect(reordered).toMatchObject({ ok: true, updated: 0, unchanged: 1 });
+		expect(await observationCount(id)).toBe(1);
+		expect((await eventRow(id)).updatedAt).toEqual(updatedAtBefore);
+	});
+
+	it("Scenario: [] clears a non-empty footprint once, then is unchanged", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+		const id = await seedCaEvent(harness, {
+			tenantId,
+			specificHazardId: tax.specificHazardId,
+		});
+		await seedObservation(harness, {
+			tenantId,
+			eventId: id,
+			geometries: [POINT],
+		});
+		const file = {
+			header: ["id", "spatialFootprint"],
+			rows: [[id, "[]"]],
+		};
+
+		const first = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "update",
+			...file,
+		});
+		const second = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "update",
+			...file,
+		});
+
+		expect(first).toMatchObject({ ok: true, updated: 1 });
+		expect(second).toMatchObject({ ok: true, updated: 0, unchanged: 1 });
+		expect(await observationCount(id)).toBe(2);
+		const current = await currentFootprint(harness, tenantId, id);
+		expect(current?.geometries).toStrictEqual([]);
+		expect(current?.divisionIds).toStrictEqual([]);
+	});
+
+	it("a changed footprint on update records one new observation at the import time", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+		const id = await seedCaEvent(harness, {
+			tenantId,
+			specificHazardId: tax.specificHazardId,
+		});
+		await seedObservation(harness, {
+			tenantId,
+			eventId: id,
+			geometries: [POINT],
+		});
+
+		const result = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "update",
+			header: ["id", "spatialFootprint"],
+			rows: [[id, footprintCell([pointItem(POLYGON)])]],
+		});
+
+		expect(result).toMatchObject({ ok: true, updated: 1 });
+		expect(await observationCount(id)).toBe(2);
+		expect(
+			(await currentFootprint(harness, tenantId, id))?.geometries,
+		).toStrictEqual([POLYGON]);
+	});
+
+	it("Scenario: A changed footprint on a published event is not editable", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+		const id = await seedCaEvent(harness, {
+			tenantId,
+			specificHazardId: tax.specificHazardId,
+			workflow: "PUBLISHED",
+		});
+		const before = await tenantSnapshot(tenantId);
+
+		const result = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			role: "data-collector",
+			mode: "update",
+			header: ["id", "spatialFootprint"],
+			rows: [[id, footprintCell([pointItem()])]],
+		});
+
+		expect(result).toMatchObject({
+			ok: false,
+			rowErrors: [{ line: 2, code: "not_editable" }],
+		});
+		expect(await tenantSnapshot(tenantId)).toEqual(before);
+		expect(await observationCount(id)).toBe(0);
+	});
+
+	it("OD-9: a current observation dated after the import gives conflict on spatialFootprint", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+		const id = await seedCaEvent(harness, {
+			tenantId,
+			specificHazardId: tax.specificHazardId,
+		});
+		await seedObservation(harness, {
+			tenantId,
+			eventId: id,
+			geometries: [POINT],
+			observationTime: new Date(Date.now() + 86_400_000),
+		});
+
+		const result = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "update",
+			header: ["id", "spatialFootprint"],
+			rows: [[id, footprintCell([pointItem(POLYGON)])]],
+		});
+
+		expect(result).toMatchObject({
+			ok: false,
+			rowErrors: [{ line: 2, code: "conflict", column: "spatialFootprint" }],
+		});
+		expect(await observationCount(id)).toBe(1);
+	});
+
+	it("an unchanged row whose stored footprint names a since-foreign division still re-imports (D10)", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+		const division = await seedDivision(tenantId);
+		const id = await seedCaEvent(harness, {
+			tenantId,
+			specificHazardId: tax.specificHazardId,
+		});
+		await seedObservation(harness, {
+			tenantId,
+			eventId: id,
+			geometries: [],
+			divisionIds: [division],
+		});
+		const exported = await exportAndReparse(harness, tenantId);
+		// The division moves to another tenant after the export.
+		const otherTenant = await seedCountryAccount();
+		await dr
+			.update(divisionTable)
+			.set({ countryAccountsId: otherTenant })
+			.where(eq(divisionTable.id, division));
+
+		const unchanged = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "update",
+			header: exported.header,
+			rows: exported.rows,
+		});
+		const descriptionColumn = exported.header.indexOf("description");
+		const changedRow = [...exported.rows[0]];
+		changedRow[descriptionColumn] = "edited";
+		const changed = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "update",
+			header: exported.header,
+			rows: [changedRow],
+		});
+
+		expect(unchanged).toMatchObject({ ok: true, unchanged: 1 });
+		// Deferred errors apply row-wide once the row is not unchanged (spec text).
+		expect(changed).toMatchObject({
+			ok: false,
+			rowErrors: [
+				{
+					line: 2,
+					code: "invalid_division",
+					column: "spatialFootprint",
+					value: division,
+				},
+			],
+		});
+	});
+
+	it("Scenario: An update without the column keeps the footprint (no L13 wipe)", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+		const id = await seedCaEvent(harness, {
+			tenantId,
+			specificHazardId: tax.specificHazardId,
+		});
+		await seedObservation(harness, {
+			tenantId,
+			eventId: id,
+			geometries: [POINT],
+		});
+
+		const result = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "update",
+			header: ["id", "description"],
+			rows: [[id, "changed description"]],
+		});
+
+		expect(result).toMatchObject({ ok: true, updated: 1 });
+		expect(await observationCount(id)).toBe(1);
+		expect(
+			(await currentFootprint(harness, tenantId, id))?.geometries,
+		).toStrictEqual([POINT]);
+	});
+});
+
+describe("attachments become CA attachments: http(s) links and the event's own files (6d-2)", () => {
+	const ATTACHMENT_HEADER = [...CREATE_HEADER, "attachments"];
+
+	function cell(items: unknown[]): string {
+		return JSON.stringify(items);
+	}
+
+	function linkItem(url: string, title = "Report") {
+		return {
+			id: "1",
+			title,
+			tag: [{ id: "t", name: "Tag" }],
+			file_option: "Link",
+			url,
+		};
+	}
+
+	function fileItem(name: string, title = "Scan") {
+		return {
+			id: "2",
+			title,
+			tag: null,
+			file_option: "File",
+			file: { name, content_type: "application/pdf" },
+		};
+	}
+
+	function uploadListing(root: string): string[] {
+		const out: string[] = [];
+		const walk = (dir: string) => {
+			for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+				const full = path.join(dir, entry.name);
+				out.push(full);
+				if (entry.isDirectory()) walk(full);
+			}
+		};
+		walk(root);
+		return out.sort();
+	}
+
+	function deletesOf(events: StorageEvent[]) {
+		return events.filter((e) => e.op === "delete");
+	}
+
+	it("Scenario: A legacy file with an https link creates a Link attachment", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+
+		const result = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "create",
+			...csvTable(ATTACHMENT_HEADER, [
+				createRecord(tax, {
+					attachments: cell([linkItem("https://example.com/a")]),
+				}),
+			]),
+		});
+
+		expect(result).toMatchObject({ ok: true, created: 1 });
+		const [event] = await eventsOfTenant(tenantId);
+		const rows = await attachmentRowsOf(event.id);
+		expect(rows).toHaveLength(1);
+		expect(rows[0]).toMatchObject({
+			type: "Link",
+			title: "Report",
+			tag: [{ id: "t", name: "Tag" }],
+			url: "https://example.com/a",
+		});
+		expect(harness.storageEvents.filter((e) => e.op !== "commit")).toEqual([]);
+	});
+
+	it("Scenario: Dangerous link schemes are rejected and nothing is written", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+		const countsBefore = await globalCounts();
+
+		const result = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "create",
+			...csvTable(ATTACHMENT_HEADER, [
+				createRecord(tax, {
+					attachments: cell([linkItem("javascript:alert(1)")]),
+				}),
+				createRecord(tax, {
+					attachments: cell([linkItem("data:text/html,x")]),
+				}),
+			]),
+		});
+
+		expect(result).toMatchObject({
+			ok: false,
+			rowErrors: [
+				{
+					line: 2,
+					code: "invalid_attachment_url",
+					value: "javascript:alert(1)",
+				},
+				{ line: 3, code: "invalid_attachment_url", value: "data:text/html,x" },
+			],
+		});
+		expect(await globalCounts()).toEqual(countsBefore);
+	});
+
+	it("Scenario: A File item on create is not supported -- no promote, no file or directory", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+		const listingBefore = uploadListing(harness.uploadRoot);
+		const countsBefore = await globalCounts();
+
+		const result = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "create",
+			...csvTable(ATTACHMENT_HEADER, [
+				createRecord(tax, {
+					attachments: cell([fileItem("/uploads/temp/report.pdf")]),
+				}),
+			]),
+		});
+
+		expect(result).toMatchObject({
+			ok: false,
+			rowErrors: [
+				{
+					line: 2,
+					code: "file_reference_not_supported",
+					column: "attachments",
+					value: "report.pdf",
+				},
+			],
+		});
+		expect(await globalCounts()).toEqual(countsBefore);
+		expect(harness.storageEvents).toEqual([]);
+		expect(uploadListing(harness.uploadRoot)).toEqual(listingBefore);
+	});
+
+	it("an upsert row taking the create path rejects a File item the same way", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+
+		const result = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "upsert",
+			...csvTable(ATTACHMENT_HEADER, [
+				createRecord(tax, {
+					apiImportId: "NEW-WITH-FILE",
+					attachments: cell([fileItem("/uploads/hazardous-event/x/k.pdf")]),
+				}),
+			]),
+		});
+
+		expect(result).toMatchObject({
+			ok: false,
+			rowErrors: [
+				{ line: 2, code: "file_reference_not_supported", value: "k.pdf" },
+			],
+		});
+		expect(await eventsOfTenant(tenantId)).toHaveLength(0);
+		expect(harness.storageEvents).toEqual([]);
+	});
+
+	it("Scenario: A File item naming the event's own file keeps it, with the new title and stored metadata", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+		const { id, fileKey, filePath } = await seedCaEventWithFile(harness, {
+			tenantId,
+			specificHazardId: tax.specificHazardId,
+			links: [{ title: "Situation report", url: "https://example.com/r" }],
+		});
+		const [storedFile] = (await attachmentRowsOf(id)).filter(
+			(row) => row.type === "File",
+		);
+
+		const result = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "update",
+			header: ["id", "attachments"],
+			rows: [
+				[id, cell([fileItem(`/uploads/tenant-other/x/${fileKey}`, "Renamed")])],
+			],
+		});
+
+		expect(result).toMatchObject({ ok: true, updated: 1 });
+		const rows = await attachmentRowsOf(id);
+		expect(rows).toHaveLength(1);
+		expect(rows[0]).toMatchObject({
+			type: "File",
+			title: "Renamed",
+			fileKey,
+			fileName: storedFile.fileName,
+			fileType: storedFile.fileType,
+			fileSize: storedFile.fileSize,
+		});
+		expect(deletesOf(harness.storageEvents)).toEqual([]);
+		expect(harness.storageEvents.some((e) => e.op === "promote")).toBe(false);
+		expect(fs.existsSync(filePath)).toBe(true);
+	});
+
+	it("Scenario: A File item naming another event's file is rejected and nothing is written", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+		const holder = await seedCaEventWithFile(harness, {
+			tenantId,
+			specificHazardId: tax.specificHazardId,
+		});
+		const other = await seedCaEvent(harness, {
+			tenantId,
+			specificHazardId: tax.specificHazardId,
+		});
+		const before = await tenantSnapshot(tenantId);
+
+		const result = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "update",
+			header: ["id", "attachments"],
+			rows: [[other, cell([fileItem(`/x/${holder.fileKey}`)])]],
+		});
+
+		expect(result).toMatchObject({
+			ok: false,
+			rowErrors: [
+				{
+					line: 2,
+					code: "file_reference_not_supported",
+					value: holder.fileKey,
+				},
+			],
+		});
+		expect(await tenantSnapshot(tenantId)).toEqual(before);
+		expect(await attachmentRowsOf(other)).toHaveLength(0);
+	});
+
+	it("a malformed tag never reaches storage, so the detail page cannot receive one", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+		const id = await seedCaEvent(harness, {
+			tenantId,
+			specificHazardId: tax.specificHazardId,
+		});
+		const countsBefore = await globalCounts();
+
+		const created = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "create",
+			...csvTable(ATTACHMENT_HEADER, [
+				createRecord(tax, {
+					attachments: cell([
+						{ ...linkItem("https://a.example"), tag: [null] },
+					]),
+				}),
+			]),
+		});
+		const updated = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "update",
+			header: ["id", "attachments"],
+			rows: [[id, cell([{ ...linkItem("https://a.example"), tag: ["Tag"] }])]],
+		});
+
+		expect(created).toMatchObject({
+			ok: false,
+			rowErrors: [{ line: 2, code: "invalid_attachments" }],
+		});
+		expect(updated).toMatchObject({
+			ok: false,
+			rowErrors: [{ line: 2, code: "invalid_attachments" }],
+		});
+		expect(await globalCounts()).toEqual(countsBefore);
+		expect(await attachmentRowsOf(id)).toEqual([]);
+	});
+
+	it("Scenario: An object instead of an array is rejected", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+
+		const result = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "create",
+			...csvTable(ATTACHMENT_HEADER, [
+				createRecord(tax, {
+					attachments: JSON.stringify(linkItem("https://a.example")),
+				}),
+			]),
+		});
+
+		expect(result).toMatchObject({
+			ok: false,
+			rowErrors: [
+				{ line: 2, code: "invalid_attachments", column: "attachments" },
+			],
+		});
+	});
+
+	it("Scenario: An unchanged attachment set is not rewritten -- other order, no ids", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+		const { id, fileKey } = await seedCaEventWithFile(harness, {
+			tenantId,
+			specificHazardId: tax.specificHazardId,
+			links: [{ title: "Situation report", url: "https://example.com/r" }],
+		});
+		const rowsBefore = await attachmentRowsOf(id);
+
+		const result = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "update",
+			header: ["id", "attachments"],
+			rows: [
+				[
+					id,
+					cell([
+						{
+							title: "Situation report",
+							file_option: "Link",
+							url: "https://example.com/r",
+						},
+						{
+							title: "Scan",
+							tag: [],
+							file_option: "File",
+							file: { name: fileKey },
+						},
+					]),
+				],
+			],
+		});
+
+		expect(result).toMatchObject({ ok: true, updated: 0, unchanged: 1 });
+		expect((await attachmentRowsOf(id)).map((row) => row.id).sort()).toEqual(
+			rowsBefore.map((row) => row.id).sort(),
+		);
+		expect(harness.storageEvents.filter((e) => e.op !== "commit")).toEqual([]);
+	});
+
+	it("Scenario: An unchanged row holding a non-http link re-imports; changing that row is rejected", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+		const id = await seedCaEvent(harness, {
+			tenantId,
+			specificHazardId: tax.specificHazardId,
+		});
+		// Written as the he-preview form stored links before SA-1.
 		await dr.insert(hazardousEventAttachmentTable).values({
 			hazardousEventId: id,
-			title: "Situation report",
+			title: "Old link",
 			type: "Link",
-			url: "https://example.invalid/report",
+			url: "ftp://example.com/f",
 		});
-		return id;
-	}
+		const exported = await exportAndReparse(harness, tenantId);
+		const column = (name: string) => exported.header.indexOf(name);
 
-	async function attachmentsOf(id: string) {
-		return dr
-			.select()
-			.from(hazardousEventAttachmentTable)
-			.where(eq(hazardousEventAttachmentTable.hazardousEventId, id));
-	}
+		const unchanged = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "update",
+			header: exported.header,
+			rows: exported.rows,
+		});
+		const keepsLink = [...exported.rows[0]];
+		keepsLink[column("attachments")] = cell([
+			{ title: "Old link", file_option: "Link", url: "ftp://example.com/f" },
+			linkItem("https://example.com/new"),
+		]);
+		const changesAttachments = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "update",
+			header: exported.header,
+			rows: [keepsLink],
+		});
+		const changesDescription = [...exported.rows[0]];
+		changesDescription[column("description")] = "edited";
+		const changesOtherColumn = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "update",
+			header: exported.header,
+			rows: [changesDescription],
+		});
 
-	it("an update with empty footprint and attachment cells changes the description and keeps the attachment's content", async () => {
+		expect(unchanged).toMatchObject({ ok: true, unchanged: 1 });
+		expect(changesAttachments).toMatchObject({
+			ok: false,
+			rowErrors: [
+				{
+					line: 2,
+					code: "invalid_attachment_url",
+					value: "ftp://example.com/f",
+				},
+			],
+		});
+		// Row-level, per the spec text: any change to the row applies the attachment rules.
+		expect(changesOtherColumn).toMatchObject({
+			ok: false,
+			rowErrors: [{ line: 2, code: "invalid_attachment_url" }],
+		});
+	});
+
+	it("Scenario: A rolled-back import deletes no file and calls no promote", async () => {
 		const { tenantId, userId, tax } = await setupTenant();
-		const id = await seedEventWithLinkAttachment(tenantId, tax);
+		const { id, fileKey, filePath } = await seedCaEventWithFile(harness, {
+			tenantId,
+			specificHazardId: tax.specificHazardId,
+		});
+
+		const result = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "update",
+			header: ["id", "attachments"],
+			rows: [
+				[id, "[]"],
+				[randomUUID(), "[]"],
+			],
+		});
+
+		expect(result).toMatchObject({
+			ok: false,
+			rowErrors: [{ line: 3, code: "not_found" }],
+		});
+		expect((await attachmentRowsOf(id)).map((row) => row.fileKey)).toEqual([
+			fileKey,
+		]);
+		expect(harness.storageEvents).toEqual([]);
+		expect(fs.existsSync(filePath)).toBe(true);
+	});
+
+	it("Scenario: Files are deleted after commit, exactly once", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+		const { id, fileKey, filePath } = await seedCaEventWithFile(harness, {
+			tenantId,
+			specificHazardId: tax.specificHazardId,
+		});
+
+		const result = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "update",
+			header: ["id", "attachments"],
+			rows: [[id, "[]"]],
+		});
+
+		expect(result).toMatchObject({ ok: true, updated: 1 });
+		expect(await attachmentRowsOf(id)).toHaveLength(0);
+		expect(harness.storageEvents).toEqual([
+			{ op: "commit" },
+			{ op: "delete", ownerId: id, fileKey },
+		]);
+		expect(fs.existsSync(filePath)).toBe(false);
+	});
+
+	it("Scenario: A deletion failure after commit keeps the import successful and logs delete_failed", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+		const { id, fileKey } = await seedCaEventWithFile(harness, {
+			tenantId,
+			specificHazardId: tax.specificHazardId,
+		});
+		harness.attachmentStoragePort.failDelete = true;
+
+		const result = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "update",
+			header: ["id", "attachments"],
+			rows: [[id, "[]"]],
+		});
+
+		expect(result).toMatchObject({ ok: true, updated: 1 });
+		const failures = harness.logger.errorCalls.filter(
+			(call) => call.msg === "hazardous_event_attachment.delete_failed",
+		);
+		expect(failures).toHaveLength(1);
+		expect(failures[0]).toMatchObject({ fileKey, ownerId: id, tenantId });
+	});
+
+	it("Scenario: An update without the columns keeps footprint, attachments and files", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+		const { id, fileKey, filePath } = await seedCaEventWithFile(harness, {
+			tenantId,
+			specificHazardId: tax.specificHazardId,
+		});
+		await seedObservation(harness, {
+			tenantId,
+			eventId: id,
+			geometries: [{ type: "Point", coordinates: [1, 2] }],
+		});
+
+		const result = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "update",
+			header: ["id", "description"],
+			rows: [[id, "changed description"]],
+		});
+
+		expect(result).toMatchObject({ ok: true, updated: 1 });
+		expect(await observationCount(id)).toBe(1);
+		expect((await attachmentRowsOf(id)).map((row) => row.fileKey)).toEqual([
+			fileKey,
+		]);
+		expect(deletesOf(harness.storageEvents)).toEqual([]);
+		expect(fs.existsSync(filePath)).toBe(true);
+	});
+
+	it("an empty attachments cell on update keeps the set (OD-2)", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+		const { id, fileKey } = await seedCaEventWithFile(harness, {
+			tenantId,
+			specificHazardId: tax.specificHazardId,
+		});
 
 		const result = await runImport(harness, {
 			tenantId,
 			actingUserId: userId,
 			mode: "update",
 			header: ["id", "description", "spatialFootprint", "attachments"],
-			rows: [[id, "new description", "[]", "[]"]],
+			rows: [[id, "new description", "", ""]],
 		});
 
 		expect(result).toMatchObject({ ok: true, updated: 1 });
 		expect((await eventRow(id)).description).toBe("new description");
-		const after = await attachmentsOf(id);
-		expect(after).toHaveLength(1);
-		expect(after[0]).toMatchObject({
-			title: "Situation report",
-			type: "Link",
-			url: "https://example.invalid/report",
+		expect((await attachmentRowsOf(id)).map((row) => row.fileKey)).toEqual([
+			fileKey,
+		]);
+	});
+
+	it("never reports the 6d-1 skipped-data notice", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+
+		const result = await runImport(harness, {
+			tenantId,
+			actingUserId: userId,
+			mode: "create",
+			...csvTable(ATTACHMENT_HEADER, [
+				createRecord(tax, {
+					attachments: cell([linkItem("https://a.example")]),
+				}),
+			]),
 		});
+
+		expect(result).toMatchObject({ ok: true, created: 1 });
+		expect("skippedDataNotice" in result).toBe(false);
+		expect(result.ignoredColumns).toEqual([]);
+	});
+});
+
+// PGlite has one connection, so "both read E before either writes" is emulated: the second
+// import is served the snapshot it read before the first committed (6d-1 known limit).
+describe("concurrent imports changing one event's footprint or attachments (outcome only)", () => {
+	// Only the import's snapshot is stale; Update reads the event fresh, as under READ COMMITTED
+	// once the first import has committed. The expected version must still reject it.
+	async function staleSecondImport(tenantId: string) {
+		const second = buildCsvHarness();
+		const staleRows =
+			await second.hazardousEventRepository.findExportRows(tenantId);
+		return {
+			second,
+			arm: () => {
+				vi.spyOn(
+					second.hazardousEventRepository,
+					"findExportRows",
+				).mockResolvedValueOnce(staleRows);
+			},
+		};
+	}
+
+	it("Scenario: Two imports race on one event's attachments -- one commits, the other fails with concurrent_modification, K deleted once", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+		const { id, fileKey, filePath } = await seedCaEventWithFile(harness, {
+			tenantId,
+			specificHazardId: tax.specificHazardId,
+		});
+		const { second, arm } = await staleSecondImport(tenantId);
+		try {
+			const first = await runImport(harness, {
+				tenantId,
+				actingUserId: userId,
+				mode: "update",
+				header: ["id", "attachments"],
+				rows: [[id, "[]"]],
+			});
+			arm();
+			const retitled = await runImport(second, {
+				tenantId,
+				actingUserId: userId,
+				mode: "update",
+				header: ["id", "attachments"],
+				rows: [
+					[
+						id,
+						JSON.stringify([
+							{
+								title: "Retitled",
+								file_option: "File",
+								file: { name: fileKey },
+							},
+						]),
+					],
+				],
+			});
+
+			expect(first).toMatchObject({ ok: true, updated: 1 });
+			expect(retitled).toMatchObject({
+				ok: false,
+				rowErrors: [{ line: 2, code: "concurrent_modification" }],
+			});
+			expect(await attachmentRowsOf(id)).toHaveLength(0);
+			const deletes = [
+				...harness.storageEvents,
+				...second.storageEvents,
+			].filter((event) => event.op === "delete");
+			expect(deletes).toEqual([{ op: "delete", ownerId: id, fileKey }]);
+			expect(fs.existsSync(filePath)).toBe(false);
+		} finally {
+			second.cleanup();
+		}
+	});
+
+	it("Scenario: Two imports race on one event's footprint -- at most one new observation commits", async () => {
+		const { tenantId, userId, tax } = await setupTenant();
+		const id = await seedCaEvent(harness, {
+			tenantId,
+			specificHazardId: tax.specificHazardId,
+		});
+		const { second, arm } = await staleSecondImport(tenantId);
+		const footprint = (x: number) =>
+			JSON.stringify([
+				{
+					map_option: "Map coordinates",
+					geojson: { type: "Point", coordinates: [x, 1] },
+				},
+			]);
+		try {
+			const first = await runImport(harness, {
+				tenantId,
+				actingUserId: userId,
+				mode: "update",
+				header: ["id", "spatialFootprint"],
+				rows: [[id, footprint(1)]],
+			});
+			arm();
+			const loser = await runImport(second, {
+				tenantId,
+				actingUserId: userId,
+				mode: "update",
+				header: ["id", "spatialFootprint"],
+				rows: [[id, footprint(2)]],
+			});
+
+			expect(first).toMatchObject({ ok: true, updated: 1 });
+			expect(loser).toMatchObject({ ok: false });
+			expect(
+				loser.ok ? [] : loser.rowErrors.map((error) => error.code),
+			).toEqual([
+				expect.stringMatching(/^(concurrent_modification|conflict)$/),
+			]);
+			expect(await observationCount(id)).toBe(1);
+		} finally {
+			second.cleanup();
+		}
 	});
 });
 

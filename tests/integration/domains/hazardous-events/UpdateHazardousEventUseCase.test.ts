@@ -966,3 +966,156 @@ describe("UpdateHazardousEventUseCase with a caller transaction (ca-he-csv-migra
 		expect(updatedLogs[0]).toMatchObject({ hazardousEventId: id });
 	});
 });
+
+// ---------------------------------------------------------------------------
+// ca-he-csv-spatial-attachments tasks.md 6.1 -- specs/update-hazardous-event (deferred deletion, D7).
+// ---------------------------------------------------------------------------
+describe("UpdateHazardousEventUseCase returns removed files to a caller transaction (6d-2, D7)", () => {
+	let uploadRoot: string;
+	let tenantId: string;
+	let specificHazardId: string;
+	let actingUserId: string;
+
+	beforeAll(async () => {
+		tenantId = (await seedCountryAccount()) as string;
+		specificHazardId = await seedSpecificHazard();
+		actingUserId = await seedUser();
+	}, 60_000);
+
+	beforeEach(async () => {
+		uploadRoot = await fs.mkdtemp(
+			path.join(os.tmpdir(), "delta-update-he-deferred-"),
+		);
+	});
+
+	afterEach(async () => {
+		await fs.rm(uploadRoot, { recursive: true, force: true });
+	});
+
+	/** An event holding one genuinely promoted File-type attachment K. */
+	async function seedEventWithFile(harness: ReturnType<typeof createHarness>) {
+		const id = randomUUID();
+		const staged = await harness.attachmentStoragePort.stage(tenantId, {
+			name: "kept-or-removed.pdf",
+			content: Buffer.from("k"),
+		});
+		const { fileKey, fileSize } = await harness.attachmentStoragePort.promote(
+			{ tenantId, ownerType: "hazardous-event", ownerId: id },
+			staged,
+		);
+		await harness.hazardousEventRepository.insert(
+			HazardousEvent.create(
+				baseEventProps(id, tenantId, specificHazardId, {
+					attachments: [
+						fileAttachment({
+							fileKey,
+							fileName: "kept-or-removed.pdf",
+							fileType: "application/pdf",
+							fileSize,
+						}),
+					],
+				}),
+				new Set(),
+				new Set(),
+			),
+		);
+		const filePath = permanentFilePath(uploadRoot, tenantId, id, fileKey);
+		await expect(fs.stat(filePath)).resolves.toBeDefined();
+		return { id, fileKey, filePath };
+	}
+
+	it("Scenario: Removed files are returned, not deleted, under a caller transaction -- and a rollback leaves K listed and on disk", async () => {
+		const harness = createHarness(uploadRoot);
+		const { id, fileKey, filePath } = await seedEventWithFile(harness);
+		const deleteSpy = vi.spyOn(harness.attachmentStoragePort, "delete");
+		let returned: readonly string[] | undefined;
+
+		await runAndRollBack(async (outer) => {
+			const result = await harness.useCase.execute({
+				id,
+				tenantId,
+				actingUserId,
+				attachments: [],
+				tx: outer,
+			});
+			returned = result.fileKeysToDelete;
+		});
+
+		expect(returned).toEqual([fileKey]);
+		expect(deleteSpy).not.toHaveBeenCalled();
+		const found = await harness.hazardousEventRepository.findById(id, tenantId);
+		expect(found.attachments.map((a) => a.fileKey)).toEqual([fileKey]);
+		await expect(fs.stat(filePath)).resolves.toBeDefined();
+	});
+
+	it("returns K when the caller commits, still without deleting it", async () => {
+		const harness = createHarness(uploadRoot);
+		const { id, fileKey, filePath } = await seedEventWithFile(harness);
+		const deleteSpy = vi.spyOn(harness.attachmentStoragePort, "delete");
+		let returned: readonly string[] | undefined;
+
+		await dr.transaction(async (outer) => {
+			const result = await harness.useCase.execute({
+				id,
+				tenantId,
+				actingUserId,
+				attachments: [],
+				tx: outer,
+			});
+			returned = result.fileKeysToDelete;
+		});
+
+		expect(returned).toEqual([fileKey]);
+		expect(deleteSpy).not.toHaveBeenCalled();
+		const found = await harness.hazardousEventRepository.findById(id, tenantId);
+		expect(found.attachments).toHaveLength(0);
+		await expect(fs.stat(filePath)).resolves.toBeDefined();
+	});
+
+	it("returns no keys under a caller transaction when the file is kept", async () => {
+		const harness = createHarness(uploadRoot);
+		const { id, fileKey } = await seedEventWithFile(harness);
+		let returned: readonly string[] | undefined;
+
+		await runAndRollBack(async (outer) => {
+			const result = await harness.useCase.execute({
+				id,
+				tenantId,
+				actingUserId,
+				attachments: [
+					{
+						kind: "existingFile",
+						id: "",
+						title: "Renamed",
+						tag: null,
+						fileKey,
+					},
+				],
+				tx: outer,
+			});
+			returned = result.fileKeysToDelete;
+		});
+
+		expect(returned).toEqual([]);
+	});
+
+	it("Scenario: Without a caller transaction removed files are still deleted, and fileKeysToDelete is []", async () => {
+		const harness = createHarness(uploadRoot);
+		const { id, fileKey, filePath } = await seedEventWithFile(harness);
+		const deleteSpy = vi.spyOn(harness.attachmentStoragePort, "delete");
+
+		const result = await harness.useCase.execute({
+			id,
+			tenantId,
+			actingUserId,
+			attachments: [],
+		});
+
+		expect(result.fileKeysToDelete).toEqual([]);
+		expect(deleteSpy).toHaveBeenCalledWith(
+			{ tenantId, ownerType: "hazardous-event", ownerId: id },
+			fileKey,
+		);
+		await expect(fs.stat(filePath)).rejects.toThrow();
+	});
+});

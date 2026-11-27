@@ -1210,6 +1210,96 @@ describe("Hazardous event create route", () => {
 		});
 	});
 
+	// 6d-2 SA-1 (D12): the shared http(s) rule refuses a Link before anything is written.
+	describe("Link URL scheme check (6d-2, D12)", () => {
+		function linkBody(url: string) {
+			return makeCreateBody(
+				{
+					attachments: JSON.stringify([
+						{ id: "a1", title: "Link", tag: null, file_option: "Link", url },
+					]),
+				},
+				specificHazardId,
+			);
+		}
+
+		async function tenantEventCount(): Promise<number> {
+			return (
+				await dr
+					.select({ id: hazardousEventTable.id })
+					.from(hazardousEventTable)
+					.where(eq(hazardousEventTable.countryAccountsId, tenantId))
+			).length;
+		}
+
+		it.each(["javascript:alert(1)", "data:text/html,x", ""])(
+			"Scenario: a %j Link is refused with the translated field error, and nothing is created",
+			async (url) => {
+				const { CreateHazardousEventUseCase } =
+					await import("~/domains/hazardous-events/application/use-cases/CreateHazardousEvent");
+				const createSpy = vi.spyOn(
+					testingModule.get(CreateHazardousEventUseCase),
+					"execute",
+				);
+
+				const result = await action(
+					await makeArgs(
+						"http://localhost/en/he-preview/new",
+						tenantId,
+						"data-collector",
+						linkBody(url),
+					),
+				);
+
+				expect(result).toEqual({
+					success: false,
+					fieldErrors: {
+						attachments: [
+							"Attachment links must start with http:// or https://.",
+						],
+					},
+				});
+				expect(createSpy).not.toHaveBeenCalled();
+				expect(await tenantEventCount()).toBe(0);
+				createSpy.mockRestore();
+			},
+		);
+
+		it("Scenario: The French message is shown to a French user", async () => {
+			const result = await action(
+				await makeArgs(
+					"http://localhost/fr/he-preview/new",
+					tenantId,
+					"data-collector",
+					linkBody("ftp://example.com/f"),
+				),
+			);
+
+			expect(result).toEqual({
+				success: false,
+				fieldErrors: {
+					attachments: [
+						"Les liens des pièces jointes doivent commencer par http:// ou https://.",
+					],
+				},
+			});
+		});
+
+		it("Scenario: An https link still saves", async () => {
+			const response = await action(
+				await makeArgs(
+					"http://localhost/en/he-preview/new",
+					tenantId,
+					"data-collector",
+					linkBody("https://example.com/report"),
+				),
+			);
+
+			expect(response).toBeInstanceOf(Response);
+			expect(await tenantEventCount()).toBe(1);
+		});
+	});
+
 	// design.md Decision 6 / hazardous-event-write-route-adapter spec: both realistic
 	// SpatialObservation ValidationErrors surface as a divisionIds field error, not a 500.
 	describe("divisionIds field-error mapping (design.md Decision 6)", () => {

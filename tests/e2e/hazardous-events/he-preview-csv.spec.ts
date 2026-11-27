@@ -20,6 +20,9 @@ import { hazardClusterTable } from "~/domains/hazardous-events/infrastructure/ha
 import { hazardTypeTable } from "~/domains/hazardous-events/infrastructure/hazardTypeTable";
 import { hipsVersionTable } from "~/domains/hazardous-events/infrastructure/hipsVersionTable";
 import { textContentTable } from "~/domains/shared/infrastructure/textContentTable";
+import { divisionTable } from "~/drizzle/schema/divisionTable";
+import { hazardousEventSpatialObservationTable } from "~/domains/hazardous-events/infrastructure/hazardousEventSpatialObservationTable";
+import { hazardousEventAttachmentTable } from "~/domains/hazardous-events/infrastructure/hazardousEventAttachmentTable";
 import { dr, initDB } from "~/db.server";
 import { runWcag22A11yCheck, verifyKeyboardSequence } from "../helpers/a11y";
 // Plain Drizzle inserts only -- Playwright's transform can't parse NestJS decorators (he-preview.spec.ts).
@@ -38,12 +41,14 @@ const hip = {
 	hipHazardId: `e2e-hazard-${suffix}`,
 };
 const parentEventId = randomUUID();
+const divisionName = `E2E CSV division ${suffix}`;
 let countryAccountId: string;
 let specificHazardId: string;
+let divisionId: string;
 
-// design.md E1 plus the appended `parent` (NOD-10).
+// design.md E1 plus the appended columns (NOD-10).
 const EXPORT_HEADER_LINE =
-	"updatedAt,createdAt,approvalStatus,createdByUserId,updatedByUserId,submittedByUserId,submittedAt,validatedByUserId,validatedAt,publishedByUserId,publishedAt,apiImportId,hipHazardId,hipClusterId,hipTypeId,id,countryAccountsId,specificHazardId,status,nationalSpecification,startDate,endDate,description,chainsExplanation,magnitude,recordOriginator,hazardousEventStatus,dataSource,specificHazardLocalName,specificHazardNationalName,parent";
+	"updatedAt,createdAt,approvalStatus,createdByUserId,updatedByUserId,submittedByUserId,submittedAt,validatedByUserId,validatedAt,publishedByUserId,publishedAt,apiImportId,hipHazardId,hipClusterId,hipTypeId,id,countryAccountsId,specificHazardId,status,nationalSpecification,startDate,endDate,description,chainsExplanation,magnitude,recordOriginator,hazardousEventStatus,dataSource,specificHazardLocalName,specificHazardNationalName,parent,spatialFootprint,attachments";
 
 // Legacy-shaped create file: X1 data columns plus the local/national name columns; no `id`.
 const LEGACY_HEADER = [
@@ -100,6 +105,11 @@ test.beforeAll(async () => {
 	initDB();
 	countryAccountId = await seedCountryAccount();
 	specificHazardId = await seedSpecificHazard(hip);
+	const [division] = await dr
+		.insert(divisionTable)
+		.values({ name: { en: divisionName }, countryAccountsId: countryAccountId })
+		.returning({ id: divisionTable.id });
+	divisionId = division.id;
 
 	await dr.insert(userTable).values({
 		id: userId,
@@ -198,7 +208,7 @@ function firstLine(body: string): string {
 }
 
 test.describe("he-preview CSV import/export (6d-1)", () => {
-	test("export downloads the tenant's events as hazardous-event.csv with the E1 header plus parent", async ({
+	test("export downloads the tenant's events as hazardous-event.csv with the E1 header plus the appended columns", async ({
 		page,
 	}) => {
 		await login(page);
@@ -258,11 +268,11 @@ test.describe("he-preview CSV import/export (6d-1)", () => {
 		);
 	});
 
-	test("a legacy-format file (HIP ids, published, parent, footprint/attachments cells) imports, reports the notice and shows as published", async ({
+	test("a legacy-format file with a Point footprint, a tenant division and an https link imports and shows on the detail page (6d-2)", async ({
 		page,
 	}) => {
 		const withParent = `e2e-csv-legacy-a-${suffix}`;
-		const withBadJson = `e2e-csv-legacy-b-${suffix}`;
+		const withLink = `e2e-csv-legacy-b-${suffix}`;
 		const csv = legacyCsv([
 			validRow(withParent, {
 				parent: parentEventId,
@@ -272,18 +282,33 @@ test.describe("he-preview CSV import/export (6d-1)", () => {
 					{
 						id: "f1",
 						title: "Area",
-						geojson: { type: "Point", coordinates: [1, 2] },
+						map_option: "Map coordinates",
+						geojson: {
+							type: "Feature",
+							geometry: { type: "Point", coordinates: [77.2, 28.6] },
+							properties: {},
+						},
 					},
-				]),
-				attachments: JSON.stringify([
-					{ id: "a1", title: "Report", url: "https://example.org" },
+					{
+						id: "f2",
+						map_option: "Geographic level",
+						geojson: { properties: { division_id: divisionId } },
+					},
 				]),
 				countryAccountsId: randomUUID(),
 			}),
-			validRow(withBadJson, {
+			validRow(withLink, {
 				approvalStatus: "published",
 				description: "Imported as published",
-				attachments: "{not json",
+				attachments: JSON.stringify([
+					{
+						id: "a1",
+						title: "Report",
+						tag: [],
+						file_option: "Link",
+						url: "https://example.org/report",
+					},
+				]),
 			}),
 		]);
 		await openImportPage(page);
@@ -295,38 +320,93 @@ test.describe("he-preview CSV import/export (6d-1)", () => {
 		await expect(status).toContainText(
 			"2 events created, 0 updated, 0 unchanged.",
 		);
+		await expect(status).not.toContainText("not imported.");
 		await expect(status).toContainText(
-			"2 rows had spatial footprint or attachment data that was not imported.",
+			"Columns not imported: countryAccountsId",
 		);
-		await expect(status).toContainText("Columns not imported:");
-		await expect(status).toContainText("spatialFootprint");
-		await expect(status).toContainText("attachments");
 
 		const violations: string[] = [];
 		await audit(page, "success", violations);
 		expect(violations).toEqual([]);
 
 		const childId = await eventIdByApiImportId(withParent);
-		const publishedId = await eventIdByApiImportId(withBadJson);
+		const linkedId = await eventIdByApiImportId(withLink);
 		const causality = await dr
 			.select({ cause: hazardousEventCausalityTable.causeHazardousEventId })
 			.from(hazardousEventCausalityTable)
 			.where(eq(hazardousEventCausalityTable.effectHazardousEventId, childId));
 		expect(causality).toEqual([{ cause: parentEventId }]);
 
-		await page.goto(`/en/he-preview/${publishedId}`);
-		await expect(page.locator("main .dts-status--published")).toHaveAttribute(
-			"title",
-			"Published",
-		);
-		await expect(page.locator("main")).toContainText("Imported as published");
-
 		await page.goto(`/en/he-preview/${childId}`);
 		await expect(page.locator("main .dts-status--published")).toHaveAttribute(
 			"title",
 			"Published",
 		);
-		await expect(page.locator("main")).toContainText("Imported with a parent");
+		await expect(page.locator("main")).toContainText("Observation time");
+		await expect(page.locator("main")).not.toContainText(
+			"No spatial observation recorded",
+		);
+		await expect(page.locator("main")).toContainText(divisionName);
+
+		await page.goto(`/en/he-preview/${linkedId}`);
+		await expect(page.locator("main")).toContainText("Imported as published");
+		await expect(
+			page.locator("main").getByRole("link", {
+				name: "https://example.org/report",
+			}),
+		).toHaveAttribute("href", "https://example.org/report");
+	});
+
+	test("a footprint or attachment that breaks the rules is a line-numbered error and nothing is created (6d-2)", async ({
+		page,
+	}) => {
+		const before = (await tenantEventIds()).length;
+		const csv = legacyCsv([
+			validRow(`e2e-csv-bad-a-${suffix}`, {
+				spatialFootprint: JSON.stringify([
+					{ map_option: "Geographic level", division_id: randomUUID() },
+				]),
+			}),
+			validRow(`e2e-csv-bad-b-${suffix}`, {
+				attachments: JSON.stringify([
+					{ title: "X", file_option: "Link", url: "javascript:alert(1)" },
+				]),
+			}),
+		]);
+		await openImportPage(page);
+		await uploadAndImport(page, "bad.csv", csv);
+
+		const alert = page.getByRole("alert");
+		await expect(alert).toContainText(
+			"Line 2, column spatialFootprint: This division does not exist in your country instance.",
+		);
+		await expect(alert).toContainText(
+			"Line 3, column attachments: Attachment links must start with http:// or https://. Value: javascript:alert(1)",
+		);
+		const violations: string[] = [];
+		await audit(page, "failure", violations);
+		expect(violations).toEqual([]);
+		expect((await tenantEventIds()).length).toBe(before);
+	});
+
+	test("export then re-import in update mode reports every row unchanged (6d-2 round trip)", async ({
+		page,
+	}) => {
+		await openImportPage(page);
+		const response = await page.request.get("/en/he-preview/csv-export");
+		expect(response.status()).toBe(200);
+		const body = await response.text();
+		const rows = body.split("\r\n").filter((line) => line !== "").length - 1;
+		expect(body).toContain('""map_option"":""Map coordinates""');
+		expect(body).toContain("https://example.org/report");
+
+		await page.getByRole("button", { name: /Type/ }).click();
+		await page.getByRole("option", { name: "Update", exact: true }).click();
+		await uploadAndImport(page, "exported.csv", body);
+
+		await expect(
+			page.getByRole("status").filter({ hasText: "events created" }),
+		).toContainText(`0 events created, 0 updated, ${rows} unchanged.`);
 	});
 
 	test("a mixed file shows line-numbered errors and creates no rows", async ({
@@ -550,6 +630,18 @@ test.afterAll(async ({ browser }) => {
 			.from(eventTable)
 			.where(inArray(eventTable.id, ids));
 		expect(leftEvents).toEqual([]);
+		const orphanObservations = await dr
+			.select({ id: hazardousEventSpatialObservationTable.id })
+			.from(hazardousEventSpatialObservationTable)
+			.where(
+				inArray(hazardousEventSpatialObservationTable.hazardousEventId, ids),
+			);
+		expect(orphanObservations).toEqual([]);
+		const orphanAttachments = await dr
+			.select({ id: hazardousEventAttachmentTable.id })
+			.from(hazardousEventAttachmentTable)
+			.where(inArray(hazardousEventAttachmentTable.hazardousEventId, ids));
+		expect(orphanAttachments).toEqual([]);
 	}
 	const globalOrphans = await dr
 		.select({ id: workflowInstanceTable.id })
@@ -578,6 +670,7 @@ test.afterAll(async ({ browser }) => {
 			.delete(userCountryAccountsTable)
 			.where(eq(userCountryAccountsTable.countryAccountsId, countryAccountId));
 		await tx.delete(userTable).where(eq(userTable.id, userId));
+		await tx.delete(divisionTable).where(eq(divisionTable.id, divisionId));
 		await tx
 			.delete(countryAccounts)
 			.where(eq(countryAccounts.id, countryAccountId));
