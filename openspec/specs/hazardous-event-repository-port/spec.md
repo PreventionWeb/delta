@@ -1032,16 +1032,23 @@ with no role or status filter (OD-9). Each object SHALL carry:
   event is still exactly one row);
 - the number of CA cause links of the event (`causeCount`), so the import can refuse a `parent`
   change that would replace several causes;
-- for each of those, the legacy fallback value: the stored `approvalStatus` and attribution
-  columns, the `hip_*` columns, and the `event_relationship` parent. (Footprint and attachment
-  fields are added by roadmap 6d-2.)
+- the event's current CA spatial observation (latest by observation time), as its observation
+  time, its geometries in GeoJSON and its division ids, or `null` when the event has none;
+- the event's CA attachment rows, each with type, title, URL, tag, file key and file type;
+- for each of those, the legacy fallback value:
+  - the stored `approvalStatus` and attribution columns;
+  - the `hip_*` columns;
+  - the `event_relationship` parent;
+  - the legacy footprint geometries (GeoJSON) and division ids;
+  - the legacy `attachments` jsonb.
 
 It MUST NOT construct a `HazardousEvent` entity, so a row that would fail rehydration (for
 example, one with a null `specific_hazard_id`) is still returned. It SHALL read with a single
 statement, or inside one read transaction, so the result is a consistent snapshot.
 `HazardousEventExportRow` MUST be a plain type declared in the application layer, not a Drizzle
 row type. When `tx` is given, the read MUST run on it, so the import's unchanged check (NOD-4)
-compares inside its own transaction without a second connection (NOD-12).
+compares inside its own transaction without a second connection (NOD-12). Every footprint and
+attachment value MUST belong to an event of `tenantId`.
 
 #### Scenario: A row that findAll skips is returned
 
@@ -1058,11 +1065,24 @@ compares inside its own transaction without a second connection (NOD-12).
 
 #### Scenario: Legacy fallback values are carried for an unmigrated row
 
-- **GIVEN** an event in T1 with no WorkflowInstance, legacy `approvalStatus = "published"`, and an
-  `event_relationship` parent P
+- **GIVEN** an event in T1 with no WorkflowInstance, legacy `approvalStatus = "published"`, an
+  `event_relationship` parent P, one legacy geometry row and a legacy `attachments` jsonb
 - **WHEN** `findExportRows(T1)` is called
-- **THEN** its projection has `workflowStatus: null` and carries the legacy status and P as
-  fallback values
+- **THEN** its projection has `workflowStatus: null` and carries the legacy status, P, the
+  geometry and the jsonb as fallback values
+
+#### Scenario: The current observation is the latest by observation time
+
+- **GIVEN** an event in T1 with two spatial observations, the later-dated one inserted first
+- **WHEN** `findExportRows(T1)` is called
+- **THEN** the projection's current observation is the later-dated one, with its geometries and
+  division ids
+
+#### Scenario: Attachments of the event are carried
+
+- **GIVEN** an event in T1 with one Link and one File attachment
+- **WHEN** `findExportRows(T1)` is called
+- **THEN** its projection lists both, with the Link's URL and the File's key and type
 
 #### Scenario: Concurrent export reads during a write
 
