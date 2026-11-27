@@ -1047,7 +1047,6 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 					file: {
 						name: upload.tempFilePath,
 						content_type: upload.fileType,
-						tenantPath: upload.tenantPath,
 					},
 				}));
 				const itemsToMove = [...existingItems, ...newItems];
@@ -1209,7 +1208,6 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 								file: {
 									name: upload.tempFilePath,
 									content_type: upload.fileType,
-									tenantPath: upload.tenantPath,
 								},
 							})),
 							TEMP_UPLOAD_PATH,
@@ -1447,7 +1445,6 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 								file: {
 									name: upload.tempFilePath,
 									content_type: upload.fileType,
-									tenantPath: upload.tenantPath,
 								},
 							})),
 							TEMP_UPLOAD_PATH,
@@ -1639,7 +1636,6 @@ export const action = authActionWithPerm("EditData", async (actionArgs) => {
 								file: {
 									name: upload.tempFilePath,
 									content_type: upload.fileType,
-									tenantPath: upload.tenantPath,
 								},
 							})),
 							TEMP_UPLOAD_PATH,

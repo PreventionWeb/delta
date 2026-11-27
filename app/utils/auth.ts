@@ -6,7 +6,6 @@ import {
 } from "react-router";
 
 import {
-	getCountrySettingsFromSession,
 	getUserFromSession,
 	getUserRoleFromSession,
 	sessionMarkTotpAuthed,
@@ -24,6 +23,9 @@ import {
 	loginTotp as modelLoginTotp,
 } from "~/backend.server/models/user/auth";
 import { apiAuth } from "~/backend.server/models/api_key";
+import { CountryAccountsRepository } from "~/db/queries/countryAccountsRepository";
+import { InstanceSystemSettingRepository } from "~/db/queries/instanceSystemSettingRepository";
+import { countryAccountStatuses } from "~/drizzle/schema/countryAccountsTable";
 import {
 	PermissionId,
 	roleHasPermission,
@@ -313,8 +315,15 @@ export function authLoaderPublicOrWithPerm<T extends LoaderFunction>(
 		if (!countryAccountsId) {
 			throw redirectLangFromRoute(args, "/user/select-instance");
 		}
-		let settings = await getCountrySettingsFromSession(args.request);
-		if (!settings.approvedRecordsArePublic) {
+		const countryAccount =
+			await CountryAccountsRepository.getById(countryAccountsId);
+		const liveSettings =
+			countryAccount && countryAccount.status === countryAccountStatuses.ACTIVE
+				? await InstanceSystemSettingRepository.getByCountryAccountId(
+						countryAccountsId,
+					)
+				: null;
+		if (!liveSettings?.approvedRecordsArePublic) {
 			const authLoader = authLoaderWithPerm(permission, fn);
 			return await authLoader(args);
 		}
@@ -379,8 +388,14 @@ export function authLoaderApiDocs<T extends LoaderFunction>(fn: T): T {
 	return (async (args: LoaderFunctionArgs) => {
 		const authToken = args.request.headers.get("X-Auth");
 		if (authToken) {
-			await apiAuth(args.request);
-			return fn(args);
+			const apiKey = await apiAuth(args.request);
+			if (!apiKey.countryAccountsId) {
+				throw new Response("Unauthorized", { status: 401 });
+			}
+			return fn({
+				...(args as any),
+				apiKey,
+			});
 		}
 		return authLoaderWithPerm("ViewApiDocs", fn)(args);
 	}) as T;
@@ -515,6 +530,49 @@ export function authActionWithPerm<T extends ActionFunction>(
 			userSession,
 		});
 	}) as T;
+}
+
+export function authActionPublicOrWithPerm<T extends ActionFunction>(
+	permission: PermissionId,
+	fn: T,
+): T {
+	const wrappedAction = async (args: ActionFunctionArgs) => {
+		const countryAccountsId = await getCountryAccountsIdFromSession(
+			args.request,
+		);
+		if (!countryAccountsId) {
+			throw redirectLangFromRoute(args, "/user/select-instance");
+		}
+		const countryAccount =
+			await CountryAccountsRepository.getById(countryAccountsId);
+		const liveSettings =
+			countryAccount && countryAccount.status === countryAccountStatuses.ACTIVE
+				? await InstanceSystemSettingRepository.getByCountryAccountId(
+						countryAccountsId,
+					)
+				: null;
+		if (!liveSettings?.approvedRecordsArePublic) {
+			const authActionHandler = authActionWithPerm(permission, fn);
+			return await authActionHandler(args);
+		}
+
+		const userSession = await optionalUser(args);
+		if (!userSession) {
+			return await fn(args);
+		}
+
+		const userRole = await getEffectiveUserRole(args.request);
+		if (!roleHasPermission(userRole, permission)) {
+			throw new Response("Forbidden", { status: 403 });
+		}
+
+		return await fn({
+			...(args as any),
+			userSession,
+		});
+	};
+
+	return wrappedAction as T;
 }
 
 export function authActionAllowUnverifiedEmail<T extends ActionFunction>(

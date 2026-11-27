@@ -9,6 +9,8 @@ interface UserSession {
 	role?: string;
 }
 
+const SAFE_TENANT_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
+
 function normalizePathInsideTenant(inputPath: string): string {
 	const normalized = inputPath
 		.replace(/\\/g, "/")
@@ -26,26 +28,64 @@ function normalizePathInsideTenant(inputPath: string): string {
 	return normalized;
 }
 
+function stripVerifiedTenantUploadPrefix(
+	rawFileName: string,
+	tenantId: string,
+	tenantScopedUploadPath: string,
+): string {
+	const normalized = rawFileName.replace(/\\/g, "/").trim();
+	const prefixSegments = [BASE_UPLOAD_PATH, `tenant-${tenantId}`];
+	if (tenantScopedUploadPath) {
+		prefixSegments.push(tenantScopedUploadPath);
+	}
+	const exactPrefix = `${prefixSegments.join("/")}/`;
+	const slashPrefixed = `/${exactPrefix}`;
+
+	if (normalized.startsWith(slashPrefixed)) {
+		return normalized.slice(slashPrefixed.length);
+	}
+	if (normalized.startsWith(exactPrefix)) {
+		return normalized.slice(exactPrefix.length);
+	}
+	return rawFileName;
+}
+
+function validateRelativeFileName(rawFileName: string): string | null {
+	if (!rawFileName || rawFileName.includes("\0")) {
+		return null;
+	}
+
+	const normalizedSlashes = rawFileName.replace(/\\/g, "/").trim();
+	if (
+		!normalizedSlashes ||
+		normalizedSlashes.startsWith("/") ||
+		/^[a-zA-Z]:/.test(normalizedSlashes)
+	) {
+		return null;
+	}
+
+	const segments = normalizedSlashes.split("/").filter(Boolean);
+	if (segments.length === 0) {
+		return null;
+	}
+
+	for (const segment of segments) {
+		if (segment === "." || segment === "..") {
+			return null;
+		}
+	}
+
+	return segments.join(path.sep);
+}
+
 export async function handleFileRequest(
 	request: Request,
 	upload_path: string,
 	download?: boolean,
 	userSession?: UserSession,
 ): Promise<Response> {
-	const debug = true;
 	const url = new URL(request.url);
 	const fileName = url.searchParams.get("name");
-	const tenantPathParam = url.searchParams.get("tenantPath"); // e.g. "uploads/tenant-xxx" or "uploads\tenant-xxx"
-	const requiredTenantId = url.searchParams.get("requiredTenantId");
-
-	if (debug) {
-		console.log("FileViewer request:", {
-			fileName,
-			tenantPathParam,
-			upload_path,
-		});
-		console.log("User session:", userSession?.countryAccountsId);
-	}
 
 	if (!fileName) {
 		return new Response("File name is required", { status: 400 });
@@ -59,68 +99,62 @@ export async function handleFileRequest(
 	}
 
 	const tenantId = userSession.countryAccountsId;
-	const publicRoot = process.cwd();
-	const normalizedFileName = path
-		.normalize(fileName)
-		.replace(/^(\.\.[\/\\])+/g, "");
-	const tenantScopedUploadPath = normalizePathInsideTenant(upload_path);
+	if (!SAFE_TENANT_ID_PATTERN.test(tenantId)) {
+		return new Response("Invalid tenant identifier", { status: 400 });
+	}
 
-	// Build the correct base directory: project_root/uploads/tenant-{id}
-	const tenantBaseDir = path.resolve(
-		publicRoot,
-		BASE_UPLOAD_PATH,
-		`tenant-${tenantId}`,
+	const tenantScopedUploadPath = normalizePathInsideTenant(upload_path);
+	const normalizedNameCandidate = stripVerifiedTenantUploadPrefix(
+		fileName,
+		tenantId,
+		tenantScopedUploadPath,
 	);
+	const safeRelativeFileName = validateRelativeFileName(
+		normalizedNameCandidate,
+	);
+	if (!safeRelativeFileName) {
+		return new Response("Invalid file path", { status: 400 });
+	}
+
+	const publicRoot = process.cwd();
+
+	const uploadsRoot = path.resolve(publicRoot, BASE_UPLOAD_PATH);
+	const tenantBaseDir = path.resolve(uploadsRoot, `tenant-${tenantId}`);
 	const allowedDir = path.resolve(tenantBaseDir, tenantScopedUploadPath);
 
-	// === PRIORITY 1: Use tenantPath from URL (most accurate) ===
-	if (tenantPathParam) {
-		// Fix Windows backslashes from URL encoding
-		let cleanTenantPath = decodeURIComponent(tenantPathParam).replace(
-			/\\/g,
-			"/",
-		);
-		cleanTenantPath = cleanTenantPath.replace(/^\/+/, "");
-		if (!cleanTenantPath.startsWith(BASE_UPLOAD_PATH)) {
-			cleanTenantPath = `${BASE_UPLOAD_PATH}/${cleanTenantPath}`;
-		}
+	if (
+		!tenantBaseDir.startsWith(`${uploadsRoot}${path.sep}`) ||
+		!(
+			allowedDir === tenantBaseDir ||
+			allowedDir.startsWith(`${tenantBaseDir}${path.sep}`)
+		)
+	) {
+		return new Response("Invalid upload directory", { status: 400 });
+	}
 
-		const fullDir = path.resolve(
-			publicRoot,
-			cleanTenantPath,
-			tenantScopedUploadPath,
-		);
-		const candidatePath = path.join(fullDir, normalizedFileName);
+	const candidatePath = path.resolve(allowedDir, safeRelativeFileName);
+	if (!candidatePath.startsWith(`${allowedDir}${path.sep}`)) {
+		return new Response("Invalid file path", { status: 400 });
+	}
 
-		if (debug) console.log("Trying tenantPath from URL:", candidatePath);
+	if (!fs.existsSync(candidatePath)) {
+		return new Response("File not found", { status: 404 });
+	}
 
+	try {
+		const realAllowedDir = fs.realpathSync(allowedDir);
+		const realCandidatePath = fs.realpathSync(candidatePath);
 		if (
-			candidatePath.startsWith(allowedDir) &&
-			fs.existsSync(candidatePath) &&
-			fs.statSync(candidatePath).isFile()
+			!realCandidatePath.startsWith(`${realAllowedDir}${path.sep}`) ||
+			!fs.statSync(realCandidatePath).isFile()
 		) {
-			return serveFile(candidatePath, fileName, download);
+			return new Response("File not found", { status: 404 });
 		}
-	}
 
-	// === PRIORITY 2: Standard tenant folder (most common) ===
-	const standardPath = path.resolve(allowedDir, normalizedFileName);
-	if (fs.existsSync(standardPath) && fs.statSync(standardPath).isFile()) {
-		if (debug) console.log("Found in standard tenant folder:", standardPath);
-		return serveFile(standardPath, fileName, download);
+		return serveFile(realCandidatePath, safeRelativeFileName, download);
+	} catch {
+		return new Response("File not found", { status: 404 });
 	}
-
-	// === PRIORITY 3: Legacy fallback (only if no tenantPath param) ===
-	if (!tenantPathParam && !requiredTenantId) {
-		const legacyPath = path.resolve(`.${upload_path}`, normalizedFileName);
-		if (fs.existsSync(legacyPath) && fs.statSync(legacyPath).isFile()) {
-			console.warn("Serving legacy file (outside uploads folder):", legacyPath);
-			return serveFile(legacyPath, fileName, download);
-		}
-	}
-
-	console.log(`File not found for tenant ${tenantId}: ${normalizedFileName}`);
-	return new Response("File not found", { status: 404 });
 }
 
 function serveFile(
@@ -137,11 +171,26 @@ function serveFile(
 		png: "image/png",
 		jpg: "image/jpeg",
 		jpeg: "image/jpeg",
+		gif: "image/gif",
+		webp: "image/webp",
 		pdf: "application/pdf",
-		// ... keep your full list
+		doc: "application/msword",
+		docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		xls: "application/vnd.ms-excel",
+		xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		ppt: "application/vnd.ms-powerpoint",
+		pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+		mp3: "audio/mpeg",
+		wav: "audio/wav",
+		m4a: "audio/mp4",
+		mp4: "video/mp4",
+		mov: "video/quicktime",
 	};
 
 	const contentType = mimeTypes[ext] || "application/octet-stream";
+	const safeDownloadName = path
+		.basename(fileName)
+		.replace(/["\\\r\n]/g, "_");
 
 	try {
 		const buffer = fs.readFileSync(filePath);
@@ -150,8 +199,10 @@ function serveFile(
 			status: 200,
 			headers: {
 				"Content-Type": contentType,
-				"Content-Disposition": `${disposition}; filename="${path.basename(fileName)}"`,
+				"Content-Disposition": `${disposition}; filename="${safeDownloadName}"`,
 				"Content-Length": buffer.length.toString(),
+				"X-Content-Type-Options": "nosniff",
+				"Cache-Control": "private, no-store",
 			},
 		});
 	} catch (err) {

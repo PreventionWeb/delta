@@ -157,11 +157,11 @@ export async function loginSuperAdminAzureB2C(
 
 	// Update first and last name if provided
 	if (firstName || lastName) {
-		const updateData: any = {};
+		const updateData: { firstName?: string; lastName?: string } = {};
 		if (firstName) updateData.firstName = firstName;
 		if (lastName) updateData.lastName = lastName;
 
-		await updateSuperAdminUser(updateData.id, updateData);
+		await updateSuperAdminUser(superAdminUser.id, updateData);
 	}
 
 	return {

@@ -2,8 +2,8 @@ import { authLoaderWithPerm } from "~/utils/auth";
 
 import {
 	disasterEventCreate,
-	disasterEventUpdate,
-	disasterEventIdByImportId,
+	disasterEventUpdateByIdAndCountryAccountsId,
+	disasterEventIdByImportIdAndCountryAccountsId,
 } from "~/backend.server/models/event";
 
 import { fieldsDefApi } from "~/frontend/events/disastereventform";
@@ -21,9 +21,17 @@ export const loader = authLoaderWithPerm("EditData", async () => {
 
 export const action = createAction({
 	fieldsDef: async (ctx) => fieldsDefApi(ctx),
-	create: disasterEventCreate,
-	update: disasterEventUpdate,
-	idByImportId: disasterEventIdByImportId,
+	create: (ctx, tx, data, countryAccountsId) =>
+		disasterEventCreate(ctx, tx, { ...data, countryAccountsId }),
+	update: (ctx, tx, id, data, countryAccountsId) =>
+		disasterEventUpdateByIdAndCountryAccountsId(
+			ctx,
+			tx,
+			id,
+			countryAccountsId,
+			data,
+		),
+	idByImportId: disasterEventIdByImportIdAndCountryAccountsId,
 });
 
 export default function Screen() {

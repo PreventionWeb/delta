@@ -1,7 +1,10 @@
 import { ActionFunctionArgs, MetaFunction } from "react-router";
 import { useEffect, useState } from "react";
 import { useActionData, useLoaderData } from "react-router";
-import { authLoaderPublicOrWithPerm } from "~/utils/auth";
+import {
+	authActionPublicOrWithPerm,
+	authLoaderPublicOrWithPerm,
+} from "~/utils/auth";
 import { fetchHazardTypes } from "~/backend.server/models/analytics/hazard-types";
 import { fetchAllSpecificHazards } from "~/backend.server/models/analytics/specific-hazards";
 import {
@@ -94,9 +97,14 @@ function getStringValue(value: FormDataEntryValue | null): string | null {
 /**
  * Action handler for hazards analytics page
  */
-export const action = async (actionArgs: ActionFunctionArgs) => {
-	const { request } = actionArgs;
-	const countryAccountsId = await getCountryAccountsIdFromSession(request);
+export const action = authActionPublicOrWithPerm(
+	"ViewData",
+	async (actionArgs: ActionFunctionArgs) => {
+		const { request } = actionArgs;
+		const countryAccountsId = await getCountryAccountsIdFromSession(request);
+		if (!countryAccountsId) {
+			throw new Response("Unauthorized", { status: 401 });
+		}
 
 	const formData = await request.formData();
 	const hazardTypeId = getStringValue(formData.get("hazardTypeId"));
@@ -288,7 +296,7 @@ export const action = async (actionArgs: ActionFunctionArgs) => {
 		fromDate,
 		toDate,
 	};
-};
+});
 
 export default function HazardAnalysis() {
 	const ld = useLoaderData<typeof loader>();

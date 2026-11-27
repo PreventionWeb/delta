@@ -19,16 +19,21 @@ export const loader = authLoaderPublicOrWithPerm(
 		const view = url.searchParams.get("view") || "0"; // Default to 0
 		const ctx = new BackendContext(loaderArgs);
 
+		const isPublic = !loaderArgs.userSession?.user;
+
 		// Use a dictionary for better readability & scalability
 		const configMap: Record<string, any> = {
-			"0": contentPickerConfig(ctx),
+			"0": contentPickerConfig(ctx, isPublic),
 		};
 
 		// Fallback to default if view is invalid
-		const config = configMap[view] || contentPickerConfig(ctx);
+		const config = configMap[view] || contentPickerConfig(ctx, isPublic);
 
 		// Extract tenant context from user session or use public tenant context if no user session
 		const countryAccountsId = await getCountryAccountsIdFromSession(request);
+		if (!countryAccountsId) {
+			return Response.json({ error: "Unauthorized" }, { status: 401 });
+		}
 
 		try {
 			const results = await fetchData(

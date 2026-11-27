@@ -1,3 +1,4 @@
+import { randomBytes, timingSafeEqual } from "crypto";
 import { jwtDecode } from "jwt-decode";
 import { redirect } from "react-router";
 
@@ -16,6 +17,53 @@ export interface SSOAzureB2C {
 	tenant: string;
 }
 
+export interface SsoOAuthSessionState {
+	stateNonce: string;
+	oidcNonce: string;
+	action: "azure_sso_b2c-login" | "sso_azure_b2c-register";
+	lang: string;
+	isAdmin?: boolean;
+	redirectTo?: string;
+	inviteCode?: string;
+	createdAt: number;
+}
+
+export const SSO_OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000; // 10 minutes
+
+export function createSsoNonce(): string {
+	return randomBytes(32).toString("hex");
+}
+
+export function verifySsoStateNonce(
+	expected: string | undefined,
+	received: string,
+): boolean {
+	if (!expected || !received) {
+		return false;
+	}
+	const expectedBuf = Buffer.from(expected, "utf8");
+	const receivedBuf = Buffer.from(received, "utf8");
+	if (expectedBuf.length !== receivedBuf.length) {
+		return false;
+	}
+	return timingSafeEqual(expectedBuf, receivedBuf);
+}
+
+export function getSafeSsoRedirectPath(
+	redirectTo: string | null | undefined,
+	fallback: string,
+): string {
+	if (
+		redirectTo &&
+		redirectTo.startsWith("/") &&
+		!redirectTo.startsWith("//") &&
+		!redirectTo.startsWith("/\\")
+	) {
+		return redirectTo;
+	}
+	return fallback;
+}
+
 type SSOAzureB2CErrorType = {
 	error: string;
 	error_description: string;
@@ -30,32 +78,39 @@ export function baseURL(): string {
 }
 
 /**
- * Get the Application Name.
- *
- * @param pState the application encoded information about the user state before the authentication request occurred
- *               this information will be sent back by Azure.
- * @returns redirect to URL
+ * Redirects to the Azure B2C authorization endpoint with cryptographic state and nonce.
  */
-export function loginGetCode(pState: string) {
+export function loginGetCode(
+	pState: string,
+	pNonce?: string,
+	headers?: HeadersInit,
+) {
 	const jsonAzureB2C: SSOAzureB2C = configSsoAzureB2C();
 	const state = encodeURIComponent(pState);
+	const nonce = encodeURIComponent(pNonce || createSsoNonce());
 	let redirectURL = jsonAzureB2C.login_redirect_url.trim();
 	let scope = "openid+email";
 	redirectURL = encodeURIComponent(redirectURL);
 
-	const url = `${baseURL()}/authorize?p=${jsonAzureB2C.login_userflow}&client_id=${jsonAzureB2C.client_id}&nonce=defaultNonce&redirect_uri=${redirectURL}&scope=${scope}&response_type=code&prompt=login&state=${state}`;
+	const url = `${baseURL()}/authorize?p=${jsonAzureB2C.login_userflow}&client_id=${jsonAzureB2C.client_id}&nonce=${nonce}&redirect_uri=${redirectURL}&scope=${scope}&response_type=code&prompt=login&state=${state}`;
 
-	return redirect(url, 302);
+	return redirect(url, { status: 302, headers });
 }
 
-export function loginGetCodeAdmin() {
+export function loginGetCodeAdmin(
+	pState?: string,
+	pNonce?: string,
+	headers?: HeadersInit,
+) {
 	const jsonAzureB2C: SSOAzureB2C = configSsoAzureB2C();
 	let redirectURL = jsonAzureB2C.login_redirect_url_admin.trim();
 	let scope = "openid+email";
 	redirectURL = encodeURIComponent(redirectURL);
-	const url = `${baseURL()}/authorize?p=${jsonAzureB2C.login_userflow}&client_id=${jsonAzureB2C.client_id}&nonce=defaultNonce&redirect_uri=${redirectURL}&scope=${scope}&response_type=code&prompt=login`;
+	const nonce = encodeURIComponent(pNonce || createSsoNonce());
+	const stateParam = pState ? `&state=${encodeURIComponent(pState)}` : "";
+	const url = `${baseURL()}/authorize?p=${jsonAzureB2C.login_userflow}&client_id=${jsonAzureB2C.client_id}&nonce=${nonce}&redirect_uri=${redirectURL}&scope=${scope}&response_type=code&prompt=login${stateParam}`;
 
-	return redirect(url, 302);
+	return redirect(url, { status: 302, headers });
 }
 
 export function decodeToken(pToken: string) {

@@ -22,7 +22,7 @@ import {
 	configIsPublicUrlValid,
 } from "~/utils/config";
 import { FaExclamationTriangle } from "react-icons/fa";
-import { createCSRFToken } from "~/utils/csrf";
+import { createCSRFToken, verifyCSRFToken } from "~/utils/csrf";
 import { urlLang } from "~/utils/url";
 import { getLanguage } from "~/utils/lang.backend";
 
@@ -54,7 +54,7 @@ type LoginLoaderData = {
 	csrfToken: string;
 	isFormAuthSupported: boolean;
 	isSSOAuthSupported: boolean;
-	configErrors: { variable: string; message: string }[];
+	hasConfigErrors: boolean;
 };
 
 export const action = async (actionArgs: ActionFunctionArgs) => {
@@ -83,7 +83,7 @@ export const action = async (actionArgs: ActionFunctionArgs) => {
 	const cookieHeader = request.headers.get("Cookie") || "";
 	const sessionCurrent = await sessionCookie().getSession(cookieHeader);
 
-	if (formData.csrfToken !== sessionCurrent.get("csrfToken")) {
+	if (!verifyCSRFToken(formData.csrfToken, sessionCurrent.get("csrfToken"))) {
 		return Response.json(
 			{
 				errors: {
@@ -263,13 +263,14 @@ export const loader = async (loaderArgs: LoaderFunctionArgs) => {
 		return redirect(redirectTo);
 	}
 
-	// Validate required environment variables
+	// Validate required environment variables (detailed diagnostics logged server-side only)
 	const configErrors = validateRequiredEnvVars(ctx);
+	const hasConfigErrors = configErrors.length > 0;
 
-	// Add a message about the number of configuration errors
-	if (configErrors.length > 0) {
+	if (hasConfigErrors) {
 		console.warn(
-			`Found ${configErrors.length} configuration errors that need to be fixed before proceeding with setup.`,
+			`Found ${configErrors.length} configuration errors that need to be fixed before proceeding with setup:`,
+			configErrors.map((e) => `${e.variable}: ${e.message}`),
 		);
 	}
 
@@ -296,7 +297,7 @@ export const loader = async (loaderArgs: LoaderFunctionArgs) => {
 			redirectTo: redirectTo,
 			isFormAuthSupported: isFormAuthSupported,
 			isSSOAuthSupported: isSSOAuthSupported,
-			configErrors: configErrors,
+			hasConfigErrors,
 			csrfToken: csrfToken,
 		},
 		{ headers: { "Set-Cookie": setCookie } },
@@ -350,9 +351,10 @@ export default function Screen() {
 
 	const errors = actionData?.errors || {};
 
-	const { isFormAuthSupported, isSSOAuthSupported, configErrors } = loaderData;
+	const { isFormAuthSupported, isSSOAuthSupported, hasConfigErrors } =
+		loaderData;
 
-	if (configErrors && configErrors.length > 0) {
+	if (hasConfigErrors) {
 		return (
 			<div className="dts-page-container">
 				<main className="dts-main-container">
@@ -385,31 +387,9 @@ export default function Screen() {
 										})}
 									</div>
 									<p style={{ marginBottom: "10px" }}>
-										{ctx.t(
-											{
-												code: "admin.required_config_missing_in_env_file",
-												msg: "The following required configuration variables are missing or have invalid values in your {file} file.",
-											},
-											{ file: ".env" },
-										)}
-									</p>
-									<ul
-										style={{
-											listStyleType: "disc",
-											paddingLeft: "20px",
-											margin: "0",
-										}}
-									>
-										{configErrors.map((error: any, index: number) => (
-											<li key={index} style={{ marginBottom: "5px" }}>
-												<strong>{error.variable}</strong>: {error.message}
-											</li>
-										))}
-									</ul>
-									<p style={{ marginTop: "10px", marginBottom: "0" }}>
 										{ctx.t({
-											code: "admin.update_env_file",
-											msg: "Please update your .env file with the correct values before proceeding.",
+											code: "admin.config_incomplete_contact_admin",
+											msg: "System configuration is incomplete or invalid. Please check server logs and contact your system administrator.",
 										})}
 									</p>
 								</div>

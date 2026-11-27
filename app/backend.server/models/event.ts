@@ -699,6 +699,7 @@ export async function hazardousEventCreate(
 				eventId,
 				Array.isArray(fields?.attachments) ? fields.attachments : [],
 				"hazardous-event",
+				fields.countryAccountsId,
 			);
 		}
 	} catch (error: any) {
@@ -930,8 +931,11 @@ export async function hazardousEventUpdate(
 	return await tx.transaction(async (tx) => {
 		try {
 			const spatialFootprintValue = (fields as any).spatialFootprint;
-			const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
-				fields as any;
+			const {
+				spatialFootprint: _ignoredSpatialFootprint,
+				countryAccountsId: _ignoredCountryAccountsId,
+				...updateValues
+			} = fields as any;
 
 			// 3. Handle parent relationship updates if needed
 			if (fields.parent !== undefined) {
@@ -962,7 +966,12 @@ export async function hazardousEventUpdate(
 					...updateValues,
 					updatedAt: sql`CURRENT_TIMESTAMP`,
 				})
-				.where(eq(hazardousEventTable.id, id))
+				.where(
+					and(
+						eq(hazardousEventTable.id, id),
+						eq(hazardousEventTable.countryAccountsId, fields.countryAccountsId!),
+					),
+				)
 				.returning();
 
 			await syncHazardousEventSpatialFootprint(
@@ -991,6 +1000,7 @@ export async function hazardousEventUpdate(
 					id,
 					fields.attachments,
 					"hazardous-event",
+					oldRecord.countryAccountsId,
 				);
 			}
 
@@ -1240,8 +1250,11 @@ export async function hazardousEventUpdateByIdAndCountryAccountsId(
 	return await tx.transaction(async (tx) => {
 		try {
 			const spatialFootprintValue = (fields as any).spatialFootprint;
-			const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
-				fields as any;
+			const {
+				spatialFootprint: _ignoredSpatialFootprint,
+				countryAccountsId: _ignoredCountryAccountsId,
+				...updateValues
+			} = fields as any;
 
 			// 3. Handle parent relationship updates if needed
 			if (fields.parent !== undefined) {
@@ -1272,7 +1285,12 @@ export async function hazardousEventUpdateByIdAndCountryAccountsId(
 					...updateValues,
 					updatedAt: sql`CURRENT_TIMESTAMP`,
 				})
-				.where(eq(hazardousEventTable.id, id))
+				.where(
+					and(
+						eq(hazardousEventTable.id, id),
+						eq(hazardousEventTable.countryAccountsId, countryAccountsId),
+					),
+				)
 				.returning();
 
 			await syncHazardousEventSpatialFootprint(
@@ -1289,6 +1307,7 @@ export async function hazardousEventUpdateByIdAndCountryAccountsId(
 					id,
 					fields.attachments,
 					"hazardous-event",
+					oldRecord.countryAccountsId,
 				);
 			}
 
@@ -1615,7 +1634,6 @@ export async function hazardousEventBasicInfoById(
 					country: true,
 				},
 			},
-			userSubmittedBy: true,
 		},
 	});
 
@@ -2113,8 +2131,11 @@ export async function disasterEventUpdateByIdAndCountryAccountsId(
 
 	try {
 		const spatialFootprintValue = (fields as any).spatialFootprint;
-		const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
-			fields as any;
+		const {
+			spatialFootprint: _ignoredSpatialFootprint,
+			countryAccountsId: _ignoredCountryAccountsId,
+			...updateValues
+		} = fields as any;
 		const [updatedDisasterEvent] = await tx
 			.update(disasterEventTable)
 			.set({
@@ -2418,8 +2439,10 @@ async function processAndSaveAttachments(
 	resourceId: string,
 	attachmentsData: any[],
 	directory: string,
+	countryAccountsId?: string | null,
 ) {
 	if (!attachmentsData) return;
+	if (!countryAccountsId && attachmentsData.length === 0) return;
 
 	const save_path = `/uploads/${directory}/${resourceId}`;
 	const save_path_temp = TEMP_UPLOAD_PATH;
@@ -2429,6 +2452,8 @@ async function processAndSaveAttachments(
 		attachmentsData,
 		save_path_temp,
 		save_path,
+		undefined,
+		countryAccountsId ?? undefined,
 	);
 
 	// Update the `attachments` field in the database

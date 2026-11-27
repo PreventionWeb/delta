@@ -207,9 +207,17 @@ export async function update(
 	ids: string[],
 	data: any[][],
 	dataStrings: boolean,
+	expectedRecordId: string,
 ): Promise<Res> {
 	let spl = splitDefsByShared(defs);
 	let tbl = tableFromType(tblId);
+
+	if (!expectedRecordId) {
+		return {
+			ok: false,
+			error: new ETError("other", "Update: record id is required"),
+		};
+	}
 
 	if (ids.length !== data.length) {
 		return {
@@ -234,7 +242,9 @@ export async function update(
 		}
 
 		let dsgIdRes = await tx.execute(
-			sql`SELECT dsg_id FROM ${tbl} WHERE id = ${id}`,
+			sql`SELECT t.dsg_id FROM ${tbl} t
+				INNER JOIN ${humanDsgTable} d ON d.id = t.dsg_id
+				WHERE t.id = ${id} AND d.record_id = ${expectedRecordId}`,
 		);
 		if (!dsgIdRes.rows.length) {
 			return {
@@ -281,13 +291,23 @@ export async function deleteRows(
 	tx: Tx,
 	tblId: HumanEffectsTable,
 	ids: string[],
+	expectedRecordId: string,
 ): Promise<Res> {
 	let tbl = tableFromType(tblId);
 	let deletedIds: string[] = [];
 
+	if (!expectedRecordId) {
+		return {
+			ok: false,
+			error: new ETError("other", "Delete: record id is required"),
+		};
+	}
+
 	for (let id of ids) {
 		let dsgIdRes = await tx.execute(
-			sql`SELECT dsg_id FROM ${tbl} WHERE id = ${id}`,
+			sql`SELECT t.dsg_id FROM ${tbl} t
+				INNER JOIN ${humanDsgTable} d ON d.id = t.dsg_id
+				WHERE t.id = ${id} AND d.record_id = ${expectedRecordId}`,
 		);
 		let dsgId = dsgIdRes.rows[0]?.dsg_id;
 
@@ -323,7 +343,7 @@ WHERE human_dsg.record_id = ${recordId}
 	for (let row of res.rows) {
 		ids.push(row.id as string);
 	}
-	return deleteRows(tx, tblId, ids);
+	return deleteRows(tx, tblId, ids, recordId);
 }
 
 export type GetRes =

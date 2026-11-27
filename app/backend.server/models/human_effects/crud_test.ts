@@ -382,6 +382,7 @@ describe("human_effects - number data", async () => {
 					["f", "4"],
 				],
 				true,
+				rid1,
 			);
 			console.log(res);
 			assert(res.ok);
@@ -406,7 +407,15 @@ describe("human_effects - number data", async () => {
 			ids = res.ids;
 		}
 		{
-			let res = await update(dr, "Injured", defs, ids, [["g2", "2"]], true);
+			let res = await update(
+				dr,
+				"Injured",
+				defs,
+				ids,
+				[["g2", "2"]],
+				true,
+				rid1,
+			);
 			console.log(res);
 			assert(res.ok);
 		}
@@ -447,6 +456,7 @@ describe("human_effects - number data", async () => {
 					[null, "4"],
 				],
 				true,
+				rid1,
 			);
 			console.log(res);
 			assert(res.ok);
@@ -520,6 +530,7 @@ describe("human_effects - number data", async () => {
 				ids,
 				[["g2", undefined, "2"]],
 				true,
+				rid1,
 			);
 			console.log(res);
 			assert(res.ok);
@@ -552,7 +563,7 @@ describe("human_effects - number data", async () => {
 			ids = res.ids;
 		}
 		{
-			let res = await deleteRows(dr, "Injured", ids);
+			let res = await deleteRows(dr, "Injured", ids, rid1);
 			console.log(res);
 			assert(res.ok);
 		}
@@ -578,9 +589,12 @@ describe("human_effects - number data", async () => {
 	});
 
 	it("deleteRows with non-existent id returns error", async () => {
-		let res = await deleteRows(dr, "Injured", [
-			"00000000-0000-0000-0000-000000000000",
-		]);
+		let res = await deleteRows(
+			dr,
+			"Injured",
+			["00000000-0000-0000-0000-000000000000"],
+			rid1,
+		);
 		assert(!res.ok);
 		assert.equal(res.error!.code, "other");
 		assert.ok(res.error!.message.includes("Record not found"));
@@ -635,6 +649,7 @@ describe("human_effects - number data", async () => {
 			["id1", "id2"],
 			[["m", 1]],
 			false,
+			rid1,
 		);
 		assert(!res.ok);
 		assert.equal(res.error!.code, "other");
@@ -650,6 +665,7 @@ describe("human_effects - number data", async () => {
 			["00000000-0000-0000-0000-000000000000"],
 			[["m", 1]],
 			false,
+			rid1,
 		);
 		assert(!res.ok);
 		assert.equal(res.error!.code, "other");

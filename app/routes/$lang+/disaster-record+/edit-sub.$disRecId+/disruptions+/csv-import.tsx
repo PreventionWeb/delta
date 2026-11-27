@@ -2,8 +2,8 @@ import { authLoaderWithPerm } from "~/utils/auth";
 
 import {
 	disruptionCreate,
-	disruptionUpdate,
-	disruptionIdByImportId,
+	disruptionUpdateByIdAndCountryAccountsId,
+	disruptionIdByImportIdAndCountryAccountsId,
 	getFieldsDefApi,
 } from "~/backend.server/models/disruption";
 
@@ -21,8 +21,15 @@ export const loader = authLoaderWithPerm("EditData", async () => {
 export const action = createAction({
 	fieldsDef: async (ctx) => getFieldsDefApi(ctx),
 	create: disruptionCreate,
-	update: disruptionUpdate,
-	idByImportId: disruptionIdByImportId,
+	update: (ctx, tx, id, data, countryAccountsId) =>
+		disruptionUpdateByIdAndCountryAccountsId(
+			ctx,
+			tx,
+			id,
+			countryAccountsId,
+			data,
+		),
+	idByImportId: disruptionIdByImportIdAndCountryAccountsId,
 });
 
 export default function Screen() {

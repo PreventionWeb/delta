@@ -1,7 +1,7 @@
 import type { ActionFunction, MetaFunction } from "react-router";
 import { Form, useActionData, useLoaderData } from "react-router";
 import { useEffect, useRef, useState } from "react";
-import { authLoaderWithPerm } from "~/utils/auth";
+import { authActionWithPerm, authLoaderWithPerm } from "~/utils/auth";
 import { configApplicationEmail, configPublicUrl } from "~/utils/config";
 import { NavSettings } from "~/frontend/components/NavSettings";
 import { MainContainer } from "~/frontend/container";
@@ -76,30 +76,24 @@ export const loader = authLoaderWithPerm(
 	},
 );
 
-export const action: ActionFunction = authLoaderWithPerm(
-	"EditData",
+export const action: ActionFunction = authActionWithPerm(
+	"ManageCountrySettings",
 	async (args) => {
 		const request = args.request;
+		const countryAccountsId = await getCountryAccountsIdFromSession(request);
+		if (!countryAccountsId) {
+			throw new Response("Unauthorized", { status: 401 });
+		}
 		const formData = await request.formData();
 		const id = formData.get("id") as string;
-		// const privacyUrl = formData.get("privacyUrl") as string;
-		// const termsUrl = formData.get("termsUrl") as string;
-		// const websiteLogoUrl = formData.get("websiteLogoUrl") as string;
 		const instanceName = formData.get("instanceName") as string;
-		// const approvedRecordsArePublic =
-		// formData.get("approvedRecordsArePublic") === "true";
-		// const totpIssuer = formData.get("totpIssuer") as string;
 		const language = formData.get("language") as string;
 		try {
 			await SettingsService.updateSettings(
 				id,
-				// privacyUrl,
-				// termsUrl,
-				// websiteLogoUrl,
 				instanceName,
-				// approvedRecordsArePublic,
-				// totpIssuer,
 				language,
+				countryAccountsId,
 			);
 			return { success: "ok" };
 		} catch (error) {

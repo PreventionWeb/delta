@@ -34,11 +34,14 @@ const mockUserSession: UserSession = {
 		id: "user-001",
 		email: "test@example.com",
 		firstName: "Test",
-		lastName: null,
-		passwordHash: null,
+		lastName: "User",
+		password: "$2b$10$secretbcryptpasswordhash",
 		emailVerified: true,
 		totpEnabled: false,
-		totpSecret: null,
+		totpSecret: "SUPER_SECRET_TOTP",
+		totpSecretUrl: "otpauth://totp/delta?secret=SUPER_SECRET_TOTP",
+		resetPasswordToken: "secret-reset-token",
+		inviteCode: "secret-invite-code",
 		createdAt: new Date(),
 		updatedAt: new Date(),
 	} as any,
@@ -71,13 +74,20 @@ describe("_authenticated layout loader", () => {
 		);
 	});
 
-	it("returns { userSession } for a valid authenticated session", async () => {
+	it("returns sanitized { userSession } without credentials or raw sessionId", async () => {
 		vi.mocked(authModule.requireUser).mockResolvedValue(mockUserSession);
 
 		const response = await authenticatedLoader(makeRouteArgs());
 		const data = await (response as Response).json();
 
 		expect(data.userSession.user.id).toBe("user-001");
+		expect(data.userSession.user.password).toBeUndefined();
+		expect(data.userSession.user.totpSecret).toBeUndefined();
+		expect(data.userSession.user.totpSecretUrl).toBeUndefined();
+		expect(data.userSession.user.resetPasswordToken).toBeUndefined();
+		expect(data.userSession.user.inviteCode).toBeUndefined();
+		expect(data.userSession.sessionId).toBeUndefined();
+		expect(data.userSession.session).toBeUndefined();
 	});
 });
 
@@ -95,12 +105,15 @@ describe("_public layout loader", () => {
 		expect(data.userSession).toBeNull();
 	});
 
-	it("returns { userSession } for a valid authenticated session", async () => {
+	it("returns sanitized { userSession } without credentials or raw sessionId", async () => {
 		vi.mocked(authModule.optionalUser).mockResolvedValue(mockUserSession);
 
 		const response = await publicLoader(makeRouteArgs());
 		const data = await (response as Response).json();
 
 		expect(data.userSession.user.id).toBe("user-001");
+		expect(data.userSession.user.password).toBeUndefined();
+		expect(data.userSession.user.totpSecret).toBeUndefined();
+		expect(data.userSession.sessionId).toBeUndefined();
 	});
 });

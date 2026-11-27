@@ -5,7 +5,7 @@ import { jsonUpsert } from "~/backend.server/handlers/form/form_api";
 import {
 	fieldsDefApi,
 	nonecoLossesCreate,
-	nonecoLossesUpdate,
+	nonecoLossesUpdateByIdAndCountryAccountsId,
 	nonecoLossesIdByImportIdAndCountryAccountsId,
 } from "~/backend.server/models/noneco_losses";
 import { SelectNonecoLosses } from "~/drizzle/schema/nonecoLossesTable";
@@ -39,7 +39,8 @@ export const action = async (args: ActionFunctionArgs) => {
 		data,
 		fieldsDef: fieldsDefApi,
 		create: nonecoLossesCreate,
-		update: nonecoLossesUpdate,
+		update: (ctx, tx, id, fields, caId) =>
+			nonecoLossesUpdateByIdAndCountryAccountsId(ctx, tx, id, caId, fields),
 		idByImportIdAndCountryAccountsId:
 			nonecoLossesIdByImportIdAndCountryAccountsId,
 		countryAccountsId,

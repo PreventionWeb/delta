@@ -12,7 +12,12 @@ import { sessionActivityTimeoutMinutes } from "~/utils/session-activity-config";
 import { LangRouteParam } from "./lang.backend";
 import { redirectLangFromRoute } from "./url.backend";
 import { sessionTable } from "~/drizzle/schema/sessionTable";
-import { userTable, userCountryAccountsTable } from "~/drizzle/schema";
+import {
+	userTable,
+	userCountryAccountsTable,
+	countryAccountsTable,
+	countryAccountStatuses,
+} from "~/drizzle/schema";
 
 export let _sessionCookie: SessionStorage<SessionData, SessionData> | null =
 	null;
@@ -115,6 +120,43 @@ export async function createUserSession(userId: string) {
 	const setCookie = await sessionCookie().commitSession(session);
 	return {
 		"Set-Cookie": setCookie,
+	};
+}
+
+export async function rotateUserSession(
+	request: Request,
+	userId: string,
+	options?: { totpAuthed?: boolean; flash?: FlashMessage },
+): Promise<SetCookieResult> {
+	const existingSession = await sessionCookie().getSession(
+		request.headers.get("Cookie"),
+	);
+	const countryAccountsId = existingSession.get("countryAccountsId");
+	const countrySettings = existingSession.get("countrySettings");
+
+	const [inserted] = await dr
+		.insert(sessionTable)
+		.values({
+			userId,
+			lastActiveAt: new Date(),
+			totpAuthed: Boolean(options?.totpAuthed),
+		})
+		.returning({ id: sessionTable.id });
+
+	const newSession = await sessionCookie().getSession();
+	newSession.set("sessionId", inserted.id);
+	if (countryAccountsId) {
+		newSession.set("countryAccountsId", countryAccountsId);
+	}
+	if (countrySettings) {
+		newSession.set("countrySettings", countrySettings);
+	}
+	if (options?.flash) {
+		flashMessage(newSession, options.flash);
+	}
+
+	return {
+		"Set-Cookie": await sessionCookie().commitSession(newSession),
 	};
 }
 
@@ -313,14 +355,25 @@ export async function getUserRoleFromSession(request: Request) {
 	const countryAccountsId = await getCountryAccountsIdFromSession(request);
 	if (!countryAccountsId) return;
 
-	const userCountryAccount = await dr.query.userCountryAccountsTable.findFirst({
-		where: and(
-			eq(userCountryAccountsTable.userId, userSession.user.id),
-			eq(userCountryAccountsTable.countryAccountsId, countryAccountsId),
-		),
-	});
+	const [row] = await dr
+		.select({
+			role: userCountryAccountsTable.role,
+		})
+		.from(userCountryAccountsTable)
+		.innerJoin(
+			countryAccountsTable,
+			eq(userCountryAccountsTable.countryAccountsId, countryAccountsTable.id),
+		)
+		.where(
+			and(
+				eq(userCountryAccountsTable.userId, userSession.user.id),
+				eq(userCountryAccountsTable.countryAccountsId, countryAccountsId),
+				eq(countryAccountsTable.status, countryAccountStatuses.ACTIVE),
+			),
+		)
+		.limit(1);
 
-	return userCountryAccount?.role;
+	return row?.role;
 }
 
 export async function getCountryAccountsIdFromSession(request: Request) {

@@ -6,7 +6,7 @@ import { damagesGeomTable } from "~/drizzle/schema/damagesGeomTable";
 import { divisionTable } from "~/drizzle/schema/divisionTable";
 import { DamagesGeomRepository } from "~/db/queries/damagesGeomRepository";
 import { DamagesDivisionRepository } from "~/db/queries/damagesDivisionRepository";
-import { sql, and, eq, inArray } from "drizzle-orm";
+import { sql, and, eq, inArray, or } from "drizzle-orm";
 
 import {
 	CreateResult,
@@ -119,6 +119,7 @@ async function syncDamagesSpatialFootprint(
 	tx: Tx,
 	damageId: string,
 	spatialFootprintValue: unknown,
+	countryAccountsId?: string,
 ) {
 	const items = parseSpatialFootprintItems(spatialFootprintValue);
 	const mapCoordinateItems = items.filter(
@@ -164,7 +165,14 @@ async function syncDamagesSpatialFootprint(
 			const validDivisions = await tx
 				.select({ id: divisionTable.id })
 				.from(divisionTable)
-				.where(inArray(divisionTable.id, divisionIds));
+				.where(
+					countryAccountsId
+						? and(
+								inArray(divisionTable.id, divisionIds),
+								eq(divisionTable.countryAccountsId, countryAccountsId),
+							)
+						: inArray(divisionTable.id, divisionIds),
+				);
 
 			const validDivisionIds = new Set(validDivisions.map((row) => row.id));
 			const rows = geographicItems
@@ -601,13 +609,75 @@ export function validate(
 	return errors;
 }
 
+async function isAssetAccessibleToTenant(
+	tx: Tx,
+	assetId: string,
+	countryAccountsId: string,
+): Promise<boolean> {
+	const rows = await tx
+		.select({ id: assetTable.id })
+		.from(assetTable)
+		.where(
+			and(
+				eq(assetTable.id, assetId),
+				or(
+					eq(assetTable.isBuiltIn, true),
+					eq(assetTable.countryAccountsId, countryAccountsId),
+				),
+			),
+		)
+		.limit(1);
+	return rows.length > 0;
+}
+
 export async function damagesCreate(
 	_ctx: BackendContext,
 	tx: Tx,
 	fields: DamagesFields,
+	countryAccountsId: string,
 ): Promise<CreateResult<DamagesFields>> {
 	let errors = validate(fields);
 	if (hasErrors(errors)) return { ok: false, errors };
+
+	if (!countryAccountsId) {
+		return {
+			ok: false,
+			errors: {
+				form: ["No matching disaster record found or you don't have access"],
+			},
+		};
+	}
+
+	const disasterRecords =
+		await DisasterRecordsRepository.getByIdAndCountryAccountsId(
+			fields.recordId,
+			countryAccountsId,
+			tx,
+		);
+	if (!disasterRecords || disasterRecords.length === 0) {
+		return {
+			ok: false,
+			errors: {
+				form: ["No matching disaster record found or you don't have access"],
+			},
+		};
+	}
+
+	if (fields.assetId) {
+		const assetOk = await isAssetAccessibleToTenant(
+			tx,
+			fields.assetId,
+			countryAccountsId,
+		);
+		if (!assetOk) {
+			return {
+				ok: false,
+				errors: {
+					form: ["No matching asset found or you don't have access"],
+				},
+			};
+		}
+	}
 
 	const spatialFootprintValue = (fields as any).spatialFootprint;
 	const { spatialFootprint: _ignoredSpatialFootprint, ...insertValues } =
@@ -618,7 +688,12 @@ export async function damagesCreate(
 		.values({ ...insertValues })
 		.returning({ id: damagesTable.id });
 
-	await syncDamagesSpatialFootprint(tx, res[0].id, spatialFootprintValue);
+	await syncDamagesSpatialFootprint(
+		tx,
+		res[0].id,
+		spatialFootprintValue,
+		countryAccountsId,
+	);
 
 	await updateTotalsUsingDisasterRecordId(tx, fields.recordId);
 
@@ -666,7 +741,17 @@ export async function damagesUpdateByIdAndCountryAccountsId(
 	const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
 		fields as any;
 
-	let recordId = await getRecordId(tx, id);
+	let recordId: string;
+	try {
+		recordId = await getRecordId(tx, id);
+	} catch {
+		return {
+			ok: false,
+			errors: {
+				form: ["No matching disaster record found or you don't have access"],
+			},
+		};
+	}
 	const disasterRecords =
 		await DisasterRecordsRepository.getByIdAndCountryAccountsId(
 			recordId,
@@ -677,9 +762,44 @@ export async function damagesUpdateByIdAndCountryAccountsId(
 		return {
 			ok: false,
 			errors: {
-				general: ["No matching disaster record found or you don't have access"],
+				form: ["No matching disaster record found or you don't have access"],
 			},
 		};
+	}
+
+	if (fields.recordId && fields.recordId !== recordId) {
+		const targetRecords =
+			await DisasterRecordsRepository.getByIdAndCountryAccountsId(
+				fields.recordId,
+				countryAccountsId,
+				tx,
+			);
+		if (!targetRecords || targetRecords.length === 0) {
+			return {
+				ok: false,
+				errors: {
+					form: [
+						"No matching target disaster record found or you don't have access",
+					],
+				},
+			};
+		}
+	}
+
+	if (fields.assetId) {
+		const assetOk = await isAssetAccessibleToTenant(
+			tx,
+			fields.assetId,
+			countryAccountsId,
+		);
+		if (!assetOk) {
+			return {
+				ok: false,
+				errors: {
+					form: ["No matching asset found or you don't have access"],
+				},
+			};
+		}
 	}
 
 	await tx
@@ -688,10 +808,18 @@ export async function damagesUpdateByIdAndCountryAccountsId(
 		.where(eq(damagesTable.id, id));
 
 	if ("spatialFootprint" in fields) {
-		await syncDamagesSpatialFootprint(tx, id, spatialFootprintValue);
+		await syncDamagesSpatialFootprint(
+			tx,
+			id,
+			spatialFootprintValue,
+			countryAccountsId,
+		);
 	}
 
 	await updateTotalsUsingDisasterRecordId(tx, recordId);
+	if (fields.recordId && fields.recordId !== recordId) {
+		await updateTotalsUsingDisasterRecordId(tx, fields.recordId);
+	}
 
 	return { ok: true };
 }
@@ -715,7 +843,6 @@ export async function damagesIdByImportId(tx: Tx, importId: string) {
 		.where(eq(damagesTable.apiImportId, importId));
 	return res.length == 0 ? null : String(res[0].id);
 }
-// BUG: join on sectorId looks wrong — should probably be recordId to link through the disaster record for tenant scoping
 export async function damagesIdByImportIdAndCountryAccountsId(
 	tx: Tx,
 	importId: string,
@@ -726,7 +853,7 @@ export async function damagesIdByImportIdAndCountryAccountsId(
 		.from(damagesTable)
 		.innerJoin(
 			disasterRecordsTable,
-			eq(damagesTable.sectorId, disasterRecordsTable.id),
+			eq(damagesTable.recordId, disasterRecordsTable.id),
 		)
 		.where(
 			and(
@@ -844,9 +971,18 @@ export async function damagesDeleteById(
 }
 
 export async function damagesDeleteBySectorId(
-	id: string,
+	recordId: string,
+	sectorId: string,
+	tx: Tx = dr,
 ): Promise<DeleteResult> {
-	await dr.delete(damagesTable).where(eq(damagesTable.sectorId, id));
+	await tx
+		.delete(damagesTable)
+		.where(
+			and(
+				eq(damagesTable.recordId, recordId),
+				eq(damagesTable.sectorId, sectorId),
+			),
+		);
 
 	return { ok: true };
 }

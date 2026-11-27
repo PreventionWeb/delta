@@ -31,6 +31,7 @@ import {
 } from "~/backend.server/models/human_effects";
 import { eqArr } from "~/utils/array";
 import { dr } from "~/db.server";
+import { DisasterRecordsRepository } from "~/db/queries/disasterRecordsRepository";
 import { BackendContext } from "../context";
 import { sql } from "drizzle-orm";
 
@@ -42,6 +43,14 @@ export async function loadData(
 ) {
 	if (!recordId) {
 		throw new Error("no record id");
+	}
+	const ownedRecords =
+		await DisasterRecordsRepository.getByIdAndCountryAccountsId(
+			recordId,
+			countryAccountsId,
+		);
+	if (!ownedRecords || ownedRecords.length === 0) {
+		throw new Response("Not Found", { status: 404 });
 	}
 	let tblId: HumanEffectsTable;
 	if (!tblStr) {
@@ -125,6 +134,14 @@ export async function saveHumanEffectsData(
 	if (!recordId) {
 		throw new Error("no record id");
 	}
+	const ownedRecords =
+		await DisasterRecordsRepository.getByIdAndCountryAccountsId(
+			recordId,
+			countryAccountsId,
+		);
+	if (!ownedRecords || ownedRecords.length === 0) {
+		throw new Response("Not Found", { status: 404 });
+	}
 	let defs = await defsForTable(ctx, dr, d.table, countryAccountsId);
 	let expectedCols = defs.map((d) => d.jsName);
 
@@ -173,7 +190,7 @@ export async function saveHumanEffectsData(
 				await totalGroupSet(tx, recordId, d.table, d.data.totalGroupFlags);
 			}
 			if (d.data.deletes) {
-				let res = await deleteRows(tx, d.table, d.data.deletes);
+				let res = await deleteRows(tx, d.table, d.data.deletes, recordId);
 				if (!res.ok) {
 					throw res.error;
 				}
@@ -181,7 +198,15 @@ export async function saveHumanEffectsData(
 			}
 			if (d.data.updates) {
 				let data2 = convertUpdatesToIdsAndData(d.data.updates, defs.length);
-				let res = await update(tx, d.table, defs, data2.ids, data2.data, false);
+				let res = await update(
+					tx,
+					d.table,
+					defs,
+					data2.ids,
+					data2.data,
+					false,
+					recordId,
+				);
 				if (!res.ok) {
 					throw res.error;
 				}

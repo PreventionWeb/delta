@@ -562,8 +562,11 @@ export async function disasterRecordsUpdate(
 		"spatialFootprint",
 	);
 	const spatialFootprintValue = (fields as any).spatialFootprint;
-	const { spatialFootprint: _ignoredSpatialFootprint, ...updateValues } =
-		fields as any;
+	const {
+		spatialFootprint: _ignoredSpatialFootprint,
+		countryAccountsId: _ignoredCountryAccountsId,
+		...updateValues
+	} = fields as any;
 	await tx
 		.update(disasterRecordsTable)
 		.set({

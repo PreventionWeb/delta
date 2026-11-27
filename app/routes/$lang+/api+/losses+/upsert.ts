@@ -7,7 +7,10 @@ import {
 
 import { jsonUpsert } from "~/backend.server/handlers/form/form_api";
 
-import { lossesCreate, lossesUpdate } from "~/backend.server/models/losses";
+import {
+	lossesCreate,
+	lossesUpdateByIdAndCountryAccountsId,
+} from "~/backend.server/models/losses";
 import { apiAuth } from "~/backend.server/models/api_key";
 import { InstanceSystemSettingRepository } from "~/db/queries/instanceSystemSettingRepository";
 import { ActionFunctionArgs } from "react-router";
@@ -43,7 +46,14 @@ export const action = async (args: ActionFunctionArgs) => {
 		data,
 		fieldsDef: createFieldsDefApi(ctx, currencies),
 		create: lossesCreate,
-		update: lossesUpdate,
+		update: (ctx, tx, id, data, tenantId) =>
+			lossesUpdateByIdAndCountryAccountsId(
+				ctx,
+				tx,
+				id,
+				tenantId || countryAccountsId,
+				data,
+			),
 		idByImportIdAndCountryAccountsId: lossesIdByImportIdAndCountryAccountsId,
 		countryAccountsId,
 		tableName: "losses",

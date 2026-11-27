@@ -6,7 +6,10 @@ import {
 } from "react-router";
 import { useActionData, useLoaderData } from "react-router";
 import { Form } from "react-router";
-import { validateInviteCode } from "~/backend.server/models/user/invite";
+import {
+	redeemInviteAtomic,
+	validateInviteCode,
+} from "~/backend.server/models/user/invite";
 
 import { ViewContext } from "~/frontend/context";
 
@@ -17,12 +20,12 @@ import { InputText } from "primereact/inputtext";
 import { Password } from "primereact/password";
 import { Button } from "primereact/button";
 import { LangLink } from "~/utils/link";
-import { UserRepository } from "~/db/queries/UserRepository";
 import { passwordHash } from "~/utils/passwordUtil";
 import { BackendContext } from "~/backend.server/context";
 import { sendWelcomeRegistrationEmail } from "~/utils/emailUtil";
 import { ErrorState } from "~/components/ErrorState";
-import { redirectWithMessage } from "~/utils/session";
+import { redirectWithMessage, sessionCookie } from "~/utils/session";
+import { createCSRFToken, verifyCSRFToken } from "~/utils/csrf";
 
 export const meta: MetaFunction = ({ params }) => {
 	const ctx = new ViewContext({ lang: params.lang || "en" });
@@ -55,18 +58,28 @@ export const loader = async (loaderArgs: LoaderFunctionArgs) => {
 	const queryStringCode = url.searchParams.get("code") || "";
 	const res = await validateInviteCode(inviteCode);
 
-	var email = "";
+	let email = "";
 	if (res.ok == true) {
 		email = res.email;
 	}
 
-	return {
-		inviteCode: inviteCode,
-		inviteCodeValidation: res,
-		code: queryStringCode,
-		state: state,
-		email: email,
-	};
+	const csrfToken = createCSRFToken();
+	const cookieHeader = request.headers.get("Cookie") || "";
+	const session = await sessionCookie().getSession(cookieHeader);
+	session.set("csrfToken", csrfToken);
+	const setCookie = await sessionCookie().commitSession(session);
+
+	return Response.json(
+		{
+			inviteCode: inviteCode,
+			inviteCodeValidation: res,
+			code: queryStringCode,
+			state: state,
+			email: email,
+			csrfToken,
+		},
+		{ headers: { "Set-Cookie": setCookie } },
+	);
 };
 
 type FieldErrors = {
@@ -79,22 +92,66 @@ type FieldErrors = {
 };
 
 export const action = async (actionArgs: ActionFunctionArgs) => {
-	const formData = await actionArgs.request.formData();
+	const { request } = actionArgs;
+	const formData = await request.formData();
+
+	const cookieHeader = request.headers.get("Cookie") || "";
+	const sessionCurrent = await sessionCookie().getSession(cookieHeader);
+	const csrfToken = String(formData.get("csrfToken") || "");
+	const sessionCsrfToken = sessionCurrent.get("csrfToken");
+
+	if (!verifyCSRFToken(csrfToken, sessionCsrfToken)) {
+		return Response.json(
+			{
+				ok: false,
+				errors: {
+					form: "CSRF validation failed. Please reload the page and try again.",
+				} as FieldErrors,
+			},
+			{ status: 400 },
+		);
+	}
+
+	const url = new URL(request.url);
+	const inviteCode = String(
+		formData.get("inviteCode") || url.searchParams.get("inviteCode") || "",
+	).trim();
+
+	const inviteValidation = await validateInviteCode(inviteCode);
+	if (!inviteValidation.ok) {
+		return Response.json(
+			{
+				ok: false,
+				errors: {
+					form: "Invalid or expired invitation.",
+				} as FieldErrors,
+			},
+			{ status: 400 },
+		);
+	}
 
 	const firstName = String(formData.get("firstName") || "").trim();
 	const lastName = String(formData.get("lastName") || "").trim();
 	const password = String(formData.get("password") || "");
 	const passwordRepeat = String(formData.get("passwordRepeat") || "");
-	const email = String(formData.get("email") || "");
+	const submittedEmail = String(formData.get("email") || "").trim();
 
 	const errors: FieldErrors = {};
 
-	const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-	// Email
-	if (!email) {
-		errors.email = "Email is required.";
-	} else if (!emailRegex.test(email)) {
-		errors.email = "Invalid email address.";
+	const email = inviteValidation.email;
+	if (
+		submittedEmail &&
+		submittedEmail.toLowerCase() !== email.toLowerCase()
+	) {
+		return Response.json(
+			{
+				ok: false,
+				errors: {
+					form: "Invalid or expired invitation.",
+				} as FieldErrors,
+			},
+			{ status: 400 },
+		);
 	}
 
 	// First name
@@ -140,48 +197,59 @@ export const action = async (actionArgs: ActionFunctionArgs) => {
 		errors.passwordRepeat = "Passwords do not match.";
 	}
 
-	const user = await UserRepository.getByEmail(email);
-	if (!user) {
-		errors.email = "No user exist with this email";
-	}
-
 	if (Object.keys(errors).length > 0) {
 		return { ok: false, errors };
 	}
 
-	//Update user data in the table
-	if (user) {
-		await UserRepository.updateById(user.id, {
-			inviteCode: "",
-			password: passwordHash(password),
-			firstName: firstName,
-			lastName: lastName,
-			emailVerified: true,
-		});
+	const redeemedUser = await redeemInviteAtomic({
+		userId: inviteValidation.userId,
+		inviteCode,
+		firstName,
+		lastName,
+		hashedPassword: passwordHash(password),
+	});
 
-		//send welcome email to the user.
-		const ctx = new BackendContext(actionArgs);
-		sendWelcomeRegistrationEmail(ctx, email, firstName, lastName);
+	if (!redeemedUser) {
+		return Response.json(
+			{
+				ok: false,
+				errors: {
+					form: "Invalid or expired invitation.",
+				} as FieldErrors,
+			},
+			{ status: 400 },
+		);
 	}
 
-	//Redirect 
+	//send welcome email to the user.
 	const ctx = new BackendContext(actionArgs);
+	sendWelcomeRegistrationEmail(ctx, redeemedUser.email, firstName, lastName);
+
+	//Redirect
 	return redirectWithMessage(actionArgs, "/user/login", {
 		type: "info",
 		text: ctx.t({
 			code: "your_account_has_been_set_up_successfully.",
 			msg: "Your account has been set up successfully. You can sign in now",
-		})
-		,
+		}),
 	});
 };
 
+type LoaderData = {
+	inviteCode: string;
+	inviteCodeValidation: Awaited<ReturnType<typeof validateInviteCode>>;
+	code: string;
+	state: string;
+	email: string;
+	csrfToken: string;
+};
+
 export default function Screen() {
-	const loaderData = useLoaderData<typeof loader>();
+	const loaderData = useLoaderData<LoaderData>();
 	const ctx = new ViewContext();
 	const inviteCode = loaderData.inviteCode;
 	const email = loaderData.email;
-	const actionData = useActionData<typeof action>();
+	const actionData = useActionData<{ ok?: boolean; errors?: FieldErrors }>();
 	const errors = actionData?.errors ?? {};
 
 	const navigation = useNavigation();
@@ -233,6 +301,14 @@ export default function Screen() {
 					<div className="flex flex-col gap-6">
 
 						<input name="inviteCode" type="hidden" defaultValue={inviteCode} />
+						<input
+							name="csrfToken"
+							type="hidden"
+							value={loaderData.csrfToken}
+						/>
+						{errors.form && (
+							<Message severity="error" className="w-full" text={errors.form} />
+						)}
 
 						{/* Email */}
 						<div className="flex flex-col gap-2">

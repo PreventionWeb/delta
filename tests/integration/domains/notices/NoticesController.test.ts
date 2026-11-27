@@ -481,4 +481,54 @@ describe("NoticesController", () => {
 		const res = await request.delete(`/notices/${id}`);
 		expect(res.status).toBe(401);
 	});
+
+	// -------------------------------------------------------------------------
+	// Admin-only role enforcement
+	// -------------------------------------------------------------------------
+
+	it("rejects non-admin roles (data-viewer, data-collector) with 403 on all notice routes", async () => {
+		const id = await insertNotice({ tenantId });
+
+		for (const role of ["data-viewer", "data-collector", "data-validator"]) {
+			const nonAdminUserId = await insertUser();
+			const nonAdminCookie = await buildSessionCookie({
+				userId: nonAdminUserId,
+				tenantId,
+				role,
+			});
+
+			expect(
+				(await request.get("/notices").set("Cookie", nonAdminCookie)).status,
+			).toBe(403);
+			expect(
+				(await request.get(`/notices/${id}`).set("Cookie", nonAdminCookie))
+					.status,
+			).toBe(403);
+			expect(
+				(
+					await request
+						.post("/notices")
+						.set("Cookie", nonAdminCookie)
+						.send({
+							title: "Blocked",
+							body: null,
+							locale: "en",
+							isPublished: false,
+						})
+				).status,
+			).toBe(403);
+			expect(
+				(
+					await request
+						.put(`/notices/${id}`)
+						.set("Cookie", nonAdminCookie)
+						.send({ title: "Blocked" })
+				).status,
+			).toBe(403);
+			expect(
+				(await request.delete(`/notices/${id}`).set("Cookie", nonAdminCookie))
+					.status,
+			).toBe(403);
+		}
+	});
 });

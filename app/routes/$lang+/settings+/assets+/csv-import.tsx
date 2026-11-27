@@ -2,8 +2,8 @@ import { authLoaderWithPerm } from "~/utils/auth";
 
 import {
 	assetCreate,
-	assetUpdate,
-	assetIdByImportId,
+	assetUpdateByIdAndCountryAccountsId,
+	assetIdByImportIdAndCountryAccountsId,
 	fieldsDefApi,
 	AssetFields,
 } from "~/backend.server/models/asset";
@@ -53,13 +53,12 @@ export let action = async (args: ActionFunctionArgs) => {
 			fields: Partial<AssetFields>,
 			tenantId: string,
 		) => {
-			// Add countryAccountsId to fields before calling assetUpdate
-			return assetUpdate(ctx, tx, idStr, {
+			return assetUpdateByIdAndCountryAccountsId(ctx, tx, idStr, tenantId, {
 				...fields,
 				countryAccountsId: tenantId,
 			});
 		},
-		idByImportId: assetIdByImportId,
+		idByImportId: assetIdByImportIdAndCountryAccountsId,
 	});
 
 	return csvAction(args);

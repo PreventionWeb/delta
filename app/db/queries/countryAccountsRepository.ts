@@ -6,6 +6,14 @@ import {
 import { and, eq, sql } from "drizzle-orm";
 import { dr, Tx } from "~/db.server";
 
+const SAFE_PRIMARY_ADMIN_USER_COLUMNS = {
+	id: true,
+	email: true,
+	firstName: true,
+	lastName: true,
+	emailVerified: true,
+} as const;
+
 export const CountryAccountsRepository = {
 	async getById(id: string) {
 		if (!id || typeof id !== "string") return null;
@@ -24,7 +32,7 @@ export const CountryAccountsRepository = {
 					where: eq(userCountryAccountsTable.isPrimaryAdmin, true),
 					limit: 1,
 					with: {
-						user: true,
+						user: { columns: SAFE_PRIMARY_ADMIN_USER_COLUMNS },
 					},
 				},
 			},
@@ -51,7 +59,7 @@ export const CountryAccountsRepository = {
 					where: eq(userCountryAccountsTable.isPrimaryAdmin, true),
 					limit: 1,
 					with: {
-						user: true,
+						user: { columns: SAFE_PRIMARY_ADMIN_USER_COLUMNS },
 					},
 				},
 			},
@@ -97,7 +105,7 @@ export const CountryAccountsRepository = {
 					where: eq(userCountryAccountsTable.isPrimaryAdmin, true),
 					limit: 1,
 					with: {
-						user: true,
+						user: { columns: SAFE_PRIMARY_ADMIN_USER_COLUMNS },
 					},
 				},
 			},

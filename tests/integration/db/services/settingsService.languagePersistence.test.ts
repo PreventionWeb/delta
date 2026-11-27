@@ -49,6 +49,7 @@ describe("Albanian language selection persistence", () => {
 			created!.id,
 			"Albania DELTA",
 			"sq",
+			countryAccountsId,
 		);
 		expect(instanceSystemSettings?.language).toBe("sq");
 
@@ -81,6 +82,7 @@ describe("Albanian language selection persistence", () => {
 			created!.id,
 			"Albania DELTA renamed",
 			"sq",
+			countryAccountsId,
 		);
 
 		const fromDb =
@@ -99,7 +101,12 @@ describe("Albanian language selection persistence", () => {
 		});
 
 		await expect(
-			SettingsService.updateSettings(created!.id, "Albania DELTA", "xx"),
+			SettingsService.updateSettings(
+				created!.id,
+				"Albania DELTA",
+				"xx",
+				countryAccountsId,
+			),
 		).rejects.toBeInstanceOf(SettingsValidationError);
 
 		const fromDb =
@@ -107,5 +114,30 @@ describe("Albanian language selection persistence", () => {
 				countryAccountsId,
 			);
 		expect(fromDb?.language).toBe("en");
+	});
+
+	it("rejects updating settings belonging to another country account", async () => {
+		const tenantA = await insertCountryAccount();
+		const tenantB = await insertCountryAccount();
+
+		const settingsB = await InstanceSystemSettingRepository.create({
+			countryAccountsId: tenantB,
+			websiteName: "Tenant B Original",
+			language: "en",
+		});
+
+		await expect(
+			SettingsService.updateSettings(
+				settingsB!.id,
+				"Updated Name",
+				"fr",
+				tenantA,
+			),
+		).rejects.toBeInstanceOf(SettingsValidationError);
+
+		const unchangedB =
+			await InstanceSystemSettingRepository.getByCountryAccountId(tenantB);
+		expect(unchangedB?.websiteName).toBe("Tenant B Original");
+		expect(unchangedB?.language).toBe("en");
 	});
 });

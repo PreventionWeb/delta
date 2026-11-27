@@ -1,3 +1,4 @@
+import { assertTenantFileKey } from "~/backend.server/utils/attachmentPaths.server";
 import { AssessmentTypeRepository } from "~/db/queries/assessmentTypeRepository";
 import { DisasterEventAssessmentAttachmentRepository } from "~/db/queries/disasterEventAssessmentAttachmentRepository";
 import {
@@ -284,6 +285,9 @@ export async function createAssessmentForTenant(args: {
 			}
 
 			if (attachments.length > 0) {
+				for (const attachment of attachments) {
+					assertTenantFileKey(attachment.fileKey, args.countryAccountsId);
+				}
 				await DisasterEventAssessmentAttachmentRepository.createMany(
 					attachments.map((attachment) => ({
 						disasterEventAssessmentId: assessment.id,
@@ -395,6 +399,9 @@ export async function updateAssessmentForTenant(args: {
 				tx,
 			);
 			if (attachments.length > 0) {
+				for (const attachment of attachments) {
+					assertTenantFileKey(attachment.fileKey, args.countryAccountsId);
+				}
 				await DisasterEventAssessmentAttachmentRepository.createMany(
 					attachments.map((attachment) => ({
 						disasterEventAssessmentId: args.id,

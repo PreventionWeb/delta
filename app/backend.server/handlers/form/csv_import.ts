@@ -46,7 +46,11 @@ interface CreateActionArgs<T extends ObjectWithImportId> {
 		data: Partial<T>,
 		countryAccountsId: string,
 	) => Promise<UpdateResult<T>>;
-	idByImportId: (tx: Tx, importId: string) => Promise<string | null>;
+	idByImportId: (
+		tx: Tx,
+		importId: string,
+		countryAccountsId: string,
+	) => Promise<string | null>;
 }
 
 interface ErrorRes {
@@ -90,6 +94,9 @@ export function createAction<T extends ObjectWithImportId>(
 				try {
 					const countryAccountsId =
 						await getCountryAccountsIdFromSession(request);
+					if (!countryAccountsId) {
+						throw new Response("Unauthorized", { status: 401 });
+					}
 
 					switch (importType) {
 						case "create": {

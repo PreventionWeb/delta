@@ -324,6 +324,8 @@ export const action = authActionWithPerm(
 					attachmentsArray,
 					save_path_temp,
 					save_path,
+					undefined,
+					countryAccountsId,
 				);
 
 				// Update the `attachments` field in the database
@@ -673,16 +675,16 @@ export default function Screen() {
 															<td className="border border-gray-300 px-3 py-2">
 																{ld.item?.id && (
 																	<div className="flex items-center gap-2">
-																		<LangLink
-																			lang={ctx.lang}
-																			to={`/disaster-record/edit-sec/${ld.item.id}/delete/?id=${item.disRecSectorsId}`}
-																			className="text-red-600 hover:underline"
-																		>
-																			{ctx.t({
+																		<DeleteButton
+																			ctx={ctx}
+																			action={ctx.url(
+																				`/disaster-record/edit-sec/${ld.item.id}/delete/?id=${item.disRecSectorsId}`,
+																			)}
+																			label={ctx.t({
 																				code: "common.delete",
 																				msg: "Delete",
 																			})}
-																		</LangLink>
+																		/>
 																		<span className="text-gray-300">|</span>
 																		<LangLink
 																			lang={ctx.lang}

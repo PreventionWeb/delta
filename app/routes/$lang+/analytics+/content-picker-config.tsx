@@ -7,7 +7,7 @@ import { formatDateDisplay } from "~/utils/date";
 import { BackendContext } from "~/backend.server/context";
 import { DContext } from "~/utils/dcontext";
 
-export function contentPickerConfig(ctx: DContext) {
+export function contentPickerConfig(ctx: DContext, publicOnly: boolean = false) {
 	return {
 		id: "disasterEventId",
 		required: false,
@@ -115,10 +115,12 @@ export function contentPickerConfig(ctx: DContext) {
 			],
 			where: [
 				// Define search filters
-				or(
-					eq(disasterEventTable.approvalStatus, "published"),
-					eq(disasterEventTable.approvalStatus, "validated"),
-				),
+				publicOnly
+					? eq(disasterEventTable.approvalStatus, "published")
+					: or(
+							eq(disasterEventTable.approvalStatus, "published"),
+							eq(disasterEventTable.approvalStatus, "validated"),
+						),
 			],
 			whereIlike: [
 				{
@@ -212,6 +214,11 @@ export function contentPickerConfig(ctx: DContext) {
 			if (countryAccountsId) {
 				whereConditions.push(
 					eq(disasterEventTable.countryAccountsId, countryAccountsId),
+				);
+			}
+			if (publicOnly) {
+				whereConditions.push(
+					eq(disasterEventTable.approvalStatus, "published"),
 				);
 			}
 			const row = await dr

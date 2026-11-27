@@ -1,4 +1,5 @@
 import { ResponseTypeRepository } from "~/db/queries/responseTypeRepository";
+import { assertTenantFileKey } from "~/backend.server/utils/attachmentPaths.server";
 import { DisasterEventRepository } from "~/db/queries/disasterEventRepository";
 import { DisasterEventResponseAttachmentRepository } from "~/db/queries/disasterEventResponseAttachmentRepository";
 import {
@@ -293,6 +294,9 @@ export async function createResponseForTenant(args: {
 			}
 
 			if (attachments.length > 0) {
+				for (const attachment of attachments) {
+					assertTenantFileKey(attachment.fileKey, args.countryAccountsId);
+				}
 				await DisasterEventResponseAttachmentRepository.createMany(
 					attachments.map((attachment) => ({
 						disasterEventResponseId: response.id,
@@ -379,6 +383,9 @@ export async function updateResponseForTenant(args: {
 				tx,
 			);
 			if (attachments.length > 0) {
+				for (const attachment of attachments) {
+					assertTenantFileKey(attachment.fileKey, args.countryAccountsId);
+				}
 				await DisasterEventResponseAttachmentRepository.createMany(
 					attachments.map((attachment) => ({
 						disasterEventResponseId: args.id,

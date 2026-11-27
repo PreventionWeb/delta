@@ -149,4 +149,32 @@ describe("SessionAuthGuard", () => {
 
 		expect(res.body.userId).toBe(directResult?.user.id);
 	});
+
+	it("rejects a user whose session cookie points to a tenant they do not belong to with 403", async () => {
+		const tenantId = await insertTenant();
+		const userId = await insertUser();
+		const cookie = await buildSessionCookie({
+			userId,
+			tenantId,
+			skipMembership: true,
+		});
+
+		const res = await request.get("/guard-test/").set("Cookie", cookie);
+
+		expect(res.status).toBe(403);
+	});
+
+	it("rejects a TOTP-enabled user whose session has not completed TOTP with 401", async () => {
+		const tenantId = await insertTenant();
+		const userId = await insertUser({ totpEnabled: true });
+		const cookie = await buildSessionCookie({
+			userId,
+			tenantId,
+			totpAuthed: false,
+		});
+
+		const res = await request.get("/guard-test/").set("Cookie", cookie);
+
+		expect(res.status).toBe(401);
+	});
 });

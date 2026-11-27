@@ -13,6 +13,7 @@ import {
 	categoryPresenceSet,
 } from "~/backend.server/models/human_effects";
 import { apiAuth } from "~/backend.server/models/api_key";
+import { DisasterRecordsRepository } from "~/db/queries/disasterRecordsRepository";
 import { BackendContext } from "~/backend.server/context";
 
 export const loader = authLoaderApi(async () => {
@@ -34,6 +35,20 @@ export const action = authActionApi(async (actionArgs) => {
 	const countryAccountsId = apiKey.countryAccountsId;
 	if (!countryAccountsId) {
 		throw new Response("Unauthorized", { status: 401 });
+	}
+	if (!recordId) {
+		return Response.json(
+			{ ok: false, error: "Record ID is required" },
+			{ status: 400 },
+		);
+	}
+	const ownedRecords =
+		await DisasterRecordsRepository.getByIdAndCountryAccountsId(
+			recordId,
+			countryAccountsId,
+		);
+	if (!ownedRecords || ownedRecords.length === 0) {
+		throw new Response("Not Found", { status: 404 });
 	}
 
 	let d;

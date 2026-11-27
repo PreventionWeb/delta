@@ -4,7 +4,7 @@ import { jsonUpsert } from "~/backend.server/handlers/form/form_api";
 
 import {
 	disRecSectorsCreate,
-	disRecSectorsUpdate,
+	disRecSectorsUpdateByIdAndCountryAccountsId,
 	fieldsDefApi,
 	disRecSectorsIdByImportIdAndCountryAccountsId,
 } from "~/backend.server/models/disaster_record__sectors";
@@ -40,7 +40,8 @@ export const action = async (args: ActionFunctionArgs) => {
 		data,
 		fieldsDef: fieldsDefApi,
 		create: disRecSectorsCreate,
-		update: disRecSectorsUpdate,
+		update: (ctx, tx, id, fields, caId) =>
+			disRecSectorsUpdateByIdAndCountryAccountsId(ctx, tx, id, caId, fields),
 		idByImportIdAndCountryAccountsId:
 			disRecSectorsIdByImportIdAndCountryAccountsId,
 		countryAccountsId: countryAccountsId,

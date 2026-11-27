@@ -1,7 +1,9 @@
+import { createHash, timingSafeEqual } from "crypto";
 import { dr } from "~/db.server";
-import { eq } from "drizzle-orm";
+import { and, eq, gt } from "drizzle-orm";
 
 import { userTable } from "~/drizzle/schema";
+import { sessionTable } from "~/drizzle/schema/sessionTable";
 
 import { Errors, hasErrors } from "~/frontend/form";
 
@@ -13,10 +15,36 @@ import { UserRepository } from "~/db/queries/UserRepository";
 import { BackendContext } from "~/backend.server/context";
 
 import { passwordHash, passwordHashCompare } from "~/utils/passwordUtil";
+
+export function hashResetToken(token: string): string {
+	return createHash("sha256").update(token).digest("hex");
+}
+
+function resetTokenMatches(
+	storedHash: string,
+	candidateToken: string,
+): boolean {
+	if (!storedHash || !candidateToken) {
+		return false;
+	}
+	const candidateHash = hashResetToken(candidateToken);
+	const storedBuf = Buffer.from(storedHash, "utf8");
+	const candidateBuf = Buffer.from(candidateHash, "utf8");
+	if (storedBuf.length !== candidateBuf.length) {
+		return false;
+	}
+	return timingSafeEqual(storedBuf, candidateBuf);
+}
+
 export async function resetPasswordSilentIfNotFound(
 	email: string,
 	resetToken: string,
 ): Promise<boolean> {
+	const trimmedToken = resetToken.trim();
+	if (!trimmedToken) {
+		return false;
+	}
+
 	const res = await dr
 		.select()
 		.from(userTable)
@@ -30,7 +58,7 @@ export async function resetPasswordSilentIfNotFound(
 	await dr
 		.update(userTable)
 		.set({
-			resetPasswordToken: resetToken,
+			resetPasswordToken: hashResetToken(trimmedToken),
 			resetPasswordExpiresAt: expiresAt,
 		})
 		.where(eq(userTable.email, email));
@@ -58,39 +86,37 @@ export async function resetPassword(
 	errors.form = [];
 	errors.fields = {};
 
+	const trimmedEmail = email.trim();
+	const trimmedToken = token.trim();
+	const invalidTokenError = ctx.t({
+		code: "user_reset_password.invalid_token",
+		msg: "Invalid or expired token",
+	});
+
+	if (!trimmedEmail || !trimmedToken) {
+		errors.fields.newPassword = [invalidTokenError];
+		return { ok: false, errors };
+	}
+
 	const res = await dr
 		.select()
 		.from(userTable)
-		.where(eq(userTable.email, email));
+		.where(eq(userTable.email, trimmedEmail));
 
 	if (!res || res.length === 0) {
-		errors.fields.newPassword = [
-			ctx.t({
-				code: "user_reset_password.user_not_found",
-				msg: "User not found",
-			}),
-		];
+		errors.fields.newPassword = [invalidTokenError];
 		return { ok: false, errors };
 	}
 
 	const user = res[0];
-	if (user.resetPasswordToken !== token) {
-		errors.fields.newPassword = [
-			ctx.t({
-				code: "user_reset_password.invalid_token",
-				msg: "Invalid or expired token",
-			}),
-		];
-		return { ok: false, errors };
-	}
 	const now = new Date();
-	if (user.resetPasswordExpiresAt && user.resetPasswordExpiresAt < now) {
-		errors.fields.newPassword = [
-			ctx.t({
-				code: "user_reset_password.token_expired",
-				msg: "Token has expired",
-			}),
-		];
+	if (
+		!user.resetPasswordToken ||
+		!resetTokenMatches(user.resetPasswordToken, trimmedToken) ||
+		!user.resetPasswordExpiresAt ||
+		user.resetPasswordExpiresAt <= now
+	) {
+		errors.fields.newPassword = [invalidTokenError];
 		return { ok: false, errors };
 	}
 	if (!newPassword) {
@@ -163,13 +189,36 @@ export async function resetPassword(
 	}
 
 	const hashedPassword = passwordHash(newPassword);
-	await dr
-		.update(userTable)
-		.set({
-			password: hashedPassword,
-			resetPasswordToken: "",
-		})
-		.where(eq(userTable.email, email));
+	const expectedStoredTokenHash = hashResetToken(trimmedToken);
+	const updated = await dr.transaction(async (tx) => {
+		const updatedRows = await tx
+			.update(userTable)
+			.set({
+				password: hashedPassword,
+				resetPasswordToken: "",
+				resetPasswordExpiresAt: new Date(0),
+			})
+			.where(
+				and(
+					eq(userTable.id, user.id),
+					eq(userTable.resetPasswordToken, expectedStoredTokenHash),
+					gt(userTable.resetPasswordExpiresAt, now),
+				),
+			)
+			.returning({ id: userTable.id });
+
+		if (updatedRows.length === 0) {
+			return false;
+		}
+
+		await tx.delete(sessionTable).where(eq(sessionTable.userId, user.id));
+		return true;
+	});
+
+	if (!updated) {
+		errors.fields.newPassword = [invalidTokenError];
+		return { ok: false, errors };
+	}
 
 	// send password reset confirmation email.
 	//const userLoginURL = `${configSiteURL}/user/login`;
@@ -310,12 +359,18 @@ export async function changePassword(
 
 	const hashedPassword = passwordHash(newPassword);
 
-	await dr
-		.update(userTable)
-		.set({
-			password: hashedPassword,
-		})
-		.where(eq(userTable.id, userId));
+	await dr.transaction(async (tx) => {
+		await tx
+			.update(userTable)
+			.set({
+				password: hashedPassword,
+				resetPasswordToken: "",
+				resetPasswordExpiresAt: new Date(0),
+			})
+			.where(eq(userTable.id, userId));
+
+		await tx.delete(sessionTable).where(eq(sessionTable.userId, userId));
+	});
 
 	return { ok: true };
 }

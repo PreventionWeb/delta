@@ -10,8 +10,10 @@ export async function processAndSaveAttachments(
 	resourceId: string,
 	attachmentsData: any[],
 	directory: string,
+	countryAccountsId?: string | null,
 ) {
 	if (!attachmentsData) return;
+	if (!countryAccountsId && attachmentsData.length === 0) return;
 
 	const save_path = `/uploads/${directory}/${resourceId}`;
 	const save_path_temp = TEMP_UPLOAD_PATH;
@@ -21,6 +23,8 @@ export async function processAndSaveAttachments(
 		attachmentsData,
 		save_path_temp,
 		save_path,
+		undefined,
+		countryAccountsId ?? undefined,
 	);
 
 	// Update the `attachments` field in the database

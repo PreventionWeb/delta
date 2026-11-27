@@ -6,20 +6,32 @@ import { Toast } from "primereact/toast";
 
 import { BackendContext } from "~/backend.server/context";
 import { ApiKeyRepository } from "~/db/queries/apiKeyRepository";
-import { authActionWithPerm, authLoaderPublicOrWithPerm } from "~/utils/auth";
+import { authActionWithPerm, authLoaderWithPerm } from "~/utils/auth";
 import { getCountryAccountsIdFromSession, redirectWithMessage } from "~/utils/session";
 import { ViewContext } from "~/frontend/context";
 
-export const loader = authLoaderPublicOrWithPerm("EditAPIKeys", async (loaderArgs) => {
-	const { request } = loaderArgs;
+export const loader = authLoaderWithPerm("EditAPIKeys", async (loaderArgs) => {
+	const { request, params } = loaderArgs;
 	const countryAccountsId = await getCountryAccountsIdFromSession(request);
-	const selectedApiKey = (await ApiKeyRepository.getById(loaderArgs.params.id!)) ?? null;
+	if (!params.id || !countryAccountsId) {
+		throw new Response("Not Found", { status: 404 });
+	}
+	const selectedApiKey =
+		(await ApiKeyRepository.getByIdAndCountryAccountsId(
+			params.id,
+			countryAccountsId,
+		)) ?? null;
 
-	if (!selectedApiKey || selectedApiKey.countryAccountsId !== countryAccountsId) {
+	if (!selectedApiKey) {
 		throw new Response("Not Found", { status: 404 });
 	}
 
-	return { selectedApiKey };
+	return {
+		selectedApiKey: {
+			id: selectedApiKey.id,
+			name: selectedApiKey.name,
+		},
+	};
 });
 
 export const action = authActionWithPerm("EditAPIKeys", async (actionArgs) => {

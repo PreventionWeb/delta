@@ -1,22 +1,17 @@
 import { handleFileRequest } from "~/components/ContentRepeater/FileViewer";
-import { authLoaderPublicOrWithPerm } from "~/utils/auth";
+import { authLoaderWithPerm } from "~/utils/auth";
 import { TEMP_UPLOAD_PATH } from "~/utils/paths";
 import { getCountryAccountsIdFromSession } from "~/utils/session";
 
-export const loader = authLoaderPublicOrWithPerm(
+export const loader = authLoaderWithPerm(
 	"ViewData",
-	async ({ request, userSession, url: routeUrl }: any) => {
+	async ({ request, userSession }: any) => {
 		const requestUrl = new URL(request.url);
-		const download = requestUrl.searchParams.get("download") === "true"; // Parse `download` as a boolean
+		const download = requestUrl.searchParams.get("download") === "true";
 
-		// Get tenant ID from URL or user session
-		let tenantPath = requestUrl.searchParams.get("tenantPath");
-
-		// Get the country accounts ID directly from the session
 		const directCountryAccountsId =
 			await getCountryAccountsIdFromSession(request);
 
-		// Create a proper userSession object if it's missing data
 		const effectiveUserSession = {
 			id: userSession?.id,
 			countryAccountsId:
@@ -24,41 +19,6 @@ export const loader = authLoaderPublicOrWithPerm(
 			role: userSession?.role,
 		};
 
-		// Security check: If tenant path is specified in URL, verify it matches the user's tenant
-		if (tenantPath && effectiveUserSession.countryAccountsId) {
-			const urlTenantId = tenantPath.match(/tenant-([\w-]+)/);
-			if (
-				urlTenantId &&
-				urlTenantId[1] !== effectiveUserSession.countryAccountsId
-			) {
-				console.warn(
-					`Tenant mismatch: URL tenant ${urlTenantId[1]} doesn't match user tenant ${effectiveUserSession.countryAccountsId}`,
-				);
-				// Redirect to language-scoped unauthorized page
-				const lang = routeUrl.pathname.split("/").filter(Boolean)[0] || "en";
-				const unauthorizedUrl = `/${lang}/error/unauthorized?reason=access-denied`;
-				return new Response(null, {
-					status: 302,
-					headers: {
-						Location: unauthorizedUrl,
-					},
-				});
-			}
-		}
-
-		// If no tenant path in URL but we have a country accounts ID in the session, use that
-		if (!tenantPath && effectiveUserSession.countryAccountsId) {
-			tenantPath = `/tenant-${effectiveUserSession.countryAccountsId}`;
-
-			// Add the tenant path to the URL for the file handler
-			requestUrl.searchParams.set("tenantPath", tenantPath);
-			request = new Request(requestUrl.toString(), request);
-		}
-
-		// For temp files, we can't easily verify ownership by event ID, but we can enforce tenant isolation
-		// by ensuring the tenant path matches the user's tenant, which we've done above
-
-		// Pass the modified request with tenant path to the handler, INCLUDING the userSession
 		return await handleFileRequest(
 			request,
 			TEMP_UPLOAD_PATH,

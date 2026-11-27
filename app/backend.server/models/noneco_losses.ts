@@ -48,10 +48,35 @@ export async function nonecoLossesCreate(
 	_ctx: BackendContext,
 	tx: Tx,
 	fields: NonecoLossesFields,
+	countryAccountsId: string,
 ): Promise<CreateResult<NonecoLossesFields>> {
 	let errors = validate(fields);
 	if (hasErrors(errors)) {
 		return { ok: false, errors };
+	}
+
+	if (!countryAccountsId) {
+		return {
+			ok: false,
+			errors: {
+				form: ["No matching disaster record found or you don't have access"],
+			},
+		};
+	}
+
+	const disasterRecords =
+		await DisasterRecordsRepository.getByIdAndCountryAccountsId(
+			fields.disasterRecordId,
+			countryAccountsId,
+			tx,
+		);
+	if (!disasterRecords || disasterRecords.length === 0) {
+		return {
+			ok: false,
+			errors: {
+				form: ["No matching disaster record found or you don't have access"],
+			},
+		};
 	}
 
 	const res = await tx
@@ -60,6 +85,7 @@ export async function nonecoLossesCreate(
 			disasterRecordId: fields.disasterRecordId,
 			categoryId: fields.categoryId,
 			description: fields.description,
+			apiImportId: fields.apiImportId,
 			updatedAt: sql`NOW()`,
 		})
 		.returning({ id: nonecoLossesTable.id });
@@ -102,20 +128,51 @@ export async function nonecoLossesUpdateByIdAndCountryAccountsId(
 	if (hasErrors(errors)) {
 		return { ok: false, errors };
 	}
-	let recordId = await getRecordId(tx, id);
+
+	let recordId: string;
+	try {
+		recordId = await getRecordId(tx, id);
+	} catch {
+		return {
+			ok: false,
+			errors: {
+				form: ["No matching disaster record found or you don't have access"],
+			},
+		};
+	}
 
 	const disasterRecords =
 		await DisasterRecordsRepository.getByIdAndCountryAccountsId(
 			recordId,
 			countryAccountsId,
+			tx,
 		);
-	if (!disasterRecords) {
+	if (!disasterRecords || disasterRecords.length === 0) {
 		return {
 			ok: false,
 			errors: {
-				general: ["No matching disaster record found or you don't have access"],
+				form: ["No matching disaster record found or you don't have access"],
 			},
 		};
+	}
+
+	if (fields.disasterRecordId && fields.disasterRecordId !== recordId) {
+		const targetRecords =
+			await DisasterRecordsRepository.getByIdAndCountryAccountsId(
+				fields.disasterRecordId,
+				countryAccountsId,
+				tx,
+			);
+		if (!targetRecords || targetRecords.length === 0) {
+			return {
+				ok: false,
+				errors: {
+					form: [
+						"No matching target disaster record found or you don't have access",
+					],
+				},
+			};
+		}
 	}
 
 	await tx
@@ -311,18 +368,62 @@ export async function nonecoLossesFilderBydisasterRecordsId(
 		.execute();
 }
 
-export async function upsertRecord(record: PropRecord): Promise<void> {
-	// Perform the upsert operation
-	await dr
-		.insert(nonecoLossesTable)
-		.values(record)
-		.onConflictDoUpdate({
-			target: nonecoLossesTable.id,
-			set: {
+export async function upsertRecord(
+	record: PropRecord,
+	countryAccountsId: string,
+): Promise<void> {
+	await dr.transaction(async (tx) => {
+		const ownedRecords =
+			await DisasterRecordsRepository.getByIdAndCountryAccountsId(
+				record.disasterRecordId,
+				countryAccountsId,
+				tx,
+			);
+		if (!ownedRecords || ownedRecords.length === 0) {
+			throw new Response("Not Found", { status: 404 });
+		}
+
+		if (record.id) {
+			const existing = await tx
+				.select({ id: nonecoLossesTable.id })
+				.from(nonecoLossesTable)
+				.innerJoin(
+					disasterRecordsTable,
+					eq(nonecoLossesTable.disasterRecordId, disasterRecordsTable.id),
+				)
+				.where(
+					and(
+						eq(nonecoLossesTable.id, record.id),
+						eq(nonecoLossesTable.disasterRecordId, record.disasterRecordId),
+						eq(disasterRecordsTable.countryAccountsId, countryAccountsId),
+					),
+				)
+				.limit(1);
+
+			if (!existing || existing.length === 0) {
+				throw new Response("Not Found", { status: 404 });
+			}
+
+			await tx
+				.update(nonecoLossesTable)
+				.set({
+					categoryId: record.categoryId,
+					description: record.description,
+					updatedAt: sql`NOW()`,
+				})
+				.where(
+					and(
+						eq(nonecoLossesTable.id, record.id),
+						eq(nonecoLossesTable.disasterRecordId, record.disasterRecordId),
+					),
+				);
+		} else {
+			await tx.insert(nonecoLossesTable).values({
 				categoryId: record.categoryId,
 				disasterRecordId: record.disasterRecordId,
 				description: record.description,
 				updatedAt: sql`NOW()`,
-			},
-		});
+			});
+		}
+	});
 }
