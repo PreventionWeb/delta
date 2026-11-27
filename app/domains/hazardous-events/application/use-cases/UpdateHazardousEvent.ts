@@ -37,15 +37,20 @@ import type {
 import type { Tx } from "~/db.server";
 import type { ILogger } from "~/shared/logging/ILogger";
 import type { ITransactionRunner } from "~/shared/persistence/ITransactionRunner";
-import { ValidationError } from "~/shared/errors";
+import { ConcurrentModificationError, ValidationError } from "~/shared/errors";
 import { assertNonEmptyString } from "../assertNonEmptyString";
+import { assertAttachmentInputsAllowed } from "../attachmentInputPolicy";
 
 // Local override, not HazardousEventDetailDto/HazardousEventListItemDto (wrong semantics for
 // Update) -- same Omit-and-override shape as both, repeated rather than generalized (design.md Decision 3).
 export type UpdateHazardousEventResult = Omit<
 	HazardousEventDto,
 	"workflowStatus"
-> & { workflowStatus: Status | null };
+> & {
+	workflowStatus: Status | null;
+	/** Removed File keys the caller must delete after its commit; `[]` without `tx` (D7). */
+	fileKeysToDelete: readonly string[];
+};
 
 export interface UpdateHazardousEventCommand {
 	id: string;
@@ -76,6 +81,24 @@ export interface UpdateHazardousEventCommand {
 	>;
 	/** A batch caller's open transaction: every read and write runs on it, as a savepoint (NOD-12). */
 	tx?: Tx;
+	/** The `updatedAt` the caller based its change on; a later write by anyone else rejects (6d-2). */
+	expectedUpdatedAt?: Date | null;
+}
+
+/** Locks against the caller's own earlier read, not only this use case's fresh one. */
+function assertUnchangedSinceCallerRead(
+	existing: HazardousEvent,
+	expected: Date | null | undefined,
+): void {
+	if (expected === undefined) return;
+	if (
+		(expected?.getTime() ?? null) !== (existing.updatedAt?.getTime() ?? null)
+	) {
+		throw new ConcurrentModificationError(
+			"HazardousEvent has been modified since the caller read it",
+			{ id: existing.id, tenantId: existing.tenantId },
+		);
+	}
 }
 
 type CauseAction =
@@ -213,12 +236,14 @@ export class UpdateHazardousEventUseCase {
 		assertNonEmptyString(command.tenantId, "tenantId");
 		assertNonEmptyString(command.id, "id");
 		assertNonEmptyString(command.actingUserId, "actingUserId");
+		assertAttachmentInputsAllowed(command.attachments);
 
 		const existingEvent = await this.hazardousEventRepository.findById(
 			command.id,
 			command.tenantId,
 			command.tx,
 		);
+		assertUnchangedSinceCallerRead(existingEvent, command.expectedUpdatedAt);
 
 		// DEF-031: degrades gracefully instead of throwing -- every event created before this
 		// refactor has no WorkflowInstance row until Phase M's backfill runs.
@@ -286,8 +311,8 @@ export class UpdateHazardousEventUseCase {
 
 		// Whole write sequence is one transaction (DEF-026) -- a failure partway rolls back every
 		// earlier write in this same call, including the delegated spatial-observation attempt.
-		const { saved, savedSpatialObservation } = await this.transactionRunner.run(
-			async (tx) => {
+		const { saved, savedSpatialObservation, fileKeysToDelete } =
+			await this.transactionRunner.run(async (tx) => {
 				// promote()/delete() run inside the transaction (Decision 7); delete() happens
 				// after the row write below, not here -- so a losing concurrent caller (rejected
 				// by update()'s optimistic lock) can't delete a file the winner's row still points at.
@@ -364,6 +389,12 @@ export class UpdateHazardousEventUseCase {
 						});
 				}
 
+				// A caller tx is still open: deleting now would leave rows pointing at missing files
+				// if it rolls back, so the keys go back to the caller (6d-2 D7).
+				if (command.tx !== undefined) {
+					return { saved, savedSpatialObservation, fileKeysToDelete };
+				}
+
 				// Last in the transaction, after every step that can still throw (Gate 5 finding) --
 				// a failure in applyCausalEdgeChange/recordSpatialObservation after an earlier delete()
 				// would roll the row back to its old fileKey while the already-deleted file stays gone
@@ -377,10 +408,8 @@ export class UpdateHazardousEventUseCase {
 					fileKeysToDelete,
 				);
 
-				return { saved, savedSpatialObservation };
-			},
-			command.tx,
-		);
+				return { saved, savedSpatialObservation, fileKeysToDelete: [] };
+			}, command.tx);
 
 		// With a caller `tx` this logs at savepoint release, before the caller commits.
 		this.logger.info({
@@ -406,6 +435,7 @@ export class UpdateHazardousEventUseCase {
 		return {
 			...mapHazardousEventFields(saved),
 			workflowStatus: existingWorkflow?.status ?? null,
+			fileKeysToDelete,
 		};
 	}
 

@@ -2317,3 +2317,108 @@ describe("UpdateHazardousEventUseCase", () => {
 		});
 	});
 });
+
+describe("UpdateHazardousEventUseCase: caller version and attachment rules (6d-2)", () => {
+	const seededUpdatedAt = new Date("2026-01-05T12:30:00.000Z");
+
+	it("rejects with ConcurrentModificationError when the event changed since the caller's read", async () => {
+		const harness = createHarness({
+			seedEvents: [makeEvent({ id: "event-A", updatedAt: seededUpdatedAt })],
+		});
+
+		await expect(
+			harness.useCase.execute(
+				makeCommand({
+					id: "event-A",
+					tenantId: "tenant-1",
+					description: "Updated",
+					expectedUpdatedAt: new Date("2026-01-01T00:00:00.000Z"),
+				}),
+			),
+		).rejects.toBeInstanceOf(ConcurrentModificationError);
+		expect(harness.hazardousEventRepository.updateCalls).toEqual([]);
+	});
+
+	it("rejects a caller's null version when the event has since been updated", async () => {
+		const harness = createHarness({
+			seedEvents: [makeEvent({ id: "event-A", updatedAt: seededUpdatedAt })],
+		});
+
+		await expect(
+			harness.useCase.execute(
+				makeCommand({
+					id: "event-A",
+					tenantId: "tenant-1",
+					description: "U",
+					expectedUpdatedAt: null,
+				}),
+			),
+		).rejects.toBeInstanceOf(ConcurrentModificationError);
+	});
+
+	it("proceeds when the caller's version matches", async () => {
+		const harness = createHarness({
+			seedEvents: [makeEvent({ id: "event-A", updatedAt: seededUpdatedAt })],
+		});
+
+		await harness.useCase.execute(
+			makeCommand({
+				id: "event-A",
+				tenantId: "tenant-1",
+				description: "Updated",
+				expectedUpdatedAt: new Date(seededUpdatedAt.getTime()),
+			}),
+		);
+
+		expect(harness.hazardousEventRepository.updateCalls).toHaveLength(1);
+	});
+
+	it.each([
+		[
+			"a data: link",
+			{
+				kind: "link" as const,
+				id: "a",
+				title: "L",
+				tag: null,
+				url: "data:text/html,x",
+			},
+		],
+		[
+			"a malformed tag",
+			{
+				kind: "link" as const,
+				id: "a",
+				title: "L",
+				tag: [{ id: 1 }] as unknown as ReadonlyArray<{
+					id: string;
+					name: string;
+				}>,
+				url: "https://a.example",
+			},
+		],
+	])(
+		"rejects %s with a ValidationError on attachments before any write",
+		async (_, attachment) => {
+			const harness = createHarness({
+				seedEvents: [makeEvent({ id: "event-A" })],
+			});
+
+			const error = await harness.useCase
+				.execute(
+					makeCommand({
+						id: "event-A",
+						tenantId: "tenant-1",
+						attachments: [attachment],
+					}),
+				)
+				.catch((err: unknown) => err);
+
+			expect(error).toBeInstanceOf(ValidationError);
+			expect((error as ValidationError).context).toMatchObject({
+				field: "attachments",
+			});
+			expect(harness.hazardousEventRepository.updateCalls).toEqual([]);
+		},
+	);
+});

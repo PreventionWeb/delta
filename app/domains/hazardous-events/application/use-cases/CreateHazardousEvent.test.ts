@@ -1406,3 +1406,67 @@ describe("CreateHazardousEventUseCase", () => {
 		});
 	});
 });
+
+describe("CreateHazardousEventUseCase: attachment rules for every caller (6d-2, D12)", () => {
+	it.each([
+		[
+			"a javascript: link",
+			{
+				kind: "link" as const,
+				id: "a",
+				title: "L",
+				tag: null,
+				url: "javascript:alert(1)",
+			},
+		],
+		[
+			"an empty link",
+			{ kind: "link" as const, id: "a", title: "L", tag: null, url: "" },
+		],
+		[
+			"a malformed tag",
+			{
+				kind: "link" as const,
+				id: "a",
+				title: "L",
+				tag: [null] as unknown as ReadonlyArray<{ id: string; name: string }>,
+				url: "https://a.example",
+			},
+		],
+	])(
+		"rejects %s with a ValidationError on attachments before any write",
+		async (_, attachment) => {
+			const harness = createHarness();
+
+			const error = await harness.useCase
+				.execute(makeCommand({ attachments: [attachment] }))
+				.catch((err: unknown) => err);
+
+			expect(error).toBeInstanceOf(ValidationError);
+			expect((error as ValidationError).context).toMatchObject({
+				field: "attachments",
+			});
+			expect(harness.hazardousEventRepository.insertCalls).toEqual([]);
+		},
+	);
+
+	it("accepts an https link", async () => {
+		const harness = createHarness();
+
+		await harness.useCase.execute(
+			makeCommand({
+				attachments: [
+					{
+						kind: "link",
+						id: "a",
+						title: "L",
+						tag: [{ id: "t", name: "T" }],
+						url: "https://a.example",
+					},
+				],
+			}),
+		);
+
+		expect(harness.hazardousEventRepository.insertCalls).toHaveLength(1);
+	});
+});
