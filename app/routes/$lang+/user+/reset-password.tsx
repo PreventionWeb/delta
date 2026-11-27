@@ -55,20 +55,41 @@ export const action = async (actionArgs: ActionFunctionArgs) => {
 
 	const { token, email } = getData(request);
 	const formData = formStringData(await request.formData());
+	const effectiveToken = (token || formData.token || "").trim();
+	const effectiveEmail = (email || formData.email || "").trim();
 	const data: FormData = {
 		newPassword: formData.newPassword || "",
 		confirmPassword: formData.confirmPassword || "",
 	};
 
+	if (!effectiveToken || !effectiveEmail) {
+		return Response.json(
+			{
+				ok: false,
+				errors: {
+					fields: {
+						newPassword: [
+							ctx.t({
+								code: "user_reset_password.invalid_token",
+								msg: "Invalid or expired token",
+							}),
+						],
+					},
+				},
+			},
+			{ status: 400 },
+		);
+	}
+
 	let res = await resetPassword(
 		ctx,
-		email,
-		token,
+		effectiveEmail,
+		effectiveToken,
 		data.newPassword,
 		data.confirmPassword,
 	);
 	if (!res.ok) {
-		return { ok: false, data, errors: res.errors };
+		return { ok: false, errors: res.errors };
 	}
 	return redirectWithMessage(actionArgs, "/user/login", {
 		type: "info",
@@ -123,10 +144,6 @@ export default function Screen() {
 				</div>
 
 				<Form method="post" className="space-y-6">
-					{/* Hidden Fields */}
-					<input name="email" type="hidden" defaultValue="data.email" />
-					<input name="token" type="hidden" defaultValue="data.token" />
-
 					{/* New Password */}
 					<div className="flex flex-col gap-2">
 						<label className="font-semibold">

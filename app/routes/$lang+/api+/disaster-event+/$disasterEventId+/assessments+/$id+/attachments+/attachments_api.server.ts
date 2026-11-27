@@ -1,6 +1,10 @@
 import { randomUUID } from "crypto";
 import fs from "fs";
 import path from "path";
+import {
+	assertTenantFileKey,
+	deleteTenantPhysicalFileByKey,
+} from "~/backend.server/utils/attachmentPaths.server";
 import ContentRepeaterFileValidator from "~/components/ContentRepeater/FileValidator";
 import { DisasterEventAssessmentAttachmentRepository } from "~/db/queries/disasterEventAssessmentAttachmentRepository";
 import { getAssessmentForTenantById } from "~/routes/$lang+/api+/disaster-event+/assessments+/assessment_api.server";
@@ -32,37 +36,6 @@ export function getMultipartFiles(formData: FormData): File[] {
 	}
 
 	return uploadedFiles;
-}
-
-function absoluteUploadPathFromKey(fileKey: string): string | null {
-	const trimmed = String(fileKey || "").trim();
-	if (!trimmed) {
-		return null;
-	}
-
-	const normalized = trimmed.replace(/\\/g, "/").replace(/^\/+/, "");
-	const absolute = path.resolve(process.cwd(), normalized);
-	const uploadsRoot = path.resolve(process.cwd(), BASE_UPLOAD_PATH);
-	if (!absolute.startsWith(uploadsRoot)) {
-		return null;
-	}
-
-	return absolute;
-}
-
-function deletePhysicalFileByKey(fileKey: string) {
-	const absolutePath = absoluteUploadPathFromKey(fileKey);
-	if (!absolutePath || !fs.existsSync(absolutePath)) {
-		return;
-	}
-
-	try {
-		if (fs.statSync(absolutePath).isFile()) {
-			fs.unlinkSync(absolutePath);
-		}
-	} catch {
-		// Best-effort cleanup for attachment replacement/deletion.
-	}
 }
 
 function buildAssessmentAttachmentDir(args: {
@@ -205,6 +178,7 @@ export async function createAssessmentAttachment(args: {
 }) {
 	await ensureAssessmentScope(args);
 	const normalized = normalizePayload(args.payload);
+	assertTenantFileKey(normalized.fileKey, args.countryAccountsId);
 	return DisasterEventAssessmentAttachmentRepository.createOne({
 		disasterEventAssessmentId: args.assessmentId,
 		...normalized,
@@ -223,6 +197,7 @@ export async function updateAssessmentAttachment(args: {
 		throw new Response("Attachment not found", { status: 404 });
 	}
 	const normalized = normalizePayload(args.payload);
+	assertTenantFileKey(normalized.fileKey, args.countryAccountsId);
 
 	const updated = await DisasterEventAssessmentAttachmentRepository.updateById(
 		args.attachmentId,
@@ -233,7 +208,7 @@ export async function updateAssessmentAttachment(args: {
 	);
 
 	if (existing.fileKey !== normalized.fileKey) {
-		deletePhysicalFileByKey(existing.fileKey);
+		deleteTenantPhysicalFileByKey(existing.fileKey, args.countryAccountsId);
 	}
 
 	return updated ?? existing;
@@ -250,7 +225,7 @@ export async function deleteAssessmentAttachment(args: {
 		throw new Response("Attachment not found", { status: 404 });
 	}
 
-	deletePhysicalFileByKey(existing.fileKey);
+	deleteTenantPhysicalFileByKey(existing.fileKey, args.countryAccountsId);
 	await DisasterEventAssessmentAttachmentRepository.deleteById(
 		args.attachmentId,
 	);

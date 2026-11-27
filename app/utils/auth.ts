@@ -379,8 +379,14 @@ export function authLoaderApiDocs<T extends LoaderFunction>(fn: T): T {
 	return (async (args: LoaderFunctionArgs) => {
 		const authToken = args.request.headers.get("X-Auth");
 		if (authToken) {
-			await apiAuth(args.request);
-			return fn(args);
+			const apiKey = await apiAuth(args.request);
+			if (!apiKey.countryAccountsId) {
+				throw new Response("Unauthorized", { status: 401 });
+			}
+			return fn({
+				...(args as any),
+				apiKey,
+			});
 		}
 		return authLoaderWithPerm("ViewApiDocs", fn)(args);
 	}) as T;

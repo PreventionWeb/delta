@@ -19,6 +19,7 @@ import {
 	ApiBody,
 	ApiCookieAuth,
 	ApiCreatedResponse,
+	ApiForbiddenResponse,
 	ApiNotFoundResponse,
 	ApiOkResponse,
 	ApiQuery,
@@ -35,6 +36,7 @@ import {
 	SessionAuthGuard,
 	type AuthenticatedRequest,
 } from "~/domains/notices/presentation/guards/SessionAuthGuard.server";
+import { RequirePermission } from "~/domains/notices/presentation/guards/RequirePermission.server";
 import {
 	NoticeIdParam,
 	ApiNoticeIdParam,
@@ -56,8 +58,10 @@ const ZodBodyValidationPipe = createZodValidationPipe({
 
 @Controller("notices")
 @UseGuards(SessionAuthGuard)
+@RequirePermission("ManageCountrySettings")
 @ApiCookieAuth()
 @ApiUnauthorizedResponse({ description: "Authentication required." })
+@ApiForbiddenResponse({ description: "Admin access required." })
 export class NoticesController {
 	constructor(
 		@Inject(CreateNoticeUseCase)

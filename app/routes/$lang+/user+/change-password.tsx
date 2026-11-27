@@ -52,7 +52,7 @@ export const action = authAction(
 		const res = await changePassword(ctx, user.id, data);
 
 		if (!res.ok) {
-			return { ok: false, data, errors: res.errors };
+			return { ok: false, errors: res.errors };
 		}
 
 		return redirectWithMessage(actionArgs, "/hazardous-event", {

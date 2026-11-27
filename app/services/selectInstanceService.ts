@@ -7,7 +7,11 @@ import { BackendContext } from "~/backend.server/context";
 import { CountryAccountsRepository } from "~/db/queries/countryAccountsRepository";
 import { CountryRepository } from "~/db/queries/countriesRepository";
 import { InstanceSystemSettingRepository } from "~/db/queries/instanceSystemSettingRepository";
-import { UserCountryAccountRepository } from "~/db/queries/userCountryAccountsRepository";
+import {
+	getUserCountryAccountsByUserIdAndCountryAccountsId,
+	UserCountryAccountRepository,
+} from "~/db/queries/userCountryAccountsRepository";
+import { requireUser } from "~/utils/auth";
 import {
 	countryAccountStatuses,
 	SelectCountryAccounts,
@@ -115,6 +119,7 @@ export const SelectInstanceService = {
 
 	async action(args: ActionFunctionArgs) {
 		const { request } = args;
+		const userSession = await requireUser(args);
 		const formData = await request.formData();
 		const countryAccountsId = formData.get("countryAccountsId");
 		const ctx = new BackendContext(args);
@@ -126,6 +131,24 @@ export const SelectInstanceService = {
 				ok: false,
 				errors,
 			};
+		}
+
+		const membership =
+			await getUserCountryAccountsByUserIdAndCountryAccountsId(
+				userSession.user.id,
+				countryAccountsId,
+			);
+		if (!membership) {
+			throw new Response("Forbidden", { status: 403 });
+		}
+
+		const countryAccount =
+			await CountryAccountsRepository.getById(countryAccountsId);
+		if (
+			!countryAccount ||
+			countryAccount.status !== countryAccountStatuses.ACTIVE
+		) {
+			throw new Response("Forbidden", { status: 403 });
 		}
 
 		const url = new URL(request.url);

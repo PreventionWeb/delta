@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import {
 	SelectInstanceSystemSettings,
 	InsertInstanceSystemSettings,
@@ -41,13 +41,24 @@ export const InstanceSystemSettingRepository = {
 			>
 		>,
 		tx?: Tx,
+		countryAccountsId?: string,
 	): Promise<SelectInstanceSystemSettings | null> => {
+		const whereClause = countryAccountsId
+			? and(
+					eq(instanceSystemSettingsTable.id, id),
+					eq(
+						instanceSystemSettingsTable.countryAccountsId,
+						countryAccountsId,
+					),
+				)
+			: eq(instanceSystemSettingsTable.id, id);
+
 		return (tx ?? dr)
 			.update(instanceSystemSettingsTable)
 			.set({
 				...data,
 			})
-			.where(eq(instanceSystemSettingsTable.id, id))
+			.where(whereClause)
 			.returning()
 			.execute()
 			.then((result) => result[0] || null);

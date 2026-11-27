@@ -1,3 +1,4 @@
+import { assertTenantFileKey } from "~/backend.server/utils/attachmentPaths.server";
 import { DeclarationStatusRepository } from "~/db/queries/declarationStatusRepository";
 import { DisasterEventDeclarationAttachmentRepository } from "~/db/queries/disasterEventDeclarationAttachmentRepository";
 import {
@@ -299,6 +300,9 @@ export async function createDeclarationForTenant(args: {
 			}
 
 			if (attachments.length > 0) {
+				for (const attachment of attachments) {
+					assertTenantFileKey(attachment.fileKey, args.countryAccountsId);
+				}
 				await DisasterEventDeclarationAttachmentRepository.createMany(
 					attachments.map((attachment) => ({
 						disasterEventDeclarationId: declaration.id,
@@ -399,6 +403,9 @@ export async function updateDeclarationForTenant(args: {
 				tx,
 			);
 			if (attachments.length > 0) {
+				for (const attachment of attachments) {
+					assertTenantFileKey(attachment.fileKey, args.countryAccountsId);
+				}
 				await DisasterEventDeclarationAttachmentRepository.createMany(
 					attachments.map((attachment) => ({
 						disasterEventDeclarationId: args.id,

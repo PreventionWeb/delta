@@ -90,7 +90,7 @@ export const action = async (routeArgs: ActionFunctionArgs) => {
 	if (formData.csrfToken !== sessionCurrent.get("csrfToken")) {
 		return Response.json(
 			{
-				data,
+				data: { email: data.email },
 				errors: {
 					general: [
 						ctx.t({
@@ -114,7 +114,10 @@ export const action = async (routeArgs: ActionFunctionArgs) => {
 				}),
 			],
 		};
-		return Response.json({ data, errors }, { status: 400 });
+		return Response.json(
+			{ data: { email: data.email }, errors },
+			{ status: 400 },
+		);
 	}
 
 	// Check if user's country accounts is inactive, then show error message and redirect to login
@@ -128,7 +131,7 @@ export const action = async (routeArgs: ActionFunctionArgs) => {
 		) {
 			return Response.json(
 				{
-					data,
+					data: { email: data.email },
 					errors: { general: ["Your country account is inactive"] },
 				},
 				{ status: 400 },

@@ -51,7 +51,15 @@ export const loader = authLoaderWithPerm(
                     where: eq(userCountryAccountsTable.isPrimaryAdmin, true),
                     limit: 1,
                     with: {
-                        user: true,
+                        user: {
+                            columns: {
+                                id: true,
+                                email: true,
+                                firstName: true,
+                                lastName: true,
+                                emailVerified: true,
+                            },
+                        },
                     },
                 },
             },

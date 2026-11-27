@@ -15,16 +15,16 @@ export type ApiKeyViewModel = NonNullable<
 >;
 
 export async function apiAuth(request: Request): Promise<SelectApiKey> {
-	const authToken = request.headers.get("X-Auth");
+	const authToken = request.headers.get("X-Auth")?.trim();
 
 	if (!authToken) {
 		throw new Response("Unauthorized", { status: 401 });
 	}
-	const key = await ApiKeyRepository.getBySecret(authToken);
+	const keys = await ApiKeyRepository.getBySecret(authToken);
 
-	if (!key) {
+	if (!keys || keys.length === 0 || !keys[0]) {
 		throw new Response("Unauthorized", { status: 401 });
 	}
 
-	return key[0];
+	return keys[0];
 }

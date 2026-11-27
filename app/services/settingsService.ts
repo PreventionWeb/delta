@@ -21,6 +21,7 @@ export const SettingsService = {
 		// isApprovedRecordsPublic: boolean,
 		// totpIssuer: string,
 		language: string,
+		countryAccountsId: string,
 	) {
 		const errors: Record<string, string> = {};
 
@@ -28,29 +29,13 @@ export const SettingsService = {
 			errors.id = "Instance system settings Id is required";
 		}
 
+		if (!countryAccountsId) {
+			errors.countryAccountsId = "Country account Id is required";
+		}
+
 		if (!instanceName || instanceName.trim().length === 0) {
 			errors.instanceName = "Instance name is required";
 		}
-
-		// if (!totpIssuer || totpIssuer.trim().length === 0) {
-		// 	errors.totpIssuer = "Totp Issuer is required";
-		// }
-
-		// if (!privacyUrl || privacyUrl.trim().length === 0) {
-		// 	privacyUrl = null;
-		// }
-
-		// if (!termsUrl || termsUrl.trim().length === 0) {
-		// 	termsUrl = null;
-		// }
-
-		// if (
-		// 	isApprovedRecordsPublic === null ||
-		// 	isApprovedRecordsPublic === undefined
-		// ) {
-		// 	errors.approvedRecordsArePublic =
-		// 		"Approved records visibility is required";
-		// }
 
 		if (!language || !getAvailableLanguages().includes(language)) {
 			errors.language = "Language is required and must be supported";
@@ -68,16 +53,18 @@ export const SettingsService = {
 				await InstanceSystemSettingRepository.update(
 					idNonNull,
 					{
-						// footerUrlPrivacyPolicy: privacyUrl,
-						// footerUrlTermsConditions: termsUrl,
-						// websiteLogo: websiteLogoUrl,
 						websiteName: instanceName,
-						// approvedRecordsArePublic: isApprovedRecordsPublic,
-						// totpIssuer,
 						language,
 					},
 					tx,
+					countryAccountsId,
 				);
+
+			if (!instanceSystemSettings) {
+				throw new SettingsValidationError({
+					id: "Instance system settings not found for this country account",
+				});
+			}
 
 			return { instanceSystemSettings };
 		});

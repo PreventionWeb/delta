@@ -27,7 +27,18 @@ vi.mock("~/db.server", async (importOriginal) => {
 			SELECT COALESCE(data->>lang, data->>'en', '')
 		$$;
 	`);
-	testDb = drizzle(client, { schema });
+	const {
+		countryAccounts,
+		userCountryAccounts,
+		...restSchema
+	} = schema;
+	testDb = drizzle(client, {
+		schema: {
+			...restSchema,
+			countryAccountsTable: countryAccounts,
+			userCountryAccountsTable: userCountryAccounts,
+		},
+	});
 
 	// Push schema directly (no migrations needed). extensionsFilters excludes
 	// PostGIS's own catalog tables (spatial_ref_sys etc.) from the diff.

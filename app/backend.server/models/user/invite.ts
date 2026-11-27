@@ -1,7 +1,8 @@
 import { dr } from "~/db.server";
-import { eq } from "drizzle-orm";
+import { and, eq, gt } from "drizzle-orm";
 
 import { userTable, SelectUser } from "~/drizzle/schema";
+import { sessionTable } from "~/drizzle/schema/sessionTable";
 
 import { Errors, hasErrors } from "~/frontend/form";
 
@@ -159,14 +160,15 @@ type ValidateInviteCodeResult =
 export async function validateInviteCode(
 	code: string,
 ): Promise<ValidateInviteCodeResult> {
-	if (!code) {
+	const trimmedCode = code.trim();
+	if (!trimmedCode) {
 		return { ok: false, error: "Invite code is required" };
 	}
 
 	const res = await dr
 		.select()
 		.from(userTable)
-		.where(eq(userTable.inviteCode, code));
+		.where(eq(userTable.inviteCode, trimmedCode));
 
 	if (!res.length) {
 		return { ok: false, error: "Invalid invite code" };
@@ -175,7 +177,7 @@ export async function validateInviteCode(
 	const user = res[0];
 	const now = new Date();
 
-	if (user.inviteExpiresAt < now) {
+	if (!user.inviteCode || user.inviteExpiresAt <= now) {
 		return { ok: false, error: "Invite code has expired" };
 	}
 
@@ -184,6 +186,52 @@ export async function validateInviteCode(
 		userId: user.id,
 		email: user.email,
 	};
+}
+
+export async function redeemInviteAtomic(params: {
+	userId: string;
+	inviteCode: string;
+	firstName: string;
+	lastName: string;
+	hashedPassword: string;
+}): Promise<SelectUser | null> {
+	const trimmedCode = params.inviteCode.trim();
+	if (!trimmedCode) {
+		return null;
+	}
+
+	const now = new Date();
+
+	return await dr.transaction(async (tx) => {
+		const res = await tx
+			.update(userTable)
+			.set({
+				inviteCode: "",
+				inviteExpiresAt: new Date(0),
+				password: params.hashedPassword,
+				firstName: params.firstName,
+				lastName: params.lastName,
+				emailVerified: true,
+			})
+			.where(
+				and(
+					eq(userTable.id, params.userId),
+					eq(userTable.inviteCode, trimmedCode),
+					gt(userTable.inviteExpiresAt, now),
+				),
+			)
+			.returning();
+
+		if (res.length === 0) {
+			return null;
+		}
+
+		await tx
+			.delete(sessionTable)
+			.where(eq(sessionTable.userId, params.userId));
+
+		return res[0];
+	});
 }
 
 type AcceptInviteResult =
@@ -238,24 +286,20 @@ export async function acceptInvite(
 
 	let user: SelectUser;
 
-	const res = await dr
-		.update(userTable)
-		.set({
-			inviteCode: "",
-			password: passwordHash(fields.password),
-			firstName: fields.firstName,
-			lastName: fields.lastName,
-			emailVerified: true,
-		})
-		.where(eq(userTable.id, userId))
-		.returning();
+	const updatedUser = await redeemInviteAtomic({
+		userId,
+		inviteCode,
+		firstName: fields.firstName,
+		lastName: fields.lastName,
+		hashedPassword: passwordHash(fields.password),
+	});
 
-	if (res.length === 0) {
-		errors.form = ["Application Error. User not found"];
+	if (!updatedUser) {
+		errors.form = ["Invalid or expired invite code"];
 		return { ok: false, errors };
 	}
 
-	user = res[0];
+	user = updatedUser;
 
 	const accessAccountURL = ctx.fullUrl("/user/settings/");
 	const subject = ctx.t(
