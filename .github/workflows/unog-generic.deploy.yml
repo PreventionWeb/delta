@@ -2,6 +2,12 @@ name: Deploy Generic Container to UNOG (Dev 2)
 
 on:
   workflow_dispatch:
+    inputs:
+      branch:
+        description: "Target branch to build from (e.g. hotfix/auth-tenant-validation; leave empty to use the workflow branch)"
+        type: string
+        required: false
+        default: ""
 
 concurrency:
   group: unog-generic-deploy-branch-testing
@@ -20,13 +26,37 @@ jobs:
       DEPLOY_ENVIRONMENT: branch-testing
 
     steps:
-      - name: Checkout selected branch
+      - name: Resolve target branch
+        id: target_ref
+        env:
+          INPUT_BRANCH: ${{ inputs.branch }}
+          DEFAULT_REF: ${{ github.ref }}
+          DEFAULT_BRANCH: ${{ github.ref_name }}
+        run: |
+          trimmed_branch="$(printf '%s' "$INPUT_BRANCH" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+          if [ -n "$trimmed_branch" ]; then
+            if printf '%s' "$trimmed_branch" | grep -q '[[:space:]]'; then
+              echo "::error::Invalid branch name: contains whitespace."
+              exit 1
+            fi
+            echo "Building from input branch: ${trimmed_branch}"
+            echo "ref=${trimmed_branch}" >> "$GITHUB_OUTPUT"
+            echo "branch=${trimmed_branch}" >> "$GITHUB_OUTPUT"
+          else
+            echo "Building from workflow branch: ${DEFAULT_BRANCH}"
+            echo "ref=${DEFAULT_REF}" >> "$GITHUB_OUTPUT"
+            echo "branch=${DEFAULT_BRANCH}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout target branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.target_ref.outputs.ref }}
 
       - name: Resolve build metadata
         id: meta
         env:
-          TARGET_BRANCH: ${{ github.ref_name }}
+          TARGET_BRANCH: ${{ steps.target_ref.outputs.branch }}
         run: |
           if [ ! -f ./Dockerfile.dev ]; then
             echo "::error::Dockerfile.dev not found on branch '${TARGET_BRANCH}'."
@@ -34,9 +64,12 @@ jobs:
           fi
 
           owner_lc="$(printf '%s' "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          commit_sha="$(git rev-parse HEAD)"
+
           echo "Using image: ${REGISTRY}/${owner_lc}/${IMAGE_NAME}:${IMAGE_TAG}"
-          echo "Branch: ${TARGET_BRANCH} (${GITHUB_SHA})"
+          echo "Branch: ${TARGET_BRANCH} (${commit_sha})"
           echo "image_owner=${owner_lc}" >> "$GITHUB_OUTPUT"
+          echo "sha=${commit_sha}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -62,8 +95,8 @@ jobs:
             org.opencontainers.image.title=${{ env.IMAGE_NAME }}
             org.opencontainers.image.description=DELTA country instance container image for branch testing deployments.
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.ref.name=${{ github.ref_name }}
+            org.opencontainers.image.revision=${{ steps.meta.outputs.sha }}
+            org.opencontainers.image.ref.name=${{ steps.target_ref.outputs.branch }}
           cache-from: type=gha,scope=unog-branch-testing
           cache-to: type=gha,mode=max,scope=unog-branch-testing
 
@@ -81,8 +114,8 @@ jobs:
           DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
           DEPLOY_WEBHOOK_TOKEN: ${{ secrets.DEPLOY_WEBHOOK_TOKEN }}
           DEPLOY_REPO: ${{ github.repository }}
-          DEPLOY_BRANCH: ${{ github.ref_name }}
-          DEPLOY_SHA: ${{ github.sha }}
+          DEPLOY_BRANCH: ${{ steps.target_ref.outputs.branch }}
+          DEPLOY_SHA: ${{ steps.meta.outputs.sha }}
           DEPLOY_ACTOR: ${{ github.actor }}
         run: |
           if [ -z "$DEPLOY_WEBHOOK_URL" ]; then
