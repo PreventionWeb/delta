@@ -13,7 +13,11 @@ import {
 } from "~/domains/validation-workflow/application/errors/WorkflowInstanceErrors";
 import type { Status } from "~/domains/validation-workflow/domain/WorkflowInstance";
 import { causalConflictKind } from "../causalConflictKind";
-import type { HazardousEventCsvRowError } from "../dto/HazardousEventCsvImportResult";
+import type { HazardousEventAttachmentInput } from "../dto/HazardousEventAttachmentInput";
+import {
+	MAX_ECHOED_CSV_VALUE_LENGTH,
+	type HazardousEventCsvRowError,
+} from "../dto/HazardousEventCsvImportResult";
 import type { HazardousEventExportRow } from "../dto/HazardousEventExportRow";
 import {
 	canImportNonDraftStatus,
@@ -30,6 +34,11 @@ import {
 	type MappedColumn,
 } from "./hazardousEventCsvColumns";
 import type { MappedCsvRow } from "./mapCsvRowToCommand";
+import {
+	spatialFootprintEquals,
+	type CsvSpatialFootprint,
+} from "./spatialFootprintCsv";
+import { attachmentsEqual, toAttachmentInputs } from "./attachmentsCsv";
 
 // Everything decided about one mapped CSV row on update/upsert/create, in pipeline order:
 // change detection, rule checks, error-to-row-code mapping, then command building.
@@ -42,13 +51,20 @@ const HAZARD_COLUMNS: ReadonlySet<MappedColumn> = new Set([
 	"specificHazardId",
 ]);
 
-/** Empty and `draft` both mean DRAFT, so a draft row compares equal either way. */
+/** Empty and `draft` both mean DRAFT, so a draft row compares equal either way. A JSON cell
+ * compares by content, and an empty one is not supplied (D6, OD-2). */
 function cellEquals(column: string, value: string, exported: string): boolean {
 	if (column === "approvalStatus") {
 		return (
 			legacyApprovalStatusToStatus(value) ===
 			legacyApprovalStatusToStatus(exported)
 		);
+	}
+	if (column === "spatialFootprint") {
+		return value === "" || spatialFootprintEquals(value, exported);
+	}
+	if (column === "attachments") {
+		return value === "" || attachmentsEqual(value, exported);
 	}
 	return value === exported;
 }
@@ -121,8 +137,55 @@ function rowError(
 	line: number,
 	code: RowErrorCode,
 	column?: string,
+	value?: string,
 ): HazardousEventCsvRowError {
-	return { line, code, ...(column !== undefined ? { column } : {}) };
+	return {
+		line,
+		code,
+		...(column !== undefined ? { column } : {}),
+		...(value !== undefined
+			? { value: value.slice(0, MAX_ECHOED_CSV_VALUE_LENGTH) }
+			: {}),
+	};
+}
+
+const NO_FILES: ReadonlySet<string> = new Set();
+
+/** Attachment inputs for a row taking the create path: a new event holds no files (D5). */
+export function createPathAttachmentInputs(
+	row: Pick<MappedCsvRow, "line" | "attachments">,
+): ReturnType<typeof rowAttachmentInputs> {
+	return rowAttachmentInputs(row, NO_FILES);
+}
+
+/** Keys of the File attachments the event holds in CA today, never the legacy jsonb (D5). */
+export function heldFileKeys(
+	existing: HazardousEventExportRow,
+): ReadonlySet<string> {
+	return new Set(
+		existing.attachments
+			.filter((attachment) => attachment.type === "File")
+			.map((attachment) => attachment.fileKey)
+			.filter((fileKey): fileKey is string => fileKey !== null),
+	);
+}
+
+/** The row's attachment inputs, or its URL or File-reference error (D5, D12). `inputs` is
+ * `undefined` when the row supplies no attachments. */
+export function rowAttachmentInputs(
+	row: Pick<MappedCsvRow, "line" | "attachments">,
+	fileKeys: ReadonlySet<string>,
+):
+	| { ok: true; inputs: HazardousEventAttachmentInput[] | undefined }
+	| { ok: false; error: HazardousEventCsvRowError } {
+	if (row.attachments === undefined) return { ok: true, inputs: undefined };
+	const result = toAttachmentInputs(row.attachments, fileKeys);
+	return result.ok
+		? { ok: true, inputs: result.inputs }
+		: {
+				ok: false,
+				error: rowError(row.line, result.code, "attachments", result.value),
+			};
 }
 
 /** An empty required cell is missing; on the create path an absent column is too, while an
@@ -161,6 +224,7 @@ export interface UpdateRowPlan {
 	fieldsChanged: boolean;
 	statusChanged: boolean;
 	parentChanged: boolean;
+	footprintChanged: boolean;
 }
 
 export function planUpdateRow(changed: readonly string[]): UpdateRowPlan {
@@ -168,7 +232,17 @@ export function planUpdateRow(changed: readonly string[]): UpdateRowPlan {
 		fieldsChanged: changed.some((column) => column !== "approvalStatus"),
 		statusChanged: changed.includes("approvalStatus"),
 		parentChanged: changed.includes("parent"),
+		footprintChanged: changed.includes("spatialFootprint"),
 	};
+}
+
+/** OD-9: a current observation dated after the import stays current and would hide the import's. */
+function observationIsLater(
+	existing: HazardousEventExportRow,
+	importTime: Date,
+): boolean {
+	const time = existing.currentObservation?.observationTime;
+	return time !== undefined && time.getTime() > importTime.getTime();
 }
 
 /** D4 step 2 order after the unchanged skip (NOD-4). `workflowStatus` must come from a read
@@ -179,6 +253,7 @@ export function checkUpdateRow(args: {
 	plan: UpdateRowPlan;
 	role: string | null;
 	workflowStatus: Status | null;
+	importTime: Date;
 }): HazardousEventCsvRowError | null {
 	const { row, existing, plan, role, workflowStatus } = args;
 	const reject = (code: RowErrorCode, column?: string) =>
@@ -209,16 +284,35 @@ export function checkUpdateRow(args: {
 	) {
 		return reject("status_not_permitted", "approvalStatus");
 	}
+	if (plan.footprintChanged && observationIsLater(existing, args.importTime)) {
+		return reject("conflict", "spatialFootprint");
+	}
 	return null;
 }
 
-/** First rule error for an upsert row that takes the create path: deferred errors first, then
- * the create-path rules (D3, NOD-2, NOD-6). */
+/** A create-path row's first rule error (deferred errors, then attachment errors, then the
+ * create-path rules), or the attachment inputs to create it with (D3, D5). */
+export function planCreatePathRow(
+	row: MappedCsvRow,
+	role: string | null,
+):
+	| { ok: true; attachments: HazardousEventAttachmentInput[] }
+	| { ok: false; error: HazardousEventCsvRowError } {
+	const [deferred] = row.deferredErrors;
+	if (deferred !== undefined) return { ok: false, error: deferred };
+	const attachments = createPathAttachmentInputs(row);
+	if (!attachments.ok) return { ok: false, error: attachments.error };
+	const [createError] = createPathErrors(row, role);
+	if (createError !== undefined) return { ok: false, error: createError };
+	return { ok: true, attachments: attachments.inputs ?? [] };
+}
+
 export function checkCreatePathRow(
 	row: MappedCsvRow,
 	role: string | null,
 ): HazardousEventCsvRowError | null {
-	return [...row.deferredErrors, ...createPathErrors(row, role)][0] ?? null;
+	const plan = planCreatePathRow(row, role);
+	return plan.ok ? null : plan.error;
 }
 
 // --- DomainError to row code (D6, SF-1) ---
@@ -288,12 +382,32 @@ export interface CsvCommandContext {
 	tenantId: string;
 	actingUserId: string;
 	tx: Tx;
+	/** One instant per file, so every row's observation shares it (D3). */
+	importTime: Date;
+}
+
+function toSpatialObservation(
+	footprint: CsvSpatialFootprint,
+	context: CsvCommandContext,
+) {
+	return {
+		geometries: footprint.geometries,
+		divisionIds: footprint.divisionIds,
+		observationTime: context.importTime,
+	};
+}
+
+function isEmptyFootprint(footprint: CsvSpatialFootprint): boolean {
+	return (
+		footprint.geometries.length === 0 && footprint.divisionIds.length === 0
+	);
 }
 
 /** Create command for a create-path row; `createPathErrors` guarantees the hazard (D3). */
 export function toCreateCommand(
 	row: MappedCsvRow,
 	context: CsvCommandContext,
+	attachments: readonly HazardousEventAttachmentInput[] = [],
 ): CreateHazardousEventCommand {
 	const { fields } = row;
 	return {
@@ -313,10 +427,20 @@ export function toCreateCommand(
 		apiImportId: row.apiImportId ?? null,
 		actingUserId: context.actingUserId,
 		hazardDriverIds: [],
-		attachments: [],
+		attachments,
 		fieldValues: [],
 		customFieldValues: [],
 		...(row.causeId ? { causeId: row.causeId } : {}),
+		// `[]` on the create path records nothing (D3).
+		...(row.spatialFootprint !== undefined &&
+		!isEmptyFootprint(row.spatialFootprint)
+			? {
+					spatialObservation: toSpatialObservation(
+						row.spatialFootprint,
+						context,
+					),
+				}
+			: {}),
 		tx: context.tx,
 	};
 }
@@ -328,7 +452,13 @@ export function toUpdateCommand(
 	existingId: string,
 	changed: readonly string[],
 	context: CsvCommandContext,
+	options: {
+		attachments?: readonly HazardousEventAttachmentInput[];
+		/** The projection's `updatedAt`, so a change made since that read is rejected. */
+		expectedUpdatedAt?: Date | null;
+	} = {},
 ): UpdateHazardousEventCommand {
+	const { attachments, expectedUpdatedAt } = options;
 	return {
 		id: existingId,
 		tenantId: context.tenantId,
@@ -340,6 +470,21 @@ export function toUpdateCommand(
 		...(changed.includes("parent") && row.causeId !== undefined
 			? { causeId: row.causeId }
 			: {}),
+		// A changed `[]` records an empty observation, which clears the footprint (NOD-8).
+		...(changed.includes("spatialFootprint") &&
+		row.spatialFootprint !== undefined
+			? {
+					spatialObservation: toSpatialObservation(
+						row.spatialFootprint,
+						context,
+					),
+				}
+			: {}),
+		// A present cell replaces the whole set, so `[]` clears it (NOD-7).
+		...(changed.includes("attachments") && attachments !== undefined
+			? { attachments }
+			: {}),
+		...(expectedUpdatedAt !== undefined ? { expectedUpdatedAt } : {}),
 		tx: context.tx,
 	};
 }

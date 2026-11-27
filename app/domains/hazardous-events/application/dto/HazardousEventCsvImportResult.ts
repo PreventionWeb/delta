@@ -36,6 +36,11 @@ export type HazardousEventCsvRowErrorCode =
 	| "cause_after_effect"
 	| "parent_multiple_causes"
 	| "invalid_character"
+	| "invalid_spatial_footprint"
+	| "invalid_division"
+	| "invalid_attachments"
+	| "invalid_attachment_url"
+	| "file_reference_not_supported"
 	| "validation";
 
 export interface HazardousEventCsvRowError {
@@ -58,7 +63,6 @@ export type HazardousEventCsvImportResult =
 			updated: number;
 			unchanged: number;
 			ignoredColumns: string[];
-			skippedDataNotice?: { rows: number };
 	  }
 	| {
 			ok: false;
@@ -74,3 +78,6 @@ export type HazardousEventCsvImportResult =
 
 /** Bounds the action data and the rendered list for a file with many bad rows. */
 export const MAX_REPORTED_CSV_ERRORS = 200;
+
+/** An echoed cell value is cut to this length (6d-1 D6). */
+export const MAX_ECHOED_CSV_VALUE_LENGTH = 100;

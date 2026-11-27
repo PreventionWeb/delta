@@ -9,9 +9,9 @@ const SH_ID = "11111111-1111-4111-8111-111111111111";
 const CAUSE_ID = "55555555-5555-4555-8555-555555555555";
 const LEGACY_PARENT_ID = "77777777-7777-4777-8777-777777777777";
 
-// design.md E1 + parent, typed out from the spec.
+// design.md E1 + the appended columns, typed out from the spec.
 const EXPORT_COLUMNS =
-	"updatedAt,createdAt,approvalStatus,createdByUserId,updatedByUserId,submittedByUserId,submittedAt,validatedByUserId,validatedAt,publishedByUserId,publishedAt,apiImportId,hipHazardId,hipClusterId,hipTypeId,id,countryAccountsId,specificHazardId,status,nationalSpecification,startDate,endDate,description,chainsExplanation,magnitude,recordOriginator,hazardousEventStatus,dataSource,specificHazardLocalName,specificHazardNationalName,parent".split(
+	"updatedAt,createdAt,approvalStatus,createdByUserId,updatedByUserId,submittedByUserId,submittedAt,validatedByUserId,validatedAt,publishedByUserId,publishedAt,apiImportId,hipHazardId,hipClusterId,hipTypeId,id,countryAccountsId,specificHazardId,status,nationalSpecification,startDate,endDate,description,chainsExplanation,magnitude,recordOriginator,hazardousEventStatus,dataSource,specificHazardLocalName,specificHazardNationalName,parent,spatialFootprint,attachments".split(
 		",",
 	);
 
@@ -62,6 +62,11 @@ function exportRow(
 		legacyHipClusterId: "1743",
 		legacyHipTypeId: "1038",
 		legacyParentId: null,
+		currentObservation: null,
+		legacyGeometries: [],
+		legacyDivisionIds: [],
+		attachments: [],
+		legacyAttachments: null,
 		...overrides,
 	};
 }
@@ -280,6 +285,181 @@ describe("exportRowCells: null fields", () => {
 				expect(cells[column], column).toBe("");
 			}
 		}
+	});
+});
+
+describe("exportRowCells: spatialFootprint (D8, OD-6)", () => {
+	const D1 = "694d72d0-0000-4000-8000-000000000001";
+	const D2 = "694d72d0-0000-4000-8000-000000000002";
+	const POINT = { type: "Point", coordinates: [77.2, 28.6] };
+	const LINE = {
+		type: "LineString",
+		coordinates: [
+			[77, 28],
+			[78, 29],
+		],
+	};
+	const observed = (geometries: unknown[], divisionIds: string[]) => ({
+		observationTime: new Date("2026-01-01T00:00:00Z"),
+		geometries,
+		divisionIds,
+	});
+
+	it("Scenario: A CA footprint exports in the legacy format", () => {
+		const cell = exportRowCells(
+			exportRow({ currentObservation: observed([POINT], [D1]) }),
+		).spatialFootprint;
+		expect(JSON.parse(cell)).toStrictEqual([
+			{
+				map_option: "Map coordinates",
+				geojson: { type: "Feature", geometry: POINT, properties: {} },
+			},
+			{
+				map_option: "Geographic level",
+				division_id: D1,
+				geojson: {
+					type: "Feature",
+					geometry: null,
+					properties: { division_id: D1 },
+				},
+			},
+		]);
+	});
+
+	it("Scenario: A cleared footprint is not resurrected from legacy rows", () => {
+		expect(
+			exportRowCells(
+				exportRow({
+					currentObservation: observed([], []),
+					legacyGeometries: [POINT],
+					legacyDivisionIds: [D1],
+				}),
+			).spatialFootprint,
+		).toBe("[]");
+	});
+
+	it("falls back to the legacy rows only when there is no CA observation (OD-6)", () => {
+		const legacy = { legacyGeometries: [LINE], legacyDivisionIds: [D2] };
+		const fallback = JSON.parse(
+			exportRowCells(exportRow(legacy)).spatialFootprint,
+		) as { geojson: { geometry: unknown } }[];
+		expect(fallback.map((item) => item.geojson.geometry)).toStrictEqual([
+			LINE,
+			null,
+		]);
+		const ca = JSON.parse(
+			exportRowCells(
+				exportRow({ ...legacy, currentObservation: observed([POINT], []) }),
+			).spatialFootprint,
+		) as { geojson: { geometry: unknown } }[];
+		expect(ca.map((item) => item.geojson.geometry)).toStrictEqual([POINT]);
+	});
+
+	it("falls back on an unmigrated row too", () => {
+		expect(
+			JSON.parse(
+				exportRowCells(
+					exportRow({ specificHazardId: null, legacyGeometries: [POINT] }),
+				).spatialFootprint,
+			),
+		).toHaveLength(1);
+	});
+
+	it("writes [] when the event has no footprint at all", () => {
+		expect(exportRowCells(exportRow()).spatialFootprint).toBe("[]");
+	});
+
+	it("is deterministic whatever order the rows were read in", () => {
+		expect(
+			exportRowCells(
+				exportRow({ currentObservation: observed([LINE, POINT], [D2, D1]) }),
+			).spatialFootprint,
+		).toBe(
+			exportRowCells(
+				exportRow({ currentObservation: observed([POINT, LINE], [D1, D2]) }),
+			).spatialFootprint,
+		);
+	});
+});
+
+describe("exportRowCells: attachments (D8, OD-6)", () => {
+	const LINK = {
+		type: "Link" as const,
+		title: "Report",
+		url: "https://example.com/a",
+		tag: [{ id: "t", name: "Tag" }],
+		fileKey: null,
+		fileType: null,
+	};
+	const FILE = {
+		type: "File" as const,
+		title: "Scan",
+		url: null,
+		tag: null,
+		fileKey: "k.pdf",
+		fileType: "application/pdf",
+	};
+	const LEGACY = [
+		{
+			id: "x",
+			title: "Legacy",
+			file_option: "File",
+			file: {
+				name: "/uploads/tenant-t/hazardous-event/e/l.pdf",
+				tenantPath: "uploads/tenant-t",
+				content_type: "application/pdf",
+			},
+		},
+	];
+
+	it("Scenario: A CA link exports in the legacy format, a File with its tenant path and no tenantPath", () => {
+		const cell = exportRowCells(
+			exportRow({ attachments: [LINK, FILE], legacyAttachments: LEGACY }),
+		).attachments;
+		expect(JSON.parse(cell)).toStrictEqual([
+			{
+				title: "Scan",
+				tag: null,
+				file_option: "File",
+				file: {
+					name: `/uploads/tenant-${TENANT_ID}/hazardous-event/${EVENT_ID}/k.pdf`,
+					content_type: "application/pdf",
+				},
+			},
+			{
+				title: "Report",
+				tag: [{ id: "t", name: "Tag" }],
+				file_option: "Link",
+				url: "https://example.com/a",
+			},
+		]);
+		expect(cell).not.toContain("tenantPath");
+	});
+
+	it("Scenario: An unmigrated row exports its legacy jsonb, without tenantPath (OD-6)", () => {
+		const cell = exportRowCells(
+			exportRow({ specificHazardId: null, legacyAttachments: LEGACY }),
+		).attachments;
+		expect(JSON.parse(cell)).toStrictEqual([
+			{
+				title: "Legacy",
+				file_option: "File",
+				file: {
+					name: "/uploads/tenant-t/hazardous-event/e/l.pdf",
+					content_type: "application/pdf",
+				},
+			},
+		]);
+	});
+
+	it("does not fall back to the legacy jsonb on a migrated row", () => {
+		expect(
+			exportRowCells(exportRow({ legacyAttachments: LEGACY })).attachments,
+		).toBe("[]");
+	});
+
+	it("writes [] for no attachments", () => {
+		expect(exportRowCells(exportRow()).attachments).toBe("[]");
 	});
 });
 

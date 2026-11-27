@@ -81,6 +81,8 @@ const MAPPED: MappedColumn[] = [
 	"specificHazardId",
 	"specificHazardLocalName",
 	"specificHazardNationalName",
+	"spatialFootprint",
+	"attachments",
 ];
 
 const MODES: CsvImportMode[] = ["create", "update", "upsert"];
@@ -113,13 +115,13 @@ describe("export headers", () => {
 		expect([...LEGACY_EXPORT_HEADER]).toEqual(E1);
 	});
 
-	it("EXPORT_HEADER is E1 followed by parent only", () => {
-		expect([...EXPORT_HEADER]).toEqual([...E1, "parent"]);
-	});
-
-	it("EXPORT_HEADER emits neither spatialFootprint nor attachments in 6d-1", () => {
-		expect(EXPORT_HEADER).not.toContain("spatialFootprint");
-		expect(EXPORT_HEADER).not.toContain("attachments");
+	it("EXPORT_HEADER is E1 followed by parent, spatialFootprint and attachments (NOD-10)", () => {
+		expect([...EXPORT_HEADER]).toEqual([
+			...E1,
+			"parent",
+			"spatialFootprint",
+			"attachments",
+		]);
 	});
 });
 
@@ -153,14 +155,9 @@ describe("checkHeader: accepted columns", () => {
 
 describe("checkHeader: ignored columns", () => {
 	it.each(MODES)(
-		"reports read-only, tenant and not-yet-imported columns as ignored in %s mode",
+		"reports read-only and tenant columns as ignored in %s mode",
 		(mode) => {
-			const ignored = [
-				...READ_ONLY,
-				"countryAccountsId",
-				"spatialFootprint",
-				"attachments",
-			];
+			const ignored = [...READ_ONLY, "countryAccountsId"];
 			const result = checkHeader([...baseHeader(mode), ...ignored], mode);
 			expect(result.ok).toBe(true);
 			if (!result.ok) return;
@@ -171,7 +168,7 @@ describe("checkHeader: ignored columns", () => {
 		},
 	);
 
-	it("reports the cell indexes of spatialFootprint and attachments for the notice", () => {
+	it("maps spatialFootprint and attachments, so neither is reported as ignored (D1)", () => {
 		const result = checkHeader(
 			[
 				"spatialFootprint",
@@ -184,18 +181,10 @@ describe("checkHeader: ignored columns", () => {
 		);
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
-		expect([...result.notYetImportedIndexes].sort()).toEqual([0, 3]);
-	});
-
-	it("does not count other ignored columns, such as createdAt, for the notice", () => {
-		const result = checkHeader(
-			["createdAt", "startDate", "endDate", "recordOriginator"],
-			"create",
-		);
-		expect(result.ok).toBe(true);
-		if (!result.ok) return;
-		expect(result.ignoredColumns).toContain("createdAt");
-		expect(result.notYetImportedIndexes).toEqual([]);
+		expect(result.columns.get("spatialFootprint")).toBe(0);
+		expect(result.columns.get("attachments")).toBe(3);
+		expect(result.ignoredColumns).toEqual([]);
+		expect("notYetImportedIndexes" in result).toBe(false);
 	});
 
 	it("ignores id in upsert mode", () => {
@@ -318,13 +307,13 @@ describe("checkHeader: duplicate_column", () => {
 
 	it("rejects a duplicated ignored column too", () => {
 		const result = checkHeader(
-			[...baseHeader("create"), "attachments", "attachments"],
+			[...baseHeader("create"), "createdAt", "createdAt"],
 			"create",
 		);
 		expect(codesOf(result)).toContainEqual(
 			expect.objectContaining({
 				code: "duplicate_column",
-				column: "attachments",
+				column: "createdAt",
 			}),
 		);
 	});
@@ -336,11 +325,11 @@ describe("checkHeader: legacy files", () => {
 		expect(result.ok).toBe(true);
 	});
 
-	it("reports countryAccountsId, spatialFootprint and attachments of X1 as ignored", () => {
+	it("reports only countryAccountsId of X1 as ignored, and maps spatialFootprint and attachments", () => {
 		const result = checkHeader(X1, "create");
-		expect([...result.ignoredColumns].sort()).toEqual(
-			["attachments", "countryAccountsId", "spatialFootprint"].sort(),
-		);
+		expect(result.ignoredColumns).toEqual(["countryAccountsId"]);
+		expect(result.ok && result.columns.has("spatialFootprint")).toBe(true);
+		expect(result.ok && result.columns.has("attachments")).toBe(true);
 	});
 
 	it.each(["update", "upsert"] as const)(
@@ -352,9 +341,16 @@ describe("checkHeader: legacy files", () => {
 	);
 
 	it.each(["update", "upsert"] as const)(
-		"accepts the 6d export header (E1 + parent) in %s mode",
+		"accepts the 6d-1 export header (E1 + parent) in %s mode",
 		(mode) => {
 			expect(checkHeader([...E1, "parent"], mode).ok).toBe(true);
+		},
+	);
+
+	it.each(["update", "upsert"] as const)(
+		"accepts the 6d-2 export header in %s mode",
+		(mode) => {
+			expect(checkHeader([...EXPORT_HEADER], mode).ok).toBe(true);
 		},
 	);
 

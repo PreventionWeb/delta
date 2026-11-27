@@ -1,5 +1,5 @@
 import { Injectable, Inject } from "@nestjs/common";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { Dr, Tx } from "~/db.server";
 import { DRIZZLE_CLIENT } from "~/infrastructure/DrizzleProvider.server";
 import { divisionTable } from "~/drizzle/schema/divisionTable";
@@ -25,7 +25,8 @@ export class DrizzleDivisionRepository implements IDivisionRepository {
 			.where(
 				and(
 					eq(divisionTable.countryAccountsId, tenantId),
-					inArray(divisionTable.id, [...ids]),
+					// One array parameter, so no id count hits the 65,535 bind-parameter limit.
+					sql`${divisionTable.id} = ANY(${sql.param([...ids])}::uuid[])`,
 				),
 			);
 		return new Set(rows.map((row) => row.id));

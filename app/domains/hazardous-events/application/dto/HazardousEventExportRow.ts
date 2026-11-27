@@ -1,5 +1,15 @@
 import type { Status } from "~/domains/validation-workflow/domain/WorkflowInstance";
 
+/** One CA attachment row as the export projection carries it (D9). */
+export interface HazardousEventExportAttachment {
+	type: "File" | "Link";
+	title: string;
+	url: string | null;
+	tag: ReadonlyArray<{ id: string; name: string }> | null;
+	fileKey: string | null;
+	fileType: string | null;
+}
+
 /** Plain projection read by `findExportRows` (D9); never a rehydrated entity, so unmigrated rows
  * still export. Each `legacy*` field is the fallback used when the CA value is missing (NOD-9). */
 export interface HazardousEventExportRow {
@@ -51,4 +61,17 @@ export interface HazardousEventExportRow {
 	legacyHipClusterId: string | null;
 	legacyHipTypeId: string | null;
 	legacyParentId: string | null;
+
+	/** Latest CA observation by time, or `null` when the event has none (D9). The time feeds OD-9. */
+	currentObservation: {
+		observationTime: Date;
+		geometries: unknown[];
+		divisionIds: string[];
+	} | null;
+	/** Legacy `hazardous_event_geom` rows as GeoJSON, and `hazardous_event_division` ids (OD-6). */
+	legacyGeometries: unknown[];
+	legacyDivisionIds: string[];
+	/** CA attachment rows; on an unmigrated row `legacyAttachments` (raw jsonb) is exported instead. */
+	attachments: HazardousEventExportAttachment[];
+	legacyAttachments: unknown;
 }
